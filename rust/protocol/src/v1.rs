@@ -13,6 +13,8 @@ pub const MAX_STYLE_FIELDS: usize = 128;
 pub const MAX_NODES: usize = 100_000;
 pub const MAX_DEPTH: usize = 128;
 pub const MAX_WINDOWS: usize = 32;
+pub const MAX_RETAINED_BYTES: usize = 64 * 1024 * 1024;
+pub const MAX_SESSION_BYTES: usize = 256 * 1024 * 1024;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Kind {

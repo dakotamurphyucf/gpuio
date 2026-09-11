@@ -15,6 +15,14 @@ pub struct Node {
     pub parent: Option<NodeId>,
 }
 
+impl Node {
+    fn payload_bytes(&self) -> usize {
+        self.text.len()
+            + std::mem::size_of_val(self.style.as_ref())
+            + std::mem::size_of_val(self.children.as_ref())
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 struct Slot {
     generation: u32,
@@ -28,6 +36,7 @@ pub struct Tree {
     root: Option<NodeId>,
     slots: Vec<Slot>,
     node_count: usize,
+    retained_bytes: usize,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -46,11 +55,15 @@ impl Tree {
             root: None,
             slots: Vec::new(),
             node_count: 0,
+            retained_bytes: 0,
         }
     }
 
     pub fn revision(&self) -> i64 {
         self.revision
+    }
+    pub fn retained_bytes(&self) -> usize {
+        self.retained_bytes
     }
     pub fn root(&self) -> Option<NodeId> {
         self.root
@@ -79,6 +92,16 @@ impl Tree {
     /// style-only edits do not traverse unrelated nodes. Structural validation
     /// walks the final tree iteratively, bounded by MAX_NODES and MAX_DEPTH.
     pub fn apply(&mut self, tx: &Transaction) -> Result<Applied, ErrorCode> {
+        self.apply_with_budget(tx, MAX_RETAINED_BYTES)
+    }
+
+    /// Payload budget excludes fixed-size slots, independently bounded by MAX_NODES.
+    /// A session may lower the budget to enforce its aggregate memory ceiling.
+    pub fn apply_with_budget(
+        &mut self,
+        tx: &Transaction,
+        budget: usize,
+    ) -> Result<Applied, ErrorCode> {
         if tx.window != self.window {
             return Err(ErrorCode::StaleHandle);
         }
@@ -94,6 +117,8 @@ impl Tree {
             root: self.root,
             slot_count: self.slots.len(),
             node_count: self.node_count,
+            retained_bytes: self.retained_bytes,
+            budget: budget.min(MAX_RETAINED_BYTES),
             structural: false,
         };
         for op in &tx.operations {
@@ -123,6 +148,7 @@ impl Tree {
             root,
             slot_count,
             node_count,
+            retained_bytes,
             ..
         } = plan;
         // All validation has succeeded. Reserve before mutating semantic state.
@@ -135,6 +161,7 @@ impl Tree {
         }
         self.root = root;
         self.node_count = node_count;
+        self.retained_bytes = retained_bytes;
         self.revision = tx.revision;
         Ok(Applied {
             revision: tx.revision,
@@ -151,6 +178,8 @@ struct Plan<'a> {
     root: Option<NodeId>,
     slot_count: usize,
     node_count: usize,
+    retained_bytes: usize,
+    budget: usize,
     structural: bool,
 }
 
@@ -181,6 +210,33 @@ impl Plan<'_> {
     }
 
     fn operation(&mut self, op: &Op) -> Result<(), ErrorCode> {
+        let target = match op {
+            Op::Create(id, ..)
+            | Op::Remove(id)
+            | Op::SetText(id, ..)
+            | Op::SetStyle(id, ..)
+            | Op::Bind(id, ..)
+            | Op::Splice(id, ..) => Some(*id),
+            Op::SetRoot(_) => None,
+        };
+        let bytes = |plan: &Self| {
+            target
+                .and_then(|id| plan.slot(id.slot()))
+                .and_then(|slot| slot.node.as_ref())
+                .map_or(0, Node::payload_bytes)
+        };
+        let before = bytes(self);
+        self.operation_inner(op)?;
+        self.retained_bytes = self
+            .retained_bytes
+            .checked_sub(before)
+            .and_then(|remaining| remaining.checked_add(bytes(self)))
+            .filter(|total| *total <= self.budget)
+            .ok_or(ErrorCode::LimitExceeded)?;
+        Ok(())
+    }
+
+    fn operation_inner(&mut self, op: &Op) -> Result<(), ErrorCode> {
         match op {
             Op::Create(id, kind, text, handler) => {
                 validate_text(text)?;
@@ -338,6 +394,17 @@ pub fn validate_style(style: &[Style]) -> Result<(), ErrorCode> {
         return Err(ErrorCode::LimitExceeded);
     }
     for field in style {
+        if matches!(
+            field,
+            Style::Background(Color::Token(_))
+                | Style::Foreground(Color::Token(_))
+                | Style::HoverBackground(Color::Token(_))
+                | Style::PressedBackground(Color::Token(_))
+                | Style::FocusBackground(Color::Token(_))
+        ) {
+            // The public theme adapter resolves tokens before submitting colors.
+            return Err(ErrorCode::UnsupportedCapability);
+        }
         let valid = match field {
             Style::Width(v)
             | Style::Height(v)

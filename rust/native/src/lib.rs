@@ -1,3 +1,6 @@
-//! Native ownership and transaction validation. GPUI adaptation lives above the
-//! pure retained-state modules so invariants can be tested without a display.
+mod ffi;
+mod host;
+pub mod mailbox;
+pub mod session;
+mod transport;
 pub mod tree;

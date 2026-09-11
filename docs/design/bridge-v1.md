@@ -1,6 +1,6 @@
 # Production bridge V1 implementation contract
 
-Work in progress for OCH-7. This is separate from the private foundation smoke
+Implementation contract for OCH-7. Hosted acceptance is recorded in Linear. This is separate from the private foundation smoke
 protocol. No released protocol compatibility is promised before the first API
 release. The initial style tags will expand with OCH-8; additions require paired
 OCaml/Rust definitions and independent fixture review.
@@ -50,22 +50,76 @@ Decode rejects invalid tags, malformed UTF-8, trailing bytes and non-finite
 numbers. Container allocation is bounded by both the declared limit and the
 remaining input. Domain validation additionally checks sizes, colors, IDs,
 revisions and structural invariants. Public callers must not bypass validation
-with generated deserializers. Queue and cumulative retained-byte budgets are
-still being implemented; these field/count limits alone are not a complete
-runtime memory budget.
+with generated deserializers. Retained variable-size payloads are limited to
+64 MiB per window and 256 MiB per session. Text, styles and child arrays count
+against this budget; fixed slot metadata is separately bounded by slot/window
+counts. The staging overlay shares untouched payloads, and each operation checks
+its prospective payload budget before the batch can publish. Peak memory also
+includes the old changed payloads, bounded decoded commands and staging metadata.
 
-## Current evidence and remaining work
+The mailbox holds at most 64 commands / 4 MiB encoded command backlog, with 128
+response reservations and 128 ordered input/observation events. Decoder count
+limits separately bound the in-memory expansion of encoded commands. Admission
+reserves a response before accepting a command; Busy means the caller retains
+its desired state and retries after draining output. A window's transaction slot
+is released when its Accepted/Rejected response is drained. RequestFrame retains
+its reservation until a real paint callback or an explicit close failure.
 
-The initial Rust decoder and retained tree compile and pass tests of truncations,
-allocation bombs, rollback, cycles, duplicate parenting, stale generations and
-revisions. A 10,001-node tree with 10 MiB of text updates one label by touching
-one slot and scanning zero unrelated nodes. A deterministic value-model check
-covers accepted and rejected text edits. This is not yet a full protocol fuzz or
-randomized structural reference-model suite.
+Only consecutive render observations for the same window coalesce; responses
+and input events form ordering barriers. Input overflow disables that window's
+input/transactions and emits a reserved Overloaded event; close/reopen recovers it.
+There is room for 32 overload and 32 native-close notifications, plus terminal
+Stopped. Reusing a window slot waits for its old output to drain. Native close
+requests and emergency abort do not depend on normal command capacity. Stopped
+cancels any outstanding requests, including commands still queued when the OS
+closes the last window. Shutdown and closed runtimes reject further submission.
+An event envelope contains at most 256 events and preserves wire order.
 
-Still required for OCH-7: OCaml wire definitions and independent fixtures,
-handshake/session implementation, bounded queues, cumulative memory budgets,
-FFI ownership/panic boundaries, native GPUI adaptation, correlated responses and
-render acknowledgements. Public view/reconciliation and Bonsai/Eio scheduling
-belong to OCH-8/OCH-9. macOS native validation is the current development gate;
-Linux builds/tests remain required and graphical checks are informational.
+The initial style subset is native-owned; OCaml will resolve public theme tokens
+in OCH-8. Unresolved wire Color.Token values currently fail UnsupportedCapability
+instead of substituting a color. Full style parity belongs to OCH-8.
+
+## FFI and native host
+
+`gpuio.native` is a native-code-only OCaml library, linked from a Dune-built Rust
+archive. Its opaque handle identifies an explicit transport instance; a bounded
+registry holds at most eight handles and GPUI permits one active application.
+`run` owns the OS main thread, releasing the OCaml runtime lock while GPUI runs.
+`submit` and `drain` run on the OCaml UI domain. Each window has an independent
+retained tree and generation, and GPUI owns native element state.
+
+Commands use a bounded asynchronous wake channel. Native callbacks enqueue owned
+events and notify a duplicated nonblocking Eio pipe. No callback synchronously
+enters OCaml. Encoding/decoding/tree work occurs outside the mailbox mutex.
+The caller keeps the pipe reader alive through native exit and worker join, then
+disposes the handle. Emergency abort wakes GPUI even when the command queue is
+full. Registry admission/disposal cannot race application startup. Exported Rust
+panics become OCaml exceptions; application logic must preserve its backtrace,
+abort the native host on worker failure, join workers and dispose resources.
+
+## Validation
+
+Independent OCaml/Rust fixtures cover requests and ordered event envelopes,
+including Unicode, integer width boundaries, optional handles and styles.
+Truncation, unknown tags, invalid identities, allocation bombs and trailing bytes
+are rejected. Tests cover structural/text rollback, cycles, duplicate parents,
+invalid styles, stale generations, close/reopen, response reservation, queue
+pressure, coalescing barriers, overload, terminal stop and retained cleanup.
+A deterministic randomized structural reference model checks both accepted and
+rejected batches, alongside a separate repeated-text-update model.
+
+`rust/native/tests/allocation.rs` measures a single edit in an isolated test
+process. One local macOS run on 10,001 nodes / 10,400,000 retained payload bytes
+allocated 2,776 bytes in four allocations and took 5 microseconds. It touched one
+record and scanned zero unrelated nodes. Timing is an observation, not an SLA;
+the test enforces bounded allocation and touched-record behavior.
+
+`examples/bridge/main.exe` exercises the actual production FFI/GPUI path: protocol
+negotiation, two windows, 50 accepted/rendered revisions, rollback of an invalid
+batch, continued use after closing one window, and panic containment without
+poisoning the registry. It emits `PRODUCTION_BRIDGE_PASS` after clean shutdown.
+
+Public views/reconciliation and Bonsai/Eio scheduling belong to OCH-8/OCH-9.
+macOS native validation is the development gate; Linux builds/tests remain
+required and graphical checks are informational. Hosted results and any remaining
+acceptance gaps belong in the live ticket, not inferred from compilation.

@@ -1,0 +1,14 @@
+{
+  "source_commit": "97c8ea6b68b1cd9f3c439fba755069a4fb24eb18",
+  "merge_commit": "81f6b581c784d448a8948d4cb55e73af9db4b86c",
+  "pull_request": "https://github.com/dakotamurphyucf/gpuio/pull/1",
+  "run": "https://github.com/dakotamurphyucf/gpuio/actions/runs/34646959232",
+  "macos_arm64": "build, tests, formatting, lint, native self-test and two-window passed",
+  "ubuntu_24_04_x86_64": "build, tests, formatting and lint passed",
+  "linux_gui_informational": {
+    "x11": "passed: asserted X11 backend, Xvfb/Openbox, Mesa software Vulkan",
+    "wayland": "passed: asserted Wayland backend, nested Weston, Mesa software Vulkan",
+    "scenarios": ["50-commit native self-test with lifecycle/input-handler/Eio checks", "two-window isolation and closure"]
+  },
+  "limitations": ["Not physical GPU testing", "IME probes invoke native handlers; not real OS IME automation", "Full accessibility and desktop integration validation deferred to OCH-17"]
+}

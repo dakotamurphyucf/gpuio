@@ -96,6 +96,9 @@ jobs:
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "smoke", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-native.log
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "smoke", "--two-windows"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-two-windows.log
+      - name: macOS production bridge smoke
+        if: runner.os == 'macOS'
+        run: python3 -c 'import subprocess; subprocess.run(["_build/default/examples/bridge/main.exe"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-bridge.log
       - name: Linux X11 native smoke
         id: x11-smoke
         continue-on-error: true

@@ -2364,7 +2364,14 @@ dependencies = [
 name = "gpuio-native"
 version = "0.0.0"
 dependencies = [
+ "async-channel",
+ "binprot",
+ "cocoa 0.26.0",
+ "gpui",
+ "gpui_platform",
  "gpuio-protocol",
+ "libc",
+ "ocaml-interop",
 ]
 
 [[package]]

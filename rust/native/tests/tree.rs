@@ -180,3 +180,90 @@ fn deterministic_edits_match_a_simple_value_model() {
         assert_eq!(tree.get(id(1, 1)).unwrap().text.as_ref(), expected);
     }
 }
+
+#[test]
+fn payload_budget_is_atomic_and_releases_replaced_and_removed_data() {
+    let mut tree = initial();
+    let before = tree.retained_bytes();
+    let batch = tx(&tree, vec![Op::SetText(id(1, 1), "larger".into())]);
+    assert_eq!(
+        tree.apply_with_budget(&batch, before),
+        Err(ErrorCode::LimitExceeded)
+    );
+    assert_eq!(tree.revision(), 1);
+    assert_eq!(tree.retained_bytes(), before);
+    assert_eq!(tree.get(id(1, 1)).unwrap().text.as_ref(), "old");
+    tree.apply_with_budget(&tx(&tree, vec![Op::SetText(id(1, 1), "x".into())]), before)
+        .unwrap();
+    assert_eq!(tree.retained_bytes(), before - 2);
+    tree.apply(&tx(
+        &tree,
+        vec![Op::Splice(id(0, 1), 0, 1, vec![]), Op::Remove(id(1, 1))],
+    ))
+    .unwrap();
+    assert_eq!(tree.retained_bytes(), 0);
+    assert_eq!(tree.len(), 1);
+}
+
+#[test]
+fn randomized_structural_batches_match_ordered_reference_and_roll_back() {
+    let mut tree = initial();
+    let mut children = vec![id(1, 1)];
+    let mut generations = vec![1_i64, 1];
+    let mut values = std::collections::BTreeMap::from([(id(1, 1), String::from("old"))]);
+    let mut free = Vec::new();
+    let mut seed = 927_u64;
+    for iteration in 0..500 {
+        seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+        let mut next_children = children.clone();
+        let mut next_values = values.clone();
+        let mut next_free = free.clone();
+        let mut next_generations = generations.clone();
+        let mut ops = Vec::new();
+        if seed & 1 == 0 || children.is_empty() {
+            let slot = next_free.pop().unwrap_or_else(|| {
+                next_generations.push(0);
+                next_generations.len() - 1
+            });
+            next_generations[slot] += 1;
+            let node = id(slot as i64, next_generations[slot]);
+            let offset = seed as usize % (children.len() + 1);
+            let text = iteration.to_string();
+            ops.push(Op::Create(node, Kind::Text, text.clone(), None));
+            ops.push(Op::Splice(id(0, 1), offset as i64, 0, vec![node]));
+            next_children.insert(offset, node);
+            next_values.insert(node, text);
+        } else {
+            let offset = seed as usize % children.len();
+            let node = next_children.remove(offset);
+            next_values.remove(&node);
+            next_free.push(node.slot());
+            ops.push(Op::Splice(id(0, 1), offset as i64, 1, vec![]));
+            ops.push(Op::Remove(node));
+        }
+        let valid = seed & 8 != 0;
+        if !valid {
+            ops.push(Op::Splice(id(0, 1), 0, 0, vec![id(0, 1)]));
+        }
+        let revision = tree.revision();
+        let bytes = tree.retained_bytes();
+        let result = tree.apply(&tx(&tree, ops));
+        if valid {
+            result.unwrap();
+            children = next_children;
+            values = next_values;
+            free = next_free;
+            generations = next_generations;
+        } else {
+            assert_eq!(result, Err(ErrorCode::InvalidTree));
+            assert_eq!(tree.revision(), revision);
+            assert_eq!(tree.retained_bytes(), bytes);
+        }
+        assert_eq!(tree.get(id(0, 1)).unwrap().children.as_ref(), children);
+        assert_eq!(tree.len(), values.len() + 1);
+        for (node, text) in &values {
+            assert_eq!(tree.get(*node).unwrap().text.as_ref(), text);
+            assert_eq!(tree.get(*node).unwrap().parent, Some(id(0, 1)));
+        }
+    }
+}

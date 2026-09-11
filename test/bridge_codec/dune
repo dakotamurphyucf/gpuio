@@ -1,0 +1,12 @@
+(library
+ (name gpuio_bridge_codec_tests)
+ (libraries core gpuio.protocol eio_main expect_test_helpers_core)
+ (inline_tests
+  (deps
+   (sandbox preserve_file_kind)
+   bridge-v1-request.hex
+   bridge-v1-events.hex))
+ (preprocess
+  (pps ppx_jane)))
+
+(copy_files ../fixtures/bridge-v1-*.hex)
