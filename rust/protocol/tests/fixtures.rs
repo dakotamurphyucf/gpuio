@@ -21,3 +21,18 @@ fn independent_ocaml_rust_request_and_event_fixtures() {
     common::events().binprot_write(&mut actual).unwrap();
     assert_eq!(actual, events);
 }
+
+#[path = "common/style_fixture.rs"]
+mod style_fixture;
+#[test]
+fn every_extended_style_field_matches_the_independent_ocaml_fixture() {
+    let expected = bytes(include_str!("../../../test/fixtures/style-v1.hex"));
+    let message = style_fixture::request();
+    let mut actual = Vec::new();
+    message.binprot_write(&mut actual).unwrap();
+    assert_eq!(actual, expected);
+    assert_eq!(gpuio_protocol::decode(&expected).unwrap(), message);
+    for end in 0..expected.len() {
+        assert!(gpuio_protocol::decode(&expected[..end]).is_err());
+    }
+}

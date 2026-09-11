@@ -1,0 +1,27 @@
+open Core
+
+(** The pure view API specialized to Bonsai effects. No driver, I/O runtime or
+    scheduling policy is introduced here; window lifecycle scheduling is OCH-9. *)
+module View : sig
+  type t = unit Bonsai.Effect.t Gpuio.View.t
+
+  val text : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> string -> t
+
+  val button
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?accessible_name:string
+    -> on_click:unit Bonsai.Effect.t
+    -> string
+    -> t
+
+  val row : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> t list -> t
+  val column : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> t list -> t
+
+  val grid
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> columns:int
+    -> t list
+    -> t Or_error.t
+end

@@ -15,10 +15,51 @@ use std::{
 };
 
 type SharedSession = Rc<RefCell<Session>>;
+struct ButtonState {
+    focus: gpui::FocusHandle,
+    space_down: Cell<bool>,
+}
+#[derive(Clone, Copy)]
+struct Interaction {
+    pointer: bool,
+    selectable: bool,
+    selection_color: gpui::Hsla,
+}
+impl Default for Interaction {
+    fn default() -> Self {
+        Self {
+            pointer: true,
+            selectable: false,
+            selection_color: rgba(0x386ac880).into(),
+        }
+    }
+}
+
 struct View {
     id: WindowId,
     session: SharedSession,
     transport: Arc<Transport>,
+    buttons: BTreeMap<NodeId, Rc<ButtonState>>,
+    selections: BTreeMap<NodeId, Rc<RefCell<crate::selection::State>>>,
+    visited: std::collections::BTreeSet<NodeId>,
+    #[cfg(feature = "native-tests")]
+    probes: Rc<RefCell<BTreeMap<NodeId, native_test::Probe>>>,
+}
+fn emit_press(
+    session: &SharedSession,
+    transport: &Transport,
+    window: WindowId,
+    node: NodeId,
+    handler: gpuio_protocol::HandlerId,
+    revision: i64,
+) {
+    let event = session.borrow().press(window, node, handler, revision);
+    if let Some(event) = event
+        && !transport.input(event)
+        && session.borrow_mut().overload(window)
+    {
+        transport.fault(window);
+    }
 }
 fn color(value: &Color) -> gpui::Hsla {
     // Named token resolution will be supplied by the typed theme adapter (OCH-8).
@@ -35,18 +76,83 @@ fn length(value: &v1::Length) -> gpui::Length {
     }
 }
 impl View {
-    fn element(&self, tree: &crate::tree::Tree, id: NodeId) -> gpui::AnyElement {
+    fn new(id: WindowId, session: SharedSession, transport: Arc<Transport>) -> Self {
+        Self {
+            id,
+            session,
+            transport,
+            buttons: BTreeMap::new(),
+            selections: BTreeMap::new(),
+            visited: Default::default(),
+            #[cfg(feature = "native-tests")]
+            probes: Default::default(),
+        }
+    }
+    fn element(
+        &mut self,
+        tree: &crate::tree::Tree,
+        id: NodeId,
+        mut interaction: Interaction,
+        cx: &mut Context<Self>,
+    ) -> gpui::AnyElement {
         let node = tree.get(id).expect("validated retained node");
         let identity = ((id.generation() as u64) << 32) | id.slot() as u64;
+        let mut accessible_name = gpui::SharedString::from(node.text.clone());
+        for style in node.style.iter() {
+            if let Style::Fields(fields) = style {
+                for field in fields {
+                    match field {
+                        Field::PointerEvents(v) => interaction.pointer = *v,
+                        Field::UserSelect(v) => interaction.selectable = *v,
+                        Field::SelectionColor(v) => interaction.selection_color = color(v),
+                        Field::AccessibleName(v) => accessible_name = v.clone().into(),
+                        _ => (),
+                    }
+                }
+            }
+        }
         let mut element = div().id(("gpuio-node", identity));
         if node.kind == Kind::Container {
             element = element.flex().flex_col();
         }
-        if node.kind == Kind::Button {
-            element = element.focusable().cursor_pointer();
-        }
+        let button = if node.kind == Kind::Button {
+            self.visited.insert(id);
+            let state = self
+                .buttons
+                .entry(id)
+                .or_insert_with(|| {
+                    Rc::new(ButtonState {
+                        focus: cx.focus_handle().tab_stop(true),
+                        space_down: Cell::new(false),
+                    })
+                })
+                .clone();
+            element = element
+                .track_focus(&state.focus)
+                .tab_index(0)
+                .role(gpui::Role::Button)
+                .aria_label(accessible_name);
+            if interaction.pointer {
+                element = element.cursor_pointer();
+            }
+            Some(state)
+        } else {
+            None
+        };
+        let mut states: [Option<gpui::StyleRefinement>; 3] = Default::default();
         for style in node.style.iter() {
             match style {
+                Style::Fields(fields) => {
+                    crate::style::refine(element.style(), fields);
+                }
+                Style::State(state, fields) => {
+                    if *state != 1 && !interaction.pointer {
+                        continue;
+                    }
+                    let refinement =
+                        states[(*state - 1) as usize].get_or_insert_with(Default::default);
+                    crate::style::refine(refinement, fields);
+                }
                 Style::Width(v) => element.style().size.width = Some(length(v)),
                 Style::Height(v) => element.style().size.height = Some(length(v)),
                 Style::MinWidth(v) => element.style().min_size.width = Some(length(v)),
@@ -71,53 +177,176 @@ impl View {
                 Style::Radius(v) => element = element.rounded(px(*v as f32)),
                 Style::Opacity(v) => element = element.opacity(*v as f32),
                 Style::HoverBackground(v) => {
-                    let v = color(v);
-                    element = element.hover(move |s| s.bg(v));
+                    if interaction.pointer {
+                        states[1].get_or_insert_with(Default::default).background =
+                            Some(color(v).into());
+                    }
                 }
                 Style::PressedBackground(v) => {
-                    let v = color(v);
-                    element = element.active(move |s| s.bg(v));
+                    if interaction.pointer {
+                        states[2].get_or_insert_with(Default::default).background =
+                            Some(color(v).into());
+                    }
                 }
                 Style::FocusBackground(v) => {
-                    let v = color(v);
-                    element = element.focus(move |s| s.bg(v));
+                    states[0].get_or_insert_with(Default::default).background =
+                        Some(color(v).into());
                 }
             }
         }
-        if !node.text.is_empty() {
+        let [focused, hovered, pressed] = states;
+        if let Some(style) = focused {
+            element = element.focus(move |_| style);
+        }
+        if let Some(style) = hovered {
+            element = element.hover(move |_| style);
+        }
+        if let Some(style) = pressed {
+            element = element.active(move |_| style);
+        }
+        if !interaction.pointer {
+            element.style().mouse_cursor = None;
+        }
+        if node.kind == Kind::Text && interaction.selectable {
+            self.visited.insert(id);
+            let selection = self
+                .selections
+                .entry(id)
+                .or_insert_with(|| {
+                    Rc::new(RefCell::new(crate::selection::State::new(
+                        node.text.clone(),
+                        cx,
+                    )))
+                })
+                .clone();
+            selection.borrow_mut().update(node.text.clone());
+            element = element.child(crate::selection::element(
+                selection,
+                interaction.selection_color,
+                interaction.pointer,
+                cx.entity_id(),
+            ));
+        } else if !node.text.is_empty() {
             element = element.child(gpui::SharedString::from(node.text.clone()));
         }
-        element = element.children(node.children.iter().map(|id| self.element(tree, *id)));
+        element = element.children(
+            node.children
+                .iter()
+                .map(|id| self.element(tree, *id, interaction, cx))
+                .collect::<Vec<_>>(),
+        );
         if let Some(handler) = node.handler {
             let window = self.id;
             let revision = tree.revision();
             let session = self.session.clone();
             let transport = self.transport.clone();
-            element = element.on_click(move |_, _, _| {
-                let event = session.borrow().press(window, id, handler, revision);
-                if let Some(event) = event
-                    && !transport.input(event)
-                    && session.borrow_mut().overload(window)
-                {
-                    transport.fault(window);
+            if let Some(button) = button {
+                let down_button = button.clone();
+                let down_session = session.clone();
+                let down_transport = transport.clone();
+                element = element
+                    .on_key_down(move |event, _, cx| {
+                        if event.keystroke.modifiers.modified() || event.is_held {
+                            return;
+                        }
+                        match event.keystroke.key.as_str() {
+                            "enter" => emit_press(
+                                &down_session,
+                                &down_transport,
+                                window,
+                                id,
+                                handler,
+                                revision,
+                            ),
+                            "space" => down_button.space_down.set(true),
+                            _ => return,
+                        }
+                        cx.stop_propagation();
+                    })
+                    .on_key_up(move |event, _, cx| {
+                        if event.keystroke.key == "space" && button.space_down.replace(false) {
+                            emit_press(&session, &transport, window, id, handler, revision);
+                            cx.stop_propagation();
+                        }
+                    });
+            }
+            let session = self.session.clone();
+            let transport = self.transport.clone();
+            if interaction.pointer {
+                if let Some(button) = self.buttons.get(&id) {
+                    let focus = button.focus.clone();
+                    element = element
+                        .on_mouse_down(gpui::MouseButton::Left, move |_, window, cx| {
+                            window.focus(&focus, cx)
+                        });
                 }
-            });
+                element = element.on_click(move |_, _, cx| {
+                    let event = session.borrow().press(window, id, handler, revision);
+                    if let Some(event) = event
+                        && !transport.input(event)
+                        && session.borrow_mut().overload(window)
+                    {
+                        transport.fault(window);
+                    }
+                    cx.stop_propagation();
+                });
+            }
+        }
+        #[cfg(feature = "native-tests")]
+        {
+            let probes = self.probes.clone();
+            element = element.relative().child(
+                canvas(
+                    |bounds, _, _| bounds,
+                    move |_, bounds, window, _| {
+                        probes.borrow_mut().insert(
+                            id,
+                            native_test::Probe {
+                                bounds,
+                                color: window.text_style().color,
+                            },
+                        );
+                    },
+                )
+                .absolute()
+                .top_0()
+                .left_0()
+                .size_full(),
+            );
         }
         element.into_any_element()
     }
 }
 impl Render for View {
-    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-        let session = self.session.borrow();
-        let mut root = div().size_full();
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.visited.clear();
+        for button in self.buttons.values() {
+            if !button.focus.is_focused(window) {
+                button.space_down.set(false);
+            }
+        }
+        let shared = self.session.clone();
+        let session = shared.borrow();
+        let mut root = div().size_full().on_key_down(|event, window, cx| {
+            if event.keystroke.key == "tab" {
+                if event.keystroke.modifiers.shift {
+                    window.focus_prev(cx);
+                } else {
+                    window.focus_next(cx);
+                }
+                cx.stop_propagation();
+            }
+        });
         let revision = if let Some(tree) = session.tree(self.id) {
             if let Some(id) = tree.root() {
-                root = root.child(self.element(tree, id));
+                root = root.child(self.element(tree, id, Interaction::default(), cx));
             }
             tree.revision()
         } else {
             0
         };
+        self.buttons.retain(|id, _| self.visited.contains(id));
+        self.selections.retain(|id, _| self.visited.contains(id));
         let id = self.id;
         let session = self.session.clone();
         let transport = self.transport.clone();
@@ -250,10 +479,8 @@ pub fn run(transport: Arc<Transport>) {
                                             let _ = close_transport.tx.try_send(());
                                             false
                                         });
-                                        cx.new(|_| View {
-                                            id,
-                                            session: session.clone(),
-                                            transport: transport.clone(),
+                                        cx.new(|_| {
+                                            View::new(id, session.clone(), transport.clone())
                                         })
                                     },
                                 )
@@ -366,3 +593,7 @@ fn stop_application(cx: &mut App) {
 fn stop_application(cx: &mut App) {
     cx.quit();
 }
+
+#[cfg(feature = "native-tests")]
+#[path = "native_test.rs"]
+pub(crate) mod native_test;

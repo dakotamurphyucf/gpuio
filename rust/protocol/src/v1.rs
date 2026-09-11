@@ -36,6 +36,89 @@ pub enum Color {
     Token(i64),
 }
 
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub enum Fill {
+    Solid(Color),
+    LinearGradient(f64, Color, f64, Color, f64),
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct Shadow {
+    pub color: Color,
+    pub offset_x: f64,
+    pub offset_y: f64,
+    pub blur: f64,
+    pub spread: f64,
+    pub inset: bool,
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub enum Field {
+    Display(i64),
+    Visibility(i64),
+    Direction(i64),
+    Wrap(i64),
+    Grow(f64),
+    Shrink(f64),
+    Basis(Length),
+    AlignItems(i64),
+    AlignSelf(i64),
+    AlignContent(i64),
+    JustifyContent(i64),
+    RowGap(Length),
+    ColumnGap(Length),
+    GridColumns(i64),
+    GridRows(i64),
+    GridColumnMinimum(i64),
+    GridRowMinimum(i64),
+    Width(Length),
+    Height(Length),
+    MinWidth(Length),
+    MinHeight(Length),
+    MaxWidth(Length),
+    MaxHeight(Length),
+    PaddingTop(Length),
+    PaddingRight(Length),
+    PaddingBottom(Length),
+    PaddingLeft(Length),
+    MarginTop(Length),
+    MarginRight(Length),
+    MarginBottom(Length),
+    MarginLeft(Length),
+    Position(i64),
+    Top(Length),
+    Right(Length),
+    Bottom(Length),
+    Left(Length),
+    Background(Fill),
+    Foreground(Color),
+    Opacity(f64),
+    BorderTopWidth(f64),
+    BorderRightWidth(f64),
+    BorderBottomWidth(f64),
+    BorderLeftWidth(f64),
+    TopLeftRadius(f64),
+    TopRightRadius(f64),
+    BottomLeftRadius(f64),
+    BottomRightRadius(f64),
+    BorderColor(Color),
+    Shadows(Vec<Shadow>),
+    FontSize(f64),
+    FontFamily(String),
+    FontWeight(i64),
+    TextAlign(i64),
+    LineHeight(Length),
+    WhiteSpace(i64),
+    TextOverflow(i64),
+    LineClamp(i64),
+    TextDecoration(i64),
+    OverflowX(i64),
+    OverflowY(i64),
+    Cursor(i64),
+    PointerEvents(bool),
+    UserSelect(bool),
+    SelectionColor(Color),
+    AccessibleName(String),
+}
+
 /// Initial portable refinements; adding tags requires explicit schema review.
 /// Replacing a node's style list also clears absent prior refinements.
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -59,6 +142,8 @@ pub enum Style {
     HoverBackground(Color),
     PressedBackground(Color),
     FocusBackground(Color),
+    Fields(Vec<Field>),
+    State(i64, Vec<Field>),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]

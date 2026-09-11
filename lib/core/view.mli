@@ -1,0 +1,49 @@
+open Core
+
+(** Pure, immutable UI descriptions. Actions need not be Bonsai effects: tests and
+    other runtimes can use ordinary variants. Callbacks run only on the OCaml UI
+    domain, after generation validation, using the latest accepted closure. *)
+type 'action t
+
+val text : ?key:Key.t -> ?style:Style.t -> string -> 'action t
+
+(** An explicit accessible name must be nonempty and at most 1024 bytes;
+    invalid names raise, as with literal styles built with [Style.create_exn]. *)
+val button
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?accessible_name:string
+  -> on_click:(unit -> 'action)
+  -> string
+  -> 'action t
+
+val row : ?key:Key.t -> ?style:Style.t -> 'action t list -> 'action t
+val column : ?key:Key.t -> ?style:Style.t -> 'action t list -> 'action t
+
+val grid
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> columns:int
+  -> 'action t list
+  -> 'action t Or_error.t
+
+module Expert : sig
+  module Kind : sig
+    type t =
+      | Container
+      | Text
+      | Button
+    [@@deriving equal, sexp_of]
+  end
+
+  type 'action description =
+    { key : Key.t option
+    ; kind : Kind.t
+    ; text : string
+    ; style : Style.t
+    ; on_click : (unit -> 'action) option
+    ; children : 'action t list
+    }
+
+  val describe : 'action t -> 'action description
+end

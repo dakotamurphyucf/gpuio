@@ -2372,6 +2372,7 @@ dependencies = [
  "gpuio-protocol",
  "libc",
  "ocaml-interop",
+ "unicode-segmentation",
 ]
 
 [[package]]

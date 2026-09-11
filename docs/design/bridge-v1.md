@@ -2,8 +2,8 @@
 
 Implementation contract for OCH-7. Hosted acceptance is recorded in Linear. This is separate from the private foundation smoke
 protocol. No released protocol compatibility is promised before the first API
-release. The initial style tags will expand with OCH-8; additions require paired
-OCaml/Rust definitions and independent fixture review.
+release. OCH-8 extends the initial style tags with paired
+OCaml/Rust definitions and an independent full-field fixture.
 
 ## Ownership and identity
 
@@ -123,3 +123,25 @@ Public views/reconciliation and Bonsai/Eio scheduling belong to OCH-8/OCH-9.
 macOS native validation is the development gate; Linux builds/tests remain
 required and graphical checks are informational. Hosted results and any remaining
 acceptance gaps belong in the live ticket, not inferred from compilation.
+
+## Typed style extension (OCH-8)
+
+Original Style tags 0–18 remain in order. Tag 19 is Fields, a bounded list of
+Field refinements; tag 20 is State(state, fields), where 1=focused, 2=hovered and
+3=pressed. States are not recursive. Base refinements use Fields. Every Field
+tag is fixed by the paired declaration order and exercised by the independent
+`style-v1.hex` fixture. Fill represents solid colors or a two-stop gradient;
+Shadow has color, offsets, blur, spread and inset. No unreleased schema change
+is a promise of compatibility with an independently installed older host.
+
+There are at most 128 fields per refinement and eight shadows per field. Native
+semantic validation rejects invalid units, enums, non-finite values, unknown
+state numbers and state-specific interaction policies. Theme tokens resolve to
+RGBA in the OCaml adapter; unresolved tokens are rejected by the native host.
+Nested field arrays, shadow arrays, font names and accessible labels count
+toward retained payload limits, including inside state refinements. Repeated
+state entries compose before creating one GPUI handler for each state.
+
+See [typed UI](typed-ui.md) for public reset/inheritance, native interaction and
+selection semantics. Owned resource handles remain reserved for the later
+resource/component tickets; the pure style values contain no native pointers.

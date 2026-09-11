@@ -21,10 +21,14 @@ are superseded by this priority; native GUI coverage must still be reported hone
 - OCH-22 complete: required builds/tests, macOS native checks, informational Linux
   graphical checks, retained evidence and protected main branch.
 - OCH-6 setup gate complete, merged in PR #1 at `81f6b581c784d448a8948d4cb55e73af9db4b86c`.
-- OCH-7 in progress: production codec/session/mailbox/FFI/GPUI host implemented;
-  macOS two-window/50-revision/rollback/panic smoke passes. Hosted acceptance pending.
-- OCH-8/OCH-9 remain in milestone 01; production UI/runtime functionality is not
-  supplied by the foundation prototype.
+- OCH-7 complete, merged in PR #2 at `e6471b4ec88e6847f950da30576b6d2a6639d930`.
+  CI run34650637422 passed on both OSes, including production 50-revision/
+  two-window/rollback/panic smoke on macOS, X11 and Wayland.
+- OCH-8 implemented: typed views/styles/themes, keyed reconciliation, pure Bonsai
+  adapter, native button/selection behavior and GPUIX style mapping. Local macOS
+  tests pass; PR acceptance and exact hosted evidence are tracked in Linear.
+- OCH-9 remains in milestone 01: public Bonsai/Eio scheduling and application runner.
+  The typed example currently provides an explicit low-level bridge runner.
 
 ## Local evidence
 
@@ -65,3 +69,15 @@ checks with an up-to-date branch. Force pushes and branch deletion are disabled.
 Linux GUI outcomes remain informational and do not alter this development gate.
 No full OS IME automation, accessibility or production multi-window Bonsai API is
 claimed by the bootstrap smoke tests. Those remain in their owning v1 tickets.
+
+## Typed API validation (OCH-8)
+
+The pure API tests cover callback-only refresh, keyed reorder/replacement, invalid
+plans, theme changes, style composition/reset and bounded incremental output.
+OCaml and Rust independently agree on every expanded style tag in `style-v1.hex`.
+Native tests validate malformed styles, rollback and nested memory accounting.
+The actual macOS window test passes grid bounds, hover/pressed/focus, Enter/Space,
+Tab/Shift-Tab, pointer policy, Unicode select/copy, replacement and inherited reset.
+The public OCaml example passes 20 acknowledged native commits and theme changes.
+The [typed API contract](design/typed-ui.md) records all GPUIX style mappings and
+functional limits. Linux graphical execution remains informational under OCH-17.

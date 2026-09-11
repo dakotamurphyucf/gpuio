@@ -1,0 +1,11 @@
+(library
+ (name gpuio_view_api_tests)
+ (libraries core gpuio gpuio.protocol eio_main)
+ (inline_tests
+  (deps
+   (sandbox preserve_file_kind)
+   style-v1.hex))
+ (preprocess
+  (pps ppx_jane)))
+
+(copy_files ../fixtures/style-v1.hex)
