@@ -1,0 +1,31 @@
+(rule
+ (targets libgpuio_foundation.a link_flags.sexp)
+ (deps
+  (sandbox none)
+  (env_var CARGO_TARGET_DIR)
+  (source_tree ../../rust)
+  ../../Cargo.toml
+  ../../Cargo.lock
+  ../../rust-toolchain.toml
+  ../../scripts/build_native.py)
+ (action
+  (run python3 ../../scripts/build_native.py %{profile})))
+
+(executable
+ (name main)
+ (modules main wire native)
+ (libraries
+  core
+  bonsai
+  bonsai.driver
+  eio_main
+  eio.unix
+  cstruct
+  mtime
+  unix
+  threads)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai))
+ (foreign_archives gpuio_foundation)
+ (link_flags
+  (:include link_flags.sexp)))

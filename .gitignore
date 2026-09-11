@@ -8,3 +8,5 @@ target/
 *.install
 *.corrected
 .env
+/scratch/
+__pycache__/

@@ -1,0 +1,13 @@
+{
+  "date": "2026-09-11",
+  "os": "macOS 14.5",
+  "architecture": "arm64",
+  "ocaml": "5.3.0",
+  "dune": "3.24.2",
+  "rust": "1.97.1",
+  "scope": "local source-built foundation smoke; native-handler input probes, not OS IME automation",
+  "default_switch_packages_unchanged": true,
+  "default_switch_selection": "default",
+  "rustup_default_unchanged": true,
+  "linux_validation": "pending CI"
+}

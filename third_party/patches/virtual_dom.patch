@@ -1,0 +1,22 @@
+--- a/dune
++++ b/dune
+@@ -0,0 +1 @@
++(dirs ui_effect)
+--- a/ui_effect/ui_effect_intf.ml
++++ b/ui_effect/ui_effect_intf.ml
+@@ -103,12 +103,12 @@
+ 
+   module Private : sig
+     module Callback : sig
+-      type 'a effect := 'a t
++      type 'a ui_effect_value := 'a t
+       type ('a, 'b) t
+ 
+-      val make : request:'a -> on_response:('b -> unit effect) -> ('a, 'b) t
++      val make : request:'a -> on_response:('b -> unit ui_effect_value) -> ('a, 'b) t
+       val request : ('a, 'b) t -> 'a
+-      val respond_to : ('a, 'b) t -> 'b -> unit effect
++      val respond_to : ('a, 'b) t -> 'b -> unit ui_effect_value
+     end
+ 
+     val make : request:'a -> evaluator:(('a, 'b) Callback.t -> unit) -> 'b t

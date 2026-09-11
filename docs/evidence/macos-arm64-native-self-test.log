@@ -1,0 +1,214 @@
++frame=0
++submit revision=1 ops=22 bytes=425
++applied revision=1 nodes=18 ops=22
++frame=1
++row_activate=1
++row_activate=2
++row_activate=3
++unchanged_tree_lifecycles_passed=true
++submit revision=2 ops=1 bytes=19
++applied revision=2 nodes=18 ops=1
++frame=2
++submit revision=3 ops=1 bytes=27
++applied revision=3 nodes=18 ops=1
++frame=3
++submit revision=4 ops=1 bytes=10
++applied revision=4 nodes=18 ops=1
++frame=4
++submit revision=5 ops=2 bytes=11
++applied revision=5 nodes=17 ops=2
++frame=5
++row_deactivate=3
++ignored_stale_handler=103
++submit revision=6 ops=1 bytes=27
++probe=ime_utf16_selection_passed
++applied revision=6 nodes=17 ops=1
++frame=6
++submit revision=7 ops=1 bytes=32
++applied revision=7 nodes=17 ops=1
++frame=7
++submit revision=8 ops=1 bytes=23
++probe=stale_edit_rejected:0:3
++applied revision=8 nodes=17 ops=1
++frame=8
++submit revision=9 ops=1 bytes=24
++applied revision=9 nodes=17 ops=1
++frame=9
++submit revision=10 ops=1 bytes=33
++applied revision=10 nodes=17 ops=1
++frame=10
++submit revision=11 ops=2 bytes=33
++applied revision=11 nodes=18 ops=2
++frame=11
++row_activate=4
++submit revision=12 ops=2 bytes=11
++applied revision=12 nodes=17 ops=2
++frame=12
++row_deactivate=4
++submit revision=13 ops=2 bytes=33
++applied revision=13 nodes=18 ops=2
++frame=13
++row_activate=5
++submit revision=14 ops=2 bytes=11
++applied revision=14 nodes=17 ops=2
++frame=14
++row_deactivate=5
++submit revision=15 ops=2 bytes=33
++applied revision=15 nodes=18 ops=2
++frame=15
++row_activate=6
++submit revision=16 ops=2 bytes=11
++applied revision=16 nodes=17 ops=2
++frame=16
++row_deactivate=6
++submit revision=17 ops=2 bytes=33
++applied revision=17 nodes=18 ops=2
++frame=17
++row_activate=7
++submit revision=18 ops=2 bytes=11
++applied revision=18 nodes=17 ops=2
++frame=18
++row_deactivate=7
++submit revision=19 ops=2 bytes=33
++applied revision=19 nodes=18 ops=2
++frame=19
++row_activate=8
++submit revision=20 ops=2 bytes=11
++applied revision=20 nodes=17 ops=2
++frame=20
++row_deactivate=8
++submit revision=21 ops=2 bytes=33
++applied revision=21 nodes=18 ops=2
++frame=21
++row_activate=9
++submit revision=22 ops=2 bytes=11
++applied revision=22 nodes=17 ops=2
++frame=22
++row_deactivate=9
++submit revision=23 ops=2 bytes=34
++applied revision=23 nodes=18 ops=2
++frame=23
++row_activate=10
++submit revision=24 ops=2 bytes=11
++applied revision=24 nodes=17 ops=2
++frame=24
++row_deactivate=10
++submit revision=25 ops=2 bytes=34
++applied revision=25 nodes=18 ops=2
++frame=25
++row_activate=11
++submit revision=26 ops=2 bytes=11
++applied revision=26 nodes=17 ops=2
++frame=26
++row_deactivate=11
++submit revision=27 ops=2 bytes=34
++applied revision=27 nodes=18 ops=2
++frame=27
++row_activate=12
++submit revision=28 ops=2 bytes=11
++applied revision=28 nodes=17 ops=2
++frame=28
++row_deactivate=12
++submit revision=29 ops=2 bytes=34
++applied revision=29 nodes=18 ops=2
++frame=29
++row_activate=13
++submit revision=30 ops=2 bytes=11
++applied revision=30 nodes=17 ops=2
++frame=30
++row_deactivate=13
++submit revision=31 ops=2 bytes=34
++applied revision=31 nodes=18 ops=2
++frame=31
++row_activate=14
++submit revision=32 ops=2 bytes=11
++applied revision=32 nodes=17 ops=2
++frame=32
++row_deactivate=14
++submit revision=33 ops=2 bytes=34
++applied revision=33 nodes=18 ops=2
++frame=33
++row_activate=15
++submit revision=34 ops=2 bytes=11
++applied revision=34 nodes=17 ops=2
++frame=34
++row_deactivate=15
++submit revision=35 ops=2 bytes=34
++applied revision=35 nodes=18 ops=2
++frame=35
++row_activate=16
++submit revision=36 ops=2 bytes=11
++applied revision=36 nodes=17 ops=2
++frame=36
++row_deactivate=16
++submit revision=37 ops=2 bytes=34
++applied revision=37 nodes=18 ops=2
++frame=37
++row_activate=17
++submit revision=38 ops=2 bytes=11
++applied revision=38 nodes=17 ops=2
++frame=38
++row_deactivate=17
++submit revision=39 ops=2 bytes=34
++applied revision=39 nodes=18 ops=2
++frame=39
++row_activate=18
++submit revision=40 ops=2 bytes=11
++applied revision=40 nodes=17 ops=2
++frame=40
++row_deactivate=18
++submit revision=41 ops=2 bytes=34
++applied revision=41 nodes=18 ops=2
++frame=41
++row_activate=19
++submit revision=42 ops=2 bytes=11
++applied revision=42 nodes=17 ops=2
++frame=42
++row_deactivate=19
++submit revision=43 ops=2 bytes=34
++applied revision=43 nodes=18 ops=2
++frame=43
++row_activate=20
++submit revision=44 ops=2 bytes=11
++applied revision=44 nodes=17 ops=2
++frame=44
++row_deactivate=20
++submit revision=45 ops=2 bytes=34
++applied revision=45 nodes=18 ops=2
++frame=45
++row_activate=21
++submit revision=46 ops=2 bytes=11
++applied revision=46 nodes=17 ops=2
++frame=46
++row_deactivate=21
++submit revision=47 ops=2 bytes=34
++applied revision=47 nodes=18 ops=2
++frame=47
++row_activate=22
++submit revision=48 ops=2 bytes=11
++applied revision=48 nodes=17 ops=2
++frame=48
++row_deactivate=22
++submit revision=49 ops=2 bytes=34
++applied revision=49 nodes=18 ops=2
++frame=49
++row_activate=23
++submit revision=50 ops=2 bytes=11
++applied revision=50 nodes=17 ops=2
++frame=50
++row_deactivate=23
+
+thread '<unnamed>' (264975102) panicked at rust/foundation/src/bridge.rs:118:9:
+intentional GPUIO boundary test
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
++rust_panic_contained=true
++probe=snapshot:50:17:|GPUIO · Native Bonsai experiment|OCaml owns application state · Rust owns GPUI and text editing|Counter: 1||Increment counter|Reverse keyed rows|Remove row 3 / newest row|Run Eio operation (250 ms)|Clear native text|Add keyed row|||OCaml text: A日本語Z|Eio: Completed file read|Row 1 · clicks 0|Row 2 · clicks 1
++SELF_TEST_PASS commits=50 total_bytes=1525 max_ops=22 median_ack_ms=0.075 activations=23 deactivations=21 stale_events=1 async=1
++submit revision=51 ops=1 bytes=24
++applied revision=51 nodes=17 ops=1
++frame=51
++row_deactivate=1
++row_deactivate=2
++worker_shutdown_complete activations=23 deactivations=23
++inflight_eio_cancelled=true
+shutdown_complete

@@ -1,0 +1,99 @@
+name: Foundation
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      clean_build:
+        description: Skip dependency caches for a clean environment
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: foundation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  foundation:
+    name: foundation (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    env:
+      GPUIO_JOBS: 3
+      CARGO_TERM_COLOR: never
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Linux system prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake clang lld llvm pkg-config curl git \
+            libfontconfig-dev libfreetype-dev libssl-dev libwayland-dev libx11-xcb-dev \
+            libxkbcommon-x11-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            libvulkan-dev mesa-vulkan-drivers libasound2-dev libglib2.0-dev \
+            xvfb xauth weston dbus-x11
+      - name: macOS system prerequisites
+        if: runner.os == 'macOS'
+        run: brew list pkg-config >/dev/null || brew install pkg-config
+      - name: Install pinned opam
+        run: python3 scripts/ci_opam.py
+      - name: Restore dependency caches
+        if: ${{ !inputs.clean_build }}
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            .opam-root
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: foundation-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gpuio.opam.locked', 'third_party/sources.json', 'rust-toolchain.toml', 'Cargo.lock') }}
+      - name: Bootstrap isolated environment
+        run: |
+          mkdir -p .cache/ci
+          ./scripts/gpuio bootstrap 2>&1 | tee .cache/ci/bootstrap.log
+          ./scripts/gpuio doctor
+      - name: Formatting
+        run: ./scripts/gpuio check-fmt
+      - name: Build
+        run: ./scripts/gpuio build 2>&1 | tee .cache/ci/build.log
+      - name: OCaml and Rust tests
+        run: ./scripts/gpuio test 2>&1 | tee .cache/ci/tests.log
+      - name: Lint
+        run: ./scripts/gpuio lint 2>&1 | tee .cache/ci/lint.log
+      - name: macOS native smoke
+        if: runner.os == 'macOS'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "smoke", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-native.log
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "smoke", "--two-windows"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-two-windows.log
+      - name: Linux X11 native smoke
+        if: runner.os == 'Linux'
+        run: ./scripts/ci_linux_smoke.sh x11 2>&1 | tee .cache/ci/x11.log
+      - name: Linux Wayland native smoke
+        if: runner.os == 'Linux'
+        run: ./scripts/ci_linux_smoke.sh wayland 2>&1 | tee .cache/ci/wayland.log
+      - name: Record environment
+        if: always()
+        run: |
+          mkdir -p .cache/ci
+          uname -a > .cache/ci/platform.txt
+          opam list --root .opam-root --switch gpuio --installed --columns=name,version --short > .cache/ci/packages.txt || true
+      - name: Preserve validation logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: foundation-logs-${{ runner.os }}-${{ runner.arch }}
+          include-hidden-files: true
+          path: .cache/ci
+      - name: Development executable
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: foundation-example-${{ runner.os }}-${{ runner.arch }}
+          path: _build/default/examples/foundation/main.exe

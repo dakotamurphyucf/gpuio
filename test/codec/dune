@@ -1,0 +1,11 @@
+(library
+ (name gpuio_codec_tests)
+ (libraries core eio_main expect_test_helpers_core)
+ (inline_tests
+  (deps
+   (sandbox preserve_file_kind)
+   codec-v1.hex))
+ (preprocess
+  (pps ppx_jane)))
+
+(copy_files ../fixtures/codec-v1.hex)

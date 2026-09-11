@@ -1,0 +1,6 @@
+diff --git a/dune b/dune
+index e69de29..ba31389 100644
+--- a/dune
++++ b/dune
+@@ -0,0 +1 @@
++(dirs src)

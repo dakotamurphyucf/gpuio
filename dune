@@ -2,3 +2,7 @@
  (_
   (flags
    (:standard -w +9))))
+
+(vendored_dirs vendor)
+
+(dirs :standard \ scratch)

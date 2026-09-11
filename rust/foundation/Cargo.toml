@@ -1,0 +1,26 @@
+[package]
+name = "gpuio-foundation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[features]
+default = ["wayland", "x11"]
+wayland = ["gpui_platform/wayland"]
+x11 = ["gpui_platform/x11"]
+
+[dependencies]
+gpui = { git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b", default-features = false }
+gpui_platform = { git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b", features = ["font-kit", "runtime_shaders"] }
+ocaml-interop = { git = "https://github.com/tizoc/ocaml-interop.git", rev = "9f941c63b8a9dcd652c6535da196f48d7a4dcc75", features = ["no-caml-startup"] }
+binprot = { git = "https://github.com/LaurentMazare/binprot-rs.git", rev = "165b4d64d8f2a580af453f1e60deba41c28cd6df" }
+async-channel = "2"
+unicode-segmentation = "1"
+libc = "0.2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+cocoa = "=0.26.0"

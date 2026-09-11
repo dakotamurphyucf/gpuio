@@ -1,0 +1,82 @@
+{
+  "format_version": 1,
+  "ocaml": "5.3.0",
+  "dune": "3.24.2",
+  "rust": "1.97.1",
+  "opam_repository": {
+    "url": "https://github.com/ocaml/opam-repository.git",
+    "commit": "90442ec7e20a2a7bbcb6fb102faf2a34b792f2a7"
+  },
+  "native_bonsai": {
+    "bonsai": {
+      "tag": "v0.17.0",
+      "commit": "e929674585a67818734b06e12ea328872d185970",
+      "url": "https://github.com/janestreet/bonsai.git",
+      "patch_sha256": "9a50a092034f757060a70734e2d968294aada41f51d89679b2a3c2a9fbf399b3",
+      "archive_sha256": "11de33880bb22cff4c95966b21c108773255ba8ccb1c46fb1f071eb337a59ab4"
+    },
+    "virtual_dom": {
+      "tag": "v0.17.0",
+      "commit": "e2c80cea41db6484825b5d4b487a042ef058d591",
+      "url": "https://github.com/janestreet/virtual_dom.git",
+      "patch_sha256": "d4910dd3277b95ae940a639174b71e163ed42b5d5356779148559634b299f1dd",
+      "archive_sha256": "fa08e5e76c7893485578e1a722bd64242e82af74437bcb960792d88472f102e6"
+    },
+    "incr_dom": {
+      "tag": "v0.17.0",
+      "commit": "36459c50998a21c52affdebcc5e83f19c5312360",
+      "url": "https://github.com/janestreet/incr_dom.git",
+      "patch_sha256": "4ea70525774d21e3d36606044ac218796e5efdf2df44d4e84ba918ceaaf7a591",
+      "archive_sha256": "77b14314c7fc7efa618f23a36a2285498bc41cbaf508ccdbcb04d215772eb592"
+    },
+    "incremental": {
+      "tag": "v0.17.0",
+      "commit": "61baea591be9bfaf512bb2fcdf176753f67b2607",
+      "url": "https://github.com/janestreet/incremental.git",
+      "patch_sha256": "1825e78054f09eb7f36a2f5d4ebb66e8e658052ae1bb7abe3b2d204837dbad5b",
+      "archive_sha256": "9bcc9bc1ee9fba72e4bc0d8e1241d59eb7407ec922c8701cd6c652a8456d76fe"
+    },
+    "incr_map": {
+      "tag": "v0.17.0",
+      "commit": "5e41d2551023c6ca4b62ce9118637d26c6fe6f4f",
+      "url": "https://github.com/janestreet/incr_map.git",
+      "patch_sha256": "07e13404b8c2dda9774dd61d670cb149cf6b2deadfaa3bd4969c6830c9e6097b",
+      "archive_sha256": "96e652c4fa39bc796a4973e35f26e24927f29979b6640df9c541ec0cbadc3c0c"
+    },
+    "incr_select": {
+      "tag": "v0.17.0",
+      "commit": "d44df84aff82062dce34a88333fb29e7a311d66c",
+      "url": "https://github.com/janestreet/incr_select.git",
+      "patch_sha256": "07e13404b8c2dda9774dd61d670cb149cf6b2deadfaa3bd4969c6830c9e6097b",
+      "archive_sha256": "4637a3c4fd10a780c9cd22bce6b8abedab7c912949c223273cd9a47dc3863ec2"
+    },
+    "ppx_pattern_bind": {
+      "tag": "v0.17.0",
+      "commit": "cd6d4da39d4d1023241e503689d98f8547868c31",
+      "url": "https://github.com/janestreet/ppx_pattern_bind.git",
+      "patch_sha256": "87196e4e6b2d89bde99a1c58883180e990b1aff708175e36d713da6f8a4b419a",
+      "archive_sha256": "0d118897e6e7b32bbf41aef0b367c60d0aab2a41f414bb58d4641044be64d9e0"
+    },
+    "abstract_algebra": {
+      "tag": "v0.17.0",
+      "commit": "a210611d14f385e11889d1df3aabd2cf34060ed8",
+      "url": "https://github.com/janestreet/abstract_algebra.git",
+      "patch_sha256": "07e13404b8c2dda9774dd61d670cb149cf6b2deadfaa3bd4969c6830c9e6097b",
+      "archive_sha256": "7aeed0c111c9e87a7803692364c051018e656b5e9604032ed69a188015ab2827"
+    }
+  },
+  "rust_sources": {
+    "zed": {
+      "url": "https://github.com/zed-industries/zed.git",
+      "commit": "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b"
+    },
+    "ocaml-interop": {
+      "url": "https://github.com/tizoc/ocaml-interop.git",
+      "commit": "9f941c63b8a9dcd652c6535da196f48d7a4dcc75"
+    },
+    "binprot-rs": {
+      "url": "https://github.com/LaurentMazare/binprot-rs.git",
+      "commit": "165b4d64d8f2a580af453f1e60deba41c28cd6df"
+    }
+  }
+}

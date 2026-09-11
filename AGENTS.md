@@ -14,3 +14,20 @@ Historical documents contain research paths and screenshots; these are evidence,
 not build dependencies or current functionality. Keep implementation status honest
 and record exact commands, revisions and actual platform coverage in Linear.
 Complete only tickets whose acceptance criteria have passed.
+
+Use `scratch/` for local experiments, logs, implementation notes and handoffs that
+must survive context compaction. Create it when absent; it is ignored by Git and
+excluded from Dune discovery.
+
+Every implementing agent must keep its own notepad under
+`scratch/agents/<unique-agent-or-session-id>/`. When working on a ticket, use a
+separate `<ticket-id>.md` for that ticket. Keep `index.md` in your own directory
+short: active tickets, links and immediate next steps. Do not append implementation
+history to a shared global notepad or overwrite another agent's notes.
+
+Update the relevant ticket notepad as work proceeds and before compaction/handoff:
+record decisions, changed files, exact commands/results, running processes and the
+next concrete steps. Summarize stale detail and link separate logs/artifacts so
+the notepad stays useful. For work without a ticket, use a named task notepad in
+your own directory. Durable accepted designs and completion evidence also belong
+in versioned docs and Linear; scratch notes stay local.

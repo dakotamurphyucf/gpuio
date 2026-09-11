@@ -1,0 +1,66 @@
+   Compiling objc2 v0.6.4
+   Compiling ocaml-sys v0.26.0
+   Compiling ocaml-boxroot-sys v0.4.0
+   Compiling ocaml-interop v0.12.0 (https://github.com/tizoc/ocaml-interop.git?rev=9f941c63b8a9dcd652c6535da196f48d7a4dcc75#9f941c63)
+   Compiling objc2-core-foundation v0.3.2
+   Compiling block2 v0.6.2
+   Compiling dispatch2 v0.3.1
+   Compiling objc2-foundation v0.3.2
+   Compiling objc2-core-graphics v0.3.2
+   Compiling objc2-core-location v0.3.2
+   Compiling objc2-app-kit v0.3.2
+   Compiling objc2-screen-capture-kit v0.3.2
+   Compiling objc2-user-notifications v0.3.2
+   Compiling gpui_macos v0.1.0 (https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b1)
+   Compiling gpui_platform v0.1.0 (https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b1)
+   Compiling gpuio-foundation v0.0.0 (<checkout>/rust/foundation)
+    Finished `test` profile [unoptimized] target(s) in 12.65s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/lib.rs (target/debug/deps/gpuio_foundation-86c59bfc5cf8bbf9)
+
+running 4 tests
+test protocol::tests::oversized_container_rejected_before_allocation ... ok
+test protocol::tests::truncated_and_trailing_rejected ... ok
+test tree::tests::invalid_transaction_preserves_original ... ok
+test tree::tests::valid_then_stale_revision ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/codec.rs (target/debug/deps/codec-154a24545bc1942c)
+
+running 1 test
+test independent_ocaml_and_rust_fixture ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/gpuio_native-f86fca3d64113631)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/gpuio_protocol-cac9114ccce39abc)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests gpuio_foundation
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests gpuio_native
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests gpuio_protocol
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

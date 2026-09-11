@@ -1,5 +1,5 @@
 [workspace]
-members = ["rust/protocol", "rust/native"]
+members = ["rust/protocol", "rust/native", "rust/foundation"]
 resolver = "3"
 
 [workspace.package]
