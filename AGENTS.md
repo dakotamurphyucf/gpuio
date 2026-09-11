@@ -5,6 +5,12 @@ Read `docs/status.md`, `CONTRIBUTING.md` and
 Follow the accepted stock OCaml 5.3/Bonsai v0.17/Core/Eio design. Use the repository
 toolchain and isolated environment; never mutate unrelated switches or defaults.
 
+Platform priority (owner, 2026-09-11): macOS native functionality is the current
+development gate. Linux builds/unit tests stay required; Linux graphical smoke
+is informational during implementation, with full GUI validation deferred to
+OCH-17. Do not block feature work on Linux GUI debugging or claim Linux GUI
+acceptance from compilation. No local Linux VM/container setup is required now.
+
 Draft coherent types/interfaces before implementation. Use typed comparison,
 receiver-first APIs, validated invariants, Jane Street formatting/PPX and expect
 tests. Keep Rust native ownership and asynchronous event delivery explicit.

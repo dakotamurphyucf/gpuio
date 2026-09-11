@@ -5,6 +5,13 @@ Updated 2026-09-11. Milestone 01: reproducible foundation, in progress.
 Repository: `dakotamurphyucf/gpuio`, public, Apache-2.0, default branch `main`.
 These settings were selected by the owner on 2026-09-11.
 
+Platform priority updated by the owner on 2026-09-11: macOS is the primary
+functional acceptance platform during implementation. Linux builds/unit tests
+remain required, but graphical checks are informational and full Linux GUI
+validation is deferred to OCH-17. Linux remains an intended platform. Earlier
+design documents requiring native GUI acceptance on both OSes before advancing
+are superseded by this priority; native GUI coverage must still be reported honestly.
+
 - OCH-18 complete: remote scaffold, standards/design import and fresh-clone checks.
 - OCH-19 implementation under validation: pinned OCaml/Rust closure, reconstructed
   native Bonsai sources and patches, codec/lifecycle checks.
