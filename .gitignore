@@ -1,0 +1,10 @@
+_build/
+_opam/
+.opam-root/
+.cache/
+target/
+.DS_Store
+*.merlin
+*.install
+*.corrected
+.env
