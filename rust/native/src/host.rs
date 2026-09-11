@@ -333,8 +333,12 @@ pub fn run(transport: Arc<Transport>) {
                         }
                     }
                 }
-                // A notification may have been consumed while this batch ran;
-                // the producer's bounded channel retains the next wake.
+                // A ready channel alone need not yield its future. Give native
+                // input/paint a turn even with a continuously producing client.
+                // This timer exists only after work, never as idle polling.
+                cx.background_executor()
+                    .timer(std::time::Duration::from_millis(1))
+                    .await;
             }
         })
         .detach();
