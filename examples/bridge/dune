@@ -1,0 +1,5 @@
+(executable
+ (name main)
+ (libraries core gpuio.native gpuio.protocol eio_main eio.unix cstruct)
+ (preprocess
+  (pps ppx_jane)))

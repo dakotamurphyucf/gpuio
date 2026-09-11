@@ -13,12 +13,18 @@ design documents requiring native GUI acceptance on both OSes before advancing
 are superseded by this priority; native GUI coverage must still be reported honestly.
 
 - OCH-18 complete: remote scaffold, standards/design import and fresh-clone checks.
-- OCH-19 implementation under validation: pinned OCaml/Rust closure, reconstructed
+- OCH-19 complete: pinned OCaml/Rust closure, reconstructed
   native Bonsai sources and patches, codec/lifecycle checks.
-- OCH-20 implementation under validation: isolated bootstrap and contributor tools.
-- OCH-21 implementation under validation: source-built Dune/Cargo smoke app and
+- OCH-20 complete: isolated bootstrap and contributor tools.
+- OCH-21 complete: source-built Dune/Cargo smoke app and
   two-window native identity/lifetime scenario.
-- OCH-22 workflows implemented; macOS/Linux remote validation pending.
+- OCH-22 complete: required builds/tests, macOS native checks, informational Linux
+  graphical checks, retained evidence and protected main branch.
+- OCH-6 setup gate complete, merged in PR #1 at `81f6b581c784d448a8948d4cb55e73af9db4b86c`.
+- OCH-7 in progress: production codec/session/mailbox/FFI/GPUI host implemented;
+  macOS two-window/50-revision/rollback/panic smoke passes. Hosted acceptance pending.
+- OCH-8/OCH-9 remain in milestone 01; production UI/runtime functionality is not
+  supplied by the foundation prototype.
 
 ## Local evidence
 
@@ -44,11 +50,18 @@ switch and default toolchain selections were not modified.
 Historical research documentation is preserved under `docs/design` and is not
 an assertion of current production API functionality.
 
-## Remaining foundation validation
+## Hosted evidence and remaining platform validation
 
-Remote clean-checkout macOS/Linux pipelines and real Linux X11/Wayland compositor
-smoke are pending. Both pinned language servers have passed hover and
+PR run [34646959232](https://github.com/dakotamurphyucf/gpuio/actions/runs/34646959232)
+passed on macOS ARM64 and Ubuntu 24.04 x86-64. The informational Linux GUI report
+also records X11 and Wayland success: both asserted the intended backend and
+passed the 50-commit native/lifecycle/input-handler example and two-window
+identity/cleanup scenario. X11 used Xvfb/Openbox; Wayland used nested Weston;
+Mesa software Vulkan supplied rendering. This is actual backend window coverage,
+distinct from the earlier accidental headless X11 attempt. Both pinned language servers have passed hover and
 go-to-definition checks; evidence is in `docs/evidence/*-lsp-navigation.json`.
-Hosted runner branch rules will be configured after checks pass.
+Main requires PRs and both `foundation (macos-15)` and `foundation (ubuntu-24.04)`
+checks with an up-to-date branch. Force pushes and branch deletion are disabled.
+Linux GUI outcomes remain informational and do not alter this development gate.
 No full OS IME automation, accessibility or production multi-window Bonsai API is
 claimed by the bootstrap smoke tests. Those remain in their owning v1 tickets.

@@ -39,6 +39,7 @@ case "${1:-}" in
     unset DISPLAY
     timeout 90 ./scripts/gpuio smoke --self-test
     timeout 90 ./scripts/gpuio smoke --two-windows
+    timeout 90 _build/default/examples/bridge/main.exe
     ;;
   *) echo 'Expected x11 or wayland' >&2; exit 2 ;;
 esac

@@ -95,3 +95,13 @@ every transitive version equals the historical spike's lock.
 The codec test uses Dune's `preserve_file_kind` sandbox requirement so fixture
 symlinks cannot escape Eio's current-directory capability. See [Dune dependency
 specification](https://dune.readthedocs.io/en/stable/concepts/dependency-spec.html).
+
+## Production bridge development
+
+Build `./scripts/gpuio exec dune build examples/bridge/main.exe`, then run
+`_build/default/examples/bridge/main.exe`. The self-test opens two real windows
+and closes them automatically. Its intentional dispose-while-running probe logs
+a Rust panic that must be caught; success ends with `PRODUCTION_BRIDGE_PASS`.
+`gpuio.native` currently supports native OCaml executables with a statically
+linked Rust archive, not bytecode/toplevel loading. The public view/runtime layer
+is being built in OCH-8/OCH-9. See [bridge contract](design/bridge-v1.md).
