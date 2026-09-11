@@ -34,7 +34,7 @@ case "$command" in
     opam install --root "$GPUIO_OPAM_ROOT" --switch gpuio ./gpuio.opam \
       --locked --deps-only --with-test --with-dev-setup --jobs="$GPUIO_JOBS" -y
     rustup toolchain install 1.97.1 --profile minimal --component rustfmt \
-      --component clippy --component rust-analyzer
+      --component clippy --component rust-analyzer --component rust-src
     mkdir -p scratch
     ;;
   exec)
