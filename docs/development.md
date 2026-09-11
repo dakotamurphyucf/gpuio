@@ -15,6 +15,15 @@ development/runtime packages. The exact Ubuntu CI package list is versioned in
 `.github/workflows/foundation.yml`. Native execution requires a working desktop
 display and Vulkan-capable driver; CI uses software rendering for smoke coverage.
 
+The foundation enables each Linux backend on both `gpui` and `gpui_platform`.
+At our pinned revision, `gpui_platform/x11` alone compiles the X11 client but does
+not enable `gpui/x11` compositor detection; that silently selects the headless
+backend when only `DISPLAY` is set. Graphical CI asserts the selected backend.
+X11 runs under Xvfb/Openbox; Wayland uses Weston nested on Xvfb to supply an input
+seat. Bare headless Weston does not supply the seat GPUI requires. These fixtures
+exercise native backend windows with software rendering, not physical input/GPU
+hardware. Set `GPUIO_NATIVE_LOG=1` for native diagnostic logs.
+
 ```sh
 ./scripts/gpuio bootstrap
 ./scripts/gpuio doctor

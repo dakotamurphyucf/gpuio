@@ -52,9 +52,20 @@ fn open(cx: &mut App, name: &'static str, editor_id: i64) -> WindowHandle<View> 
 }
 
 pub fn run() {
+    crate::diagnostics::init();
     let completed = Arc::new(AtomicBool::new(false));
     let result = completed.clone();
     gpui_platform::application().run(move |cx: &mut App| {
+        let checked = Arc::new(AtomicBool::new(false));
+        let checked_on_close = checked.clone();
+        cx.on_window_closed(move |cx, _| {
+            if cx.windows().is_empty() {
+                assert!(checked_on_close.load(Ordering::SeqCst), "windows closed before checks finished");
+                println!("TWO_WINDOWS_PASS distinct_ids isolated_editors stale_window_rejected survivor_usable closed");
+                result.store(true, Ordering::SeqCst);
+                cx.defer(crate::stop_application);
+            }
+        }).detach();
         text_input::bind_keys(cx);
         let first = open(cx, "GPUIO · first window", 101);
         let second = open(cx, "GPUIO · second window", 202);
@@ -81,15 +92,9 @@ pub fn run() {
                 assert_eq!(view.input.read(cx).text(), "second window state");
                 view.input.update(cx, |input, cx| input.exercise_ime(window, cx));
                 assert_eq!(view.input.read(cx).text(), "A日本語Z");
+                checked.store(true, Ordering::SeqCst);
                 window.remove_window();
             }).expect("surviving window remains usable");
-            cx.background_executor().timer(Duration::from_millis(100)).await;
-            cx.update(|cx| {
-                assert!(cx.windows().is_empty());
-                println!("TWO_WINDOWS_PASS distinct_ids isolated_editors stale_window_rejected survivor_usable closed");
-                result.store(true, Ordering::SeqCst);
-                crate::stop_application(cx);
-            });
         }).detach();
     });
     assert!(

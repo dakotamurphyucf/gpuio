@@ -10,6 +10,7 @@ export GPUIO_NATIVE_LOG=1
 
 case "${1:-}" in
   x11)
+    export GPUIO_EXPECT_BACKEND=X11
     unset WAYLAND_DISPLAY
     xvfb-run -a -s '-screen 0 1280x1024x24' \
       dbus-run-session -- sh scripts/ci_x11_session.sh
@@ -21,6 +22,7 @@ case "${1:-}" in
       dbus-run-session -- sh "$0" wayland-session
     ;;
   wayland-session)
+    export GPUIO_EXPECT_BACKEND=Wayland
     export WAYLAND_DISPLAY=wayland-gpuio
     weston --backend=x11-backend.so --use-pixman --socket="$WAYLAND_DISPLAY" \
       --idle-time=0 --width=1280 --height=1024 > .cache/ci/weston.log 2>&1 &
