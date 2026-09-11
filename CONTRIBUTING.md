@@ -6,8 +6,15 @@ Use Jane Street PPX and expect tests. The formatter profile is `janestreet`,
 pinned to ocamlformat 0.28.1. Rust uses the checked-in toolchain.
 
 Keep switches and build artifacts local to this checkout. Do not change global
-opam/rustup selections or another project's dependencies. Bootstrap and CI are
-being implemented under OCH-19–22; see [status](docs/status.md).
+opam/rustup selections or another project's dependencies. Follow the
+[development guide](docs/development.md) and [validation status](docs/status.md).
+
+Create `scratch/` for untracked local development files, experiments and notes.
+Git ignores it and Dune excludes it from recursive build discovery. Each agent
+must keep its own `scratch/agents/<unique-agent-or-session-id>/` notepads, one
+`<ticket-id>.md` per ticket and a short personal `index.md`. Keep notes current
+for compaction recovery without growing a shared global history. Do not rely on
+scratch files as committed build inputs.
 
 ## Review checklist
 

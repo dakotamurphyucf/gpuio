@@ -1,0 +1,33 @@
+{
+  "hover": {
+    "contents": {
+      "kind": "plaintext",
+      "value": "gpui::app::context::Context\n\nimpl<T> AppContext for Context<'_, T>\nfn new<U>(&mut self, build_entity: impl FnOnce(&mut Context<U>) -> U) -> Entity<U>\nwhere\n    U: 'static,\n\n\nT = View, U = TextInput\n\n\nCreate a new entity in the app context."
+    },
+    "range": {
+      "start": {
+        "line": 46,
+        "character": 26
+      },
+      "end": {
+        "line": 46,
+        "character": 29
+      }
+    }
+  },
+  "definition": [
+    {
+      "uri": "<home>/.cargo/git/checkouts/zed-a70e2ad075855582/a57ba9b/crates/gpui/src/app/context.rs",
+      "range": {
+        "start": {
+          "line": 783,
+          "character": 7
+        },
+        "end": {
+          "line": 783,
+          "character": 10
+        }
+      }
+    }
+  ]
+}

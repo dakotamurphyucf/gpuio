@@ -1,0 +1,259 @@
+--- a/dune
++++ b/dune
+@@ -0,0 +1 @@
++(dirs src ppx_bonsai)
+--- a/ppx_bonsai/dune
++++ b/ppx_bonsai/dune
+@@ -0,0 +1 @@
++(dirs src)
+--- a/src/cont.ml
++++ b/src/cont.ml
+@@ -565,7 +565,7 @@
+       ?equal_result
+       starting
+       value
+-      ~effect
++      ~ui_effect_value
+       graph
+       =
+       Proc.Edge.Poll.effect_on_change
+@@ -575,16 +575,16 @@
+         ?equal_result
+         starting
+         value
+-        ~effect
++        ~ui_effect_value
+       |> perform graph
+     ;;
+ 
+-    let manual_refresh__for_proc2 ?sexp_of_model ?equal starting ~effect graph =
+-      perform graph (Proc.Edge.Poll.manual_refresh ?sexp_of_model ?equal starting ~effect)
++    let manual_refresh__for_proc2 ?sexp_of_model ?equal starting ~ui_effect_value graph =
++      perform graph (Proc.Edge.Poll.manual_refresh ?sexp_of_model ?equal starting ~ui_effect_value)
+     ;;
+ 
+-    let manual_refresh ?sexp_of_model ?equal starting ~effect graph =
+-      manual_refresh__for_proc2 ?sexp_of_model ?equal starting ~effect graph
++    let manual_refresh ?sexp_of_model ?equal starting ~ui_effect_value graph =
++      manual_refresh__for_proc2 ?sexp_of_model ?equal starting ~ui_effect_value graph
+       |> split graph
+     ;;
+   end
+--- a/src/cont.mli
++++ b/src/cont.mli
+@@ -295,7 +295,7 @@
+       -> ?equal_result:('o -> 'o -> bool)
+       -> ('o, 'r) Starting.t
+       -> 'a t
+-      -> effect:('a -> 'o Effect.t) t
++      -> ui_effect_value:('a -> 'o Effect.t) t
+       -> graph
+       -> 'r t
+ 
+@@ -303,7 +303,7 @@
+       :  ?sexp_of_model:('o -> Sexp.t)
+       -> ?equal:('o -> 'o -> bool)
+       -> ('o, 'r) Starting.t
+-      -> effect:'o Effect.t t
++      -> ui_effect_value:'o Effect.t t
+       -> graph
+       -> 'r t * unit Effect.t t
+   end
+@@ -713,7 +713,7 @@
+     :  ?sexp_of_model:('o -> Sexp.t)
+     -> ?equal:('o -> 'o -> bool)
+     -> ('o, 'r) Edge.Poll.Starting.t
+-    -> effect:'o Effect.t t
++    -> ui_effect_value:'o Effect.t t
+     -> graph
+     -> ('r * unit Effect.t) t
+ 
+--- a/src/dune
++++ b/src/dune
+@@ -5,3 +5,5 @@
+  (preprocess
+   (pps ppx_jane ppx_pattern_bind ppx_bonsai ppxlib.traverse))
+  (public_name bonsai))
++
++(dirs driver)
+--- a/src/proc.ml
++++ b/src/proc.ml
+@@ -444,7 +444,7 @@
+       ?equal
+       ~initial
+       ~wrap_result
+-      ~effect
++      ~ui_effect_value
+       ()
+       =
+       let%sub _, next_seqnum =
+@@ -492,11 +492,11 @@
+           ()
+       in
+       let%sub callback =
+-        let%arr effect = effect
++        let%arr ui_effect_value = ui_effect_value
+         and next_seqnum = next_seqnum
+         and inject_change = inject_change in
+         let%bind.Effect seqnum = next_seqnum () in
+-        let%bind.Effect result = effect in
++        let%bind.Effect result = ui_effect_value in
+         inject_change (Action.Set (seqnum, wrap_result result))
+       in
+       let%arr { State.last_result; _ } = state
+@@ -509,16 +509,16 @@
+         ?sexp_of_model:(o -> Sexp.t)
+         -> ?equal:(o -> o -> bool)
+         -> (o, r) Starting.t
+-        -> effect:o Effect.t Value.t
++        -> ui_effect_value:o Effect.t Value.t
+         -> (r * unit Effect.t) Computation.t
+       =
+-      fun ?sexp_of_model ?equal kind ~effect ->
++      fun ?sexp_of_model ?equal kind ~ui_effect_value ->
+       match kind with
+       | Starting.Empty ->
+         manual_refresh_implementation
+           ?sexp_of_model:(Option.map ~f:Option.sexp_of_t sexp_of_model)
+           ?equal:(Option.map ~f:Option.equal equal)
+-          ~effect
++          ~ui_effect_value
+           ~initial:None
+           ~wrap_result:Option.some
+           ()
+@@ -526,7 +526,7 @@
+         manual_refresh_implementation
+           ?sexp_of_model
+           ?equal
+-          ~effect
++          ~ui_effect_value
+           ~initial
+           ~wrap_result:Fn.id
+           ()
+@@ -540,23 +540,23 @@
+         -> ?equal_result:(o -> o -> bool)
+         -> (o, r) Starting.t
+         -> a Value.t
+-        -> effect:(a -> o Effect.t) Value.t
++        -> ui_effect_value:(a -> o Effect.t) Value.t
+         -> r Computation.t
+       =
+-      fun ?sexp_of_input ?sexp_of_result ~equal_input ?equal_result kind input ~effect ->
++      fun ?sexp_of_input ?sexp_of_result ~equal_input ?equal_result kind input ~ui_effect_value ->
+       let%sub get_input = yoink input in
+-      let%sub effect =
++      let%sub ui_effect_value =
+         let%arr get_input = get_input
+-        and effect = effect in
++        and ui_effect_value = ui_effect_value in
+         let%bind.Effect input =
+           match%bind.Effect get_input with
+           | Active input -> Effect.return input
+           | Inactive -> Effect.never
+         in
+-        effect input
++        ui_effect_value input
+       in
+       let%sub result, refresh =
+-        manual_refresh ?sexp_of_model:sexp_of_result ?equal:equal_result kind ~effect
++        manual_refresh ?sexp_of_model:sexp_of_result ?equal:equal_result kind ~ui_effect_value
+       in
+       let%sub callback =
+         let%arr refresh = refresh in
+@@ -605,7 +605,7 @@
+   let poll
+     : type a b. (a -> b Effect.t) Value.t -> (a -> b Poll_result.t Effect.t) Computation.t
+     =
+-    fun effect ->
++    fun ui_effect_value ->
+     let module Action = struct
+       type t =
+         | Run of (a, b Poll_result.t) Effect.Private.Callback.t
+@@ -636,14 +636,14 @@
+            reasonable to me. *)
+         ~reset:(fun (_ : _ Apply_action_context.t) model -> model)
+         ~default_model:{ running = false; next_up = None }
+-        ~apply_action:(fun context effect { running; next_up } action ->
++        ~apply_action:(fun context ui_effect_value { running; next_up } action ->
+           let%tydi { inject; schedule_event } =
+             Apply_action_context.Private.reveal context
+           in
+-          let run_effect effect callback =
++          let run_effect ui_effect_value callback =
+             schedule_event
+               (let%bind.Effect response =
+-                 effect (Effect.Private.Callback.request callback)
++                 ui_effect_value (Effect.Private.Callback.request callback)
+                in
+                let%bind.Effect () =
+                  Effect.Private.Callback.respond_to
+@@ -668,19 +668,19 @@
+              be factored to be shorter, but the advantage to this is that every
+              case is extremely short, and it's easy to find which code path a
+              set of variable configurations will take. *)
+-          match action, running, next_up, effect with
++          match action, running, next_up, ui_effect_value with
+           | Run callback, false, None, Inactive ->
+             { running = false; next_up = Some callback }
+-          | Run callback, false, None, Active effect ->
+-            run_effect effect callback;
++          | Run callback, false, None, Active ui_effect_value ->
++            run_effect ui_effect_value callback;
+             { running = true; next_up = None }
+           | Run callback, false, Some next_up, Inactive ->
+             abort next_up;
+             { running = false; next_up = Some callback }
+-          | Run callback, false, Some next_up, Active effect ->
++          | Run callback, false, Some next_up, Active ui_effect_value ->
+             (* This case is untested because I couldn't figure out how to reach
+                this code path in tests. It seems impossible. *)
+-            run_effect effect next_up;
++            run_effect ui_effect_value next_up;
+             { running = true; next_up = Some callback }
+           | Run callback, true, None, (Inactive | Active _) ->
+             { running = true; next_up = Some callback }
+@@ -696,8 +696,8 @@
+                doesn't have access to the input. *)
+             { running; next_up }
+           | Activate, false, None, Active _ -> { running = false; next_up = None }
+-          | Activate, false, Some next_up, Active effect ->
+-            run_effect effect next_up;
++          | Activate, false, Some next_up, Active ui_effect_value ->
++            run_effect ui_effect_value next_up;
+             { running = true; next_up = None }
+           | Activate, true, next_up, Active _ -> { running = true; next_up }
+           | Finished, running, None, (Inactive | Active _) ->
+@@ -706,11 +706,11 @@
+           | Finished, running, Some next_up, Inactive ->
+             soft_assert_running [%here] running;
+             { running = false; next_up = Some next_up }
+-          | Finished, running, Some next_up, Active effect ->
++          | Finished, running, Some next_up, Active ui_effect_value ->
+             soft_assert_running [%here] running;
+-            run_effect effect next_up;
++            run_effect ui_effect_value next_up;
+             { running = true; next_up = None })
+-        effect
++        ui_effect_value
+     in
+     let%sub on_activate =
+       let%arr inject = inject in
+--- a/src/proc_intf.ml
++++ b/src/proc_intf.ml
+@@ -802,14 +802,14 @@
+         -> ?equal_result:('o -> 'o -> bool)
+         -> ('o, 'r) Starting.t
+         -> 'a Value.t
+-        -> effect:('a -> 'o Effect.t) Value.t
++        -> ui_effect_value:('a -> 'o Effect.t) Value.t
+         -> 'r Computation.t
+ 
+       val manual_refresh
+         :  ?sexp_of_model:('o -> Sexp.t)
+         -> ?equal:('o -> 'o -> bool)
+         -> ('o, 'r) Starting.t
+-        -> effect:'o Effect.t Value.t
++        -> ui_effect_value:'o Effect.t Value.t
+         -> ('r * unit Effect.t) Computation.t
+     end
+   end

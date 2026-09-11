@@ -1,0 +1,6 @@
+(library
+ (name gpuio_lifecycle_tests)
+ (libraries core bonsai bonsai.driver)
+ (inline_tests)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

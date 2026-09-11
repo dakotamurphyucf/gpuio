@@ -1,0 +1,92 @@
+#!/bin/sh
+# Repository-local commands. Explicit root/switch flags override ambient opam state.
+set -eu
+GPUIO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$GPUIO_ROOT"
+GPUIO_OPAM_ROOT="$GPUIO_ROOT/.opam-root"
+GPUIO_JOBS=${GPUIO_JOBS:-4}
+export GPUIO_JOBS
+export CARGO_TARGET_DIR="$GPUIO_ROOT/target"
+opam_run() {
+  opam exec --root "$GPUIO_OPAM_ROOT" --switch gpuio -- "$@"
+}
+check_environment() {
+  if [ ! -x "$GPUIO_OPAM_ROOT/gpuio/bin/dune" ]; then
+    echo 'Missing project environment. Run ./scripts/gpuio bootstrap.' >&2
+    exit 1
+  fi
+}
+command=${1:-help}
+if [ "$#" -gt 0 ]; then shift; fi
+case "$command" in
+  bootstrap)
+    for tool in opam git curl cargo rustup python3 pkg-config; do
+      command -v "$tool" >/dev/null || { echo "Missing prerequisite: $tool" >&2; exit 1; }
+    done
+    if [ "$(uname -s)" = Darwin ] && ! command -v gpatch >/dev/null; then
+      echo 'Missing GNU patch on macOS. Install it with: brew install gpatch' >&2
+      exit 1
+    fi
+    if [ ! -f "$GPUIO_OPAM_ROOT/config" ]; then
+      opam init --root "$GPUIO_OPAM_ROOT" --bare --no-setup --disable-sandboxing -y \
+        gpuio 'https://github.com/ocaml/opam-repository.git#90442ec7e20a2a7bbcb6fb102faf2a34b792f2a7'
+    fi
+    if [ ! -f "$GPUIO_OPAM_ROOT/gpuio/.opam-switch/switch-config" ]; then
+      opam switch create --root "$GPUIO_OPAM_ROOT" --no-switch -y gpuio \
+        ocaml-base-compiler.5.3.0 --jobs="$GPUIO_JOBS"
+    fi
+    opam install --root "$GPUIO_OPAM_ROOT" --switch gpuio ./gpuio.opam \
+      --locked --deps-only --with-test --with-dev-setup --jobs="$GPUIO_JOBS" -y
+    rustup toolchain install 1.97.1 --profile minimal --component rustfmt \
+      --component clippy --component rust-analyzer --component rust-src
+    mkdir -p scratch
+    ;;
+  exec)
+    check_environment
+    exec opam exec --root "$GPUIO_OPAM_ROOT" --switch gpuio -- "$@"
+    ;;
+  build)
+    check_environment
+    opam_run dune build -j "$GPUIO_JOBS" "$@"
+    ;;
+  test)
+    check_environment
+    opam_run dune runtest -j "$GPUIO_JOBS" "$@"
+    opam_run cargo test --workspace --locked -j "$GPUIO_JOBS"
+    ;;
+  fmt)
+    check_environment
+    opam_run dune fmt
+    cargo fmt --all
+    ;;
+  check-fmt)
+    check_environment
+    opam_run dune build @fmt -j "$GPUIO_JOBS"
+    cargo fmt --all --check
+    ;;
+  smoke)
+    check_environment
+    opam_run dune build examples/foundation/main.exe -j "$GPUIO_JOBS"
+    cd examples/foundation
+    exec ../../_build/default/examples/foundation/main.exe "$@"
+    ;;
+  lint)
+    check_environment
+    opam lint gpuio.opam
+    opam_run dune build @all -j "$GPUIO_JOBS"
+    opam_run cargo clippy --workspace --all-targets --locked -j "$GPUIO_JOBS" -- -D warnings
+    ;;
+  doctor)
+    check_environment
+    opam_run ocamlc -version
+    opam_run dune --version
+    opam_run ocamlformat --version
+    cargo --version
+    rustc --version
+    git status --short
+    ;;
+  *)
+    echo 'Usage: ./scripts/gpuio {bootstrap|exec COMMAND...|build|test|fmt|check-fmt|lint|doctor|smoke [--self-test|--two-windows]}'
+    [ "$command" = help ] || exit 2
+    ;;
+esac
