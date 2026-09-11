@@ -1,0 +1,6 @@
+(library
+ (name gpuio_bonsai)
+ (public_name gpuio.bonsai)
+ (libraries core gpuio bonsai)
+ (preprocess
+  (pps ppx_jane)))

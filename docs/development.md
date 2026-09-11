@@ -105,3 +105,18 @@ a Rust panic that must be caught; success ends with `PRODUCTION_BRIDGE_PASS`.
 `gpuio.native` currently supports native OCaml executables with a statically
 linked Rust archive, not bytecode/toplevel loading. The public view/runtime layer
 is being built in OCH-8/OCH-9. See [bridge contract](design/bridge-v1.md).
+
+## Typed UI development
+
+Run `./scripts/gpuio exec dune exec examples/view_api/main.exe` for the interactive
+typed counter/theme/selection example; add `-- --self-test` for 20 automated
+acknowledged commits. Reusable components and a compiled Bonsai.Cont example are
+in that directory. See [typed UI contract](design/typed-ui.md).
+
+For actual native input/layout checks, run
+`./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_ui`.
+This opens and activates a window, injects GPUI input and briefly exercises the
+clipboard (restoring its previous contents). Do not interact with that window
+during the short test. The feature enables paint probes only in this test build.
+Ordinary `test` remains headless. CI requires these graphical checks on macOS;
+Linux graphical results remain informational, while builds and pure tests are required.

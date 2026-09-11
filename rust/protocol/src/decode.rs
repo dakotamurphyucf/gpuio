@@ -104,17 +104,34 @@ impl Decoder<'_> {
     fn fill(&mut self) -> Result<Fill, DecodeError> {
         match self.tag()? {
             0 => Ok(Fill::Solid(self.color()?)),
-            1 => Ok(Fill::LinearGradient(self.float()?,self.color()?,self.float()?,self.color()?,self.float()?)),
+            1 => Ok(Fill::LinearGradient(
+                self.float()?,
+                self.color()?,
+                self.float()?,
+                self.color()?,
+                self.float()?,
+            )),
             _ => Err(DecodeError::Malformed),
         }
     }
-    fn boolean(&mut self) -> Result<bool,DecodeError> {
-        match self.tag()? { 0=>Ok(false),1=>Ok(true),_=>Err(DecodeError::Malformed) }
+    fn boolean(&mut self) -> Result<bool, DecodeError> {
+        match self.tag()? {
+            0 => Ok(false),
+            1 => Ok(true),
+            _ => Err(DecodeError::Malformed),
+        }
     }
     fn shadow(&mut self) -> Result<Shadow, DecodeError> {
-        Ok(Shadow {color:self.color()?,offset_x:self.float()?,offset_y:self.float()?,blur:self.float()?,spread:self.float()?,inset:self.boolean()?})
+        Ok(Shadow {
+            color: self.color()?,
+            offset_x: self.float()?,
+            offset_y: self.float()?,
+            blur: self.float()?,
+            spread: self.float()?,
+            inset: self.boolean()?,
+        })
     }
-    fn field(&mut self) -> Result<Field,DecodeError> {
+    fn field(&mut self) -> Result<Field, DecodeError> {
         Ok(match self.tag()? {
             0 => Field::Display(self.int()?),
             1 => Field::Visibility(self.int()?),
@@ -178,6 +195,9 @@ impl Decoder<'_> {
             59 => Field::OverflowY(self.int()?),
             60 => Field::Cursor(self.int()?),
             61 => Field::PointerEvents(self.boolean()?),
+            62 => Field::UserSelect(self.boolean()?),
+            63 => Field::SelectionColor(self.color()?),
+            64 => Field::AccessibleName(self.text()?),
             _ => return Err(DecodeError::Malformed),
         })
     }
@@ -204,7 +224,7 @@ impl Decoder<'_> {
             17 => Style::PressedBackground(self.color()?),
             18 => Style::FocusBackground(self.color()?),
             19 => Style::Fields(self.list(MAX_STYLE_FIELDS, Self::field)?),
-            20 => Style::State(self.int()?,self.list(MAX_STYLE_FIELDS,Self::field)?),
+            20 => Style::State(self.int()?, self.list(MAX_STYLE_FIELDS, Self::field)?),
             _ => return Err(DecodeError::Malformed),
         })
     }

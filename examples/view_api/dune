@@ -1,0 +1,14 @@
+(executable
+ (name main)
+ (modules main components bonsai_component)
+ (libraries
+  core
+  gpuio
+  gpuio.native
+  gpuio.bonsai
+  bonsai
+  eio_main
+  eio.unix
+  cstruct)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

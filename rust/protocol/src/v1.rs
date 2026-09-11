@@ -37,9 +37,19 @@ pub enum Color {
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
-pub enum Fill { Solid(Color), LinearGradient(f64, Color, f64, Color, f64) }
+pub enum Fill {
+    Solid(Color),
+    LinearGradient(f64, Color, f64, Color, f64),
+}
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
-pub struct Shadow { pub color: Color, pub offset_x:f64, pub offset_y:f64, pub blur:f64, pub spread:f64, pub inset:bool }
+pub struct Shadow {
+    pub color: Color,
+    pub offset_x: f64,
+    pub offset_y: f64,
+    pub blur: f64,
+    pub spread: f64,
+    pub inset: bool,
+}
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub enum Field {
     Display(i64),
@@ -104,6 +114,9 @@ pub enum Field {
     OverflowY(i64),
     Cursor(i64),
     PointerEvents(bool),
+    UserSelect(bool),
+    SelectionColor(Color),
+    AccessibleName(String),
 }
 
 /// Initial portable refinements; adding tags requires explicit schema review.

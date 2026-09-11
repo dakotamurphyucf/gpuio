@@ -10,3 +10,8 @@ The bootstrap protocol and single-window application host are private to this
 example. OCH-7–9 implement the production protocol/API/scheduler. The two-window
 scenario is native scaffolding, not the future per-window Bonsai application API.
 Agent chat and graphics examples grow with subsequent milestones.
+
+`view_api/` demonstrates the public typed view/style/theme vocabulary, reusable
+components, a compiled Bonsai.Cont component and an explicit Eio bridge runner.
+See its [README](view_api/README.md) for interactive and automated commands.
+`bridge/` separately exercises production transaction rollback and ownership.

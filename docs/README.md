@@ -8,6 +8,7 @@ describe earlier experiments and are not current source dependencies.
 - [Accepted contracts](design/accepted-contracts.md)
 - [Architecture](design/architecture.md)
 - [Expanded v1 scope](design/expanded-v1.md)
+- [Implemented typed API and style mapping](design/typed-ui.md)
 - [API/parity sketches](design/api-and-parity.md)
 - [Milestones](design/milestones.md)
 - [Research handoff](design/research-handoff.md)

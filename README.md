@@ -2,11 +2,12 @@
 
 Native OCaml applications built with Jane Street Bonsai and Zed's GPUI.
 OCaml owns application state; Rust owns native rendering, input and UI resources.
-The planned bridge exchanges versioned bin_prot commands and events.
+The bridge exchanges versioned bin_prot commands and events.
 
-**Status:** milestone 1 foundation is under validation. The native Bonsai/Eio
-smoke app and two-window check pass locally on macOS. CI validation on macOS and
-Linux is in progress. No production widget API is released yet.
+**Status:** milestone 1 is in progress. The production bridge and native smoke
+checks have passed on macOS and Linux. The typed view/style/theme API is being
+validated in OCH-8; the Bonsai application runner remains OCH-9. This is an
+experimental framework, with no stable API release yet.
 
 The baseline is stock OCaml 5.3.0, Bonsai/Jane Street v0.17, Core, Eio 1.3,
 Dune 3.24.2 and Rust 1.97.1. macOS and Linux (Wayland and X11) are v1 targets.
@@ -16,6 +17,7 @@ Dune 3.24.2 and Rust 1.97.1. macOS and Linux (Wayland and X11) are v1 targets.
 - [Current implementation status](docs/status.md)
 - [Contributor guide](CONTRIBUTING.md)
 - [OCaml engineering standards](docs/design/engineering-standards.md)
+- [Typed UI API and style coverage](docs/design/typed-ui.md)
 - [Accepted contracts](docs/design/accepted-contracts.md)
 - [Architecture](docs/design/architecture.md) and [expanded v1](docs/design/expanded-v1.md)
 - [Research and evidence map](docs/README.md)

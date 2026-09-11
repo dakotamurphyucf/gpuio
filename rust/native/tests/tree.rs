@@ -267,3 +267,82 @@ fn randomized_structural_batches_match_ordered_reference_and_roll_back() {
         }
     }
 }
+
+#[test]
+fn expanded_style_validation_is_atomic_and_counts_nested_storage() {
+    let mut tree = initial();
+    let before = tree.retained_bytes();
+    let shadow = Shadow {
+        color: Color::Rgba(0x00000080),
+        offset_x: 1.,
+        offset_y: 2.,
+        blur: 4.,
+        spread: -1.,
+        inset: false,
+    };
+    let fields = vec![
+        Field::FontFamily("Native font".into()),
+        Field::Shadows(vec![shadow.clone()]),
+        Field::AccessibleName("Submit prompt".into()),
+    ];
+    tree.apply(&tx(
+        &tree,
+        vec![Op::SetStyle(id(1, 1), vec![Style::Fields(fields)])],
+    ))
+    .unwrap();
+    assert!(
+        tree.retained_bytes()
+            >= before + 3 * std::mem::size_of::<Field>() + std::mem::size_of::<Shadow>() + 24
+    );
+    let bytes = tree.retained_bytes();
+    let revision = tree.revision();
+    for invalid in [
+        Style::Fields(vec![Field::Width(Length::Px(f64::NAN))]),
+        Style::Fields(vec![Field::PaddingTop(Length::Auto)]),
+        Style::Fields(vec![Field::Opacity(1.1)]),
+        Style::Fields(vec![Field::GridColumns(0)]),
+        Style::Fields(vec![Field::FontWeight(1001)]),
+        Style::Fields(vec![Field::Background(Fill::LinearGradient(
+            45.,
+            Color::Rgba(0),
+            0.8,
+            Color::Rgba(0),
+            0.2,
+        ))]),
+        Style::Fields(vec![Field::Shadows(vec![Shadow {
+            blur: -1.,
+            ..shadow.clone()
+        }])]),
+        Style::State(0, vec![]),
+        Style::State(4, vec![]),
+        Style::State(2, vec![Field::PointerEvents(false)]),
+        Style::State(3, vec![Field::UserSelect(true)]),
+    ] {
+        assert_eq!(
+            tree.apply(&tx(
+                &tree,
+                vec![
+                    Op::SetText(id(1, 1), "bad".into()),
+                    Op::SetStyle(id(1, 1), vec![invalid])
+                ]
+            )),
+            Err(ErrorCode::Malformed)
+        );
+        assert_eq!(tree.revision(), revision);
+        assert_eq!(tree.retained_bytes(), bytes);
+        assert_eq!(tree.get(id(1, 1)).unwrap().text.as_ref(), "old");
+    }
+    assert_eq!(
+        tree.apply(&tx(
+            &tree,
+            vec![Op::SetStyle(
+                id(1, 1),
+                vec![Style::Fields(vec![Field::Shadows(vec![shadow; 9])])]
+            )]
+        )),
+        Err(ErrorCode::LimitExceeded)
+    );
+    tree.apply(&tx(&tree, vec![Op::SetStyle(id(1, 1), vec![])]))
+        .unwrap();
+    assert_eq!(tree.retained_bytes(), before);
+}

@@ -1,63 +1,141 @@
 open Core
 
 module Display : sig
-  type t = Block | Flex | Grid | Hidden [@@deriving equal, sexp_of]
+  type t =
+    | Block
+    | Flex
+    | Grid
+    | Hidden
+  [@@deriving equal, sexp_of]
 end
 
 module Visibility : sig
-  type t = Visible | Hidden [@@deriving equal, sexp_of]
+  type t =
+    | Visible
+    | Hidden
+  [@@deriving equal, sexp_of]
 end
 
 module Direction : sig
-  type t = Row | Column | Row_reverse | Column_reverse [@@deriving equal, sexp_of]
+  type t =
+    | Row
+    | Column
+    | Row_reverse
+    | Column_reverse
+  [@@deriving equal, sexp_of]
 end
 
 module Wrap : sig
-  type t = No_wrap | Wrap | Wrap_reverse [@@deriving equal, sexp_of]
+  type t =
+    | No_wrap
+    | Wrap
+    | Wrap_reverse
+  [@@deriving equal, sexp_of]
 end
 
 module Align : sig
-  type t = Start | End | Flex_start | Flex_end | Center | Baseline | Stretch [@@deriving equal, sexp_of]
+  type t =
+    | Start
+    | End
+    | Flex_start
+    | Flex_end
+    | Center
+    | Baseline
+    | Stretch
+  [@@deriving equal, sexp_of]
 end
 
 module Distribution : sig
-  type t = Start | End | Flex_start | Flex_end | Center | Stretch | Space_between | Space_evenly | Space_around [@@deriving equal, sexp_of]
+  type t =
+    | Start
+    | End
+    | Flex_start
+    | Flex_end
+    | Center
+    | Stretch
+    | Space_between
+    | Space_evenly
+    | Space_around
+  [@@deriving equal, sexp_of]
 end
 
 module Grid_minimum : sig
-  type t = Zero | Min_content | Max_content [@@deriving equal, sexp_of]
+  type t =
+    | Zero
+    | Min_content
+    | Max_content
+  [@@deriving equal, sexp_of]
 end
 
 module Position : sig
-  type t = Relative | Absolute [@@deriving equal, sexp_of]
+  type t =
+    | Relative
+    | Absolute
+  [@@deriving equal, sexp_of]
 end
 
 module Text_align : sig
-  type t = Left | Center | Right [@@deriving equal, sexp_of]
+  type t =
+    | Left
+    | Center
+    | Right
+  [@@deriving equal, sexp_of]
 end
 
 module White_space : sig
-  type t = Normal | No_wrap [@@deriving equal, sexp_of]
+  type t =
+    | Normal
+    | No_wrap
+  [@@deriving equal, sexp_of]
 end
 
 module Text_overflow : sig
-  type t = Clip | Ellipsis [@@deriving equal, sexp_of]
+  type t =
+    | Clip
+    | Ellipsis
+  [@@deriving equal, sexp_of]
 end
 
 module Text_decoration : sig
-  type t = None | Underline | Strikethrough | Underline_and_strikethrough [@@deriving equal, sexp_of]
+  type t =
+    | None
+    | Underline
+    | Strikethrough
+    | Underline_and_strikethrough
+  [@@deriving equal, sexp_of]
 end
 
 module Overflow : sig
-  type t = Visible | Clip | Hidden | Scroll [@@deriving equal, sexp_of]
+  type t =
+    | Visible
+    | Clip
+    | Hidden
+    | Scroll
+  [@@deriving equal, sexp_of]
 end
 
 module Cursor : sig
-  type t = Arrow | Ibeam | Pointer | Crosshair | Move | Not_allowed | Resize_horizontal | Resize_vertical | Grab | Grabbing [@@deriving equal, sexp_of]
+  type t =
+    | Arrow
+    | Ibeam
+    | Pointer
+    | Crosshair
+    | Move
+    | Not_allowed
+    | Resize_horizontal
+    | Resize_vertical
+    | Grab
+    | Grabbing
+  [@@deriving equal, sexp_of]
 end
 
 module State : sig
-  type t = Base | Focused | Hovered | Pressed [@@deriving equal, sexp_of]
+  type t =
+    | Base
+    | Focused
+    | Hovered
+    | Pressed
+  [@@deriving equal, sexp_of]
 end
 
 module Property : sig
@@ -124,6 +202,9 @@ module Property : sig
     | Overflow_y of Overflow.t
     | Cursor of Cursor.t
     | Pointer_events of bool
+    | User_select of bool
+    | Selection_color of Color.t
+    | Accessible_name of string
     | Padding of Length.t
     | Margin of Length.t
     | Gap of Length.t
@@ -196,6 +277,9 @@ module Property : sig
       | Overflow_y
       | Cursor
       | Pointer_events
+      | User_select
+      | Selection_color
+      | Accessible_name
     [@@deriving compare, equal, sexp_of]
   end
 end
@@ -204,6 +288,7 @@ end
     An unset refinement restores GPUI defaults/inheritance, including when merged
     over a component default. Native precedence is base < focused < hovered < pressed. *)
 type t [@@deriving equal, sexp_of]
+
 val empty : t
 val create : Property.t list -> t Or_error.t
 val create_exn : Property.t list -> t
@@ -211,6 +296,7 @@ val merge : t list -> t
 val unset : t -> ?state:State.t -> Property.Name.t -> t
 val with_state : t -> State.t -> Property.t list -> t Or_error.t
 val with_state_exn : t -> State.t -> Property.t list -> t
+
 module Expert : sig
   val to_wire : t -> theme:Theme.t -> Gpuio_protocol.Wire.Style.t list Or_error.t
 end

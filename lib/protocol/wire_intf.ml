@@ -29,12 +29,21 @@ module type S = sig
   end
 
   module Fill : sig
-    type t = Solid of Color.t | Linear_gradient of float * Color.t * float * Color.t * float
+    type t =
+      | Solid of Color.t
+      | Linear_gradient of float * Color.t * float * Color.t * float
     [@@deriving bin_io, equal, sexp_of]
   end
 
   module Shadow : sig
-    type t = { color:Color.t; offset_x:float; offset_y:float; blur:float; spread:float; inset:bool }
+    type t =
+      { color : Color.t
+      ; offset_x : float
+      ; offset_y : float
+      ; blur : float
+      ; spread : float
+      ; inset : bool
+      }
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -102,6 +111,9 @@ module type S = sig
       | Overflow_y of int64
       | Cursor of int64
       | Pointer_events of bool
+      | User_select of bool
+      | Selection_color of Color.t
+      | Accessible_name of string
     [@@deriving bin_io, equal, sexp_of]
   end
 
