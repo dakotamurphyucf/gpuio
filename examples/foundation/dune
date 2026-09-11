@@ -26,6 +26,6 @@
   threads)
  (preprocess
   (pps ppx_jane bonsai.ppx_bonsai))
- (foreign_archives gpuio_foundation)
+ (link_deps libgpuio_foundation.a)
  (link_flags
   (:include link_flags.sexp)))

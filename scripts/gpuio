@@ -23,6 +23,10 @@ case "$command" in
     for tool in opam git curl cargo rustup python3 pkg-config; do
       command -v "$tool" >/dev/null || { echo "Missing prerequisite: $tool" >&2; exit 1; }
     done
+    if [ "$(uname -s)" = Darwin ] && ! command -v gpatch >/dev/null; then
+      echo 'Missing GNU patch on macOS. Install it with: brew install gpatch' >&2
+      exit 1
+    fi
     if [ ! -f "$GPUIO_OPAM_ROOT/config" ]; then
       opam init --root "$GPUIO_OPAM_ROOT" --bare --no-setup --disable-sandboxing -y \
         gpuio 'https://github.com/ocaml/opam-repository.git#90442ec7e20a2a7bbcb6fb102faf2a34b792f2a7'
@@ -39,7 +43,7 @@ case "$command" in
     ;;
   exec)
     check_environment
-    opam_run "$@"
+    exec opam exec --root "$GPUIO_OPAM_ROOT" --switch gpuio -- "$@"
     ;;
   build)
     check_environment

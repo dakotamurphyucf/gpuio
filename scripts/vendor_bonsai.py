@@ -50,7 +50,8 @@ def main():
             with tarfile.open(archive) as bundle:
                 bundle.extractall(staging, filter="data")
             source_dir = staging / (name + "-" + source["commit"])
-            subprocess.run(["patch", "--batch", "--forward", "-p1", "-i", str(patch)],
+            patch_program = shutil.which("gpatch") or "patch"
+            subprocess.run([patch_program, "--batch", "--forward", "-p1", "-i", str(patch)],
                            cwd=source_dir, check=True)
             print(f"Verified {name} at {source['commit']}", flush=True)
         vendor.mkdir()

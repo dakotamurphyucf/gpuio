@@ -47,10 +47,15 @@ jobs:
             xvfb xauth weston dbus-x11
       - name: macOS system prerequisites
         if: runner.os == 'macOS'
-        run: brew list pkg-config >/dev/null || brew install pkg-config
+        run: |
+          for package in pkg-config gpatch; do
+            brew list "$package" >/dev/null || brew install "$package"
+          done
+          echo "$(brew --prefix gpatch)/libexec/gnubin" >> "$GITHUB_PATH"
       - name: Install pinned opam
         run: python3 scripts/ci_opam.py
       - name: Restore dependency caches
+        id: dependency-cache
         if: ${{ !inputs.clean_build }}
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
@@ -69,6 +74,16 @@ jobs:
         run: ./scripts/gpuio check-fmt
       - name: Build
         run: ./scripts/gpuio build 2>&1 | tee .cache/ci/build.log
+      - name: Preserve successful dependency build
+        if: ${{ !inputs.clean_build && steps.dependency-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            .opam-root
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: foundation-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gpuio.opam.locked', 'third_party/sources.json', 'rust-toolchain.toml', 'Cargo.lock') }}
       - name: OCaml and Rust tests
         run: ./scripts/gpuio test 2>&1 | tee .cache/ci/tests.log
       - name: Lint

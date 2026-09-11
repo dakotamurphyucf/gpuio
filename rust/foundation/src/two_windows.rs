@@ -5,7 +5,13 @@ use gpui::{
     App, Bounds, Context, Entity, Window, WindowBounds, WindowHandle, WindowOptions, div,
     prelude::*, px, rgb, size,
 };
-use std::time::Duration;
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
+};
 
 struct View {
     name: &'static str,
@@ -46,7 +52,9 @@ fn open(cx: &mut App, name: &'static str, editor_id: i64) -> WindowHandle<View> 
 }
 
 pub fn run() {
-    gpui_platform::application().run(|cx: &mut App| {
+    let completed = Arc::new(AtomicBool::new(false));
+    let result = completed.clone();
+    gpui_platform::application().run(move |cx: &mut App| {
         text_input::bind_keys(cx);
         let first = open(cx, "GPUIO · first window", 101);
         let second = open(cx, "GPUIO · second window", 202);
@@ -79,8 +87,13 @@ pub fn run() {
             cx.update(|cx| {
                 assert!(cx.windows().is_empty());
                 println!("TWO_WINDOWS_PASS distinct_ids isolated_editors stale_window_rejected survivor_usable closed");
+                result.store(true, Ordering::SeqCst);
                 crate::stop_application(cx);
             });
         }).detach();
     });
+    assert!(
+        completed.load(Ordering::SeqCst),
+        "two-window checks did not finish"
+    );
 }

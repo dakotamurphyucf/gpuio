@@ -5,8 +5,10 @@ creates `.opam-root/gpuio` in this checkout, installs the locked OCaml packages,
 and installs the pinned Rust toolchain/components. It never selects a global
 opam switch or Rust default and does not edit shell startup files.
 
-On macOS, install Xcode/Command Line Tools and select an SDK supporting macOS
-14.4+. The initial native deployment target is macOS 14.4; local validation uses
+On macOS, install GNU patch (`brew install gpatch`), Xcode/Command Line Tools and
+select an SDK supporting macOS 14.4+. GNU patch is required for opam's upstream
+package patches; bootstrap checks for it before installing anything. The initial
+native deployment target is macOS 14.4; local validation uses
 arm64. On Debian/Ubuntu Linux install a C/C++ toolchain, make, cmake, clang,
 pkg-config, fontconfig, FreeType, OpenSSL, Wayland, X11/XCB, xkbcommon and Vulkan
 development/runtime packages. The exact Ubuntu CI package list is versioned in
@@ -38,8 +40,10 @@ and the pinned formatter; rust-analyzer is supplied by Rust 1.97.1. Run an initi
 build before checking navigation across vendored modules. The [OCaml Platform
 extension](https://github.com/ocamllabs/vscode-ocaml-platform) supports custom
 sandbox commands; select Custom and use `./scripts/gpuio exec $prog $args` from
-the repository root. The OCaml and Rust LSP binaries are installed; interactive
-editor navigation must be checked in the contributor's editor.
+the repository root. Both language servers have been exercised through hover and
+go-to-definition requests, including Rust navigation into pinned GPUI sources;
+evidence is under `docs/evidence`. Select these tools in your editor rather than
+letting it use a different project's switch.
 
 Each checkout/worktree has separate `.opam-root`, `_build`, `target` and `scratch`
 directories. Cargo's immutable download caches may be shared. Do not run two Dune

@@ -32,7 +32,10 @@ link_line = next((line.split(prefix, 1)[1] for line in result.stdout.splitlines(
                   if prefix in line), None)
 if link_line is None:
     raise SystemExit("Cargo did not report native-static-libs; cannot produce linker flags")
-flags = []
+# Dune invokes the OCaml linker from the build-context root, whereas this action
+# runs in the example directory. Generate the archive's actual build path and
+# place it before its system libraries (required by ELF --as-needed linking).
+flags = ["-cclib", str(Path.cwd() / "libgpuio_foundation.a")]
 if platform.system() == "Darwin":
     flags.extend(["-ccopt", "-mmacosx-version-min=14.4"])
 for token in shlex.split(link_line):

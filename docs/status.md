@@ -40,7 +40,8 @@ an assertion of current production API functionality.
 ## Remaining foundation validation
 
 Remote clean-checkout macOS/Linux pipelines and real Linux X11/Wayland compositor
-smoke are pending. Editor binaries are pinned; interactive editor validation is
-not yet recorded. Hosted runner branch rules will be configured after checks pass.
+smoke are pending. Both pinned language servers have passed hover and
+go-to-definition checks; evidence is in `docs/evidence/*-lsp-navigation.json`.
+Hosted runner branch rules will be configured after checks pass.
 No full OS IME automation, accessibility or production multi-window Bonsai API is
 claimed by the bootstrap smoke tests. Those remain in their owning v1 tickets.

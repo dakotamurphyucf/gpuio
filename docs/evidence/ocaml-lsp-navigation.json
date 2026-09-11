@@ -1,0 +1,33 @@
+{
+  "hover": {
+    "contents": {
+      "kind": "plaintext",
+      "value": "Window_title.t -> string"
+    },
+    "range": {
+      "end": {
+        "character": 63,
+        "line": 19
+      },
+      "start": {
+        "character": 41,
+        "line": 19
+      }
+    }
+  },
+  "definition": [
+    {
+      "range": {
+        "end": {
+          "character": 4,
+          "line": 10
+        },
+        "start": {
+          "character": 4,
+          "line": 10
+        }
+      },
+      "uri": "<checkout>/lib/protocol/window_title.ml"
+    }
+  ]
+}
