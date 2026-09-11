@@ -21,6 +21,7 @@ binprot = { git = "https://github.com/LaurentMazare/binprot-rs.git", rev = "165b
 async-channel = "2"
 unicode-segmentation = "1"
 libc = "0.2"
+log = "0.4"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "=0.26.0"

@@ -65,6 +65,8 @@ jobs:
             ~/.cargo/git
             target
           key: foundation-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gpuio.opam.locked', 'third_party/sources.json', 'rust-toolchain.toml', 'Cargo.lock') }}
+          restore-keys: |
+            foundation-v1-${{ runner.os }}-${{ runner.arch }}-
       - name: Bootstrap isolated environment
         run: |
           mkdir -p .cache/ci

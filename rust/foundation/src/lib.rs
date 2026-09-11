@@ -1,4 +1,5 @@
 mod bridge;
+mod diagnostics;
 mod protocol;
 mod text_input;
 mod tree;
@@ -44,6 +45,7 @@ impl View {
             }
         }
         cx.notify();
+        log::debug!("foundation applied revision {}", self.tree.revision);
         bridge::emit(Event::Applied(
             self.tree.revision,
             self.tree.nodes.len() as i64,
@@ -151,6 +153,7 @@ impl View {
 }
 impl Render for View {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        log::debug!("foundation render revision {}", self.tree.revision);
         self.positions.borrow_mut().clear();
         let mut root = div()
             .id("root")
@@ -184,6 +187,7 @@ impl Render for View {
     }
 }
 pub fn run() {
+    diagnostics::init();
     gpui_platform::application().run(|cx: &mut App| {
         text_input::bind_keys(cx);
         let bounds = Bounds::centered(None, size(px(720.), px(900.)), cx);
