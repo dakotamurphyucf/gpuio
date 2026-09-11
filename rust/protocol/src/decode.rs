@@ -101,6 +101,87 @@ impl Decoder<'_> {
         }
     }
 
+    fn fill(&mut self) -> Result<Fill, DecodeError> {
+        match self.tag()? {
+            0 => Ok(Fill::Solid(self.color()?)),
+            1 => Ok(Fill::LinearGradient(self.float()?,self.color()?,self.float()?,self.color()?,self.float()?)),
+            _ => Err(DecodeError::Malformed),
+        }
+    }
+    fn boolean(&mut self) -> Result<bool,DecodeError> {
+        match self.tag()? { 0=>Ok(false),1=>Ok(true),_=>Err(DecodeError::Malformed) }
+    }
+    fn shadow(&mut self) -> Result<Shadow, DecodeError> {
+        Ok(Shadow {color:self.color()?,offset_x:self.float()?,offset_y:self.float()?,blur:self.float()?,spread:self.float()?,inset:self.boolean()?})
+    }
+    fn field(&mut self) -> Result<Field,DecodeError> {
+        Ok(match self.tag()? {
+            0 => Field::Display(self.int()?),
+            1 => Field::Visibility(self.int()?),
+            2 => Field::Direction(self.int()?),
+            3 => Field::Wrap(self.int()?),
+            4 => Field::Grow(self.float()?),
+            5 => Field::Shrink(self.float()?),
+            6 => Field::Basis(self.length()?),
+            7 => Field::AlignItems(self.int()?),
+            8 => Field::AlignSelf(self.int()?),
+            9 => Field::AlignContent(self.int()?),
+            10 => Field::JustifyContent(self.int()?),
+            11 => Field::RowGap(self.length()?),
+            12 => Field::ColumnGap(self.length()?),
+            13 => Field::GridColumns(self.int()?),
+            14 => Field::GridRows(self.int()?),
+            15 => Field::GridColumnMinimum(self.int()?),
+            16 => Field::GridRowMinimum(self.int()?),
+            17 => Field::Width(self.length()?),
+            18 => Field::Height(self.length()?),
+            19 => Field::MinWidth(self.length()?),
+            20 => Field::MinHeight(self.length()?),
+            21 => Field::MaxWidth(self.length()?),
+            22 => Field::MaxHeight(self.length()?),
+            23 => Field::PaddingTop(self.length()?),
+            24 => Field::PaddingRight(self.length()?),
+            25 => Field::PaddingBottom(self.length()?),
+            26 => Field::PaddingLeft(self.length()?),
+            27 => Field::MarginTop(self.length()?),
+            28 => Field::MarginRight(self.length()?),
+            29 => Field::MarginBottom(self.length()?),
+            30 => Field::MarginLeft(self.length()?),
+            31 => Field::Position(self.int()?),
+            32 => Field::Top(self.length()?),
+            33 => Field::Right(self.length()?),
+            34 => Field::Bottom(self.length()?),
+            35 => Field::Left(self.length()?),
+            36 => Field::Background(self.fill()?),
+            37 => Field::Foreground(self.color()?),
+            38 => Field::Opacity(self.float()?),
+            39 => Field::BorderTopWidth(self.float()?),
+            40 => Field::BorderRightWidth(self.float()?),
+            41 => Field::BorderBottomWidth(self.float()?),
+            42 => Field::BorderLeftWidth(self.float()?),
+            43 => Field::TopLeftRadius(self.float()?),
+            44 => Field::TopRightRadius(self.float()?),
+            45 => Field::BottomLeftRadius(self.float()?),
+            46 => Field::BottomRightRadius(self.float()?),
+            47 => Field::BorderColor(self.color()?),
+            48 => Field::Shadows(self.list(8, Self::shadow)?),
+            49 => Field::FontSize(self.float()?),
+            50 => Field::FontFamily(self.text()?),
+            51 => Field::FontWeight(self.int()?),
+            52 => Field::TextAlign(self.int()?),
+            53 => Field::LineHeight(self.length()?),
+            54 => Field::WhiteSpace(self.int()?),
+            55 => Field::TextOverflow(self.int()?),
+            56 => Field::LineClamp(self.int()?),
+            57 => Field::TextDecoration(self.int()?),
+            58 => Field::OverflowX(self.int()?),
+            59 => Field::OverflowY(self.int()?),
+            60 => Field::Cursor(self.int()?),
+            61 => Field::PointerEvents(self.boolean()?),
+            _ => return Err(DecodeError::Malformed),
+        })
+    }
+
     fn style(&mut self) -> Result<Style, DecodeError> {
         Ok(match self.tag()? {
             0 => Style::Width(self.length()?),
@@ -122,6 +203,8 @@ impl Decoder<'_> {
             16 => Style::HoverBackground(self.color()?),
             17 => Style::PressedBackground(self.color()?),
             18 => Style::FocusBackground(self.color()?),
+            19 => Style::Fields(self.list(MAX_STYLE_FIELDS, Self::field)?),
+            20 => Style::State(self.int()?,self.list(MAX_STYLE_FIELDS,Self::field)?),
             _ => return Err(DecodeError::Malformed),
         })
     }

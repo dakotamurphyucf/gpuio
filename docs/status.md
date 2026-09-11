@@ -21,8 +21,10 @@ are superseded by this priority; native GUI coverage must still be reported hone
 - OCH-22 complete: required builds/tests, macOS native checks, informational Linux
   graphical checks, retained evidence and protected main branch.
 - OCH-6 setup gate complete, merged in PR #1 at `81f6b581c784d448a8948d4cb55e73af9db4b86c`.
-- OCH-7 in progress: production codec/session/mailbox/FFI/GPUI host implemented;
-  macOS two-window/50-revision/rollback/panic smoke passes. Hosted acceptance pending.
+- OCH-7 complete, merged in PR #2 at `e6471b4ec88e6847f950da30576b6d2a6639d930`.
+  CI run34650637422 passed on both OSes, including production 50-revision/
+  two-window/rollback/panic smoke on macOS, X11 and Wayland.
+- OCH-8 in progress: typed public view/style/theme interfaces and reconciliation.
 - OCH-8/OCH-9 remain in milestone 01; production UI/runtime functionality is not
   supplied by the foundation prototype.
 

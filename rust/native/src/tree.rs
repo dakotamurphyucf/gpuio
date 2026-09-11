@@ -19,6 +19,7 @@ impl Node {
     fn payload_bytes(&self) -> usize {
         self.text.len()
             + std::mem::size_of_val(self.style.as_ref())
+            + self.style.iter().map(crate::style::retained_bytes).sum::<usize>()
             + std::mem::size_of_val(self.children.as_ref())
     }
 }
@@ -424,6 +425,8 @@ pub fn validate_style(style: &[Style]) -> Result<(), ErrorCode> {
             | Style::HoverBackground(v)
             | Style::PressedBackground(v)
             | Style::FocusBackground(v) => color(v),
+            Style::Fields(fields) => { crate::style::validate_fields(fields)?; true },
+            Style::State(state,fields) => { crate::style::validate_fields(fields)?; (1..=3).contains(state) },
             Style::Opacity(v) => v.is_finite() && (0.0..=1.0).contains(v),
         };
         if !valid {

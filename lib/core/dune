@@ -1,0 +1,5 @@
+(library
+ (name gpuio)
+ (public_name gpuio)
+ (libraries core gpuio.protocol)
+ (preprocess (pps ppx_jane)))

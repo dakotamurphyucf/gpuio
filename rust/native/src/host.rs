@@ -45,8 +45,23 @@ impl View {
         if node.kind == Kind::Button {
             element = element.focusable().cursor_pointer();
         }
+        let mut pointer_enabled = true;
         for style in node.style.iter() {
             match style {
+                Style::Fields(fields) => {
+                    crate::style::refine(element.style(),fields);
+                    for field in fields { if let Field::PointerEvents(enabled)=field {pointer_enabled=*enabled;} }
+                },
+                Style::State(state,fields) => {
+                    let mut refinement=gpui::StyleRefinement::default();
+                    crate::style::refine(&mut refinement,fields);
+                    element=match state {
+                        1=>element.focus(move |_|refinement),
+                        2=>element.hover(move |_|refinement),
+                        3=>element.active(move |_|refinement),
+                        _=>unreachable!("validated state"),
+                    };
+                },
                 Style::Width(v) => element.style().size.width = Some(length(v)),
                 Style::Height(v) => element.style().size.height = Some(length(v)),
                 Style::MinWidth(v) => element.style().min_size.width = Some(length(v)),
@@ -88,7 +103,7 @@ impl View {
             element = element.child(gpui::SharedString::from(node.text.clone()));
         }
         element = element.children(node.children.iter().map(|id| self.element(tree, *id)));
-        if let Some(handler) = node.handler {
+        if let Some(handler) = node.handler && pointer_enabled {
             let window = self.id;
             let revision = tree.revision();
             let session = self.session.clone();

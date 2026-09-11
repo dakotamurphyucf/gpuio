@@ -27,6 +27,83 @@ module Color = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Fill = struct
+  type t = Solid of Color.t | Linear_gradient of float * Color.t * float * Color.t * float
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Shadow = struct
+  type t = { color:Color.t; offset_x:float; offset_y:float; blur:float; spread:float; inset:bool }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Field = struct
+  type t =
+    | Display of int64
+    | Visibility of int64
+    | Direction of int64
+    | Wrap of int64
+    | Grow of float
+    | Shrink of float
+    | Basis of Length.t
+    | Align_items of int64
+    | Align_self of int64
+    | Align_content of int64
+    | Justify_content of int64
+    | Row_gap of Length.t
+    | Column_gap of Length.t
+    | Grid_columns of int64
+    | Grid_rows of int64
+    | Grid_column_minimum of int64
+    | Grid_row_minimum of int64
+    | Width of Length.t
+    | Height of Length.t
+    | Min_width of Length.t
+    | Min_height of Length.t
+    | Max_width of Length.t
+    | Max_height of Length.t
+    | Padding_top of Length.t
+    | Padding_right of Length.t
+    | Padding_bottom of Length.t
+    | Padding_left of Length.t
+    | Margin_top of Length.t
+    | Margin_right of Length.t
+    | Margin_bottom of Length.t
+    | Margin_left of Length.t
+    | Position of int64
+    | Top of Length.t
+    | Right of Length.t
+    | Bottom of Length.t
+    | Left of Length.t
+    | Background of Fill.t
+    | Foreground of Color.t
+    | Opacity of float
+    | Border_top_width of float
+    | Border_right_width of float
+    | Border_bottom_width of float
+    | Border_left_width of float
+    | Top_left_radius of float
+    | Top_right_radius of float
+    | Bottom_left_radius of float
+    | Bottom_right_radius of float
+    | Border_color of Color.t
+    | Shadows of Shadow.t list
+    | Font_size of float
+    | Font_family of string
+    | Font_weight of int64
+    | Text_align of int64
+    | Line_height of Length.t
+    | White_space of int64
+    | Text_overflow of int64
+    | Line_clamp of int64
+    | Text_decoration of int64
+    | Overflow_x of int64
+    | Overflow_y of int64
+    | Cursor of int64
+    | Pointer_events of bool
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Style = struct
   type t =
     | Width of Length.t
@@ -48,6 +125,8 @@ module Style = struct
     | Hover_background of Color.t
     | Pressed_background of Color.t
     | Focus_background of Color.t
+    | Fields of Field.t list
+    | State of int64 * Field.t list
   [@@deriving bin_io, equal, sexp_of]
 end
 
