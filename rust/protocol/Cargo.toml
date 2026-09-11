@@ -7,3 +7,6 @@ repository.workspace = true
 
 [lib]
 path = "src/lib.rs"
+
+[dependencies]
+binprot = { git = "https://github.com/LaurentMazare/binprot-rs.git", rev = "165b4d64d8f2a580af453f1e60deba41c28cd6df" }

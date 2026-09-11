@@ -2370,6 +2370,9 @@ dependencies = [
 [[package]]
 name = "gpuio-protocol"
 version = "0.0.0"
+dependencies = [
+ "binprot",
+]
 
 [[package]]
 name = "half"

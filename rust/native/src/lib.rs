@@ -1,3 +1,3 @@
-//! Native GPUI boundary reserved for the source-built foundation in OCH-21.
-//!
-//! Rust owns native UI resources; OCaml exchanges serialized commands and events.
+//! Native ownership and transaction validation. GPUI adaptation lives above the
+//! pure retained-state modules so invariants can be tested without a display.
+pub mod tree;
