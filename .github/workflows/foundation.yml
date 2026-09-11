@@ -44,7 +44,7 @@ jobs:
             libfontconfig-dev libfreetype-dev libssl-dev libwayland-dev libx11-xcb-dev \
             libxkbcommon-x11-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
             libvulkan-dev mesa-vulkan-drivers libasound2-dev libglib2.0-dev \
-            xvfb xauth weston dbus-x11
+            xvfb xauth openbox x11-utils x11-xserver-utils weston dbus-x11
       - name: macOS system prerequisites
         if: runner.os == 'macOS'
         run: |
@@ -87,6 +87,7 @@ jobs:
       - name: OCaml and Rust tests
         run: ./scripts/gpuio test 2>&1 | tee .cache/ci/tests.log
       - name: Lint
+        id: lint
         run: ./scripts/gpuio lint 2>&1 | tee .cache/ci/lint.log
       - name: macOS native smoke
         if: runner.os == 'macOS'
@@ -97,7 +98,7 @@ jobs:
         if: runner.os == 'Linux'
         run: ./scripts/ci_linux_smoke.sh x11 2>&1 | tee .cache/ci/x11.log
       - name: Linux Wayland native smoke
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && !cancelled() && steps.lint.outcome == 'success'
         run: ./scripts/ci_linux_smoke.sh wayland 2>&1 | tee .cache/ci/wayland.log
       - name: Record environment
         if: always()

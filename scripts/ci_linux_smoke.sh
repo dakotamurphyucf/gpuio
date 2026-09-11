@@ -11,9 +11,7 @@ case "${1:-}" in
   x11)
     unset WAYLAND_DISPLAY
     xvfb-run -a -s '-screen 0 1280x1024x24' \
-      timeout 90 ./scripts/gpuio smoke --self-test
-    xvfb-run -a -s '-screen 0 1280x1024x24' \
-      timeout 90 ./scripts/gpuio smoke --two-windows
+      dbus-run-session -- sh scripts/ci_x11_session.sh
     ;;
   wayland)
     unset DISPLAY
