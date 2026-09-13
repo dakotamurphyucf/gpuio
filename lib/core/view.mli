@@ -27,14 +27,33 @@ val grid
   -> 'action t list
   -> 'action t Or_error.t
 
+(** One controller identifies one placement across a window tree. Initial text is
+    read only on native creation; use explicit editor commands for later edits. *)
+val text_input
+  :  ?style:Style.t
+  -> ?initial_text:string
+  -> controller:Key.t
+  -> config:Text_input.Config.t
+  -> on_event:(Text_input.Event.t -> 'action)
+  -> unit
+  -> 'action t Or_error.t
+
 module Expert : sig
   module Kind : sig
     type t =
       | Container
       | Text
       | Button
+      | Input
+      | Textarea
     [@@deriving equal, sexp_of]
   end
+
+  type 'action editor =
+    { controller : Key.t
+    ; config : Text_input.Config.t
+    ; on_event : Text_input.Event.t -> 'action
+    }
 
   type 'action description =
     { key : Key.t option
@@ -42,6 +61,7 @@ module Expert : sig
     ; text : string
     ; style : Style.t
     ; on_click : (unit -> 'action) option
+    ; editor : 'action editor option
     ; children : 'action t list
     }
 

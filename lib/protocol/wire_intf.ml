@@ -10,6 +10,8 @@ module type S = sig
       | Container
       | Text
       | Button
+      | Input
+      | Textarea
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -143,6 +145,96 @@ module type S = sig
     [@@deriving bin_io, equal, sexp_of]
   end
 
+  module Editor : sig
+    module Selection : sig
+      type t =
+        { anchor : int64
+        ; head : int64
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Config : sig
+      type t =
+        { label : string
+        ; placeholder : string
+        ; read_only : bool
+        ; disabled : bool
+        ; submit_on_enter : bool
+        ; auto_focus : bool
+        ; min_rows : int64
+        ; max_rows : int64
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Snapshot : sig
+      type t =
+        { revision : int64
+        ; text : string
+        ; selection : Selection.t
+        ; composition : Selection.t option
+        ; focused : bool
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Selection_policy : sig
+      type t =
+        | Start
+        | End
+        | Preserve
+        | Select of Selection.t
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Undo_policy : sig
+      type t =
+        | Record
+        | Reset
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Command : sig
+      type t =
+        | Replace of string * Selection_policy.t * Undo_policy.t * int64 option
+        | Select of Selection.t
+        | Focus
+        | Undo
+        | Redo
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Error : sig
+      type t =
+        | Not_mounted
+        | Closed
+        | Stale_editor
+        | Stale_revision
+        | Composing
+        | Invalid_selection
+        | Limit_exceeded
+        | Busy
+        | Native_failure
+        | Invalid_text
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Result : sig
+      type t =
+        | Applied of Snapshot.t
+        | Failed of Error.t
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Event_kind : sig
+      type t =
+        | Changed
+        | Submitted
+      [@@deriving bin_io, equal, sexp_of]
+    end
+  end
+
   module Op : sig
     type t =
       | Create of Node_id.t * Kind.t * string * Handler_id.t option
@@ -152,6 +244,7 @@ module type S = sig
       | Bind of Node_id.t * Handler_id.t option
       | Splice of Node_id.t * int64 * int64 * Node_id.t list
       | Set_root of Node_id.t option
+      | Set_editor of Node_id.t * Editor.Config.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -173,6 +266,7 @@ module type S = sig
       | Apply of Transaction.t
       | Request_frame of int64 * Window_id.t
       | Shutdown
+      | Editor_command of int64 * Window_id.t * Node_id.t * Editor.Command.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Bounded outgoing encoding. Native decoding additionally validates all
@@ -210,6 +304,14 @@ module type S = sig
       | Failed of int64 * Error_code.t
       | Stopped
       | Overloaded of Window_id.t
+      | Editor_event of
+          Window_id.t
+          * Node_id.t
+          * Handler_id.t
+          * int64
+          * Editor.Event_kind.t
+          * Editor.Snapshot.t
+      | Editor_result of int64 * Window_id.t * Node_id.t * Editor.Result.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

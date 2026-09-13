@@ -2,6 +2,15 @@ open Core
 open Gpuio_protocol
 module Guard = Gpuio_runtime_core.Domain_guard
 module Driver = Gpuio_runtime_core.Window_driver
+module Input = Gpuio.Text_input
+
+type editor_result = (Input.Snapshot.t, Input.Command_error.t) Result.t
+
+type editor_request =
+  { window : Window_id.t
+  ; node : Node_id.t
+  ; complete : editor_result -> unit
+  }
 
 module Stats = struct
   type t =
@@ -33,6 +42,7 @@ type t =
   ; mutable opens : Wire.Message.t Int64.Map.t
   ; mutable closes : Window_id.t Int64.Map.t
   ; mutable frames : (Window_id.t * (revision:int64 -> unit Bonsai.Effect.t)) Int64.Map.t
+  ; mutable editors : editor_request Int64.Map.t
   ; mutable correlation : int64
   ; mutable welcomed : bool
   ; mutable stopping : bool
@@ -76,6 +86,12 @@ let release_window window =
   | Closed -> ()
   | Opening | Open | Closing_before_open | Closing ->
     window.phase <- Closed;
+    let cancelled, remaining =
+      Map.partition_tf window.app.editors ~f:(fun request ->
+        Window_id.equal request.window window.id)
+    in
+    window.app.editors <- remaining;
+    Map.iter cancelled ~f:(fun request -> request.complete (Error Closed));
     Scope.cancel window.scope;
     Option.iter window.driver ~f:Driver.close;
     window.driver <- None;
@@ -149,6 +165,40 @@ module Window = struct
       queue t.app (Request_frame (request, t.id));
       Ok ())
   ;;
+
+  module Expert = struct
+    let editor_command t snapshot command =
+      Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+        check t.app;
+        let complete = callback in
+        let invalid_text =
+          match command with
+          | Input.Command.Replace { text; _ } ->
+            if String.length text > Input.max_text_bytes
+            then Some Input.Command_error.Limit_exceeded
+            else if Result.is_error (Input.validate_text ~mode:Multiline text)
+            then Some Invalid_text
+            else None
+          | Select _ | Focus | Undo | Redo -> None
+        in
+        if is_closed t || t.app.stopping
+        then complete (Error Input.Command_error.Closed)
+        else if Option.is_some invalid_text
+        then complete (Error (Option.value_exn invalid_text))
+        else if not (Window_id.equal t.id (Input.Expert.window snapshot))
+        then complete (Error Stale_editor)
+        else if Map.length t.app.editors >= 64
+        then complete (Error Busy)
+        else (
+          let request = correlation t.app in
+          let node = Input.Expert.node snapshot in
+          t.app.editors
+          <- Map.set t.app.editors ~key:request ~data:{ window = t.id; node; complete };
+          queue
+            t.app
+            (Editor_command (request, t.id, node, Input.Expert.command_to_wire command))))
+    ;;
+  end
 end
 
 let open_window t ?(theme = Gpuio.Theme.default) ~title ~width ~height component =
@@ -224,10 +274,24 @@ let process t = function
         Option.iter window.driver ~f:(fun driver ->
           Driver.acknowledge driver ~revision |> Or_error.ok_exn));
     Inbox.wake t.inbox
-  | Press (id, _, _, _) as event ->
+  | (Press (id, _, _, _) | Editor_event (id, _, _, _, _, _)) as event ->
     Option.iter (find_window t id) ~f:(fun window ->
       if not (Window.is_closed window)
       then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))
+  | Editor_result (request, id, node, result) ->
+    (match Map.find t.editors request with
+     | Some pending
+       when Window_id.equal pending.window id && Node_id.equal pending.node node ->
+       t.editors <- Map.remove t.editors request;
+       let result =
+         match result with
+         | Failed error -> Error (Input.Expert.error_of_wire error)
+         | Applied snapshot ->
+           Input.Expert.snapshot_of_wire ~window:id ~node snapshot
+           |> Result.map_error ~f:(fun _ -> Input.Command_error.Native_failure)
+       in
+       pending.complete result
+     | Some _ | None -> ())
   | Rendered _ -> t.stats <- { t.stats with rendered = t.stats.rendered + 1 }
   | Frame_requested (request, id, revision) ->
     (match Map.find t.frames request with
@@ -237,6 +301,25 @@ let process t = function
          if not (Window.is_closed window)
          then Bonsai.Effect.Expert.handle (callback ~revision))
      | Some _ | None -> ())
+  | Failed (request, code) when Map.mem t.editors request ->
+    let pending = Map.find_exn t.editors request in
+    t.editors <- Map.remove t.editors request;
+    let error : Input.Command_error.t =
+      match code with
+      | Closed -> Closed
+      | Stale_handle -> Stale_editor
+      | Busy -> Busy
+      | Limit_exceeded -> Limit_exceeded
+      | Unsupported_version
+      | Unsupported_capability
+      | Malformed
+      | Not_ready
+      | Invalid_revision
+      | Invalid_tree
+      | Overloaded
+      | Native_failure -> Native_failure
+    in
+    pending.complete (Error error)
   | Failed (_, (Closed | Stale_handle)) when t.stopping -> ()
   | Rejected (id, _, (Closed | Stale_handle))
     when t.stopping || Option.for_all (find_window t id) ~f:Window.is_closed -> ()
@@ -344,6 +427,7 @@ let worker native read ~tick_hz ~max_tasks initialize =
         ; opens = Int64.Map.empty
         ; closes = Int64.Map.empty
         ; frames = Int64.Map.empty
+        ; editors = Int64.Map.empty
         ; correlation = 0L
         ; welcomed = false
         ; stopping = false

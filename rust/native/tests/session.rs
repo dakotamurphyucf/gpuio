@@ -31,7 +31,7 @@ fn negotiation_closed_generations_and_render_requests() {
     );
     assert_eq!(session.hello(2, 0), Err(ErrorCode::UnsupportedVersion));
     assert_eq!(
-        session.hello(VERSION, 8),
+        session.hello(VERSION, 16),
         Err(ErrorCode::UnsupportedCapability)
     );
     assert_eq!(
@@ -124,7 +124,7 @@ fn input_pressure_has_ordered_explicit_overload_and_coalescing_barriers() {
     for _ in 0..MAX_INPUT_EVENTS {
         mailbox.input(click.clone()).unwrap();
     }
-    assert_eq!(mailbox.input(click.clone()), Err(click));
+    assert_eq!(mailbox.input(click.clone()), Err(Box::new(click)));
     mailbox.fault(window(1));
     mailbox.fault(window(1));
     let events = mailbox.drain(256);

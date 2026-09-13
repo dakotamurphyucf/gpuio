@@ -44,6 +44,8 @@ case "${1:-}" in
     timeout 90 _build/default/examples/runtime/main.exe --self-test
     timeout 90 _build/default/examples/runtime/main.exe --shutdown-test
     timeout 90 _build/default/examples/runtime/main.exe --last-window-test
+    timeout 90 _build/default/examples/text_input/main.exe --self-test
+    timeout 90 ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_editor
     timeout 90 ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_ui
     ;;
   *) echo 'Expected x11 or wayland' >&2; exit 2 ;;

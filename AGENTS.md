@@ -11,6 +11,13 @@ is informational during implementation, with full GUI validation deferred to
 OCH-17. Do not block feature work on Linux GUI debugging or claim Linux GUI
 acceptance from compilation. No local Linux VM/container setup is required now.
 
+Local desktop courtesy (owner, 2026-09-13, revised): prefer background windows
+where a test permits them, but local foreground GUI/focus/IME tests are explicitly
+authorized for fast iteration. The owner accepts focus interruptions when needed;
+do not wait for CI alone to debug native behavior or ask permission for each run.
+Avoid unnecessary activation and repeated runs. Background rendering/layout
+checks must not be reported as real foreground keyboard/IME validation.
+
 Draft coherent types/interfaces before implementation. Use typed comparison,
 receiver-first APIs, validated invariants, Jane Street formatting/PPX and expect
 tests. Keep Rust native ownership and asynchronous event delivery explicit.

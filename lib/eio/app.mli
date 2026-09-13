@@ -31,6 +31,17 @@ module Window : sig
     :  t
     -> on_rendered:(revision:int64 -> unit Bonsai.Effect.t)
     -> unit Or_error.t
+
+  module Expert : sig
+    (** Correlated native commands for controller adapters. Captures the exact
+        editor lease; a delayed effect never targets a remounted replacement. *)
+    val editor_command
+      :  t
+      -> Gpuio.Text_input.Snapshot.t
+      -> Gpuio.Text_input.Command.t
+      -> (Gpuio.Text_input.Snapshot.t, Gpuio.Text_input.Command_error.t) Result.t
+           Bonsai.Effect.t
+  end
 end
 
 val scope : t -> Scope.t

@@ -22,8 +22,38 @@ fn independent_ocaml_rust_request_and_event_fixtures() {
     assert_eq!(actual, events);
 }
 
+#[path = "common/editor_fixture.rs"]
+mod editor_fixture;
 #[path = "common/style_fixture.rs"]
 mod style_fixture;
+#[test]
+fn editor_tags_match_ocaml_and_messages_reject_truncation() {
+    let requests = editor_fixture::requests();
+    let mut actual = Vec::new();
+    requests.binprot_write(&mut actual).unwrap();
+    assert_eq!(
+        actual,
+        bytes(include_str!(
+            "../../../test/fixtures/editor-v1-requests.hex"
+        ))
+    );
+    actual.clear();
+    editor_fixture::events().binprot_write(&mut actual).unwrap();
+    assert_eq!(
+        actual,
+        bytes(include_str!("../../../test/fixtures/editor-v1-events.hex"))
+    );
+    for request in requests {
+        actual.clear();
+        request.binprot_write(&mut actual).unwrap();
+        assert_eq!(gpuio_protocol::decode(&actual).unwrap(), request);
+        for end in 0..actual.len() {
+            assert!(gpuio_protocol::decode(&actual[..end]).is_err());
+        }
+        actual.push(0);
+        assert!(gpuio_protocol::decode(&actual).is_err());
+    }
+}
 #[test]
 fn every_extended_style_field_matches_the_independent_ocaml_fixture() {
     let expected = bytes(include_str!("../../../test/fixtures/style-v1.hex"));

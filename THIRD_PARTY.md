@@ -20,3 +20,11 @@ GPUI/GPUI platform dependencies are Apache-2.0; ocaml-interop and binprot-rs ret
 their upstream licenses in Cargo's pinned source checkouts. Cargo.lock records the
 full transitive dependency set. These dependency licenses are independent of
 GPUIO's project license. Run `cargo metadata --locked` when auditing the closure.
+
+`vendor/gpui-base` retains GPUI Kit's Apache-2.0 sources/license at
+`84f57fdfcb4910623fb0bb7f795b077e249f9271` (0.6.1). Its original manifest and
+upstream README are retained. The adapted manifest unifies GPUI/macros/sum-tree
+with GPUIO's pinned Zed source; patches are recorded in
+`third_party/patches/gpui-base.patch`. Source/patch hashes and the reconstruction
+script preserve provenance. This imports native behavior without the JavaScript
+shell or the styled component facade. See `docs/design/native-editor.md`.

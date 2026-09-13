@@ -15,6 +15,11 @@ use std::{
 };
 
 type SharedSession = Rc<RefCell<Session>>;
+#[path = "editor.rs"]
+mod editor;
+#[cfg(feature = "native-tests")]
+#[path = "editor_test.rs"]
+pub(super) mod editor_test;
 struct ButtonState {
     focus: gpui::FocusHandle,
     space_down: Cell<bool>,
@@ -41,6 +46,7 @@ struct View {
     transport: Arc<Transport>,
     buttons: BTreeMap<NodeId, Rc<ButtonState>>,
     selections: BTreeMap<NodeId, Rc<RefCell<crate::selection::State>>>,
+    editors: BTreeMap<NodeId, editor::Instance>,
     visited: std::collections::BTreeSet<NodeId>,
     #[cfg(feature = "native-tests")]
     probes: Rc<RefCell<BTreeMap<NodeId, native_test::Probe>>>,
@@ -83,9 +89,41 @@ impl View {
             transport,
             buttons: BTreeMap::new(),
             selections: BTreeMap::new(),
+            editors: BTreeMap::new(),
             visited: Default::default(),
             #[cfg(feature = "native-tests")]
             probes: Default::default(),
+        }
+    }
+    fn update_editors(&mut self, dirty: &[NodeId], window: &mut Window, cx: &mut Context<Self>) {
+        let nodes = {
+            let session = self.session.borrow();
+            let Some(tree) = session.tree(self.id) else {
+                self.editors.clear();
+                return;
+            };
+            self.editors.retain(|id, _| tree.get(*id).is_some());
+            dirty
+                .iter()
+                .filter_map(|id| tree.get(*id))
+                .filter(|node| node.editor.is_some())
+                .cloned()
+                .collect::<Vec<_>>()
+        };
+        for node in nodes {
+            if let Some(editor) = self.editors.get_mut(&node.id) {
+                editor.configure(node.editor.as_ref().expect("validated editor"), window, cx);
+            } else {
+                let editor = editor::Instance::new(
+                    self.id,
+                    &node,
+                    self.session.clone(),
+                    self.transport.clone(),
+                    window,
+                    cx,
+                );
+                self.editors.insert(node.id, editor);
+            }
         }
     }
     fn element(
@@ -207,7 +245,18 @@ impl View {
         if !interaction.pointer {
             element.style().mouse_cursor = None;
         }
-        if node.kind == Kind::Text && interaction.selectable {
+        if let Some(editor) = self.editors.get(&id) {
+            element = element
+                .capture_action(|_: &gpui_base::input::IndentInline, window, cx| {
+                    window.focus_next(cx);
+                    cx.stop_propagation();
+                })
+                .capture_action(|_: &gpui_base::input::OutdentInline, window, cx| {
+                    window.focus_prev(cx);
+                    cx.stop_propagation();
+                })
+                .child(editor.element());
+        } else if node.kind == Kind::Text && interaction.selectable {
             self.visited.insert(id);
             let selection = self
                 .selections
@@ -235,7 +284,9 @@ impl View {
                 .map(|id| self.element(tree, *id, interaction, cx))
                 .collect::<Vec<_>>(),
         );
-        if let Some(handler) = node.handler {
+        if let Some(handler) = node.handler
+            && node.editor.is_none()
+        {
             let window = self.id;
             let revision = tree.revision();
             let session = self.session.clone();
@@ -383,6 +434,7 @@ pub fn run(transport: Arc<Transport>) {
     }
     let stopping = Rc::new(Cell::new(false));
     gpui_platform::application().run(move |cx: &mut App| {
+        gpui_base::init(cx);
         // GPUI defaults to last-window exit on Linux. Our explicit lifecycle
         // policy must control background applications consistently on both OSes.
         cx.set_quit_mode(gpui::QuitMode::Explicit);
@@ -512,10 +564,13 @@ pub fn run(transport: Arc<Transport>) {
                         Message::Apply(tx) => {
                             let result = session.borrow_mut().apply(&tx);
                             match result {
-                                Ok(_) => {
+                                Ok(applied) => {
                                     transport.respond(Event::Accepted(tx.window, tx.revision));
                                     if let Some(window) = windows.get(&tx.window) {
-                                        let _ = window.update(cx, |_, _, cx| cx.notify());
+                                        let _ = window.update(cx, |view, window, cx| {
+                                            view.update_editors(&applied.dirty, window, cx);
+                                            cx.notify();
+                                        });
                                     }
                                 }
                                 Err(error) => transport.respond(Event::Rejected(
@@ -535,6 +590,22 @@ pub fn run(transport: Arc<Transport>) {
                                 }
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),
                             }
+                        }
+                        Message::EditorCommand(correlation, id, node, command) => {
+                            let result = match windows.get(&id) {
+                                None => EditorResult::Failed(EditorError::Closed),
+                                Some(handle) => handle
+                                    .update(cx, |view, window, cx| {
+                                        let result = match view.editors.get_mut(&node) {
+                                            None => EditorResult::Failed(EditorError::StaleEditor),
+                                            Some(editor) => editor.command(&command, window, cx),
+                                        };
+                                        cx.notify();
+                                        result
+                                    })
+                                    .unwrap_or(EditorResult::Failed(EditorError::Closed)),
+                            };
+                            transport.respond(Event::EditorResult(correlation, id, node, result));
                         }
                         Message::Close(correlation, id) => {
                             let result = session.borrow_mut().close(id);

@@ -246,6 +246,8 @@ impl Decoder<'_> {
                     0 => Kind::Container,
                     1 => Kind::Text,
                     2 => Kind::Button,
+                    3 => Kind::Input,
+                    4 => Kind::Textarea,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -261,6 +263,67 @@ impl Decoder<'_> {
                 self.list(MAX_NODES, Self::node)?,
             ),
             6 => Op::SetRoot(self.option(Self::node)?),
+            7 => Op::SetEditor(self.node()?, self.editor_config()?),
+            _ => return Err(DecodeError::Malformed),
+        })
+    }
+
+    fn editor_selection(&mut self) -> Result<EditorSelection, DecodeError> {
+        let selection = EditorSelection {
+            anchor: self.int()?,
+            head: self.int()?,
+        };
+        if !(0..=MAX_TEXT_BYTES as i64).contains(&selection.anchor)
+            || !(0..=MAX_TEXT_BYTES as i64).contains(&selection.head)
+        {
+            return Err(DecodeError::Malformed);
+        }
+        Ok(selection)
+    }
+
+    fn editor_config(&mut self) -> Result<EditorConfig, DecodeError> {
+        let config = EditorConfig {
+            label: self.text()?,
+            placeholder: self.text()?,
+            read_only: self.boolean()?,
+            disabled: self.boolean()?,
+            submit_on_enter: self.boolean()?,
+            auto_focus: self.boolean()?,
+            min_rows: self.int()?,
+            max_rows: self.int()?,
+        };
+        if !config.is_valid() {
+            return Err(DecodeError::Malformed);
+        }
+        Ok(config)
+    }
+
+    fn editor_command(&mut self) -> Result<EditorCommand, DecodeError> {
+        Ok(match self.tag()? {
+            0 => {
+                let text = self.text()?;
+                let selection = match self.tag()? {
+                    0 => EditorSelectionPolicy::Start,
+                    1 => EditorSelectionPolicy::End,
+                    2 => EditorSelectionPolicy::Preserve,
+                    3 => EditorSelectionPolicy::Select(self.editor_selection()?),
+                    _ => return Err(DecodeError::Malformed),
+                };
+                let undo = match self.tag()? {
+                    0 => EditorUndoPolicy::Record,
+                    1 => EditorUndoPolicy::Reset,
+                    _ => return Err(DecodeError::Malformed),
+                };
+                let revision = self.option(Self::int)?;
+                if revision.is_some_and(|revision| revision < 0) {
+                    return Err(DecodeError::Malformed);
+                }
+                EditorCommand::Replace(text, selection, undo, revision)
+            }
+            1 => EditorCommand::Select(self.editor_selection()?),
+            2 => EditorCommand::Focus,
+            3 => EditorCommand::Undo,
+            4 => EditorCommand::Redo,
             _ => return Err(DecodeError::Malformed),
         })
     }
@@ -285,6 +348,7 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
         }),
         4 => Message::RequestFrame(d.int()?, d.window()?),
         5 => Message::Shutdown,
+        6 => Message::EditorCommand(d.int()?, d.window()?, d.node()?, d.editor_command()?),
         _ => return Err(DecodeError::Malformed),
     };
     if d.remaining() != 0 {

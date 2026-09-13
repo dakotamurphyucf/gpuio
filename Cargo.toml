@@ -1,6 +1,7 @@
 [workspace]
 members = ["rust/protocol", "rust/native", "rust/foundation"]
 resolver = "3"
+exclude = ["vendor/gpui-base"]
 
 [workspace.package]
 version = "0.0.0"

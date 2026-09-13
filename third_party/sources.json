@@ -78,5 +78,13 @@
       "url": "https://github.com/LaurentMazare/binprot-rs.git",
       "commit": "165b4d64d8f2a580af453f1e60deba41c28cd6df"
     }
+  },
+  "gpui_base": {
+    "url": "https://github.com/longbridge/gpui-kit.git",
+    "commit": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "version": "0.6.1",
+    "gpui_commit": "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
+    "archive_sha256": "909c00c97bbfce11607eef7d3eccd01201d591af9d26cd9ebadfe0c90fca502f",
+    "patch_sha256": "2de20a090f24c9c8b7d9d2e11b2ebe9716bfc7516cbc704d5b1825ee034f7fa2"
   }
 }

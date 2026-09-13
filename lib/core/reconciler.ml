@@ -62,10 +62,14 @@ module Identity = struct
   ;;
 end
 
+type 'a callback =
+  | Click of (unit -> 'a)
+  | Editor of (Text_input.Event.t -> 'a)
+
 type 'a binding =
   { node : Node_id.t
   ; handler : Handler_id.t
-  ; callback : unit -> 'a
+  ; callback : 'a callback
   }
 
 type 'a mounted =
@@ -74,6 +78,7 @@ type 'a mounted =
   ; handler : Handler_id.t option
   ; style : Wire.Style.t list
   ; children : 'a mounted list
+  ; controllers : String.Set.t
   }
 
 type 'a state =
@@ -162,6 +167,8 @@ let kind = function
   | View.Expert.Kind.Container -> Wire.Kind.Container
   | Text -> Text
   | Button -> Button
+  | Input -> Input
+  | Textarea -> Textarea
 ;;
 
 let compatible mounted view =
@@ -231,8 +238,15 @@ let rec mount builder ~depth previous view =
       | None -> new_node builder
     in
     let old_handler = Option.bind previous ~f:(fun mounted -> mounted.handler) in
+    let callback =
+      match description.on_click, description.editor with
+      | Some callback, None -> Some (Click callback)
+      | None, Some editor -> Some (Editor editor.on_event)
+      | None, None -> None
+      | Some _, Some _ -> fail "editor cannot also bind a click handler"
+    in
     let handler =
-      match old_handler, description.on_click with
+      match old_handler, callback with
       | Some handler, Some _ -> Some handler
       | None, Some _ -> Some (new_handler builder)
       | Some handler, None ->
@@ -240,7 +254,7 @@ let rec mount builder ~depth previous view =
         None
       | None, None -> None
     in
-    (match handler, description.on_click with
+    (match handler, callback with
      | Some handler, Some callback ->
        builder.bindings
        <- Map.set
@@ -253,10 +267,22 @@ let rec mount builder ~depth previous view =
      | None ->
        emit builder (Create (id, kind description.kind, description.text, handler))
      | Some mounted ->
-       if not (String.equal (View.Expert.describe mounted.view).text description.text)
+       if
+         Option.is_none description.editor
+         && not (String.equal (View.Expert.describe mounted.view).text description.text)
        then emit builder (Set_text (id, description.text));
        if not (Option.equal Handler_id.equal old_handler handler)
        then emit builder (Bind (id, handler)));
+    Option.iter description.editor ~f:(fun editor ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          (View.Expert.describe mounted.view).editor)
+      in
+      if
+        not
+          (Option.value_map old ~default:false ~f:(fun old ->
+             Text_input.Config.equal old.config editor.config))
+      then emit builder (Set_editor (id, Text_input.Expert.config_to_wire editor.config)));
     let style = Style.Expert.to_wire description.style ~theme:builder.theme |> value in
     let old_style =
       Option.value_map previous ~default:[] ~f:(fun mounted -> mounted.style)
@@ -287,7 +313,17 @@ let rec mount builder ~depth previous view =
         mount builder ~depth:(depth + 1) (Map.find old_by_key key) child)
     in
     splice builder id old_children children;
-    { view; id; handler; style; children }
+    let controllers =
+      let own =
+        Option.value_map description.editor ~default:String.Set.empty ~f:(fun editor ->
+          String.Set.singleton (Key.to_string editor.controller))
+      in
+      List.fold children ~init:own ~f:(fun keys child ->
+        if not (Set.is_empty (Set.inter keys child.controllers))
+        then fail "text input controller appears more than once in a window";
+        Set.union keys child.controllers)
+    in
+    { view; id; handler; style; children; controllers }
 ;;
 
 let prepare t ~theme view =
@@ -376,7 +412,27 @@ let dispatch t = function
     (match Map.find t.state.bindings (node_slot node) with
      | Some binding
        when Node_id.equal node binding.node && Handler_id.equal handler binding.handler ->
-       Some (binding.callback ())
+       (match binding.callback with
+        | Click callback -> Some (callback ())
+        | Editor _ -> None)
+     | Some _ | None -> None)
+  | Editor_event (window, node, handler, revision, event, snapshot)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some { node = expected; handler = expected_handler; callback = Editor callback }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       let snapshot = Text_input.Expert.snapshot_of_wire ~window ~node snapshot in
+       (match snapshot with
+        | Error _ -> None
+        | Ok snapshot ->
+          (match event with
+           | Changed -> Some (callback (Changed snapshot))
+           | Submitted ->
+             Text_input.Expert.submission snapshot
+             |> Result.ok
+             |> Option.map ~f:(fun submission -> callback (Submitted submission))))
      | Some _ | None -> None)
   | Welcome _
   | Opened _
@@ -386,6 +442,8 @@ let dispatch t = function
   | Rendered _
   | Frame_requested _
   | Press _
+  | Editor_event _
+  | Editor_result _
   | Failed _
   | Stopped
   | Overloaded _ -> None
