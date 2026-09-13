@@ -17,6 +17,8 @@ use std::{
 type SharedSession = Rc<RefCell<Session>>;
 #[path = "choice.rs"]
 mod choice;
+#[path = "choice_popup.rs"]
+mod choice_popup;
 #[path = "editor.rs"]
 mod editor;
 #[cfg(feature = "native-tests")]

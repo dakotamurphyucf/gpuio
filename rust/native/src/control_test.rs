@@ -273,7 +273,12 @@ async fn select_control(
         .update(cx, |view, window, _| {
             (
                 view.probes.borrow()[&node(6)].bounds,
-                view.selects[&node(6)].borrow().popup_bounds.get(),
+                view.selects[&node(6)]
+                    .borrow()
+                    .popup
+                    .borrow()
+                    .popup_bounds
+                    .get(),
                 window.viewport_size(),
             )
         })
@@ -323,7 +328,8 @@ async fn select_control(
     handle
         .update(cx, |view, _, _| {
             assert!(Rc::ptr_eq(&retained_state, &view.selects[&node(6)]));
-            let state = view.selects[&node(6)].borrow();
+            let popup = view.selects[&node(6)].borrow().popup.clone();
+            let state = popup.borrow();
             let bounds = state.popup_bounds.get();
             assert!(bounds.size.width >= px(236.) && bounds.size.width <= px(240.));
             let probes = state.option_probes.borrow();
@@ -376,7 +382,13 @@ async fn select_control(
     frame(cx, handle).await;
     let position = handle
         .update(cx, |view, _, _| {
-            view.selects[&node(6)].borrow().popup_bounds.get().origin
+            view.selects[&node(6)]
+                .borrow()
+                .popup
+                .borrow()
+                .popup_bounds
+                .get()
+                .origin
                 + gpui::point(px(15.), px(16.))
         })
         .unwrap();
@@ -460,7 +472,15 @@ async fn select_control(
     frame(cx, handle).await;
     handle
         .update(cx, |view, _, _| {
-            assert!(view.selects[&node(6)].borrow().rendered_options.get() < 16)
+            assert!(
+                view.selects[&node(6)]
+                    .borrow()
+                    .popup
+                    .borrow()
+                    .rendered_options
+                    .get()
+                    < 16
+            )
         })
         .unwrap();
     #[cfg(target_os = "macos")]
@@ -476,7 +496,8 @@ async fn select_control(
     frame(cx, handle).await;
     handle
         .update(cx, |view, _, _| {
-            let state = view.selects[&node(6)].borrow();
+            let popup = view.selects[&node(6)].borrow().popup.clone();
+            let state = popup.borrow();
             let probes = state.option_probes.borrow();
             assert!(
                 probes["item-4095"].bounds.bottom() <= state.popup_bounds.get().bottom() + px(1.),
@@ -563,7 +584,9 @@ async fn select_control(
 }
 fn select_is_open(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> bool {
     handle
-        .update(cx, |view, _, _| view.selects[&node(6)].borrow().open)
+        .update(cx, |view, _, _| {
+            view.selects[&node(6)].borrow().popup.borrow().open
+        })
         .unwrap()
 }
 
