@@ -3,6 +3,8 @@
 //! V1 is under development; the private foundation protocol is unrelated.
 mod command;
 mod decode;
+pub mod file_dialog;
+pub mod file_path;
 mod id;
 mod menu;
 mod palette;

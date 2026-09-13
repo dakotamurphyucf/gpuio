@@ -231,3 +231,10 @@ Pointer capture remains distinct from drag/drop and file dialogs, which are stil
 pending alongside assets/images/SVG/cache, theme-scale integration, remaining
 state/transitions, scrolling/lifetime checks and consolidated CI/merge. No hosted
 or Linux GUI acceptance is claimed for this checkpoint.
+
+File-dialog implementation has started with pure OCaml/Rust path and open/save
+configuration models. Focused Core expect tests, Rust protocol tests and Clippy
+pass, including exact non-UTF-8 path bytes, filename validation and selection
+limits. No dialog presentation, request/result bridge or native cancellation is
+implemented yet. The [file-dialog design](design/file-dialogs.md) records the
+contracts, pinned-source findings and remaining acceptance work.
