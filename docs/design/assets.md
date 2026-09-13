@@ -3,10 +3,12 @@
 OCH-11 implementation in progress. `Gpuio.Asset.Format` and `Asset.Source` plus
 matching Rust source descriptors are implemented. They preserve opaque encoded
 bytes, reject empty or greater-than-16-MiB inputs, and keep diagnostics bounded.
-The native session now also owns an encoded-asset registry. It is not yet exposed
-through wire messages or the OCaml runtime, and does not decode or display assets.
-No asset capability bit is advertised by this checkpoint. Core expect tests, Rust source-bound tests, protocol
-Clippy and full Dune build/tests/format pass locally on macOS.
+The native session owns a bounded encoded registry, connected through correlated
+wire requests and the raw `Gpuio_eio.App.Expert.asset` effect. Capability
+`CAP_ASSETS` (2097152; aggregate mask 4194303) means encoded registration only.
+Scoped public ownership, decoding and image/icon rendering remain to implement.
+Independent OCaml/Rust fixtures, Rust workspace/Clippy, full Dune checks and an
+actual windowless >2-MiB FFI upload pass locally on macOS.
 
 ## Interface direction
 
@@ -80,7 +82,7 @@ Decoded caches should reuse immutable source data, have explicit byte/entry limi
 and evict native atlas entries as well as CPU buffers. A content hash alone is not
 proof of equality or ownership. Reusing asset slots must not allow late uploads or
 worker completions to affect a new generation. The native registration lifetime below is implemented. The public OCaml handle,
-wire protocol and decoded-cache interfaces still require integration.
+scoped adapter and decoded-cache interfaces still require integration.
 
 ## Native registration state
 
@@ -102,8 +104,10 @@ Current encoded bounds:
 
 `begin` reserves the entire declared encoded length before accepting chunks.
 `append` accepts nonempty, sequential chunks within both chunk and declared-size
-bounds. Malformed chunks abort that generation and reclaim staging; stale handles
-cannot abort a later generation. `finish` publishes only an exact-length encoded
+bounds. Semantically malformed decoded chunks abort that generation and reclaim staging; stale handles
+cannot abort a later generation. Structurally invalid wire requests (including
+oversized chunks) are rejected before native admission and cannot mutate or abort
+a registration; the caller still owns its release. `finish` publishes only an exact-length encoded
 source. Finishing a prefix aborts it. Publication does not claim successful image
 decoding. No view or worker can acquire a staging prefix.
 
@@ -131,7 +135,7 @@ not evidence of FFI uploads, scope cleanup, worker scheduling or GPU rendering.
 
 ## Required next evidence
 
-Implement and validate chunked registration, scope cancellation, generational
+Implement and validate scope cancellation, public generational
 handles, native decode limits and errors, image/icon views and accessibility,
 shared/cache lifetime cleanup, theme/scale rerasterization and animation behavior.
 Exercise actual macOS rendering, scale/theme changes, repeated replacement/unmount,
@@ -142,3 +146,19 @@ of image rendering or a finished asset subsystem.
 
 See [local source/registry evidence](../evidence/assets-och11.md) for current checks
 and their limits.
+
+## Encoded upload wire integration
+
+Message tag 8 carries a positive correlation ID and Begin/Append/Finish/Release.
+Event tag 24 returns Begun/Ack/Failed under that correlation. Append encodes raw
+bytes with a bounded bin_prot string length, preserving NUL and non-UTF-8 bytes;
+it does not encode each byte as a bin_prot integer. Each admitted request reserves
+one bounded control response. Input pressure cannot coalesce or drop its reply,
+and application asset responses do not prevent window-slot reuse.
+
+`App.Expert.asset` bounds pending requests to 64 and reports Not_ready before
+negotiation, Resource_limit at capacity and Closed during shutdown. This raw API
+has no per-scope cancellation contract: its caller must process late Begin replies
+and release registrations. Application shutdown closes the native store. The
+public scoped adapter must provide stronger automatic cleanup before ordinary
+application code uses registration. Encoded completion does not validate pixels.

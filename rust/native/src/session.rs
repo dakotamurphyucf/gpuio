@@ -69,6 +69,46 @@ impl Session {
         Ok(&mut self.assets)
     }
 
+    pub fn asset_request(
+        &mut self,
+        request: gpuio_protocol::asset::Request,
+    ) -> gpuio_protocol::asset::Response {
+        use gpuio_protocol::asset::{Error, Request, Response};
+        if let Err(error) = self.check_ready() {
+            return Response::Failed(match error {
+                ErrorCode::Closed => Error::Closed,
+                ErrorCode::NotReady => Error::NotReady,
+                _ => Error::NativeFailure,
+            });
+        }
+        match request {
+            Request::Begin(format, length) => {
+                match usize::try_from(length)
+                    .map_err(|_| Error::InvalidSize)
+                    .and_then(|length| self.assets.begin(format, length))
+                {
+                    Ok(id) => Response::Begun(id),
+                    Err(error) => Response::Failed(error),
+                }
+            }
+            request => {
+                let result = match request {
+                    Request::Append(id, offset, data) => match usize::try_from(offset) {
+                        Ok(offset) => self.assets.append(id, offset, data.as_bytes()),
+                        Err(_) => self.assets.release(id).and(Err(Error::InvalidChunk)),
+                    },
+                    Request::Finish(id) => self.assets.finish(id),
+                    Request::Release(id) => self.assets.release(id),
+                    Request::Begin(..) => unreachable!(),
+                };
+                match result {
+                    Ok(()) => Response::Ack,
+                    Err(error) => Response::Failed(error),
+                }
+            }
+        }
+    }
+
     pub fn validate_open(
         &self,
         id: WindowId,

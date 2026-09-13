@@ -1336,6 +1336,10 @@ pub fn run(transport: Arc<Transport>) {
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),
                             }
                         }
+                        Message::Asset(correlation, request) => {
+                            let response = session.borrow_mut().asset_request(request);
+                            transport.respond(Event::AssetResponse(correlation, response));
+                        }
                         Message::Shutdown => {
                             dialogs.clear().wait().await;
                             for event in session.borrow_mut().shutdown() {

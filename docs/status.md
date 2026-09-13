@@ -371,3 +371,11 @@ lifecycle test pass, along with the Rust workspace, native Clippy and full Dune
 checks. See [asset evidence](evidence/assets-och11.md). This registry is not yet
 connected to FFI upload commands or the OCaml runtime, and no image/icon rendering
 or new capability is claimed. Those integrations are the next OCH-11 work.
+
+Encoded assets now cross the FFI using bounded correlated Begin/Append/Finish/
+Release messages and reserved responses. Independent OCaml/Rust fixtures,
+mailbox-pressure tests, full Rust/Clippy and Dune checks pass locally. A windowless
+public Eio runtime example uploads >2 MiB and verifies release, stale IDs, invalid
+uploads, quota recovery and shutdown. The new capability 2097152 (aggregate
+4194303) advertises encoded registration only. Scoped public ownership, decoding,
+image/icon views and cache cleanup remain; see [asset evidence](evidence/assets-och11.md).

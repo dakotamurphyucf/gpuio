@@ -100,6 +100,7 @@ let worker native notification_read ~self_test =
       | Frame_requested _
       | Editor_event _
       | Editor_result _
+      | Asset_response _
       | File_dialog_result _ -> ()
     in
     send (Hello (Wire.version, Wire.capabilities));

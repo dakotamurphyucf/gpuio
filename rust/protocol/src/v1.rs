@@ -30,7 +30,9 @@ pub const CAP_PALETTE: i64 = 32768;
 pub const CAP_POINTER: i64 = 262144;
 pub const CAP_FILE_DIALOGS: i64 = 524288;
 pub const CAP_DRAG_DROP: i64 = 1048576;
-pub const CAPABILITIES: i64 = CAP_TREE
+pub const CAP_ASSETS: i64 = 2097152;
+pub const CAPABILITIES: i64 = CAP_ASSETS
+    | CAP_TREE
     | CAP_NATIVE_STYLES
     | CAP_FRAME_EVENTS
     | CAP_EDITOR
@@ -561,6 +563,7 @@ pub enum Message {
     Shutdown,
     EditorCommand(i64, WindowId, NodeId, EditorCommand),
     FileDialog(i64, WindowId, FileDialogConfig),
+    Asset(i64, crate::asset::Request),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -624,4 +627,5 @@ pub enum Event {
         i64,
         crate::drag_drop::TargetSample,
     ),
+    AssetResponse(i64, crate::asset::Response),
 }

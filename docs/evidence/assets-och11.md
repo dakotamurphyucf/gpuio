@@ -2,8 +2,8 @@
 
 Local macOS, isolated OCaml 5.3/Core+Bonsai v0.17/Eio environment and pinned Rust
 closure. Source descriptors landed in `706ba7c`; the native registry follows it.
-No asset wire capability, FFI upload, decoding or GPU image rendering is claimed
-by this checkpoint.
+The wire integration below adds encoded registration; decoding and GPU image
+rendering remain unimplemented.
 
 Five native registry tests pass:
 
@@ -43,3 +43,36 @@ Next acceptance is the correlated wire upload/cleanup path and independent binar
 fixtures, followed by scoped Eio registration, native decode/cache budgets and
 image/icon views. The [asset design](../design/assets.md) records the implemented
 registration lifetime separately from those remaining interfaces.
+
+## Correlated FFI upload
+
+Following registry commit `43aed0d`, independent OCaml/Rust fixtures agree on all
+nine formats, all response errors, multi-byte integer encodings and opaque chunk
+bytes. Truncations, trailing data, invalid correlations and oversized chunks are
+rejected; Rust bounds a declared chunk length before allocation. Two native
+mailbox/session tests verify reserved replies under input/response pressure,
+window-slot independence, prefix reclamation and shutdown rejection.
+
+The windowless `examples/asset_upload` program passes through the actual native
+host and public Eio runtime: >2 MiB split into <=256-KiB chunks, finish/release,
+slot reuse and stale-release rejection, incomplete upload and invalid-offset
+reclamation, 64-MiB quota exhaustion/recovery, and clean application shutdown.
+It asserts zero view commits/render callbacks. This proves upload/control flow;
+exact bytes are checked compositionally by the fixtures and native registry tests.
+It does not claim decoded rendering or scoped public cancellation.
+
+Commands passed locally on macOS:
+
+```sh
+./scripts/gpuio exec cargo clippy --workspace --all-targets --features gpuio-native/native-tests -- -D warnings
+./scripts/gpuio exec cargo test --workspace
+./scripts/gpuio exec dune build @runtest @all @fmt
+_build/default/examples/asset_upload/main.exe
+```
+
+Logs: `assets-wire-clippy.log`, `assets-wire-workspace.log`,
+`assets-wire-dune-final.log`, `assets-wire-native-upload-final.log` in the personal
+scratch directory. An earlier full Dune run found two nonexhaustive example event
+matches; both now explicitly handle the new response and the full rerun passed.
+Three system-libwayland tests still await Linux. No hosted run has been started
+for this checkpoint, following the accepted complete-local-scope-first workflow.

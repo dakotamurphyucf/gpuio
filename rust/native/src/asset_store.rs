@@ -10,18 +10,7 @@ use std::sync::{Arc, Weak};
 pub const MAX_ASSETS: usize = 1024;
 pub const MAX_UPLOADS: usize = 8;
 pub const MAX_RESERVED_BYTES: usize = 64 * 1024 * 1024;
-pub const MAX_CHUNK_BYTES: usize = 256 * 1024;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Error {
-    Closed,
-    InvalidSize,
-    ResourceLimit,
-    StaleHandle,
-    NotUploading,
-    InvalidChunk,
-    Incomplete,
-}
+pub use gpuio_protocol::asset::{Error, MAX_CHUNK_BYTES};
 
 #[derive(Clone, Debug)]
 pub struct Lease {

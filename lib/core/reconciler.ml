@@ -1013,6 +1013,7 @@ let dispatch t = function
   | Combobox_selected _
   | Editor_event _
   | File_dialog_result _
+  | Asset_response _
   | Editor_result _
   | Failed _
   | Stopped

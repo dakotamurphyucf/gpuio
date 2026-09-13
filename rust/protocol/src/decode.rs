@@ -73,6 +73,46 @@ impl Decoder<'_> {
         crate::file_path::FilePath::new(bytes).map_err(|_| DecodeError::Malformed)
     }
 
+    fn resource(&mut self) -> Result<crate::ResourceId, DecodeError> {
+        crate::ResourceId::from_parts(self.int()?, self.int()?).ok_or(DecodeError::Malformed)
+    }
+    fn asset(&mut self) -> Result<crate::asset::Request, DecodeError> {
+        use crate::asset::{Chunk, Format, MAX_CHUNK_BYTES, Request};
+        Ok(match self.tag()? {
+            0 => {
+                let format = match self.tag()? {
+                    0 => Format::Png,
+                    1 => Format::Jpeg,
+                    2 => Format::Webp,
+                    3 => Format::Gif,
+                    4 => Format::Svg,
+                    5 => Format::Bmp,
+                    6 => Format::Tiff,
+                    7 => Format::Ico,
+                    8 => Format::Pnm,
+                    _ => return Err(DecodeError::Malformed),
+                };
+                Request::Begin(format, self.int()?)
+            }
+            1 => {
+                let id = self.resource()?;
+                let offset = self.int()?;
+                let length = self.count(MAX_CHUNK_BYTES)?;
+                let start = self.0.position() as usize;
+                let data = self.0.get_ref()[start..start + length].to_vec();
+                self.0.set_position((start + length) as u64);
+                Request::Append(
+                    id,
+                    offset,
+                    Chunk::new(data).map_err(|_| DecodeError::LimitExceeded)?,
+                )
+            }
+            2 => Request::Finish(self.resource()?),
+            3 => Request::Release(self.resource()?),
+            _ => return Err(DecodeError::Malformed),
+        })
+    }
+
     fn file_dialog(&mut self) -> Result<FileDialogConfig, DecodeError> {
         let config = match self.tag()? {
             0 => FileDialogConfig::Open(OpenFileConfig {
@@ -769,6 +809,13 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
                 return Err(DecodeError::Malformed);
             }
             Message::FileDialog(correlation, d.window()?, d.file_dialog()?)
+        }
+        8 => {
+            let correlation = d.int()?;
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::Asset(correlation, d.asset()?)
         }
         _ => return Err(DecodeError::Malformed),
     };

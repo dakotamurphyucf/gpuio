@@ -232,7 +232,9 @@ impl Mailbox {
             | Event::EditorResult(_, id, ..)
             | Event::FileDialogResult(_, id, ..)
             | Event::Overloaded(id) => id.slot() == window_slot,
-            Event::Welcome(..) | Event::Failed(..) | Event::Stopped => false,
+            Event::Welcome(..) | Event::Failed(..) | Event::AssetResponse(..) | Event::Stopped => {
+                false
+            }
         })
     }
 

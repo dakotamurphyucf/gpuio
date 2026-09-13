@@ -52,6 +52,7 @@ type t =
   ; mutable frames : (Window_id.t * (revision:int64 -> unit Bonsai.Effect.t)) Int64.Map.t
   ; mutable editors : editor_request Int64.Map.t
   ; mutable dialogs : dialog_request Int64.Map.t
+  ; mutable assets : (Wire.Asset.Response.t -> unit) Int64.Map.t
   ; mutable correlation : int64
   ; mutable welcomed : bool
   ; mutable stopping : bool
@@ -89,6 +90,33 @@ let queue t message =
   Queue.enqueue t.commands message;
   Inbox.wake t.inbox
 ;;
+
+module Expert = struct
+  let asset t request =
+    Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+      check t;
+      let fail error = callback (Wire.Asset.Response.Failed error) in
+      if t.stopping
+      then fail Closed
+      else if not t.welcomed
+      then fail Not_ready
+      else if Map.length t.assets >= 64
+      then fail Resource_limit
+      else (
+        let id = correlation t in
+        let oversized =
+          match request with
+          | Wire.Asset.Request.Append (_, _, data) ->
+            String.length data > Wire.Asset.max_chunk_bytes
+          | Begin _ | Finish _ | Release _ -> false
+        in
+        if oversized
+        then fail Invalid_chunk
+        else (
+          t.assets <- Map.set t.assets ~key:id ~data:callback;
+          queue t (Asset (id, request)))))
+  ;;
+end
 
 let release_window window =
   match window.phase with
@@ -341,6 +369,12 @@ let process t = function
     Option.iter (find_window t id) ~f:(fun window ->
       if not (Window.is_closed window)
       then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))
+  | Asset_response (request, response) ->
+    (match Map.find t.assets request with
+     | None -> ()
+     | Some complete ->
+       t.assets <- Map.remove t.assets request;
+       complete (if t.stopping then Wire.Asset.Response.Failed Closed else response))
   | File_dialog_result (request, id, result) ->
     (match Map.find t.dialogs request with
      | Some pending when Window_id.equal pending.window id ->
@@ -375,6 +409,24 @@ let process t = function
          if not (Window.is_closed window)
          then Bonsai.Effect.Expert.handle (callback ~revision))
      | Some _ | None -> ())
+  | Failed (request, code) when Map.mem t.assets request ->
+    let complete = Map.find_exn t.assets request in
+    t.assets <- Map.remove t.assets request;
+    let error : Wire.Asset.Error.t =
+      match code with
+      | Closed -> Closed
+      | Not_ready -> Not_ready
+      | Stale_handle -> Stale_handle
+      | Busy | Limit_exceeded -> Resource_limit
+      | Malformed
+      | Unsupported_version
+      | Unsupported_capability
+      | Invalid_revision
+      | Invalid_tree
+      | Overloaded
+      | Native_failure -> Native_failure
+    in
+    complete (Wire.Asset.Response.Failed error)
   | Failed (request, code) when Map.mem t.dialogs request ->
     let pending = Map.find_exn t.dialogs request in
     t.dialogs <- Map.remove t.dialogs request;
@@ -428,7 +480,10 @@ let process t = function
   | Overloaded _ -> failwith "native input mailbox overloaded"
   | Stopped ->
     t.stopped <- true;
-    t.stopping <- true
+    t.stopping <- true;
+    let assets = t.assets in
+    t.assets <- Int64.Map.empty;
+    Map.iter assets ~f:(fun complete -> complete (Wire.Asset.Response.Failed Closed))
 ;;
 
 let submit_commands t =
@@ -517,6 +572,7 @@ let worker native read ~tick_hz ~max_tasks initialize =
         ; frames = Int64.Map.empty
         ; editors = Int64.Map.empty
         ; dialogs = Int64.Map.empty
+        ; assets = Int64.Map.empty
         ; correlation = 0L
         ; welcomed = false
         ; stopping = false
@@ -529,6 +585,7 @@ let worker native read ~tick_hz ~max_tasks initialize =
         ~finally:(fun () ->
           Scope.cancel scope;
           Map.iter app.windows ~f:release_window;
+          app.assets <- Int64.Map.empty;
           app.frames <- Int64.Map.empty;
           app.closes <- Int64.Map.empty;
           app.opens <- Int64.Map.empty;

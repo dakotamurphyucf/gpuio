@@ -4,7 +4,9 @@ use std::fmt;
 
 pub const MAX_ENCODED_BYTES: usize = 16 * 1024 * 1024;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, binprot::macros::BinProtWrite,
+)]
 pub enum Format {
     Png,
     Jpeg,
@@ -62,6 +64,65 @@ impl fmt::Debug for Source {
             .field("byte_length", &self.data.len())
             .finish()
     }
+}
+
+/// One transport chunk uses bin_prot string encoding (raw bytes, not integers).
+pub const MAX_CHUNK_BYTES: usize = 256 * 1024;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, binprot::macros::BinProtWrite)]
+pub enum Error {
+    Closed,
+    InvalidSize,
+    ResourceLimit,
+    StaleHandle,
+    NotUploading,
+    InvalidChunk,
+    Incomplete,
+    NotReady,
+    NativeFailure,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub struct Chunk(Vec<u8>);
+impl Chunk {
+    pub fn new(bytes: Vec<u8>) -> Result<Self, Error> {
+        if bytes.len() > MAX_CHUNK_BYTES {
+            Err(Error::InvalidChunk)
+        } else {
+            Ok(Self(bytes))
+        }
+    }
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+}
+impl fmt::Debug for Chunk {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Chunk")
+            .field("byte_length", &self.0.len())
+            .finish()
+    }
+}
+impl binprot::BinProtWrite for Chunk {
+    fn binprot_write<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        binprot::Nat0(self.0.len() as u64).binprot_write(writer)?;
+        writer.write_all(&self.0)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, binprot::macros::BinProtWrite)]
+pub enum Request {
+    Begin(Format, i64),
+    Append(crate::ResourceId, i64, Chunk),
+    Finish(crate::ResourceId),
+    Release(crate::ResourceId),
+}
+#[derive(Clone, Debug, PartialEq, Eq, binprot::macros::BinProtWrite)]
+pub enum Response {
+    Begun(crate::ResourceId),
+    Ack,
+    Failed(Error),
 }
 
 #[cfg(test)]

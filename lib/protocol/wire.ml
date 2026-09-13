@@ -1,7 +1,8 @@
 open Core
+module Asset = Asset_wire
 
 let version = 1L
-let capabilities = 2097151L
+let capabilities = 4194303L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -802,10 +803,30 @@ module Message = struct
     | Shutdown
     | Editor_command of int64 * Window_id.t * Node_id.t * Editor.Command.t
     | File_dialog of int64 * Window_id.t * File_dialog.Config.t
+    | Asset of int64 * Asset.Request.t
   [@@deriving bin_io, equal, sexp_of]
 
   let encode t =
-    if bin_size_t t > max_message_bytes
+    let invalid_asset =
+      match t with
+      | Asset (correlation, request) ->
+        Int64.(correlation <= 0L)
+        ||
+          (match request with
+          | Append (_, _, data) -> String.length data > Asset.max_chunk_bytes
+          | Begin _ | Finish _ | Release _ -> false)
+      | Hello _
+      | Open _
+      | Close _
+      | Apply _
+      | Request_frame _
+      | Shutdown
+      | Editor_command _
+      | File_dialog _ -> false
+    in
+    if invalid_asset
+    then Or_error.error_string "invalid asset envelope"
+    else if bin_size_t t > max_message_bytes
     then Or_error.error_string "message exceeds byte limit"
     else Ok (Bin_prot.Utils.bin_dump bin_writer_t t |> Bigstring.to_string)
   ;;
@@ -866,6 +887,7 @@ module Event = struct
         Window_id.t * Node_id.t * Handler_id.t * int64 * Drag_and_drop.Source_sample.t
     | Drop_target_event of
         Window_id.t * Node_id.t * Handler_id.t * int64 * Drag_and_drop.Target_sample.t
+    | Asset_response of int64 * Asset.Response.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -885,6 +907,7 @@ module Event = struct
   ;;
 
   let rec valid_event = function
+    | Asset_response (correlation, _) -> Int64.(correlation > 0L)
     | File_dialog_result (request, _, Selected paths) ->
       Int64.(request > 0L)
       && (not (List.is_empty paths))
