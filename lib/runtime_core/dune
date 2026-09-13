@@ -1,0 +1,6 @@
+(library
+ (name gpuio_runtime_core)
+ (public_name gpuio.runtime_core)
+ (libraries core gpuio bonsai bonsai.driver)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

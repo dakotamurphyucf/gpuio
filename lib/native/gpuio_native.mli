@@ -11,6 +11,10 @@ open Core
 type t
 
 val create : file_descr -> t
+
+(** Creation policy; false keeps the host alive without windows until shutdown. *)
+val create_with_options : exit_on_last_window:bool -> file_descr -> t
+
 val run : t -> unit
 
 val submit

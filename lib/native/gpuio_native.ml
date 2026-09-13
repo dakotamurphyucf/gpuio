@@ -6,6 +6,10 @@ module Wire = Gpuio_protocol.Wire
 type t = int
 
 external create : file_descr -> t = "gpuio_v1_create"
+external create_options : file_descr -> bool -> t = "gpuio_v1_create_with_options"
+
+let create_with_options ~exit_on_last_window fd = create_options fd exit_on_last_window
+
 external run : t -> unit = "gpuio_v1_run"
 external submit_bytes : t -> string -> int = "gpuio_v1_submit"
 external drain_bytes : t -> string = "gpuio_v1_drain"

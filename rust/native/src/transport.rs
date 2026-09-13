@@ -16,9 +16,13 @@ pub struct Transport {
     pub running: AtomicBool,
     pub aborting: AtomicBool,
     pub finished: AtomicBool,
+    pub exit_on_last_window: bool,
 }
 impl Transport {
     pub fn new(fd: i32) -> std::io::Result<Self> {
+        Self::with_options(fd, true)
+    }
+    pub fn with_options(fd: i32, exit_on_last_window: bool) -> std::io::Result<Self> {
         let duplicate = unsafe { libc::fcntl(fd, libc::F_DUPFD_CLOEXEC, 0) };
         if duplicate < 0 {
             return Err(std::io::Error::last_os_error());
@@ -39,6 +43,7 @@ impl Transport {
             running: AtomicBool::new(false),
             aborting: AtomicBool::new(false),
             finished: AtomicBool::new(false),
+            exit_on_last_window,
         })
     }
     pub fn submit(&self, message: Message, bytes: usize) -> Result<(), ErrorCode> {

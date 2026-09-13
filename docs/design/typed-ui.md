@@ -4,7 +4,8 @@ The `gpuio` library supplies pure, immutable descriptions through `Gpuio.View`,
 `Style`, `Length`, `Color`, `Theme`, `Background`, `Shadow` and `Key`. It depends on
 Core and the protocol, not Bonsai, Eio or a native runtime. `gpuio.bonsai` supplies
 `Gpuio_bonsai.View`, whose button actions are `unit Bonsai.Effect.t`. The application
-runner, scheduling and lifecycle integration belong to OCH-9; the working
+runner, scheduling and lifecycle integration are provided by `Gpuio_eio.App`
+(see [runtime](runtime.md)); the working
 `examples/view_api` executable currently supplies an explicit bridge/Eio runner.
 
 ## Components and types

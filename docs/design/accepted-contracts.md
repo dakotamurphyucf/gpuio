@@ -1,6 +1,15 @@
 <!-- Imported from Linear 8d6ec703-f257-446a-855a-72c289eda050 on 2026-09-11.
 Historical paths and evidence are references, never build inputs. -->
 
+## Accepted scheduler update (2026-09-11)
+
+OCH-9 uses one configurable periodic Eio clock for the UI domain (initially 60 Hz),
+plus immediate input/task/frame wakeups. Ordinary Bonsai.Clock works without a new
+fork patch. Unchanged ticks do not request frames or commit native updates. This
+owner decision supersedes the older requirement to remove permanent idle polling.
+See [the implemented runtime contract](runtime.md) for lifecycle, cancellation,
+measurement and timer semantics.
+
 ## Accepted expanded v1 scope — 2026-09-10
 
 The user expanded v1 beyond GPUIX component parity. Read [Expanded v1 scope and contracts](<https://linear.app/ochat/document/gpuio-expanded-v1-scope-drawing-extensions-motion-and-desktop-services-46c91a3056cd>). Required: static native component SDK ([OCH-23](<https://linear.app/ochat/issue/OCH-23/implement-the-statically-linked-native-component-extension-sdk>)), retained custom drawing ([OCH-24](<https://linear.app/ochat/issue/OCH-24/implement-typed-retained-canvas-drawing-and-native-interaction>)), springs/sequences/synchronized animation ([OCH-25](<https://linear.app/ochat/issue/OCH-25/extend-native-animations-with-springs-sequences-and-synchronized>)), native declarative container rules ([OCH-26](<https://linear.app/ochat/issue/OCH-26/implement-native-declarative-container-size-breakpoint-rules>)), desktop/deep-link/document integration ([OCH-27](<https://linear.app/ochat/issue/OCH-27/implement-deep-links-and-desktop-applicationdocument-integration>)), OS notifications/actions ([OCH-28](<https://linear.app/ochat/issue/OCH-28/implement-capability-aware-os-notifications-and-action-routing>)) and a broader graphics/extension acceptance example ([OCH-29](<https://linear.app/ochat/issue/OCH-29/validate-expanded-v1-with-a-graphics-application-and-independently>)).
