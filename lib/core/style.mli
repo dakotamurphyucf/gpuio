@@ -135,6 +135,10 @@ module State : sig
     | Focused
     | Hovered
     | Pressed
+    | Checked
+    | Indeterminate
+    | Disabled
+    | Selected
   [@@deriving equal, sexp_of]
 end
 

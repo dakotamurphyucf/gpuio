@@ -42,3 +42,9 @@ name = "native_editor"
 path = "tests/native_editor.rs"
 harness = false
 required-features = ["native-tests"]
+
+[[test]]
+name = "native_controls"
+path = "tests/native_controls.rs"
+harness = false
+required-features = ["native-tests"]

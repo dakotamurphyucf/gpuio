@@ -5,7 +5,7 @@ use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
 fn node(slot: i64) -> NodeId {
     NodeId::from_parts(slot, 1).unwrap()
 }
-async fn frame(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
+pub(super) async fn frame(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
     let (sender, receiver) = async_channel::bounded(1);
     cx.update_window(handle.into(), |_, window, _| {
         window.refresh();
@@ -21,7 +21,7 @@ async fn frame(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
     .unwrap();
     receiver.recv().await.unwrap();
 }
-fn key(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, key: &str) {
+pub(super) fn key(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, key: &str) {
     cx.update_window(handle.into(), |_, window, cx| {
         let keystroke = gpui::Keystroke::parse(key).unwrap();
         window.dispatch_event(
@@ -62,7 +62,7 @@ fn command(
         .unwrap()
 }
 #[cfg(target_os = "macos")]
-fn native_view(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> usize {
+pub(super) fn native_view(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> usize {
     use raw_window_handle::{HasWindowHandle, RawWindowHandle};
     handle
         .update(cx, |_, window, _| {

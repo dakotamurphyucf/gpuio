@@ -22,6 +22,35 @@ let create component =
   Driver.create window ~start:Time_ns.epoch ~theme:Gpuio.Theme.default component
 ;;
 
+let%expect_test "controlled toggles preserve two activations before Bonsai stabilizes" =
+  let driver =
+    create (fun graph ->
+      let checked, toggle = B.toggle ~default_model:false graph in
+      let open B.Let_syntax in
+      let%arr checked = checked
+      and toggle = toggle in
+      Gpuio.View.switch ~checked ~on_toggle:(fun () -> toggle) "Stream")
+  in
+  cycle driver 0.;
+  let tx = accept driver |> Option.value_exn in
+  let node, handler =
+    List.find_map_exn tx.operations ~f:(function
+      | Create (node, Switch, _, Some handler) -> Some (node, handler)
+      | _ -> None)
+  in
+  let activate () = Driver.dispatch driver (Press (window, node, handler, 1L)) in
+  activate ();
+  activate ();
+  cycle driver 0.;
+  assert (Option.is_none (Driver.next_message driver));
+  activate ();
+  cycle driver 0.;
+  let tx = accept driver |> Option.value_exn in
+  print_s [%sexp (tx.operations : Wire.Op.t list)];
+  Driver.close driver;
+  [%expect {| ((Set_control ((slot 0) (generation 1)) (Switch true false))) |}]
+;;
+
 let%expect_test
     "native acceptance gates activation; activation actions settle and idle cycles emit \
      nothing"

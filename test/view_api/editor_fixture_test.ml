@@ -19,7 +19,7 @@ let requests =
     ; Redo
     ]
   in
-  [ W.Message.Hello (W.version, W.capabilities)
+  [ W.Message.Hello (W.version, 15L)
   ; Apply
       { window
       ; base = 127L

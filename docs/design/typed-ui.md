@@ -54,7 +54,9 @@ on the OCaml side; a theme change invalidates the shared-view shortcut and updat
 resolved colors. Layout, borders and backgrounds follow GPUI's non-inherited
 rules. Row/column/grid have explicit component defaults that can also be unset.
 
-Native visual precedence is **base < focused < hovered < pressed**. Use
+Native visual precedence is **base < value state < focused < hovered < pressed**.
+OCH-11 adds checked/indeterminate/disabled state handling; see
+[native controls](native-controls.md) for ownership, keyboard and semantic contracts. Use
 `Style.with_state` for each state. Only focused controls match focused styling;
 hover/pressed run in Rust without OCaml frame traffic. Keyboard input suppresses
 hover according to GPUI input modality. Pressed currently follows GPUI pointer

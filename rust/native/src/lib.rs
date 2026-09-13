@@ -17,3 +17,8 @@ pub fn run_native_ui_test() {
 pub fn run_native_editor_test() {
     host::editor_test::run();
 }
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_control_test() {
+    host::control_test::run();
+}

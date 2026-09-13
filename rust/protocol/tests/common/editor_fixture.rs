@@ -3,7 +3,10 @@ pub fn requests() -> Vec<Message> {
     let window = WindowId::from_parts(3, 2).unwrap();
     let node = NodeId::from_parts(4, 3).unwrap();
     let mut messages = vec![
-        Message::Hello(VERSION, CAPABILITIES),
+        Message::Hello(
+            VERSION,
+            CAP_TREE | CAP_NATIVE_STYLES | CAP_FRAME_EVENTS | CAP_EDITOR,
+        ),
         Message::Apply(Transaction {
             window,
             base: 127,

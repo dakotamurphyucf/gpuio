@@ -10,6 +10,7 @@ pub struct Node {
     pub kind: Kind,
     pub text: Arc<str>,
     pub editor: Option<Arc<EditorConfig>>,
+    pub control: Option<Control>,
     pub style: Arc<[Style]>,
     pub handler: Option<HandlerId>,
     pub children: Arc<[NodeId]>,
@@ -141,6 +142,12 @@ impl Tree {
         }
         for slot in plan.changes.values() {
             if let Some(node) = &slot.node {
+                if node
+                    .control
+                    .is_some_and(|control| control.kind() != node.kind)
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
                 match node.kind {
                     Kind::Input | Kind::Textarea => {
                         let config = node.editor.as_ref().ok_or(ErrorCode::InvalidTree)?;
@@ -157,6 +164,15 @@ impl Tree {
                     }
                     Kind::Container | Kind::Text | Kind::Button => {
                         if node.editor.is_some() {
+                            return Err(ErrorCode::InvalidTree);
+                        }
+                    }
+                    Kind::Checkbox | Kind::Switch => {
+                        let control = node.control.ok_or(ErrorCode::InvalidTree)?;
+                        if node.editor.is_some()
+                            || (!control.disabled() && node.handler.is_none())
+                            || node.text.contains('\0')
+                        {
                             return Err(ErrorCode::InvalidTree);
                         }
                     }
@@ -255,6 +271,7 @@ impl Plan<'_> {
             | Op::SetText(id, ..)
             | Op::SetStyle(id, ..)
             | Op::SetEditor(id, ..)
+            | Op::SetControl(id, ..)
             | Op::Bind(id, ..)
             | Op::Splice(id, ..) => Some(*id),
             Op::SetRoot(_) => None,
@@ -308,6 +325,7 @@ impl Plan<'_> {
                             kind: *kind,
                             text: Arc::from(text.as_str()),
                             editor: None,
+                            control: None,
                             style: Arc::from([]),
                             handler: *handler,
                             children: Arc::from([]),
@@ -344,6 +362,12 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.editor = Some(Arc::new(config.clone()));
+            }
+            Op::SetControl(id, control) => {
+                if self.node(*id)?.kind != control.kind() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.control = Some(*control);
             }
             Op::SetStyle(id, style) => {
                 validate_style(style)?;
@@ -483,7 +507,7 @@ pub fn validate_style(style: &[Style]) -> Result<(), ErrorCode> {
             }
             Style::State(state, fields) => {
                 crate::style::validate_fields(fields)?;
-                (1..=3).contains(state)
+                (1..=7).contains(state)
                     && !fields.iter().any(|field| {
                         matches!(
                             field,

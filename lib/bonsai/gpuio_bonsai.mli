@@ -11,7 +11,28 @@ module View : sig
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
     -> ?accessible_name:string
+    -> ?disabled:bool
     -> on_click:unit Bonsai.Effect.t
+    -> string
+    -> t
+
+  val checkbox
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?accessible_name:string
+    -> ?disabled:bool
+    -> state:Gpuio.Check_state.t
+    -> on_toggle:unit Bonsai.Effect.t
+    -> string
+    -> t
+
+  val switch
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?accessible_name:string
+    -> ?disabled:bool
+    -> checked:bool
+    -> on_toggle:unit Bonsai.Effect.t
     -> string
     -> t
 
