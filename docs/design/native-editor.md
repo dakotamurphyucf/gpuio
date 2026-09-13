@@ -1,4 +1,4 @@
-# Native editor contract (OCH-10, implementation in progress)
+# Native editor contract (OCH-10)
 
 Use a native-owned editing session with a Bonsai controller observing snapshots.
 An observation never writes text back. Initial text applies only when a native
@@ -39,8 +39,9 @@ receives the owning window and returns a Bonsai controller value. Its `view`
 produces a typed view; `snapshot` is absent until the native editor mounts.
 Explicit focus/select/replace/clear operations return typed response effects.
 `clear_if_unchanged controller submission` uses the submitted revision, so delayed
-send completion cannot erase subsequent typing. The implementation is pending the final hosted gate and merge; local validation
-is recorded in [the evidence report](../evidence/native-editor-och10.md).
+send completion cannot erase subsequent typing. Implementation and local/hosted validation are recorded in
+[the evidence report](../evidence/native-editor-och10.md) and
+[PR #6](https://github.com/dakotamurphyucf/gpuio/pull/6).
 
 The native node generation is the editing-session lease. Commands capture that
 lease, not a name that silently resolves to a replacement. A controller has one
@@ -122,6 +123,6 @@ X11/Wayland jobs. Full Linux GUI/IME acceptance remains OCH-17.
 
 Direct NSTextInputClient and accessibility calls exercise actual native callback
 paths. They do not automate a physical input-method candidate panel or constitute
-a complete screen-reader audit. Final CI evidence is required before OCH-10 is
-marked complete. Local foreground GUI tests are authorized for fast iteration when focus is
+a complete screen-reader audit. The linked evidence report records the hosted editor checks; completion also
+requires the protected-branch merge. Local foreground GUI tests are authorized for fast iteration when focus is
 necessary. Prefer background checks where valid and retain macOS CI validation.

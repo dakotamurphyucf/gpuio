@@ -1,8 +1,8 @@
 # OCH-10 native editor validation
 
 Local validation: 2026-09-13, macOS 14.5 arm64, stock OCaml 5.3.0,
-Bonsai v0.17, Dune 3.24.2 and Rust 1.97.1. This records local evidence;
-required hosted macOS/Linux checks and merge are still pending.
+Bonsai v0.17, Dune 3.24.2 and Rust 1.97.1. The implementation is tracked in
+[PR #6](https://github.com/dakotamurphyucf/gpuio/pull/6).
 
 | Check | Evidence |
 | --- | --- |
@@ -47,3 +47,22 @@ Local detailed logs live in the ignored per-ticket notepad directory
 `scratch/agents/root-20260912-milestones`; CI preserves corresponding logs as
 workflow artifacts. The behavior contract and exact source pins are in
 `docs/design/native-editor.md` and `third_party/sources.json`.
+
+## Hosted platform evidence
+
+[Run 34745383026](https://github.com/dakotamurphyucf/gpuio/actions/runs/34745383026)
+validated implementation commit `741ca76dcef21c78b3752e6a95352d1c9a84ecf3`.
+Linux build, OCaml/Rust tests, lint, and native-test compilation passed. macOS
+build/tests/lint and all native editor/public editor checks passed, including the
+NSTextInputClient and native accessibility markers. Logs are retained in
+`foundation-logs-macOS-ARM64` and `foundation-logs-Linux-X64` artifacts.
+
+X11 passed the complete graphical suite including both editor tests. Wayland
+passed the public editor command selftest, but failed the native test's initial
+clipboard-backed insertion: the input remained empty. Pinned GPUI's Wayland
+clipboard writer requires compositor focus/selection serials, which GPUI-level
+synthetic keys do not themselves supply. That is a likely test prerequisite to
+investigate, not a confirmed buffer defect. The specific failure is recorded in
+OCH-17 separately from the older Wayland hover-reset issue; this run stopped
+before reaching that older test. Full Wayland input/IME acceptance remains
+outstanding under the accepted informational GUI policy.

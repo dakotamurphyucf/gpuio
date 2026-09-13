@@ -91,7 +91,16 @@ functional limits. Linux graphical execution remains informational under OCH-17.
 
 ## Milestone 02
 
-OCH-10 is in progress: native input/composer ownership and typed commands. OCH-11
-controls/native interaction and OCH-12 declarative animations follow. Compilation
-and 154 upstream input-engine tests validate the GPUI Base reuse candidate against
-our existing GPUI pin; this is evaluation evidence, not shipped editor/OS IME parity.
+OCH-10 implements native input/composer ownership, stable Bonsai/Eio controllers,
+revisioned commands, native composition and grapheme editing, undo/redo selection,
+auto-grow and basic accessibility. [PR #6](https://github.com/dakotamurphyucf/gpuio/pull/6)
+and [its evidence report](evidence/native-editor-och10.md) record implementation
+and platform validation. Hosted run 34745383026 passed Linux build/tests/lint and
+macOS editor/input/accessibility checks. X11 passed the complete GUI suite;
+Wayland passed public editor commands but its clipboard-based native test failed
+before insertion, tracked in OCH-17. These checks do not claim physical IME
+candidate-panel or complete screen-reader coverage.
+
+OCH-11 controls/native interaction and OCH-12 declarative animations follow.
+The broader component catalog is planned in OCH-33–45; vendoring GPUI Base does
+not expose all of those widgets through the OCaml API.
