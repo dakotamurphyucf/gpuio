@@ -60,11 +60,19 @@ selected ID. It shows the selected label, or the configuration label when absent
 The trigger is the only Tab stop. Enter/Space opens the popup; a subsequent
 Enter/Space requests its highlighted option and closes it. Up/Down opens it;
 while open, arrows move through enabled options and Home/End reach the ends.
-Highlighting alone does not request a selection. Escape cancels; Tab/Shift-Tab
+Typing printable text opens the popup and searches enabled option labels with
+Unicode lowercasing. Repeating one character cycles through matching choices;
+subsequent characters refine the prefix. An unmatched prefix can restart from
+the latest character. Highlighting alone does not request a selection. Escape cancels; Tab/Shift-Tab
 closes and continues ordinary traversal. Pointer or accessibility activation of
 an enabled option requests its stable ID. Outside clicks dismiss without choosing.
 
-Rust owns open state, one active ID and a scroll handle. Focus stays on the
+Rust owns open state, one active ID, a scroll handle and a search prefix bounded
+to 256 UTF-8 bytes. The prefix resets after one second between keypresses and
+when opening/navigating with arrow keys. Expiration is checked on input, so this
+interaction requires no timer task. This non-editable prefix search does not
+provide IME composition or accent/normalization folding; those belong to the
+editable Combobox input contract. Focus stays on the
 trigger; option semantics use active-descendant state and expose the committed
 selection independently. Losing focus, disabling or removing the control closes
 its popup. Reordering preserves the active ID and reveals its new position.
@@ -80,8 +88,9 @@ The native test checks a 4096-option collection, offscreen navigation and reorde
 
 The trigger accepts the ordinary style API and Selected refinements apply to
 committed selected options. The popup currently uses native light/dark defaults;
-configurable popup/option presentation, type-ahead, empty-state presentation and
-integration with nested overlay scopes remain OCH-11 work. This initial adapter
+configurable popup/option presentation, localized empty-state text and integration
+with nested overlay scopes remain OCH-11 work. Empty collections currently show
+an accessible “No options” label and never fabricate a selection. This initial adapter
 is not yet a claim of complete Select/GPUIX presentation parity. Select requires
 no additional native dependency or vendored patch.
 

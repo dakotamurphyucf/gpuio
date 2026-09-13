@@ -16,6 +16,7 @@ use std::{
 pub(super) struct State {
     pub(super) open: bool,
     navigation: choice::State,
+    search: super::typeahead::Search,
     scroll: UniformListScrollHandle,
     active_index: Option<usize>,
     #[cfg(feature = "native-tests")]
@@ -26,6 +27,7 @@ pub(super) struct State {
 }
 impl State {
     fn open(&mut self, config: &ChoiceConfig) {
+        self.search.clear();
         self.open = !config.disabled;
         self.navigation.reconcile(config, false);
         self.reveal(config);
@@ -121,7 +123,38 @@ pub(super) fn element<T: 'static>(
                 cx.notify(owner);
                 return; // Normal window traversal, including Shift-Tab.
             }
-            if event.keystroke.modifiers.modified() {
+            let modifiers = event.keystroke.modifiers;
+            if modifiers.control || modifiers.platform || modifiers.function {
+                return;
+            }
+            // Printable platform text includes Shift and Option-modified Unicode.
+            // Space retains the control's activation behavior.
+            let text = event
+                .keystroke
+                .key_char
+                .as_deref()
+                .or_else(|| (key.chars().count() == 1 && !modifiers.alt).then_some(key));
+            if let Some(text) = text.filter(|text| {
+                *text != " " && !text.is_empty() && !text.chars().any(char::is_control)
+            }) {
+                if !state.open {
+                    state.open(&key_config);
+                }
+                let active = state.navigation.active.clone();
+                if let Some(id) = state.search.advance(
+                    &key_config,
+                    active.as_deref(),
+                    text,
+                    std::time::Instant::now(),
+                ) {
+                    state.navigation.active = Some(id);
+                    state.reveal(&key_config);
+                }
+                cx.notify(owner);
+                cx.stop_propagation();
+                return;
+            }
+            if modifiers.modified() {
                 return;
             }
             if key == "escape" && state.open {
@@ -129,6 +162,7 @@ pub(super) fn element<T: 'static>(
                 cx.notify(owner);
                 cx.stop_propagation();
             } else if matches!(key, "up" | "down" | "home" | "end") {
+                state.search.clear();
                 if state.open {
                     state.navigation.navigate(&key_config, key);
                     state.reveal(&key_config);
@@ -290,7 +324,20 @@ pub(super) fn element<T: 'static>(
                         cx.notify(owner);
                     }
                 })
-                .child(list);
+                .child(if count == 0 {
+                    div()
+                        .id("choice-empty")
+                        .h(list_height)
+                        .px(px(8.))
+                        .flex()
+                        .items_center()
+                        .role(gpui::Role::Label)
+                        .aria_label("No options")
+                        .child("No options")
+                        .into_any_element()
+                } else {
+                    list.into_any_element()
+                });
             #[cfg(feature = "native-tests")]
             let popup = {
                 let bounds = state.borrow().popup_bounds.clone();

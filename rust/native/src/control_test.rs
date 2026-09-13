@@ -371,6 +371,33 @@ async fn select_control(
         assert_eq!(choices(transport), ["deep"]);
         assert!(!select_is_open(cx, handle));
     }
+    if select_is_open(cx, handle) {
+        key(cx, handle, "escape");
+        frame(cx, handle).await;
+    }
+    key(cx, handle, "f");
+    frame(cx, handle).await;
+    assert!(
+        select_is_open(cx, handle),
+        "printable keys open type-ahead navigation"
+    );
+    assert!(
+        choices(transport).is_empty(),
+        "typing does not commit selection"
+    );
+    key(cx, handle, "enter");
+    assert_eq!(choices(transport), ["fast"]);
+    frame(cx, handle).await;
+    key(cx, handle, "d");
+    key(cx, handle, "e");
+    frame(cx, handle).await;
+    key(cx, handle, "enter");
+    assert_eq!(
+        choices(transport),
+        ["deep"],
+        "prefix resets between opens and searches labels"
+    );
+    frame(cx, handle).await;
     // Large options remain bounded to the popup viewport and navigation reveals
     // offscreen choices. A reorder must also reveal the retained active ID.
     config.items = (0..4096)
@@ -430,6 +457,20 @@ async fn select_control(
     frame(cx, handle).await;
     key(cx, handle, "space");
     frame(cx, handle).await;
+    config.items.clear();
+    config.selected = None;
+    apply(cx, handle, vec![Op::SetChoice(node(6), config.clone())]);
+    frame(cx, handle).await;
+    #[cfg(target_os = "macos")]
+    assert!(accessible(cx, handle, "No options", false).is_some());
+    key(cx, handle, "enter");
+    assert!(
+        choices(transport).is_empty(),
+        "empty lists never fabricate a selection"
+    );
+    frame(cx, handle).await;
+    key(cx, handle, "space");
+    frame(cx, handle).await;
     config.disabled = true;
     apply(cx, handle, vec![Op::SetChoice(node(6), config)]);
     frame(cx, handle).await;
@@ -444,6 +485,9 @@ async fn select_control(
     handle
         .update(cx, |view, _, _| assert!(view.selects.is_empty()))
         .unwrap();
+    println!(
+        "GPUIO_SELECT_TYPEAHEAD_OK: printable prefix navigation, explicit confirmation and accessible empty state"
+    );
     println!(
         "GPUIO_SELECT_NATIVE_OK: popup position, keyboard/cancel, stable highlight, pointer, focus, 4096-option virtualization and disposal"
     );
