@@ -235,6 +235,15 @@ or Linux GUI acceptance is claimed for this checkpoint.
 File-dialog implementation has started with pure OCaml/Rust path and open/save
 configuration models. Focused Core expect tests, Rust protocol tests and Clippy
 pass, including exact non-UTF-8 path bytes, filename validation and selection
-limits. No dialog presentation, request/result bridge or native cancellation is
-implemented yet. The [file-dialog design](design/file-dialogs.md) records the
+limits. These constructors do not present dialogs. The
+[file-dialog design](design/file-dialogs.md) records the
 contracts, pinned-source findings and remaining acceptance work.
+
+The macOS Rust file-panel adapter now passes native sheet presentation, file and
+directory selection, exact save-path return without file creation, Busy,
+cancellation and owner disposal checks. Full Clippy, Rust workspace tests and
+Dune build/tests/format pass with its direct macOS dependencies. The
+[file-panel evidence](evidence/native-file-dialogs-och11.md) describes the actual
+AX-based test and its permission requirement. Runtime/Eio/Bonsai integration,
+capability reporting, Linux portal support and application-close cancellation
+remain pending; this is not a completed file-dialog feature or OCH-11 ticket.

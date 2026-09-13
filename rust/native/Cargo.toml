@@ -9,7 +9,7 @@ repository.workspace = true
 crate-type = ["staticlib", "rlib"]
 
 [features]
-native-tests = ["dep:raw-window-handle", "dep:objc2", "dep:objc2-foundation"]
+native-tests = []
 default = ["wayland", "x11"]
 wayland = ["gpui/wayland", "gpui_platform/wayland"]
 x11 = ["gpui/x11", "gpui_platform/x11"]
@@ -27,9 +27,11 @@ libc = "0.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "=0.26.0"
-raw-window-handle = { version = "0.6.2", optional = true }
-objc2 = { version = "0.6.4", optional = true }
-objc2-foundation = { version = "0.3.2", optional = true, default-features = false, features = ["std", "NSString", "NSRange"] }
+raw-window-handle = "0.6.2"
+objc2 = "0.6.4"
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSString", "NSRange", "NSURL", "NSArray"] }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSApplication", "NSOpenPanel", "NSSavePanel", "NSPanel", "NSResponder", "NSWindow", "NSView", "block2"] }
+block2 = "0.6.2"
 
 [[test]]
 name = "native_ui"
@@ -76,5 +78,11 @@ required-features = ["native-tests"]
 [[test]]
 name = "native_pointer"
 path = "tests/native_pointer.rs"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_file_dialog"
+path = "tests/native_file_dialog.rs"
 harness = false
 required-features = ["native-tests"]

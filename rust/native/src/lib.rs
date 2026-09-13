@@ -1,5 +1,7 @@
 mod appearance;
 mod ffi;
+#[cfg(target_os = "macos")]
+pub mod file_dialog;
 mod host;
 pub mod mailbox;
 mod selection;
@@ -46,4 +48,9 @@ pub fn run_native_toast_test() {
 #[cfg(feature = "native-tests")]
 pub fn run_native_pointer_test() {
     host::control_test::run_pointer();
+}
+
+#[cfg(all(feature = "native-tests", target_os = "macos"))]
+pub fn run_native_file_dialog_test() {
+    file_dialog::test::run();
 }

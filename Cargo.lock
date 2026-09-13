@@ -2418,6 +2418,7 @@ version = "0.0.0"
 dependencies = [
  "async-channel",
  "binprot",
+ "block2 0.6.2",
  "cocoa 0.26.0",
  "gpui",
  "gpui-base",
@@ -2425,6 +2426,7 @@ dependencies = [
  "gpuio-protocol",
  "libc",
  "objc2 0.6.4",
+ "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",
  "ocaml-interop",
  "raw-window-handle",

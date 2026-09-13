@@ -1257,7 +1257,7 @@ pub fn run(transport: Arc<Transport>) {
 
 #[allow(deprecated)]
 #[cfg(target_os = "macos")]
-fn stop_application(cx: &mut App) {
+pub(crate) fn stop_application(cx: &mut App) {
     use cocoa::{
         appkit::{NSApplication, NSEvent, NSEventModifierFlags, NSEventSubtype, NSEventType},
         base::{YES, nil},

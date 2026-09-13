@@ -2,9 +2,10 @@
 
 Status, 2026-09-13: pure `Gpuio.File_path`, `Gpuio.File_dialog.Open` and
 `Gpuio.File_dialog.Save` configuration models and corresponding Rust data are
-implemented locally. Presentation, bridge request/result routing, cancellation,
-capability queries and native-window acceptance are still pending. These models
-do not complete the OCH-11 file-dialog requirement.
+implemented locally. The macOS Rust panel adapter now also passes actual native
+open/save/cancellation checks. Bridge request/result routing, runtime window-close
+integration, capability queries and the Linux adapter are still pending. These
+checkpoints do not complete the OCH-11 file-dialog requirement.
 
 ## Path and configuration contracts
 
@@ -73,10 +74,11 @@ Pinned GPUI: `a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b`.
 - `crates/gpui_macos/src/platform.rs` uses detached tasks and modeless
   `beginWithCompletionHandler`. Its save-path workaround can rewrite some
   extensions on macOS 15 or later. A small AppKit adapter owning an open/save
-  panel is the implementation direction for exact result paths, explicit parent
-  ownership and physical cancellation. The locally pinned objc2-app-kit 0.3.2
-  declarations expose sheet presentation, `cancel:` and `orderOut:`. Actual
-  native behavior and callback/drop races remain to be tested.
+  panel now implements exact result paths, explicit parent attachment and
+  physical cancellation. The locally pinned objc2-app-kit 0.3.2
+  declarations expose sheet presentation, `cancel:` and `orderOut:`. Local native
+  behavior and callback/drop evidence is recorded below; runtime integration
+  remains pending.
 - `crates/gpui_linux/src/linux/platform.rs` uses ashpd and explicitly reports
   mixed file/directory selection as unavailable. Its result handling treats any
   portal Response error as cancellation and filters unconvertible URIs out of
@@ -89,9 +91,31 @@ Pinned GPUI: `a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b`.
   the portal method reply need explicit lifetime handling; no implementation or
   Linux GUI success is claimed here.
 
-No additional dependency or fork change has been made for this research. The
-ashpd source archive was downloaded into ignored scratch and its SHA-256 matches
-the existing Cargo.lock entry. It is evidence, not a build input.
+The macOS adapter uses the already-pinned objc2 0.6.4, objc2-foundation 0.3.2,
+objc2-app-kit 0.3.2, block2 0.6.2 and raw-window-handle 0.6.2 dependencies.
+AppKit/block2 are now direct native dependencies, and the formerly test-only
+Objective-C/raw-handle dependencies are enabled for production macOS. No package
+version, opam switch or vendor/fork change was required. The ashpd source archive
+was downloaded into ignored scratch and its SHA-256 matches Cargo.lock. It is
+research evidence, not a build input.
+
+## Implemented macOS panel ownership
+
+`rust/native/src/file_dialog.rs` presents a sheet on the exact GPUI native window.
+`Panel` owns its native panel and completion; the Objective-C block holds only a
+weak reference back to that state. Completion claims the callback before calling
+AppKit or the caller, so reentrancy/repeated cancellation cannot deliver it twice.
+An already-attached sheet produces Busy. Explicit native cancellation closes the
+panel and returns Cancelled; dropping an outstanding owner physically closes it
+and returns Closed. This is the native ownership primitive; the application
+runtime still needs to drop that owner on window close/shutdown.
+
+Open results reject invalid/unconvertible paths as a whole, with incremental
+aggregate-byte validation. Save returns the native URL path unchanged. Local
+native tests select the repository LICENSE file and `/tmp`, accept a save path
+ending in `.sql.s`, and verify no destination file was created. They also cover
+native Cancel, cancellation/drop during presentation, Busy and reference-cycle
+disposal. See [native evidence](../evidence/native-file-dialogs-och11.md).
 
 ## Required acceptance work
 

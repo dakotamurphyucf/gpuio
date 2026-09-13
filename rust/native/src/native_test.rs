@@ -129,7 +129,7 @@ fn presses(transport: &Transport) -> usize {
         .count()
 }
 
-pub(super) async fn protect<F: std::future::Future>(
+pub(crate) async fn protect<F: std::future::Future>(
     future: F,
 ) -> Result<F::Output, Box<dyn std::any::Any + Send>> {
     let mut future = std::pin::pin!(future);
