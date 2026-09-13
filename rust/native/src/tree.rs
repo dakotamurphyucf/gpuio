@@ -12,6 +12,7 @@ pub struct Node {
     pub editor: Option<Arc<EditorConfig>>,
     pub control: Option<Control>,
     pub choice: Option<Arc<ChoiceConfig>>,
+    pub combobox_filter: Option<ComboboxFilter>,
     pub choice_appearance: Option<Arc<ChoiceAppearance>>,
     pub style: Arc<[Style]>,
     pub handler: Option<HandlerId>,
@@ -33,7 +34,7 @@ impl Node {
                 .editor
                 .as_ref()
                 .map_or(0, |config| config.label.len() + config.placeholder.len())
-            + if matches!(self.kind, Kind::Input | Kind::Textarea) {
+            + if matches!(self.kind, Kind::Input | Kind::Textarea | Kind::Combobox) {
                 EDITOR_RESERVED_BYTES
             } else {
                 0
@@ -151,10 +152,14 @@ impl Tree {
         }
         for slot in plan.changes.values() {
             if let Some(node) = &slot.node {
-                if node.choice_appearance.is_some() && node.kind != Kind::Select {
+                if node.choice_appearance.is_some()
+                    && !matches!(node.kind, Kind::Select | Kind::Combobox)
+                {
                     return Err(ErrorCode::InvalidTree);
                 }
-                if node.choice.is_some() && !matches!(node.kind, Kind::RadioGroup | Kind::Select) {
+                if node.choice.is_some()
+                    && !matches!(node.kind, Kind::RadioGroup | Kind::Select | Kind::Combobox)
+                {
                     return Err(ErrorCode::InvalidTree);
                 }
                 if node
@@ -163,13 +168,28 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree);
                 }
+                if node.kind == Kind::Combobox {
+                    let choices = node.choice.as_ref().ok_or(ErrorCode::InvalidTree)?;
+                    let editor = node.editor.as_ref().ok_or(ErrorCode::InvalidTree)?;
+                    if node.combobox_filter.is_none()
+                        || !choices.is_valid()
+                        || choices.label != editor.label
+                        || choices.disabled != editor.disabled
+                        || editor.read_only
+                        || editor.submit_on_enter
+                    {
+                        return Err(ErrorCode::InvalidTree);
+                    }
+                } else if node.combobox_filter.is_some() {
+                    return Err(ErrorCode::InvalidTree);
+                }
                 match node.kind {
-                    Kind::Input | Kind::Textarea => {
+                    Kind::Input | Kind::Textarea | Kind::Combobox => {
                         let config = node.editor.as_ref().ok_or(ErrorCode::InvalidTree)?;
                         if node.handler.is_none()
                             || !config.is_valid()
                             || node.text.contains('\0')
-                            || (node.kind == Kind::Input
+                            || (matches!(node.kind, Kind::Input | Kind::Combobox)
                                 && (config.min_rows != 1
                                     || config.max_rows != 1
                                     || node.text.contains(['\r', '\n'])))
@@ -297,6 +317,7 @@ impl Plan<'_> {
             | Op::SetEditor(id, ..)
             | Op::SetControl(id, ..)
             | Op::SetChoice(id, ..)
+            | Op::SetComboboxFilter(id, ..)
             | Op::SetChoiceAppearance(id, ..)
             | Op::Bind(id, ..)
             | Op::Splice(id, ..) => Some(*id),
@@ -354,6 +375,7 @@ impl Plan<'_> {
                             control: None,
                             choice: None,
                             choice_appearance: None,
+                            combobox_filter: None,
                             style: Arc::from([]),
                             handler: *handler,
                             children: Arc::from([]),
@@ -376,7 +398,10 @@ impl Plan<'_> {
                 self.structural = true;
             }
             Op::SetText(id, text) => {
-                if matches!(self.node(*id)?.kind, Kind::Input | Kind::Textarea) {
+                if matches!(
+                    self.node(*id)?.kind,
+                    Kind::Input | Kind::Textarea | Kind::Combobox
+                ) {
                     // Native editor contents change only through explicit commands.
                     return Err(ErrorCode::InvalidTree);
                 }
@@ -384,23 +409,33 @@ impl Plan<'_> {
                 self.node_mut(*id)?.text = Arc::from(text.as_str());
             }
             Op::SetEditor(id, config) => {
-                if !matches!(self.node(*id)?.kind, Kind::Input | Kind::Textarea)
-                    || !config.is_valid()
+                if !matches!(
+                    self.node(*id)?.kind,
+                    Kind::Input | Kind::Textarea | Kind::Combobox
+                ) || !config.is_valid()
                 {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.editor = Some(Arc::new(config.clone()));
             }
+            Op::SetComboboxFilter(id, filter) => {
+                if self.node(*id)?.kind != Kind::Combobox {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.combobox_filter = Some(*filter);
+            }
             Op::SetChoiceAppearance(id, appearance) => {
-                if self.node(*id)?.kind != Kind::Select {
+                if !matches!(self.node(*id)?.kind, Kind::Select | Kind::Combobox) {
                     return Err(ErrorCode::InvalidTree);
                 }
                 crate::appearance::validate(appearance)?;
                 self.node_mut(*id)?.choice_appearance = Some(Arc::new(appearance.clone()));
             }
             Op::SetChoice(id, config) => {
-                if !matches!(self.node(*id)?.kind, Kind::RadioGroup | Kind::Select)
-                    || !config.is_valid()
+                if !matches!(
+                    self.node(*id)?.kind,
+                    Kind::RadioGroup | Kind::Select | Kind::Combobox
+                ) || !config.is_valid()
                 {
                     return Err(ErrorCode::InvalidTree);
                 }

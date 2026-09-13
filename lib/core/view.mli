@@ -89,6 +89,18 @@ val select
   -> unit
   -> 'action t
 
+(** One native editor placement with choice selection intents. Initial text is
+    used only on mount; choosing never implicitly replaces the native query. *)
+val combobox
+  :  ?style:Style.t
+  -> ?appearance:Choice.Appearance.t
+  -> ?initial_text:string
+  -> controller:Key.t
+  -> config:Combobox.Config.t
+  -> on_event:(Combobox.Event.t -> 'action)
+  -> unit
+  -> 'action t Or_error.t
+
 module Expert : sig
   module Kind : sig
     type t =
@@ -101,6 +113,7 @@ module Expert : sig
       | Switch
       | Radio_group
       | Select
+      | Combobox
     [@@deriving equal, sexp_of]
   end
 
@@ -119,6 +132,13 @@ module Expert : sig
 
     val to_wire : t -> Gpuio_protocol.Wire.Control.t
   end
+
+  type 'action combobox =
+    { controller : Key.t
+    ; config : Combobox.Config.t
+    ; appearance : Choice.Appearance.t
+    ; on_event : Combobox.Event.t -> 'action
+    }
 
   type 'action choice =
     { config : Choice.Config.t
@@ -141,6 +161,7 @@ module Expert : sig
     ; editor : 'action editor option
     ; control : Control.t option
     ; choice : 'action choice option
+    ; combobox : 'action combobox option
     ; children : 'action t list
     }
 

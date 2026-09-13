@@ -38,6 +38,7 @@ module View = struct
   let row = Gpuio.View.row
   let radio_group = Gpuio.View.radio_group
   let select = Gpuio.View.select
+  let combobox = Gpuio.View.combobox
   let column = Gpuio.View.column
   let grid = Gpuio.View.grid
 end

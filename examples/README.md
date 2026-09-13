@@ -19,3 +19,6 @@ See its [README](view_api/README.md) for interactive and automated commands.
 Bonsai controllers, submit observations and explicit native commands. See its
 [README](text_input/README.md). Local foreground GUI checks are authorized for fast iteration; avoid activation
 where a test permits background execution. CI supplies the final platform gates.
+
+- `combobox`: editable choices with native query ownership and a public controller
+  self-test for guarded replacement, undo and stale unmount. See its README.

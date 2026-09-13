@@ -1,9 +1,11 @@
 //! Bounded option popup shared by choice controls. The owning control supplies
 //! activation; this module owns highlight, geometry, virtualized rows and semantics.
 use super::choice;
+#[cfg(feature = "native-tests")]
+use gpui::canvas;
 use gpui::{
-    App, Bounds, Div, EntityId, Pixels, Stateful, UniformListScrollHandle, Window, canvas, div,
-    prelude::*, px, rgba,
+    App, Bounds, Div, EntityId, Pixels, Stateful, UniformListScrollHandle, Window, div, prelude::*,
+    px, rgba,
 };
 use gpuio_protocol::v1::*;
 use std::{

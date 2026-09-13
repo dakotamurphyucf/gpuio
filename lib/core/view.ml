@@ -11,6 +11,7 @@ module Kind = struct
     | Switch
     | Radio_group
     | Select
+    | Combobox
   [@@deriving equal, sexp_of]
 end
 
@@ -53,6 +54,13 @@ type 'action choice =
   ; on_select : Choice.Id.t -> 'action
   }
 
+type 'action combobox =
+  { controller : Key.t
+  ; config : Combobox.Config.t
+  ; appearance : Choice.Appearance.t
+  ; on_event : Combobox.Event.t -> 'action
+  }
+
 type 'action t =
   { key : Key.t option
   ; kind : Kind.t
@@ -62,6 +70,7 @@ type 'action t =
   ; editor : 'action editor option
   ; control : Control.t option
   ; choice : 'action choice option
+  ; combobox : 'action combobox option
   ; children : 'action t list
   }
 
@@ -73,6 +82,7 @@ let text ?key ?(style = Style.empty) text =
   ; on_click = None
   ; editor = None
   ; choice = None
+  ; combobox = None
   ; control = None
   ; children = []
   }
@@ -105,6 +115,7 @@ let button ?key ?(style = Style.empty) ?accessible_name ?(disabled = false) ~on_
   ; on_click = (if disabled then None else Some on_click)
   ; editor = None
   ; choice = None
+  ; combobox = None
   ; control = Some (Button { disabled })
   ; children = []
   }
@@ -146,6 +157,7 @@ let toggle
   ; on_click = (if disabled then None else Some on_toggle)
   ; editor = None
   ; choice = None
+  ; combobox = None
   ; control = Some control
   ; children = []
   }
@@ -183,6 +195,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; on_click = None
   ; editor = None
   ; choice = None
+  ; combobox = None
   ; control = None
   ; children
   }
@@ -226,6 +239,7 @@ let text_input
   ; on_click = None
   ; editor = Some { controller; config; on_event }
   ; choice = None
+  ; combobox = None
   ; control = None
   ; children = []
   }
@@ -240,6 +254,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; editor = None
   ; control = None
   ; choice = Some { config; appearance = None; on_select }
+  ; combobox = None
   ; children = []
   }
 ;;
@@ -258,9 +273,39 @@ let select
   }
 ;;
 
+let combobox
+      ?(style = Style.empty)
+      ?(appearance = Choice.Appearance.default)
+      ?(initial_text = "")
+      ~controller
+      ~config
+      ~on_event
+      ()
+  =
+  let%map.Or_error () = Text_input.validate_text ~mode:Single_line initial_text in
+  { key = Some controller
+  ; kind = Combobox
+  ; text = initial_text
+  ; style
+  ; on_click = None
+  ; editor = None
+  ; control = None
+  ; choice = None
+  ; combobox = Some { controller; config; appearance; on_event }
+  ; children = []
+  }
+;;
+
 module Expert = struct
   module Kind = Kind
   module Control = Control
+
+  type nonrec 'action combobox = 'action combobox =
+    { controller : Key.t
+    ; config : Combobox.Config.t
+    ; appearance : Choice.Appearance.t
+    ; on_event : Combobox.Event.t -> 'action
+    }
 
   type nonrec 'action choice = 'action choice =
     { config : Choice.Config.t
@@ -283,6 +328,7 @@ module Expert = struct
     ; editor : 'action editor option
     ; control : Control.t option
     ; choice : 'action choice option
+    ; combobox : 'action combobox option
     ; children : 'action t list
     }
 

@@ -55,6 +55,16 @@ module View : sig
     -> unit
     -> t
 
+  val combobox
+    :  ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Choice.Appearance.t
+    -> ?initial_text:string
+    -> controller:Gpuio.Key.t
+    -> config:Gpuio.Combobox.Config.t
+    -> on_event:(Gpuio.Combobox.Event.t -> unit Bonsai.Effect.t)
+    -> unit
+    -> t Or_error.t
+
   val column : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> t list -> t
 
   val grid

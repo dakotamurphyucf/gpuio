@@ -16,6 +16,14 @@ module type S = sig
       | Switch
       | Radio_group
       | Select
+      | Combobox
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Combobox_filter : sig
+    type t =
+      | Substring
+      | Unfiltered
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -303,6 +311,7 @@ module type S = sig
       | Set_control of Node_id.t * Control.t
       | Set_choice of Node_id.t * Choice.Config.t
       | Set_choice_appearance of Node_id.t * Choice_appearance.t
+      | Set_combobox_filter of Node_id.t * Combobox_filter.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -371,6 +380,8 @@ module type S = sig
           * Editor.Snapshot.t
       | Editor_result of int64 * Window_id.t * Node_id.t * Editor.Result.t
       | Choice of Window_id.t * Node_id.t * Handler_id.t * int64 * string
+      | Combobox_selected of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * string * Editor.Snapshot.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

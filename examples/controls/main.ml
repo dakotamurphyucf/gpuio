@@ -39,6 +39,23 @@ let component window graph =
   let notify, toggle_notify = B.toggle ~default_model:false graph in
   let mode, set_mode = B.state (Some (choice_id "fast")) graph in
   let open B.Let_syntax in
+  let combo_config =
+    let%arr enabled = enabled
+    and mode = mode in
+    Gpuio.Combobox.Config.create
+      ~label:"Search reasoning mode"
+      ~options:modes
+      ~selected:mode
+      ~disabled:(not enabled)
+      ~placeholder:"Type to filter"
+      ()
+    |> Or_error.ok_exn
+  in
+  let on_select =
+    let%arr set_mode = set_mode in
+    fun selected -> set_mode (Some (Gpuio.Combobox.Selection.id selected))
+  in
+  let combo = Gpuio_eio.Combobox.create window ~config:combo_config ~on_select graph in
   let%arr enabled = enabled
   and toggle_enabled = toggle_enabled
   and streaming = streaming
@@ -46,7 +63,8 @@ let component window graph =
   and notify = notify
   and toggle_notify = toggle_notify
   and mode = mode
-  and set_mode = set_mode in
+  and set_mode = set_mode
+  and combo = combo in
   View.column
     ~style:
       (Gpuio.Style.create_exn
@@ -93,6 +111,16 @@ let component window graph =
            |> Or_error.ok_exn)
         ~on_select:(fun id -> set_mode (Some id))
         ()
+    ; Gpuio_eio.Combobox.view
+        ~appearance:choice_appearance
+        ~style:(Gpuio.Style.create_exn [ Height (Gpuio.Length.px_exn 36.) ])
+        combo
+    ; View.text
+        ("Search query: "
+         ^ Option.value_map
+             (Gpuio_eio.Combobox.snapshot combo)
+             ~default:""
+             ~f:Gpuio.Text_input.Snapshot.text)
     ; View.button
         ~on_click:(Bonsai.Effect.of_thunk (fun () -> App.Window.close window))
         "Close"
@@ -101,7 +129,7 @@ let component window graph =
 
 let () =
   App.run (fun _ app ->
-    App.open_window app ~title:"GPUIO native controls" ~width:460. ~height:480. component
+    App.open_window app ~title:"GPUIO native controls" ~width:460. ~height:600. component
     |> Or_error.ok_exn
     |> fun (_ : App.Window.t) -> ())
 ;;

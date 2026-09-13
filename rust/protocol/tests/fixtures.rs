@@ -114,3 +114,34 @@ fn every_extended_style_field_matches_the_independent_ocaml_fixture() {
         assert!(gpuio_protocol::decode(&expected[..end]).is_err());
     }
 }
+
+#[path = "common/combobox_fixture.rs"]
+mod combobox_fixture;
+#[test]
+fn editable_choice_request_and_exact_snapshot_fixture_match_ocaml() {
+    let request = bytes(include_str!(
+        "../../../test/fixtures/combobox-v1-request.hex"
+    ));
+    let events = bytes(include_str!(
+        "../../../test/fixtures/combobox-v1-events.hex"
+    ));
+    let mut actual = Vec::new();
+    combobox_fixture::request()
+        .binprot_write(&mut actual)
+        .unwrap();
+    assert_eq!(actual, request);
+    assert_eq!(
+        gpuio_protocol::decode(&request).unwrap(),
+        combobox_fixture::request()
+    );
+    for length in 0..request.len() {
+        assert!(gpuio_protocol::decode(&request[..length]).is_err());
+    }
+    *actual.last_mut().unwrap() = 2;
+    assert!(gpuio_protocol::decode(&actual).is_err());
+    actual.clear();
+    combobox_fixture::events()
+        .binprot_write(&mut actual)
+        .unwrap();
+    assert_eq!(actual, events);
+}

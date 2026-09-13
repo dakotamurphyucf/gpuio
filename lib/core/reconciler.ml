@@ -66,6 +66,7 @@ type 'a callback =
   | Click of (unit -> 'a)
   | Editor of (Text_input.Event.t -> 'a)
   | Choice of Choice.Config.t * (Choice.Id.t -> 'a)
+  | Combobox of Combobox.Config.t * (Combobox.Event.t -> 'a)
 
 type 'a binding =
   { node : Node_id.t
@@ -175,6 +176,7 @@ let kind = function
   | Switch -> Switch
   | Radio_group -> Radio_group
   | Select -> Select
+  | Combobox -> Combobox
 ;;
 
 let compatible mounted view =
@@ -245,18 +247,34 @@ let rec mount builder ~depth previous view =
     in
     let old_handler = Option.bind previous ~f:(fun mounted -> mounted.handler) in
     let callback =
-      match description.on_click, description.editor, description.choice with
-      | Some callback, None, None -> Some (Click callback)
-      | None, Some editor, None -> Some (Editor editor.on_event)
-      | None, None, Some choice ->
+      match
+        description.on_click, description.editor, description.choice, description.combobox
+      with
+      | Some callback, None, None, None -> Some (Click callback)
+      | None, Some editor, None, None -> Some (Editor editor.on_event)
+      | None, None, Some choice, None ->
         if Choice.Config.is_disabled choice.config
         then None
         else Some (Choice (choice.config, choice.on_select))
-      | None, None, None -> None
+      | None, None, None, Some combo -> Some (Combobox (combo.config, combo.on_event))
+      | None, None, None, None -> None
       | _ -> fail "a view cannot combine incompatible handler kinds"
+    in
+    let rotate_handler =
+      match description.combobox, previous with
+      | Some combo, Some mounted ->
+        Option.exists (View.Expert.describe mounted.view).combobox ~f:(fun old ->
+          not
+            (Bool.equal
+               (Choice.Config.is_disabled (Combobox.Config.choices old.config))
+               (Choice.Config.is_disabled (Combobox.Config.choices combo.config))))
+      | None, _ | Some _, None -> false
     in
     let handler =
       match old_handler, callback with
+      | Some handler, Some _ when rotate_handler ->
+        builder.handlers <- Allocator.release builder.handlers (handler_slot handler);
+        Some (new_handler builder)
       | Some handler, Some _ -> Some handler
       | None, Some _ -> Some (new_handler builder)
       | Some handler, None ->
@@ -279,20 +297,41 @@ let rec mount builder ~depth previous view =
      | Some mounted ->
        if
          Option.is_none description.editor
+         && Option.is_none description.combobox
          && not (String.equal (View.Expert.describe mounted.view).text description.text)
        then emit builder (Set_text (id, description.text));
        if not (Option.equal Handler_id.equal old_handler handler)
        then emit builder (Bind (id, handler)));
-    Option.iter description.editor ~f:(fun editor ->
+    let editor_config (description : _ View.Expert.description) =
+      match description.editor, description.combobox with
+      | Some editor, None -> Some editor.config
+      | None, Some combo -> Some (Combobox.Expert.editor_config combo.config)
+      | None, None -> None
+      | Some _, Some _ -> fail "incompatible editor descriptions"
+    in
+    Option.iter (editor_config description) ~f:(fun config ->
       let old =
         Option.bind previous ~f:(fun mounted ->
-          (View.Expert.describe mounted.view).editor)
+          editor_config (View.Expert.describe mounted.view))
       in
-      if
-        not
-          (Option.value_map old ~default:false ~f:(fun old ->
-             Text_input.Config.equal old.config editor.config))
-      then emit builder (Set_editor (id, Text_input.Expert.config_to_wire editor.config)));
+      if not (Option.equal Text_input.Config.equal old (Some config))
+      then emit builder (Set_editor (id, Text_input.Expert.config_to_wire config)));
+    Option.iter description.combobox ~f:(fun combo ->
+      let filter = Combobox.Config.filter combo.config in
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).combobox ~f:(fun combo ->
+            Combobox.Config.filter combo.config))
+      in
+      if not (Option.equal Combobox.Filter.equal old (Some filter))
+      then
+        emit
+          builder
+          (Set_combobox_filter
+             ( id
+             , match filter with
+               | Substring -> Substring
+               | Unfiltered -> Unfiltered )));
     Option.iter description.control ~f:(fun control ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -300,16 +339,24 @@ let rec mount builder ~depth previous view =
       in
       if not (Option.equal View.Expert.Control.equal old (Some control))
       then emit builder (Set_control (id, View.Expert.Control.to_wire control)));
-    Option.iter description.choice ~f:(fun choice ->
+    let choice_config (description : _ View.Expert.description) =
+      match description.choice, description.combobox with
+      | Some choice, None -> Some choice.config
+      | None, Some combo -> Some (Combobox.Config.choices combo.config)
+      | None, None -> None
+      | Some _, Some _ -> fail "incompatible choice descriptions"
+    in
+    Option.iter (choice_config description) ~f:(fun config ->
       let old =
         Option.bind previous ~f:(fun mounted ->
-          Option.map (View.Expert.describe mounted.view).choice ~f:(fun choice ->
-            choice.config))
+          choice_config (View.Expert.describe mounted.view))
       in
-      if not (Option.equal Choice.Config.equal old (Some choice.config))
-      then emit builder (Set_choice (id, Choice.Expert.config_to_wire choice.config)));
+      if not (Option.equal Choice.Config.equal old (Some config))
+      then emit builder (Set_choice (id, Choice.Expert.config_to_wire config)));
     let choice_appearance =
-      Option.bind description.choice ~f:(fun choice -> choice.appearance)
+      (match description.combobox with
+       | Some combo -> Some combo.appearance
+       | None -> Option.bind description.choice ~f:(fun choice -> choice.appearance))
       |> Option.map ~f:(fun appearance ->
         Choice.Expert.appearance_to_wire appearance ~theme:builder.theme |> value)
     in
@@ -352,8 +399,15 @@ let rec mount builder ~depth previous view =
     splice builder id old_children children;
     let controllers =
       let own =
-        Option.value_map description.editor ~default:String.Set.empty ~f:(fun editor ->
-          String.Set.singleton (Key.to_string editor.controller))
+        let controller =
+          match description.editor, description.combobox with
+          | Some editor, None -> Some editor.controller
+          | None, Some combo -> Some combo.controller
+          | None, None -> None
+          | Some _, Some _ -> fail "incompatible controller descriptions"
+        in
+        Option.value_map controller ~default:String.Set.empty ~f:(fun key ->
+          String.Set.singleton (Key.to_string key))
       in
       List.fold children ~init:own ~f:(fun keys child ->
         if not (Set.is_empty (Set.inter keys child.controllers))
@@ -451,7 +505,7 @@ let dispatch t = function
        when Node_id.equal node binding.node && Handler_id.equal handler binding.handler ->
        (match binding.callback with
         | Click callback -> Some (callback ())
-        | Editor _ | Choice _ -> None)
+        | Editor _ | Choice _ | Combobox _ -> None)
      | Some _ | None -> None)
   | Choice (window, node, handler, revision, selected)
     when (not t.closed)
@@ -473,6 +527,18 @@ let dispatch t = function
          && Window_id.equal window t.window
          && Int64.(revision >= 0L && revision <= t.state.revision) ->
     (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Combobox (_, callback)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       (match event with
+        | Submitted -> None
+        | Changed ->
+          Text_input.Expert.snapshot_of_wire ~window ~node snapshot
+          |> Result.ok
+          |> Option.map ~f:(fun snapshot -> callback (Changed snapshot)))
      | Some { node = expected; handler = expected_handler; callback = Editor callback }
        when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
        let snapshot = Text_input.Expert.snapshot_of_wire ~window ~node snapshot in
@@ -486,6 +552,25 @@ let dispatch t = function
              |> Result.ok
              |> Option.map ~f:(fun submission -> callback (Submitted submission))))
      | Some _ | None -> None)
+  | Combobox_selected (window, node, handler, revision, selected, snapshot)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Combobox (config, callback)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       let selection =
+         let open Or_error.Let_syntax in
+         let%bind id = Choice.Id.of_string selected in
+         let%bind snapshot = Text_input.Expert.snapshot_of_wire ~window ~node snapshot in
+         Combobox.Expert.selection config ~id ~snapshot
+       in
+       Result.ok selection |> Option.map ~f:(fun selected -> callback (Selected selected))
+     | Some _ | None -> None)
   | Welcome _
   | Opened _
   | Closed _
@@ -495,6 +580,7 @@ let dispatch t = function
   | Frame_requested _
   | Press _
   | Choice _
+  | Combobox_selected _
   | Editor_event _
   | Editor_result _
   | Failed _

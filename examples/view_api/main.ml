@@ -64,7 +64,7 @@ let worker native notification_read ~self_test =
         Reconciler.accept reconciler update |> Or_error.ok_exn;
         pending := None;
         if self_test then send (Request_frame (revision, window))
-      | (Press _ | Choice _) as event ->
+      | (Press _ | Choice _ | Combobox_selected _) as event ->
         (match Reconciler.dispatch reconciler event with
          | Some Action.Increment ->
            incr value;

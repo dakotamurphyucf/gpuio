@@ -63,6 +63,45 @@ pub(super) struct Route {
     pub transport: Arc<Transport>,
 }
 impl Route {
+    pub(super) fn select_combobox(&self, selected: &str, snapshot: EditorSnapshot) {
+        if snapshot.composition.is_some() {
+            return;
+        }
+        let event = {
+            let session = self.session.borrow();
+            let valid_kind = session
+                .tree(self.window)
+                .and_then(|tree| tree.get(self.node))
+                .is_some_and(|node| node.kind == Kind::Combobox);
+            if !valid_kind {
+                return;
+            }
+            session
+                .choose(
+                    self.window,
+                    self.node,
+                    self.handler,
+                    self.revision,
+                    selected,
+                )
+                .map(|_| {
+                    Event::ComboboxSelected(
+                        self.window,
+                        self.node,
+                        self.handler,
+                        self.revision,
+                        selected.to_owned(),
+                        snapshot,
+                    )
+                })
+        };
+        if let Some(event) = event
+            && !self.transport.input(event)
+            && self.session.borrow_mut().overload(self.window)
+        {
+            self.transport.fault(self.window);
+        }
+    }
     pub(super) fn select(&self, selected: &str) {
         let event = self.session.borrow().choose(
             self.window,

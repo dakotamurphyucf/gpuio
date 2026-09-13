@@ -31,7 +31,7 @@ fn negotiation_closed_generations_and_render_requests() {
     );
     assert_eq!(session.hello(2, 0), Err(ErrorCode::UnsupportedVersion));
     assert_eq!(
-        session.hello(VERSION, 256),
+        session.hello(VERSION, 1 << 60),
         Err(ErrorCode::UnsupportedCapability)
     );
     assert_eq!(

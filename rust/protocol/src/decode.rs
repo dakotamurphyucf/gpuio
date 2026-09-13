@@ -252,6 +252,7 @@ impl Decoder<'_> {
                     6 => Kind::Switch,
                     7 => Kind::RadioGroup,
                     8 => Kind::Select,
+                    9 => Kind::Combobox,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -270,6 +271,14 @@ impl Decoder<'_> {
             7 => Op::SetEditor(self.node()?, self.editor_config()?),
             8 => Op::SetControl(self.node()?, self.control()?),
             9 => Op::SetChoice(self.node()?, self.choice_config()?),
+            11 => Op::SetComboboxFilter(
+                self.node()?,
+                match self.tag()? {
+                    0 => ComboboxFilter::Substring,
+                    1 => ComboboxFilter::Unfiltered,
+                    _ => return Err(DecodeError::Malformed),
+                },
+            ),
             10 => Op::SetChoiceAppearance(
                 self.node()?,
                 ChoiceAppearance {

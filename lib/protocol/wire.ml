@@ -1,7 +1,7 @@
 open Core
 
 let version = 1L
-let capabilities = 255L
+let capabilities = 511L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -15,6 +15,14 @@ module Kind = struct
     | Switch
     | Radio_group
     | Select
+    | Combobox
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Combobox_filter = struct
+  type t =
+    | Substring
+    | Unfiltered
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -301,6 +309,7 @@ module Op = struct
     | Set_control of Node_id.t * Control.t
     | Set_choice of Node_id.t * Choice.Config.t
     | Set_choice_appearance of Node_id.t * Choice_appearance.t
+    | Set_combobox_filter of Node_id.t * Combobox_filter.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -371,6 +380,8 @@ module Event = struct
         * Editor.Snapshot.t
     | Editor_result of int64 * Window_id.t * Node_id.t * Editor.Result.t
     | Choice of Window_id.t * Node_id.t * Handler_id.t * int64 * string
+    | Combobox_selected of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * string * Editor.Snapshot.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -389,7 +400,12 @@ module Event = struct
       Int64.(range.anchor <= range.head) && selection range)
   ;;
 
-  let valid_editor_event = function
+  let rec valid_editor_event = function
+    | Combobox_selected (window, node, handler, revision, id, snapshot) ->
+      valid_editor_event (Choice (window, node, handler, revision, id))
+      && valid_snapshot snapshot
+      && Option.is_none snapshot.composition
+      && not (String.contains snapshot.text '\n' || String.contains snapshot.text '\r')
     | Choice (_, _, _, revision, id) ->
       Int64.(revision >= 0L)
       && String.length id > 0

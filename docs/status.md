@@ -107,12 +107,22 @@ required jobs and control windows on macOS, X11 and Wayland. The existing Waylan
 editor clipboard limitation remains under OCH-17. Radio groups in PR #8 pass
 both required jobs in CI34748629291, including actual control windows on macOS,
 X11 and Wayland. PR #8 merged as `5448842ffd9bff9e249071698a294a3afc3ffb42`.
-The initial Select adapter adds native popup navigation/cancellation, current-frame
+Select PR #9 merged as `8a9167cf227a290f967452c051f0b4c7dde19461` after both required
+jobs in CI34750240273 passed. Its adapter adds native popup navigation/cancellation, current-frame
 positioning and virtualized options. Local macOS window/accessibility checks,
 4096-option navigation, OCaml/Rust tests, full build/format and Clippy passed.
 Choice appearance adds theme-aware popup/option/empty styles, configurable uniform
 row geometry and localized empty text while retaining native focus/open state.
 Local tests validate these changes; general overlay integration remains OCH-11 work. [Native controls](design/native-controls.md) records these families
 and the remaining ticket scope. OCH-12 declarative animations follows.
+Combobox is implemented on the local OCH-11 branch with native editor ownership,
+query filtering, exact selection snapshots, the editable accessibility role and
+shared popup appearance/virtualization. Local native control tests pass including
+macOS marked/committed text. The public controller smoke passes conditional
+replacement, stale revisions, undo and unmount; existing two-window editor commands
+also pass after sharing the controller implementation. OCaml/Rust tests and Clippy
+pass locally. Full build/format validation is recorded with the local change.
+Per owner instruction, remaining OCH-11 work stays local until the complete ticket
+is ready for a consolidated CI pass. No Combobox hosted acceptance is claimed.
 The broader component catalog is planned in OCH-33–45; vendoring GPUI Base does
 not expose all of those widgets through the OCaml API.

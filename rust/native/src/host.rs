@@ -19,6 +19,8 @@ type SharedSession = Rc<RefCell<Session>>;
 mod choice;
 #[path = "choice_popup.rs"]
 mod choice_popup;
+#[path = "combobox.rs"]
+mod combobox;
 #[path = "editor.rs"]
 mod editor;
 #[cfg(feature = "native-tests")]
@@ -396,7 +398,40 @@ impl View {
         if !interaction.pointer {
             element.style().mouse_cursor = None;
         }
-        if let Some(config) = &node.choice {
+        if node.kind == Kind::Combobox {
+            let (editor, state) = self.editors[&id]
+                .combobox()
+                .expect("validated combobox editor");
+            let route = node
+                .handler
+                .filter(|_| !disabled)
+                .map(|handler| choice::Route {
+                    window: self.id,
+                    node: id,
+                    handler,
+                    revision: tree.revision(),
+                    session: self.session.clone(),
+                    transport: self.transport.clone(),
+                });
+            element = combobox::element(
+                element,
+                combobox::Render {
+                    editor,
+                    state,
+                    config: node.choice.as_ref().expect("validated combobox choices"),
+                    appearance: node
+                        .choice_appearance
+                        .clone()
+                        .unwrap_or_else(crate::appearance::default),
+                    filter: node.combobox_filter.expect("validated combobox filter"),
+                    route,
+                    pointer: interaction.pointer,
+                    selected_style,
+                },
+                window,
+                cx,
+            );
+        } else if let Some(config) = &node.choice {
             element = element.aria_label(config.label.clone());
             let focus = self.buttons[&id].focus.clone();
             let route = node

@@ -129,7 +129,12 @@ fn accessible_input(
 }
 
 #[cfg(target_os = "macos")]
-fn native_text(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, value: &str, marked: bool) {
+pub(super) fn native_text(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    value: &str,
+    marked: bool,
+) {
     use objc2::{Encode, Encoding};
     use objc2::{msg_send, runtime::AnyObject};
     use objc2_foundation::{NSNotFound, NSString};
@@ -166,7 +171,12 @@ fn native_text(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, value: &str,
     }
 }
 #[cfg(not(target_os = "macos"))]
-fn native_text(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, value: &str, marked: bool) {
+pub(super) fn native_text(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    value: &str,
+    marked: bool,
+) {
     assert!(
         !marked,
         "Linux OS IME scenario is separately validated under OCH-17"

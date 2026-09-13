@@ -582,6 +582,214 @@ async fn select_control(
         "GPUIO_SELECT_MACOS_AX_OK: popup role, disabled options, semantic selection and offscreen navigation"
     );
 }
+async fn combobox_control(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    transport: &Transport,
+) {
+    let config = ChoiceConfig {
+        label: "Search model".into(),
+        selected: Some("fast".into()),
+        disabled: false,
+        items: [
+            ("fast", "Fast choice", false),
+            ("disabled", "Deep disabled", true),
+            ("deep", "Deep model", false),
+        ]
+        .into_iter()
+        .map(|(id, label, disabled)| ChoiceItem {
+            id: id.into(),
+            label: label.into(),
+            disabled,
+        })
+        .collect(),
+    };
+    let editor = EditorConfig {
+        label: config.label.clone(),
+        placeholder: "Find a model".into(),
+        disabled: false,
+        read_only: false,
+        submit_on_enter: false,
+        auto_focus: true,
+        min_rows: 1,
+        max_rows: 1,
+    };
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Create(
+                node(7),
+                Kind::Combobox,
+                "".into(),
+                Some(gpuio_protocol::HandlerId::from_parts(7, 1).unwrap()),
+            ),
+            Op::SetEditor(node(7), editor.clone()),
+            Op::SetChoice(node(7), config.clone()),
+            Op::SetComboboxFilter(node(7), ComboboxFilter::Substring),
+            Op::SetStyle(
+                node(7),
+                vec![Style::Fields(vec![
+                    Field::Width(Length::Px(300.)),
+                    Field::Height(Length::Px(36.)),
+                ])],
+            ),
+            Op::Splice(node(0), 4, 0, vec![node(7)]),
+        ],
+    );
+    frame(cx, handle).await;
+    assert!(focused(cx, handle, node(7)));
+    let get = |cx: &mut gpui::AsyncApp| {
+        handle
+            .update(cx, |view, window, cx| {
+                view.editors[&node(7)].snapshot(window, cx)
+            })
+            .unwrap()
+    };
+    let open = |cx: &mut gpui::AsyncApp| {
+        handle
+            .update(cx, |view, _, _| {
+                view.editors[&node(7)]
+                    .combobox()
+                    .unwrap()
+                    .1
+                    .borrow()
+                    .popup
+                    .borrow()
+                    .open
+            })
+            .unwrap()
+    };
+    assert!(!open(cx));
+    key(cx, handle, "down");
+    frame(cx, handle).await;
+    assert!(open(cx));
+    key(cx, handle, "escape");
+    frame(cx, handle).await;
+    assert!(!open(cx));
+    super::editor_test::native_text(cx, handle, "De", false);
+    frame(cx, handle).await;
+    assert_eq!(get(cx).text, "De");
+    assert!(open(cx));
+    handle
+        .update(cx, |view, _, _| {
+            let state = view.editors[&node(7)].combobox().unwrap().1;
+            let popup = state.borrow().popup.clone();
+            let popup = popup.borrow();
+            let probes = popup.option_probes.borrow();
+            assert!(!probes.contains_key("fast"));
+            assert!(probes.contains_key("disabled") && probes.contains_key("deep"));
+            assert_eq!(popup.navigation.active.as_deref(), Some("deep"));
+        })
+        .unwrap();
+    #[cfg(target_os = "macos")]
+    {
+        let input = accessible(cx, handle, "Search model", false).unwrap();
+        assert_eq!(input.role, "AXComboBox");
+        assert!(input.enabled);
+    }
+    choices(transport);
+    let before = get(cx);
+    key(cx, handle, "enter");
+    frame(cx, handle).await;
+    assert!(!open(cx));
+    assert!(focused(cx, handle, node(7)));
+    let selections = transport
+        .mailbox
+        .lock()
+        .unwrap()
+        .drain(128)
+        .into_iter()
+        .filter_map(|event| match event {
+            Event::ComboboxSelected(_, _, _, _, id, snapshot) => Some((id, snapshot)),
+            Event::EditorEvent(_, _, _, _, EditorEventKind::Submitted, _) => {
+                panic!("combobox submitted free text")
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(selections, vec![("deep".into(), before.clone())]);
+    assert_eq!(
+        get(cx).text,
+        "De",
+        "choosing does not implicitly replace query"
+    );
+    assert_eq!(
+        handle
+            .update(cx, |view, _, _| {
+                view.session
+                    .borrow()
+                    .tree(view.id)
+                    .unwrap()
+                    .get(node(7))
+                    .unwrap()
+                    .choice
+                    .as_ref()
+                    .unwrap()
+                    .selected
+                    .clone()
+            })
+            .unwrap(),
+        Some("fast".into()),
+        "application selection remains controlled"
+    );
+    super::editor_test::native_text(cx, handle, "x", false);
+    frame(cx, handle).await;
+    let result = handle
+        .update(cx, |view, window, cx| {
+            view.editors.get_mut(&node(7)).unwrap().command(
+                &EditorCommand::Replace(
+                    "Deep model".into(),
+                    EditorSelectionPolicy::End,
+                    EditorUndoPolicy::Record,
+                    Some(before.revision),
+                ),
+                window,
+                cx,
+            )
+        })
+        .unwrap();
+    assert_eq!(result, EditorResult::Failed(EditorError::StaleRevision));
+    assert_eq!(get(cx).text, "Dex");
+    #[cfg(target_os = "macos")]
+    {
+        key(cx, handle, "cmd-a");
+        super::editor_test::native_text(cx, handle, "に", true);
+        frame(cx, handle).await;
+        assert!(get(cx).composition.is_some());
+        assert!(!open(cx), "composition closes suggestions");
+        key(cx, handle, "down");
+        frame(cx, handle).await;
+        assert!(!open(cx), "composing arrow cannot open suggestions");
+        super::editor_test::native_text(cx, handle, "日本", false);
+        frame(cx, handle).await;
+        assert!(get(cx).composition.is_none());
+        assert_eq!(get(cx).text, "日本");
+    }
+    key(cx, handle, "tab");
+    frame(cx, handle).await;
+    assert!(!open(cx));
+    assert!(!focused(cx, handle, node(7)));
+    apply(
+        cx,
+        handle,
+        vec![Op::Splice(node(0), 4, 1, vec![]), Op::Remove(node(7))],
+    );
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, _, _| {
+            assert!(!view.editors.contains_key(&node(7)))
+        })
+        .unwrap();
+    println!(
+        "GPUIO_COMBOBOX_NATIVE_OK: native query/filtering, keyboard/cancel, exact intent snapshot, controlled value, stale replacement, Tab and cleanup"
+    );
+    #[cfg(target_os = "macos")]
+    println!(
+        "GPUIO_COMBOBOX_MACOS_OK: editable combo role and native marked/committed text without popup interference"
+    );
+}
+
 fn select_is_open(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> bool {
     handle
         .update(cx, |view, _, _| {
@@ -823,6 +1031,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
     }
     radio(cx, handle, &transport).await;
     select_control(cx, handle, &transport).await;
+    combobox_control(cx, handle, &transport).await;
     // Remove a focused native node and enter the surviving Tab order again.
     handle
         .update(cx, |view, window, cx| {

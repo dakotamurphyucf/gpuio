@@ -53,7 +53,7 @@ impl Route {
     }
 }
 
-fn snapshot<M: InputModeKind>(
+pub(super) fn snapshot<M: InputModeKind>(
     state: &InputBaseState<M>,
     window: &Window,
     cx: &App,
@@ -114,6 +114,7 @@ fn subscribe<T: 'static, M: InputModeKind>(
 fn configure<M: InputModeKind>(
     state: &mut InputBaseState<M>,
     config: &EditorConfig,
+    combobox: Option<Rc<RefCell<super::combobox::State>>>,
     window: &mut Window,
     cx: &mut Context<InputBaseState<M>>,
 ) {
@@ -127,7 +128,9 @@ fn configure<M: InputModeKind>(
     let config = config.clone();
     state.set_bridge_decorator(Rc::new(move |element, state, _, cx| {
         let mut element = element
-            .role(if state.is_single_line() {
+            .role(if combobox.is_some() {
+                gpui::Role::EditableComboBox
+            } else if state.is_single_line() {
                 gpui::Role::TextInput
             } else {
                 gpui::Role::MultilineTextInput
@@ -135,6 +138,9 @@ fn configure<M: InputModeKind>(
             .aria_label(config.label.clone())
             .aria_placeholder(config.placeholder.clone())
             .aria_value(state.value());
+        if let Some(combo) = &combobox {
+            element = element.aria_expanded(combo.borrow().popup.borrow().open);
+        }
         if !config.disabled {
             let focus = state.focus_handle(cx);
             element =
@@ -249,6 +255,7 @@ pub(super) struct Instance {
     config: EditorConfig,
     route: Rc<Route>,
     _subscriptions: Vec<Subscription>,
+    combobox: Option<Rc<RefCell<super::combobox::State>>>,
 }
 impl Instance {
     pub(super) fn new<T: 'static>(
@@ -272,7 +279,9 @@ impl Instance {
             transport,
             last: RefCell::new(None),
         });
-        let (state, subscriptions) = if node.kind == Kind::Input {
+        let combobox = (node.kind == Kind::Combobox)
+            .then(|| Rc::new(RefCell::new(super::combobox::State::default())));
+        let (state, subscriptions) = if matches!(node.kind, Kind::Input | Kind::Combobox) {
             let entity = cx.new(|cx| {
                 InputState::new(window, cx)
                     .default_value(node.text.to_string())
@@ -280,7 +289,9 @@ impl Instance {
                     .bridge_history_budget(EDITOR_HISTORY_BYTES)
             });
             let subscriptions = subscribe(&entity, route.clone(), window, cx);
-            entity.update(cx, |state, cx| configure(state, &config, window, cx));
+            entity.update(cx, |state, cx| {
+                configure(state, &config, combobox.clone(), window, cx)
+            });
             (State::Input(entity), subscriptions)
         } else {
             let entity = cx.new(|cx| {
@@ -291,7 +302,9 @@ impl Instance {
                     .auto_grow(config.min_rows as usize, config.max_rows as usize)
             });
             let subscriptions = subscribe(&entity, route.clone(), window, cx);
-            entity.update(cx, |state, cx| configure(state, &config, window, cx));
+            entity.update(cx, |state, cx| {
+                configure(state, &config, combobox.clone(), window, cx)
+            });
             (State::Textarea(entity), subscriptions)
         };
         let instance = Self {
@@ -299,6 +312,7 @@ impl Instance {
             config,
             route,
             _subscriptions: subscriptions,
+            combobox,
         };
         if instance.config.auto_focus && !instance.config.disabled {
             window.focus(&instance.focus_handle(cx), cx);
@@ -313,11 +327,11 @@ impl Instance {
             return;
         }
         match &self.state {
-            State::Input(entity) => {
-                entity.update(cx, |state, cx| configure(state, config, window, cx))
-            }
+            State::Input(entity) => entity.update(cx, |state, cx| {
+                configure(state, config, self.combobox.clone(), window, cx)
+            }),
             State::Textarea(entity) => entity.update(cx, |state, cx| {
-                configure(state, config, window, cx);
+                configure(state, config, self.combobox.clone(), window, cx);
                 state.set_auto_grow(config.min_rows as usize, config.max_rows as usize, cx);
             }),
         }
@@ -333,6 +347,14 @@ impl Instance {
         match &self.state {
             State::Input(entity) => entity.read(cx).focus_handle(cx),
             State::Textarea(entity) => entity.read(cx).focus_handle(cx),
+        }
+    }
+    pub(super) fn combobox(
+        &self,
+    ) -> Option<(Entity<InputState>, Rc<RefCell<super::combobox::State>>)> {
+        match (&self.state, &self.combobox) {
+            (State::Input(entity), Some(state)) => Some((entity.clone(), state.clone())),
+            _ => None,
         }
     }
     pub(super) fn element(&self) -> gpui::AnyElement {
@@ -367,6 +389,11 @@ impl Instance {
         };
         match result {
             Ok(snapshot) => {
+                if matches!(command, EditorCommand::Replace(..))
+                    && let Some(combo) = &self.combobox
+                {
+                    combo.borrow_mut().replaced(&snapshot.text);
+                }
                 self.route
                     .publish(snapshot.clone(), EditorEventKind::Changed);
                 EditorResult::Applied(snapshot)

@@ -1,8 +1,9 @@
 # Native controls (OCH-11, in progress)
 
-The initial controls add `View.checkbox`, `View.switch`, `View.radio_group`, `View.select` and disabled buttons
+The controls add `View.checkbox`, `View.switch`, `View.radio_group`, `View.select`,
+`View.combobox` and disabled buttons
 to both the pure action API and the Bonsai effect API. The rest of OCH-11 remains
-in progress: comboboxes, general overlays, commands, pointer/drag interactions, dialogs,
+in progress: general overlays, commands, pointer/drag interactions, dialogs,
 assets, and their acceptance checks. This document records the implemented
 contracts and the integration findings; it is not completion evidence for the
 whole ticket.
@@ -161,14 +162,67 @@ tree. No value history accumulates. The focus registry is pruned with retained
 node generations; removing a tree releases its control/editor state. Resource
 limits for overlays and assets are still part of the remaining implementation.
 
+## Editable Combobox
+
+`Gpuio.Combobox.Config.create` constructs a coherent single-line editor and choice
+configuration with one label/disabled state. `View.combobox` is the pure view;
+`Gpuio_eio.Combobox.create` supplies the stable Bonsai controller and revisioned
+commands. Both use `Choice.Collection`, stable `Choice.Id` values and
+`Choice.Appearance`. One controller has one placement in a window.
+
+Rust owns query text, caret, selection, undo and IME composition. The application
+owns its selected ID and complete supplied option collection. An activation emits
+`Combobox.Selection.t`: a stable ID and the exact native editor snapshot. It
+neither changes the selected application ID nor replaces the query. Observations
+are never replacement commands. `replace_if_unchanged` can replace the query after
+accepting an intent, guarded by that exact editor lease/revision; later typing is
+preserved through `Stale_revision`, and a remount returns `Stale_editor`.
+
+The default `Substring` filter compares Unicode lowercase strings, retaining
+collection order and disabled rows. It does not normalize Unicode or fold accents.
+Selection can remain outside the filtered visible rows. `Unfiltered` displays the
+supplied collection, permitting application-specific or remote search. The
+application owns ordering/cancellation of its asynchronous results. A selected ID
+must still belong to the complete supplied collection; include it when building
+remote result collections. This is not an automatic server-query versioning API.
+Filtering caches are invalidated on query/configuration/filter changes, bounded by
+the existing collection and editor limits, and released with the editor.
+
+The actual input retains the only Tab stop. Up/Down open or navigate suggestions,
+Enter requests the highlighted enabled option, Escape closes, and Tab closes and
+traverses normally. Left/Right/Home/End, selection and clipboard shortcuts remain
+native text editing. Enter is not a free-text submission callback. Typing opens
+suggestions; successful explicit replacement closes them until subsequent native
+editing. Composition closes suggestions and retains composing key sequences in
+the editor/OS input path. Selection activation during composition is rejected. Disabling/re-enabling rotates
+the event handler generation while retaining the native editor, so a queued intent
+from before disabling cannot activate the newly enabled control.
+
+GPUI resolves key bindings before raw key listeners, so the adapter captures the
+input's Enter/Escape actions at the Combobox boundary. This policy does not depend
+on an asynchronous OCaml prevent-default reply. The actual input carries
+`EditableComboBox` semantics (macOS `AXComboBox`), its value, expanded state and
+native editor focus/set-value actions; popup rows retain shared option semantics.
+
+`examples/combobox` demonstrates the public controller. Its `--self-test` exercises
+actual bridge command acknowledgements, guarded replacement, undo and stale
+unmount. The Rust `native_controls` test separately checks actual keyboard choice
+activation and macOS native text-client composition/commit. These checks do not
+claim physical IME candidate-panel or complete screen-reader certification.
+
 ## Protocol and checks
 
 Capability bit 16 advertises simple controls; bit 32 advertises stable choices;
-bit 64 advertises Select; bit 128 advertises choice appearance (current mask 255). Append-only tags:
+bit 64 advertises Select; bit 128 advertises choice appearance; bit 256 advertises
+Combobox (current mask 511). Append-only tags:
 checkbox/switch kinds 5/6; Set_control operation 8; Control variants button 0,
 checkbox 1, switch 2; check states unchecked/checked/indeterminate 0/1/2. Each
 control's final Boolean is disabled. Semantic style states occupy 4 through 7.
 Radio-group kind 7, Select kind 8, Set_choice operation 9 and Choice event 13 extend that schema.
+Combobox kind 9, Set_combobox_filter operation 11 (Substring 0 / Unfiltered 1),
+and Combobox_selected event 14 (ID plus exact editor snapshot) extend the schema.
+Combined nodes validate editor/choice label and disabled state atomically and
+reserve the same native editor memory budget as an ordinary input.
 Set_choice_appearance operation 10 carries geometry, localized text and three
 bounded style lists. Nested strings, shadows and style records count against
 retained-tree budgets; invalid appearance updates roll back atomically.

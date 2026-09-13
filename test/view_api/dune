@@ -8,6 +8,8 @@
    controls-v1.hex
    choice-v1-request.hex
    choice-v1-events.hex
+   combobox-v1-request.hex
+   combobox-v1-events.hex
    editor-v1-requests.hex
    editor-v1-events.hex))
  (preprocess
@@ -24,3 +26,7 @@
 (copy_files ../fixtures/editor-v1-requests.hex)
 
 (copy_files ../fixtures/editor-v1-events.hex)
+
+(copy_files ../fixtures/combobox-v1-request.hex)
+
+(copy_files ../fixtures/combobox-v1-events.hex)
