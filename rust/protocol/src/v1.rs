@@ -8,8 +8,14 @@ pub const CAP_FRAME_EVENTS: i64 = 4;
 pub const CAP_EDITOR: i64 = 8;
 pub const CAP_CONTROLS: i64 = 16;
 pub const CAP_CHOICES: i64 = 32;
-pub const CAPABILITIES: i64 =
-    CAP_TREE | CAP_NATIVE_STYLES | CAP_FRAME_EVENTS | CAP_EDITOR | CAP_CONTROLS | CAP_CHOICES;
+pub const CAP_SELECT: i64 = 64;
+pub const CAPABILITIES: i64 = CAP_TREE
+    | CAP_NATIVE_STYLES
+    | CAP_FRAME_EVENTS
+    | CAP_EDITOR
+    | CAP_CONTROLS
+    | CAP_CHOICES
+    | CAP_SELECT;
 pub const EDITOR_HISTORY_BYTES: usize = 2 * 1024 * 1024;
 pub const EDITOR_RESERVED_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_MESSAGE_BYTES: usize = 1_048_576;
@@ -32,6 +38,7 @@ pub enum Kind {
     Checkbox,
     Switch,
     RadioGroup,
+    Select,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]

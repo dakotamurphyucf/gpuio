@@ -12,6 +12,11 @@ let request =
     ; revision = 128L
     ; operations =
         [ Create (node, Radio_group, "", Some handler)
+        ; Create
+            ( Node_id.create ~slot:5L ~generation:3L |> Or_error.ok_exn
+            , Select
+            , ""
+            , Some (Handler_id.create ~slot:6L ~generation:4L |> Or_error.ok_exn) )
         ; Set_choice
             ( node
             , { label = "Mode"

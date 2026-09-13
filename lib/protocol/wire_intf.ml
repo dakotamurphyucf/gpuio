@@ -15,6 +15,7 @@ module type S = sig
       | Checkbox
       | Switch
       | Radio_group
+      | Select
     [@@deriving bin_io, equal, sexp_of]
   end
 

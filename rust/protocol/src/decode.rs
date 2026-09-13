@@ -251,6 +251,7 @@ impl Decoder<'_> {
                     5 => Kind::Checkbox,
                     6 => Kind::Switch,
                     7 => Kind::RadioGroup,
+                    8 => Kind::Select,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)

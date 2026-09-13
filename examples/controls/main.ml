@@ -61,6 +61,17 @@ let component window graph =
            |> Or_error.ok_exn)
         ~on_select:(fun id -> set_mode (Some id))
         ()
+    ; View.select
+        ~config:
+          (Gpuio.Choice.Config.create
+             ~label:"Reasoning mode dropdown"
+             ~options:modes
+             ~selected:mode
+             ~disabled:(not enabled)
+             ()
+           |> Or_error.ok_exn)
+        ~on_select:(fun id -> set_mode (Some id))
+        ()
     ; View.button
         ~on_click:(Bonsai.Effect.of_thunk (fun () -> App.Window.close window))
         "Close"

@@ -173,6 +173,7 @@ let kind = function
   | Checkbox -> Checkbox
   | Switch -> Switch
   | Radio_group -> Radio_group
+  | Select -> Select
 ;;
 
 let compatible mounted view =
