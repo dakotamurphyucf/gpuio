@@ -66,3 +66,9 @@ name = "native_progress"
 path = "tests/native_progress.rs"
 harness = false
 required-features = ["native-tests"]
+
+[[test]]
+name = "native_toast"
+path = "tests/native_toast.rs"
+harness = false
+required-features = ["native-tests"]

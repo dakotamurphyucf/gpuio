@@ -216,7 +216,35 @@ val progress
   -> unit
   -> 'action t
 
+(** A keyed notification session, usable only as a toast-stack item. *)
+type 'action toast
+
+(** Native dismissal closes the session once; the callback should remove it.
+    Content changes preserve elapsed time; changing timeout resets its interval.
+    Hidden items pause. A closed item only reopens with a new key or remount. *)
+val toast
+  :  key:Key.t
+  -> ?style:Style.t
+  -> config:Toast.Config.t
+  -> on_dismiss:(Toast.Dismissal.t -> 'action)
+  -> 'action t list
+  -> 'action toast
+
+(** Newest items occupy the visible stack; older excess receives Overflow.
+    Rejects duplicate keys or more than 32 submitted items. *)
+val toast_stack
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?config:Toast.Stack.t
+  -> 'action toast list
+  -> 'action t Core.Or_error.t
+
 module Expert : sig
+  type 'action notification =
+    { config : Toast.Config.t
+    ; on_dismiss : Toast.Dismissal.t -> 'action
+    }
+
   module Kind : sig
     type t =
       | Container
@@ -236,6 +264,8 @@ module Expert : sig
       | Menu
       | Command_palette
       | Progress
+      | Toast
+      | Toast_stack
     [@@deriving equal, sexp_of]
   end
 
@@ -311,6 +341,8 @@ module Expert : sig
     ; tooltip : 'action tooltip option
     ; commands : 'action Command.Registry.t option
     ; command_ref : Command.Id.t option
+    ; notification : 'action notification option
+    ; toast_stack : Toast.Stack.t option
     ; progress : Progress.Config.t option
     ; palette : 'action palette option
     ; menu : menu option

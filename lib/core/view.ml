@@ -20,6 +20,8 @@ module Kind = struct
     | Menu
     | Command_palette
     | Progress
+    | Toast
+    | Toast_stack
   [@@deriving equal, sexp_of]
 end
 
@@ -92,6 +94,11 @@ type 'action palette =
   ; on_dismiss : Command_palette.Dismissal.t -> 'action
   }
 
+type 'action notification =
+  { config : Toast.Config.t
+  ; on_dismiss : Toast.Dismissal.t -> 'action
+  }
+
 type 'action t =
   { key : Key.t option
   ; kind : Kind.t
@@ -106,12 +113,16 @@ type 'action t =
   ; tooltip : 'action tooltip option
   ; commands : 'action Ui_command.Registry.t option
   ; command_ref : Ui_command.Id.t option
+  ; notification : 'action notification option
+  ; toast_stack : Toast.Stack.t option
   ; progress : Progress.Config.t option
   ; palette : 'action palette option
   ; menu : menu option
   ; focus_scope : Focus_scope.t option
   ; children : 'action t list
   }
+
+type 'action toast = Toast_item of 'action t
 
 let text ?key ?(style = Style.empty) text =
   { key
@@ -126,6 +137,8 @@ let text ?key ?(style = Style.empty) text =
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; notification = None
+  ; toast_stack = None
   ; progress = None
   ; palette = None
   ; menu = None
@@ -171,6 +184,8 @@ let button ?key ?(style = Style.empty) ?accessible_name ?(disabled = false) ~on_
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; notification = None
+  ; toast_stack = None
   ; progress = None
   ; palette = None
   ; menu = None
@@ -221,6 +236,8 @@ let toggle
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; notification = None
+  ; toast_stack = None
   ; progress = None
   ; palette = None
   ; menu = None
@@ -267,6 +284,8 @@ let container ?key ?(style = Style.empty) defaults children =
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; notification = None
+  ; toast_stack = None
   ; progress = None
   ; palette = None
   ; menu = None
@@ -281,6 +300,8 @@ let focus_scope ?key ?style ~config children =
     kind = Focus_scope
   ; commands = None
   ; command_ref = None
+  ; notification = None
+  ; toast_stack = None
   ; progress = None
   ; palette = None
   ; menu = None
@@ -445,6 +466,8 @@ let text_input
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; notification = None
+  ; toast_stack = None
   ; progress = None
   ; palette = None
   ; menu = None
@@ -468,6 +491,8 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; notification = None
+  ; toast_stack = None
   ; progress = None
   ; palette = None
   ; menu = None
@@ -513,6 +538,8 @@ let combobox
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; notification = None
+  ; toast_stack = None
   ; progress = None
   ; palette = None
   ; menu = None
@@ -545,7 +572,32 @@ let progress ?key ?(style = Style.empty) ~config () =
   { (text ?key ~style "") with kind = Progress; progress = Some config }
 ;;
 
+let toast ~key ?(style = Style.empty) ~config ~on_dismiss children =
+  Toast_item
+    { (column ~key ~style children) with
+      kind = Toast
+    ; notification = Some { config; on_dismiss }
+    }
+;;
+
+let toast_stack ?key ?(style = Style.empty) ?(config = Toast.Stack.default) items =
+  let children = List.map items ~f:(fun (Toast_item view) -> view) in
+  let keys =
+    List.map children ~f:(fun view -> Key.to_string (Option.value_exn view.key))
+  in
+  if List.length children > 32 || Set.length (String.Set.of_list keys) <> List.length keys
+  then Or_error.error_string "toast stack requires at most 32 uniquely keyed items"
+  else
+    Ok
+      { (column ?key ~style children) with kind = Toast_stack; toast_stack = Some config }
+;;
+
 module Expert = struct
+  type nonrec 'action notification = 'action notification =
+    { config : Toast.Config.t
+    ; on_dismiss : Toast.Dismissal.t -> 'action
+    }
+
   module Kind = Kind
   module Control = Control
 
@@ -605,6 +657,8 @@ module Expert = struct
     ; tooltip : 'action tooltip option
     ; commands : 'action Ui_command.Registry.t option
     ; command_ref : Ui_command.Id.t option
+    ; notification : 'action notification option
+    ; toast_stack : Toast.Stack.t option
     ; progress : Progress.Config.t option
     ; palette : 'action palette option
     ; menu : menu option

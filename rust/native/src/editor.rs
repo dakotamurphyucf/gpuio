@@ -197,6 +197,7 @@ fn configure<M: InputModeKind>(
             }
         }
         crate::semantics::State {
+            live: None,
             element,
             disabled: config.disabled,
             read_only: config.read_only,

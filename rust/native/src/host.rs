@@ -47,6 +47,10 @@ mod progress;
 mod radio;
 #[path = "select.rs"]
 mod select;
+#[path = "toast.rs"]
+mod toast;
+#[path = "toast_clock.rs"]
+mod toast_clock;
 #[path = "tooltip.rs"]
 mod tooltip;
 #[path = "typeahead.rs"]
@@ -87,6 +91,8 @@ struct View {
     menus: BTreeMap<NodeId, Rc<RefCell<menu::State>>>,
     menu_activation: Option<gpui::Subscription>,
     palettes: BTreeMap<NodeId, palette::State>,
+    toasts: BTreeMap<NodeId, toast::State>,
+    toast_stacks: BTreeMap<NodeId, toast::Stack>,
     visited: std::collections::BTreeSet<NodeId>,
     #[cfg(feature = "native-tests")]
     probes: Rc<RefCell<BTreeMap<NodeId, native_test::Probe>>>,
@@ -264,6 +270,8 @@ impl View {
             menus: BTreeMap::new(),
             menu_activation: None,
             palettes: BTreeMap::new(),
+            toasts: BTreeMap::new(),
+            toast_stacks: BTreeMap::new(),
             selects: BTreeMap::new(),
             visited: Default::default(),
             #[cfg(feature = "native-tests")]
@@ -276,6 +284,7 @@ impl View {
         self.install_command_interceptor(window, cx);
         self.install_menu_observers(window, cx);
         self.sync_palettes(window, cx);
+        self.sync_toasts(cx);
         self.sync_tooltips(window, cx);
         let nodes = {
             let session = self.session.borrow();
@@ -317,6 +326,12 @@ impl View {
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let node = tree.get(id).expect("validated retained node");
+        if node.kind == Kind::ToastStack {
+            return self.toast_stack_element(tree, node, interaction, window, cx);
+        }
+        if node.kind == Kind::Toast {
+            return self.toast_element(tree, node, interaction, window, cx);
+        }
         if node.kind == Kind::CommandPalette {
             return self.palette_element(node, interaction, window, cx);
         }
@@ -840,6 +855,7 @@ impl View {
             );
         }
         crate::semantics::State {
+            live: None,
             element,
             disabled,
             read_only: false,
@@ -927,6 +943,10 @@ impl Render for View {
                 .menus
                 .values()
                 .any(|state| state.borrow().focus.is_focused(window))
+                || self
+                    .toasts
+                    .values()
+                    .any(|state| state.close_focus.is_focused(window))
                 || self.focus.borrow().contains_focus(window)
                 || root_focus.is_focused(window)
                 || self

@@ -218,6 +218,7 @@ pub(super) fn element(render: Render<'_>, window: &Window) -> Stateful<Div> {
                     );
                 }
                 crate::semantics::State {
+                    live: None,
                     element: row,
                     disabled: item.disabled,
                     read_only: false,

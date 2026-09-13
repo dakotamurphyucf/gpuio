@@ -234,6 +234,26 @@ impl Session {
         .then_some(Event::OverlayDismissed(id, node, handler, revision, reason))
     }
 
+    pub fn toast_dismissed(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        reason: ToastDismissal,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.toast.as_ref()?;
+        (!state.overloaded
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision()
+            && config.allows(reason))
+        .then_some(Event::ToastDismissed(
+            window, node, handler, revision, reason,
+        ))
+    }
+
     pub fn palette_dismissed(
         &self,
         window: WindowId,

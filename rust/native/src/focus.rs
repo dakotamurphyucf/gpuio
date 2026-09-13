@@ -224,6 +224,15 @@ impl Manager {
                                 restore_focus: false,
                             })
                         });
+                    let config = config.or_else(|| {
+                        matches!(node.kind, Kind::Toast | Kind::ToastStack).then_some(
+                            FocusScopeConfig {
+                                trap: false,
+                                auto_focus: false,
+                                restore_focus: node.kind == Kind::Toast,
+                            },
+                        )
+                    });
                     if let Some(config) = config {
                         result.push((
                             id,

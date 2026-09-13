@@ -4,6 +4,19 @@ use std::{
     sync::Arc,
 };
 
+fn allows_children(kind: Kind) -> bool {
+    matches!(
+        kind,
+        Kind::Container
+            | Kind::FocusScope
+            | Kind::Tooltip
+            | Kind::CommandScope
+            | Kind::Menu
+            | Kind::Toast
+            | Kind::ToastStack
+    )
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Node {
     pub id: NodeId,
@@ -20,6 +33,8 @@ pub struct Node {
     pub menu: Option<Arc<MenuConfig>>,
     pub palette: Option<Arc<PaletteConfig>>,
     pub progress: Option<Arc<ProgressConfig>>,
+    pub toast: Option<Arc<ToastConfig>>,
+    pub toast_stack: Option<Arc<ToastStackConfig>>,
     pub placement: Option<Placement>,
     pub combobox_filter: Option<ComboboxFilter>,
     pub choice_appearance: Option<Arc<ChoiceAppearance>>,
@@ -32,6 +47,13 @@ pub struct Node {
 impl Node {
     fn payload_bytes(&self) -> usize {
         self.text.len()
+            + self
+                .toast
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
+            + self.toast_stack.as_ref().map_or(0, |config| {
+                std::mem::size_of::<ToastStackConfig>() + config.label.len()
+            })
             + self.progress.as_ref().map_or(0, |config| {
                 std::mem::size_of::<ProgressConfig>() + config.label.len()
             })
@@ -251,6 +273,29 @@ impl Tree {
                 } else if node.combobox_filter.is_some() {
                     return Err(ErrorCode::InvalidTree);
                 }
+                if (node.kind == Kind::Toast) != node.toast.is_some()
+                    || node.toast.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || node.handler.is_none()
+                            || !node.text.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                if (node.kind == Kind::ToastStack) != node.toast_stack.is_some()
+                    || node.toast_stack.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || node.handler.is_some()
+                            || !node.text.is_empty()
+                            || node.children.len() > MAX_TOASTS
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
                 if (node.kind == Kind::Progress) != node.progress.is_some()
                     || node.progress.as_ref().is_some_and(|config| {
                         !config.is_valid()
@@ -339,6 +384,8 @@ impl Tree {
                     Kind::Container
                     | Kind::FocusScope
                     | Kind::Tooltip
+                    | Kind::Toast
+                    | Kind::ToastStack
                     | Kind::CommandScope
                     | Kind::CommandButton
                     | Kind::Menu
@@ -474,6 +521,8 @@ impl Plan<'_> {
             | Op::SetMenu(id, ..)
             | Op::SetPalette(id, ..)
             | Op::SetProgress(id, ..)
+            | Op::SetToast(id, ..)
+            | Op::SetToastStack(id, ..)
             | Op::SetComboboxFilter(id, ..)
             | Op::SetChoiceAppearance(id, ..)
             | Op::Bind(id, ..)
@@ -541,6 +590,8 @@ impl Plan<'_> {
                             menu: None,
                             palette: None,
                             progress: None,
+                            toast: None,
+                            toast_stack: None,
                             placement: None,
                             style: Arc::from([]),
                             handler: *handler,
@@ -583,6 +634,18 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.editor = Some(Arc::new(config.clone()));
+            }
+            Op::SetToast(id, config) => {
+                if self.node(*id)?.kind != Kind::Toast || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.toast = Some(Arc::new(config.clone()));
+            }
+            Op::SetToastStack(id, config) => {
+                if self.node(*id)?.kind != Kind::ToastStack || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.toast_stack = Some(Arc::new(config.clone()));
             }
             Op::SetProgress(id, config) => {
                 if self.node(*id)?.kind != Kind::Progress || !config.is_valid() {
@@ -689,14 +752,7 @@ impl Plan<'_> {
             Op::Bind(id, handler) => self.node_mut(*id)?.handler = *handler,
             Op::Splice(parent, offset, remove, insert) => {
                 let node = self.node(*parent)?;
-                if !matches!(
-                    node.kind,
-                    Kind::Container
-                        | Kind::FocusScope
-                        | Kind::Tooltip
-                        | Kind::CommandScope
-                        | Kind::Menu
-                ) {
+                if !allows_children(node.kind) {
                     return Err(ErrorCode::InvalidTree);
                 }
                 let start = usize::try_from(*offset).map_err(|_| ErrorCode::InvalidTree)?;
@@ -744,14 +800,23 @@ impl Plan<'_> {
             {
                 return Err(ErrorCode::InvalidTree);
             }
-            if !matches!(
-                node.kind,
-                Kind::Container
-                    | Kind::FocusScope
-                    | Kind::Tooltip
-                    | Kind::CommandScope
-                    | Kind::Menu
-            ) && !node.children.is_empty()
+            if !allows_children(node.kind) && !node.children.is_empty() {
+                return Err(ErrorCode::InvalidTree);
+            }
+            if node.kind == Kind::Toast
+                && !parent.is_some_and(|parent| {
+                    self.node(parent)
+                        .is_ok_and(|node| node.kind == Kind::ToastStack)
+                })
+            {
+                return Err(ErrorCode::InvalidTree);
+            }
+            if node.kind == Kind::ToastStack
+                && (node.children.len() > MAX_TOASTS
+                    || node
+                        .children
+                        .iter()
+                        .any(|id| !self.node(*id).is_ok_and(|node| node.kind == Kind::Toast)))
             {
                 return Err(ErrorCode::InvalidTree);
             }

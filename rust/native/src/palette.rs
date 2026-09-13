@@ -594,6 +594,7 @@ impl View {
                         .size_full(),
                     );
                     crate::semantics::State {
+                        live: None,
                         element: item,
                         disabled: !row.enabled,
                         read_only: false,
@@ -729,6 +730,7 @@ impl View {
         let bounds = self.palettes[&id].bounds.clone();
         let outside = owner;
         let panel = crate::semantics::State {
+            live: None,
             element: panel,
             disabled: false,
             read_only: false,

@@ -649,6 +649,7 @@ impl View {
                     }
                 }
                 base = base.child(crate::semantics::State {
+                    live: None,
                     element: trigger,
                     disabled: menu.disabled,
                     read_only: false,
@@ -773,6 +774,7 @@ impl View {
             );
         }
         crate::semantics::State {
+            live: None,
             element: base,
             disabled,
             read_only: false,
@@ -1013,6 +1015,7 @@ impl View {
                             .size_full(),
                     );
                     crate::semantics::State {
+                        live: None,
                         element,
                         disabled: !row.enabled && !row.separator,
                         read_only: false,

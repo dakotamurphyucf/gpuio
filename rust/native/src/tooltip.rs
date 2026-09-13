@@ -168,8 +168,10 @@ impl View {
                 .filter(|(_, state)| state.closed)
                 .map(|(id, _)| *id),
         );
+        hidden.extend(self.closed_toasts());
         self.focus.borrow_mut().set_hidden(hidden.clone());
         hidden.extend(self.dismiss_hidden_palettes());
+        hidden.extend(self.invisible_toasts());
         self.focus.borrow_mut().set_hidden(hidden);
         self.focus.borrow_mut().sync(window, cx);
         for (id, state) in &mut self.tooltips {
@@ -201,6 +203,8 @@ impl View {
                     }));
             }
         }
+        self.sync_toast_focus(window, cx);
+        self.schedule_toasts(window, cx);
         for id in reschedule {
             self.tooltip_input(id, Input::Focus, window, cx);
         }

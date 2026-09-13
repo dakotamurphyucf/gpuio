@@ -645,3 +645,75 @@ cycles empty, indeterminate, halfway and completed progress. See the
 [local evidence report](../evidence/native-progress-och11.md) for tested coverage
 and platform limits. In-app notifications and other remaining OCH-11 families are
 not completed by this progress adapter.
+
+## In-app notifications
+
+`Toast.Config` describes the accessible label, localized close-button label,
+politeness and timeout. `View.toast ~key ~config ~on_dismiss children` accepts
+ordinary views (including buttons and native editors) and returns an abstract
+notification item. `View.toast_stack items` validates a bounded collection of
+those items. Both APIs are available through `Gpuio_bonsai.View`.
+
+```ocaml
+let config =
+  Gpuio.Toast.Config.create ~label:"Draft saved" () |> Or_error.ok_exn
+in
+let item =
+  Gpuio_bonsai.View.toast
+    ~key:(Gpuio.Key.of_string_exn "save-42")
+    ~config
+    ~on_dismiss:(fun _reason -> remove_notification 42)
+    [ Gpuio_bonsai.View.text "Your draft has been saved." ]
+in
+Gpuio_bonsai.View.toast_stack [ item ] |> Or_error.ok_exn
+```
+
+The application owns the collection and content. Each key identifies one native
+session. Close, Escape, timeout or overflow closes that session exactly once and
+sends a typed `Toast.Dismissal`; the callback should remove the item. Updating a
+closed item does not reopen it. Use a new key or unmount/remount for a new session.
+Already-produced native dismissal still reaches the latest live callback after
+an ordinary configuration update, even if that update makes the item persistent.
+Unmount and node/handler generations reject stale events. Native producers also
+check the current configuration before issuing a timeout dismissal.
+
+Defaults are five seconds of active time, polite announcements, bottom-right
+placement, a 360 logical-pixel width and three visible notifications. The four
+viewport corners are configurable. `Toast.Timeout.persistent` has no deadline;
+`Timeout.after` accepts positive durations up to 24 hours. Ordinary updates
+preserve elapsed active time; changing the timeout resets its interval. Hidden or
+modal-blocked items pause. Pointer hover or keyboard focus in a stack pauses its
+active notifications; resuming consumes the remaining interval. One cancellable
+weak native task per active visible deadline wakes GPUI without an OCaml commit
+or idle polling. Removal drops tasks and subscriptions.
+
+`Stack.max_visible` is 1–8. At most 32 uniquely keyed items may be submitted.
+Older excess receives `Overflow` and closes rather than joining a hidden queue.
+The native closed-session metadata stays bounded by the submitted collection
+until the application removes it. Labels and configuration storage are validated
+and charged to retained memory; arbitrary content uses the normal tree budget.
+
+Notifications do not take focus on appearance. The close button participates in
+Tab order and supports keyboard and accessibility activation. Escape inside a
+notification dismisses it after child widgets have handled their own input;
+editor composition keeps its existing Escape priority. Closing or hiding a
+focused notification releases its focus scope. A toast mounted outside an active
+modal remains behind it and cannot receive native actions; a stack inside the
+modal participates in that modal's ancestry. Root styles and inherited pointer,
+selection and theme colors follow the existing view contracts. Disabling pointer
+input leaves keyboard and accessibility operation available.
+
+Polite notifications expose Status semantics and a polite AccessKit live region;
+assertive notifications expose Alert and an assertive live region. The stack has
+a labeled Group role. This semantic projection is distinct from verification of
+a particular screen reader's speech. Full assistive-technology audits remain part
+of platform acceptance.
+
+The pinned GPUI Base toast primitives were evaluated. Their root forces Alert,
+and the manager's visible limit does not bound retained entries or expose the
+next timer deadline. GPUIO therefore owns its small native session/clock adapter;
+no vendor patch or second widget toolkit is added. Protocol extensions are kinds
+17/18, operations 21/22, event 19 and capability bit 131072. The
+[public example](../../examples/toasts/main.ml) demonstrates keyed collections,
+ordinary action content, native expiry and Bonsai removal. OS notifications are
+separately owned by OCH-28; public motion/reduced-motion integration is OCH-12.

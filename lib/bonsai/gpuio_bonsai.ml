@@ -1,6 +1,9 @@
 module View = struct
   type t = unit Bonsai.Effect.t Gpuio.View.t
+  type toast = unit Bonsai.Effect.t Gpuio.View.toast
 
+  let toast = Gpuio.View.toast
+  let toast_stack = Gpuio.View.toast_stack
   let text = Gpuio.View.text
 
   let button ?key ?style ?accessible_name ?disabled ~on_click text =

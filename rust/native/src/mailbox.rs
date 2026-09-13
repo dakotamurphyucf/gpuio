@@ -197,6 +197,7 @@ impl Mailbox {
             | Event::OverlayDismissed(id, ..)
             | Event::TooltipOpenChanged(id, ..)
             | Event::CommandInvoked(id, ..)
+            | Event::ToastDismissed(id, ..)
             | Event::PaletteDismissed(id, ..)
             | Event::ComboboxSelected(id, ..)
             | Event::EditorResult(_, id, ..)

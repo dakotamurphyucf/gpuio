@@ -9,6 +9,8 @@ mod overlay_test;
 mod palette_test;
 #[path = "progress_test.rs"]
 mod progress_test;
+#[path = "toast_test.rs"]
+mod toast_test;
 #[path = "tooltip_test.rs"]
 mod tooltip_test;
 use super::editor_test::{frame, key};
@@ -1397,6 +1399,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
     menu_test::exercise(cx, handle, &transport).await;
     palette_test::exercise(cx, handle, &transport).await;
     progress_test::exercise(cx, handle, &transport).await;
+    toast_test::exercise(cx, handle, &transport).await;
     // Remove a focused native node and enter the surviving Tab order again.
     handle
         .update(cx, |view, window, cx| {
@@ -1455,12 +1458,16 @@ enum Suite {
     Menus,
     Palette,
     Progress,
+    Toast,
 }
 pub fn run() {
     run_suite(Suite::Controls);
 }
 pub fn run_menus() {
     run_suite(Suite::Menus);
+}
+pub fn run_toast() {
+    run_suite(Suite::Toast);
 }
 pub fn run_progress() {
     run_suite(Suite::Progress);
@@ -1554,6 +1561,7 @@ fn run_suite(suite: Suite) {
                 Suite::Menus => 38,
                 Suite::Palette => 47,
                 Suite::Progress => 60,
+                Suite::Toast => 61,
                 Suite::Controls => unreachable!(),
             };
             for slot in 5..end {
@@ -1600,6 +1608,7 @@ fn run_suite(suite: Suite) {
                         Suite::Menus => menu_test::exercise(cx, handle, &transport).await,
                         Suite::Palette => palette_test::exercise(cx, handle, &transport).await,
                         Suite::Progress => progress_test::exercise(cx, handle, &transport).await,
+                        Suite::Toast => toast_test::exercise(cx, handle, &transport).await,
                         Suite::Controls => unreachable!(),
                     }
                     handle

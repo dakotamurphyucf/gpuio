@@ -1,7 +1,7 @@
 open Core
 
 let version = 1L
-let capabilities = 131071L
+let capabilities = 262143L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -23,6 +23,8 @@ module Kind = struct
     | Menu
     | Command_palette
     | Progress
+    | Toast
+    | Toast_stack
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -518,6 +520,51 @@ module Progress = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Toast_politeness = struct
+  type t =
+    | Polite
+    | Assertive
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Toast_corner = struct
+  type t =
+    | Top_left
+    | Top_right
+    | Bottom_left
+    | Bottom_right
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Toast = struct
+  type t =
+    { label : string
+    ; close_label : string
+    ; timeout_ns : int64 option
+    ; politeness : Toast_politeness.t
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Toast_stack = struct
+  type t =
+    { label : string
+    ; corner : Toast_corner.t
+    ; width : float
+    ; max_visible : int64
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Toast_dismissal = struct
+  type t =
+    | Timeout
+    | Close_button
+    | Escape
+    | Overflow
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Op = struct
   type t =
     | Create of Node_id.t * Kind.t * string * Handler_id.t option
@@ -541,6 +588,8 @@ module Op = struct
     | Set_menu of Node_id.t * Menu.t
     | Set_palette of Node_id.t * Palette.t
     | Set_progress of Node_id.t * Progress.t
+    | Set_toast of Node_id.t * Toast.t
+    | Set_toast_stack of Node_id.t * Toast_stack.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -619,6 +668,8 @@ module Event = struct
         Window_id.t * Node_id.t * Handler_id.t * int64 * string * int64 * Command_source.t
     | Palette_dismissed of
         Window_id.t * Node_id.t * Handler_id.t * int64 * Palette_dismissal.t
+    | Toast_dismissed of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Toast_dismissal.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -653,6 +704,7 @@ module Event = struct
       && valid_snapshot snapshot
       && Option.is_none snapshot.composition
       && not (String.contains snapshot.text '\n' || String.contains snapshot.text '\r')
+    | Toast_dismissed (_, _, _, revision, _)
     | Tooltip_open_changed (_, _, _, revision, _)
     | Overlay_dismissed (_, _, _, revision, _) -> Int64.(revision >= 0L)
     | Choice (_, _, _, revision, id) ->

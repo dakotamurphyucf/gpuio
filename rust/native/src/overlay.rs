@@ -78,6 +78,7 @@ pub(super) fn element(
         .on_any_mouse_down(|_, _, cx| cx.stop_propagation())
         .on_scroll_wheel(|_, _, cx| cx.stop_propagation());
     let panel = crate::semantics::State {
+        live: None,
         element: panel,
         disabled: false,
         read_only: false,

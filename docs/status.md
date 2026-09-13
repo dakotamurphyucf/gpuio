@@ -202,5 +202,19 @@ noninteractive focus, animation without OCaml commits, and hidden/determinate/
 unmount cleanup. The public Bonsai/Eio example, combined controls suite, full
 OCaml build/tests/format, Rust workspace tests and Clippy pass locally. The
 [progress evidence report](evidence/native-progress-och11.md) records the scope;
-in-app notifications remain unimplemented and OCH-12 still owns general motion
+in-app notifications are described below and OCH-12 still owns general motion
 and reduced-motion integration. No hosted or Linux GUI acceptance is claimed.
+
+
+In-app notifications are implemented on the local OCH-11 branch with keyed
+terminal sessions, bounded stacks, explicit overflow, native active-time deadlines
+and hover/focus/hidden/modal pause. Local macOS tests pass close/accessibility/
+keyboard actions, native editor Escape priority, ordinary action content, expiry
+without OCaml commits and unmount cancellation. The public Bonsai/Eio example
+passes native dismissal delivery and keyed removal. Independent protocol fixtures,
+OCaml expect tests, Rust workspace tests and the combined native controls suite
+pass locally. The [notification evidence report](evidence/native-toasts-och11.md)
+records exact coverage and remaining validation. No hosted or Linux GUI acceptance
+is claimed. OCH-11 still includes pointer capture/drag-drop/file dialogs, assets/
+images/SVG/cache and theme-scale integration, remaining state/transition work,
+scrolling/lifetime checks, documentation and consolidated CI/merge.

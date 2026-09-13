@@ -393,6 +393,8 @@ impl Decoder<'_> {
                     14 => Kind::Menu,
                     15 => Kind::CommandPalette,
                     16 => Kind::Progress,
+                    17 => Kind::Toast,
+                    18 => Kind::ToastStack,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -412,6 +414,34 @@ impl Decoder<'_> {
             8 => Op::SetControl(self.node()?, self.control()?),
             9 => Op::SetChoice(self.node()?, self.choice_config()?),
             18 => Op::SetMenu(self.node()?, self.menu_config()?),
+            21 => Op::SetToast(
+                self.node()?,
+                ToastConfig {
+                    label: self.text()?,
+                    close_label: self.text()?,
+                    timeout_ns: self.option(Self::int)?,
+                    politeness: match self.tag()? {
+                        0 => ToastPoliteness::Polite,
+                        1 => ToastPoliteness::Assertive,
+                        _ => return Err(DecodeError::Malformed),
+                    },
+                },
+            ),
+            22 => Op::SetToastStack(
+                self.node()?,
+                ToastStackConfig {
+                    label: self.text()?,
+                    corner: match self.tag()? {
+                        0 => ToastCorner::TopLeft,
+                        1 => ToastCorner::TopRight,
+                        2 => ToastCorner::BottomLeft,
+                        3 => ToastCorner::BottomRight,
+                        _ => return Err(DecodeError::Malformed),
+                    },
+                    width: self.float()?,
+                    max_visible: self.int()?,
+                },
+            ),
             20 => Op::SetProgress(
                 self.node()?,
                 ProgressConfig {

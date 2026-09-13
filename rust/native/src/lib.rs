@@ -37,3 +37,8 @@ pub fn run_native_control_test() {
 pub fn run_native_progress_test() {
     host::control_test::run_progress();
 }
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_toast_test() {
+    host::control_test::run_toast();
+}

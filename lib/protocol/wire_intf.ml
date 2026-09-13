@@ -24,6 +24,8 @@ module type S = sig
       | Menu
       | Command_palette
       | Progress
+      | Toast
+      | Toast_stack
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -520,6 +522,51 @@ module type S = sig
     [@@deriving bin_io, equal, sexp_of]
   end
 
+  module Toast_politeness : sig
+    type t =
+      | Polite
+      | Assertive
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Toast_corner : sig
+    type t =
+      | Top_left
+      | Top_right
+      | Bottom_left
+      | Bottom_right
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Toast : sig
+    type t =
+      { label : string
+      ; close_label : string
+      ; timeout_ns : int64 option
+      ; politeness : Toast_politeness.t
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Toast_stack : sig
+    type t =
+      { label : string
+      ; corner : Toast_corner.t
+      ; width : float
+      ; max_visible : int64
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Toast_dismissal : sig
+    type t =
+      | Timeout
+      | Close_button
+      | Escape
+      | Overflow
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
   module Op : sig
     type t =
       | Create of Node_id.t * Kind.t * string * Handler_id.t option
@@ -543,6 +590,8 @@ module type S = sig
       | Set_menu of Node_id.t * Menu.t
       | Set_palette of Node_id.t * Palette.t
       | Set_progress of Node_id.t * Progress.t
+      | Set_toast of Node_id.t * Toast.t
+      | Set_toast_stack of Node_id.t * Toast_stack.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -625,6 +674,8 @@ module type S = sig
           * Command_source.t
       | Palette_dismissed of
           Window_id.t * Node_id.t * Handler_id.t * int64 * Palette_dismissal.t
+      | Toast_dismissed of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Toast_dismissal.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

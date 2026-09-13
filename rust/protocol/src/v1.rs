@@ -2,6 +2,7 @@ pub use crate::command::*;
 pub use crate::menu::{MenuConfig, MenuDefinition, MenuItem, MenuPresentation};
 pub use crate::palette::*;
 pub use crate::progress::*;
+pub use crate::toast::*;
 use crate::{HandlerId, NodeId, WindowId};
 use binprot::macros::BinProtWrite;
 
@@ -21,6 +22,7 @@ pub const CAP_PLACEMENT: i64 = 2048;
 pub const CAP_TOOLTIPS: i64 = 4096;
 pub const CAP_COMMANDS: i64 = 8192;
 pub const CAP_MENUS: i64 = 16384;
+pub const CAP_TOASTS: i64 = 131072;
 pub const CAP_PROGRESS: i64 = 65536;
 pub const CAP_PALETTE: i64 = 32768;
 pub const CAPABILITIES: i64 = CAP_TREE
@@ -39,7 +41,8 @@ pub const CAPABILITIES: i64 = CAP_TREE
     | CAP_COMMANDS
     | CAP_MENUS
     | CAP_PALETTE
-    | CAP_PROGRESS;
+    | CAP_PROGRESS
+    | CAP_TOASTS;
 pub const EDITOR_HISTORY_BYTES: usize = 2 * 1024 * 1024;
 pub const EDITOR_RESERVED_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_MESSAGE_BYTES: usize = 1_048_576;
@@ -71,6 +74,8 @@ pub enum Kind {
     Menu,
     CommandPalette,
     Progress,
+    Toast,
+    ToastStack,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -520,6 +525,8 @@ pub enum Op {
     SetMenu(NodeId, MenuConfig),
     SetPalette(NodeId, PaletteConfig),
     SetProgress(NodeId, ProgressConfig),
+    SetToast(NodeId, ToastConfig),
+    SetToastStack(NodeId, ToastStackConfig),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -585,4 +592,5 @@ pub enum Event {
     TooltipOpenChanged(WindowId, NodeId, HandlerId, i64, bool),
     CommandInvoked(WindowId, NodeId, HandlerId, i64, String, i64, CommandSource),
     PaletteDismissed(WindowId, NodeId, HandlerId, i64, PaletteDismissal),
+    ToastDismissed(WindowId, NodeId, HandlerId, i64, ToastDismissal),
 }

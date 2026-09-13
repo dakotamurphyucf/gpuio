@@ -4,6 +4,22 @@ open Core
     scheduling policy is introduced here; window lifecycle scheduling is OCH-9. *)
 module View : sig
   type t = unit Bonsai.Effect.t Gpuio.View.t
+  type toast = unit Bonsai.Effect.t Gpuio.View.toast
+
+  val toast
+    :  key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Toast.Config.t
+    -> on_dismiss:(Gpuio.Toast.Dismissal.t -> unit Bonsai.Effect.t)
+    -> t list
+    -> toast
+
+  val toast_stack
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?config:Gpuio.Toast.Stack.t
+    -> toast list
+    -> t Or_error.t
 
   val text : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> string -> t
 

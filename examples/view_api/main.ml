@@ -69,6 +69,7 @@ let worker native notification_read ~self_test =
         | Combobox_selected _
         | Overlay_dismissed _
         | Tooltip_open_changed _
+        | Toast_dismissed _
         | Palette_dismissed _
         | Command_invoked _ ) as event ->
         (match Reconciler.dispatch reconciler event with

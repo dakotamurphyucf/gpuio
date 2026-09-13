@@ -478,3 +478,21 @@ fn progress_request_matches_ocaml_and_decodes() {
         progress_fixture::request()
     );
 }
+
+#[path = "common/toast_fixture.rs"]
+mod toast_fixture;
+#[test]
+fn toast_ownership_and_dismissal_fixtures_match_ocaml() {
+    let request = bytes(include_str!("../../../test/fixtures/toast-v1-request.hex"));
+    let events = bytes(include_str!("../../../test/fixtures/toast-v1-events.hex"));
+    let mut actual = vec![];
+    toast_fixture::request().binprot_write(&mut actual).unwrap();
+    assert_eq!(actual, request);
+    assert_eq!(
+        gpuio_protocol::decode(&actual).unwrap(),
+        toast_fixture::request()
+    );
+    actual.clear();
+    toast_fixture::events().binprot_write(&mut actual).unwrap();
+    assert_eq!(actual, events);
+}

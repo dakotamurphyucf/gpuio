@@ -64,6 +64,7 @@ module Identity = struct
 end
 
 type 'a callback =
+  | Toast of (Toast.Dismissal.t -> 'a)
   | Palette of Command_palette.Config.t * (Command_palette.Dismissal.t -> 'a)
   | Click of (unit -> 'a)
   | Commands of 'a Ui_command.Registry.t * Wire.Command.t list
@@ -196,6 +197,8 @@ let kind = function
   | Menu -> Menu
   | Command_palette -> Command_palette
   | Progress -> Progress
+  | Toast -> Toast
+  | Toast_stack -> Toast_stack
 ;;
 
 let compatible mounted view =
@@ -326,6 +329,12 @@ let rec mount builder ~depth previous view =
       | None, callback -> callback
       | Some _, Some _ -> fail "palette cannot combine another handler"
     in
+    let callback =
+      match description.notification, callback with
+      | Some item, None -> Some (Toast item.on_dismiss)
+      | None, callback -> callback
+      | Some _, Some _ -> fail "toast cannot combine another handler"
+    in
     let rotate_handler =
       (match description.combobox, previous with
        | Some combo, Some mounted ->
@@ -412,6 +421,21 @@ let rec mount builder ~depth previous view =
            menu
            (Option.bind previous ~f:(fun mounted -> mounted.menu)))
     then Option.iter menu ~f:(fun config -> emit builder (Set_menu (id, config)));
+    Option.iter description.notification ~f:(fun item ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).notification ~f:(fun item ->
+            item.config))
+      in
+      if not (Option.equal Toast.Config.equal old (Some item.config))
+      then emit builder (Set_toast (id, Toast.Expert.to_wire item.config)));
+    Option.iter description.toast_stack ~f:(fun config ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          (View.Expert.describe mounted.view).toast_stack)
+      in
+      if not (Option.equal Toast.Stack.equal old (Some config))
+      then emit builder (Set_toast_stack (id, Toast.Expert.stack_to_wire config)));
     Option.iter description.progress ~f:(fun progress ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -737,7 +761,8 @@ let dispatch t = function
         | Dismiss _
         | Tooltip _
         | Commands _
-        | Palette _ -> None)
+        | Palette _
+        | Toast _ -> None)
      | Some _ | None -> None)
   | Choice (window, node, handler, revision, selected)
     when (not t.closed)
@@ -836,6 +861,15 @@ let dispatch t = function
             && ((not open_) || not (Tooltip.Expert.is_disabled config)) ->
        Some (callback open_)
      | Some _ | None -> None)
+  | Toast_dismissed (window, node, handler, revision, reason)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some { node = expected; handler = expected_handler; callback = Toast callback }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       Some (callback (Toast.Expert.dismissal reason))
+     | Some _ | None -> None)
   | Palette_dismissed (window, node, handler, revision, reason)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -869,6 +903,7 @@ let dispatch t = function
          |> Option.bind ~f:Ui_command.Expert.invoke
        else None
      | Some _ | None -> None)
+  | Toast_dismissed _
   | Palette_dismissed _
   | Command_invoked _
   | Tooltip_open_changed _

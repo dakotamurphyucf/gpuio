@@ -115,6 +115,7 @@ pub(super) fn element<T: 'static>(
             }
         }
         base = base.child(crate::semantics::State {
+            live: None,
             element: option,
             disabled,
             read_only: false,
