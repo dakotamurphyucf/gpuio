@@ -7,7 +7,36 @@ module Kind = struct
     | Button
     | Input
     | Textarea
+    | Checkbox
+    | Switch
   [@@deriving equal, sexp_of]
+end
+
+module Control = struct
+  type t =
+    | Button of { disabled : bool }
+    | Checkbox of
+        { state : Check_state.t
+        ; disabled : bool
+        }
+    | Switch of
+        { checked : bool
+        ; disabled : bool
+        }
+  [@@deriving equal, sexp_of]
+
+  let to_wire = function
+    | Button { disabled } -> Gpuio_protocol.Wire.Control.Button disabled
+    | Checkbox { state; disabled } ->
+      let state =
+        match state with
+        | Check_state.Unchecked -> Gpuio_protocol.Wire.Check_state.Unchecked
+        | Checked -> Checked
+        | Indeterminate -> Indeterminate
+      in
+      Checkbox (state, disabled)
+    | Switch { checked; disabled } -> Switch (checked, disabled)
+  ;;
 end
 
 type 'action editor =
@@ -23,14 +52,24 @@ type 'action t =
   ; style : Style.t
   ; on_click : (unit -> 'action) option
   ; editor : 'action editor option
+  ; control : Control.t option
   ; children : 'action t list
   }
 
 let text ?key ?(style = Style.empty) text =
-  { key; kind = Text; text; style; on_click = None; editor = None; children = [] }
+  { key
+  ; kind = Text
+  ; text
+  ; style
+  ; on_click = None
+  ; editor = None
+  ; control = None
+  ; children = []
+  }
 ;;
 
-let button ?key ?(style = Style.empty) ?accessible_name ~on_click text =
+let button ?key ?(style = Style.empty) ?accessible_name ?(disabled = false) ~on_click text
+  =
   let style =
     match accessible_name with
     | None -> style
@@ -53,10 +92,75 @@ let button ?key ?(style = Style.empty) ?accessible_name ~on_click text =
   ; kind = Button
   ; text
   ; style = Style.merge [ defaults; style ]
-  ; on_click = Some on_click
+  ; on_click = (if disabled then None else Some on_click)
   ; editor = None
+  ; control = Some (Button { disabled })
   ; children = []
   }
+;;
+
+let toggle
+      ?key
+      ?(style = Style.empty)
+      ?accessible_name
+      ~disabled
+      ~control
+      ~kind
+      ~on_toggle
+      text
+  =
+  let style =
+    match accessible_name with
+    | None -> style
+    | Some name -> Style.merge [ style; Style.create_exn [ Accessible_name name ] ]
+  in
+  let defaults =
+    Style.create_exn
+      [ Display Flex
+      ; Direction Row
+      ; Align_items Center
+      ; Column_gap (Length.px_exn 8.)
+      ; Padding (Length.px_exn 6.)
+      ; Radius 4.
+      ; Border_width 1.
+      ; Border_color (Color.rgba ~red:0 ~green:0 ~blue:0 ~alpha:0 |> Or_error.ok_exn)
+      ; Foreground (Color.token_exn "foreground")
+      ]
+    |> fun t -> Style.with_state_exn t Focused [ Border_color (Color.token_exn "accent") ]
+  in
+  { key
+  ; kind
+  ; text
+  ; style = Style.merge [ defaults; style ]
+  ; on_click = (if disabled then None else Some on_toggle)
+  ; editor = None
+  ; control = Some control
+  ; children = []
+  }
+;;
+
+let checkbox ?key ?style ?accessible_name ?(disabled = false) ~state ~on_toggle text =
+  toggle
+    ?key
+    ?style
+    ?accessible_name
+    ~disabled
+    ~control:(Checkbox { state; disabled })
+    ~kind:Checkbox
+    ~on_toggle
+    text
+;;
+
+let switch ?key ?style ?accessible_name ?(disabled = false) ~checked ~on_toggle text =
+  toggle
+    ?key
+    ?style
+    ?accessible_name
+    ~disabled
+    ~control:(Switch { checked; disabled })
+    ~kind:Switch
+    ~on_toggle
+    text
 ;;
 
 let container ?key ?(style = Style.empty) defaults children =
@@ -66,6 +170,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; style = Style.merge [ Style.create_exn defaults; style ]
   ; on_click = None
   ; editor = None
+  ; control = None
   ; children
   }
 ;;
@@ -107,12 +212,14 @@ let text_input
   ; style
   ; on_click = None
   ; editor = Some { controller; config; on_event }
+  ; control = None
   ; children = []
   }
 ;;
 
 module Expert = struct
   module Kind = Kind
+  module Control = Control
 
   type nonrec 'action editor = 'action editor =
     { controller : Key.t
@@ -127,6 +234,7 @@ module Expert = struct
     ; style : Style.t
     ; on_click : (unit -> 'action) option
     ; editor : 'action editor option
+    ; control : Control.t option
     ; children : 'action t list
     }
 

@@ -237,6 +237,10 @@ module State = struct
     | Focused
     | Hovered
     | Pressed
+    | Checked
+    | Indeterminate
+    | Disabled
+    | Selected
   [@@deriving equal, sexp_of]
 
   let to_int64 = function
@@ -244,6 +248,10 @@ module State = struct
     | Focused -> 1L
     | Hovered -> 2L
     | Pressed -> 3L
+    | Checked -> 4L
+    | Indeterminate -> 5L
+    | Disabled -> 6L
+    | Selected -> 7L
   ;;
 end
 

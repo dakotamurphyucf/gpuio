@@ -314,7 +314,7 @@ fn expanded_style_validation_is_atomic_and_counts_nested_storage() {
             ..shadow.clone()
         }])]),
         Style::State(0, vec![]),
-        Style::State(4, vec![]),
+        Style::State(8, vec![]),
         Style::State(2, vec![Field::PointerEvents(false)]),
         Style::State(3, vec![Field::UserSelect(true)]),
     ] {

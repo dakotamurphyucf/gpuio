@@ -169,6 +169,8 @@ let kind = function
   | Button -> Button
   | Input -> Input
   | Textarea -> Textarea
+  | Checkbox -> Checkbox
+  | Switch -> Switch
 ;;
 
 let compatible mounted view =
@@ -283,6 +285,13 @@ let rec mount builder ~depth previous view =
           (Option.value_map old ~default:false ~f:(fun old ->
              Text_input.Config.equal old.config editor.config))
       then emit builder (Set_editor (id, Text_input.Expert.config_to_wire editor.config)));
+    Option.iter description.control ~f:(fun control ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          (View.Expert.describe mounted.view).control)
+      in
+      if not (Option.equal View.Expert.Control.equal old (Some control))
+      then emit builder (Set_control (id, View.Expert.Control.to_wire control)));
     let style = Style.Expert.to_wire description.style ~theme:builder.theme |> value in
     let old_style =
       Option.value_map previous ~default:[] ~f:(fun mounted -> mounted.style)

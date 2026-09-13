@@ -12,3 +12,11 @@ state styles. Independent constructors live in `test/view_api/style_fixture_test
 and `rust/protocol/tests/common/style_fixture.rs`. Rust also tests all truncated
 prefixes. Deliberate schema edits may regenerate it with `cargo run -p gpuio-protocol
 --example emit_style_fixture`, followed by review of both independent tests.
+
+`controls-v1.hex` covers checkbox/switch kinds, every initial control configuration
+and all appended semantic style state tags. Independent constructors live in
+`test/view_api/control_fixture_test.ml` and
+`rust/protocol/tests/common/control_fixture.rs`. Regenerate deliberately with
+`cargo run -p gpuio-protocol --example emit_control_fixture`; both language tests
+must still agree. The earlier editor fixture keeps its original capability mask
+15 to preserve those bytes as a compatibility check.

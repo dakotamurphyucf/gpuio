@@ -97,6 +97,7 @@ jobs:
         run: |
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_ui --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_editor --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_controls --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-tests --all-targets -- -D warnings
       - name: macOS public runtime checks
         if: runner.os == 'macOS'
@@ -109,6 +110,10 @@ jobs:
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_ui"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-typed-native.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/view_api/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-typed-bridge.log
+      - name: macOS native control checks
+        if: runner.os == 'macOS'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_controls"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-controls-native.log
       - name: macOS native editor checks
         if: runner.os == 'macOS'
         run: |

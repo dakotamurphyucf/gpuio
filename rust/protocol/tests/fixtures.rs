@@ -22,10 +22,35 @@ fn independent_ocaml_rust_request_and_event_fixtures() {
     assert_eq!(actual, events);
 }
 
+#[path = "common/control_fixture.rs"]
+mod control_fixture;
 #[path = "common/editor_fixture.rs"]
 mod editor_fixture;
 #[path = "common/style_fixture.rs"]
 mod style_fixture;
+
+#[test]
+fn control_configuration_matches_ocaml_and_rejects_malformed_tags() {
+    let expected = bytes(include_str!("../../../test/fixtures/controls-v1.hex"));
+    let message = control_fixture::request();
+    let mut actual = Vec::new();
+    message.binprot_write(&mut actual).unwrap();
+    assert_eq!(actual, expected);
+    assert_eq!(gpuio_protocol::decode(&expected).unwrap(), message);
+    for end in 0..expected.len() {
+        assert!(gpuio_protocol::decode(&expected[..end]).is_err());
+    }
+    actual.push(0);
+    assert!(gpuio_protocol::decode(&actual).is_err());
+    // Apply(window, base, revision, one SetControl(node, checkbox(state, disabled))).
+    let valid = [3, 0, 1, 0, 1, 1, 8, 0, 1, 1, 2, 0];
+    assert!(gpuio_protocol::decode(&valid).is_ok());
+    for index in [9, 10, 11] {
+        let mut invalid = valid;
+        invalid[index] = 3;
+        assert!(gpuio_protocol::decode(&invalid).is_err());
+    }
+}
 #[test]
 fn editor_tags_match_ocaml_and_messages_reject_truncation() {
     let requests = editor_fixture::requests();

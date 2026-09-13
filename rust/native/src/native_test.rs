@@ -57,7 +57,7 @@ async fn probe(
     );
     panic!("native node {node:?} did not paint expected color {expected:?}");
 }
-fn move_mouse(
+pub(super) fn move_mouse(
     cx: &mut gpui::AsyncApp,
     window: WindowHandle<View>,
     position: gpui::Point<gpui::Pixels>,
@@ -75,7 +75,7 @@ fn move_mouse(
     })
     .unwrap();
 }
-fn mouse(
+pub(super) fn mouse(
     cx: &mut gpui::AsyncApp,
     window: WindowHandle<View>,
     position: gpui::Point<gpui::Pixels>,
@@ -170,6 +170,8 @@ async fn exercise(
     move_mouse(cx, window, point(px(-20.), px(-20.)), false);
     probe(cx, window, id(1), Some(0x444444ff)).await;
     key(cx, window, "enter", true);
+    assert_eq!(presses(&transport), 0);
+    key(cx, window, "enter", false);
     assert_eq!(presses(&transport), 1);
     key(cx, window, "space", true);
     assert_eq!(presses(&transport), 0);
@@ -193,6 +195,7 @@ async fn exercise(
     mouse(cx, window, position, false);
     assert_eq!(presses(&transport), 0);
     key(cx, window, "enter", true);
+    key(cx, window, "enter", false);
     assert_eq!(presses(&transport), 1);
     key(cx, window, "tab", true);
     assert!(

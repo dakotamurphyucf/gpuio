@@ -69,6 +69,17 @@ impl<E: Element> Element for State<E> {
         if self.read_only {
             node.set_read_only();
         }
+        // accesskit_macos 0.26.3 maps any non-False Toggled to NSNumber(true),
+        // losing Mixed. Cocoa checkboxes require NSNumber(2) for mixed state.
+        // Normalize only at the platform boundary; other backends retain the
+        // native AccessKit tri-state. Remove when the pinned adapter preserves it.
+        #[cfg(target_os = "macos")]
+        if node.role() == accesskit::Role::CheckBox
+            && node.toggled() == Some(accesskit::Toggled::Mixed)
+        {
+            node.clear_toggled();
+            node.set_numeric_value(2.);
+        }
     }
     fn a11y_synthetic_children(
         &mut self,

@@ -6,7 +6,9 @@ pub const CAP_TREE: i64 = 1;
 pub const CAP_NATIVE_STYLES: i64 = 2;
 pub const CAP_FRAME_EVENTS: i64 = 4;
 pub const CAP_EDITOR: i64 = 8;
-pub const CAPABILITIES: i64 = CAP_TREE | CAP_NATIVE_STYLES | CAP_FRAME_EVENTS | CAP_EDITOR;
+pub const CAP_CONTROLS: i64 = 16;
+pub const CAPABILITIES: i64 =
+    CAP_TREE | CAP_NATIVE_STYLES | CAP_FRAME_EVENTS | CAP_EDITOR | CAP_CONTROLS;
 pub const EDITOR_HISTORY_BYTES: usize = 2 * 1024 * 1024;
 pub const EDITOR_RESERVED_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_MESSAGE_BYTES: usize = 1_048_576;
@@ -26,6 +28,38 @@ pub enum Kind {
     Button,
     Input,
     Textarea,
+    Checkbox,
+    Switch,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum CheckState {
+    Unchecked,
+    Checked,
+    Indeterminate,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum Control {
+    Button(bool),
+    Checkbox(CheckState, bool),
+    Switch(bool, bool),
+}
+impl Control {
+    pub fn disabled(self) -> bool {
+        match self {
+            Self::Button(disabled) | Self::Checkbox(_, disabled) | Self::Switch(_, disabled) => {
+                disabled
+            }
+        }
+    }
+    pub fn kind(self) -> Kind {
+        match self {
+            Self::Button(_) => Kind::Button,
+            Self::Checkbox(..) => Kind::Checkbox,
+            Self::Switch(..) => Kind::Switch,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -240,6 +274,7 @@ pub enum Op {
     Splice(NodeId, i64, i64, Vec<NodeId>),
     SetRoot(Option<NodeId>),
     SetEditor(NodeId, EditorConfig),
+    SetControl(NodeId, Control),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]

@@ -101,6 +101,9 @@ Wayland passed public editor commands but its clipboard-based native test failed
 before insertion, tracked in OCH-17. These checks do not claim physical IME
 candidate-panel or complete screen-reader coverage.
 
-OCH-11 controls/native interaction and OCH-12 declarative animations follow.
+OCH-11 is in progress: controlled checkboxes/switches, disabled buttons and their
+native keyboard/focus/accessibility contracts are implemented on the working
+branch. [Native controls](design/native-controls.md) records this first family
+and the remaining ticket scope. OCH-12 declarative animations follows.
 The broader component catalog is planned in OCH-33–45; vendoring GPUI Base does
 not expose all of those widgets through the OCaml API.

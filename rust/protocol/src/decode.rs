@@ -248,6 +248,8 @@ impl Decoder<'_> {
                     2 => Kind::Button,
                     3 => Kind::Input,
                     4 => Kind::Textarea,
+                    5 => Kind::Checkbox,
+                    6 => Kind::Switch,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -264,6 +266,24 @@ impl Decoder<'_> {
             ),
             6 => Op::SetRoot(self.option(Self::node)?),
             7 => Op::SetEditor(self.node()?, self.editor_config()?),
+            8 => Op::SetControl(self.node()?, self.control()?),
+            _ => return Err(DecodeError::Malformed),
+        })
+    }
+
+    fn control(&mut self) -> Result<Control, DecodeError> {
+        Ok(match self.tag()? {
+            0 => Control::Button(self.boolean()?),
+            1 => {
+                let state = match self.tag()? {
+                    0 => CheckState::Unchecked,
+                    1 => CheckState::Checked,
+                    2 => CheckState::Indeterminate,
+                    _ => return Err(DecodeError::Malformed),
+                };
+                Control::Checkbox(state, self.boolean()?)
+            }
+            2 => Control::Switch(self.boolean()?, self.boolean()?),
             _ => return Err(DecodeError::Malformed),
         })
     }

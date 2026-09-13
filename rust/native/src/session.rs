@@ -182,6 +182,10 @@ impl Session {
         (!window.overloaded
             && revision <= window.tree.revision()
             && revision >= 0
+            && window
+                .tree
+                .get(node)
+                .is_some_and(|node| !node.control.is_some_and(Control::disabled))
             && window.tree.accepts_handler(node, handler))
         .then_some(Event::Press(id, node, handler, revision))
     }

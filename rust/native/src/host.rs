@@ -22,7 +22,6 @@ mod editor;
 pub(super) mod editor_test;
 struct ButtonState {
     focus: gpui::FocusHandle,
-    space_down: Cell<bool>,
 }
 #[derive(Clone, Copy)]
 struct Interaction {
@@ -47,6 +46,7 @@ struct View {
     buttons: BTreeMap<NodeId, Rc<ButtonState>>,
     selections: BTreeMap<NodeId, Rc<RefCell<crate::selection::State>>>,
     editors: BTreeMap<NodeId, editor::Instance>,
+    root_focus: Option<gpui::FocusHandle>,
     visited: std::collections::BTreeSet<NodeId>,
     #[cfg(feature = "native-tests")]
     probes: Rc<RefCell<BTreeMap<NodeId, native_test::Probe>>>,
@@ -81,6 +81,49 @@ fn length(value: &v1::Length) -> gpui::Length {
         v1::Length::Percent(v) => gpui::relative(*v as f32 / 100.).into(),
     }
 }
+
+// Paint indicators with the inherited foreground, including theme and native
+// state refinements. They are decorative; the focus root owns all semantics.
+fn control_indicator(kind: Kind, checked: bool, indeterminate: bool) -> gpui::AnyElement {
+    canvas(
+        |_, _, _| (),
+        move |bounds, _, window, _| {
+            let color = window.text_style().color;
+            let radius = if kind == Kind::Switch { 9. } else { 3. };
+            let mut outline = gpui::outline(bounds, color, Default::default());
+            outline.corner_radii = px(radius).into();
+            window.paint_quad(outline);
+            let origin = bounds.origin;
+            if kind == Kind::Switch {
+                let x = if checked { 15. } else { 3. };
+                let mut knob = gpui::fill(
+                    Bounds::new(origin + gpui::point(px(x), px(3.)), size(px(12.), px(12.))),
+                    color,
+                );
+                knob.corner_radii = px(6.).into();
+                window.paint_quad(knob);
+            } else if indeterminate {
+                window.paint_quad(gpui::fill(
+                    Bounds::new(origin + gpui::point(px(4.), px(8.)), size(px(10.), px(2.))),
+                    color,
+                ));
+            } else if checked {
+                let mut path = gpui::PathBuilder::stroke(px(2.));
+                path.move_to(origin + gpui::point(px(4.), px(9.)));
+                path.line_to(origin + gpui::point(px(8.), px(13.)));
+                path.line_to(origin + gpui::point(px(14.), px(5.)));
+                if let Ok(path) = path.build() {
+                    window.paint_path(path, color);
+                }
+            }
+        },
+    )
+    .w(px(if kind == Kind::Switch { 30. } else { 18. }))
+    .h(px(18.))
+    .flex_shrink_0()
+    .into_any_element()
+}
+
 impl View {
     fn new(id: WindowId, session: SharedSession, transport: Arc<Transport>) -> Self {
         Self {
@@ -90,6 +133,7 @@ impl View {
             buttons: BTreeMap::new(),
             selections: BTreeMap::new(),
             editors: BTreeMap::new(),
+            root_focus: None,
             visited: Default::default(),
             #[cfg(feature = "native-tests")]
             probes: Default::default(),
@@ -131,6 +175,7 @@ impl View {
         tree: &crate::tree::Tree,
         id: NodeId,
         mut interaction: Interaction,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let node = tree.get(id).expect("validated retained node");
@@ -153,7 +198,17 @@ impl View {
         if node.kind == Kind::Container {
             element = element.flex().flex_col();
         }
-        let button = if node.kind == Kind::Button {
+        let disabled = node.control.is_some_and(Control::disabled)
+            || node.editor.as_ref().is_some_and(|config| config.disabled);
+        let checked = matches!(
+            node.control,
+            Some(Control::Checkbox(CheckState::Checked, _) | Control::Switch(true, _))
+        );
+        let indeterminate = matches!(
+            node.control,
+            Some(Control::Checkbox(CheckState::Indeterminate, _))
+        );
+        if matches!(node.kind, Kind::Button | Kind::Checkbox | Kind::Switch) {
             self.visited.insert(id);
             let state = self
                 .buttons
@@ -161,30 +216,52 @@ impl View {
                 .or_insert_with(|| {
                     Rc::new(ButtonState {
                         focus: cx.focus_handle().tab_stop(true),
-                        space_down: Cell::new(false),
                     })
                 })
                 .clone();
+            if disabled {
+                state.focus.clone().tab_stop(false);
+                if state.focus.is_focused(window) {
+                    window.blur(cx);
+                }
+            } else {
+                element = element
+                    .track_focus(&state.focus.clone().tab_stop(true))
+                    .tab_index(0);
+                let focus = state.focus.clone();
+                element = element
+                    .on_a11y_action(gpui::AccessibleAction::Focus, move |_, window, cx| {
+                        window.focus(&focus, cx)
+                    });
+            }
             element = element
-                .track_focus(&state.focus)
-                .tab_index(0)
-                .role(gpui::Role::Button)
+                .role(match node.kind {
+                    Kind::Checkbox => gpui::Role::CheckBox,
+                    Kind::Switch => gpui::Role::Switch,
+                    _ => gpui::Role::Button,
+                })
                 .aria_label(accessible_name);
-            if interaction.pointer {
+            if matches!(node.kind, Kind::Checkbox | Kind::Switch) {
+                element = element.aria_toggled(if indeterminate {
+                    gpui::accesskit::Toggled::Mixed
+                } else if checked {
+                    gpui::accesskit::Toggled::True
+                } else {
+                    gpui::accesskit::Toggled::False
+                });
+            }
+            if interaction.pointer && !disabled {
                 element = element.cursor_pointer();
             }
-            Some(state)
-        } else {
-            None
-        };
-        let mut states: [Option<gpui::StyleRefinement>; 3] = Default::default();
+        }
+        let mut states: [Option<gpui::StyleRefinement>; 7] = Default::default();
         for style in node.style.iter() {
             match style {
                 Style::Fields(fields) => {
                     crate::style::refine(element.style(), fields);
                 }
                 Style::State(state, fields) => {
-                    if *state != 1 && !interaction.pointer {
+                    if matches!(*state, 2 | 3) && (!interaction.pointer || disabled) {
                         continue;
                     }
                     let refinement =
@@ -215,13 +292,13 @@ impl View {
                 Style::Radius(v) => element = element.rounded(px(*v as f32)),
                 Style::Opacity(v) => element = element.opacity(*v as f32),
                 Style::HoverBackground(v) => {
-                    if interaction.pointer {
+                    if interaction.pointer && !disabled {
                         states[1].get_or_insert_with(Default::default).background =
                             Some(color(v).into());
                     }
                 }
                 Style::PressedBackground(v) => {
-                    if interaction.pointer {
+                    if interaction.pointer && !disabled {
                         states[2].get_or_insert_with(Default::default).background =
                             Some(color(v).into());
                     }
@@ -232,15 +309,46 @@ impl View {
                 }
             }
         }
-        let [focused, hovered, pressed] = states;
+        let [
+            focused,
+            hovered,
+            pressed,
+            checked_style,
+            indeterminate_style,
+            disabled_style,
+            _selected_style,
+        ] = states;
+        use gpui::Refineable;
+        for style in [
+            checked.then_some(checked_style).flatten(),
+            indeterminate.then_some(indeterminate_style).flatten(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            element.style().refine(&style);
+        }
         if let Some(style) = focused {
-            element = element.focus(move |_| style);
+            if let Some(editor) = self.editors.get(&id) {
+                if editor.focus_handle(cx).is_focused(window) {
+                    element.style().refine(&style);
+                }
+            } else {
+                element = element.focus(move |_| style);
+            }
         }
         if let Some(style) = hovered {
             element = element.hover(move |_| style);
         }
         if let Some(style) = pressed {
             element = element.active(move |_| style);
+        }
+        if disabled {
+            element.style().mouse_cursor = None;
+            element = element.opacity(0.5);
+            if let Some(style) = disabled_style {
+                element.style().refine(&style);
+            }
         }
         if !interaction.pointer {
             element.style().mouse_cursor = None;
@@ -275,73 +383,58 @@ impl View {
                 interaction.pointer,
                 cx.entity_id(),
             ));
+        } else if matches!(node.kind, Kind::Checkbox | Kind::Switch) {
+            element = element.child(control_indicator(node.kind, checked, indeterminate));
+            if !node.text.is_empty() {
+                element = element.child(gpui::SharedString::from(node.text.clone()));
+            }
         } else if !node.text.is_empty() {
             element = element.child(gpui::SharedString::from(node.text.clone()));
         }
         element = element.children(
             node.children
                 .iter()
-                .map(|id| self.element(tree, *id, interaction, cx))
+                .map(|id| self.element(tree, *id, interaction, window, cx))
                 .collect::<Vec<_>>(),
         );
         if let Some(handler) = node.handler
             && node.editor.is_none()
+            && !disabled
         {
             let window = self.id;
             let revision = tree.revision();
             let session = self.session.clone();
             let transport = self.transport.clone();
-            if let Some(button) = button {
-                let down_button = button.clone();
-                let down_session = session.clone();
-                let down_transport = transport.clone();
-                element = element
-                    .on_key_down(move |event, _, cx| {
-                        if event.keystroke.modifiers.modified() || event.is_held {
-                            return;
-                        }
-                        match event.keystroke.key.as_str() {
-                            "enter" => emit_press(
-                                &down_session,
-                                &down_transport,
-                                window,
-                                id,
-                                handler,
-                                revision,
-                            ),
-                            "space" => down_button.space_down.set(true),
-                            _ => return,
-                        }
-                        cx.stop_propagation();
-                    })
-                    .on_key_up(move |event, _, cx| {
-                        if event.keystroke.key == "space" && button.space_down.replace(false) {
-                            emit_press(&session, &transport, window, id, handler, revision);
-                            cx.stop_propagation();
-                        }
-                    });
-            }
-            let session = self.session.clone();
-            let transport = self.transport.clone();
-            if interaction.pointer {
-                if let Some(button) = self.buttons.get(&id) {
-                    let focus = button.focus.clone();
-                    element = element
-                        .on_mouse_down(gpui::MouseButton::Left, move |_, window, cx| {
-                            window.focus(&focus, cx)
-                        });
-                }
-                element = element.on_click(move |_, _, cx| {
-                    let event = session.borrow().press(window, id, handler, revision);
-                    if let Some(event) = event
-                        && !transport.input(event)
-                        && session.borrow_mut().overload(window)
-                    {
-                        transport.fault(window);
-                    }
-                    cx.stop_propagation();
+            let accessible_session = session.clone();
+            let accessible_transport = transport.clone();
+            // GPUI's fallback accessibility Click synthesizes pointer input.
+            // Route the semantic action directly so pointer policy and pointer
+            // occlusion do not suppress assistive activation.
+            element = element.on_a11y_action(gpui::AccessibleAction::Click, move |_, _, cx| {
+                emit_press(
+                    &accessible_session,
+                    &accessible_transport,
+                    window,
+                    id,
+                    handler,
+                    revision,
+                );
+                cx.stop_propagation();
+            });
+            if !interaction.pointer {
+                element = element.on_mouse_down(gpui::MouseButton::Left, |_, window, _| {
+                    window.prevent_default()
                 });
             }
+            // GPUI synthesizes one click for native Enter/Space and accessibility
+            // activation. Registering a second key handler duplicates activation.
+            element = element.on_click(move |event, _, cx| {
+                if !interaction.pointer && !matches!(event, gpui::ClickEvent::Keyboard(_)) {
+                    return;
+                }
+                emit_press(&session, &transport, window, id, handler, revision);
+                cx.stop_propagation();
+            });
         }
         #[cfg(feature = "native-tests")]
         {
@@ -365,32 +458,40 @@ impl View {
                 .size_full(),
             );
         }
-        element.into_any_element()
+        crate::semantics::State {
+            element,
+            disabled,
+            read_only: false,
+        }
+        .into_any_element()
     }
 }
 impl Render for View {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.visited.clear();
-        for button in self.buttons.values() {
-            if !button.focus.is_focused(window) {
-                button.space_down.set(false);
-            }
-        }
         let shared = self.session.clone();
         let session = shared.borrow();
-        let mut root = div().size_full().on_key_down(|event, window, cx| {
-            if event.keystroke.key == "tab" {
-                if event.keystroke.modifiers.shift {
-                    window.focus_prev(cx);
-                } else {
-                    window.focus_next(cx);
-                }
-                cx.stop_propagation();
-            }
-        });
+        let root_focus = self
+            .root_focus
+            .get_or_insert_with(|| cx.focus_handle())
+            .clone();
+        let mut root =
+            div()
+                .track_focus(&root_focus)
+                .size_full()
+                .on_key_down(|event, window, cx| {
+                    if event.keystroke.key == "tab" {
+                        if event.keystroke.modifiers.shift {
+                            window.focus_prev(cx);
+                        } else {
+                            window.focus_next(cx);
+                        }
+                        cx.stop_propagation();
+                    }
+                });
         let revision = if let Some(tree) = session.tree(self.id) {
             if let Some(id) = tree.root() {
-                root = root.child(self.element(tree, id, Interaction::default(), cx));
+                root = root.child(self.element(tree, id, Interaction::default(), window, cx));
             }
             tree.revision()
         } else {
@@ -398,6 +499,25 @@ impl Render for View {
         };
         self.buttons.retain(|id, _| self.visited.contains(id));
         self.selections.retain(|id, _| self.visited.contains(id));
+        // GPUI routes key events along the focused element's ancestry. Keep a
+        // non-tab-stop fallback so Tab also works before the first click and
+        // after a focused control is disabled or removed.
+        let has_focus = root_focus.is_focused(window)
+            || self
+                .buttons
+                .values()
+                .any(|state| state.focus.is_focused(window))
+            || self
+                .selections
+                .values()
+                .any(|state| state.borrow().focus.is_focused(window))
+            || self
+                .editors
+                .values()
+                .any(|editor| editor.focus_handle(cx).is_focused(window));
+        if !has_focus {
+            window.focus(&root_focus, cx);
+        }
         let id = self.id;
         let session = self.session.clone();
         let transport = self.transport.clone();
@@ -672,3 +792,7 @@ fn stop_application(cx: &mut App) {
 #[cfg(feature = "native-tests")]
 #[path = "native_test.rs"]
 pub(crate) mod native_test;
+
+#[cfg(feature = "native-tests")]
+#[path = "control_test.rs"]
+pub(crate) mod control_test;

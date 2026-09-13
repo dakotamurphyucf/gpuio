@@ -13,7 +13,32 @@ val button
   :  ?key:Key.t
   -> ?style:Style.t
   -> ?accessible_name:string
+  -> ?disabled:bool
   -> on_click:(unit -> 'action)
+  -> string
+  -> 'action t
+
+(** Controlled application values. Activation emits an intent, never a Boolean
+    computed from the last render. Apply it to the current model (for example
+    [Bonsai.Cont.toggle] or a state machine using [Check_state.activate]). Disabled
+    controls are inert, excluded from Tab traversal and invalidate their handler. *)
+val checkbox
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?accessible_name:string
+  -> ?disabled:bool
+  -> state:Check_state.t
+  -> on_toggle:(unit -> 'action)
+  -> string
+  -> 'action t
+
+val switch
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?accessible_name:string
+  -> ?disabled:bool
+  -> checked:bool
+  -> on_toggle:(unit -> 'action)
   -> string
   -> 'action t
 
@@ -46,7 +71,25 @@ module Expert : sig
       | Button
       | Input
       | Textarea
+      | Checkbox
+      | Switch
     [@@deriving equal, sexp_of]
+  end
+
+  module Control : sig
+    type t =
+      | Button of { disabled : bool }
+      | Checkbox of
+          { state : Check_state.t
+          ; disabled : bool
+          }
+      | Switch of
+          { checked : bool
+          ; disabled : bool
+          }
+    [@@deriving equal, sexp_of]
+
+    val to_wire : t -> Gpuio_protocol.Wire.Control.t
   end
 
   type 'action editor =
@@ -62,6 +105,7 @@ module Expert : sig
     ; style : Style.t
     ; on_click : (unit -> 'action) option
     ; editor : 'action editor option
+    ; control : Control.t option
     ; children : 'action t list
     }
 

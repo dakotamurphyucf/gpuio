@@ -12,6 +12,25 @@ module type S = sig
       | Button
       | Input
       | Textarea
+      | Checkbox
+      | Switch
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Check_state : sig
+    type t =
+      | Unchecked
+      | Checked
+      | Indeterminate
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Control : sig
+    (** The final Boolean in each case is [disabled]. *)
+    type t =
+      | Button of bool
+      | Checkbox of Check_state.t * bool
+      | Switch of bool * bool
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -245,6 +264,7 @@ module type S = sig
       | Splice of Node_id.t * int64 * int64 * Node_id.t list
       | Set_root of Node_id.t option
       | Set_editor of Node_id.t * Editor.Config.t
+      | Set_control of Node_id.t * Control.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
