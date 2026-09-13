@@ -29,9 +29,10 @@ are superseded by this priority; native GUI coverage must still be reported hone
   tests and both required CI jobs passed in run 34654290650. X11 passed all GUI
   checks; Wayland passed the typed bridge but failed the new hover-reset test.
   That informational limitation remains tracked in OCH-17.
-- OCH-9 remains in milestone 01: public Bonsai/Eio scheduling and application runner.
-  The public runner is implemented on its ticket branch; CI/merge acceptance is
-  pending. See [runtime](design/runtime.md) and [measurements](evidence/runtime-och9.md).
+- OCH-9 public Bonsai/Eio runtime merged in PR #4 at
+  `02558d8d393c49e5e159812394dd9061820c39fc`. Both required CI jobs passed in
+  run 34740866262, including all macOS runtime/measurement scenarios. Linux GUI
+  exposed a default quit-policy difference; the small follow-up fixes that policy. See [runtime](design/runtime.md) and [measurements](evidence/runtime-och9.md).
 
 ## Local evidence
 
