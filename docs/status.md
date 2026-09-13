@@ -259,3 +259,11 @@ accounting enforce count/size bounds. See the updated
 and the Linux portal backend remain pending (non-macOS currently returns
 Unsupported), so file dialogs and OCH-11 are not complete. No hosted CI or Linux
 GUI acceptance is claimed for this checkpoint.
+
+The Linux file-dialog protocol layer is now implemented in the new `gpuio-portal`
+workspace crate. Fourteen local D-Bus socket-peer tests pass for request/reply
+races, cancellation/cleanup, service identity/loss and bounded URI results. It
+reuses existing locked dependency versions. The crate is not yet connected to
+the native runtime: X11/Wayland parenting, cleanup barriers, capabilities and Linux
+validation remain pending. See the [portal design](design/linux-file-portal.md).
+No actual Linux portal GUI or completed OCH-11 support is claimed.

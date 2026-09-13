@@ -1,5 +1,5 @@
 [workspace]
-members = ["rust/protocol", "rust/native", "rust/foundation"]
+members = ["rust/protocol", "rust/native", "rust/foundation", "rust/portal"]
 resolver = "3"
 exclude = ["vendor/gpui-base"]
 

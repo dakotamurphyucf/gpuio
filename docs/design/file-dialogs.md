@@ -154,3 +154,11 @@ Linux build/unit tests remain required; full portal GUI validation belongs to
 the deferred Linux GUI gate. Consolidated hosted CI and merge follow completion
 of all remaining OCH-11 work. Actual two-file selection and bounded bridge-result tests pass locally; they
 remain distinct from inspection of configuration properties.
+
+## Linux protocol-layer checkpoint
+
+`rust/portal` now implements the owned D-Bus request layer and has local socket
+peer tests for request, cancellation and URI behavior. See the
+[Linux portal design](linux-file-portal.md). It is not yet connected to the native
+manager; parent export/lifetimes and public capabilities remain pending. A passing
+protocol test does not establish Linux GUI support.
