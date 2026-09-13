@@ -1,16 +1,17 @@
 # Linux file-chooser portal — OCH-11
 
-Status, 2026-09-13: `gpuio-portal` implements and locally tests the D-Bus request
-layer. It is not connected to `gpuio-native` yet. The native Linux file-dialog
-manager still returns Unsupported. X11/Wayland parenting, lifecycle integration,
-public capability reporting and Linux validation remain required.
+Status, 2026-09-13: `gpuio-portal` implements the D-Bus request layer and is now
+connected to the native manager for X11. The shared worker ownership adapter is
+compiled and unit-tested on macOS. Wayland still returns Unsupported while its
+export adapter is implemented. Public capabilities and Linux build validation
+remain required; this is not Linux GUI acceptance or completion of file dialogs.
 
 ## Ownership and request flow
 
 Each pending picker gets a dedicated session-bus connection. This gives it its
-own request namespace, signal queue and disconnect cleanup. The eventual native
-manager must preserve one pending picker per window and the existing 32-window
-limit; the portal crate does not independently impose a global application limit.
+own request namespace, signal queue and disconnect cleanup. The native manager
+preserves one pending picker per window; the host retains its existing 32-window
+limit. The portal crate does not independently impose a global application limit.
 Connections exist only for probes or pending native interactions. This costs
 more connections/executor resources than sharing one, but avoids cross-request
 cleanup and signal-buffer ownership during infrequent user-driven dialogs.
@@ -68,6 +69,33 @@ defines versioned directory selection, byte-array folder hints and URI results.
   original open/save cardinality is checked again. URI decoding does not open,
   create, reserve or write the selected files.
 
+## Native ownership and shutdown
+
+The native adapter copies the exact requesting X11 window ID on the GPUI thread.
+The background worker receives owned configuration, parent text, correlation,
+window generation and cancellation channels. It does not access GPUI window
+objects. Each request remains tracked as Running, Delivering or Cancelled until
+its final response/wake operation has finished. Closing a window while a worker
+is already delivering a response still waits for that worker; it cannot dispose
+the runtime wake pipe underneath delivery.
+
+Close and application shutdown signal every affected running request before
+waiting on cleanup. They emit Closed once, suppress late selections and await
+worker completion before native resource disposal. Completion is broadcast by
+closing a channel, so repeated cleanup observers cannot steal each other's
+completion. A failed portal cleanup is logged even if the public lifecycle result
+has already become Closed. Dropping a manager clone leaves requests alive;
+dropping the last owner initiates cancellation. Workers do not retain that owner.
+
+Ordinary close, OCaml shutdown and abort await cleanup asynchronously. Unconditional
+GPUI quit needs a different hook: at the pinned GPUI revision, `App::shutdown`
+invokes quit observers, then clears windows, then polls their returned futures
+with a 200 ms timeout. Returning a cleanup future would therefore be too late to
+retain native parents. Our quit observer drains background cleanup synchronously
+while constructing its ready future, before GPUI clears windows. This can delay
+quit while a portal acknowledges cancellation. Cleanup must never depend on a
+foreground GPUI callback. No GPUI patch is used.
+
 ## Validation and remaining integration
 
 Fourteen focused tests pass on local macOS using actual D-Bus messages over
@@ -86,15 +114,13 @@ private test peers. Production uses session-bus-assigned identities.
 
 Next implementation requirements:
 
-- Obtain the exact requesting window's parent identifier. Copying an X11 window
-  ID is straightforward. Wayland needs an owned exported surface with a proven
+- Complete Wayland's exact requesting-window parent identifier. X11 now copies
+  the native window ID. Wayland needs an owned exported surface with a proven
   lifetime through presentation/cancellation; borrowed GPUI raw pointers must not
   be carried across an uncontrolled export task.
-- Wire the portal worker to native window generations and correlated responses.
-  On close/shutdown, cancel all affected workers and await cleanup before native
-  window/application disposal. Remove request owners before callbacks; suppress
-  late selection after owner cancellation. Cancellation must remain concurrent
-  across windows, with no RefCell borrow held across await/native reentry.
+- Preserve the implemented worker cleanup barrier when adding Wayland. Destroy
+  exported objects before completing that barrier, including export timeout,
+  cancellation before a handle arrives and unconditional application quit.
 - Provide truthful public capabilities, including portal availability/version,
   mixed selection and parenting. Runtime unavailability is not a build-time fact.
 - Validate X11 and Wayland builds/unit behavior. Actual Linux portal GUI acceptance
@@ -106,6 +132,17 @@ display to outlive the identifier. Its future cannot simply be dropped while GPU
 removes the borrowed surface/display. The pinned GPUI private portal helper also
 chooses the keyboard-focused window, not an explicit requested window. Neither
 is an acceptable lifetime/parenting shortcut without additional ownership work.
+
+The next adapter can use a guest event queue on GPUI's existing libwayland
+display. Pinned `wayland-client` 0.31.15 explicitly supports processing guest
+events with `dispatch_pending` while the host reads the socket. The pinned GPUI
+Wayland backend uses the system client through `calloop-wayland-source`. This
+provides a route without another blocking reader or roundtrip thread: issue
+export requests while the native parent is retained, flush and dispatch only
+the guest queue, and stop polling on completion/cancellation/timeout. This is a
+source-supported implementation direction, not an implemented or GUI-tested
+Wayland adapter. Its owned objects and foreign-display lifetime must be covered
+by the cleanup barrier above.
 
 Exact commands and platform limits are recorded in the
 [portal protocol evidence report](../evidence/linux-file-portal-och11.md).

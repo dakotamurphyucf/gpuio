@@ -2,7 +2,10 @@
 //! native cancellation may synchronously invoke their completion callbacks.
 use crate::transport::Transport;
 use gpuio_protocol::{WindowId, v1::*};
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 
 #[cfg(target_os = "macos")]
 #[path = "file_panel_macos.rs"]
@@ -12,13 +15,66 @@ pub use macos::Panel;
 #[cfg(all(target_os = "macos", feature = "native-tests"))]
 pub(crate) use macos::test;
 
+// Compile the Linux ownership adapter in macOS unit tests too. No Linux
+// display library is needed for the scalar-parent/request-worker boundary.
+#[cfg(any(target_os = "linux", test))]
+#[path = "file_dialog_portal.rs"]
+pub mod portal;
+
+#[derive(Clone)]
+struct Completion {
+    window: WindowId,
+    correlation: i64,
+    done: async_channel::Receiver<()>,
+    failed: Arc<AtomicBool>,
+}
+
+/// Await before disposing native windows/application resources. Closing the
+/// completion channel broadcasts to all cleanup waiters; no receiver steals a
+/// single completion value from another shutdown observer.
+#[must_use = "await native dialog cleanup before disposing the window/application"]
+pub struct Cleanup(Vec<Completion>);
+
+impl Completion {
+    fn report(&self) {
+        if self.failed.load(Ordering::Acquire) {
+            eprintln!(
+                "GPUIO_FILE_DIALOG_CLEANUP_FAILED: window={:?} request={}",
+                self.window, self.correlation
+            );
+        }
+    }
+}
+
+impl Cleanup {
+    pub async fn wait(self) {
+        for completion in self.0 {
+            let _ = completion.done.recv().await;
+            completion.report();
+        }
+    }
+
+    // Only for unconditional GPUI quit. Its shutdown clears windows BEFORE
+    // polling quit futures, with a 200 ms limit. Workers here perform only
+    // background I/O, so drain them during observer construction, before that
+    // disposal. Ordinary close/OCaml shutdown uses the nonblocking async path.
+    pub(crate) fn wait_before_quit(self) {
+        for completion in self.0 {
+            let _ = completion.done.recv_blocking();
+            completion.report();
+        }
+    }
+}
+
 #[cfg(target_os = "macos")]
 type Pending = std::collections::BTreeMap<WindowId, (i64, Panel)>;
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct Dialogs {
     #[cfg(target_os = "macos")]
     pending: std::rc::Rc<std::cell::RefCell<Pending>>,
+    #[cfg(target_os = "linux")]
+    portal: portal::Dialogs,
 }
 
 impl Dialogs {
@@ -29,6 +85,7 @@ impl Dialogs {
         id: WindowId,
         config: FileDialogConfig,
         window: &gpui::Window,
+        _cx: &gpui::App,
         transport: Arc<Transport>,
     ) {
         if self.pending.borrow().contains_key(&id) {
@@ -73,43 +130,43 @@ impl Dialogs {
         }
     }
 
-    // The Linux portal backend is the next implementation step. Keep its result
-    // explicit while the correlated protocol/runtime are developed locally.
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "linux")]
     pub(crate) fn show(
         &self,
         correlation: i64,
         id: WindowId,
-        _config: FileDialogConfig,
-        _window: &gpui::Window,
+        config: FileDialogConfig,
+        window: &gpui::Window,
+        cx: &gpui::App,
         transport: Arc<Transport>,
     ) {
-        transport.respond(Event::FileDialogResult(
-            correlation,
-            id,
-            FileDialogResult::Failed(FileDialogError::Unsupported),
-        ));
+        self.portal
+            .show(correlation, id, config, window, cx, transport);
     }
 
-    pub(crate) fn close(&self, _id: WindowId) {
+    pub(crate) fn close(&self, id: WindowId) -> Cleanup {
         #[cfg(target_os = "macos")]
         {
-            let removed = self.pending.borrow_mut().remove(&_id);
+            let removed = self.pending.borrow_mut().remove(&id);
             drop(removed);
+            Cleanup(Vec::new())
+        }
+        #[cfg(target_os = "linux")]
+        {
+            self.portal.close(id)
         }
     }
 
-    pub(crate) fn clear(&self) {
+    pub(crate) fn clear(&self) -> Cleanup {
         #[cfg(target_os = "macos")]
         {
             let removed = std::mem::take(&mut *self.pending.borrow_mut());
             drop(removed);
+            Cleanup(Vec::new())
         }
-    }
-}
-
-impl Drop for Dialogs {
-    fn drop(&mut self) {
-        self.clear();
+        #[cfg(target_os = "linux")]
+        {
+            self.portal.clear()
+        }
     }
 }

@@ -112,9 +112,8 @@ These are test-driver adaptations, not changes to application selection policy.
 
 ## Still required
 
-Capability reporting and the Linux portal backend remain unimplemented. The
-non-macOS manager currently returns Unsupported; this is a local implementation
-placeholder, not final Linux support. Portal parenting, cancellation, mixed-mode
-limitations, URI validation and runtime availability need implementation and
-platform-independent/unit evidence. Linux build/unit checks and consolidated
-hosted CI/merge remain required. No Linux GUI acceptance is claimed.
+Capability reporting and Wayland export ownership remain unimplemented. The Linux
+portal protocol and native X11 worker integration now have local unit evidence;
+see the [portal report](linux-file-portal-och11.md). Wayland currently returns
+Unsupported. Linux build/unit checks and consolidated hosted CI/merge remain
+required. No Linux GUI acceptance is claimed.

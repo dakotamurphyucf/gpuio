@@ -2423,6 +2423,7 @@ dependencies = [
  "gpui",
  "gpui-base",
  "gpui_platform",
+ "gpuio-portal",
  "gpuio-protocol",
  "libc",
  "objc2 0.6.4",

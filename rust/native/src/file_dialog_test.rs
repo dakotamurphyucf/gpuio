@@ -310,8 +310,8 @@ async fn request_ownership(cx: &mut gpui::AsyncApp, handle: gpui::WindowHandle<g
             .submit(Message::FileDialog(request, id, config.clone()), 128)
             .unwrap();
         assert!(transport.mailbox.lock().unwrap().pop().is_some());
-        cx.update_window(handle.into(), |_, window, _| {
-            dialogs.show(request, id, config.clone(), window, transport.clone())
+        cx.update_window(handle.into(), |_, window, cx| {
+            dialogs.show(request, id, config.clone(), window, cx, transport.clone())
         })
         .unwrap();
     };
@@ -344,13 +344,16 @@ async fn request_ownership(cx: &mut gpui::AsyncApp, handle: gpui::WindowHandle<g
         matches!(&events[..], [Event::FileDialogResult(1, result_window, FileDialogResult::Selected(paths))] if *result_window == id && paths.len() == 1)
     );
     show(cx, handle, id, 3);
-    dialogs.close(WindowId::from_parts(0, 2).unwrap());
+    dialogs
+        .close(WindowId::from_parts(0, 2).unwrap())
+        .wait()
+        .await;
     assert_eq!(
         dialogs.pending.borrow().len(),
         1,
         "another generation cannot cancel this picker"
     );
-    dialogs.close(id);
+    dialogs.close(id).wait().await;
     assert!(dialogs.pending.borrow().is_empty());
     assert_eq!(
         responses(),
@@ -367,7 +370,7 @@ async fn request_ownership(cx: &mut gpui::AsyncApp, handle: gpui::WindowHandle<g
     show(cx, handle, id, 4);
     show(cx, second, second_id, 5);
     assert_eq!(dialogs.pending.borrow().len(), 2);
-    dialogs.clear();
+    dialogs.clear().wait().await;
     assert!(dialogs.pending.borrow().is_empty());
     assert_eq!(
         responses(),

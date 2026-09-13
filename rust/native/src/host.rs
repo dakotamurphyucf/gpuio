@@ -1049,6 +1049,12 @@ pub fn run(transport: Arc<Transport>) {
         let session = Rc::new(RefCell::new(Session::default()));
         let mut windows: BTreeMap<WindowId, WindowHandle<View>> = BTreeMap::new();
         let dialogs = crate::file_dialog::Dialogs::default();
+        let quit_dialogs = dialogs.clone();
+        cx.on_app_quit(move |_| {
+            quit_dialogs.clear().wait_before_quit();
+            std::future::ready(())
+        })
+        .detach();
         let closing = stopping.clone();
         let exit_on_last_window = transport.exit_on_last_window;
         cx.on_window_closed(move |cx, _| {
@@ -1064,7 +1070,7 @@ pub fn run(transport: Arc<Transport>) {
                     .aborting
                     .load(std::sync::atomic::Ordering::Acquire)
                 {
-                    dialogs.clear();
+                    dialogs.clear().wait().await;
                     if !stopping.replace(true) {
                         cx.update(stop_application);
                     }
@@ -1079,7 +1085,7 @@ pub fn run(transport: Arc<Transport>) {
                     let Some(id) = id else {
                         break;
                     };
-                    dialogs.close(id);
+                    dialogs.close(id).wait().await;
                     let closed = session.borrow_mut().close(id);
                     if let Ok(pending) = closed {
                         if let Some(correlation) = pending {
@@ -1222,12 +1228,13 @@ pub fn run(transport: Arc<Transport>) {
                         Message::FileDialog(correlation, id, config) => {
                             let presented = match windows.get(&id) {
                                 Some(handle) => cx
-                                    .update_window((*handle).into(), |_, window, _| {
+                                    .update_window((*handle).into(), |_, window, cx| {
                                         dialogs.show(
                                             correlation,
                                             id,
                                             config,
                                             window,
+                                            cx,
                                             transport.clone(),
                                         );
                                     })
@@ -1243,7 +1250,7 @@ pub fn run(transport: Arc<Transport>) {
                             }
                         }
                         Message::Close(correlation, id) => {
-                            dialogs.close(id);
+                            dialogs.close(id).wait().await;
                             let result = session.borrow_mut().close(id);
                             match result {
                                 Ok(pending) => {
@@ -1261,7 +1268,7 @@ pub fn run(transport: Arc<Transport>) {
                             }
                         }
                         Message::Shutdown => {
-                            dialogs.clear();
+                            dialogs.clear().wait().await;
                             for event in session.borrow_mut().shutdown() {
                                 transport.respond(event);
                             }

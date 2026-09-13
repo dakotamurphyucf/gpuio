@@ -267,3 +267,12 @@ reuses existing locked dependency versions. The crate is not yet connected to
 the native runtime: X11/Wayland parenting, cleanup barriers, capabilities and Linux
 validation remain pending. See the [portal design](design/linux-file-portal.md).
 No actual Linux portal GUI or completed OCH-11 support is claimed.
+
+The next local checkpoint connects the portal worker to X11 native requests.
+Window-close/shutdown cleanup now waits for background workers, including a
+response already being delivered. Quit cleanup runs before GPUI clears windows;
+ordinary lifecycle cleanup stays asynchronous. The shared ownership adapter's
+tests, full Rust/OCaml checks, actual macOS picker suite and public Bonsai/Eio
+close/selection/read regressions pass. See the updated
+[portal evidence](evidence/linux-file-portal-och11.md). Wayland exports, public
+capabilities and Linux build validation remain pending. OCH-11 stays In Progress.
