@@ -10,6 +10,7 @@ crate-type = ["staticlib", "rlib"]
 
 [features]
 native-tests = []
+native-image-tests = ["native-tests", "gpui_platform/test-support"]
 default = ["wayland", "x11"]
 wayland = ["gpui/wayland", "gpui_platform/wayland", "dep:gpuio-wayland"]
 x11 = ["gpui/x11", "gpui_platform/x11"]
@@ -102,3 +103,9 @@ name = "native_drag_drop"
 path = "tests/native_drag_drop.rs"
 harness = false
 required-features = ["native-tests"]
+
+[[test]]
+name = "native_images"
+path = "tests/native_images.rs"
+harness = false
+required-features = ["native-image-tests"]

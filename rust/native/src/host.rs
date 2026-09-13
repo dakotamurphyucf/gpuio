@@ -1103,6 +1103,7 @@ pub fn run(transport: Arc<Transport>) {
     let stopping = Rc::new(Cell::new(false));
     gpui_platform::application().run(move |cx: &mut App| {
         gpui_base::init(cx);
+        crate::image_host::init(cx);
         // GPUI defaults to last-window exit on Linux. Our explicit lifecycle
         // policy must control background applications consistently on both OSes.
         cx.set_quit_mode(gpui::QuitMode::Explicit);
@@ -1132,6 +1133,7 @@ pub fn run(transport: Arc<Transport>) {
                     .load(std::sync::atomic::Ordering::Acquire)
                 {
                     dialogs.clear().wait().await;
+                    crate::image_host::shutdown(cx).await;
                     if !stopping.replace(true) {
                         cx.update(stop_application);
                     }
@@ -1342,6 +1344,7 @@ pub fn run(transport: Arc<Transport>) {
                         }
                         Message::Shutdown => {
                             dialogs.clear().wait().await;
+                            crate::image_host::shutdown(cx).await;
                             for event in session.borrow_mut().shutdown() {
                                 transport.respond(event);
                             }
@@ -1373,6 +1376,7 @@ pub(crate) fn stop_application(cx: &mut App) {
         foundation::NSPoint,
     };
     drag_drop::shutdown(cx);
+    crate::image_host::finish_before_quit(cx);
     cx.shutdown();
     // Embedded runtime must regain control instead of NSApplication.terminate.
     unsafe {
@@ -1383,8 +1387,9 @@ pub(crate) fn stop_application(cx: &mut App) {
     }
 }
 #[cfg(not(target_os = "macos"))]
-fn stop_application(cx: &mut App) {
+pub(crate) fn stop_application(cx: &mut App) {
     drag_drop::shutdown(cx);
+    crate::image_host::finish_before_quit(cx);
     cx.quit();
 }
 

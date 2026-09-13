@@ -8,8 +8,8 @@ wire requests and the raw `Gpuio_eio.App.Expert.asset` effect. Capability
 `CAP_ASSETS` (2097152; aggregate mask 4194303) means encoded registration only.
 Scoped public ownership is now connected through `Gpuio_eio.Asset.register`.
 A native raster decoder and decoded-cache/work-ticket controller are implemented
-and tested independently; host scheduling, atlas cleanup, SVG rasterization and
-image/icon views remain to integrate.
+and tested, with GPUI host scheduling and per-window atlas cleanup connected.
+SVG rasterization and public image/icon views remain to integrate.
 Independent OCaml/Rust fixtures, Rust workspace/Clippy, full Dune checks and an
 actual windowless >2-MiB FFI upload pass locally on macOS.
 
@@ -248,7 +248,7 @@ alpha behavior in our SVG path.
 
 `asset_cache::Cache` is a native UI-owned controller. Its handles are local `Rc`
 leases; its Work/Completion tickets are transferable to the background executor.
-It is not yet attached to the application's host pump. Consumers must acquire a
+The `image_host` adapter below connects it to the application host pump. Consumers must acquire a
 fresh encoded-store lease before requesting a cache handle, so warm pixels cannot
 resurrect a retired registration. Mounts sharing one source share a decode/result.
 Only mounted handles and running work keep encoded leases; warm pixel entries
@@ -289,6 +289,45 @@ worker failures. Closing forbids work, cancels jobs and suppresses late publicat
 
 Host integration must drive queued work on GPUI's background executor, refresh
 live consumers on completion/admission failure, drain atlas evictions before reuse,
-and join/drain its outstanding tasks during teardown. These requirements remain
-open; a standalone controller test is not proof of application scheduling or GPU
-memory disposal. SVG will extend cache identity with raster size and icon tint.
+and join/drain its outstanding tasks during teardown. The adapter below implements these host requirements and adds native GPU readback
+evidence. Public image views still need to bind to it. SVG will extend cache
+identity with raster size and icon tint.
+
+## GPUI host scheduling and atlas ownership
+
+`image_host` is initialized with the native application. A mounted Rust binding
+requests an encoded lease once and retains its cache handle. The adapter launches
+admitted Work on GPUI's background executor, receives bounded completions, and
+refreshes registered windows. A shared binding observed while still loading
+registers its destination window before returning, so it receives the completion
+refresh. Loading/ready/typed error observation is available
+to native views without blocking paint. There is no idle decode timer. Public
+OCaml image/icon constructors and their protocol/view integration are still next.
+
+The host accounts for each image once per window before returning pixels to
+`img`/`paint_image`. It limits ownership to 32 windows, 1024 image/window copies,
+4096 animation-frame keys and 256 MiB of logical uploaded pixel footprint. It
+reserves an animation's full footprint, including frames that GPUI uploads later.
+These are application image bounds, not a claim to measure GPU allocator pages,
+fragmentation, command buffers, fonts or other native framework allocations.
+
+Cache eviction removes each image from every window that admitted it and releases
+its accounting references. Closing a window drops that window's records; its
+renderer owns the destroyed atlas. The pump retries work after performing requested
+LRU evictions. It does not hold the service RefCell borrow while updating windows.
+Window tracking and deferred/completion callbacks do not own window entities.
+
+Each worker publishes its completion before closing a completion fence. Foreground
+processing waits for the fence before admitting replacement work. The service
+owns a result waiting for that fence, so shutdown can reclaim it without needing
+the foreground receiver task to run. Ordinary bridge shutdown awaits workers
+asynchronously. Unconditional GPUI quit drains the CPU-only jobs synchronously
+before GPUI destroys windows, then performs atlas cleanup. Closing the result
+channel prevents a late worker from waiting for UI delivery. Cache identities and
+cancelled handles continue to reject late publication.
+
+The optional `native-image-tests` feature enables pinned GPUI platform test support
+for GPU readback. It adds test-only dependency packages without changing existing
+locked package versions/sources; production features remain unchanged. CI is
+configured to compile/lint the target on both platforms and execute its GPU test
+on macOS. Hosted results are still deferred until the full local OCH-11 scope.

@@ -160,3 +160,53 @@ The host integration must still schedule and drain the tasks, deliver observable
 state to mounted views, and evict each used window atlas. The inspected pinned
 Metal and Linux WGPU renderer constructors create per-window atlas instances;
 this is source evidence for the disposal design, not backend execution evidence.
+
+## Native host and GPU readback checkpoint
+
+The actual macOS `native_images` test passes with `WindowOptions.focus = false`.
+It checks background decode/completion refresh, one shared decoded image across two
+windows, exact GPU-readback pixels, continued rendering after encoded registration
+retirement, window-close accounting, replacement, and shutdown with two outstanding
+jobs/results. After shutdown, worker reservations, delivering/queued completions
+and managed atlas counters are empty. This test uses native encoded-store leases;
+it is not yet a public OCaml image-view/FFI rendering example.
+
+The atlas cleanup assertion is behavioral. A test-only RenderImage reuses an old
+image ID with different pixels: before eviction the backend returns the old tile;
+after shutdown evicts the key, a fresh paint/readback returns the new pixels. The
+test retains original CPU image references during this check. Production code never
+reassigns image IDs. The diagnostic repaint deliberately repopulates an unmanaged
+tile, then the test closes its window; zero service counters refer to managed images.
+
+Two initial fixture/probe issues were resolved without patching GPUI:
+
+- A magnified single texel sampled neighboring atlas padding under GPUI's linear
+  filtering. The final fixture uses a solid 4x4 image and exact interior RGBA checks.
+- `Window::has_image_atlas_entry` delegates to `PlatformAtlas::contains`, whose
+  default false implementation is not overridden by the real Metal atlas. It was
+  replaced with the old-tile/new-upload behavioral assertion above.
+
+Verified local commands:
+
+```sh
+./scripts/gpuio exec cargo clippy -p gpuio-native --all-targets --features native-image-tests -- -D warnings
+./scripts/gpuio exec cargo test -p gpuio-native --features native-image-tests --test native_images --no-run
+# Execute the reported native_images binary with a 45-second process timeout.
+```
+
+Logs: `assets-host-clippy.log`, `assets-host-native-build-verified.log`,
+`assets-host-native-verified.log`. Workspace/Dune/windowless upload regressions
+are recorded separately in `assets-host-workspace.log`, `assets-host-dune.log`,
+`assets-host-upload-regression.log`. The CI workflow now compiles/lints this optional
+readback target on both platforms and executes it on macOS; no hosted run or Linux
+GPU result is claimed. SVG, native image semantics/styles/events and public pure
+view handles still require integration before this is a completed image feature.
+
+The full local Rust workspace, Dune @runtest/@all/@fmt and windowless >2-MiB
+FFI/scoped-upload regression passed with the host shutdown integration. Final
+review moved deferred-pump coalescing into the deferred callback and registered
+windows observing a shared loading handle before readiness. The final native GPU
+test explicitly covers that loading-window case; it and native-image-tests
+all-target Clippy pass (`assets-host-sharing-native.log`,
+`assets-host-sharing-clippy.log`). The preceding coalescing check also passed
+(`assets-host-final-native.log`). No further hosted verification is claimed.

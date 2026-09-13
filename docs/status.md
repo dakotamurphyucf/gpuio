@@ -404,3 +404,13 @@ reject late or foreign results; mounted-owner disposal directly cancels work.
 Controller tests include an actual background-thread decode. The host does not
 yet schedule these tickets or perform per-window atlas evictions; SVG and image
 views are still pending. See [asset ownership design](design/assets.md).
+
+The production native host now initializes the image scheduler, launches admitted
+decodes on GPUI's background executor, refreshes windows, accounts for per-window
+image uploads and drains workers/atlas cleanup during shutdown. A local macOS test
+with focus disabled passes exact two-window GPU readback and verifies eviction by
+forcing a same-ID diagnostic reupload with different pixels. It also passes close,
+replacement and two-outstanding-job shutdown checks. The optional native-image-tests
+feature/CI target adds test-only readback support; no hosted run or Linux GPU result
+is claimed. Public OCaml image/icon views and SVG remain pending; see the
+[asset evidence](evidence/assets-och11.md).

@@ -5,6 +5,7 @@ pub mod asset_store;
 mod ffi;
 pub mod file_dialog;
 mod host;
+pub mod image_host;
 pub mod mailbox;
 mod selection;
 mod semantics;
@@ -72,4 +73,9 @@ mod drag_drop_macos_test;
 #[cfg(all(feature = "native-tests", target_os = "macos"))]
 pub fn drive_native_drag_drop_test(pid: i32, mode: &str) {
     drag_drop_macos_test::drive(pid, mode);
+}
+
+#[cfg(feature = "native-image-tests")]
+pub fn run_native_image_test() {
+    image_host::test::run();
 }
