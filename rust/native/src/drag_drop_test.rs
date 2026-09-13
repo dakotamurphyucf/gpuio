@@ -262,6 +262,117 @@ pub(super) async fn exercise(
         vec![(node(91), Payload::text("third".into()).unwrap())]
     );
 
+    // A newly mounted trapping scope cancels the outside source immediately.
+    begin(cx, handle);
+    events(transport);
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Create(node(93), Kind::FocusScope, "".into(), None),
+            Op::SetFocusScope(
+                node(93),
+                FocusScopeConfig {
+                    trap: true,
+                    auto_focus: true,
+                    restore_focus: true,
+                },
+            ),
+            Op::Splice(node(0), 6, 0, vec![node(93)]),
+        ],
+    );
+    draw(cx, handle);
+    assert_eq!(
+        outcomes(&events(transport)),
+        vec![Outcome::Cancelled(CancelReason::Blocked)]
+    );
+    assert!(
+        !cx.update_window(handle.into(), |_, _, cx| cx.has_active_drag())
+            .unwrap()
+    );
+    release(cx, handle);
+    events(transport);
+    let point = gpui::point(px(40.), px(130.));
+    super::super::native_test::move_mouse(cx, handle, point, false);
+    super::super::native_test::mouse(cx, handle, point, true);
+    moving(cx, handle, 50.);
+    draw(cx, handle);
+    assert!(
+        !cx.update_window(handle.into(), |_, _, cx| cx.has_active_drag())
+            .unwrap(),
+        "blocked source cannot restart behind a focus trap"
+    );
+    release(cx, handle);
+    assert!(events(transport).is_empty());
+    apply(
+        cx,
+        handle,
+        vec![Op::Splice(node(0), 6, 1, vec![]), Op::Remove(node(93))],
+    );
+    draw(cx, handle);
+
+    // An ordinary internal drag is cancelled by real native window activation;
+    // the shared app manager must not route its payload to the other window.
+    begin(cx, handle);
+    let old_config = cx
+        .update(|cx| super::super::drag_drop::source_config_weak(cx))
+        .unwrap();
+    events(transport);
+    let other = cx
+        .update(|cx| {
+            cx.open_window(
+                WindowOptions {
+                    window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
+                        None,
+                        size(px(200.), px(120.)),
+                        cx,
+                    ))),
+                    ..Default::default()
+                },
+                |_, cx| cx.new(|_| gpui::Empty),
+            )
+        })
+        .unwrap();
+    other
+        .update(cx, |_, window, _| window.activate_window())
+        .unwrap();
+    cx.background_executor()
+        .timer(std::time::Duration::from_millis(100))
+        .await;
+    assert_eq!(
+        outcomes(&events(transport)),
+        vec![Outcome::Cancelled(CancelReason::WindowInactive)]
+    );
+    assert!(
+        !cx.update_window(handle.into(), |_, _, cx| cx.has_active_drag())
+            .unwrap()
+    );
+    assert!(cx.update(|cx| super::super::drag_drop::is_empty(cx)));
+    other
+        .update(cx, |_, window, _| window.remove_window())
+        .unwrap();
+    handle
+        .update(cx, |_, window, _| window.activate_window())
+        .unwrap();
+    frame(cx, handle).await;
+    // Configuration remains owned by the mounted source; cancelling only drops
+    // the gesture lease, not the current tree's configuration.
+    assert!(old_config.upgrade().is_some());
+    release(cx, handle);
+    assert!(
+        events(transport).is_empty(),
+        "late release cannot resurrect a cancelled drag"
+    );
+    begin(cx, handle);
+    moving(cx, handle, 240.);
+    release(cx, handle);
+    let recovered = events(transport);
+    assert_eq!(outcomes(&recovered), vec![Outcome::InternalDrop]);
+    assert_eq!(
+        dropped(&recovered),
+        vec![(node(91), Payload::text("third".into()).unwrap())]
+    );
+
     // Native incoming file paths have unknown directory metadata, preserve raw
     // bytes, and use the same nested target acceptance path.
     apply(
@@ -375,7 +486,7 @@ pub(super) async fn exercise(
         "gesture and hover state is disposed"
     );
     println!(
-        "GPUIO_DRAG_DROP_NATIVE_OK: nested acceptance, immutable snapshot, cancellation, removal, raw file drops and bounds"
+        "GPUIO_DRAG_DROP_NATIVE_OK: nested acceptance, immutable snapshot, cancellation, focus traps, native window activation/recovery, removal, raw file drops and bounds"
     );
 }
 use std::os::unix::ffi::OsStrExt;

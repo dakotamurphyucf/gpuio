@@ -2,7 +2,8 @@
 
 OCH-11 implementation in progress. Typed data/configuration, view factories,
 OCaml/Rust codecs, event routing and the native gesture adapter are implemented.
-Local macOS GPUI window-dispatch tests and a public Bonsai/Eio lifecycle test pass.
+Local macOS GPUI window-dispatch, real AppKit-to-Bonsai gesture and public lifecycle
+tests pass. Focus traps and second-window activation/cancellation are covered.
 Actual OS file-export/reentry, cross-window behavior and further focus/lifetime
 validation remain required; this is not complete drag/drop or OCH-11 acceptance.
 The bridge advertises capability bit 1048576; the required mask is 2097151.
@@ -175,8 +176,9 @@ budgets include retained/encoded drag payload bytes. Independent request and
 
 1. Validate actual macOS OS file offering, outside completion/cancellation and
    reentry, including source disposal while a platform session retains its offer.
-2. Exercise multi-window behavior, focus blocking, close/shutdown during a live
-   gesture, and actual public Bonsai callback delivery from gestures. Do not infer
+2. Exercise OS-mediated multi-window transfers and close/shutdown during a live
+   gesture. Focus blocking, second-window activation and public AppKit gesture
+   callback delivery pass locally. Do not infer
    source identity by matching file paths after an OS-mediated window crossing.
 3. Confirm Linux build/unit gates; full Linux graphical validation remains OCH-17.
 4. Review remaining native state/appearance and lifetime integration together with

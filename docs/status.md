@@ -316,3 +316,12 @@ native pointer regressions pass. The bridge advertises drag/drop bit 1048576
 Actual OS file export/reentry, multi-window/focus/active-close checks and public
 gesture callback testing remain; this is not completed drag/drop or OCH-11
 acceptance. No hosted CI or Linux GUI acceptance is claimed.
+
+Actual AppKit mouse dragging now passes through the public Bonsai/Eio example:
+matching gesture identity/payload, accepted hover, result update, painted frame
+and clean shutdown. Expanded native checks pass focus-trap cancellation and
+second-window activation/recovery with late-release suppression. No production
+runtime patch was needed for the system-event test driver. Native Clippy, full
+Dune checks and the ordinary lifecycle example pass. See the updated
+[drag/drop evidence](evidence/drag-drop-och11.md). OS file export/reentry, live-close/
+shutdown and remaining OCH-11 families still require work; no hosted CI is claimed.

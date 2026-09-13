@@ -63,3 +63,10 @@ pub fn drive_native_file_dialog_test(pid: i32, filename: &str, accept_label: &st
 pub fn run_native_drag_drop_test() {
     host::control_test::run_drag_drop();
 }
+
+#[cfg(all(feature = "native-tests", target_os = "macos"))]
+mod drag_drop_macos_test;
+#[cfg(all(feature = "native-tests", target_os = "macos"))]
+pub fn drive_native_drag_drop_test(pid: i32) {
+    drag_drop_macos_test::drive(pid);
+}
