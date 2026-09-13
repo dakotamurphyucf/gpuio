@@ -147,7 +147,7 @@ impl Tree {
         }
         for slot in plan.changes.values() {
             if let Some(node) = &slot.node {
-                if node.choice.is_some() && node.kind != Kind::RadioGroup {
+                if node.choice.is_some() && !matches!(node.kind, Kind::RadioGroup | Kind::Select) {
                     return Err(ErrorCode::InvalidTree);
                 }
                 if node
@@ -184,7 +184,7 @@ impl Tree {
                             return Err(ErrorCode::InvalidTree);
                         }
                     }
-                    Kind::RadioGroup => {
+                    Kind::RadioGroup | Kind::Select => {
                         let config = node.choice.as_ref().ok_or(ErrorCode::InvalidTree)?;
                         if !config.is_valid()
                             || node.editor.is_some()
@@ -383,7 +383,9 @@ impl Plan<'_> {
                 self.node_mut(*id)?.editor = Some(Arc::new(config.clone()));
             }
             Op::SetChoice(id, config) => {
-                if self.node(*id)?.kind != Kind::RadioGroup || !config.is_valid() {
+                if !matches!(self.node(*id)?.kind, Kind::RadioGroup | Kind::Select)
+                    || !config.is_valid()
+                {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.choice = Some(Arc::new(config.clone()));

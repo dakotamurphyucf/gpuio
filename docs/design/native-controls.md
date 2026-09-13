@@ -1,8 +1,8 @@
 # Native controls (OCH-11, in progress)
 
-The initial controls add `View.checkbox`, `View.switch`, `View.radio_group` and disabled buttons
+The initial controls add `View.checkbox`, `View.switch`, `View.radio_group`, `View.select` and disabled buttons
 to both the pure action API and the Bonsai effect API. The rest of OCH-11 remains
-in progress: selects/comboboxes, overlays, commands, pointer/drag interactions, dialogs,
+in progress: comboboxes, general overlays, commands, pointer/drag interactions, dialogs,
 assets, and their acceptance checks. This document records the implemented
 contracts and the integration findings; it is not completion evidence for the
 whole ticket.
@@ -41,7 +41,7 @@ label, options and selected membership; it permits an absent or disabled selecte
 value. `View.radio_group ~config ~on_select ()` emits a stable `Choice.Id.t`.
 Both native event publication and OCaml dispatch check the latest enabled-option
 membership. Reordering refreshes configuration without changing node or handler
-identity. Select and combobox adapters follow.
+identity. Select shares this contract; the combobox adapter follows.
 
 A radio group owns one Tab stop. Arrow keys wrap through enabled options;
 Home/End reach the first/last enabled option. Navigation requests selection, and
@@ -52,6 +52,38 @@ navigation fallback, without generating a user selection event. Outside keyboard
 focus, the navigation target follows an enabled committed selection or the first
 enabled option. Accessibility Focus moves focus without changing application
 selection; accessibility Click requests selection.
+
+## Select popup
+
+`View.select ~config ~on_select ()` uses the same application-owned options and
+selected ID. It shows the selected label, or the configuration label when absent.
+The trigger is the only Tab stop. Enter/Space opens the popup; a subsequent
+Enter/Space requests its highlighted option and closes it. Up/Down opens it;
+while open, arrows move through enabled options and Home/End reach the ends.
+Highlighting alone does not request a selection. Escape cancels; Tab/Shift-Tab
+closes and continues ordinary traversal. Pointer or accessibility activation of
+an enabled option requests its stable ID. Outside clicks dismiss without choosing.
+
+Rust owns open state, one active ID and a scroll handle. Focus stays on the
+trigger; option semantics use active-descendant state and expose the committed
+selection independently. Losing focus, disabling or removing the control closes
+its popup. Reordering preserves the active ID and reveals its new position.
+Removing/disabling the active option reconciles to a valid fallback. No popup
+query or open-state event needs an OCaml round trip.
+
+GPUI's `uniform_list` renders only visible fixed-height rows (32 logical pixels),
+with a maximum of eight rows visible. The surface is 320 logical pixels wide,
+clamped to the viewport; labels clip horizontally. Deferred positioning reads
+current-frame trigger bounds, prefers below, flips above when needed and clamps
+to window margins. An explicit surface blocks pointer input to covered content.
+The native test checks a 4096-option collection, offscreen navigation and reorder.
+
+The trigger accepts the ordinary style API and Selected refinements apply to
+committed selected options. The popup currently uses native light/dark defaults;
+configurable popup/option presentation, type-ahead, empty-state presentation and
+integration with nested overlay scopes remain OCH-11 work. This initial adapter
+is not yet a claim of complete Select/GPUIX presentation parity. Select requires
+no additional native dependency or vendored patch.
 
 ## Native behavior and accessibility
 
@@ -80,7 +112,7 @@ backend preserves mixed values itself. It requires no dependency fork.
 ## Styling and bounded lifetime
 
 `Style.State` adds `Checked`, `Indeterminate`, `Disabled` and `Selected` vocabulary.
-Selected refinements apply to the committed selected radio option. Base
+Selected refinements apply to committed selected radio/select options. Base
 properties are refined by the applicable value state, then focus/hover/pressed.
 Disabled controls suppress hover/pressed and apply disabled refinements with a
 default opacity of 0.5. Checkbox/switch indicators inherit foreground color,
@@ -97,12 +129,12 @@ limits for overlays and assets are still part of the remaining implementation.
 
 ## Protocol and checks
 
-Capability bit 16 advertises simple controls; bit 32 advertises stable choices
-(current mask 63). Append-only tags:
+Capability bit 16 advertises simple controls; bit 32 advertises stable choices;
+bit 64 advertises Select (current mask 127). Append-only tags:
 checkbox/switch kinds 5/6; Set_control operation 8; Control variants button 0,
 checkbox 1, switch 2; check states unchecked/checked/indeterminate 0/1/2. Each
 control's final Boolean is disabled. Semantic style states occupy 4 through 7.
-Radio-group kind 7, Set_choice operation 9 and Choice event 13 extend that schema.
+Radio-group kind 7, Select kind 8, Set_choice operation 9 and Choice event 13 extend that schema.
 Choice configurations are bounded to 4096 options and 256 KiB aggregate option
 ID/label text; their retained text and item records count against tree budgets.
 The decoder rejects unknown tags and malformed Booleans; retained-tree validation

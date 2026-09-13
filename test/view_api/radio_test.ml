@@ -115,3 +115,49 @@ let%expect_test "choice payload decoding rejects malformed IDs" =
   print_endline "CHOICE_PAYLOAD_PASS";
   [%expect {| CHOICE_PAYLOAD_PASS |}]
 ;;
+
+let%expect_test "select reuses choice routing and replaces a keyed radio identity" =
+  let t = Reconciler.create window in
+  let options = [ option "fast"; option "deep" ] in
+  let c = config options (Some "fast") in
+  let before = commit t c Choice.Id.to_string in
+  let old_node, old_handler =
+    List.find_map_exn before ~f:(function
+      | Wire.Op.Create (node, Radio_group, _, Some handler) -> Some (node, handler)
+      | _ -> None)
+  in
+  let update =
+    Reconciler.prepare
+      t
+      ~theme:Theme.default
+      (Some (View.select ~config:c ~on_select:Choice.Id.to_string ()))
+    |> Or_error.ok_exn
+  in
+  Reconciler.accept t update |> Or_error.ok_exn;
+  let operations =
+    match Reconciler.message update with
+    | Some (Wire.Message.Apply tx) -> tx.operations
+    | None | Some _ -> assert false
+  in
+  let node, handler =
+    List.find_map_exn operations ~f:(function
+      | Wire.Op.Create (node, Select, _, Some handler) -> Some (node, handler)
+      | _ -> None)
+  in
+  assert (not (Node_id.equal old_node node));
+  assert (
+    Option.is_none
+      (Reconciler.dispatch
+         t
+         (Wire.Event.Choice (window, old_node, old_handler, 1L, "deep"))));
+  print_s
+    [%sexp
+      (Reconciler.dispatch t (Wire.Event.Choice (window, node, handler, 2L, "deep"))
+       : string option)];
+  print_endline "radio replacement expires old selection routing";
+  [%expect
+    {|
+    (deep)
+    radio replacement expires old selection routing
+  |}]
+;;

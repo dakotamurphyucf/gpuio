@@ -1,7 +1,7 @@
 open Core
 
 let version = 1L
-let capabilities = 63L
+let capabilities = 127L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -14,6 +14,7 @@ module Kind = struct
     | Checkbox
     | Switch
     | Radio_group
+    | Select
   [@@deriving bin_io, equal, sexp_of]
 end
 

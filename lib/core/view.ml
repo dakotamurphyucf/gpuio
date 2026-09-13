@@ -10,6 +10,7 @@ module Kind = struct
     | Checkbox
     | Switch
     | Radio_group
+    | Select
   [@@deriving equal, sexp_of]
 end
 
@@ -240,6 +241,10 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; choice = Some { config; on_select }
   ; children = []
   }
+;;
+
+let select ?key ?(style = Style.empty) ~config ~on_select () =
+  { (radio_group ?key ~style ~config ~on_select ()) with kind = Select }
 ;;
 
 module Expert = struct

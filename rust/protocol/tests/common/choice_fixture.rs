@@ -12,6 +12,12 @@ pub fn request() -> Message {
                 "".into(),
                 Some(HandlerId::from_parts(5, 4).unwrap()),
             ),
+            Op::Create(
+                NodeId::from_parts(5, 3).unwrap(),
+                Kind::Select,
+                "".into(),
+                Some(HandlerId::from_parts(6, 4).unwrap()),
+            ),
             Op::SetChoice(
                 node,
                 ChoiceConfig {
