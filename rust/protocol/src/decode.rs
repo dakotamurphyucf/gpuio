@@ -103,6 +103,77 @@ impl Decoder<'_> {
         }
     }
 
+    fn drag_kind(&mut self) -> Result<crate::drag_drop::CustomKind, DecodeError> {
+        crate::drag_drop::CustomKind::new(self.bounded_text(128)?)
+            .map_err(|_| DecodeError::Malformed)
+    }
+
+    fn drag_payload(&mut self) -> Result<crate::drag_drop::Payload, DecodeError> {
+        use crate::drag_drop::{File, MAX_DATA_BYTES, MAX_FILES, Payload};
+        let payload = match self.tag()? {
+            0 => Payload::text(self.bounded_text(MAX_DATA_BYTES)?),
+            1 => {
+                let count = self.count(MAX_FILES)?;
+                if count == 0 {
+                    return Err(DecodeError::Malformed);
+                }
+                let mut files = Vec::with_capacity(count);
+                let mut remaining_bytes = MAX_DATA_BYTES;
+                for _ in 0..count {
+                    let length =
+                        self.count(remaining_bytes.min(crate::file_path::MAX_PATH_BYTES))?;
+                    let start = self.0.position() as usize;
+                    let bytes = self.0.get_ref()[start..start + length].to_vec();
+                    self.0.set_position((start + length) as u64);
+                    let path = crate::file_path::FilePath::new(bytes)
+                        .map_err(|_| DecodeError::Malformed)?;
+                    files.push(File {
+                        path,
+                        is_directory: self.option(Self::boolean)?,
+                    });
+                    remaining_bytes -= length;
+                }
+                Payload::files(files)
+            }
+            2 => {
+                let kind = self.drag_kind()?;
+                let length = self.count(MAX_DATA_BYTES)?;
+                let start = self.0.position() as usize;
+                let data = self.0.get_ref()[start..start + length].to_vec();
+                self.0.set_position((start + length) as u64);
+                Payload::custom(kind, data)
+            }
+            _ => return Err(DecodeError::Malformed),
+        };
+        payload.map_err(|_| DecodeError::Malformed)
+    }
+
+    fn drag_source(&mut self) -> Result<crate::drag_drop::Source, DecodeError> {
+        crate::drag_drop::Source::new(
+            self.bounded_text(4096)?,
+            self.drag_payload()?,
+            self.boolean()?,
+            self.boolean()?,
+        )
+        .map_err(|_| DecodeError::Malformed)
+    }
+
+    fn drag_target(&mut self) -> Result<crate::drag_drop::Target, DecodeError> {
+        use crate::drag_drop::{Format, MAX_FORMATS, Target};
+        let label = self.bounded_text(4096)?;
+        let count = self.count(MAX_FORMATS)?;
+        let mut formats = Vec::with_capacity(count);
+        for _ in 0..count {
+            formats.push(match self.tag()? {
+                0 => Format::Text,
+                1 => Format::Files,
+                2 => Format::Custom(self.drag_kind()?),
+                _ => return Err(DecodeError::Malformed),
+            });
+        }
+        Target::new(label, formats, self.boolean()?).map_err(|_| DecodeError::Malformed)
+    }
+
     fn window(&mut self) -> Result<WindowId, DecodeError> {
         WindowId::from_parts(self.int()?, self.int()?).ok_or(DecodeError::Malformed)
     }
@@ -701,4 +772,27 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
         return Err(DecodeError::Malformed);
     }
     Ok(value)
+}
+
+fn decode_drag_data<T>(
+    bytes: &[u8],
+    read: impl FnOnce(&mut Decoder<'_>) -> Result<T, DecodeError>,
+) -> Result<T, DecodeError> {
+    if bytes.len() > MAX_MESSAGE_BYTES {
+        return Err(DecodeError::LimitExceeded);
+    }
+    let mut decoder = Decoder(Cursor::new(bytes));
+    let value = read(&mut decoder)?;
+    if decoder.remaining() != 0 {
+        return Err(DecodeError::Malformed);
+    }
+    Ok(value)
+}
+
+pub(crate) fn decode_drag_source(bytes: &[u8]) -> Result<crate::drag_drop::Source, DecodeError> {
+    decode_drag_data(bytes, |decoder| decoder.drag_source())
+}
+
+pub(crate) fn decode_drag_target(bytes: &[u8]) -> Result<crate::drag_drop::Target, DecodeError> {
+    decode_drag_data(bytes, |decoder| decoder.drag_target())
 }

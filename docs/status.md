@@ -295,3 +295,12 @@ and Eio-read regressions pass after sharing the correlated query path. See the
 [file-dialog capability evidence](evidence/native-file-dialogs-och11.md). Linux
 build/unit verification (including three ignored-on-macOS Wayland tests), remaining
 OCH-11 feature families, consolidated CI and merge are still required.
+
+OCH-11 drag/drop now has validated OCaml/Rust payload, source and target models,
+plus bounded bin_prot codecs and independent byte fixtures. Text, raw Unix paths
+and opaque custom data retain distinct validation rules; desktop-file offering
+requires explicit directory metadata and native target acceptance uses an exact
+format allowlist. Full local workspace Clippy/Rust and Dune build/tests/format
+pass. These are data/configuration tests, with no native drag/drop interaction
+claimed yet. View/event/native ownership integration is next; see the
+[drag/drop design and remaining acceptance](design/drag-and-drop.md).

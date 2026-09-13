@@ -1,6 +1,8 @@
 open Core
 
 module type S = sig
+  module Drag_and_drop = Drag_and_drop_wire
+
   val version : int64
   val capabilities : int64
   val max_message_bytes : int

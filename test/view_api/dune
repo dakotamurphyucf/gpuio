@@ -20,6 +20,8 @@
    file-dialog-capabilities-v1-events.hex
    pointer-v1-request.hex
    pointer-v1-events.hex
+   drag-drop-v1-sources.hex
+   drag-drop-v1-target.hex
    toast-v1-request.hex
    toast-v1-events.hex
    progress-v1-request.hex
@@ -93,3 +95,7 @@
 (copy_files ../fixtures/file-dialog-capabilities-v1-request.hex)
 
 (copy_files ../fixtures/file-dialog-capabilities-v1-events.hex)
+
+(copy_files ../fixtures/drag-drop-v1-sources.hex)
+
+(copy_files ../fixtures/drag-drop-v1-target.hex)

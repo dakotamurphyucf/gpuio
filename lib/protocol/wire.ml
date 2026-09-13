@@ -636,6 +636,8 @@ module Pointer = struct
   end
 end
 
+module Drag_and_drop = Drag_and_drop_wire
+
 module Op = struct
   type t =
     | Create of Node_id.t * Kind.t * string * Handler_id.t option
