@@ -9,6 +9,7 @@ module Kind = struct
     | Textarea
     | Checkbox
     | Switch
+    | Radio_group
   [@@deriving equal, sexp_of]
 end
 
@@ -45,6 +46,11 @@ type 'action editor =
   ; on_event : Text_input.Event.t -> 'action
   }
 
+type 'action choice =
+  { config : Choice.Config.t
+  ; on_select : Choice.Id.t -> 'action
+  }
+
 type 'action t =
   { key : Key.t option
   ; kind : Kind.t
@@ -53,6 +59,7 @@ type 'action t =
   ; on_click : (unit -> 'action) option
   ; editor : 'action editor option
   ; control : Control.t option
+  ; choice : 'action choice option
   ; children : 'action t list
   }
 
@@ -63,6 +70,7 @@ let text ?key ?(style = Style.empty) text =
   ; style
   ; on_click = None
   ; editor = None
+  ; choice = None
   ; control = None
   ; children = []
   }
@@ -94,6 +102,7 @@ let button ?key ?(style = Style.empty) ?accessible_name ?(disabled = false) ~on_
   ; style = Style.merge [ defaults; style ]
   ; on_click = (if disabled then None else Some on_click)
   ; editor = None
+  ; choice = None
   ; control = Some (Button { disabled })
   ; children = []
   }
@@ -134,6 +143,7 @@ let toggle
   ; style = Style.merge [ defaults; style ]
   ; on_click = (if disabled then None else Some on_toggle)
   ; editor = None
+  ; choice = None
   ; control = Some control
   ; children = []
   }
@@ -170,6 +180,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; style = Style.merge [ Style.create_exn defaults; style ]
   ; on_click = None
   ; editor = None
+  ; choice = None
   ; control = None
   ; children
   }
@@ -212,7 +223,21 @@ let text_input
   ; style
   ; on_click = None
   ; editor = Some { controller; config; on_event }
+  ; choice = None
   ; control = None
+  ; children = []
+  }
+;;
+
+let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
+  { key
+  ; kind = Radio_group
+  ; text = ""
+  ; style
+  ; on_click = None
+  ; editor = None
+  ; control = None
+  ; choice = Some { config; on_select }
   ; children = []
   }
 ;;
@@ -220,6 +245,11 @@ let text_input
 module Expert = struct
   module Kind = Kind
   module Control = Control
+
+  type nonrec 'action choice = 'action choice =
+    { config : Choice.Config.t
+    ; on_select : Choice.Id.t -> 'action
+    }
 
   type nonrec 'action editor = 'action editor =
     { controller : Key.t
@@ -235,6 +265,7 @@ module Expert = struct
     ; on_click : (unit -> 'action) option
     ; editor : 'action editor option
     ; control : Control.t option
+    ; choice : 'action choice option
     ; children : 'action t list
     }
 

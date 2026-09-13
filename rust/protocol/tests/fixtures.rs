@@ -22,8 +22,31 @@ fn independent_ocaml_rust_request_and_event_fixtures() {
     assert_eq!(actual, events);
 }
 
+#[path = "common/choice_fixture.rs"]
+mod choice_fixture;
 #[path = "common/control_fixture.rs"]
 mod control_fixture;
+
+#[test]
+fn stable_choice_requests_and_events_match_ocaml() {
+    let expected = bytes(include_str!("../../../test/fixtures/choice-v1-request.hex"));
+    let request = choice_fixture::request();
+    let mut actual = Vec::new();
+    request.binprot_write(&mut actual).unwrap();
+    assert_eq!(actual, expected);
+    assert_eq!(gpuio_protocol::decode(&expected).unwrap(), request);
+    for length in 0..expected.len() {
+        assert!(gpuio_protocol::decode(&expected[..length]).is_err());
+    }
+    actual.push(0);
+    assert!(gpuio_protocol::decode(&actual).is_err());
+    actual.clear();
+    choice_fixture::events().binprot_write(&mut actual).unwrap();
+    assert_eq!(
+        actual,
+        bytes(include_str!("../../../test/fixtures/choice-v1-events.hex"))
+    );
+}
 #[path = "common/editor_fixture.rs"]
 mod editor_fixture;
 #[path = "common/style_fixture.rs"]

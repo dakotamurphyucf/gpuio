@@ -274,7 +274,8 @@ let process t = function
         Option.iter window.driver ~f:(fun driver ->
           Driver.acknowledge driver ~revision |> Or_error.ok_exn));
     Inbox.wake t.inbox
-  | (Press (id, _, _, _) | Editor_event (id, _, _, _, _, _)) as event ->
+  | (Press (id, _, _, _) | Editor_event (id, _, _, _, _, _) | Choice (id, _, _, _, _)) as
+    event ->
     Option.iter (find_window t id) ~f:(fun window ->
       if not (Window.is_closed window)
       then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))

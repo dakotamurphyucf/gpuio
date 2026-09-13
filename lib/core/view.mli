@@ -63,6 +63,16 @@ val text_input
   -> unit
   -> 'action t Or_error.t
 
+(** One native Tab stop. Arrow/Home/End keys navigate enabled options; native
+    activation requests a stable option ID. OCaml owns the selected value. *)
+val radio_group
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Choice.Config.t
+  -> on_select:(Choice.Id.t -> 'action)
+  -> unit
+  -> 'action t
+
 module Expert : sig
   module Kind : sig
     type t =
@@ -73,6 +83,7 @@ module Expert : sig
       | Textarea
       | Checkbox
       | Switch
+      | Radio_group
     [@@deriving equal, sexp_of]
   end
 
@@ -92,6 +103,11 @@ module Expert : sig
     val to_wire : t -> Gpuio_protocol.Wire.Control.t
   end
 
+  type 'action choice =
+    { config : Choice.Config.t
+    ; on_select : Choice.Id.t -> 'action
+    }
+
   type 'action editor =
     { controller : Key.t
     ; config : Text_input.Config.t
@@ -106,6 +122,7 @@ module Expert : sig
     ; on_click : (unit -> 'action) option
     ; editor : 'action editor option
     ; control : Control.t option
+    ; choice : 'action choice option
     ; children : 'action t list
     }
 

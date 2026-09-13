@@ -101,9 +101,11 @@ Wayland passed public editor commands but its clipboard-based native test failed
 before insertion, tracked in OCH-17. These checks do not claim physical IME
 candidate-panel or complete screen-reader coverage.
 
-OCH-11 is in progress: controlled checkboxes/switches, disabled buttons and their
-native keyboard/focus/accessibility contracts are implemented on the working
-branch. [Native controls](design/native-controls.md) records this first family
+OCH-11 is in progress: controlled checkboxes/switches and disabled buttons merged
+in PR #7 (`0ef2c7dc5b71235c090d4dc6373f505db69624e5`); CI 34747606484 passed both
+required jobs and control windows on macOS, X11 and Wayland. The existing Wayland
+editor clipboard limitation remains under OCH-17. Radio-group implementation
+extends the shared stable-choice contract. [Native controls](design/native-controls.md) records these families
 and the remaining ticket scope. OCH-12 declarative animations follows.
 The broader component catalog is planned in OCH-33–45; vendoring GPUI Base does
 not expose all of those widgets through the OCaml API.

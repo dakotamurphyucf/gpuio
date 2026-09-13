@@ -14,6 +14,7 @@ pub const MAX_INPUT_BYTES: usize = 4 * MAX_MESSAGE_BYTES;
 // by MAX_TEXT_BYTES, hence at most MAX_RESPONSES * (MAX_TEXT_BYTES + 256).
 fn event_bytes(event: &Event) -> usize {
     256 + match event {
+        Event::Choice(_, _, _, _, id) => id.len(),
         Event::EditorEvent(_, _, _, _, _, snapshot)
         | Event::EditorResult(_, _, _, EditorResult::Applied(snapshot)) => snapshot.text.len(),
         _ => 0,
@@ -189,6 +190,7 @@ impl Mailbox {
             | Event::FrameRequested(_, id, _)
             | Event::Press(id, ..)
             | Event::EditorEvent(id, ..)
+            | Event::Choice(id, ..)
             | Event::EditorResult(_, id, ..)
             | Event::Overloaded(id) => id.slot() == window_slot,
             Event::Welcome(..) | Event::Failed(..) | Event::Stopped => false,

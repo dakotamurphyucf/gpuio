@@ -190,6 +190,23 @@ impl Session {
         .then_some(Event::Press(id, node, handler, revision))
     }
 
+    pub fn choose(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        selected: &str,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        (!window.overloaded
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && window.tree.accepts_handler(node, handler)
+            && window.tree.get(node)?.choice.as_ref()?.can_select(selected))
+        .then(|| Event::Choice(id, node, handler, revision, selected.to_owned()))
+    }
+
     pub fn overload(&mut self, id: WindowId) -> bool {
         let Ok(window) = self.window_mut(id) else {
             return false;

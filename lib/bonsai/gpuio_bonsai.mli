@@ -37,6 +37,15 @@ module View : sig
     -> t
 
   val row : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> t list -> t
+
+  val radio_group
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Choice.Config.t
+    -> on_select:(Gpuio.Choice.Id.t -> unit Bonsai.Effect.t)
+    -> unit
+    -> t
+
   val column : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> t list -> t
 
   val grid

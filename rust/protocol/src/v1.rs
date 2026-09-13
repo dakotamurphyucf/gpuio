@@ -7,8 +7,9 @@ pub const CAP_NATIVE_STYLES: i64 = 2;
 pub const CAP_FRAME_EVENTS: i64 = 4;
 pub const CAP_EDITOR: i64 = 8;
 pub const CAP_CONTROLS: i64 = 16;
+pub const CAP_CHOICES: i64 = 32;
 pub const CAPABILITIES: i64 =
-    CAP_TREE | CAP_NATIVE_STYLES | CAP_FRAME_EVENTS | CAP_EDITOR | CAP_CONTROLS;
+    CAP_TREE | CAP_NATIVE_STYLES | CAP_FRAME_EVENTS | CAP_EDITOR | CAP_CONTROLS | CAP_CHOICES;
 pub const EDITOR_HISTORY_BYTES: usize = 2 * 1024 * 1024;
 pub const EDITOR_RESERVED_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_MESSAGE_BYTES: usize = 1_048_576;
@@ -30,6 +31,64 @@ pub enum Kind {
     Textarea,
     Checkbox,
     Switch,
+    RadioGroup,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct ChoiceItem {
+    pub id: String,
+    pub label: String,
+    pub disabled: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct ChoiceConfig {
+    pub label: String,
+    pub items: Vec<ChoiceItem>,
+    pub selected: Option<String>,
+    pub disabled: bool,
+}
+impl ChoiceConfig {
+    pub fn is_valid(&self) -> bool {
+        fn text(value: &str, max: usize) -> bool {
+            !value.is_empty() && value.len() <= max && !value.contains('\0')
+        }
+        if !text(&self.label, 1024) || self.items.len() > 4096 {
+            return false;
+        }
+        let mut ids = std::collections::BTreeSet::new();
+        let mut bytes = 0;
+        for item in &self.items {
+            bytes += item.id.len() + item.label.len();
+            if !text(&item.id, 256)
+                || !text(&item.label, 4096)
+                || bytes > MAX_TEXT_BYTES
+                || !ids.insert(item.id.as_str())
+            {
+                return false;
+            }
+        }
+        self.selected
+            .as_ref()
+            .is_none_or(|selected| ids.contains(selected.as_str()))
+    }
+    pub fn can_select(&self, id: &str) -> bool {
+        !self.disabled
+            && self
+                .items
+                .iter()
+                .any(|item| item.id == id && !item.disabled)
+    }
+    pub fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + self.label.len()
+            + self.selected.as_ref().map_or(0, String::len)
+            + self
+                .items
+                .iter()
+                .map(|item| std::mem::size_of::<ChoiceItem>() + item.id.len() + item.label.len())
+                .sum::<usize>()
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -275,6 +334,7 @@ pub enum Op {
     SetRoot(Option<NodeId>),
     SetEditor(NodeId, EditorConfig),
     SetControl(NodeId, Control),
+    SetChoice(NodeId, ChoiceConfig),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -334,4 +394,5 @@ pub enum Event {
         EditorSnapshot,
     ),
     EditorResult(i64, WindowId, NodeId, EditorResult),
+    Choice(WindowId, NodeId, HandlerId, i64, String),
 }

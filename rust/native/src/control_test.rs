@@ -22,6 +22,198 @@ fn presses(transport: &Transport) -> Vec<NodeId> {
         })
         .collect()
 }
+
+fn choices(transport: &Transport) -> Vec<String> {
+    transport
+        .mailbox
+        .lock()
+        .unwrap()
+        .drain(128)
+        .into_iter()
+        .filter_map(|event| {
+            if let Event::Choice(_, _, _, _, selected) = event {
+                Some(selected)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+async fn radio(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport: &Transport) {
+    let mut config = ChoiceConfig {
+        label: "Mode".into(),
+        selected: Some("fast".into()),
+        disabled: false,
+        items: [
+            ("fast", "Fast", false),
+            ("blocked", "Disabled option", true),
+            ("deep", "Deep", false),
+        ]
+        .into_iter()
+        .map(|(id, label, disabled)| ChoiceItem {
+            id: id.into(),
+            label: label.into(),
+            disabled,
+        })
+        .collect(),
+    };
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Create(
+                node(5),
+                Kind::RadioGroup,
+                "".into(),
+                Some(gpuio_protocol::HandlerId::from_parts(5, 1).unwrap()),
+            ),
+            Op::SetChoice(node(5), config.clone()),
+            Op::SetStyle(
+                node(5),
+                vec![Style::Fields(vec![Field::Width(Length::Px(300.))])],
+            ),
+            Op::Splice(node(0), 4, 0, vec![node(5)]),
+        ],
+    );
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, window, cx| {
+            window.focus(&view.editors[&node(4)].focus_handle(cx), cx)
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    key(cx, handle, "tab");
+    frame(cx, handle).await;
+    assert!(focused(cx, handle, node(5)), "radio group is one Tab stop");
+    choices(transport);
+    key(cx, handle, "down");
+    key(cx, handle, "down");
+    assert_eq!(
+        choices(transport),
+        ["deep", "fast"],
+        "skip disabled, wrap, and preserve consecutive navigation before value commits"
+    );
+    key(cx, handle, "end");
+    assert_eq!(choices(transport), ["deep"]);
+    // Committed selected value is independent of the active navigation target.
+    handle
+        .update(cx, |view, _, _| {
+            assert_eq!(
+                view.session
+                    .borrow()
+                    .tree(view.id)
+                    .unwrap()
+                    .get(node(5))
+                    .unwrap()
+                    .choice
+                    .as_ref()
+                    .unwrap()
+                    .selected
+                    .as_deref(),
+                Some("fast")
+            )
+        })
+        .unwrap();
+    config.items.reverse();
+    apply(cx, handle, vec![Op::SetChoice(node(5), config.clone())]);
+    frame(cx, handle).await;
+    key(cx, handle, "space");
+    assert_eq!(
+        choices(transport),
+        ["deep"],
+        "reorder retains active option ID"
+    );
+    #[cfg(target_os = "macos")]
+    {
+        let _ = accessible(cx, handle, "Fast", false);
+        frame(cx, handle).await;
+        assert_eq!(
+            accessible(cx, handle, "Fast", false),
+            Some(Accessible {
+                role: "AXRadioButton".into(),
+                value: 1,
+                enabled: true
+            })
+        );
+        assert_eq!(
+            accessible(cx, handle, "Deep", true),
+            Some(Accessible {
+                role: "AXRadioButton".into(),
+                value: 0,
+                enabled: true
+            })
+        );
+        frame(cx, handle).await;
+        assert_eq!(choices(transport), ["deep"]);
+        assert_eq!(
+            accessible(cx, handle, "Disabled option", false),
+            Some(Accessible {
+                role: "AXRadioButton".into(),
+                value: 0,
+                enabled: false
+            })
+        );
+    }
+    config.items.retain(|item| item.id != "deep");
+    apply(cx, handle, vec![Op::SetChoice(node(5), config.clone())]);
+    frame(cx, handle).await;
+    key(cx, handle, "space");
+    assert_eq!(
+        choices(transport),
+        ["fast"],
+        "removed active option falls back to a valid value"
+    );
+    config.disabled = true;
+    apply(cx, handle, vec![Op::SetChoice(node(5), config.clone())]);
+    frame(cx, handle).await;
+    assert!(
+        !focused(cx, handle, node(5)),
+        "disabled group releases focus"
+    );
+    key(cx, handle, "space");
+    assert!(choices(transport).is_empty());
+    handle
+        .update(cx, |view, window, cx| {
+            window.focus(&view.editors[&node(4)].focus_handle(cx), cx)
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    key(cx, handle, "tab");
+    frame(cx, handle).await;
+    assert!(!focused(cx, handle, node(5)), "disabled group is skipped");
+    config.disabled = false;
+    apply(cx, handle, vec![Op::SetChoice(node(5), config)]);
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, window, cx| {
+            window.focus(&view.buttons[&node(5)].focus, cx)
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    key(cx, handle, "shift-tab");
+    frame(cx, handle).await;
+    assert!(
+        focused(cx, handle, node(4)),
+        "radio options do not add duplicate Tab stops"
+    );
+    apply(
+        cx,
+        handle,
+        vec![Op::Remove(node(5)), Op::Splice(node(0), 4, 1, vec![])],
+    );
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, _, _| assert!(view.radios.is_empty()))
+        .unwrap();
+    println!(
+        "GPUIO_RADIO_NATIVE_OK: stable choices, arrow navigation, disabled options/groups, reorder, single Tab stop and disposal"
+    );
+    #[cfg(target_os = "macos")]
+    println!(
+        "GPUIO_RADIO_MACOS_AX_OK: option roles, checked values, disabled state and activation"
+    );
+}
 fn apply(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, operations: Vec<Op>) {
     handle
         .update(cx, |view, window, cx| {
@@ -253,6 +445,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
             })
         );
     }
+    radio(cx, handle, &transport).await;
     // Remove a focused native node and enter the surviving Tab order again.
     handle
         .update(cx, |view, window, cx| {

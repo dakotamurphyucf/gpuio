@@ -77,3 +77,49 @@ module Collection = struct
       else Or_error.errorf "selected choice does not exist: %s" (Id.to_string id)
   ;;
 end
+
+module Config = struct
+  type t =
+    { label : string
+    ; options : Collection.t
+    ; selected : Id.t option
+    ; disabled : bool
+    }
+  [@@deriving equal, sexp_of]
+
+  let create ~label ~options ~selected ?(disabled = false) () =
+    let open Or_error.Let_syntax in
+    let%bind () = validate_text ~name:"choice control label" ~max_bytes:1024 label in
+    let%map () = Collection.validate_selection options selected in
+    { label; options; selected; disabled }
+  ;;
+
+  let label t = t.label
+  let options t = t.options
+  let selected t = t.selected
+  let is_disabled t = t.disabled
+
+  let can_select t id =
+    (not t.disabled)
+    && Option.value_map (Collection.find t.options id) ~default:false ~f:(fun item ->
+      not item.disabled)
+  ;;
+end
+
+module Expert = struct
+  let config_to_wire t : Gpuio_protocol.Wire.Choice.Config.t =
+    { label = Config.label t
+    ; items =
+        List.map
+          (Collection.to_list (Config.options t))
+          ~f:(fun item ->
+            ({ id = Id.to_string (id item)
+             ; label = label item
+             ; disabled = is_disabled item
+             }
+             : Gpuio_protocol.Wire.Choice.Item.t))
+    ; selected = Option.map (Config.selected t) ~f:Id.to_string
+    ; disabled = Config.is_disabled t
+    }
+  ;;
+end
