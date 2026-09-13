@@ -15,6 +15,7 @@ module type S = sig
       | Checkbox
       | Switch
       | Radio_group
+      | Select
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -186,6 +187,19 @@ module type S = sig
     [@@deriving bin_io, equal, sexp_of]
   end
 
+  module Choice_appearance : sig
+    type t =
+      { popup_width : float
+      ; row_height : float
+      ; max_visible_rows : int64
+      ; empty_label : string
+      ; popup_style : Style.t list
+      ; option_style : Style.t list
+      ; empty_style : Style.t list
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
   module Editor : sig
     module Selection : sig
       type t =
@@ -288,6 +302,7 @@ module type S = sig
       | Set_editor of Node_id.t * Editor.Config.t
       | Set_control of Node_id.t * Control.t
       | Set_choice of Node_id.t * Choice.Config.t
+      | Set_choice_appearance of Node_id.t * Choice_appearance.t
     [@@deriving bin_io, equal, sexp_of]
   end
 

@@ -1,7 +1,7 @@
 open Core
 
 let version = 1L
-let capabilities = 63L
+let capabilities = 255L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -14,6 +14,7 @@ module Kind = struct
     | Checkbox
     | Switch
     | Radio_group
+    | Select
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -184,6 +185,19 @@ module Style = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Choice_appearance = struct
+  type t =
+    { popup_width : float
+    ; row_height : float
+    ; max_visible_rows : int64
+    ; empty_label : string
+    ; popup_style : Style.t list
+    ; option_style : Style.t list
+    ; empty_style : Style.t list
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Editor = struct
   module Selection = struct
     type t =
@@ -286,6 +300,7 @@ module Op = struct
     | Set_editor of Node_id.t * Editor.Config.t
     | Set_control of Node_id.t * Control.t
     | Set_choice of Node_id.t * Choice.Config.t
+    | Set_choice_appearance of Node_id.t * Choice_appearance.t
   [@@deriving bin_io, equal, sexp_of]
 end
 

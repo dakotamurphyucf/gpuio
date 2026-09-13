@@ -78,6 +78,7 @@ type 'a mounted =
   ; id : Node_id.t
   ; handler : Handler_id.t option
   ; style : Wire.Style.t list
+  ; choice_appearance : Wire.Choice_appearance.t option
   ; children : 'a mounted list
   ; controllers : String.Set.t
   }
@@ -173,6 +174,7 @@ let kind = function
   | Checkbox -> Checkbox
   | Switch -> Switch
   | Radio_group -> Radio_group
+  | Select -> Select
 ;;
 
 let compatible mounted view =
@@ -306,6 +308,18 @@ let rec mount builder ~depth previous view =
       in
       if not (Option.equal Choice.Config.equal old (Some choice.config))
       then emit builder (Set_choice (id, Choice.Expert.config_to_wire choice.config)));
+    let choice_appearance =
+      Option.bind description.choice ~f:(fun choice -> choice.appearance)
+      |> Option.map ~f:(fun appearance ->
+        Choice.Expert.appearance_to_wire appearance ~theme:builder.theme |> value)
+    in
+    let old_appearance =
+      Option.bind previous ~f:(fun mounted -> mounted.choice_appearance)
+    in
+    if not (Option.equal Wire.Choice_appearance.equal old_appearance choice_appearance)
+    then
+      Option.iter choice_appearance ~f:(fun appearance ->
+        emit builder (Set_choice_appearance (id, appearance)));
     let style = Style.Expert.to_wire description.style ~theme:builder.theme |> value in
     let old_style =
       Option.value_map previous ~default:[] ~f:(fun mounted -> mounted.style)
@@ -346,7 +360,7 @@ let rec mount builder ~depth previous view =
         then fail "text input controller appears more than once in a window";
         Set.union keys child.controllers)
     in
-    { view; id; handler; style; children; controllers }
+    { view; id; handler; style; choice_appearance; children; controllers }
 ;;
 
 let prepare t ~theme view =

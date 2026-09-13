@@ -12,6 +12,21 @@ let request =
     ; revision = 128L
     ; operations =
         [ Create (node, Radio_group, "", Some handler)
+        ; Create
+            ( Node_id.create ~slot:5L ~generation:3L |> Or_error.ok_exn
+            , Select
+            , ""
+            , Some (Handler_id.create ~slot:6L ~generation:4L |> Or_error.ok_exn) )
+        ; Set_choice_appearance
+            ( Node_id.create ~slot:5L ~generation:3L |> Or_error.ok_exn
+            , { popup_width = 240.
+              ; row_height = 48.
+              ; max_visible_rows = 3L
+              ; empty_label = "Keine Optionen"
+              ; popup_style = [ Fields [ Foreground (Rgba 0x112233ffL) ] ]
+              ; option_style = [ State (1L, [ Background (Solid (Rgba 0xabcdef80L)) ]) ]
+              ; empty_style = []
+              } )
         ; Set_choice
             ( node
             , { label = "Mode"

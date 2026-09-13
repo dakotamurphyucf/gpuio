@@ -302,5 +302,13 @@ val with_state : t -> State.t -> Property.t list -> t Or_error.t
 val with_state_exn : t -> State.t -> Property.t list -> t
 
 module Expert : sig
+  val declaration_count : t -> int
+
+  val validate_scope
+    :  t
+    -> states:State.t list
+    -> properties:Property.Name.t list
+    -> unit Or_error.t
+
   val to_wire : t -> theme:Theme.t -> Gpuio_protocol.Wire.Style.t list Or_error.t
 end

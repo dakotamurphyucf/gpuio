@@ -106,7 +106,116 @@ module Config = struct
   ;;
 end
 
+module Appearance = struct
+  type t =
+    { popup_width : float
+    ; row_height : float
+    ; max_visible_rows : int
+    ; empty_label : string
+    ; popup_style : Style.t
+    ; option_style : Style.t
+    ; empty_style : Style.t
+    }
+  [@@deriving equal, sexp_of]
+
+  let properties =
+    let open Style.Property.Name in
+    [ Background
+    ; Foreground
+    ; Opacity
+    ; Border_color
+    ; Shadows
+    ; Top_left_radius
+    ; Top_right_radius
+    ; Bottom_left_radius
+    ; Bottom_right_radius
+    ; Font_size
+    ; Font_family
+    ; Font_weight
+    ; Text_align
+    ; Line_height
+    ; White_space
+    ; Text_overflow
+    ; Line_clamp
+    ; Text_decoration
+    ; Cursor
+    ]
+  ;;
+
+  let create
+        ?(popup_width = 320.)
+        ?(row_height = 32.)
+        ?(max_visible_rows = 8)
+        ?(empty_label = "No options")
+        ?(popup_style = Style.empty)
+        ?(option_style = Style.empty)
+        ?(empty_style = Style.empty)
+        ()
+    =
+    let valid value =
+      Float.is_finite value && Float.(value > 0. && value <= 1_000_000.)
+    in
+    let open Or_error.Let_syntax in
+    let%bind () =
+      if
+        valid popup_width
+        && valid row_height
+        && max_visible_rows >= 1
+        && max_visible_rows <= 64
+      then Ok ()
+      else Or_error.error_string "invalid choice appearance geometry"
+    in
+    let%bind () = validate_text ~name:"empty choice label" ~max_bytes:1024 empty_label in
+    let%bind () =
+      Style.Expert.validate_scope popup_style ~states:[ Base; Hovered ] ~properties
+    in
+    let%bind () =
+      Style.Expert.validate_scope
+        option_style
+        ~states:[ Base; Focused; Hovered; Pressed; Selected; Disabled ]
+        ~properties
+    in
+    let%bind () = Style.Expert.validate_scope empty_style ~states:[ Base ] ~properties in
+    let%map () =
+      if
+        List.sum
+          (module Int)
+          [ popup_style; option_style; empty_style ]
+          ~f:Style.Expert.declaration_count
+        <= 128
+      then Ok ()
+      else Or_error.error_string "choice appearance exceeds 128 declarations"
+    in
+    { popup_width
+    ; row_height
+    ; max_visible_rows
+    ; empty_label
+    ; popup_style
+    ; option_style
+    ; empty_style
+    }
+  ;;
+
+  let default = create () |> Or_error.ok_exn
+end
+
 module Expert = struct
+  let appearance_to_wire (t : Appearance.t) ~theme =
+    let open Or_error.Let_syntax in
+    let%bind popup_style = Style.Expert.to_wire t.popup_style ~theme in
+    let%bind option_style = Style.Expert.to_wire t.option_style ~theme in
+    let%map empty_style = Style.Expert.to_wire t.empty_style ~theme in
+    ({ popup_width = t.popup_width
+     ; row_height = t.row_height
+     ; max_visible_rows = Int64.of_int t.max_visible_rows
+     ; empty_label = t.empty_label
+     ; popup_style
+     ; option_style
+     ; empty_style
+     }
+     : Gpuio_protocol.Wire.Choice_appearance.t)
+  ;;
+
   let config_to_wire t : Gpuio_protocol.Wire.Choice.Config.t =
     { label = Config.label t
     ; items =

@@ -251,6 +251,7 @@ impl Decoder<'_> {
                     5 => Kind::Checkbox,
                     6 => Kind::Switch,
                     7 => Kind::RadioGroup,
+                    8 => Kind::Select,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -269,6 +270,18 @@ impl Decoder<'_> {
             7 => Op::SetEditor(self.node()?, self.editor_config()?),
             8 => Op::SetControl(self.node()?, self.control()?),
             9 => Op::SetChoice(self.node()?, self.choice_config()?),
+            10 => Op::SetChoiceAppearance(
+                self.node()?,
+                ChoiceAppearance {
+                    popup_width: self.float()?,
+                    row_height: self.float()?,
+                    max_visible_rows: self.int()?,
+                    empty_label: self.text()?,
+                    popup_style: self.list(MAX_STYLE_FIELDS, Self::style)?,
+                    option_style: self.list(MAX_STYLE_FIELDS, Self::style)?,
+                    empty_style: self.list(MAX_STYLE_FIELDS, Self::style)?,
+                },
+            ),
             _ => return Err(DecodeError::Malformed),
         })
     }

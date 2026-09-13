@@ -15,13 +15,21 @@ use std::{
 };
 
 type SharedSession = Rc<RefCell<Session>>;
+#[path = "choice.rs"]
+mod choice;
 #[path = "editor.rs"]
 mod editor;
 #[cfg(feature = "native-tests")]
 #[path = "editor_test.rs"]
 pub(super) mod editor_test;
+#[path = "popup.rs"]
+mod popup;
 #[path = "radio.rs"]
 mod radio;
+#[path = "select.rs"]
+mod select;
+#[path = "typeahead.rs"]
+mod typeahead;
 struct ButtonState {
     focus: gpui::FocusHandle,
 }
@@ -49,7 +57,8 @@ struct View {
     selections: BTreeMap<NodeId, Rc<RefCell<crate::selection::State>>>,
     editors: BTreeMap<NodeId, editor::Instance>,
     root_focus: Option<gpui::FocusHandle>,
-    radios: BTreeMap<NodeId, Rc<RefCell<radio::State>>>,
+    selects: BTreeMap<NodeId, Rc<RefCell<select::State>>>,
+    radios: BTreeMap<NodeId, Rc<RefCell<choice::State>>>,
     visited: std::collections::BTreeSet<NodeId>,
     #[cfg(feature = "native-tests")]
     probes: Rc<RefCell<BTreeMap<NodeId, native_test::Probe>>>,
@@ -149,6 +158,7 @@ impl View {
             editors: BTreeMap::new(),
             root_focus: None,
             radios: BTreeMap::new(),
+            selects: BTreeMap::new(),
             visited: Default::default(),
             #[cfg(feature = "native-tests")]
             probes: Default::default(),
@@ -212,6 +222,16 @@ impl View {
         let mut element = div().id(("gpuio-node", identity));
         if matches!(node.kind, Kind::Container | Kind::RadioGroup) {
             element = element.flex().flex_col();
+        } else if node.kind == Kind::Select {
+            element = element
+                .flex()
+                .items_center()
+                .justify_between()
+                .gap(px(8.))
+                .p(px(8.))
+                .border_1()
+                .border_color(rgba(0x80808080))
+                .rounded(px(4.));
         }
         let disabled = node.choice.as_ref().is_some_and(|config| config.disabled)
             || node.control.is_some_and(Control::disabled)
@@ -226,7 +246,7 @@ impl View {
         );
         if matches!(
             node.kind,
-            Kind::Button | Kind::Checkbox | Kind::Switch | Kind::RadioGroup
+            Kind::Button | Kind::Checkbox | Kind::Switch | Kind::RadioGroup | Kind::Select
         ) {
             self.visited.insert(id);
             let state = self
@@ -258,6 +278,7 @@ impl View {
                     Kind::Checkbox => gpui::Role::CheckBox,
                     Kind::Switch => gpui::Role::Switch,
                     Kind::RadioGroup => gpui::Role::RadioGroup,
+                    Kind::Select => gpui::Role::ComboBox,
                     _ => gpui::Role::Button,
                 })
                 .aria_label(accessible_name);
@@ -374,31 +395,54 @@ impl View {
             element.style().mouse_cursor = None;
         }
         if let Some(config) = &node.choice {
-            let state = self.radios.entry(id).or_default().clone();
             element = element.aria_label(config.label.clone());
-            element = radio::element(
-                element,
-                radio::Render {
-                    config,
-                    state,
-                    focus: self.buttons[&id].focus.clone(),
-                    route: node
-                        .handler
-                        .filter(|_| !disabled)
-                        .map(|handler| radio::Route {
-                            window: self.id,
-                            node: id,
-                            handler,
-                            revision: tree.revision(),
-                            session: self.session.clone(),
-                            transport: self.transport.clone(),
-                        }),
-                    pointer: interaction.pointer,
-                    selected_style,
-                },
-                window,
-                cx,
-            );
+            let focus = self.buttons[&id].focus.clone();
+            let route = node
+                .handler
+                .filter(|_| !disabled)
+                .map(|handler| choice::Route {
+                    window: self.id,
+                    node: id,
+                    handler,
+                    revision: tree.revision(),
+                    session: self.session.clone(),
+                    transport: self.transport.clone(),
+                });
+            if node.kind == Kind::Select {
+                let state = self.selects.entry(id).or_default().clone();
+                element = select::element(
+                    element,
+                    select::Render {
+                        config,
+                        appearance: node
+                            .choice_appearance
+                            .clone()
+                            .unwrap_or_else(crate::appearance::default),
+                        state,
+                        focus,
+                        route,
+                        pointer: interaction.pointer,
+                        selected_style,
+                    },
+                    window,
+                    cx,
+                );
+            } else {
+                let state = self.radios.entry(id).or_default().clone();
+                element = radio::element(
+                    element,
+                    radio::Render {
+                        config,
+                        state,
+                        focus,
+                        route,
+                        pointer: interaction.pointer,
+                        selected_style,
+                    },
+                    window,
+                    cx,
+                );
+            }
         } else if let Some(editor) = self.editors.get(&id) {
             element = element
                 .capture_action(|_: &gpui_base::input::IndentInline, window, cx| {
@@ -546,6 +590,7 @@ impl Render for View {
         };
         self.buttons.retain(|id, _| self.visited.contains(id));
         self.radios.retain(|id, _| self.visited.contains(id));
+        self.selects.retain(|id, _| self.visited.contains(id));
         self.selections.retain(|id, _| self.visited.contains(id));
         // GPUI routes key events along the focused element's ancestry. Keep a
         // non-tab-stop fallback so Tab also works before the first click and

@@ -1,3 +1,4 @@
+mod appearance;
 mod ffi;
 mod host;
 pub mod mailbox;

@@ -62,6 +62,37 @@ module Config : sig
   val can_select : t -> Id.t -> bool
 end
 
+module Appearance : sig
+  (** Appearance changes preserve native open/highlight/focus state. Geometry is
+      explicit so virtualization remains uniform. Styles accept colors, opacity,
+      corners, shadows, text presentation and cursor; structural/interaction
+      properties are rejected. Popup supports Base/Hovered; options additionally
+      support Focused (native highlight), Pressed, Selected and Disabled; empty
+      state supports Base only. Theme tokens resolve with the application theme. *)
+  type t [@@deriving equal, sexp_of]
+
+  val default : t
+
+  (** Positive finite logical pixel dimensions, at most 1,000,000. Visible rows
+      require 1..64. Empty text requires 1..1024 UTF-8 bytes without NUL. At most
+      128 style declarations across all parts. Native geometry clamps to window. *)
+  val create
+    :  ?popup_width:float
+    -> ?row_height:float
+    -> ?max_visible_rows:int
+    -> ?empty_label:string
+    -> ?popup_style:Style.t
+    -> ?option_style:Style.t
+    -> ?empty_style:Style.t
+    -> unit
+    -> t Or_error.t
+end
+
 module Expert : sig
+  val appearance_to_wire
+    :  Appearance.t
+    -> theme:Theme.t
+    -> Gpuio_protocol.Wire.Choice_appearance.t Or_error.t
+
   val config_to_wire : Config.t -> Gpuio_protocol.Wire.Choice.Config.t
 end

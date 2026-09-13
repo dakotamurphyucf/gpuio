@@ -12,6 +12,7 @@ pub struct Node {
     pub editor: Option<Arc<EditorConfig>>,
     pub control: Option<Control>,
     pub choice: Option<Arc<ChoiceConfig>>,
+    pub choice_appearance: Option<Arc<ChoiceAppearance>>,
     pub style: Arc<[Style]>,
     pub handler: Option<HandlerId>,
     pub children: Arc<[NodeId]>,
@@ -21,6 +22,9 @@ pub struct Node {
 impl Node {
     fn payload_bytes(&self) -> usize {
         self.text.len()
+            + self.choice_appearance.as_ref().map_or(0, |appearance| {
+                crate::appearance::retained_bytes(appearance)
+            })
             + self
                 .choice
                 .as_ref()
@@ -147,7 +151,10 @@ impl Tree {
         }
         for slot in plan.changes.values() {
             if let Some(node) = &slot.node {
-                if node.choice.is_some() && node.kind != Kind::RadioGroup {
+                if node.choice_appearance.is_some() && node.kind != Kind::Select {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                if node.choice.is_some() && !matches!(node.kind, Kind::RadioGroup | Kind::Select) {
                     return Err(ErrorCode::InvalidTree);
                 }
                 if node
@@ -184,7 +191,7 @@ impl Tree {
                             return Err(ErrorCode::InvalidTree);
                         }
                     }
-                    Kind::RadioGroup => {
+                    Kind::RadioGroup | Kind::Select => {
                         let config = node.choice.as_ref().ok_or(ErrorCode::InvalidTree)?;
                         if !config.is_valid()
                             || node.editor.is_some()
@@ -290,6 +297,7 @@ impl Plan<'_> {
             | Op::SetEditor(id, ..)
             | Op::SetControl(id, ..)
             | Op::SetChoice(id, ..)
+            | Op::SetChoiceAppearance(id, ..)
             | Op::Bind(id, ..)
             | Op::Splice(id, ..) => Some(*id),
             Op::SetRoot(_) => None,
@@ -345,6 +353,7 @@ impl Plan<'_> {
                             editor: None,
                             control: None,
                             choice: None,
+                            choice_appearance: None,
                             style: Arc::from([]),
                             handler: *handler,
                             children: Arc::from([]),
@@ -382,8 +391,17 @@ impl Plan<'_> {
                 }
                 self.node_mut(*id)?.editor = Some(Arc::new(config.clone()));
             }
+            Op::SetChoiceAppearance(id, appearance) => {
+                if self.node(*id)?.kind != Kind::Select {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                crate::appearance::validate(appearance)?;
+                self.node_mut(*id)?.choice_appearance = Some(Arc::new(appearance.clone()));
+            }
             Op::SetChoice(id, config) => {
-                if self.node(*id)?.kind != Kind::RadioGroup || !config.is_valid() {
+                if !matches!(self.node(*id)?.kind, Kind::RadioGroup | Kind::Select)
+                    || !config.is_valid()
+                {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.choice = Some(Arc::new(config.clone()));

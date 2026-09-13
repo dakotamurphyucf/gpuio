@@ -214,6 +214,359 @@ async fn radio(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport: &
         "GPUIO_RADIO_MACOS_AX_OK: option roles, checked values, disabled state and activation"
     );
 }
+async fn select_control(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    transport: &Transport,
+) {
+    let mut config = ChoiceConfig {
+        label: "Select mode".into(),
+        selected: Some("fast".into()),
+        disabled: false,
+        items: [
+            ("fast", "Fast choice", false),
+            ("blocked", "Disabled choice", true),
+            ("deep", "Deep choice", false),
+        ]
+        .into_iter()
+        .map(|(id, label, disabled)| ChoiceItem {
+            id: id.into(),
+            label: label.into(),
+            disabled,
+        })
+        .collect(),
+    };
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Create(
+                node(6),
+                Kind::Select,
+                "".into(),
+                Some(gpuio_protocol::HandlerId::from_parts(6, 1).unwrap()),
+            ),
+            Op::SetChoice(node(6), config.clone()),
+            Op::SetStyle(
+                node(6),
+                vec![Style::Fields(vec![
+                    Field::Width(Length::Px(300.)),
+                    Field::Height(Length::Px(40.)),
+                ])],
+            ),
+            Op::Splice(node(0), 4, 0, vec![node(6)]),
+        ],
+    );
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, window, cx| {
+            window.focus(&view.buttons[&node(6)].focus, cx)
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    choices(transport);
+    key(cx, handle, "space");
+    frame(cx, handle).await;
+    assert!(select_is_open(cx, handle));
+    assert!(focused(cx, handle, node(6)));
+    let (trigger, popup, viewport) = handle
+        .update(cx, |view, window, _| {
+            (
+                view.probes.borrow()[&node(6)].bounds,
+                view.selects[&node(6)].borrow().popup_bounds.get(),
+                window.viewport_size(),
+            )
+        })
+        .unwrap();
+    assert!(
+        popup.size.height > px(90.),
+        "popup has measured option rows: {popup:?}"
+    );
+    assert!(
+        popup.top() >= px(0.) && popup.bottom() <= viewport.height,
+        "popup fits viewport: {popup:?}"
+    );
+    assert!(popup.left() >= px(0.) && popup.right() <= viewport.width);
+    assert!(
+        popup.bottom() <= trigger.top() || popup.top() >= trigger.bottom(),
+        "popup avoids covering trigger when one side fits: {trigger:?} {popup:?}"
+    );
+    key(cx, handle, "down");
+    assert!(choices(transport).is_empty(), "highlight is not selection");
+    let appearance = ChoiceAppearance {
+        popup_width: 240.,
+        row_height: 48.,
+        max_visible_rows: 3,
+        empty_label: "Keine Optionen".into(),
+        popup_style: vec![Style::Fields(vec![Field::Foreground(Color::Rgba(
+            0x445566ff,
+        ))])],
+        option_style: vec![
+            Style::Fields(vec![Field::Foreground(Color::Rgba(0x123456ff))]),
+            Style::State(1, vec![Field::Foreground(Color::Rgba(0xabcdefff))]),
+            Style::State(7, vec![Field::Foreground(Color::Rgba(0xff0000ff))]),
+            Style::State(6, vec![Field::Foreground(Color::Rgba(0x999999ff))]),
+        ],
+        empty_style: vec![Style::Fields(vec![Field::FontSize(14.)])],
+    };
+    let retained_state = handle
+        .update(cx, |view, _, _| view.selects[&node(6)].clone())
+        .unwrap();
+    apply(
+        cx,
+        handle,
+        vec![Op::SetChoiceAppearance(node(6), appearance)],
+    );
+    frame(cx, handle).await;
+    assert!(focused(cx, handle, node(6)));
+    assert!(select_is_open(cx, handle));
+    handle
+        .update(cx, |view, _, _| {
+            assert!(Rc::ptr_eq(&retained_state, &view.selects[&node(6)]));
+            let state = view.selects[&node(6)].borrow();
+            let bounds = state.popup_bounds.get();
+            assert!(bounds.size.width >= px(236.) && bounds.size.width <= px(240.));
+            let probes = state.option_probes.borrow();
+            assert_eq!(probes["deep"].color, rgba(0xabcdefff).into());
+            assert_eq!(probes["fast"].color, rgba(0xff0000ff).into());
+            assert_eq!(probes["blocked"].color, rgba(0x999999ff).into());
+            assert_eq!(probes["deep"].bounds.size.height, px(48.));
+        })
+        .unwrap();
+    key(cx, handle, "escape");
+    frame(cx, handle).await;
+    assert!(!select_is_open(cx, handle));
+    assert!(choices(transport).is_empty(), "Escape cancels");
+    key(cx, handle, "enter");
+    frame(cx, handle).await;
+    key(cx, handle, "down");
+    key(cx, handle, "enter");
+    assert_eq!(
+        choices(transport),
+        ["deep"],
+        "skip disabled and commit once on Enter release"
+    );
+    frame(cx, handle).await;
+    assert!(!select_is_open(cx, handle));
+    key(cx, handle, "space");
+    frame(cx, handle).await;
+    key(cx, handle, "down");
+    config.items.reverse();
+    apply(cx, handle, vec![Op::SetChoice(node(6), config.clone())]);
+    frame(cx, handle).await;
+    key(cx, handle, "enter");
+    assert_eq!(
+        choices(transport),
+        ["deep"],
+        "open highlight retains stable identity across reorder"
+    );
+    frame(cx, handle).await;
+    key(cx, handle, "space");
+    frame(cx, handle).await;
+    key(cx, handle, "shift-tab");
+    frame(cx, handle).await;
+    assert!(!select_is_open(cx, handle));
+    assert!(
+        focused(cx, handle, node(4)),
+        "Tab leaves composite normally"
+    );
+    key(cx, handle, "tab");
+    frame(cx, handle).await;
+    key(cx, handle, "space");
+    frame(cx, handle).await;
+    let position = handle
+        .update(cx, |view, _, _| {
+            view.selects[&node(6)].borrow().popup_bounds.get().origin
+                + gpui::point(px(15.), px(16.))
+        })
+        .unwrap();
+    super::native_test::move_mouse(cx, handle, position, false);
+    super::native_test::mouse(cx, handle, position, true);
+    super::native_test::mouse(cx, handle, position, false);
+    assert_eq!(
+        choices(transport),
+        ["deep"],
+        "pointer option activates without trigger toggle"
+    );
+    frame(cx, handle).await;
+    assert!(!select_is_open(cx, handle));
+    assert!(focused(cx, handle, node(6)));
+    key(cx, handle, "space");
+    frame(cx, handle).await;
+    #[cfg(target_os = "macos")]
+    {
+        let _ = accessible(cx, handle, "Select mode", false);
+        frame(cx, handle).await;
+        assert_eq!(
+            accessible(cx, handle, "Select mode", false).unwrap().role,
+            "AXPopUpButton"
+        );
+        assert!(
+            !accessible(cx, handle, "Disabled choice", false)
+                .unwrap()
+                .enabled
+        );
+        assert!(accessible(cx, handle, "Deep choice", true).unwrap().enabled);
+        frame(cx, handle).await;
+        assert_eq!(choices(transport), ["deep"]);
+        assert!(!select_is_open(cx, handle));
+    }
+    if select_is_open(cx, handle) {
+        key(cx, handle, "escape");
+        frame(cx, handle).await;
+    }
+    key(cx, handle, "f");
+    frame(cx, handle).await;
+    assert!(
+        select_is_open(cx, handle),
+        "printable keys open type-ahead navigation"
+    );
+    assert!(
+        choices(transport).is_empty(),
+        "typing does not commit selection"
+    );
+    key(cx, handle, "enter");
+    assert_eq!(choices(transport), ["fast"]);
+    frame(cx, handle).await;
+    key(cx, handle, "d");
+    key(cx, handle, "e");
+    frame(cx, handle).await;
+    key(cx, handle, "enter");
+    assert_eq!(
+        choices(transport),
+        ["deep"],
+        "prefix resets between opens and searches labels"
+    );
+    frame(cx, handle).await;
+    // Large options remain bounded to the popup viewport and navigation reveals
+    // offscreen choices. A reorder must also reveal the retained active ID.
+    config.items = (0..4096)
+        .map(|i| ChoiceItem {
+            id: format!("item-{i}"),
+            label: format!("Option {i}"),
+            disabled: false,
+        })
+        .collect();
+    config.selected = Some("item-0".into());
+    apply(cx, handle, vec![Op::SetChoice(node(6), config.clone())]);
+    frame(cx, handle).await;
+    if select_is_open(cx, handle) {
+        key(cx, handle, "escape");
+        frame(cx, handle).await;
+    }
+    key(cx, handle, "space");
+    frame(cx, handle).await;
+    key(cx, handle, "end");
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, _, _| {
+            assert!(view.selects[&node(6)].borrow().rendered_options.get() < 16)
+        })
+        .unwrap();
+    #[cfg(target_os = "macos")]
+    assert!(
+        accessible(cx, handle, "Option 4095", false).is_some(),
+        "last choice is actually rendered after End"
+    );
+    handle
+        .update(cx, |_, window, _| {
+            window.resize(gpui::size(px(400.), px(160.)))
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, _, _| {
+            let state = view.selects[&node(6)].borrow();
+            let probes = state.option_probes.borrow();
+            assert!(
+                probes["item-4095"].bounds.bottom() <= state.popup_bounds.get().bottom() + px(1.),
+                "resize reveals entire active option"
+            );
+        })
+        .unwrap();
+    handle
+        .update(cx, |_, window, _| {
+            window.resize(gpui::size(px(400.), px(280.)))
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    config.items.reverse();
+    apply(cx, handle, vec![Op::SetChoice(node(6), config.clone())]);
+    frame(cx, handle).await;
+    #[cfg(target_os = "macos")]
+    assert!(
+        accessible(cx, handle, "Option 4095", false).is_some(),
+        "reorder reveals retained active choice"
+    );
+    key(cx, handle, "enter");
+    assert_eq!(choices(transport), ["item-4095"]);
+    frame(cx, handle).await;
+    key(cx, handle, "space");
+    frame(cx, handle).await;
+    // Clicking outside dismisses without choosing or preventing the other target.
+    let outside = gpui::point(px(380.), px(10.));
+    super::native_test::move_mouse(cx, handle, outside, false);
+    super::native_test::mouse(cx, handle, outside, true);
+    super::native_test::mouse(cx, handle, outside, false);
+    frame(cx, handle).await;
+    assert!(!select_is_open(cx, handle));
+    assert!(choices(transport).is_empty());
+    handle
+        .update(cx, |view, window, cx| {
+            window.focus(&view.buttons[&node(6)].focus, cx)
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    key(cx, handle, "space");
+    frame(cx, handle).await;
+    config.items.clear();
+    config.selected = None;
+    apply(cx, handle, vec![Op::SetChoice(node(6), config.clone())]);
+    frame(cx, handle).await;
+    #[cfg(target_os = "macos")]
+    assert!(accessible(cx, handle, "Keine Optionen", false).is_some());
+    key(cx, handle, "enter");
+    assert!(
+        choices(transport).is_empty(),
+        "empty lists never fabricate a selection"
+    );
+    frame(cx, handle).await;
+    key(cx, handle, "space");
+    frame(cx, handle).await;
+    config.disabled = true;
+    apply(cx, handle, vec![Op::SetChoice(node(6), config)]);
+    frame(cx, handle).await;
+    assert!(!select_is_open(cx, handle));
+    assert!(!focused(cx, handle, node(6)));
+    apply(
+        cx,
+        handle,
+        vec![Op::Splice(node(0), 4, 1, vec![]), Op::Remove(node(6))],
+    );
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, _, _| assert!(view.selects.is_empty()))
+        .unwrap();
+    println!(
+        "GPUIO_SELECT_TYPEAHEAD_OK: printable prefix navigation, explicit confirmation and accessible localized empty state"
+    );
+    println!(
+        "GPUIO_SELECT_APPEARANCE_OK: identity/focus/open retained, custom geometry and native active/selected/disabled colors"
+    );
+    println!(
+        "GPUIO_SELECT_NATIVE_OK: popup position, keyboard/cancel, stable highlight, pointer, focus, 4096-option virtualization and disposal"
+    );
+    #[cfg(target_os = "macos")]
+    println!(
+        "GPUIO_SELECT_MACOS_AX_OK: popup role, disabled options, semantic selection and offscreen navigation"
+    );
+}
+fn select_is_open(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> bool {
+    handle
+        .update(cx, |view, _, _| view.selects[&node(6)].borrow().open)
+        .unwrap()
+}
+
 fn apply(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, operations: Vec<Op>) {
     handle
         .update(cx, |view, window, cx| {
@@ -446,6 +799,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
         );
     }
     radio(cx, handle, &transport).await;
+    select_control(cx, handle, &transport).await;
     // Remove a focused native node and enter the surviving Tab order again.
     handle
         .update(cx, |view, window, cx| {

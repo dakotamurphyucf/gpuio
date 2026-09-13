@@ -22,7 +22,7 @@ must still agree. The earlier editor fixture keeps its original capability mask
 15 to preserve those bytes as a compatibility check.
 
 `choice-v1-request.hex` and `choice-v1-events.hex` cover stable choice configuration,
-radio-group creation and the selected-ID event, including UTF-8 IDs and a disabled
+radio-group/Select creation, choice appearance and the selected-ID event, including UTF-8 IDs and a disabled
 selected value. Both languages construct the values independently. Regenerate
 using `emit_choice_fixture` (request) and `emit_choice_fixture -- --events`
 (events), and review both language checks.

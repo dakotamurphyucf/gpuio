@@ -73,6 +73,22 @@ val radio_group
   -> unit
   -> 'action t
 
+(** A native select with a bounded, scrollable option popup. Focus remains on
+    the trigger. Arrows move the open popup highlight without changing the
+    application value; Enter requests the highlighted ID, Escape cancels, and
+    Tab closes before normal traversal. The label is shown when no value is
+    selected. Printable text searches enabled labels without committing a value;
+    repeated characters cycle, and the bounded prefix expires between inputs.
+    Disabling or removing the control disposes its open popup. *)
+val select
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?appearance:Choice.Appearance.t
+  -> config:Choice.Config.t
+  -> on_select:(Choice.Id.t -> 'action)
+  -> unit
+  -> 'action t
+
 module Expert : sig
   module Kind : sig
     type t =
@@ -84,6 +100,7 @@ module Expert : sig
       | Checkbox
       | Switch
       | Radio_group
+      | Select
     [@@deriving equal, sexp_of]
   end
 
@@ -105,6 +122,7 @@ module Expert : sig
 
   type 'action choice =
     { config : Choice.Config.t
+    ; appearance : Choice.Appearance.t option
     ; on_select : Choice.Id.t -> 'action
     }
 
