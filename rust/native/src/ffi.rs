@@ -84,6 +84,24 @@ pub fn gpuio_v1_create(cr: &mut OCamlRuntime, fd: OCaml<OCamlInt>) -> OCaml<OCam
         .to_ocaml(cr)
 }
 #[ocaml_interop::export]
+pub fn gpuio_v1_create_with_options(
+    cr: &mut OCamlRuntime,
+    fd: OCaml<OCamlInt>,
+    exit_on_last_window: OCaml<bool>,
+) -> OCaml<OCamlInt> {
+    let fd: i64 = fd.to_rust();
+    let transport = Arc::new(
+        Transport::with_options(
+            i32::try_from(fd).expect("invalid wake fd"),
+            exit_on_last_window.to_rust(),
+        )
+        .expect("duplicate wake fd"),
+    );
+    insert(transport)
+        .expect("create native runtime")
+        .to_ocaml(cr)
+}
+#[ocaml_interop::export]
 pub fn gpuio_v1_submit(
     cr: &mut OCamlRuntime,
     id: OCaml<OCamlInt>,

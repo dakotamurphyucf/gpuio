@@ -1,6 +1,6 @@
 # Implementation status
 
-Updated 2026-09-11. Milestone 01: reproducible foundation, in progress.
+Updated 2026-09-13. Milestone 01: reproducible foundation, in progress.
 
 Repository: `dakotamurphyucf/gpuio`, public, Apache-2.0, default branch `main`.
 These settings were selected by the owner on 2026-09-11.
@@ -24,11 +24,14 @@ are superseded by this priority; native GUI coverage must still be reported hone
 - OCH-7 complete, merged in PR #2 at `e6471b4ec88e6847f950da30576b6d2a6639d930`.
   CI run34650637422 passed on both OSes, including production 50-revision/
   two-window/rollback/panic smoke on macOS, X11 and Wayland.
-- OCH-8 implemented: typed views/styles/themes, keyed reconciliation, pure Bonsai
+- OCH-8 complete, merged in PR #3 at `8f7fd9f357a0b8df3e9dfe31c2a7217925c8846d`: typed views/styles/themes, keyed reconciliation, pure Bonsai
   adapter, native button/selection behavior and GPUIX style mapping. Local macOS
-  tests pass; PR acceptance and exact hosted evidence are tracked in Linear.
+  tests and both required CI jobs passed in run 34654290650. X11 passed all GUI
+  checks; Wayland passed the typed bridge but failed the new hover-reset test.
+  That informational limitation remains tracked in OCH-17.
 - OCH-9 remains in milestone 01: public Bonsai/Eio scheduling and application runner.
-  The typed example currently provides an explicit low-level bridge runner.
+  The public runner is implemented on its ticket branch; CI/merge acceptance is
+  pending. See [runtime](design/runtime.md) and [measurements](evidence/runtime-och9.md).
 
 ## Local evidence
 

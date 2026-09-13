@@ -88,6 +88,8 @@ jobs:
           key: foundation-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gpuio.opam.locked', 'third_party/sources.json', 'rust-toolchain.toml', 'Cargo.lock') }}
       - name: OCaml and Rust tests
         run: ./scripts/gpuio test 2>&1 | tee .cache/ci/tests.log
+      - name: Verify native runtime has no Async symbols
+        run: python3 -c 'import subprocess; symbols = subprocess.check_output(["nm", "_build/default/examples/runtime/main.exe"], text=True); assert "camlAsync" not in symbols; print("NO_ASYNC_PASS")' 2>&1 | tee .cache/ci/no-async.log
       - name: Lint
         id: lint
         run: ./scripts/gpuio lint 2>&1 | tee .cache/ci/lint.log
@@ -95,6 +97,12 @@ jobs:
         run: |
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_ui --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-tests --all-targets -- -D warnings
+      - name: macOS public runtime checks
+        if: runner.os == 'macOS'
+        run: |
+          python3 -c 'import subprocess; [subprocess.run(["_build/default/examples/runtime/main.exe", flag], check=True, timeout=90) for flag in ["--self-test", "--shutdown-test", "--last-window-test"]]' 2>&1 | tee .cache/ci/macos-runtime.log
+          python3 -c 'import subprocess; [subprocess.run(["_build/default/examples/runtime/bench.exe", str(windows)] + mode, check=True, timeout=90) for windows in [1, 4] for mode in [[], ["--clock"]]]' 2>&1 | tee .cache/ci/macos-runtime-measurements.log
+          _build/default/examples/runtime/bench_input.exe 2>&1 | tee .cache/ci/macos-runtime-input-core.log
       - name: macOS typed UI checks
         if: runner.os == 'macOS'
         run: |

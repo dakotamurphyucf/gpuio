@@ -1,0 +1,15 @@
+(library
+ (name gpuio_runtime_tests)
+ (modes native)
+ (libraries
+  core
+  gpuio
+  gpuio.protocol
+  gpuio.runtime_core
+  gpuio.eio
+  bonsai
+  bonsai.driver
+  eio.mock)
+ (inline_tests)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

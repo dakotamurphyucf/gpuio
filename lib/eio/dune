@@ -1,0 +1,18 @@
+(library
+ (name gpuio_eio)
+ (public_name gpuio.eio)
+ (modes native)
+ (no_dynlink)
+ (libraries
+  core
+  gpuio
+  gpuio.bonsai
+  gpuio.runtime_core
+  gpuio.native
+  bonsai
+  bonsai.driver
+  eio_main
+  eio.unix
+  cstruct)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

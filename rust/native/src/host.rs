@@ -386,8 +386,9 @@ pub fn run(transport: Arc<Transport>) {
         let session = Rc::new(RefCell::new(Session::default()));
         let mut windows: BTreeMap<WindowId, WindowHandle<View>> = BTreeMap::new();
         let closing = stopping.clone();
+        let exit_on_last_window = transport.exit_on_last_window;
         cx.on_window_closed(move |cx, _| {
-            if cx.windows().is_empty() && !closing.replace(true) {
+            if exit_on_last_window && cx.windows().is_empty() && !closing.replace(true) {
                 cx.defer(stop_application);
             }
         })

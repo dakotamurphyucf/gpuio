@@ -1,0 +1,14 @@
+(executables
+ (names main bench bench_input)
+ (libraries
+  core
+  gpuio
+  gpuio.bonsai
+  gpuio.eio
+  gpuio.runtime_core
+  bonsai
+  eio_main)
+ (link_flags
+  (:include ../../lib/native/link_flags.sexp))
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))
