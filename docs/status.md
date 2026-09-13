@@ -325,3 +325,13 @@ runtime patch was needed for the system-event test driver. Native Clippy, full
 Dune checks and the ordinary lifecycle example pass. See the updated
 [drag/drop evidence](evidence/drag-drop-och11.md). OS file export/reentry, live-close/
 shutdown and remaining OCH-11 families still require work; no hosted CI is claimed.
+
+Actual macOS file-session checks now pass through the public Bonsai/Eio API:
+second-window Desktop delivery with a distinct gesture ID and unknown metadata,
+source-window reentry restoring original identity/metadata, OS Escape without a
+drop, and source unmount suppressing late callbacks while the immutable OS offer
+remains receivable. The temporary source file remains unchanged. These are real
+AppKit sessions between child windows, not Finder/external-copy acknowledgement
+or Linux GUI coverage. See [drag/drop evidence](evidence/drag-drop-och11.md).
+Live-window close/shutdown while dragging and the aggregate lifetime review remain,
+as do the other OCH-11 families and consolidated CI/merge.

@@ -102,3 +102,57 @@ native drag suite and both public tests pass locally. Logs are
 `drag-appkit-lifecycle-native.log`, `drag-appkit-public-v6.log` and
 `drag-appkit-final-lifecycle.log` in the personal scratch directory.
 Actual OS file export/reentry and live-window close/shutdown coverage remain.
+
+## Actual macOS file sessions
+
+`examples/drag_drop_desktop` uses only the public Core/Bonsai/Eio API. The Python
+harness creates a regular temporary file, supplies its absolute path, then checks
+that the source file still exists with unchanged contents. The driver arranges two
+320-pixel child windows side by side and posts a continuous system mouse gesture.
+It acts only on windows owned by that child and checks the AX hit owner throughout.
+
+The following scenarios have passed locally:
+
+- `--desktop`: source Started and Desktop_offered, then a second-window drop with
+  Desktop origin, exact path and unknown directory metadata. The receiver's
+  gesture ID is distinct from the original source ID. The source ends Unconfirmed;
+  receipt is not treated as a confirmed external copy/move operation.
+- `--reenter`: drag out to the second window and back into the original source
+  window. The OS offer is observed, and reentry restores the original gesture ID,
+  Internal origin and caller-supplied directory metadata. The source ends once
+  with Internal_drop.
+- `--cancel`: while the OS drag is over the receiver, post Escape. The receiver
+  has observed Desktop hover but gets no drop; the source ends Unconfirmed.
+  AppKit consumes cancellation, so this does not claim a framework Escape reason
+  for an OS-owned session.
+- `--remove-source`: Bonsai unmounts the source upon Desktop_offered, and its Edge
+  observer confirms the removal. The immutable OS offer still reaches the second
+  window. The removed source gets no late terminal callback. A rendered frame and
+  the expected source-event count precede clean application shutdown.
+
+Build the example and driver, then select a scenario:
+
+```sh
+./scripts/gpuio exec dune build examples/drag_drop_desktop/main.exe
+./scripts/gpuio exec cargo test -p gpuio-native --features native-tests --test native_drag_drop --no-run
+python3 scripts/test_drag_drop.py --desktop --driver target/debug/deps/native_drag_drop-<cargo-reported-hash>
+python3 scripts/test_drag_drop.py --reenter --driver target/debug/deps/native_drag_drop-<cargo-reported-hash>
+python3 scripts/test_drag_drop.py --cancel --driver target/debug/deps/native_drag_drop-<cargo-reported-hash>
+python3 scripts/test_drag_drop.py --remove-source --driver target/debug/deps/native_drag_drop-<cargo-reported-hash>
+```
+
+These tests exercise real AppKit file sessions between windows of the test process.
+They do not claim transfer into Finder or another application, Linux graphical
+behavior, or confirmed external filesystem operations. The successful file has a
+UTF-8 name containing a space. This local filesystem rejected creating a filename
+containing byte 0xff with errno 92 (Illegal byte sequence); actual OS transfer of
+non-UTF-8 names remains unverified. Existing byte-preservation coverage uses codec
+fixtures and GPUI-level injected paths. Pinned GPUI's incoming macOS adapter reads
+legacy filename pasteboard strings; do not extrapolate raw-byte OS support from
+the injected-path tests.
+
+Live window close and application shutdown *during* a held gesture, plus the
+remaining aggregate lifetime review, still require coverage. No production runtime
+patch was needed for these scenarios. Final native all-target Clippy, full Dune
+build/tests/format, all four OS scenarios and the original AppKit text regression
+pass locally. Logs use `drag-os-final-*` in the personal scratch directory.

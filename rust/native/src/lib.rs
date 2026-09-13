@@ -67,6 +67,6 @@ pub fn run_native_drag_drop_test() {
 #[cfg(all(feature = "native-tests", target_os = "macos"))]
 mod drag_drop_macos_test;
 #[cfg(all(feature = "native-tests", target_os = "macos"))]
-pub fn drive_native_drag_drop_test(pid: i32) {
-    drag_drop_macos_test::drive(pid);
+pub fn drive_native_drag_drop_test(pid: i32, mode: &str) {
+    drag_drop_macos_test::drive(pid, mode);
 }

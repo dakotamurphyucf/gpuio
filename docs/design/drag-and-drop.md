@@ -4,8 +4,9 @@ OCH-11 implementation in progress. Typed data/configuration, view factories,
 OCaml/Rust codecs, event routing and the native gesture adapter are implemented.
 Local macOS GPUI window-dispatch, real AppKit-to-Bonsai gesture and public lifecycle
 tests pass. Focus traps and second-window activation/cancellation are covered.
-Actual OS file-export/reentry, cross-window behavior and further focus/lifetime
-validation remain required; this is not complete drag/drop or OCH-11 acceptance.
+Actual macOS file offering, second-window desktop delivery, reentry, OS Escape and
+source-unmount checks also pass. Live-window close/shutdown during gestures and
+further lifetime validation remain; this is not complete OCH-11 acceptance.
 The bridge advertises capability bit 1048576; the required mask is 2097151.
 This bit identifies protocol support, not a promise of outbound OS support on
 every backend or a successful external file operation.
@@ -174,12 +175,13 @@ budgets include retained/encoded drag payload bytes. Independent request and
 
 ## Remaining acceptance
 
-1. Validate actual macOS OS file offering, outside completion/cancellation and
-   reentry, including source disposal while a platform session retains its offer.
-2. Exercise OS-mediated multi-window transfers and close/shutdown during a live
-   gesture. Focus blocking, second-window activation and public AppKit gesture
-   callback delivery pass locally. Do not infer
-   source identity by matching file paths after an OS-mediated window crossing.
+1. Complete live-window close and application shutdown coverage during a held
+   gesture, including a platform-owned file offer, and audit retained state.
+2. Keep OS capability claims bounded by evidence: current AppKit tests transfer
+   between two windows of the test process. External copy/move acknowledgements
+   remain unavailable; non-UTF-8 OS filename transfer is unverified. Internal
+   source identity is restored only by GPUI's original drag value, never by path
+   matching after an OS-mediated window crossing.
 3. Confirm Linux build/unit gates; full Linux graphical validation remains OCH-17.
 4. Review remaining native state/appearance and lifetime integration together with
    the other OCH-11 families. Complete consolidated CI and merge after the full

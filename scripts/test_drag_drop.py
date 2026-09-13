@@ -3,7 +3,8 @@
 
 Requires macOS accessibility permission. AX actions target only the child created
 here. System-wide AX hit-testing checks the owner before posting mouse events.
-This is an internal application drag, not OS file export. Build examples/drag_drop/main.exe and native_drag_drop first.
+The default mode tests internal text. --desktop tests an OS file offer to a second
+child window. Build the corresponding example and native_drag_drop first.
 """
 import argparse
 from pathlib import Path
@@ -15,19 +16,34 @@ import tempfile
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--driver", required=True, type=Path)
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument("--desktop", action="store_true")
+    modes.add_argument("--reenter", action="store_true")
+    modes.add_argument("--cancel", action="store_true")
+    modes.add_argument("--remove-source", action="store_true")
     args = parser.parse_args()
     if sys.platform != "darwin":
         parser.error("this test covers the AppKit backend")
     repo = Path(__file__).resolve().parent.parent
-    example = repo / "_build/default/examples/drag_drop/main.exe"
+    scenario = next((name for name in ("desktop", "reenter", "cancel", "remove_source")
+                     if getattr(args, name)), "public")
+    desktop = scenario != "public"
+    name = "drag_drop_desktop" if desktop else "drag_drop"
+    example = repo / f"_build/default/examples/{name}/main.exe"
     driver = args.driver.resolve()
     if not example.is_file() or not driver.is_file():
         parser.error("build the example and driver first")
-    with tempfile.TemporaryFile(mode="w+t") as log:
-        child = subprocess.Popen([str(example), "--gesture-self-test"], cwd=repo,
+    with tempfile.TemporaryFile(mode="w+t") as log, tempfile.TemporaryDirectory(prefix="gpuio-drag-") as scratch:
+        fixture = Path(scratch).resolve() / "drag fixture.txt"
+        fixture.write_text("GPUIO file drag fixture\n")
+        child_args = [str(fixture)] if desktop else ["--gesture-self-test"]
+        if scenario not in ("public", "desktop"):
+            child_args.append("--" + scenario.replace("_", "-"))
+        driver_mode = "--drive-" + scenario.replace("_", "-")
+        child = subprocess.Popen([str(example), *child_args], cwd=repo,
                                  stdout=log, stderr=subprocess.STDOUT)
         try:
-            subprocess.run([str(driver), "--drive-public", str(child.pid)], cwd=repo,
+            subprocess.run([str(driver), driver_mode, str(child.pid)], cwd=repo,
                            check=True, timeout=20)
             if child.wait(timeout=35) != 0:
                 raise RuntimeError("public drag/drop example failed")
@@ -42,7 +58,12 @@ def main():
             log.seek(0)
             output = log.read()
             print(output, end="")
-        if "GPUIO_DRAG_DROP_GESTURE_OK:" not in output:
+        if fixture.read_text() != "GPUIO file drag fixture\n":
+            raise RuntimeError("file dragging unexpectedly changed the source file")
+        markers = {"public": "GESTURE", "desktop": "DESKTOP", "reenter": "REENTRY",
+                   "cancel": "CANCEL", "remove_source": "REMOVAL"}
+        marker = f"GPUIO_DRAG_DROP_{markers[scenario]}_OK:"
+        if marker not in output:
             raise RuntimeError("missing public gesture acceptance marker")
 
 

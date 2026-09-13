@@ -30,6 +30,7 @@ unsafe extern "C" {
     fn AXUIElementCopyAttributeValue(element: Raw, attribute: Raw, value: *mut Raw) -> i32;
     fn AXUIElementPerformAction(element: Raw, action: Raw) -> i32;
     fn AXUIElementSetAttributeValue(element: Raw, attribute: Raw, value: Raw) -> i32;
+    fn AXValueCreate(kind: u32, value: *const c_void) -> Raw;
     fn AXValueGetType(value: Raw) -> u32;
     fn AXValueGetValue(value: Raw, kind: u32, result: *mut c_void) -> bool;
 }
@@ -45,6 +46,7 @@ unsafe extern "C" {
 }
 #[link(name = "CoreGraphics", kind = "framework")]
 unsafe extern "C" {
+    fn CGEventCreateKeyboardEvent(source: Raw, key: u16, down: bool) -> Raw;
     fn CGEventCreateMouseEvent(source: Raw, kind: u32, position: Point, button: u32) -> Raw;
     fn CGEventPost(location: u32, event: Raw);
     fn CGEventSetIntegerValueField(event: Raw, field: u32, value: i64);
@@ -197,7 +199,43 @@ impl Drop for Release {
         post(self.pid, 2, self.point);
     }
 }
-pub(crate) fn drive(pid: libc::pid_t) {
+fn arrange_file_windows(app: Raw) {
+    let windows = attribute(app, "AXWindows").expect("child windows");
+    assert_eq!(unsafe { CFGetTypeID(windows.0) }, unsafe {
+        CFArrayGetTypeID()
+    });
+    let count = unsafe { CFArrayGetCount(windows.0) };
+    assert_eq!(count, 2, "desktop test requires exactly two child windows");
+    for index in 0..count {
+        let window = unsafe { CFArrayGetValueAtIndex(windows.0, index) };
+        let title = string(window, "AXTitle").expect("window title");
+        let x = match title.as_str() {
+            "GPUIO file source" => 100.,
+            "GPUIO file receiver" => 420.,
+            _ => panic!("unexpected child window: {title}"),
+        };
+        let point = Point { x, y: 100. };
+        let raw = unsafe { AXValueCreate(1, (&point as *const Point).cast()) };
+        assert!(!raw.is_null());
+        let value = Owned(raw);
+        let name = NSString::from_str("AXPosition");
+        assert_eq!(
+            unsafe {
+                AXUIElementSetAttributeValue(window, Retained::as_ptr(&name).cast(), value.0)
+            },
+            0,
+            "cannot position child window"
+        );
+    }
+}
+pub(crate) fn drive(pid: libc::pid_t, mode: &str) {
+    let (desktop, reenter, cancel) = match mode {
+        "internal" => (false, false, false),
+        "desktop" | "remove-source" => (true, false, false),
+        "reenter" => (true, true, false),
+        "cancel" => (true, false, true),
+        _ => panic!("unknown drag test mode"),
+    };
     assert!(pid > 0);
     assert!(
         unsafe { AXIsProcessTrusted() },
@@ -205,23 +243,54 @@ pub(crate) fn drive(pid: libc::pid_t) {
     );
     // Wait for the rendered AX tree before asking AppKit to activate the child.
     // Immediately after spawn its application messaging server may not exist.
-    locate(pid, "Greeting");
+    let (source_label, target_label) = if desktop {
+        ("File source", "File receiver")
+    } else {
+        ("Greeting", "Drop text or files")
+    };
+    locate(pid, source_label);
+    locate(pid, target_label);
     let raw = unsafe { AXUIElementCreateApplication(pid) };
     assert!(!raw.is_null(), "cannot create child AX application");
     let app = Owned(raw);
+    if desktop {
+        arrange_file_windows(app.0);
+    }
     let front = NSString::from_str("AXFrontmost");
     let status = unsafe {
         AXUIElementSetAttributeValue(app.0, Retained::as_ptr(&front).cast(), kCFBooleanTrue)
     };
     assert_eq!(status, 0, "cannot activate the child application");
     std::thread::sleep(Duration::from_millis(200));
-    let source = locate(pid, "Greeting");
-    let target = locate(pid, "Drop text or files");
+    let target = locate(pid, target_label);
+    let source = locate(pid, source_label);
     eprintln!("GPUIO_DRAG_AX_TARGETS: pid={pid} source={source:?} target={target:?}");
     post(pid, 5, source);
     std::thread::sleep(Duration::from_millis(100));
     post(pid, 1, source);
     let mut release = Release { pid, point: source };
+    move_drag(pid, source, target, &mut release);
+    std::thread::sleep(Duration::from_millis(150));
+    if reenter {
+        move_drag(pid, target, source, &mut release);
+        std::thread::sleep(Duration::from_millis(150));
+    }
+    if cancel {
+        assert_eq!(owner_at(target), Some(pid));
+        for down in [true, false] {
+            let raw = unsafe { CGEventCreateKeyboardEvent(std::ptr::null(), 53, down) };
+            assert!(!raw.is_null());
+            let event = Owned(raw);
+            unsafe {
+                CGEventPost(0, event.0);
+            }
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    drop(release);
+    println!("GPUIO_DRAG_APPKIT_SENT: one system drag posted within verified child windows");
+}
+fn move_drag(pid: libc::pid_t, source: Point, target: Point, release: &mut Release) {
     for step in 1..=24 {
         let fraction = step as f64 / 24.;
         let point = Point {
@@ -232,6 +301,4 @@ pub(crate) fn drive(pid: libc::pid_t) {
         post(pid, 6, point);
         std::thread::sleep(Duration::from_millis(20));
     }
-    drop(release);
-    println!("GPUIO_DRAG_APPKIT_SENT: one system drag posted within verified child window");
 }
