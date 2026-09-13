@@ -1,4 +1,5 @@
 mod appearance;
+pub mod asset_cache;
 pub mod asset_decode;
 pub mod asset_store;
 mod ffi;

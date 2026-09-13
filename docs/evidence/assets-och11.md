@@ -130,3 +130,33 @@ Logs: `assets-decode-tests-final.log`, `assets-decode-clippy.log`,
 pixel tests, not GPU rendering or worker/cache acceptance. The design separates
 strict retained-output bounds from best-effort codec allocation limits and
 pending aggregate worker/cache reservations. No new wire capability is advertised.
+
+## Decoded cache/work-ticket checkpoint
+
+Controller tests cover shared decoding and actual BGRA output returned from a
+background OS thread; warm-cache independence from encoded registration lifetime;
+32 queued/two running jobs; abandoned work/completion reclamation; late replacement
+and shutdown rejection; image references remaining charged after eviction; and
+pixel admission before dispatch. The capacity accounting test uses small real pixel
+results with synthetic charged sizes to exercise 256-MiB admission without allocating
+that much in a unit test. It does not claim a measured process-RSS bound.
+
+Further cases cover foreign cache/handle/work identity despite equal numeric IDs,
+256 live/warm plus 256 pending-retirement metadata bounds, recovery after eviction
+handoff, and immediate last-owner cancellation before another cache turn. Tests
+use both real decoder results and controlled completion timing. No GUI window or
+actual GPU atlas eviction is exercised by this checkpoint.
+
+Seven controller tests, native all-target Clippy, full Rust workspace tests and
+full Dune @runtest/@all/@fmt passed before the final immediate-cancellation
+refinement. That refinement adds the eighth test and a direct shared atomic
+cancellation flag; all eight final targeted tests and Clippy pass and are logged
+separately. Logs:
+`assets-cache-final-unit.log`, `assets-cache-final-clippy.log`,
+`assets-cache-workspace.log`, `assets-cache-dune.log`,
+`assets-cache-cancel-unit.log`, `assets-cache-cancel-clippy.log`.
+
+The host integration must still schedule and drain the tasks, deliver observable
+state to mounted views, and evict each used window atlas. The inspected pinned
+Metal and Linux WGPU renderer constructors create per-window atlas instances;
+this is source evidence for the disposal design, not backend execution evidence.

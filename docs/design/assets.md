@@ -7,8 +7,9 @@ The native session owns a bounded encoded registry, connected through correlated
 wire requests and the raw `Gpuio_eio.App.Expert.asset` effect. Capability
 `CAP_ASSETS` (2097152; aggregate mask 4194303) means encoded registration only.
 Scoped public ownership is now connected through `Gpuio_eio.Asset.register`.
-A native raster decoder is implemented and tested independently; worker/cache
-integration, SVG rasterization and image/icon views remain to implement.
+A native raster decoder and decoded-cache/work-ticket controller are implemented
+and tested independently; host scheduling, atlas cleanup, SVG rasterization and
+image/icon views remain to integrate.
 Independent OCaml/Rust fixtures, Rust workspace/Clippy, full Dune checks and an
 actual windowless >2-MiB FFI upload pass locally on macOS.
 
@@ -228,15 +229,66 @@ by the upcoming worker budget. The decoder result holds no encoded source.
 The pinned image library explicitly documents `max_alloc` as best-effort, unlike
 its strict dimension limits. Setting 128 MiB does not prove a hard process-RSS
 ceiling or account for codec-internal metadata/allocator overhead. Do not describe
-this helper as a globally bounded cache/worker pool: those owners and their
-pre-admission reservations are not connected yet. Per-result checks prevent
+this helper alone as a globally bounded cache/worker pool. The controller below
+reserves retained output before dispatch; host scheduling/atlas cleanup are not
+connected yet. Per-result checks prevent
 publishing excessive pixel/frame output; concurrency, retained cache ownership,
 transient work and GPU atlas uploads need their own aggregate bounds.
 
 Inspected GPUI macOS `gpui_apple::MetalRenderer::new_internal`: it creates a new
 `MetalAtlas` per renderer. `Window::drop_image` removes all frame keys for that
-image from the window's atlas. This supports explicit per-window eviction on
-macOS; Linux renderer/atlas ownership still needs inspection before the shared
-cache's cross-platform disposal contract is finalized. GPUI's SVG conversion
+image from the window's atlas. The pinned Linux X11/Wayland
+`WgpuRenderer::new` likewise creates `WgpuAtlas::from_context` for its window.
+This supports per-window eviction on both intended backends; actual atlas cleanup
+validation still requires host/view integration. GPUI's SVG conversion
 also unpremultiplies tiny-skia pixels before BGRA conversion; preserve that
 alpha behavior in our SVG path.
+
+## Decoded cache and transferable work ownership
+
+`asset_cache::Cache` is a native UI-owned controller. Its handles are local `Rc`
+leases; its Work/Completion tickets are transferable to the background executor.
+It is not yet attached to the application's host pump. Consumers must acquire a
+fresh encoded-store lease before requesting a cache handle, so warm pixels cannot
+resurrect a retired registration. Mounts sharing one source share a decode/result.
+Only mounted handles and running work keep encoded leases; warm pixel entries
+hold weak owner references and cannot retain encoded data by themselves.
+
+| Controller resource | Limit |
+| --- | --- |
+| Live/warm entries | 256 |
+| Queued decode requests | 32 |
+| Running jobs plus undelivered completions | 2 |
+| Ready/retired pixel bytes plus reserved result output | 256 MiB |
+| Reservation per admitted job | 64 MiB |
+| Retired metadata during admission | 256 |
+
+The scheduler reserves maximum retained output before dispatching a job, then
+replaces that reservation with its actual pixel size when publishing the result.
+Codec working buffers remain separate and best-effort limited; this table is not
+a process-RSS guarantee. Shared pixel references stay charged through weak image
+records after eviction, including outstanding paint and atlas-cleanup references.
+The host must drain returned evictions and call `Window::drop_image` on every
+window that uploaded them. Dropping only a CPU entry is insufficient.
+
+Cleanup chooses least-recently-requested unused entries and retires only enough
+to make room. Retired and live entry metadata are independently bounded. During
+terminal close, live entries transfer into the existing retired set, keeping the
+combined maximum at 512; no new admission is possible. Atlas eviction vectors
+remain bounded by that same ownership transfer. Native pixel capacity is released
+only after the final image `Arc` drops, not when eviction is merely requested.
+
+Dropping the last mounted handle signals its work's cancellation flag immediately.
+Workers check before decoding and before returning output; a synchronous decoder
+already running can finish. Queued owners disappear on collection. Each request
+has a non-wrapping ticket distinct from the resource ID, and completion additionally
+checks the exact ticket allocation identity. Late work cannot update a replacement
+request or a different cache with equal numeric IDs. Dropped jobs/completions mark
+their reservation abandoned for collection; unexpected decoder panics become typed
+worker failures. Closing forbids work, cancels jobs and suppresses late publication.
+
+Host integration must drive queued work on GPUI's background executor, refresh
+live consumers on completion/admission failure, drain atlas evictions before reuse,
+and join/drain its outstanding tasks during teardown. These requirements remain
+open; a standalone controller test is not proof of application scheduling or GPU
+memory disposal. SVG will extend cache identity with raster size and icon tint.

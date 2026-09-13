@@ -396,3 +396,11 @@ helper is not yet scheduled from the host or exposed in views; SVG, aggregate
 worker/cache ownership and actual rendered-image acceptance remain pending.
 See [asset design](design/assets.md) for strict-output versus best-effort decoder
 allocation limits and [pixel-test evidence](evidence/assets-och11.md).
+
+The decoded-cache/work-ticket controller now reserves result output before native
+work dispatch, bounds live/queued/running/retired state, shares source decodes and
+keeps evicted pixels charged through their last reader. Worker/handle identities
+reject late or foreign results; mounted-owner disposal directly cancels work.
+Controller tests include an actual background-thread decode. The host does not
+yet schedule these tickets or perform per-window atlas evictions; SVG and image
+views are still pending. See [asset ownership design](design/assets.md).
