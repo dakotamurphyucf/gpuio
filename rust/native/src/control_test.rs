@@ -5,6 +5,8 @@ mod command_test;
 mod menu_test;
 #[path = "overlay_test.rs"]
 mod overlay_test;
+#[path = "palette_test.rs"]
+mod palette_test;
 #[path = "tooltip_test.rs"]
 mod tooltip_test;
 use super::editor_test::{frame, key};
@@ -1155,6 +1157,44 @@ fn accessible(
     label: &str,
     press: bool,
 ) -> Option<Accessible> {
+    accessible_with_role(cx, handle, label, None, press)
+}
+#[cfg(target_os = "macos")]
+#[derive(Clone, Copy)]
+enum AccessibilityRequest<'a> {
+    Inspect,
+    Press,
+    Focus,
+    SetValue(&'a str),
+}
+#[cfg(target_os = "macos")]
+fn accessible_with_role(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    label: &str,
+    expected_role: Option<&str>,
+    press: bool,
+) -> Option<Accessible> {
+    accessible_request(
+        cx,
+        handle,
+        label,
+        expected_role,
+        if press {
+            AccessibilityRequest::Press
+        } else {
+            AccessibilityRequest::Inspect
+        },
+    )
+}
+#[cfg(target_os = "macos")]
+fn accessible_request(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    label: &str,
+    expected_role: Option<&str>,
+    request: AccessibilityRequest<'_>,
+) -> Option<Accessible> {
     use objc2::{
         msg_send,
         runtime::{AnyObject, Bool},
@@ -1163,7 +1203,8 @@ fn accessible(
     unsafe fn visit(
         object: *mut AnyObject,
         label: &str,
-        press: bool,
+        expected_role: Option<&str>,
+        request: AccessibilityRequest<'_>,
         depth: usize,
     ) -> Option<Accessible> {
         if object.is_null() || depth > 16 {
@@ -1171,8 +1212,12 @@ fn accessible(
         }
         unsafe {
             let title: *mut NSString = msg_send![object, accessibilityTitle];
-            if !title.is_null() && (*title).to_string() == label {
-                let role: *mut NSString = msg_send![object, accessibilityRole];
+            let role: *mut NSString = msg_send![object, accessibilityRole];
+            if !title.is_null()
+                && (*title).to_string() == label
+                && !role.is_null()
+                && expected_role.is_none_or(|expected| (*role).to_string() == expected)
+            {
                 let value: *mut AnyObject = msg_send![object, accessibilityValue];
                 let value: isize = if value.is_null() {
                     -1
@@ -1180,10 +1225,20 @@ fn accessible(
                     msg_send![value, integerValue]
                 };
                 let enabled: Bool = msg_send![object, isAccessibilityEnabled];
-                if press {
-                    let _: () = msg_send![object, setAccessibilityFocused: true];
-                    let accepted: Bool = msg_send![object, accessibilityPerformPress];
-                    assert!(accepted.as_bool());
+                match request {
+                    AccessibilityRequest::Inspect => (),
+                    AccessibilityRequest::Press => {
+                        let _: () = msg_send![object, setAccessibilityFocused: true];
+                        let accepted: Bool = msg_send![object, accessibilityPerformPress];
+                        assert!(accepted.as_bool());
+                    }
+                    AccessibilityRequest::Focus => {
+                        let _: () = msg_send![object, setAccessibilityFocused: true];
+                    }
+                    AccessibilityRequest::SetValue(value) => {
+                        let value = NSString::from_str(value);
+                        let _: () = msg_send![object, setAccessibilityValue: &*value];
+                    }
                 }
                 return Some(Accessible {
                     role: (*role).to_string(),
@@ -1199,7 +1254,7 @@ fn accessible(
             assert!(count < 128);
             for index in 0..count {
                 let child: *mut AnyObject = msg_send![children, objectAtIndex: index];
-                if let Some(found) = visit(child, label, press, depth + 1) {
+                if let Some(found) = visit(child, label, expected_role, request, depth + 1) {
                     return Some(found);
                 }
             }
@@ -1210,7 +1265,7 @@ fn accessible(
     unsafe {
         let window: *mut AnyObject = msg_send![view, window];
         let content: *mut AnyObject = msg_send![window, contentView];
-        visit(content, label, press, 0)
+        visit(content, label, expected_role, request, 0)
     }
 }
 
@@ -1338,6 +1393,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
     tooltip_test::exercise(cx, handle, &transport).await;
     command_test::exercise(cx, handle, &transport).await;
     menu_test::exercise(cx, handle, &transport).await;
+    palette_test::exercise(cx, handle, &transport).await;
     // Remove a focused native node and enter the surviving Tab order again.
     handle
         .update(cx, |view, window, cx| {
@@ -1390,13 +1446,22 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
         .unwrap();
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Suite {
+    Controls,
+    Menus,
+    Palette,
+}
 pub fn run() {
-    run_with_menus_only(false);
+    run_suite(Suite::Controls);
 }
 pub fn run_menus() {
-    run_with_menus_only(true);
+    run_suite(Suite::Menus);
 }
-fn run_with_menus_only(menus_only: bool) {
+pub fn run_palette() {
+    run_suite(Suite::Palette);
+}
+fn run_suite(suite: Suite) {
     let failure = Rc::new(RefCell::new(None));
     let task_failure = failure.clone();
     let mut fds = [0; 2];
@@ -1475,10 +1540,11 @@ fn run_with_menus_only(menus_only: bool) {
             Op::Splice(node(0), 0, 0, vec![node(1), node(2), node(3), node(4)]),
             Op::SetRoot(Some(node(0))),
         ]);
-        if menus_only {
+        if suite != Suite::Controls {
             // Reserve the same generational slots used by preceding component
             // fixtures, without exercising those unrelated windows/interactions.
-            for slot in 5..38 {
+            let end = if suite == Suite::Palette { 47 } else { 38 };
+            for slot in 5..end {
                 operations.push(Op::Create(node(slot), Kind::Text, String::new(), None));
                 operations.push(Op::Remove(node(slot)));
             }
@@ -1516,9 +1582,13 @@ fn run_with_menus_only(menus_only: bool) {
         cx.activate(true);
         cx.spawn(async move |cx| {
             let result = super::native_test::protect(async {
-                if menus_only {
+                if suite != Suite::Controls {
                     frame(cx, handle).await;
-                    menu_test::exercise(cx, handle, &transport).await;
+                    match suite {
+                        Suite::Menus => menu_test::exercise(cx, handle, &transport).await,
+                        Suite::Palette => palette_test::exercise(cx, handle, &transport).await,
+                        Suite::Controls => unreachable!(),
+                    }
                     handle
                         .update(cx, |_, window, _| window.remove_window())
                         .unwrap();
@@ -1535,7 +1605,7 @@ fn run_with_menus_only(menus_only: bool) {
     if let Some(error) = failure.borrow_mut().take() {
         std::panic::resume_unwind(error);
     }
-    if menus_only {
+    if suite != Suite::Controls {
         return;
     }
     println!(

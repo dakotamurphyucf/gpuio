@@ -91,7 +91,7 @@ impl State {
     #[cfg(feature = "native-tests")]
     pub(super) fn diagnostics(&self) -> String {
         format!(
-            "open={}, requested={}, anchor={}, panel={}, focused={}, suppressed={}, pending={:?}, config={:?}",
+            "open={}, requested={}, anchor={}, panel={}, focused={}, suppressed={}, pending={:?}, config={:?}, bounds={:?}",
             self.open,
             self.requested,
             self.anchor_hover,
@@ -99,7 +99,8 @@ impl State {
             self.focused,
             self.suppressed,
             self.pending,
-            self.config
+            self.config,
+            self.bounds.get()
         )
     }
     fn interested(&self) -> bool {
@@ -161,6 +162,14 @@ impl View {
                 hidden.insert(content);
             }
         }
+        hidden.extend(
+            self.palettes
+                .iter()
+                .filter(|(_, state)| state.closed)
+                .map(|(id, _)| *id),
+        );
+        self.focus.borrow_mut().set_hidden(hidden.clone());
+        hidden.extend(self.dismiss_hidden_palettes());
         self.focus.borrow_mut().set_hidden(hidden);
         self.focus.borrow_mut().sync(window, cx);
         for (id, state) in &mut self.tooltips {

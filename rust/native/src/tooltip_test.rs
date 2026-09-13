@@ -385,13 +385,29 @@ pub(super) async fn exercise(
         .unwrap();
     super::super::native_test::move_mouse(cx, handle, content, false);
     frame(cx, handle).await;
+    let entered = handle
+        .update(cx, |view, window, _| {
+            format!(
+                "target={content:?}, mouse={:?}, {}",
+                window.mouse_position(),
+                view.tooltips[&node(28)].diagnostics()
+            )
+        })
+        .unwrap();
     cx.background_executor()
         .timer(std::time::Duration::from_millis(120))
         .await;
     frame(cx, handle).await;
     assert!(
         visible(cx, handle),
-        "hoverable content cancels delayed closure"
+        "hoverable content cancels delayed closure; entered: {entered}; final: {}",
+        handle
+            .update(cx, |view, window, _| format!(
+                "mouse={:?}, {}",
+                window.mouse_position(),
+                view.tooltips[&node(28)].diagnostics()
+            ))
+            .unwrap()
     );
     super::super::native_test::move_mouse(cx, handle, outside, false);
     cx.background_executor()

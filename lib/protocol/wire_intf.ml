@@ -22,6 +22,7 @@ module type S = sig
       | Command_scope
       | Command_button
       | Menu
+      | Command_palette
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -492,6 +493,24 @@ module type S = sig
     [@@deriving bin_io, equal, sexp_of]
   end
 
+  module Palette : sig
+    type t =
+      { label : string
+      ; placeholder : string
+      ; commands : string list
+      ; dismiss_on_outside_pointer : bool
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Palette_dismissal : sig
+    type t =
+      | Escape
+      | Outside_pointer
+      | Selected of string
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
   module Op : sig
     type t =
       | Create of Node_id.t * Kind.t * string * Handler_id.t option
@@ -513,6 +532,7 @@ module type S = sig
       | Set_commands of Node_id.t * Command.t list
       | Set_command_ref of Node_id.t * string
       | Set_menu of Node_id.t * Menu.t
+      | Set_palette of Node_id.t * Palette.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -593,6 +613,8 @@ module type S = sig
           * string
           * int64
           * Command_source.t
+      | Palette_dismissed of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Palette_dismissal.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

@@ -14,7 +14,9 @@ pub const MAX_INPUT_BYTES: usize = 4 * MAX_MESSAGE_BYTES;
 // by MAX_TEXT_BYTES, hence at most MAX_RESPONSES * (MAX_TEXT_BYTES + 256).
 fn event_bytes(event: &Event) -> usize {
     256 + match event {
-        Event::Choice(_, _, _, _, id) => id.len(),
+        Event::Choice(_, _, _, _, id)
+        | Event::CommandInvoked(_, _, _, _, id, _, _)
+        | Event::PaletteDismissed(_, _, _, _, PaletteDismissal::Selected(id)) => id.len(),
         Event::ComboboxSelected(_, _, _, _, id, snapshot) => id.len() + snapshot.text.len(),
         Event::EditorEvent(_, _, _, _, _, snapshot)
         | Event::EditorResult(_, _, _, EditorResult::Applied(snapshot)) => snapshot.text.len(),
@@ -195,6 +197,7 @@ impl Mailbox {
             | Event::OverlayDismissed(id, ..)
             | Event::TooltipOpenChanged(id, ..)
             | Event::CommandInvoked(id, ..)
+            | Event::PaletteDismissed(id, ..)
             | Event::ComboboxSelected(id, ..)
             | Event::EditorResult(_, id, ..)
             | Event::Overloaded(id) => id.slot() == window_slot,

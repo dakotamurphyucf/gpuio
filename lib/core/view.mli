@@ -57,6 +57,22 @@ val command_button
   -> unit
   -> 'action t
 
+(** Mounting opens a modal, native-owned search session. Search/navigation do not
+    roundtrip through OCaml. Escape, permitted outside clicks, or selecting a
+    command close it natively and restore the prior eligible focus. [on_dismiss]
+    should remove the view. A closed session stays closed until unmounted and
+    mounted again, or replaced with a new key; metadata updates do not reopen it.
+    The query is independent of document editors and never becomes the target of
+    registry native-edit commands. Commands resolve at the palette's tree location. *)
+val command_palette
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?appearance:Command_palette.Appearance.t
+  -> config:Command_palette.Config.t
+  -> on_dismiss:(Command_palette.Dismissal.t -> 'action)
+  -> unit
+  -> 'action t
+
 (** Native-managed menu navigation resolves the same command registry as buttons
     and shortcuts. The context menu wraps one arbitrary child and opens on right
     click or Shift-F10. Escape restores prior focus. [menu_bar] defaults to the
@@ -207,6 +223,7 @@ module Expert : sig
       | Command_scope
       | Command_button
       | Menu
+      | Command_palette
     [@@deriving equal, sexp_of]
   end
 
@@ -256,6 +273,12 @@ module Expert : sig
     ; on_event : Text_input.Event.t -> 'action
     }
 
+  type 'action palette =
+    { config : Command_palette.Config.t
+    ; appearance : Command_palette.Appearance.t
+    ; on_dismiss : Command_palette.Dismissal.t -> 'action
+    }
+
   type menu =
     { presentation : Menu.Expert.presentation
     ; menus : Menu.t list
@@ -276,6 +299,7 @@ module Expert : sig
     ; tooltip : 'action tooltip option
     ; commands : 'action Command.Registry.t option
     ; command_ref : Command.Id.t option
+    ; palette : 'action palette option
     ; menu : menu option
     ; focus_scope : Focus_scope.t option
     ; children : 'action t list

@@ -180,3 +180,16 @@ unchanged surviving window. Hidden triggers now close detached popup state and
 release focus. The combined native controls suite, public Bonsai/Eio example,
 Rust workspace tests and Clippy pass locally; the [menu evidence report](evidence/native-menus-och11.md)
 records coverage and limitations. No hosted or Linux GUI acceptance is claimed.
+
+
+The command palette is implemented on the local OCH-11 branch: ordered command
+references, native query/composition/history, virtualized results, shared command
+execution, modal focus and accessible activation. Local macOS tests pass a
+1000-command list, current-query/current-generation routing, native document Copy,
+hidden/nested-modal restoration and query disposal. Visibility-driven dismissal
+now runs before paint can discard focus ancestry. Full OCaml build/tests/format,
+Rust workspace tests, Clippy and the public Bonsai/Eio example pass locally. The
+[palette evidence report](evidence/native-palette-och11.md) records the checks and
+an unresolved intermittent tooltip-hover failure seen in an earlier combined run;
+the subsequent combined controls run passed. OCH-11 remains In Progress, with no
+hosted or Linux GUI acceptance claimed for this checkpoint.

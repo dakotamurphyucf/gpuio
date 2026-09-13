@@ -2,7 +2,7 @@
 //! actions complete on the GPUI thread; application actions are queued to OCaml.
 use super::View;
 use crate::session::CommandInvocation;
-use gpui::{App, Context, Keystroke, Window};
+use gpui::{App, Context, Focusable, Keystroke, Window};
 use gpuio_protocol::{HandlerId, NodeId, v1::*};
 use std::{collections::BTreeSet, sync::Arc};
 
@@ -86,7 +86,7 @@ impl View {
             });
         }));
     }
-    fn command_editor(&self, window: &Window, cx: &App) -> Option<NodeId> {
+    pub(super) fn command_editor(&self, window: &Window, cx: &App) -> Option<NodeId> {
         self.editors
             .iter()
             .find(|(_, editor)| editor.focus_handle(cx).is_focused(window))
@@ -142,9 +142,8 @@ impl View {
                     self.focus.borrow().allows(source)
                 }
             }
-            CommandSource::Button(_) | CommandSource::Palette(_) => {
-                self.focus.borrow().allows(source)
-            }
+            CommandSource::Palette(_) => !self.focus.borrow().blocks_pointer(route.scope),
+            CommandSource::Button(_) => self.focus.borrow().allows(source),
             CommandSource::Shortcut => !self.focus.borrow().blocks_pointer(source),
         };
         if !allowed || !self.command_available(&route.config, window, cx) {
@@ -226,8 +225,12 @@ impl View {
             .editors
             .values()
             .find(|editor| editor.focus_handle(cx).is_focused(window));
-        let composing = editor.is_some_and(|editor| editor.is_composing(cx));
-        let editing = editor.is_some();
+        let palette = self.palettes.values().find(|state| {
+            !state.closed && state.query.read(cx).focus_handle(cx).is_focused(window)
+        });
+        let composing = editor.is_some_and(|editor| editor.is_composing(cx))
+            || palette.is_some_and(|state| state.query.read(cx).bridge_composition().is_some());
+        let editing = editor.is_some() || palette.is_some();
         let route = {
             let session = self.session.borrow();
             let Some(tree) = session.tree(self.id) else {

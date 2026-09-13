@@ -91,6 +91,15 @@ impl Manager {
     pub(super) fn allows(&self, node: NodeId) -> bool {
         !self.hidden(node) && self.active.is_none_or(|scope| self.within(node, scope))
     }
+    pub(super) fn allows_without(&self, excluded: NodeId, node: NodeId) -> bool {
+        !self.hidden(node)
+            && self
+                .scopes
+                .iter()
+                .filter(|(id, scope)| **id != excluded && scope.config.trap)
+                .max_by_key(|(_, scope)| scope.order)
+                .is_none_or(|(scope, _)| self.within(node, *scope))
+    }
     pub(super) fn blocks_pointer(&self, node: NodeId) -> bool {
         self.hidden(node)
             || self
@@ -199,15 +208,31 @@ impl Manager {
                         continue;
                     }
                     let node = tree.get(id).expect("validated node");
-                    let config = node.focus_scope.or_else(|| {
-                        node.tooltip.as_ref().map(|_| FocusScopeConfig {
-                            trap: false,
-                            auto_focus: false,
-                            restore_focus: false,
+                    let config = node
+                        .focus_scope
+                        .or_else(|| {
+                            node.palette.as_ref().map(|_| FocusScopeConfig {
+                                trap: true,
+                                auto_focus: true,
+                                restore_focus: true,
+                            })
                         })
-                    });
+                        .or_else(|| {
+                            node.tooltip.as_ref().map(|_| FocusScopeConfig {
+                                trap: false,
+                                auto_focus: false,
+                                restore_focus: false,
+                            })
+                        });
                     if let Some(config) = config {
-                        result.push((id, config, node.overlay.as_ref().map(|config| config.kind)));
+                        result.push((
+                            id,
+                            config,
+                            node.overlay
+                                .as_ref()
+                                .map(|config| config.kind)
+                                .or_else(|| node.palette.as_ref().map(|_| OverlayKind::Dialog)),
+                        ));
                     }
                     stack.extend(node.children.iter().rev().copied());
                 }

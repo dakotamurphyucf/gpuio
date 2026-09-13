@@ -429,3 +429,34 @@ fn menu_presentations_nested_definitions_and_bounded_decoding_match_ocaml() {
         Err(gpuio_protocol::DecodeError::LimitExceeded)
     );
 }
+
+#[path = "common/palette_fixture.rs"]
+mod palette_fixture;
+#[test]
+fn palette_requests_and_dismissals_match_ocaml() {
+    let expected = bytes(include_str!(
+        "../../../test/fixtures/palette-v1-request.hex"
+    ));
+    let mut actual = Vec::new();
+    palette_fixture::request()
+        .binprot_write(&mut actual)
+        .unwrap();
+    assert_eq!(actual, expected);
+    assert_eq!(
+        gpuio_protocol::decode(&actual).unwrap(),
+        palette_fixture::request()
+    );
+    for length in 0..actual.len() {
+        assert!(gpuio_protocol::decode(&actual[..length]).is_err());
+    }
+    actual.push(0);
+    assert!(gpuio_protocol::decode(&actual).is_err());
+    actual.clear();
+    palette_fixture::events()
+        .binprot_write(&mut actual)
+        .unwrap();
+    assert_eq!(
+        actual,
+        bytes(include_str!("../../../test/fixtures/palette-v1-events.hex"))
+    );
+}

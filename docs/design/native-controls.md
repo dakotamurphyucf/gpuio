@@ -1,10 +1,9 @@
 # Native controls (OCH-11, in progress)
 
 The controls add `View.checkbox`, `View.switch`, `View.radio_group`, `View.select`,
-`View.combobox`, `View.tooltip`, menus, shared commands, focus scopes,
+`View.combobox`, `View.tooltip`, menus, command palettes, shared commands, focus scopes,
 dialogs/popovers and disabled buttons to both the pure action API and the Bonsai
-effect API. The rest of OCH-11 remains in progress: the command palette,
-progress/notifications, pointer/drag interactions,
+effect API. The rest of OCH-11 remains in progress: progress/notifications, pointer/drag interactions,
 assets, and their acceptance checks. This document records the implemented
 contracts and the integration findings; it is not completion evidence for the
 whole ticket.
@@ -531,3 +530,70 @@ install OS key equivalents or responder-selector associations. This avoids addin
 mutable global key bindings that could bypass the declared native-first and IME
 policies. The command palette and broader desktop services remain separate work
 within OCH-11.
+
+
+## Command palette
+
+`View.command_palette ~config ~on_dismiss ()` mounts a modal native search session.
+`Command_palette.Config.create ~label ~commands ()` accepts unique, ordered
+`Command.Id.t` references resolved through the enclosing command registries.
+Command labels, enabled/checked state, generation and implementation stay in the
+registry; the palette does not duplicate command callbacks or own application
+state. The [public Bonsai/Eio example](../../examples/palette/main.ml) opens the
+chooser with a command button or Primary-Shift-P.
+
+The application controls whether the view exists. Mounting opens the session;
+Escape, permitted outside pointer input, or choosing a command closes it natively
+and restores eligible prior focus. `on_dismiss` receives `Escape`,
+`Outside_pointer`, or `Selected id` and should remove the view. A closed view
+remains closed across metadata updates: unmount/remount it, or give the next
+session a new key. Hiding the palette or an ancestor ends the session with
+`Escape`; application unmount itself does not emit a dismissal. This differs from
+an application-controlled dialog, whose trap persists until accepted unmount.
+
+Rust owns a private GPUI Base input entity, query text/composition/undo history,
+highlight and native virtualized result list. Search or navigation does not send
+an event through OCaml. Unicode-lowercase, whitespace-separated query terms must
+all occur in the command label or ID; results retain declaration order. This is
+substring matching, without fuzzy ranking, accent folding or Unicode normalization.
+Up/Down and PageUp/PageDown navigate enabled results; Home/End/Left/Right remain
+text-editing keys. Enter executes the current enabled result. During native
+composition Enter does not execute; Escape first clears marked composition.
+
+The query is not an application document editor and cannot become the target of
+a registry native-edit command. Opening captures the eligible application editor;
+choosing a native editing command closes the palette and restores focus before
+revalidating/performing that command. Existing modal scopes continue to constrain
+that target. Callback commands enqueue `Command_invoked` before the palette's
+`Selected` dismissal, preserving invocation-before-removal ordering. Selection
+checks current query, registry, generation and membership even before another
+paint; disabled or stale painted actions cannot execute a superseded command.
+Ordinary shortcut matching retains the shared editing/composition priority rules.
+
+`Command_palette.Appearance` aliases `Choice.Appearance`. Popup geometry, uniform
+row height, maximum visible rows, empty label, and popup/option/empty styles reuse
+that bounded contract. Defaults are a 560-pixel popup and eight visible rows;
+geometry clamps to the current viewport. Option Focused styles mean the highlighted
+result; Checked reflects registry state. Hovered/Pressed apply to enabled pointer
+rows. Popup Hovered and ordinary root Focused/Hovered/Pressed styles are supported;
+root Focused includes focus in the query. `Pointer_events false` prevents query/row
+pointer actions and outside dismissal while preserving keyboard and accessibility
+operation. The modal surface shields background wheel and pointer input.
+
+The palette exposes a modal Dialog, editable ComboBox query, ListBox results and
+Option semantics with labels, disabled/checked state and active descendant.
+Accessibility Focus/SetValue operate on the bounded query; Click performs the
+same validated command route as keyboard and pointer activation. Labels and
+placeholder refresh with configuration. Actual platform role mapping remains
+GPUI/AccessKit-owned (macOS represents the result option as `AXStaticText`).
+
+Limits: 1024 unique command references, 256 KiB aggregate metadata, 4096 UTF-8 bytes
+per label/placeholder and query, and 64 KiB of query undo history. Labels must be
+nonblank; strings reject NUL. Accessibility query replacement also rejects line breaks. Visible
+rows are virtualized, and removing the view releases its query entity,
+subscription, scroll state and row anchors. The protocol adds kind 15, operation
+19, event 18 and capability bit 32768; existing wire tags retain their meaning.
+
+Local verification and platform limits are recorded in the
+[palette evidence report](../evidence/native-palette-och11.md). This component does
+not complete the remaining OCH-11 families or OCH-12 animations.

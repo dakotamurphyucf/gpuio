@@ -5,6 +5,7 @@ mod command;
 mod decode;
 mod id;
 mod menu;
+mod palette;
 pub mod v1;
 
 pub use decode::{DecodeError, decode};

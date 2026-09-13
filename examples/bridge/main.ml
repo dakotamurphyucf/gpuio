@@ -100,6 +100,7 @@ let worker native notification_read =
       | Combobox_selected _
       | Overlay_dismissed _
       | Tooltip_open_changed _
+      | Palette_dismissed _
       | Command_invoked _ -> ()
     in
     send (Hello (Wire.version, Wire.capabilities));

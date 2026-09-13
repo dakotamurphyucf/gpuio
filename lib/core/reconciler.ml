@@ -64,6 +64,7 @@ module Identity = struct
 end
 
 type 'a callback =
+  | Palette of Command_palette.Config.t * (Command_palette.Dismissal.t -> 'a)
   | Click of (unit -> 'a)
   | Commands of 'a Ui_command.Registry.t * Wire.Command.t list
   | Dismiss of Overlay.Config.t * (Overlay.Dismissal.t -> 'a)
@@ -193,6 +194,7 @@ let kind = function
   | Command_scope -> Command_scope
   | Command_button -> Command_button
   | Menu -> Menu
+  | Command_palette -> Command_palette
 ;;
 
 let compatible mounted view =
@@ -317,6 +319,12 @@ let rec mount builder ~depth previous view =
       | None, None, None, None, None, None, None -> None
       | _ -> fail "a view cannot combine incompatible handler kinds"
     in
+    let callback =
+      match description.palette, callback with
+      | Some palette, None -> Some (Palette (palette.config, palette.on_dismiss))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "palette cannot combine another handler"
+    in
     let rotate_handler =
       (match description.combobox, previous with
        | Some combo, Some mounted ->
@@ -403,6 +411,14 @@ let rec mount builder ~depth previous view =
            menu
            (Option.bind previous ~f:(fun mounted -> mounted.menu)))
     then Option.iter menu ~f:(fun config -> emit builder (Set_menu (id, config)));
+    Option.iter description.palette ~f:(fun palette ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).palette ~f:(fun palette ->
+            palette.config))
+      in
+      if not (Option.equal Command_palette.Config.equal old (Some palette.config))
+      then emit builder (Set_palette (id, Command_palette.Expert.to_wire palette.config)));
     let editor_config (description : _ View.Expert.description) =
       match description.editor, description.combobox with
       | Some editor, None -> Some editor.config
@@ -498,10 +514,12 @@ let rec mount builder ~depth previous view =
       if not (Option.equal Choice.Config.equal old (Some config))
       then emit builder (Set_choice (id, Choice.Expert.config_to_wire config)));
     let choice_appearance =
-      (match description.menu, description.combobox with
-       | Some menu, _ -> Some menu.appearance
-       | None, Some combo -> Some combo.appearance
-       | None, None -> Option.bind description.choice ~f:(fun choice -> choice.appearance))
+      (match description.palette, description.menu, description.combobox with
+       | Some palette, _, _ -> Some palette.appearance
+       | None, Some menu, _ -> Some menu.appearance
+       | None, None, Some combo -> Some combo.appearance
+       | None, None, None ->
+         Option.bind description.choice ~f:(fun choice -> choice.appearance))
       |> Option.map ~f:(fun appearance ->
         Choice.Expert.appearance_to_wire appearance ~theme:builder.theme |> value)
     in
@@ -564,6 +582,13 @@ let rec mount builder ~depth previous view =
         List.concat_map menu.menus ~f:Menu.Expert.command_ids
         |> List.map ~f:Ui_command.Id.to_string
         |> String.Set.of_list)
+    in
+    let menu_commands =
+      Option.value_map description.palette ~default:menu_commands ~f:(fun palette ->
+        List.fold
+          (Command_palette.Config.commands palette.config)
+          ~init:menu_commands
+          ~f:(fun refs id -> Set.add refs (Ui_command.Id.to_string id)))
     in
     let free_commands =
       List.fold
@@ -698,7 +723,13 @@ let dispatch t = function
        when Node_id.equal node binding.node && Handler_id.equal handler binding.handler ->
        (match binding.callback with
         | Click callback -> Some (callback ())
-        | Editor _ | Choice _ | Combobox _ | Dismiss _ | Tooltip _ | Commands _ -> None)
+        | Editor _
+        | Choice _
+        | Combobox _
+        | Dismiss _
+        | Tooltip _
+        | Commands _
+        | Palette _ -> None)
      | Some _ | None -> None)
   | Choice (window, node, handler, revision, selected)
     when (not t.closed)
@@ -797,6 +828,19 @@ let dispatch t = function
             && ((not open_) || not (Tooltip.Expert.is_disabled config)) ->
        Some (callback open_)
      | Some _ | None -> None)
+  | Palette_dismissed (window, node, handler, revision, reason)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Palette (config, callback)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       Command_palette.Expert.dismissal config reason |> Option.map ~f:callback
+     | Some _ | None -> None)
   | Command_invoked (window, node, handler, revision, id, generation, _)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -817,6 +861,7 @@ let dispatch t = function
          |> Option.bind ~f:Ui_command.Expert.invoke
        else None
      | Some _ | None -> None)
+  | Palette_dismissed _
   | Command_invoked _
   | Tooltip_open_changed _
   | Overlay_dismissed _

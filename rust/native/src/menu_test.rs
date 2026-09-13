@@ -984,6 +984,17 @@ pub(super) async fn exercise(
             let _ = cx;
         })
         .unwrap();
+    #[cfg(not(target_os = "macos"))]
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Create(node(45), Kind::Text, "".into(), None),
+            Op::Remove(node(45)),
+            Op::Create(node(46), Kind::Text, "".into(), None),
+            Op::Remove(node(46)),
+        ],
+    );
     println!(
         "GPUIO_MENUS_NATIVE_OK: nested navigation, disabled/separator skipping, placement, pointer activation, context focus restoration, in-window/platform routing and disposal"
     );

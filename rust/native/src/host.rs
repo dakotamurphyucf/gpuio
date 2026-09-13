@@ -1,4 +1,5 @@
 use crate::{session::Session, transport::Transport};
+use gpui::Focusable;
 use gpui::{
     App, Bounds, Context, Window, WindowBounds, WindowHandle, WindowOptions, canvas, div,
     prelude::*, px, rgba, size,
@@ -36,6 +37,8 @@ mod menu;
 mod menu_platform;
 #[path = "overlay.rs"]
 mod overlay;
+#[path = "palette.rs"]
+mod palette;
 #[path = "popup.rs"]
 mod popup;
 #[path = "radio.rs"]
@@ -81,6 +84,7 @@ struct View {
     command_subscription: Option<gpui::Subscription>,
     menus: BTreeMap<NodeId, Rc<RefCell<menu::State>>>,
     menu_activation: Option<gpui::Subscription>,
+    palettes: BTreeMap<NodeId, palette::State>,
     visited: std::collections::BTreeSet<NodeId>,
     #[cfg(feature = "native-tests")]
     probes: Rc<RefCell<BTreeMap<NodeId, native_test::Probe>>>,
@@ -255,6 +259,7 @@ impl View {
             command_subscription: None,
             menus: BTreeMap::new(),
             menu_activation: None,
+            palettes: BTreeMap::new(),
             selects: BTreeMap::new(),
             visited: Default::default(),
             #[cfg(feature = "native-tests")]
@@ -264,6 +269,7 @@ impl View {
     fn update_editors(&mut self, dirty: &[NodeId], window: &mut Window, cx: &mut Context<Self>) {
         self.install_command_interceptor(window, cx);
         self.install_menu_observers(window, cx);
+        self.sync_palettes(window, cx);
         self.sync_tooltips(window, cx);
         let nodes = {
             let session = self.session.borrow();
@@ -305,6 +311,9 @@ impl View {
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let node = tree.get(id).expect("validated retained node");
+        if node.kind == Kind::CommandPalette {
+            return self.palette_element(node, interaction, window, cx);
+        }
         if node.kind == Kind::Menu {
             return self.menu_element(tree, node, interaction, window, cx);
         }
@@ -867,24 +876,27 @@ impl Render for View {
         // GPUI routes key events along the focused element's ancestry. Keep a
         // non-tab-stop fallback so Tab also works before the first click and
         // after a focused control is disabled or removed.
-        let has_focus = self
-            .menus
-            .values()
-            .any(|state| state.borrow().focus.is_focused(window))
-            || self.focus.borrow().contains_focus(window)
-            || root_focus.is_focused(window)
-            || self
-                .buttons
-                .values()
-                .any(|state| state.focus.is_focused(window))
-            || self
-                .selections
+        let has_focus =
+            self.palettes.values().any(|state| {
+                !state.closed && state.query.read(cx).focus_handle(cx).is_focused(window)
+            }) || self
+                .menus
                 .values()
                 .any(|state| state.borrow().focus.is_focused(window))
-            || self
-                .editors
-                .values()
-                .any(|editor| editor.focus_handle(cx).is_focused(window));
+                || self.focus.borrow().contains_focus(window)
+                || root_focus.is_focused(window)
+                || self
+                    .buttons
+                    .values()
+                    .any(|state| state.focus.is_focused(window))
+                || self
+                    .selections
+                    .values()
+                    .any(|state| state.borrow().focus.is_focused(window))
+                || self
+                    .editors
+                    .values()
+                    .any(|editor| editor.focus_handle(cx).is_focused(window));
         if !has_focus {
             window.focus(&root_focus, cx);
         }

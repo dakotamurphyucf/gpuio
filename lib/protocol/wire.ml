@@ -1,7 +1,7 @@
 open Core
 
 let version = 1L
-let capabilities = 32767L
+let capabilities = 65535L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -21,6 +21,7 @@ module Kind = struct
     | Command_scope
     | Command_button
     | Menu
+    | Command_palette
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -490,6 +491,24 @@ module Menu = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Palette = struct
+  type t =
+    { label : string
+    ; placeholder : string
+    ; commands : string list
+    ; dismiss_on_outside_pointer : bool
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Palette_dismissal = struct
+  type t =
+    | Escape
+    | Outside_pointer
+    | Selected of string
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Op = struct
   type t =
     | Create of Node_id.t * Kind.t * string * Handler_id.t option
@@ -511,6 +530,7 @@ module Op = struct
     | Set_commands of Node_id.t * Command.t list
     | Set_command_ref of Node_id.t * string
     | Set_menu of Node_id.t * Menu.t
+    | Set_palette of Node_id.t * Palette.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -587,6 +607,8 @@ module Event = struct
     | Tooltip_open_changed of Window_id.t * Node_id.t * Handler_id.t * int64 * bool
     | Command_invoked of
         Window_id.t * Node_id.t * Handler_id.t * int64 * string * int64 * Command_source.t
+    | Palette_dismissed of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Palette_dismissal.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -606,6 +628,10 @@ module Event = struct
   ;;
 
   let rec valid_editor_event = function
+    | Palette_dismissed (window, node, handler, revision, Selected id) ->
+      valid_editor_event (Choice (window, node, handler, revision, id))
+    | Palette_dismissed (_, _, _, revision, (Escape | Outside_pointer)) ->
+      Int64.(revision >= 0L)
     | Command_invoked (_, _, _, revision, id, generation, _) ->
       Int64.(revision >= 0L && generation > 0L)
       && String.length id > 0

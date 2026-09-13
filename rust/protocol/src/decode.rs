@@ -391,6 +391,7 @@ impl Decoder<'_> {
                     12 => Kind::CommandScope,
                     13 => Kind::CommandButton,
                     14 => Kind::Menu,
+                    15 => Kind::CommandPalette,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -410,6 +411,15 @@ impl Decoder<'_> {
             8 => Op::SetControl(self.node()?, self.control()?),
             9 => Op::SetChoice(self.node()?, self.choice_config()?),
             18 => Op::SetMenu(self.node()?, self.menu_config()?),
+            19 => Op::SetPalette(
+                self.node()?,
+                PaletteConfig {
+                    label: self.text()?,
+                    placeholder: self.text()?,
+                    commands: self.list(1024, Self::text)?,
+                    dismiss_on_outside_pointer: self.boolean()?,
+                },
+            ),
             17 => Op::SetCommandRef(self.node()?, self.text()?),
             16 => Op::SetCommands(self.node()?, self.list(1024, Self::command_config)?),
             15 => Op::SetTooltip(

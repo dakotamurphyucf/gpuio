@@ -124,8 +124,8 @@ pub(super) fn element(
 
 /// A zero-layout deferred surface positioned in viewport coordinates using this
 /// frame's layout. It does not inherit the mounting ancestor's scroll offset.
-struct ViewportSurface {
-    content: AnyElement,
+pub(super) struct ViewportSurface {
+    pub(super) content: AnyElement,
 }
 impl IntoElement for ViewportSurface {
     type Element = Self;

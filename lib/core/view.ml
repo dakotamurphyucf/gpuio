@@ -18,6 +18,7 @@ module Kind = struct
     | Command_scope
     | Command_button
     | Menu
+    | Command_palette
   [@@deriving equal, sexp_of]
 end
 
@@ -84,6 +85,12 @@ type menu =
   ; appearance : Menu.Appearance.t
   }
 
+type 'action palette =
+  { config : Command_palette.Config.t
+  ; appearance : Command_palette.Appearance.t
+  ; on_dismiss : Command_palette.Dismissal.t -> 'action
+  }
+
 type 'action t =
   { key : Key.t option
   ; kind : Kind.t
@@ -98,6 +105,7 @@ type 'action t =
   ; tooltip : 'action tooltip option
   ; commands : 'action Ui_command.Registry.t option
   ; command_ref : Ui_command.Id.t option
+  ; palette : 'action palette option
   ; menu : menu option
   ; focus_scope : Focus_scope.t option
   ; children : 'action t list
@@ -116,6 +124,7 @@ let text ?key ?(style = Style.empty) text =
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; palette = None
   ; menu = None
   ; focus_scope = None
   ; control = None
@@ -159,6 +168,7 @@ let button ?key ?(style = Style.empty) ?accessible_name ?(disabled = false) ~on_
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; palette = None
   ; menu = None
   ; focus_scope = None
   ; control = Some (Button { disabled })
@@ -207,6 +217,7 @@ let toggle
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; palette = None
   ; menu = None
   ; focus_scope = None
   ; control = Some control
@@ -251,6 +262,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; palette = None
   ; menu = None
   ; focus_scope = None
   ; control = None
@@ -263,6 +275,7 @@ let focus_scope ?key ?style ~config children =
     kind = Focus_scope
   ; commands = None
   ; command_ref = None
+  ; palette = None
   ; menu = None
   ; focus_scope = Some config
   }
@@ -425,6 +438,7 @@ let text_input
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; palette = None
   ; menu = None
   ; focus_scope = None
   ; control = None
@@ -446,6 +460,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; palette = None
   ; menu = None
   ; focus_scope = None
   ; children = []
@@ -489,9 +504,30 @@ let combobox
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; palette = None
   ; menu = None
   ; focus_scope = None
   ; children = []
+  }
+;;
+
+let command_palette
+      ?key
+      ?(style = Style.empty)
+      ?(appearance =
+        Choice.Appearance.create
+          ~popup_width:560.
+          ~max_visible_rows:8
+          ~empty_label:"No matching commands"
+          ()
+        |> Or_error.ok_exn)
+      ~config
+      ~on_dismiss
+      ()
+  =
+  { (text ?key ~style "") with
+    kind = Command_palette
+  ; palette = Some { config; appearance; on_dismiss }
   }
 ;;
 
@@ -529,6 +565,12 @@ module Expert = struct
     ; on_event : Text_input.Event.t -> 'action
     }
 
+  type nonrec 'action palette = 'action palette =
+    { config : Command_palette.Config.t
+    ; appearance : Command_palette.Appearance.t
+    ; on_dismiss : Command_palette.Dismissal.t -> 'action
+    }
+
   type nonrec menu = menu =
     { presentation : Menu.Expert.presentation
     ; menus : Menu.t list
@@ -549,6 +591,7 @@ module Expert = struct
     ; tooltip : 'action tooltip option
     ; commands : 'action Ui_command.Registry.t option
     ; command_ref : Ui_command.Id.t option
+    ; palette : 'action palette option
     ; menu : menu option
     ; focus_scope : Focus_scope.t option
     ; children : 'action t list

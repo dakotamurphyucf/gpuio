@@ -234,6 +234,26 @@ impl Session {
         .then_some(Event::OverlayDismissed(id, node, handler, revision, reason))
     }
 
+    pub fn palette_dismissed(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        reason: PaletteDismissal,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.palette.as_ref()?;
+        (!state.overloaded
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision()
+            && config.allows(&reason))
+        .then_some(Event::PaletteDismissed(
+            window, node, handler, revision, reason,
+        ))
+    }
+
     pub fn tooltip_open_changed(
         &self,
         id: WindowId,
@@ -293,8 +313,17 @@ impl Session {
                             .is_some_and(|(scope, _)| scope == request.scope))
             }
             CommandSource::Shortcut => true,
-            // Palette requires its presentation adapter and source validation.
-            CommandSource::Palette(_) => false,
+            CommandSource::Palette(palette) => {
+                window
+                    .tree
+                    .get(palette)
+                    .and_then(|node| node.palette.as_ref())
+                    .is_some_and(|config| config.permits(request.command))
+                    && window
+                        .tree
+                        .command(palette, request.command)
+                        .is_some_and(|(scope, _)| scope == request.scope)
+            }
         };
         (!window.overloaded
             && request.revision >= 0

@@ -54,3 +54,9 @@ name = "native_menus"
 path = "tests/native_menus.rs"
 harness = false
 required-features = ["native-tests"]
+
+[[test]]
+name = "native_palette"
+path = "tests/native_palette.rs"
+harness = false
+required-features = ["native-tests"]

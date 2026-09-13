@@ -36,6 +36,15 @@ module View : sig
     -> string
     -> t
 
+  val command_palette
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Command_palette.Appearance.t
+    -> config:Gpuio.Command_palette.Config.t
+    -> on_dismiss:(Gpuio.Command_palette.Dismissal.t -> unit Bonsai.Effect.t)
+    -> unit
+    -> t
+
   val menu_button
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
