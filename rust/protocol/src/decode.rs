@@ -392,6 +392,7 @@ impl Decoder<'_> {
                     13 => Kind::CommandButton,
                     14 => Kind::Menu,
                     15 => Kind::CommandPalette,
+                    16 => Kind::Progress,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -411,6 +412,13 @@ impl Decoder<'_> {
             8 => Op::SetControl(self.node()?, self.control()?),
             9 => Op::SetChoice(self.node()?, self.choice_config()?),
             18 => Op::SetMenu(self.node()?, self.menu_config()?),
+            20 => Op::SetProgress(
+                self.node()?,
+                ProgressConfig {
+                    label: self.text()?,
+                    fraction: self.option(Self::float)?,
+                },
+            ),
             19 => Op::SetPalette(
                 self.node()?,
                 PaletteConfig {

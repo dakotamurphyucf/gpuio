@@ -19,6 +19,7 @@ pub struct Node {
     pub command_ref: Option<Arc<str>>,
     pub menu: Option<Arc<MenuConfig>>,
     pub palette: Option<Arc<PaletteConfig>>,
+    pub progress: Option<Arc<ProgressConfig>>,
     pub placement: Option<Placement>,
     pub combobox_filter: Option<ComboboxFilter>,
     pub choice_appearance: Option<Arc<ChoiceAppearance>>,
@@ -31,6 +32,9 @@ pub struct Node {
 impl Node {
     fn payload_bytes(&self) -> usize {
         self.text.len()
+            + self.progress.as_ref().map_or(0, |config| {
+                std::mem::size_of::<ProgressConfig>() + config.label.len()
+            })
             + self.commands.as_ref().map_or(0, |commands| {
                 commands
                     .iter()
@@ -247,6 +251,18 @@ impl Tree {
                 } else if node.combobox_filter.is_some() {
                     return Err(ErrorCode::InvalidTree);
                 }
+                if (node.kind == Kind::Progress) != node.progress.is_some()
+                    || node.progress.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || node.handler.is_some()
+                            || !node.text.is_empty()
+                            || !node.children.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
                 if (node.kind == Kind::CommandPalette) != node.palette.is_some()
                     || node.palette.as_ref().is_some_and(|config| {
                         !config.is_valid()
@@ -327,6 +343,7 @@ impl Tree {
                     | Kind::CommandButton
                     | Kind::Menu
                     | Kind::CommandPalette
+                    | Kind::Progress
                     | Kind::Text
                     | Kind::Button => {
                         if node.editor.is_some() {
@@ -456,6 +473,7 @@ impl Plan<'_> {
             | Op::SetCommandRef(id, ..)
             | Op::SetMenu(id, ..)
             | Op::SetPalette(id, ..)
+            | Op::SetProgress(id, ..)
             | Op::SetComboboxFilter(id, ..)
             | Op::SetChoiceAppearance(id, ..)
             | Op::Bind(id, ..)
@@ -522,6 +540,7 @@ impl Plan<'_> {
                             command_ref: None,
                             menu: None,
                             palette: None,
+                            progress: None,
                             placement: None,
                             style: Arc::from([]),
                             handler: *handler,
@@ -564,6 +583,12 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.editor = Some(Arc::new(config.clone()));
+            }
+            Op::SetProgress(id, config) => {
+                if self.node(*id)?.kind != Kind::Progress || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.progress = Some(Arc::new(config.clone()));
             }
             Op::SetPalette(id, config) => {
                 if self.node(*id)?.kind != Kind::CommandPalette || !config.is_valid() {

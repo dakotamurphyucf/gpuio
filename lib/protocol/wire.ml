@@ -1,7 +1,7 @@
 open Core
 
 let version = 1L
-let capabilities = 65535L
+let capabilities = 131071L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -22,6 +22,7 @@ module Kind = struct
     | Command_button
     | Menu
     | Command_palette
+    | Progress
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -509,6 +510,14 @@ module Palette_dismissal = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Progress = struct
+  type t =
+    { label : string
+    ; fraction : float option
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Op = struct
   type t =
     | Create of Node_id.t * Kind.t * string * Handler_id.t option
@@ -531,6 +540,7 @@ module Op = struct
     | Set_command_ref of Node_id.t * string
     | Set_menu of Node_id.t * Menu.t
     | Set_palette of Node_id.t * Palette.t
+    | Set_progress of Node_id.t * Progress.t
   [@@deriving bin_io, equal, sexp_of]
 end
 

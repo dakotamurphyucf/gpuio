@@ -1,9 +1,9 @@
 # Native controls (OCH-11, in progress)
 
 The controls add `View.checkbox`, `View.switch`, `View.radio_group`, `View.select`,
-`View.combobox`, `View.tooltip`, menus, command palettes, shared commands, focus scopes,
+`View.combobox`, `View.tooltip`, `View.progress`, menus, command palettes, shared commands, focus scopes,
 dialogs/popovers and disabled buttons to both the pure action API and the Bonsai
-effect API. The rest of OCH-11 remains in progress: progress/notifications, pointer/drag interactions,
+effect API. The rest of OCH-11 remains in progress: in-app notifications, pointer/drag interactions,
 assets, and their acceptance checks. This document records the implemented
 contracts and the integration findings; it is not completion evidence for the
 whole ticket.
@@ -597,3 +597,51 @@ subscription, scroll state and row anchors. The protocol adds kind 15, operation
 Local verification and platform limits are recorded in the
 [palette evidence report](../evidence/native-palette-och11.md). This component does
 not complete the remaining OCH-11 families or OCH-12 animations.
+
+
+## Progress indicators
+
+`Progress.Value.determinate ~fraction` validates a finite fraction in `[0, 1]`;
+`Progress.Value.indeterminate` represents unknown completion. No NaN, infinity,
+negative or greater-than-one value is silently clamped. `Progress.Config.create
+~label ~value` requires a nonblank UTF-8 accessible label, at most 4096 bytes without
+NUL. `View.progress ~config ()` is available in both the pure and Bonsai view APIs:
+
+```ocaml
+let value = Gpuio.Progress.Value.determinate ~fraction:0.25 |> Or_error.ok_exn in
+let config =
+  Gpuio.Progress.Config.create ~label:"Downloading model" ~value |> Or_error.ok_exn
+in
+Gpuio_bonsai.View.progress ~config ()
+```
+
+OCaml owns completion. A change emits progress metadata for the same retained node;
+it does not replace the component or allocate an event handler. The native element
+is noninteractive and excluded from Tab order. Clicking it preserves keyboard
+focus. Accessibility exposes a ProgressIndicator with minimum 0, maximum 100 and
+`fraction * 100` as its current numeric value; indeterminate progress omits that
+value rather than inventing a percentage.
+
+Ordinary `Style.t` controls layout and theme colors. Defaults are a 200-by-8 logical
+pixel track. Background styles the track; Foreground styles the indicator.
+`Style.Indeterminate` applies when completion is unknown. Styles resolve theme
+tokens through the existing reconciler path. The indeterminate indicator has a
+native 1.5-second repeating cycle, without OCaml commits or per-frame application
+callbacks. Hiding it (including through an ancestor), switching to determinate, or
+unmounting removes that cycle from rendering. This internal indicator motion is
+not the general declarative animation API; OCH-12 still owns the shared motion and
+reduced-motion policy integration.
+
+The pinned GPUI Base progress module was evaluated: it provides an unstyled root,
+track and indicator, percentage clamping and the same numeric accessibility
+projection. This adapter uses GPUI directly to preserve the established root-style
+pipeline and validated fraction contract; it introduces no fork patch or second
+progress state store. Native animation identity uses the retained node generation.
+
+The protocol appends kind 16, operation 20 and capability bit 65536. Metadata is
+bounded and included in retained-byte accounting; invalid values, handlers or
+children are rejected atomically. The [public example](../../examples/progress/main.ml)
+cycles empty, indeterminate, halfway and completed progress. See the
+[local evidence report](../evidence/native-progress-och11.md) for tested coverage
+and platform limits. In-app notifications and other remaining OCH-11 families are
+not completed by this progress adapter.

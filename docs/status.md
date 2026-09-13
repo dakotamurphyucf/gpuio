@@ -193,3 +193,14 @@ Rust workspace tests, Clippy and the public Bonsai/Eio example pass locally. The
 an unresolved intermittent tooltip-hover failure seen in an earlier combined run;
 the subsequent combined controls run passed. OCH-11 remains In Progress, with no
 hosted or Linux GUI acceptance claimed for this checkpoint.
+
+
+Progress indicators are implemented locally for OCH-11 with validated fractions,
+explicit indeterminate state, native animation, percentage accessibility and the
+existing root-style/theme API. Actual macOS tests pass painted dimensions/colors,
+noninteractive focus, animation without OCaml commits, and hidden/determinate/
+unmount cleanup. The public Bonsai/Eio example, combined controls suite, full
+OCaml build/tests/format, Rust workspace tests and Clippy pass locally. The
+[progress evidence report](evidence/native-progress-och11.md) records the scope;
+in-app notifications remain unimplemented and OCH-12 still owns general motion
+and reduced-motion integration. No hosted or Linux GUI acceptance is claimed.

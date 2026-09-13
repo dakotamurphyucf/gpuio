@@ -460,3 +460,21 @@ fn palette_requests_and_dismissals_match_ocaml() {
         bytes(include_str!("../../../test/fixtures/palette-v1-events.hex"))
     );
 }
+
+#[path = "common/progress_fixture.rs"]
+mod progress_fixture;
+#[test]
+fn progress_request_matches_ocaml_and_decodes() {
+    let expected = bytes(include_str!(
+        "../../../test/fixtures/progress-v1-request.hex"
+    ));
+    let mut actual = vec![];
+    progress_fixture::request()
+        .binprot_write(&mut actual)
+        .unwrap();
+    assert_eq!(expected, actual);
+    assert_eq!(
+        gpuio_protocol::decode(&actual).unwrap(),
+        progress_fixture::request()
+    );
+}

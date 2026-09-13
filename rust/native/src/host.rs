@@ -41,6 +41,8 @@ mod overlay;
 mod palette;
 #[path = "popup.rs"]
 mod popup;
+#[path = "progress.rs"]
+mod progress;
 #[path = "radio.rs"]
 mod radio;
 #[path = "select.rs"]
@@ -88,6 +90,8 @@ struct View {
     visited: std::collections::BTreeSet<NodeId>,
     #[cfg(feature = "native-tests")]
     probes: Rc<RefCell<BTreeMap<NodeId, native_test::Probe>>>,
+    #[cfg(feature = "native-tests")]
+    progress_probes: BTreeMap<NodeId, progress::Probe>,
 }
 fn emit_press(
     session: &SharedSession,
@@ -264,6 +268,8 @@ impl View {
             visited: Default::default(),
             #[cfg(feature = "native-tests")]
             probes: Default::default(),
+            #[cfg(feature = "native-tests")]
+            progress_probes: Default::default(),
         }
     }
     fn update_editors(&mut self, dirty: &[NodeId], window: &mut Window, cx: &mut Context<Self>) {
@@ -367,6 +373,33 @@ impl View {
                 .border_color(rgba(0x80808080))
                 .rounded(px(4.));
         }
+        if let Some(config) = &node.progress {
+            element = element
+                .w(px(200.))
+                .h(px(8.))
+                .rounded(px(4.))
+                .overflow_hidden()
+                .bg(rgba(0x80808040))
+                .text_color(rgba(0x4d8cffff))
+                .role(gpui::Role::ProgressIndicator)
+                .aria_label(config.label.clone())
+                .aria_min_numeric_value(0.)
+                .aria_max_numeric_value(100.)
+                .on_mouse_down(gpui::MouseButton::Left, |_, window, _| {
+                    window.prevent_default();
+                });
+            if let Some(fraction) = config.fraction {
+                element = element.aria_numeric_value(fraction * 100.);
+            }
+            if self.focus.borrow().visible(id) {
+                element = element.child(progress::indicator(
+                    config.fraction,
+                    identity,
+                    #[cfg(feature = "native-tests")]
+                    self.progress_probes.entry(id).or_default().clone(),
+                ));
+            }
+        }
         if let Some(config) = &node.overlay {
             let available = window.viewport_size();
             element = element
@@ -393,10 +426,14 @@ impl View {
                 node.control,
                 Some(Control::Checkbox(CheckState::Checked, _) | Control::Switch(true, _))
             );
-        let indeterminate = matches!(
-            node.control,
-            Some(Control::Checkbox(CheckState::Indeterminate, _))
-        );
+        let indeterminate = node
+            .progress
+            .as_ref()
+            .is_some_and(|config| config.fraction.is_none())
+            || matches!(
+                node.control,
+                Some(Control::Checkbox(CheckState::Indeterminate, _))
+            );
         if let Some(handle) = self.focus.borrow().handle(id) {
             element = element.track_focus(&handle);
         }
@@ -872,6 +909,13 @@ impl Render for View {
         self.selects.retain(|id, _| self.visited.contains(id));
         self.menus.retain(|id, _| self.visited.contains(id));
         self.sync_platform_menus(window, cx);
+        #[cfg(feature = "native-tests")]
+        self.progress_probes.retain(|id, _| {
+            session
+                .tree(self.id)
+                .and_then(|tree| tree.get(*id))
+                .is_some_and(|node| node.progress.is_some())
+        });
         self.selections.retain(|id, _| self.visited.contains(id));
         // GPUI routes key events along the focused element's ancestry. Keep a
         // non-tab-stop fallback so Tab also works before the first click and

@@ -32,3 +32,8 @@ pub fn run_native_palette_test() {
 pub fn run_native_control_test() {
     host::control_test::run();
 }
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_progress_test() {
+    host::control_test::run_progress();
+}

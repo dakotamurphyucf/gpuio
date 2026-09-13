@@ -36,6 +36,13 @@ module View : sig
     -> string
     -> t
 
+  val progress
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Progress.Config.t
+    -> unit
+    -> t
+
   val command_palette
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

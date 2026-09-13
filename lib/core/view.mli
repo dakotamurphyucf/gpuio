@@ -205,6 +205,17 @@ val combobox
   -> unit
   -> 'action t Core.Or_error.t
 
+(** A noninteractive native progress bar. Root Background styles the track and
+    Foreground styles the indicator. Indeterminate motion stays on the native side;
+    updates retain node identity. The accessible value is a percentage or absent
+    when indeterminate. Width/height use ordinary logical-pixel styles. *)
+val progress
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Progress.Config.t
+  -> unit
+  -> 'action t
+
 module Expert : sig
   module Kind : sig
     type t =
@@ -224,6 +235,7 @@ module Expert : sig
       | Command_button
       | Menu
       | Command_palette
+      | Progress
     [@@deriving equal, sexp_of]
   end
 
@@ -299,6 +311,7 @@ module Expert : sig
     ; tooltip : 'action tooltip option
     ; commands : 'action Command.Registry.t option
     ; command_ref : Command.Id.t option
+    ; progress : Progress.Config.t option
     ; palette : 'action palette option
     ; menu : menu option
     ; focus_scope : Focus_scope.t option

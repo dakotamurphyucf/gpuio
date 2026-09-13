@@ -40,6 +40,7 @@ module View = struct
   let dialog = Gpuio.View.dialog
   let popover = Gpuio.View.popover
   let command_scope = Gpuio.View.command_scope
+  let progress = Gpuio.View.progress
   let command_palette = Gpuio.View.command_palette
   let menu_button = Gpuio.View.menu_button
   let context_menu = Gpuio.View.context_menu

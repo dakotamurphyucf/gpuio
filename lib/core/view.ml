@@ -19,6 +19,7 @@ module Kind = struct
     | Command_button
     | Menu
     | Command_palette
+    | Progress
   [@@deriving equal, sexp_of]
 end
 
@@ -105,6 +106,7 @@ type 'action t =
   ; tooltip : 'action tooltip option
   ; commands : 'action Ui_command.Registry.t option
   ; command_ref : Ui_command.Id.t option
+  ; progress : Progress.Config.t option
   ; palette : 'action palette option
   ; menu : menu option
   ; focus_scope : Focus_scope.t option
@@ -124,6 +126,7 @@ let text ?key ?(style = Style.empty) text =
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; progress = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -168,6 +171,7 @@ let button ?key ?(style = Style.empty) ?accessible_name ?(disabled = false) ~on_
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; progress = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -217,6 +221,7 @@ let toggle
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; progress = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -262,6 +267,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; progress = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -275,6 +281,7 @@ let focus_scope ?key ?style ~config children =
     kind = Focus_scope
   ; commands = None
   ; command_ref = None
+  ; progress = None
   ; palette = None
   ; menu = None
   ; focus_scope = Some config
@@ -438,6 +445,7 @@ let text_input
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; progress = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -460,6 +468,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; progress = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -504,6 +513,7 @@ let combobox
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; progress = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -529,6 +539,10 @@ let command_palette
     kind = Command_palette
   ; palette = Some { config; appearance; on_dismiss }
   }
+;;
+
+let progress ?key ?(style = Style.empty) ~config () =
+  { (text ?key ~style "") with kind = Progress; progress = Some config }
 ;;
 
 module Expert = struct
@@ -591,6 +605,7 @@ module Expert = struct
     ; tooltip : 'action tooltip option
     ; commands : 'action Ui_command.Registry.t option
     ; command_ref : Ui_command.Id.t option
+    ; progress : Progress.Config.t option
     ; palette : 'action palette option
     ; menu : menu option
     ; focus_scope : Focus_scope.t option

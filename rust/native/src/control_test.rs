@@ -7,6 +7,8 @@ mod menu_test;
 mod overlay_test;
 #[path = "palette_test.rs"]
 mod palette_test;
+#[path = "progress_test.rs"]
+mod progress_test;
 #[path = "tooltip_test.rs"]
 mod tooltip_test;
 use super::editor_test::{frame, key};
@@ -1394,6 +1396,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
     command_test::exercise(cx, handle, &transport).await;
     menu_test::exercise(cx, handle, &transport).await;
     palette_test::exercise(cx, handle, &transport).await;
+    progress_test::exercise(cx, handle, &transport).await;
     // Remove a focused native node and enter the surviving Tab order again.
     handle
         .update(cx, |view, window, cx| {
@@ -1451,12 +1454,16 @@ enum Suite {
     Controls,
     Menus,
     Palette,
+    Progress,
 }
 pub fn run() {
     run_suite(Suite::Controls);
 }
 pub fn run_menus() {
     run_suite(Suite::Menus);
+}
+pub fn run_progress() {
+    run_suite(Suite::Progress);
 }
 pub fn run_palette() {
     run_suite(Suite::Palette);
@@ -1543,7 +1550,12 @@ fn run_suite(suite: Suite) {
         if suite != Suite::Controls {
             // Reserve the same generational slots used by preceding component
             // fixtures, without exercising those unrelated windows/interactions.
-            let end = if suite == Suite::Palette { 47 } else { 38 };
+            let end = match suite {
+                Suite::Menus => 38,
+                Suite::Palette => 47,
+                Suite::Progress => 60,
+                Suite::Controls => unreachable!(),
+            };
             for slot in 5..end {
                 operations.push(Op::Create(node(slot), Kind::Text, String::new(), None));
                 operations.push(Op::Remove(node(slot)));
@@ -1587,6 +1599,7 @@ fn run_suite(suite: Suite) {
                     match suite {
                         Suite::Menus => menu_test::exercise(cx, handle, &transport).await,
                         Suite::Palette => palette_test::exercise(cx, handle, &transport).await,
+                        Suite::Progress => progress_test::exercise(cx, handle, &transport).await,
                         Suite::Controls => unreachable!(),
                     }
                     handle

@@ -195,6 +195,7 @@ let kind = function
   | Command_button -> Command_button
   | Menu -> Menu
   | Command_palette -> Command_palette
+  | Progress -> Progress
 ;;
 
 let compatible mounted view =
@@ -411,6 +412,13 @@ let rec mount builder ~depth previous view =
            menu
            (Option.bind previous ~f:(fun mounted -> mounted.menu)))
     then Option.iter menu ~f:(fun config -> emit builder (Set_menu (id, config)));
+    Option.iter description.progress ~f:(fun progress ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          (View.Expert.describe mounted.view).progress)
+      in
+      if not (Option.equal Progress.Config.equal old (Some progress))
+      then emit builder (Set_progress (id, Progress.Expert.to_wire progress)));
     Option.iter description.palette ~f:(fun palette ->
       let old =
         Option.bind previous ~f:(fun mounted ->
