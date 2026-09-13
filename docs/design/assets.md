@@ -7,7 +7,8 @@ The native session owns a bounded encoded registry, connected through correlated
 wire requests and the raw `Gpuio_eio.App.Expert.asset` effect. Capability
 `CAP_ASSETS` (2097152; aggregate mask 4194303) means encoded registration only.
 Scoped public ownership is now connected through `Gpuio_eio.Asset.register`.
-Decoding and image/icon rendering remain to implement.
+A native raster decoder is implemented and tested independently; worker/cache
+integration, SVG rasterization and image/icon views remain to implement.
 Independent OCaml/Rust fixtures, Rust workspace/Clippy, full Dune checks and an
 actual windowless >2-MiB FFI upload pass locally on macOS.
 
@@ -206,3 +207,36 @@ Bonsai.Effect.bind (Gpuio_eio.Asset.register app ~scope source) ~f:(function
 The last two functions are application callbacks. Release deliberately with
 `Gpuio_eio.Asset.release asset`, or let the owning scope end. Registration is
 asynchronous; do not perform synchronous waits during Bonsai stabilization.
+
+## Raster decoder checkpoint
+
+`asset_decode::raster` decodes declared PNG/JPEG/WebP/GIF/BMP/TIFF/ICO/PNM sources
+in memory. It produces GPUI `RenderImage` frames in BGRA order, applies EXIF
+orientation to static images, preserves GIF frame delays and rejects an entire
+animation on a bad frame rather than returning a silently shortened sequence.
+PNG and WebP currently use the pinned GPUI static-image behavior. SVG has a
+separate size/theme-dependent rasterization path still to implement.
+
+Current per-result limits are 16384 pixels per dimension, 64 MiB of RGBA8/BGRA8
+pixels across all retained frames and 120 frames. Static native-color-depth output
+is checked separately against 128 MiB before `DynamicImage` allocation; dimensions
+and final RGBA8 byte counts are checked first. GIF's iterator owns a compositing
+canvas and can allocate a candidate frame before the aggregate retention check.
+Its working buffers must therefore be charged separately from retained frames
+by the upcoming worker budget. The decoder result holds no encoded source.
+
+The pinned image library explicitly documents `max_alloc` as best-effort, unlike
+its strict dimension limits. Setting 128 MiB does not prove a hard process-RSS
+ceiling or account for codec-internal metadata/allocator overhead. Do not describe
+this helper as a globally bounded cache/worker pool: those owners and their
+pre-admission reservations are not connected yet. Per-result checks prevent
+publishing excessive pixel/frame output; concurrency, retained cache ownership,
+transient work and GPU atlas uploads need their own aggregate bounds.
+
+Inspected GPUI macOS `gpui_apple::MetalRenderer::new_internal`: it creates a new
+`MetalAtlas` per renderer. `Window::drop_image` removes all frame keys for that
+image from the window's atlas. This supports explicit per-window eviction on
+macOS; Linux renderer/atlas ownership still needs inspection before the shared
+cache's cross-platform disposal contract is finalized. GPUI's SVG conversion
+also unpremultiplies tiny-skia pixels before BGRA conversion; preserve that
+alpha behavior in our SVG path.

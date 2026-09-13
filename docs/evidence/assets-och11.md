@@ -105,3 +105,28 @@ Full local `dune build @runtest @all @fmt` and the windowless executable are the
 validation gate for this OCaml-only checkpoint. Logs: `assets-scoped-unit.log`,
 `assets-scoped-dune-all.log`, `assets-scoped-native-final.log`. Rendering, decoded
 cache limits, pure image handles and pixel/theme/scale acceptance remain pending.
+
+## Native raster decoder checkpoint
+
+Four local native tests cover the eight raster format families, actual decoded
+BGRA pixels (JPEG with an explicit lossy tolerance), GIF frames/delays/count limit,
+malformed data and oversized independent PNM/GIF headers, and an independently
+assembled JPEG EXIF orientation segment. A broken later GIF frame rejects the
+whole result. The ICO fixture uses RGBA PNG content as required by the pinned
+ICO decoder; an initial RGB fixture correctly failed and was corrected.
+
+`image = 0.25.10` is now a direct dependency, reusing the existing locked package
+and feature closure. No decoder version changed. Commands passed locally for this checkpoint:
+
+```sh
+./scripts/gpuio exec cargo test -p gpuio-native --lib asset_decode::
+./scripts/gpuio exec cargo clippy -p gpuio-native --all-targets --features native-tests -- -D warnings
+./scripts/gpuio exec cargo test --workspace
+./scripts/gpuio exec dune build @runtest @all @fmt
+```
+
+Logs: `assets-decode-tests-final.log`, `assets-decode-clippy.log`,
+`assets-decode-workspace.log`, `assets-decode-dune.log`. These are in-memory native
+pixel tests, not GPU rendering or worker/cache acceptance. The design separates
+strict retained-output bounds from best-effort codec allocation limits and
+pending aggregate worker/cache reservations. No new wire capability is advertised.

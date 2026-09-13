@@ -388,3 +388,11 @@ passes public registration and scope retirement under saturated raw request lane
 with subsequent full-quota allocation proving reclamation. Deterministic scope tests
 exercise every upload cancellation boundary. Decoding and pure image/icon views are
 still pending; this is encoded ownership, not rendered-image acceptance.
+
+The native in-memory raster decoder now covers PNG/JPEG/WebP/GIF/BMP/TIFF/ICO/PNM,
+GPUI BGRA ordering, static EXIF orientation, GIF delays and complete-result failure
+on malformed frames. It checks dimensions and retained pixel/frame bounds. This
+helper is not yet scheduled from the host or exposed in views; SVG, aggregate
+worker/cache ownership and actual rendered-image acceptance remain pending.
+See [asset design](design/assets.md) for strict-output versus best-effort decoder
+allocation limits and [pixel-test evidence](evidence/assets-och11.md).
