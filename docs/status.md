@@ -353,3 +353,12 @@ found no reference cycle and records bounded snapshots/hover state separately fr
 OS payload lifetime. Native Clippy, full Dune checks and transfer/unmount regressions
 pass. See [drag/drop evidence](evidence/drag-drop-och11.md). Remaining OCH-11 feature
 families and consolidated platform gates are unchanged; nothing has been pushed.
+
+Asset work has started with immutable OCaml/Rust source descriptors for the nine
+pinned GPUI format families. Constructors preserve opaque encoded bytes, enforce
+nonempty/16-MiB bounds and report format/length rather than dumping contents.
+Core expect tests, targeted Rust tests, protocol Clippy and full Dune build/tests/
+format pass. The [asset design](design/assets.md) records the required chunked
+transport under the existing 1-MiB envelope and the native ownership/cache plan.
+Registration, decoding and image/icon views are not implemented by this checkpoint;
+no asset capability is advertised yet.

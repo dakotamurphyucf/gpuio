@@ -1,6 +1,7 @@
 //! Owned wire data. No GPUI, OCaml runtime, or I/O scheduler dependencies.
 //!
 //! V1 is under development; the private foundation protocol is unrelated.
+pub mod asset;
 mod command;
 mod decode;
 pub mod drag_drop;
