@@ -1,7 +1,7 @@
 open Core
 
 let version = 1L
-let capabilities = 31L
+let capabilities = 63L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -13,6 +13,7 @@ module Kind = struct
     | Textarea
     | Checkbox
     | Switch
+    | Radio_group
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -30,6 +31,27 @@ module Control = struct
     | Checkbox of Check_state.t * bool
     | Switch of bool * bool
   [@@deriving bin_io, equal, sexp_of]
+end
+
+module Choice = struct
+  module Item = struct
+    type t =
+      { id : string
+      ; label : string
+      ; disabled : bool
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Config = struct
+    type t =
+      { label : string
+      ; items : Item.t list
+      ; selected : string option
+      ; disabled : bool
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
 end
 
 module Length = struct
@@ -263,6 +285,7 @@ module Op = struct
     | Set_root of Node_id.t option
     | Set_editor of Node_id.t * Editor.Config.t
     | Set_control of Node_id.t * Control.t
+    | Set_choice of Node_id.t * Choice.Config.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -332,6 +355,7 @@ module Event = struct
         * Editor.Event_kind.t
         * Editor.Snapshot.t
     | Editor_result of int64 * Window_id.t * Node_id.t * Editor.Result.t
+    | Choice of Window_id.t * Node_id.t * Handler_id.t * int64 * string
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -351,6 +375,12 @@ module Event = struct
   ;;
 
   let valid_editor_event = function
+    | Choice (_, _, _, revision, id) ->
+      Int64.(revision >= 0L)
+      && String.length id > 0
+      && String.length id <= 256
+      && Stdlib.String.is_valid_utf_8 id
+      && not (String.contains id '\000')
     | Editor_event (_, _, _, revision, kind, snapshot) ->
       Int64.(revision >= 0L)
       && valid_snapshot snapshot

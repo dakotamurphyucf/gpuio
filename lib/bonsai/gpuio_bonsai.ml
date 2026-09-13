@@ -36,6 +36,7 @@ module View = struct
   ;;
 
   let row = Gpuio.View.row
+  let radio_group = Gpuio.View.radio_group
   let column = Gpuio.View.column
   let grid = Gpuio.View.grid
 end

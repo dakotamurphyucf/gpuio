@@ -65,6 +65,7 @@ end
 type 'a callback =
   | Click of (unit -> 'a)
   | Editor of (Text_input.Event.t -> 'a)
+  | Choice of Choice.Config.t * (Choice.Id.t -> 'a)
 
 type 'a binding =
   { node : Node_id.t
@@ -171,6 +172,7 @@ let kind = function
   | Textarea -> Textarea
   | Checkbox -> Checkbox
   | Switch -> Switch
+  | Radio_group -> Radio_group
 ;;
 
 let compatible mounted view =
@@ -241,11 +243,15 @@ let rec mount builder ~depth previous view =
     in
     let old_handler = Option.bind previous ~f:(fun mounted -> mounted.handler) in
     let callback =
-      match description.on_click, description.editor with
-      | Some callback, None -> Some (Click callback)
-      | None, Some editor -> Some (Editor editor.on_event)
-      | None, None -> None
-      | Some _, Some _ -> fail "editor cannot also bind a click handler"
+      match description.on_click, description.editor, description.choice with
+      | Some callback, None, None -> Some (Click callback)
+      | None, Some editor, None -> Some (Editor editor.on_event)
+      | None, None, Some choice ->
+        if Choice.Config.is_disabled choice.config
+        then None
+        else Some (Choice (choice.config, choice.on_select))
+      | None, None, None -> None
+      | _ -> fail "a view cannot combine incompatible handler kinds"
     in
     let handler =
       match old_handler, callback with
@@ -292,6 +298,14 @@ let rec mount builder ~depth previous view =
       in
       if not (Option.equal View.Expert.Control.equal old (Some control))
       then emit builder (Set_control (id, View.Expert.Control.to_wire control)));
+    Option.iter description.choice ~f:(fun choice ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).choice ~f:(fun choice ->
+            choice.config))
+      in
+      if not (Option.equal Choice.Config.equal old (Some choice.config))
+      then emit builder (Set_choice (id, Choice.Expert.config_to_wire choice.config)));
     let style = Style.Expert.to_wire description.style ~theme:builder.theme |> value in
     let old_style =
       Option.value_map previous ~default:[] ~f:(fun mounted -> mounted.style)
@@ -423,8 +437,23 @@ let dispatch t = function
        when Node_id.equal node binding.node && Handler_id.equal handler binding.handler ->
        (match binding.callback with
         | Click callback -> Some (callback ())
-        | Editor _ -> None)
+        | Editor _ | Choice _ -> None)
      | Some _ | None -> None)
+  | Choice (window, node, handler, revision, selected)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node), Choice.Id.of_string selected with
+     | ( Some
+           { node = expected
+           ; handler = expected_handler
+           ; callback = Choice (config, callback)
+           }
+       , Ok selected )
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Choice.Config.can_select config selected -> Some (callback selected)
+     | _ -> None)
   | Editor_event (window, node, handler, revision, event, snapshot)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -451,6 +480,7 @@ let dispatch t = function
   | Rendered _
   | Frame_requested _
   | Press _
+  | Choice _
   | Editor_event _
   | Editor_result _
   | Failed _

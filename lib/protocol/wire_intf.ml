@@ -14,6 +14,7 @@ module type S = sig
       | Textarea
       | Checkbox
       | Switch
+      | Radio_group
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -32,6 +33,27 @@ module type S = sig
       | Checkbox of Check_state.t * bool
       | Switch of bool * bool
     [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Choice : sig
+    module Item : sig
+      type t =
+        { id : string
+        ; label : string
+        ; disabled : bool
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Config : sig
+      type t =
+        { label : string
+        ; items : Item.t list
+        ; selected : string option
+        ; disabled : bool
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
   end
 
   module Length : sig
@@ -265,6 +287,7 @@ module type S = sig
       | Set_root of Node_id.t option
       | Set_editor of Node_id.t * Editor.Config.t
       | Set_control of Node_id.t * Control.t
+      | Set_choice of Node_id.t * Choice.Config.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -332,6 +355,7 @@ module type S = sig
           * Editor.Event_kind.t
           * Editor.Snapshot.t
       | Editor_result of int64 * Window_id.t * Node_id.t * Editor.Result.t
+      | Choice of Window_id.t * Node_id.t * Handler_id.t * int64 * string
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

@@ -250,6 +250,7 @@ impl Decoder<'_> {
                     4 => Kind::Textarea,
                     5 => Kind::Checkbox,
                     6 => Kind::Switch,
+                    7 => Kind::RadioGroup,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -267,8 +268,28 @@ impl Decoder<'_> {
             6 => Op::SetRoot(self.option(Self::node)?),
             7 => Op::SetEditor(self.node()?, self.editor_config()?),
             8 => Op::SetControl(self.node()?, self.control()?),
+            9 => Op::SetChoice(self.node()?, self.choice_config()?),
             _ => return Err(DecodeError::Malformed),
         })
+    }
+
+    fn choice_config(&mut self) -> Result<ChoiceConfig, DecodeError> {
+        let config = ChoiceConfig {
+            label: self.text()?,
+            items: self.list(4096, |decoder| {
+                Ok(ChoiceItem {
+                    id: decoder.text()?,
+                    label: decoder.text()?,
+                    disabled: decoder.boolean()?,
+                })
+            })?,
+            selected: self.option(Self::text)?,
+            disabled: self.boolean()?,
+        };
+        if !config.is_valid() {
+            return Err(DecodeError::Malformed);
+        }
+        Ok(config)
     }
 
     fn control(&mut self) -> Result<Control, DecodeError> {

@@ -11,6 +11,7 @@ pub struct Node {
     pub text: Arc<str>,
     pub editor: Option<Arc<EditorConfig>>,
     pub control: Option<Control>,
+    pub choice: Option<Arc<ChoiceConfig>>,
     pub style: Arc<[Style]>,
     pub handler: Option<HandlerId>,
     pub children: Arc<[NodeId]>,
@@ -20,6 +21,10 @@ pub struct Node {
 impl Node {
     fn payload_bytes(&self) -> usize {
         self.text.len()
+            + self
+                .choice
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
             + self
                 .editor
                 .as_ref()
@@ -142,6 +147,9 @@ impl Tree {
         }
         for slot in plan.changes.values() {
             if let Some(node) = &slot.node {
+                if node.choice.is_some() && node.kind != Kind::RadioGroup {
+                    return Err(ErrorCode::InvalidTree);
+                }
                 if node
                     .control
                     .is_some_and(|control| control.kind() != node.kind)
@@ -172,6 +180,15 @@ impl Tree {
                         if node.editor.is_some()
                             || (!control.disabled() && node.handler.is_none())
                             || node.text.contains('\0')
+                        {
+                            return Err(ErrorCode::InvalidTree);
+                        }
+                    }
+                    Kind::RadioGroup => {
+                        let config = node.choice.as_ref().ok_or(ErrorCode::InvalidTree)?;
+                        if !config.is_valid()
+                            || node.editor.is_some()
+                            || (!config.disabled && node.handler.is_none())
                         {
                             return Err(ErrorCode::InvalidTree);
                         }
@@ -272,6 +289,7 @@ impl Plan<'_> {
             | Op::SetStyle(id, ..)
             | Op::SetEditor(id, ..)
             | Op::SetControl(id, ..)
+            | Op::SetChoice(id, ..)
             | Op::Bind(id, ..)
             | Op::Splice(id, ..) => Some(*id),
             Op::SetRoot(_) => None,
@@ -326,6 +344,7 @@ impl Plan<'_> {
                             text: Arc::from(text.as_str()),
                             editor: None,
                             control: None,
+                            choice: None,
                             style: Arc::from([]),
                             handler: *handler,
                             children: Arc::from([]),
@@ -362,6 +381,12 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.editor = Some(Arc::new(config.clone()));
+            }
+            Op::SetChoice(id, config) => {
+                if self.node(*id)?.kind != Kind::RadioGroup || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.choice = Some(Arc::new(config.clone()));
             }
             Op::SetControl(id, control) => {
                 if self.node(*id)?.kind != control.kind() {

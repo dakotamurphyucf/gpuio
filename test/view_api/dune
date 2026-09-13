@@ -6,6 +6,8 @@
    (sandbox preserve_file_kind)
    style-v1.hex
    controls-v1.hex
+   choice-v1-request.hex
+   choice-v1-events.hex
    editor-v1-requests.hex
    editor-v1-events.hex))
  (preprocess
@@ -14,6 +16,10 @@
 (copy_files ../fixtures/style-v1.hex)
 
 (copy_files ../fixtures/controls-v1.hex)
+
+(copy_files ../fixtures/choice-v1-request.hex)
+
+(copy_files ../fixtures/choice-v1-events.hex)
 
 (copy_files ../fixtures/editor-v1-requests.hex)
 

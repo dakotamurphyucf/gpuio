@@ -3,17 +3,30 @@ module B = Bonsai.Cont
 module View = Gpuio_bonsai.View
 module App = Gpuio_eio.App
 
+let choice_id value = Gpuio.Choice.Id.of_string value |> Or_error.ok_exn
+
+let modes =
+  [ "fast", "Fast responses"; "deep", "Detailed reasoning" ]
+  |> List.map ~f:(fun (id, label) ->
+    Gpuio.Choice.create ~id:(choice_id id) ~label () |> Or_error.ok_exn)
+  |> Gpuio.Choice.Collection.create
+  |> Or_error.ok_exn
+;;
+
 let component window graph =
   let enabled, toggle_enabled = B.toggle ~default_model:true graph in
   let streaming, toggle_streaming = B.toggle ~default_model:true graph in
   let notify, toggle_notify = B.toggle ~default_model:false graph in
+  let mode, set_mode = B.state (Some (choice_id "fast")) graph in
   let open B.Let_syntax in
   let%arr enabled = enabled
   and toggle_enabled = toggle_enabled
   and streaming = streaming
   and toggle_streaming = toggle_streaming
   and notify = notify
-  and toggle_notify = toggle_notify in
+  and toggle_notify = toggle_notify
+  and mode = mode
+  and set_mode = set_mode in
   View.column
     ~style:
       (Gpuio.Style.create_exn
@@ -37,6 +50,17 @@ let component window graph =
         (if streaming
          then "Responses stream as they arrive."
          else "Show completed responses.")
+    ; View.radio_group
+        ~config:
+          (Gpuio.Choice.Config.create
+             ~label:"Reasoning mode"
+             ~options:modes
+             ~selected:mode
+             ~disabled:(not enabled)
+             ()
+           |> Or_error.ok_exn)
+        ~on_select:(fun id -> set_mode (Some id))
+        ()
     ; View.button
         ~on_click:(Bonsai.Effect.of_thunk (fun () -> App.Window.close window))
         "Close"
@@ -45,7 +69,7 @@ let component window graph =
 
 let () =
   App.run (fun _ app ->
-    App.open_window app ~title:"GPUIO native controls" ~width:460. ~height:350. component
+    App.open_window app ~title:"GPUIO native controls" ~width:460. ~height:480. component
     |> Or_error.ok_exn
     |> fun (_ : App.Window.t) -> ())
 ;;

@@ -20,6 +20,8 @@ mod editor;
 #[cfg(feature = "native-tests")]
 #[path = "editor_test.rs"]
 pub(super) mod editor_test;
+#[path = "radio.rs"]
+mod radio;
 struct ButtonState {
     focus: gpui::FocusHandle,
 }
@@ -47,6 +49,7 @@ struct View {
     selections: BTreeMap<NodeId, Rc<RefCell<crate::selection::State>>>,
     editors: BTreeMap<NodeId, editor::Instance>,
     root_focus: Option<gpui::FocusHandle>,
+    radios: BTreeMap<NodeId, Rc<RefCell<radio::State>>>,
     visited: std::collections::BTreeSet<NodeId>,
     #[cfg(feature = "native-tests")]
     probes: Rc<RefCell<BTreeMap<NodeId, native_test::Probe>>>,
@@ -89,7 +92,11 @@ fn control_indicator(kind: Kind, checked: bool, indeterminate: bool) -> gpui::An
         |_, _, _| (),
         move |bounds, _, window, _| {
             let color = window.text_style().color;
-            let radius = if kind == Kind::Switch { 9. } else { 3. };
+            let radius = if matches!(kind, Kind::Switch | Kind::RadioGroup) {
+                9.
+            } else {
+                3.
+            };
             let mut outline = gpui::outline(bounds, color, Default::default());
             outline.corner_radii = px(radius).into();
             window.paint_quad(outline);
@@ -102,6 +109,13 @@ fn control_indicator(kind: Kind, checked: bool, indeterminate: bool) -> gpui::An
                 );
                 knob.corner_radii = px(6.).into();
                 window.paint_quad(knob);
+            } else if kind == Kind::RadioGroup && checked {
+                let mut dot = gpui::fill(
+                    Bounds::new(origin + gpui::point(px(5.), px(5.)), size(px(8.), px(8.))),
+                    color,
+                );
+                dot.corner_radii = px(4.).into();
+                window.paint_quad(dot);
             } else if indeterminate {
                 window.paint_quad(gpui::fill(
                     Bounds::new(origin + gpui::point(px(4.), px(8.)), size(px(10.), px(2.))),
@@ -134,6 +148,7 @@ impl View {
             selections: BTreeMap::new(),
             editors: BTreeMap::new(),
             root_focus: None,
+            radios: BTreeMap::new(),
             visited: Default::default(),
             #[cfg(feature = "native-tests")]
             probes: Default::default(),
@@ -195,10 +210,11 @@ impl View {
             }
         }
         let mut element = div().id(("gpuio-node", identity));
-        if node.kind == Kind::Container {
+        if matches!(node.kind, Kind::Container | Kind::RadioGroup) {
             element = element.flex().flex_col();
         }
-        let disabled = node.control.is_some_and(Control::disabled)
+        let disabled = node.choice.as_ref().is_some_and(|config| config.disabled)
+            || node.control.is_some_and(Control::disabled)
             || node.editor.as_ref().is_some_and(|config| config.disabled);
         let checked = matches!(
             node.control,
@@ -208,7 +224,10 @@ impl View {
             node.control,
             Some(Control::Checkbox(CheckState::Indeterminate, _))
         );
-        if matches!(node.kind, Kind::Button | Kind::Checkbox | Kind::Switch) {
+        if matches!(
+            node.kind,
+            Kind::Button | Kind::Checkbox | Kind::Switch | Kind::RadioGroup
+        ) {
             self.visited.insert(id);
             let state = self
                 .buttons
@@ -238,6 +257,7 @@ impl View {
                 .role(match node.kind {
                     Kind::Checkbox => gpui::Role::CheckBox,
                     Kind::Switch => gpui::Role::Switch,
+                    Kind::RadioGroup => gpui::Role::RadioGroup,
                     _ => gpui::Role::Button,
                 })
                 .aria_label(accessible_name);
@@ -316,7 +336,7 @@ impl View {
             checked_style,
             indeterminate_style,
             disabled_style,
-            _selected_style,
+            selected_style,
         ] = states;
         use gpui::Refineable;
         for style in [
@@ -353,7 +373,33 @@ impl View {
         if !interaction.pointer {
             element.style().mouse_cursor = None;
         }
-        if let Some(editor) = self.editors.get(&id) {
+        if let Some(config) = &node.choice {
+            let state = self.radios.entry(id).or_default().clone();
+            element = element.aria_label(config.label.clone());
+            element = radio::element(
+                element,
+                radio::Render {
+                    config,
+                    state,
+                    focus: self.buttons[&id].focus.clone(),
+                    route: node
+                        .handler
+                        .filter(|_| !disabled)
+                        .map(|handler| radio::Route {
+                            window: self.id,
+                            node: id,
+                            handler,
+                            revision: tree.revision(),
+                            session: self.session.clone(),
+                            transport: self.transport.clone(),
+                        }),
+                    pointer: interaction.pointer,
+                    selected_style,
+                },
+                window,
+                cx,
+            );
+        } else if let Some(editor) = self.editors.get(&id) {
             element = element
                 .capture_action(|_: &gpui_base::input::IndentInline, window, cx| {
                     window.focus_next(cx);
@@ -399,6 +445,7 @@ impl View {
         );
         if let Some(handler) = node.handler
             && node.editor.is_none()
+            && node.choice.is_none()
             && !disabled
         {
             let window = self.id;
@@ -498,6 +545,7 @@ impl Render for View {
             0
         };
         self.buttons.retain(|id, _| self.visited.contains(id));
+        self.radios.retain(|id, _| self.visited.contains(id));
         self.selections.retain(|id, _| self.visited.contains(id));
         // GPUI routes key events along the focused element's ancestry. Keep a
         // non-tab-stop fallback so Tab also works before the first click and

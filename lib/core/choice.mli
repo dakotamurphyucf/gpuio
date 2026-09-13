@@ -40,3 +40,28 @@ module Collection : sig
       disabled member. Filtering the displayed options need not clear selection. *)
   val validate_selection : t -> Id.t option -> unit Or_error.t
 end
+
+module Config : sig
+  (** Validated application-owned configuration. An absent selection and a
+      disabled selected option are both permitted; native activation only
+      requests enabled options. *)
+  type t [@@deriving equal, sexp_of]
+
+  val create
+    :  label:string
+    -> options:Collection.t
+    -> selected:Id.t option
+    -> ?disabled:bool
+    -> unit
+    -> t Or_error.t
+
+  val label : t -> string
+  val options : t -> Collection.t
+  val selected : t -> Id.t option
+  val is_disabled : t -> bool
+  val can_select : t -> Id.t -> bool
+end
+
+module Expert : sig
+  val config_to_wire : Config.t -> Gpuio_protocol.Wire.Choice.Config.t
+end
