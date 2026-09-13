@@ -173,14 +173,17 @@ fn owner_at(point: Point) -> Option<libc::pid_t> {
     (unsafe { AXUIElementGetPid(element.0, &mut pid) } == 0).then_some(pid)
 }
 fn post(pid: libc::pid_t, kind: u32, point: Point) {
+    post_checked(pid, kind, point, false);
+}
+fn post_checked(pid: libc::pid_t, kind: u32, point: Point, allow_closed: bool) -> bool {
     // Always release a pressed button during unwinding; other posts must still
     // target the child's actual topmost on-screen window.
     if kind != 2 {
-        assert_eq!(
-            owner_at(point),
-            Some(pid),
-            "test window is obscured or moved"
-        );
+        let owner = owner_at(point);
+        if allow_closed && owner != Some(pid) {
+            return false;
+        }
+        assert_eq!(owner, Some(pid), "test window is obscured or moved");
     }
     let raw = unsafe { CGEventCreateMouseEvent(std::ptr::null(), kind, point, 0) };
     assert!(!raw.is_null(), "CGEventCreateMouseEvent failed");
@@ -189,6 +192,7 @@ fn post(pid: libc::pid_t, kind: u32, point: Point) {
         CGEventSetIntegerValueField(event.0, 1, 1);
         CGEventPost(0, event.0);
     }
+    true
 }
 struct Release {
     pid: libc::pid_t,
@@ -228,14 +232,44 @@ fn arrange_file_windows(app: Raw) {
         );
     }
 }
+fn wait_for_receiver_only(pid: libc::pid_t) {
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        let raw = unsafe { AXUIElementCreateApplication(pid) };
+        assert!(!raw.is_null());
+        let app = Owned(raw);
+        if let Some(windows) = attribute(app.0, "AXWindows") {
+            assert_eq!(unsafe { CFGetTypeID(windows.0) }, unsafe {
+                CFArrayGetTypeID()
+            });
+            if unsafe { CFArrayGetCount(windows.0) } == 1 {
+                let window = unsafe { CFArrayGetValueAtIndex(windows.0, 0) };
+                if string(window, "AXTitle").as_deref() == Some("GPUIO file receiver") {
+                    println!("GPUIO_DRAG_SOURCE_CLOSED: only the receiving AX window remains");
+                    return;
+                }
+            }
+        }
+        assert!(
+            Instant::now() < deadline,
+            "source window did not close physically"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
 pub(crate) fn drive(pid: libc::pid_t, mode: &str) {
     let (desktop, reenter, cancel) = match mode {
         "internal" => (false, false, false),
-        "desktop" | "remove-source" => (true, false, false),
+        "desktop" | "remove-source" | "close-source" | "shutdown" | "close-internal"
+        | "shutdown-internal" => (true, false, false),
         "reenter" => (true, true, false),
         "cancel" => (true, false, true),
         _ => panic!("unknown drag test mode"),
     };
+    let closing = matches!(
+        mode,
+        "close-source" | "shutdown" | "close-internal" | "shutdown-internal"
+    );
     assert!(pid > 0);
     assert!(
         unsafe { AXIsProcessTrusted() },
@@ -269,10 +303,10 @@ pub(crate) fn drive(pid: libc::pid_t, mode: &str) {
     std::thread::sleep(Duration::from_millis(100));
     post(pid, 1, source);
     let mut release = Release { pid, point: source };
-    move_drag(pid, source, target, &mut release);
+    move_drag(pid, source, target, &mut release, closing);
     std::thread::sleep(Duration::from_millis(150));
     if reenter {
-        move_drag(pid, target, source, &mut release);
+        move_drag(pid, target, source, &mut release, false);
         std::thread::sleep(Duration::from_millis(150));
     }
     if cancel {
@@ -288,17 +322,29 @@ pub(crate) fn drive(pid: libc::pid_t, mode: &str) {
         std::thread::sleep(Duration::from_millis(100));
     }
     drop(release);
+    if matches!(mode, "close-source" | "close-internal") {
+        wait_for_receiver_only(pid);
+    }
     println!("GPUIO_DRAG_APPKIT_SENT: one system drag posted within verified child windows");
 }
-fn move_drag(pid: libc::pid_t, source: Point, target: Point, release: &mut Release) {
+fn move_drag(
+    pid: libc::pid_t,
+    source: Point,
+    target: Point,
+    release: &mut Release,
+    allow_closed: bool,
+) {
     for step in 1..=24 {
         let fraction = step as f64 / 24.;
         let point = Point {
             x: source.x + (target.x - source.x) * fraction,
             y: source.y + (target.y - source.y) * fraction,
         };
+        if !post_checked(pid, 6, point, allow_closed) {
+            println!("GPUIO_DRAG_CHILD_CLOSED: no further motion posted");
+            return;
+        }
         release.point = point;
-        post(pid, 6, point);
         std::thread::sleep(Duration::from_millis(20));
     }
 }

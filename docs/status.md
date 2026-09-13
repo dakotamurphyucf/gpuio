@@ -101,6 +101,15 @@ Wayland passed public editor commands but its clipboard-based native test failed
 before insertion, tracked in OCH-17. These checks do not claim physical IME
 candidate-panel or complete screen-reader coverage.
 
+Current OCH-11 summary: the controls/commands/focus/overlays, pointer capture,
+file-dialog bridge and drag/drop behaviors below are implemented and validated
+locally. Drag/drop includes actual AppKit handoff/reentry/cancel/unmount and held-
+gesture close/shutdown checks. Remaining implementation includes images/SVG/assets
+and bounded caches, theme/scale integration, remaining native state/basic transitions,
+scrolling and aggregate lifetime checks. Consolidated macOS/Linux CI and merge
+remain. The chronological checkpoints below distinguish earlier partial states
+from later validation; they do not all describe the latest remaining scope.
+
 OCH-11 is in progress: controlled checkboxes/switches and disabled buttons merged
 in PR #7 (`0ef2c7dc5b71235c090d4dc6373f505db69624e5`); CI 34747606484 passed both
 required jobs and control windows on macOS, X11 and Wayland. The existing Wayland
@@ -335,3 +344,12 @@ AppKit sessions between child windows, not Finder/external-copy acknowledgement
 or Linux GUI coverage. See [drag/drop evidence](evidence/drag-drop-och11.md).
 Live-window close/shutdown while dragging and the aggregate lifetime review remain,
 as do the other OCH-11 families and consolidated CI/merge.
+
+Held-gesture close/shutdown validation now passes locally for both internal drags
+and OS-owned file sessions. AX confirms physical source-window removal; a surviving
+window paints after an explicit mouse-release handshake. App shutdown returns
+cleanly with no callbacks to disposed sources. The drag-specific ownership review
+found no reference cycle and records bounded snapshots/hover state separately from
+OS payload lifetime. Native Clippy, full Dune checks and transfer/unmount regressions
+pass. See [drag/drop evidence](evidence/drag-drop-och11.md). Remaining OCH-11 feature
+families and consolidated platform gates are unchanged; nothing has been pushed.

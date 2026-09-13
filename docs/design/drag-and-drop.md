@@ -5,8 +5,10 @@ OCaml/Rust codecs, event routing and the native gesture adapter are implemented.
 Local macOS GPUI window-dispatch, real AppKit-to-Bonsai gesture and public lifecycle
 tests pass. Focus traps and second-window activation/cancellation are covered.
 Actual macOS file offering, second-window desktop delivery, reentry, OS Escape and
-source-unmount checks also pass. Live-window close/shutdown during gestures and
-further lifetime validation remain; this is not complete OCH-11 acceptance.
+source-unmount checks also pass. Physical source-window close and application
+shutdown during internal/OS-owned gestures pass locally, and the drag-specific
+ownership graph has been reviewed. Broader integration and platform gates remain;
+this is not complete OCH-11 acceptance.
 The bridge advertises capability bit 1048576; the required mask is 2097151.
 This bit identifies protocol support, not a promise of outbound OS support on
 every backend or a successful external file operation.
@@ -175,8 +177,8 @@ budgets include retained/encoded drag payload bytes. Independent request and
 
 ## Remaining acceptance
 
-1. Complete live-window close and application shutdown coverage during a held
-   gesture, including a platform-owned file offer, and audit retained state.
+1. Preserve the local close/shutdown and ownership regressions during the broader
+   OCH-11 lifetime/state integration. Local drag/drop behavioral checks are in place.
 2. Keep OS capability claims bounded by evidence: current AppKit tests transfer
    between two windows of the test process. External copy/move acknowledgements
    remain unavailable; non-UTF-8 OS filename transfer is unverified. Internal

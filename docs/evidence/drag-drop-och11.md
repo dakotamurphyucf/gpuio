@@ -156,3 +156,56 @@ remaining aggregate lifetime review, still require coverage. No production runti
 patch was needed for these scenarios. Final native all-target Clippy, full Dune
 build/tests/format, all four OS scenarios and the original AppKit text regression
 pass locally. Logs use `drag-os-final-*` in the personal scratch directory.
+
+## Closing windows and shutting down during a held drag
+
+Four additional actual AppKit scenarios pass locally:
+
+- `--close-internal`: close the source on Started, before any OS offer. AX confirms
+  that only the receiving window remains. The closed source receives no later
+  callbacks, and the receiver acknowledges a rendered frame after mouse release.
+- `--shutdown-internal`: request application shutdown on Started. The application
+  returns cleanly through `App.run` with exactly the triggering source event.
+- `--close-source`: close the source on Desktop_offered while macOS owns the file
+  session. AX confirms physical source-window disappearance; the receiving window
+  remains usable and paints after release. This run also received the exact file
+  path with Desktop origin and no late source callback. The test permits OS
+  cancellation after source closure; continued external delivery is not promised.
+- `--shutdown`: request application shutdown on Desktop_offered. The application
+  returns cleanly with Started/Offered and no callback to the disposed source.
+
+Use these flags with `scripts/test_drag_drop.py --driver <test-executable>`.
+The script supplies a temporary release-status file alongside the source path;
+first-party OCaml reads this test synchronization file through Eio. For close
+scenarios, the receiver's final frame is requested only after the driver releases
+its mouse button and verifies the remaining AX window. Shutdown scenarios check
+process completion and the observed triggering phase. Movement stops if a closing
+child no longer owns the next point; a release is still sent during cleanup.
+
+Final native all-target Clippy, full Dune build/tests/format, all four close/quit
+scenarios, desktop transfer and source-removal regressions pass. Logs:
+`drag-close-final-*`, `drag-shutdown-final-*`, `drag-close-desktop-regression.log`
+and `drag-close-removal-regression.log` in the personal scratch directory.
+No production runtime changes were needed.
+
+## Drag-specific ownership review
+
+`SourceData` owns its gesture lease and immutable source configuration. The
+application manager holds a weak lease or one bounded external payload snapshot.
+The preview holds label text only. Hover records hold routing metadata and a
+sample, bounded by the live node/window limits; they do not copy full payloads.
+Routes retain session/focus/transport state, with no backlink to the drag manager
+or GPUI application. No reference cycle was found in this graph.
+
+Source unmount/current-policy changes, acceptance, exit and shutdown clear local
+hover/candidate state. The existing native weak-reference test checks that a
+removed source configuration is released after redraw and that the manager is
+empty. GPUI's pinned window-removal path ends its platform-owned drag for that
+window. Application teardown owns any remaining suspended platform value; its
+lifetime is distinct from revoking the immutable file URLs already offered to
+AppKit. Closing/quit tests prove termination and callback behavior, not a heap
+profile or forced revocation of an OS operation.
+
+Local drag/drop behavioral coverage is now in place. The broader OCH-11 lifetime/
+state integration, Linux build/unit gate and consolidated CI/merge remain. Full
+Linux GUI behavior and raw OS filename limitations retain the qualifications above.

@@ -8,6 +8,10 @@ fn main() {
             "--drive-reenter" => Some("reenter"),
             "--drive-cancel" => Some("cancel"),
             "--drive-remove-source" => Some("remove-source"),
+            "--drive-close-source" => Some("close-source"),
+            "--drive-shutdown" => Some("shutdown"),
+            "--drive-close-internal" => Some("close-internal"),
+            "--drive-shutdown-internal" => Some("shutdown-internal"),
             _ => None,
         });
         if let Some(mode) = mode {

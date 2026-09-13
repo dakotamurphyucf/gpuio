@@ -21,11 +21,15 @@ def main():
     modes.add_argument("--reenter", action="store_true")
     modes.add_argument("--cancel", action="store_true")
     modes.add_argument("--remove-source", action="store_true")
+    modes.add_argument("--close-source", action="store_true")
+    modes.add_argument("--shutdown", action="store_true")
+    modes.add_argument("--close-internal", action="store_true")
+    modes.add_argument("--shutdown-internal", action="store_true")
     args = parser.parse_args()
     if sys.platform != "darwin":
         parser.error("this test covers the AppKit backend")
     repo = Path(__file__).resolve().parent.parent
-    scenario = next((name for name in ("desktop", "reenter", "cancel", "remove_source")
+    scenario = next((name for name in ("desktop", "reenter", "cancel", "remove_source", "close_source", "shutdown", "close_internal", "shutdown_internal")
                      if getattr(args, name)), "public")
     desktop = scenario != "public"
     name = "drag_drop_desktop" if desktop else "drag_drop"
@@ -36,7 +40,9 @@ def main():
     with tempfile.TemporaryFile(mode="w+t") as log, tempfile.TemporaryDirectory(prefix="gpuio-drag-") as scratch:
         fixture = Path(scratch).resolve() / "drag fixture.txt"
         fixture.write_text("GPUIO file drag fixture\n")
-        child_args = [str(fixture)] if desktop else ["--gesture-self-test"]
+        release_status = Path(scratch).resolve() / "release-status"
+        release_status.write_text("held")
+        child_args = [str(fixture), str(release_status)] if desktop else ["--gesture-self-test"]
         if scenario not in ("public", "desktop"):
             child_args.append("--" + scenario.replace("_", "-"))
         driver_mode = "--drive-" + scenario.replace("_", "-")
@@ -45,6 +51,7 @@ def main():
         try:
             subprocess.run([str(driver), driver_mode, str(child.pid)], cwd=repo,
                            check=True, timeout=20)
+            release_status.write_text("released")
             if child.wait(timeout=35) != 0:
                 raise RuntimeError("public drag/drop example failed")
         finally:
@@ -61,7 +68,9 @@ def main():
         if fixture.read_text() != "GPUIO file drag fixture\n":
             raise RuntimeError("file dragging unexpectedly changed the source file")
         markers = {"public": "GESTURE", "desktop": "DESKTOP", "reenter": "REENTRY",
-                   "cancel": "CANCEL", "remove_source": "REMOVAL"}
+                   "cancel": "CANCEL", "remove_source": "REMOVAL", "close_source": "CLOSE",
+                   "shutdown": "SHUTDOWN", "close_internal": "CLOSE_INTERNAL",
+                   "shutdown_internal": "SHUTDOWN_INTERNAL"}
         marker = f"GPUIO_DRAG_DROP_{markers[scenario]}_OK:"
         if marker not in output:
             raise RuntimeError("missing public gesture acceptance marker")
