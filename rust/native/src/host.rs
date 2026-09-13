@@ -28,6 +28,8 @@ mod popup;
 mod radio;
 #[path = "select.rs"]
 mod select;
+#[path = "typeahead.rs"]
+mod typeahead;
 struct ButtonState {
     focus: gpui::FocusHandle,
 }

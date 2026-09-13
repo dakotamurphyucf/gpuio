@@ -77,7 +77,9 @@ val radio_group
     the trigger. Arrows move the open popup highlight without changing the
     application value; Enter requests the highlighted ID, Escape cancels, and
     Tab closes before normal traversal. The label is shown when no value is
-    selected. Disabling or removing the control disposes its open popup. *)
+    selected. Printable text searches enabled labels without committing a value;
+    repeated characters cycle, and the bounded prefix expires between inputs.
+    Disabling or removing the control disposes its open popup. *)
 val select
   :  ?key:Key.t
   -> ?style:Style.t
