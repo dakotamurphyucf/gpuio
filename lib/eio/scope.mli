@@ -9,6 +9,7 @@ module Task : sig
   type t
 
   val cancel : t -> unit
+
   (** Whether the producer fiber has finished. Its result may still be queued;
       [cancel] also suppresses queued delivery after this becomes true. *)
   val is_finished : t -> bool
