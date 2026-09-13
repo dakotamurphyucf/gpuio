@@ -31,6 +31,7 @@ pub struct Session {
     stopped: bool,
     slots: Vec<Slot>,
     retained_bytes: usize,
+    assets: crate::asset_store::Store,
 }
 
 impl Session {
@@ -59,6 +60,13 @@ impl Session {
         } else {
             Ok(())
         }
+    }
+
+    /// Application-owned encoded assets. The bridge must negotiate before
+    /// registration, and shutdown permanently closes this acquisition surface.
+    pub fn assets(&mut self) -> Result<&mut crate::asset_store::Store, ErrorCode> {
+        self.check_ready()?;
+        Ok(&mut self.assets)
     }
 
     pub fn validate_open(
@@ -458,6 +466,7 @@ impl Session {
     }
 
     pub fn shutdown(&mut self) -> Vec<Event> {
+        self.assets.close();
         let mut events = Vec::new();
         for slot in &mut self.slots {
             if let Some(window) = slot.window.take()

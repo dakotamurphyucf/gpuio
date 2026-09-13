@@ -1,4 +1,5 @@
 mod appearance;
+pub mod asset_store;
 mod ffi;
 pub mod file_dialog;
 mod host;

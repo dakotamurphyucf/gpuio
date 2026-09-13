@@ -362,3 +362,12 @@ format pass. The [asset design](design/assets.md) records the required chunked
 transport under the existing 1-MiB envelope and the native ownership/cache plan.
 Registration, decoding and image/icon views are not implemented by this checkpoint;
 no asset capability is advertised yet.
+
+The native application session now owns a bounded encoded asset registry: ordered
+chunk staging, complete-data publication, generational IDs, retirement and terminal
+shutdown. Existing readers keep retired data valid and charged until they release
+it; retired handles cannot create new uses. Five registry tests and the session
+lifecycle test pass, along with the Rust workspace, native Clippy and full Dune
+checks. See [asset evidence](evidence/assets-och11.md). This registry is not yet
+connected to FFI upload commands or the OCaml runtime, and no image/icon rendering
+or new capability is claimed. Those integrations are the next OCH-11 work.

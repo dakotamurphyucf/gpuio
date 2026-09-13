@@ -157,3 +157,56 @@ fn window_close_and_terminal_stop_are_delivered_under_full_queues() {
     mailbox.close();
     assert!(mailbox.drain(256).is_empty());
 }
+
+#[test]
+fn asset_acquisition_is_application_owned_and_gated_by_session_lifecycle() {
+    use gpuio_protocol::asset::Format;
+    let mut session = Session::default();
+    assert!(matches!(session.assets(), Err(ErrorCode::NotReady)));
+    session.hello(VERSION, CAPABILITIES).unwrap();
+    session
+        .open(1, window(1), "asset owner", 100., 100.)
+        .unwrap();
+    let id = session.assets().unwrap().begin(Format::Png, 3).unwrap();
+    session
+        .assets()
+        .unwrap()
+        .append(id, 0, &[0, 255, 128])
+        .unwrap();
+    session.assets().unwrap().finish(id).unwrap();
+    let reader = session.assets().unwrap().acquire(id).unwrap();
+    session.close(window(1)).unwrap();
+    // Application-scope assets can be reused by another window.
+    session
+        .open(2, window(2), "another window", 100., 100.)
+        .unwrap();
+    assert_eq!(
+        session
+            .assets()
+            .unwrap()
+            .acquire(id)
+            .unwrap()
+            .source()
+            .as_bytes(),
+        &[0, 255, 128]
+    );
+    session.assets().unwrap().release(id).unwrap();
+    assert!(session.assets().unwrap().acquire(id).is_err());
+    assert_eq!(reader.source().as_bytes(), &[0, 255, 128]);
+    assert_eq!(session.assets().unwrap().stats().reserved_bytes, 3);
+    drop(reader);
+    assert_eq!(session.assets().unwrap().stats().reserved_bytes, 0);
+    let pending = session.assets().unwrap().begin(Format::Svg, 8).unwrap();
+    session
+        .assets()
+        .unwrap()
+        .append(pending, 0, b"<svg")
+        .unwrap();
+    assert!(
+        session
+            .shutdown()
+            .iter()
+            .any(|event| matches!(event, Event::Stopped))
+    );
+    assert!(matches!(session.assets(), Err(ErrorCode::Closed)));
+}

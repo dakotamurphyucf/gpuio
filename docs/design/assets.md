@@ -3,8 +3,9 @@
 OCH-11 implementation in progress. `Gpuio.Asset.Format` and `Asset.Source` plus
 matching Rust source descriptors are implemented. They preserve opaque encoded
 bytes, reject empty or greater-than-16-MiB inputs, and keep diagnostics bounded.
-They do not register, decode or display assets yet. No asset capability bit is
-advertised by this checkpoint. Core expect tests, Rust source-bound tests, protocol
+The native session now also owns an encoded-asset registry. It is not yet exposed
+through wire messages or the OCaml runtime, and does not decode or display assets.
+No asset capability bit is advertised by this checkpoint. Core expect tests, Rust source-bound tests, protocol
 Clippy and full Dune build/tests/format pass locally on macOS.
 
 ## Interface direction
@@ -19,9 +20,10 @@ errors. `Source.of_bytes ~format data` accepts binary data, including NUL.
 The next layer should register a source with the application runtime under an
 explicit scope and return a generational asset handle. Image/icon views refer to
 that handle, so unrelated state changes do not resend megabytes of encoded data.
-Support deliberate release and scope cleanup; define what happens to mounted
-views and later uses of a released handle before implementing the public handle
-interface. Keep loading/ready/failure states explicit, including cancellation and
+Support deliberate release and scope cleanup. The native registry now defines
+release as retiring acquisition: existing leases remain readable, while new uses
+of the retired handle fail. Image nodes must retain their own leases to preserve
+mounted content; a new/replaced node must acquire a live registration. Keep loading/ready/failure states explicit, including cancellation and
 late-result suppression. A window must remain usable if an image fails to decode.
 
 Image views need meaningful or explicitly decorative accessibility semantics,
@@ -77,9 +79,55 @@ Inspected GPUI revision `a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b` locally:
 Decoded caches should reuse immutable source data, have explicit byte/entry limits,
 and evict native atlas entries as well as CPU buffers. A content hash alone is not
 proof of equality or ownership. Reusing asset slots must not allow late uploads or
-worker completions to affect a new generation. Keep the exact upload/handle/cache
-interfaces provisional until the resource-lifetime contract is implemented and
-validated.
+worker completions to affect a new generation. The native registration lifetime below is implemented. The public OCaml handle,
+wire protocol and decoded-cache interfaces still require integration.
+
+## Native registration state
+
+`rust/native/src/asset_store.rs` is owned by `Session`, behind its negotiated/live
+state check. It issues `ResourceId` slot/generation pairs and never wraps an
+exhausted generation. Closing one window does not implicitly release application-
+scope assets; closing the application terminates registration and cancels staging.
+The wire/runtime adapter must attach registrations to explicit logical scopes.
+
+Current encoded bounds:
+
+| Resource | Limit |
+| --- | --- |
+| One encoded source | 16 MiB |
+| One chunk | 256 KiB |
+| Concurrent uploads | 8 |
+| Slots, including retained/tombstone metadata | 1024 |
+| Reserved staging + registered + retired-but-read encoded bytes | 64 MiB |
+
+`begin` reserves the entire declared encoded length before accepting chunks.
+`append` accepts nonempty, sequential chunks within both chunk and declared-size
+bounds. Malformed chunks abort that generation and reclaim staging; stale handles
+cannot abort a later generation. `finish` publishes only an exact-length encoded
+source. Finishing a prefix aborts it. Publication does not claim successful image
+decoding. No view or worker can acquire a staging prefix.
+
+`release` aborts staging or retires an available registration. Repeated cleanup of
+the same generation succeeds; older-generation cleanup fails without touching a
+reused slot. Existing immutable leases can still be read after retirement, and
+continue to count against the encoded budget until their last reader drops them.
+This includes decoder jobs and mounted views. A weak retired entry cannot itself
+keep the payload alive. Collection before new registration reclaims the quota and
+makes the slot reusable with a new generation.
+
+The public adapter must preserve cleanup when a scope is cancelled while `begin`
+is awaiting its reply. Discarding that reply with an ordinary suppressed Bonsai
+callback would leak a native registration. Keep internal pending-request cleanup
+alive until the reply is accounted for, releasing any late-created ID without
+running the cancelled user's callback. Later upload cancellation can release its
+known ID; FIFO processing and generation checks protect subsequent reuse.
+
+The native store tests cover assembly of a >2-MiB binary source from bounded
+chunks, prefix non-publication, malformed/incomplete upload reclamation, stale
+operations after reuse, retained-reader quota, terminal shutdown, and entry/upload/
+generation exhaustion. A session test covers negotiation, reuse across windows,
+retirement accounting and shutdown gating. These are native state-machine tests,
+not evidence of FFI uploads, scope cleanup, worker scheduling or GPU rendering.
 
 ## Required next evidence
 
@@ -91,3 +139,6 @@ late completion after disposal, malformed/oversized data, and bounded cache evic
 Verify independent OCaml/Rust protocol fixtures and Linux builds/unit tests before
 merging the completed OCH-11 scope. Pure source-descriptor tests are not evidence
 of image rendering or a finished asset subsystem.
+
+See [local source/registry evidence](../evidence/assets-och11.md) for current checks
+and their limits.
