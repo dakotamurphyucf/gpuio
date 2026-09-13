@@ -6,7 +6,8 @@ bytes, reject empty or greater-than-16-MiB inputs, and keep diagnostics bounded.
 The native session owns a bounded encoded registry, connected through correlated
 wire requests and the raw `Gpuio_eio.App.Expert.asset` effect. Capability
 `CAP_ASSETS` (2097152; aggregate mask 4194303) means encoded registration only.
-Scoped public ownership, decoding and image/icon rendering remain to implement.
+Scoped public ownership is now connected through `Gpuio_eio.Asset.register`.
+Decoding and image/icon rendering remain to implement.
 Independent OCaml/Rust fixtures, Rust workspace/Clippy, full Dune checks and an
 actual windowless >2-MiB FFI upload pass locally on macOS.
 
@@ -19,8 +20,10 @@ SVG, BMP, TIFF, ICO or PNM. Declaring a format is not successful content validat
 malformed, unsupported codec variants and decoded-size limits need typed native
 errors. `Source.of_bytes ~format data` accepts binary data, including NUL.
 
-The next layer should register a source with the application runtime under an
-explicit scope and return a generational asset handle. Image/icon views refer to
+`Gpuio_eio.Asset.register app ~scope source` registers a source with the
+application runtime under an explicit scope and returns an encoded registration.
+Its native generational ID remains behind an Expert interface until the pure
+image/icon view integration is implemented. Image/icon views refer to
 that handle, so unrelated state changes do not resend megabytes of encoded data.
 Support deliberate release and scope cleanup. The native registry now defines
 release as retiring acquisition: existing leases remain readable, while new uses
@@ -81,8 +84,8 @@ Inspected GPUI revision `a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b` locally:
 Decoded caches should reuse immutable source data, have explicit byte/entry limits,
 and evict native atlas entries as well as CPU buffers. A content hash alone is not
 proof of equality or ownership. Reusing asset slots must not allow late uploads or
-worker completions to affect a new generation. The native registration lifetime below is implemented. The public OCaml handle,
-scoped adapter and decoded-cache interfaces still require integration.
+worker completions to affect a new generation. The native registration and scoped adapter below are implemented. Pure view
+handles and decoded-cache interfaces still require integration.
 
 ## Native registration state
 
@@ -135,8 +138,8 @@ not evidence of FFI uploads, scope cleanup, worker scheduling or GPU rendering.
 
 ## Required next evidence
 
-Implement and validate scope cancellation, public generational
-handles, native decode limits and errors, image/icon views and accessibility,
+Extend scope cancellation evidence through worker/view integration; implement
+pure generational view handles, native decode limits and errors, image/icon views and accessibility,
 shared/cache lifetime cleanup, theme/scale rerasterization and animation behavior.
 Exercise actual macOS rendering, scale/theme changes, repeated replacement/unmount,
 late completion after disposal, malformed/oversized data, and bounded cache eviction.
@@ -156,9 +159,50 @@ it does not encode each byte as a bin_prot integer. Each admitted request reserv
 one bounded control response. Input pressure cannot coalesce or drop its reply,
 and application asset responses do not prevent window-slot reuse.
 
-`App.Expert.asset` bounds pending requests to 64 and reports Not_ready before
+`App.Expert.asset` bounds raw pending requests to 63, leaving one of 64 lanes
+reserved for the scoped adapter, and reports Not_ready before
 negotiation, Resource_limit at capacity and Closed during shutdown. This raw API
 has no per-scope cancellation contract: its caller must process late Begin replies
-and release registrations. Application shutdown closes the native store. The
-public scoped adapter must provide stronger automatic cleanup before ordinary
-application code uses registration. Encoded completion does not validate pixels.
+and release registrations. Application shutdown closes the native store. Use `Gpuio_eio.Asset` for automatic scoped ownership. Encoded completion does
+not validate pixels.
+
+## Scoped OCaml ownership
+
+`Gpuio_eio.Asset.register app ~scope source` is a Bonsai effect returning a typed
+encoded registration or Closed/Not_ready/Resource_limit/Invalid_scope/Native_failure.
+The source is immutable; acquisition remains explicit Eio I/O. The scope must
+share the application's scheduler root. After completion, `release` is idempotent,
+and scope cancellation retires the registration automatically. The public result
+means encoded publication only; decode errors and image view handles are separate
+work. No pure view accepts the Expert native ID yet.
+
+The UI-domain registry bounds live metadata to 1024 registrations, unfinished
+uploads to eight, and source bytes held by its queued/uploading states to 64 MiB.
+It releases its source reference after the last chunk acknowledgement and clears
+its completion callback after delivery. Caller-retained sources/effects are
+caller-owned memory. At most one scoped command is in flight; Append adds at most
+one 256-KiB copied chunk in the controller, with the existing transport's bounded
+encoding copies. Ready registrations hold IDs, not encoded OCaml source bytes.
+
+Cleanup has priority over uploads. Raw Expert traffic cannot consume the reserved
+scoped request lane. Native mailbox backpressure keeps commands queued rather than
+dropping releases. A transient cleanup admission failure retries; impossible native
+response shapes raise through the application cleanup boundary rather than silently
+forgetting a potentially live allocation. Application disposal closes both owners.
+
+Cancellation clears the user callback immediately. If Begin is in flight, its
+internal entry remains until the native reply supplies the ID for Release. If a
+chunk or Finish is in flight, the known ID is retained until that reply and a
+subsequent Release acknowledgement. Cancelling before submission requires no
+native operation. Entry metadata remains charged until retirement is acknowledged,
+so repeatedly cancelling uploads cannot grow an unbounded cleanup queue.
+
+```ocaml
+Bonsai.Effect.bind (Gpuio_eio.Asset.register app ~scope source) ~f:(function
+  | Error error -> report_asset_registration_error error
+  | Ok asset -> remember_asset asset)
+```
+
+The last two functions are application callbacks. Release deliberately with
+`Gpuio_eio.Asset.release asset`, or let the owning scope end. Registration is
+asynchronous; do not perform synchronous waits during Bonsai stabilization.

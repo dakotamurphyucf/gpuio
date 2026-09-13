@@ -76,3 +76,32 @@ scratch directory. An earlier full Dune run found two nonexhaustive example even
 matches; both now explicitly handle the new response and the full rerun passed.
 Three system-libwayland tests still await Linux. No hosted run has been started
 for this checkpoint, following the accepted complete-local-scope-first workflow.
+
+## Scoped registration checkpoint
+
+The public `Gpuio_eio.Asset.register` effect and UI-domain registry now attach
+encoded registrations to explicit application scopes. Five expect tests cover:
+
+- Cancellation before Begin, with Begin/each chunk/Finish in flight, and after
+  ready delivery: no cancelled user callback, exact late-ID retirement, no further
+  chunks after cancellation, and zero retained registry/source accounting.
+- Exact chunk bytes/offsets, source-reference release before Finish, idempotent
+  retirement and retry after transient cleanup admission pressure.
+- Eight-upload/64-MiB source admission, foreign-root rejection, queue cancellation
+  and terminal closure.
+- Native Begin/Append errors, known-ID cleanup and suppressed late shutdown reply.
+- 1024 ready registrations, rejection at the metadata bound, and one acknowledged
+  retirement for every registration at scope end.
+
+The actual windowless native example additionally completes a >2-MiB public scoped
+registration, fills all 63 raw request lanes, cancels its scope and immediately
+observes released public state. Four subsequent 16-MiB native reservations prove
+that its encoded bytes were reclaimed despite raw traffic pressure. It also checks
+cancel-before-upload callback suppression and clean shutdown with a ready scoped
+registration. Exact in-flight cancellation cuts are deterministic controller tests;
+the native test does not claim those timing cuts were forced at the OS boundary.
+
+Full local `dune build @runtest @all @fmt` and the windowless executable are the
+validation gate for this OCaml-only checkpoint. Logs: `assets-scoped-unit.log`,
+`assets-scoped-dune-all.log`, `assets-scoped-native-final.log`. Rendering, decoded
+cache limits, pure image handles and pixel/theme/scale acceptance remain pending.

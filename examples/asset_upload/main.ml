@@ -4,6 +4,7 @@ module Scope = Gpuio_eio.Scope
 module E = Bonsai.Effect
 module Asset = Gpuio_protocol.Wire.Asset
 module Id = Gpuio_protocol.Resource_id
+module Scoped_asset = Gpuio_eio.Asset
 
 let () =
   let complete = ref false in
@@ -80,7 +81,75 @@ let () =
           let recovered = begin_ 1 in
           ack (Append (recovered, 0L, "x"));
           ack (Finish recovered);
-          ack (Release recovered)))
+          ack (Release recovered);
+          let on_ui ui_effect =
+            let promise, resolver = Eio.Promise.create () in
+            Scope.Expert.enqueue scope (fun () ->
+              E.Expert.handle (E.map ui_effect ~f:(Eio.Promise.resolve resolver)));
+            Eio.Promise.await promise
+          in
+          let owner =
+            on_ui
+              (E.of_thunk (fun () ->
+                 Scope.child scope ~name:"scoped-asset" |> Or_error.ok_exn))
+          in
+          let source =
+            Scoped_asset.Source.of_bytes ~format:Png bytes |> Or_error.ok_exn
+          in
+          let registered =
+            match on_ui (Scoped_asset.register app ~scope:owner source) with
+            | Ok asset -> asset
+            | Error error ->
+              raise_s [%sexp "scoped registration failed", (error : Scoped_asset.Error.t)]
+          in
+          let pending =
+            on_ui
+              (E.of_thunk (fun () ->
+                 assert (Option.is_some (Scoped_asset.Expert.native_id registered));
+                 (* Occupy every raw lane in one UI turn. Scoped cleanup still has
+               its own reserved lane and must retire the encoded allocation. *)
+                 let pending =
+                   List.init 63 ~f:(fun _ ->
+                     let promise, resolver = Eio.Promise.create () in
+                     E.Expert.handle
+                       (E.map
+                          (App.Expert.asset app (Begin (Png, 0L)))
+                          ~f:(Eio.Promise.resolve resolver));
+                     promise)
+                 in
+                 E.Expert.handle
+                   (E.map
+                      (App.Expert.asset app (Begin (Png, 0L)))
+                      ~f:(fun result ->
+                        assert (Asset.Response.equal result (Failed Resource_limit))));
+                 Scope.cancel owner;
+                 Scoped_asset.release registered;
+                 assert (Scoped_asset.is_released registered);
+                 assert (Option.is_none (Scoped_asset.Expert.native_id registered));
+                 pending))
+          in
+          List.iter pending ~f:(fun promise ->
+            assert (Asset.Response.equal (Eio.Promise.await promise) (Failed Invalid_size)));
+          (* Four full reservations prove the scoped >2-MiB source was retired,
+             even though raw requests saturated their own admission limit. *)
+          let full = List.init 4 ~f:(fun _ -> begin_ Gpuio.Asset.Source.max_bytes) in
+          List.iter full ~f:(fun id -> ack (Release id));
+          let late_scope =
+            on_ui
+              (E.of_thunk (fun () ->
+                 Scope.child scope ~name:"cancel-before-upload" |> Or_error.ok_exn))
+          in
+          on_ui
+            (E.of_thunk (fun () ->
+               E.Expert.handle
+                 (E.map (Scoped_asset.register app ~scope:late_scope source) ~f:(fun _ ->
+                    failwith "cancelled asset completion escaped"));
+               Scope.cancel late_scope));
+          (* Ready registrations are also retired by terminal app cleanup. *)
+          match on_ui (Scoped_asset.register app ~scope source) with
+          | Ok _ -> ()
+          | Error error ->
+            raise_s [%sexp "final registration failed", (error : Scoped_asset.Error.t)]))
       ~on_result:(fun result ->
         E.of_thunk (fun () ->
           Or_error.ok_exn result;
@@ -93,5 +162,6 @@ let () =
   assert !complete;
   Eio.traceln
     "GPUIO_ASSET_UPLOAD_OK: >2 MiB chunked FFI upload, stale release, prefix/offset \
-     rejection, quota recovery and shutdown without windows"
+     rejection, quota recovery, scoped registration/cancellation under raw queue \
+     pressure, and shutdown without windows"
 ;;

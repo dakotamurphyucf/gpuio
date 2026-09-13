@@ -52,6 +52,7 @@ type t =
   ; mutable frames : (Window_id.t * (revision:int64 -> unit Bonsai.Effect.t)) Int64.Map.t
   ; mutable editors : editor_request Int64.Map.t
   ; mutable dialogs : dialog_request Int64.Map.t
+  ; asset_registry : Asset_registry.t
   ; mutable assets : (Wire.Asset.Response.t -> unit) Int64.Map.t
   ; mutable correlation : int64
   ; mutable welcomed : bool
@@ -92,7 +93,7 @@ let queue t message =
 ;;
 
 module Expert = struct
-  let asset t request =
+  let asset_request t ~limit request =
     Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
       check t;
       let fail error = callback (Wire.Asset.Response.Failed error) in
@@ -100,7 +101,7 @@ module Expert = struct
       then fail Closed
       else if not t.welcomed
       then fail Not_ready
-      else if Map.length t.assets >= 64
+      else if Map.length t.assets >= limit
       then fail Resource_limit
       else (
         let id = correlation t in
@@ -115,6 +116,18 @@ module Expert = struct
         else (
           t.assets <- Map.set t.assets ~key:id ~data:callback;
           queue t (Asset (id, request)))))
+  ;;
+
+  let asset t request = asset_request t ~limit:63 request
+
+  let register_asset t ~scope source =
+    Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+      check t;
+      if t.stopping
+      then callback (Error Asset_registry.Error.Closed)
+      else if not t.welcomed
+      then callback (Error Asset_registry.Error.Not_ready)
+      else Asset_registry.register t.asset_registry ~scope source ~on_result:callback)
   ;;
 end
 
@@ -150,6 +163,7 @@ let shutdown t =
   if not t.stopping
   then (
     t.stopping <- true;
+    Asset_registry.close t.asset_registry;
     Scope.cancel t.scope;
     queue t Shutdown)
 ;;
@@ -481,6 +495,7 @@ let process t = function
   | Stopped ->
     t.stopped <- true;
     t.stopping <- true;
+    Asset_registry.close t.asset_registry;
     let assets = t.assets in
     t.assets <- Int64.Map.empty;
     Map.iter assets ~f:(fun complete -> complete (Wire.Asset.Response.Failed Closed))
@@ -529,6 +544,13 @@ let step t =
         window.driver <- None;
         Option.iter driver ~f:Driver.close
       | Opening | Open | Closed -> ());
+    if t.welcomed && not t.stopping
+    then
+      Option.iter (Asset_registry.next_request t.asset_registry) ~f:(fun request ->
+        Bonsai.Effect.Expert.handle
+          (Bonsai.Effect.map
+             (Expert.asset_request t ~limit:64 request)
+             ~f:(Asset_registry.complete t.asset_registry)));
     submit_commands t;
     if not t.stopping
     then (
@@ -572,6 +594,7 @@ let worker native read ~tick_hz ~max_tasks initialize =
         ; frames = Int64.Map.empty
         ; editors = Int64.Map.empty
         ; dialogs = Int64.Map.empty
+        ; asset_registry = Asset_registry.create ~scope ~wake:(fun () -> Inbox.wake inbox)
         ; assets = Int64.Map.empty
         ; correlation = 0L
         ; welcomed = false
@@ -583,6 +606,7 @@ let worker native read ~tick_hz ~max_tasks initialize =
       in
       Exn.protect
         ~finally:(fun () ->
+          Asset_registry.close app.asset_registry;
           Scope.cancel scope;
           Map.iter app.windows ~f:release_window;
           app.assets <- Int64.Map.empty;

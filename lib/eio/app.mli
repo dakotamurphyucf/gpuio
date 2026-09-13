@@ -58,13 +58,20 @@ module Window : sig
 end
 
 module Expert : sig
-  (** Correlated raw registration protocol, bounded to 64 pending requests.
+  (** Correlated raw registration protocol, bounded to 63 pending requests;
+      a separate lane is reserved for scoped upload/cleanup.
       This is not the scoped public asset API: callers own release/late-reply
       cleanup. A completed upload contains encoded data, not decoded pixels. *)
   val asset
     :  t
     -> Gpuio_protocol.Wire.Asset.Request.t
     -> Gpuio_protocol.Wire.Asset.Response.t Bonsai.Effect.t
+
+  val register_asset
+    :  t
+    -> scope:Scope.t
+    -> Gpuio.Asset.Source.t
+    -> (Asset_registry.Registration.t, Asset_registry.Error.t) Result.t Bonsai.Effect.t
 end
 
 val scope : t -> Scope.t

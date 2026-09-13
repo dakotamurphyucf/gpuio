@@ -379,3 +379,12 @@ public Eio runtime example uploads >2 MiB and verifies release, stale IDs, inval
 uploads, quota recovery and shutdown. The new capability 2097152 (aggregate
 4194303) advertises encoded registration only. Scoped public ownership, decoding,
 image/icon views and cache cleanup remain; see [asset evidence](evidence/assets-och11.md).
+
+Scoped encoded registration now uses `Gpuio_eio.Asset.register app ~scope source`.
+The adapter bounds queued source bytes/live metadata, suppresses cancelled user
+completions while accounting for late allocation replies, and reserves one request
+lane for upload/cleanup independent of raw traffic. The windowless native example
+passes public registration and scope retirement under saturated raw request lanes,
+with subsequent full-quota allocation proving reclamation. Deterministic scope tests
+exercise every upload cancellation boundary. Decoding and pure image/icon views are
+still pending; this is encoded ownership, not rendered-image acceptance.
