@@ -285,3 +285,13 @@ macOS; three new system-libwayland protocol tests compile but are explicitly
 ignored here and await Linux execution. Public capabilities and consolidated
 Linux/macOS CI remain pending. No Linux GUI or complete OCH-11 acceptance is
 claimed; see the [Wayland checkpoint evidence](evidence/linux-file-portal-och11.md).
+
+Public file-dialog capabilities are now implemented locally: a per-window typed
+snapshot reports single/multiple selection by mode and save support, with the
+same Not_ready/Busy/Closed lifecycle as pickers and no picker presentation.
+Local macOS native/public tests, independent OCaml/Rust fixtures, portal version/
+no-presentation tests, full build/format and Clippy pass. Existing real selection
+and Eio-read regressions pass after sharing the correlated query path. See the
+[file-dialog capability evidence](evidence/native-file-dialogs-och11.md). Linux
+build/unit verification (including three ignored-on-macOS Wayland tests), remaining
+OCH-11 feature families, consolidated CI and merge are still required.

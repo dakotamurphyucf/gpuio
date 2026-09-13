@@ -85,6 +85,25 @@ end
 
 module Error = Gpuio_protocol.Wire.File_dialog.Error
 
+module Capabilities = struct
+  type t = Gpuio_protocol.Wire.File_dialog.Capabilities.t [@@deriving equal, sexp_of]
+
+  let supports_open (t : t) ~(selection : Open.Selection.t) ~multiple =
+    let support =
+      match selection with
+      | Files -> t.files
+      | Directories -> t.directories
+      | Files_and_directories -> t.files_and_directories
+    in
+    match support with
+    | Unsupported -> false
+    | Single -> not multiple
+    | Multiple -> true
+  ;;
+
+  let supports_save (t : t) = t.save
+end
+
 module Request = struct
   type t =
     | Open of Open.t
@@ -122,6 +141,7 @@ module Expert = struct
   let result_of_wire request = function
     | Wire.Result.Failed error -> Error error
     | Cancelled -> Ok None
+    | Capabilities _ -> Error Error.Native_failure
     | Selected paths ->
       let maximum =
         match request with
@@ -138,5 +158,11 @@ module Expert = struct
         |> Or_error.combine_errors
         |> Result.map ~f:Option.some
         |> Result.map_error ~f:(fun _ -> Error.Native_failure)
+  ;;
+
+  let capabilities_of_wire = function
+    | Wire.Result.Capabilities capabilities -> Ok capabilities
+    | Failed error -> Error error
+    | Selected _ | Cancelled -> Error Error.Native_failure
   ;;
 end

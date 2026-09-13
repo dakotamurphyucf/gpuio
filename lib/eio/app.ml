@@ -13,11 +13,10 @@ type editor_request =
   ; complete : editor_result -> unit
   }
 
-type dialog_result = (Gpuio.File_path.t list option, Dialog.Error.t) Result.t
+type dialog_result = Wire.File_dialog.Result.t
 
 type dialog_request =
   { window : Window_id.t
-  ; config : Dialog.Request.t
   ; complete : dialog_result -> unit
   }
 
@@ -107,7 +106,8 @@ let release_window window =
         Window_id.equal request.window window.id)
     in
     window.app.dialogs <- remaining_dialogs;
-    Map.iter cancelled_dialogs ~f:(fun request -> request.complete (Error Closed));
+    Map.iter cancelled_dialogs ~f:(fun request ->
+      request.complete (Wire.File_dialog.Result.Failed Closed));
     Scope.cancel window.scope;
     Option.iter window.driver ~f:Driver.close;
     window.driver <- None;
@@ -183,27 +183,40 @@ module Window = struct
   ;;
 
   module Expert = struct
-    let file_dialog t config =
+    let file_dialog_raw t config =
       Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
         check t.app;
+        let fail error = callback (Wire.File_dialog.Result.Failed error) in
         if is_closed t || t.app.stopping
-        then callback (Error Dialog.Error.Closed)
+        then fail Closed
         else if
           match t.phase with
           | Open -> false
           | Opening | Closing_before_open | Closing | Closed -> true
-        then callback (Error Not_ready)
+        then fail Not_ready
         else if
           Map.exists t.app.dialogs ~f:(fun request -> Window_id.equal request.window t.id)
-        then callback (Error Busy)
+        then fail Busy
         else (
           let request = correlation t.app in
           t.app.dialogs
           <- Map.set
                t.app.dialogs
                ~key:request
-               ~data:{ window = t.id; config; complete = callback };
-          queue t.app (File_dialog (request, t.id, Dialog.Expert.to_wire config))))
+               ~data:{ window = t.id; complete = callback };
+          queue t.app (File_dialog (request, t.id, config))))
+    ;;
+
+    let file_dialog t config =
+      Bonsai.Effect.map
+        (file_dialog_raw t (Dialog.Expert.to_wire config))
+        ~f:(Dialog.Expert.result_of_wire config)
+    ;;
+
+    let file_dialog_capabilities t =
+      Bonsai.Effect.map
+        (file_dialog_raw t Capabilities)
+        ~f:Dialog.Expert.capabilities_of_wire
     ;;
 
     let editor_command t snapshot command =
@@ -332,9 +345,8 @@ let process t = function
        t.dialogs <- Map.remove t.dialogs request;
        let result =
          match find_window t id with
-         | Some window when (not (Window.is_closed window)) && not t.stopping ->
-           Dialog.Expert.result_of_wire pending.config result
-         | Some _ | None -> Error Dialog.Error.Closed
+         | Some window when (not (Window.is_closed window)) && not t.stopping -> result
+         | Some _ | None -> Wire.File_dialog.Result.Failed Closed
        in
        pending.complete result
      | Some _ | None -> ())
@@ -364,7 +376,7 @@ let process t = function
   | Failed (request, code) when Map.mem t.dialogs request ->
     let pending = Map.find_exn t.dialogs request in
     t.dialogs <- Map.remove t.dialogs request;
-    let error : Dialog.Error.t =
+    let error : Wire.File_dialog.Error.t =
       match code with
       | Closed | Stale_handle -> Closed
       | Busy -> Busy
@@ -374,7 +386,7 @@ let process t = function
       | Malformed | Invalid_revision | Invalid_tree | Overloaded | Native_failure ->
         Native_failure
     in
-    pending.complete (Error error)
+    pending.complete (Wire.File_dialog.Result.Failed error)
   | Failed (request, code) when Map.mem t.editors request ->
     let pending = Map.find_exn t.editors request in
     t.editors <- Map.remove t.editors request;

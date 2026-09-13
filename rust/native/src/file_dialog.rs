@@ -103,6 +103,19 @@ impl Dialogs {
             ));
             return;
         }
+        if matches!(config, FileDialogConfig::Capabilities) {
+            transport.respond(Event::FileDialogResult(
+                correlation,
+                id,
+                FileDialogResult::Capabilities(FileDialogCapabilities {
+                    files: FileSelectionSupport::Multiple,
+                    directories: FileSelectionSupport::Multiple,
+                    files_and_directories: FileSelectionSupport::Multiple,
+                    save: true,
+                }),
+            ));
+            return;
+        }
         let pending = std::rc::Rc::downgrade(&self.pending);
         let complete_transport = transport.clone();
         let result = Panel::show(config, window, move |result| {

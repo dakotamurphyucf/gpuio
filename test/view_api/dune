@@ -16,6 +16,8 @@
    overlay-v1-events.hex
    file-dialog-v1-requests.hex
    file-dialog-v1-events.hex
+   file-dialog-capabilities-v1-request.hex
+   file-dialog-capabilities-v1-events.hex
    pointer-v1-request.hex
    pointer-v1-events.hex
    toast-v1-request.hex
@@ -87,3 +89,7 @@
 (copy_files ../fixtures/file-dialog-v1-requests.hex)
 
 (copy_files ../fixtures/file-dialog-v1-events.hex)
+
+(copy_files ../fixtures/file-dialog-capabilities-v1-request.hex)
+
+(copy_files ../fixtures/file-dialog-capabilities-v1-events.hex)

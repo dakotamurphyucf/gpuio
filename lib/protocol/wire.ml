@@ -1,7 +1,7 @@
 open Core
 
 let version = 1L
-let capabilities = 524287L
+let capabilities = 1048575L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -695,10 +695,29 @@ module File_dialog = struct
     [@@deriving bin_io, equal, sexp_of]
   end
 
+  module Selection_support = struct
+    type t =
+      | Unsupported
+      | Single
+      | Multiple
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Capabilities = struct
+    type t =
+      { files : Selection_support.t
+      ; directories : Selection_support.t
+      ; files_and_directories : Selection_support.t
+      ; save : bool
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
   module Config = struct
     type t =
       | Open of Open.t
       | Save of Save.t
+      | Capabilities
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -752,6 +771,7 @@ module File_dialog = struct
       | Selected of Paths.t
       | Cancelled
       | Failed of Error.t
+      | Capabilities of Capabilities.t
     [@@deriving bin_io, equal, sexp_of]
   end
 end
@@ -865,7 +885,8 @@ module Event = struct
         && String.length path <= 16_384
         && Char.equal path.[0] '/'
         && not (String.contains path '\000'))
-    | File_dialog_result (request, _, (Cancelled | Failed _)) -> Int64.(request > 0L)
+    | File_dialog_result (request, _, (Cancelled | Failed _ | Capabilities _)) ->
+      Int64.(request > 0L)
     | Pointer_event (_, _, _, revision, sample) ->
       Int64.(revision >= 0L && sample.gesture > 0L)
       && List.for_all

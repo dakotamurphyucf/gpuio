@@ -46,6 +46,55 @@ fn config() -> FileDialogConfig {
         directory: Some(FilePath::new(b"/tmp/\xff".to_vec()).unwrap()),
     })
 }
+
+#[test]
+fn capability_queries_use_the_discovered_version_without_presenting_a_picker() {
+    run(async {
+        for version in [0, 1, 2, 3, 4] {
+            let (mut stream, _server, client) = peer().await;
+            let (_keep, cancel) = async_channel::bounded(1);
+            let result = choose_on(
+                client,
+                OWNER,
+                version,
+                FileDialogConfig::Capabilities,
+                "x11:2a",
+                "probe",
+                cancel,
+            )
+            .await;
+            if version == 0 {
+                assert_eq!(result, failed(FileDialogError::Unsupported));
+            } else {
+                assert_eq!(
+                    result,
+                    FileDialogResult::Capabilities(FileDialogCapabilities {
+                        files: FileSelectionSupport::Multiple,
+                        directories: if version >= 3 {
+                            FileSelectionSupport::Multiple
+                        } else {
+                            FileSelectionSupport::Unsupported
+                        },
+                        files_and_directories: FileSelectionSupport::Unsupported,
+                        save: true,
+                    })
+                );
+            }
+            assert!(
+                stream.next().await.is_none_or(|message| message.is_err()),
+                "capability probe must not send OpenFile, SaveFile or a request subscription"
+            );
+        }
+        let (mut stream, _server, client) = peer().await;
+        let (cancel, receiver) = async_channel::bounded(1);
+        cancel.send(()).await.unwrap();
+        assert_eq!(
+            choose_peer(client, FileDialogConfig::Capabilities, receiver).await,
+            failed(FileDialogError::Closed)
+        );
+        assert!(stream.next().await.is_none_or(|message| message.is_err()));
+    });
+}
 async fn method(stream: &mut MessageStream, member: &str, path: &str) -> Message {
     let message = stream.next().await.unwrap().unwrap();
     assert_eq!(message.message_type(), Type::MethodCall);

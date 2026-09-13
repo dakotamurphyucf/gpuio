@@ -298,6 +298,47 @@ async fn request_ownership(cx: &mut gpui::AsyncApp, handle: gpui::WindowHandle<g
     let dialogs = Dialogs::default();
     let id = WindowId::from_parts(0, 1).unwrap();
     let second_id = WindowId::from_parts(1, 1).unwrap();
+    transport
+        .submit(
+            Message::FileDialog(8, id, FileDialogConfig::Capabilities),
+            32,
+        )
+        .unwrap();
+    assert!(transport.mailbox.lock().unwrap().pop().is_some());
+    cx.update_window(handle.into(), |_, window, cx| {
+        dialogs.show(
+            8,
+            id,
+            FileDialogConfig::Capabilities,
+            window,
+            cx,
+            transport.clone(),
+        );
+        let RawWindowHandle::AppKit(raw) = HasWindowHandle::window_handle(window).unwrap().as_raw()
+        else {
+            panic!()
+        };
+        let view = unsafe { raw.ns_view.cast::<NSView>().as_ref() };
+        assert!(
+            view.window().unwrap().attachedSheet().is_none(),
+            "probe presented a picker"
+        );
+    })
+    .unwrap();
+    assert!(dialogs.pending.borrow().is_empty());
+    assert_eq!(
+        transport.mailbox.lock().unwrap().drain(128),
+        [Event::FileDialogResult(
+            8,
+            id,
+            FileDialogResult::Capabilities(FileDialogCapabilities {
+                files: FileSelectionSupport::Multiple,
+                directories: FileSelectionSupport::Multiple,
+                files_and_directories: FileSelectionSupport::Multiple,
+                save: true,
+            })
+        )]
+    );
     let config = FileDialogConfig::Open(OpenFileConfig {
         selection: FileSelection::Directories,
         multiple: false,

@@ -34,6 +34,22 @@ pub struct SaveFileConfig {
 pub enum FileDialogConfig {
     Open(OpenFileConfig),
     Save(SaveFileConfig),
+    Capabilities,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum FileSelectionSupport {
+    Unsupported,
+    Single,
+    Multiple,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct FileDialogCapabilities {
+    pub files: FileSelectionSupport,
+    pub directories: FileSelectionSupport,
+    pub files_and_directories: FileSelectionSupport,
+    pub save: bool,
 }
 
 fn label(value: &str) -> bool {
@@ -43,6 +59,7 @@ fn label(value: &str) -> bool {
 impl FileDialogConfig {
     pub fn is_valid(&self) -> bool {
         match self {
+            Self::Capabilities => true,
             Self::Open(config) => label(&config.title) && label(&config.accept_label),
             Self::Save(config) => {
                 label(&config.title)
@@ -60,6 +77,7 @@ impl FileDialogConfig {
     /// path. FilePath already enforces absolute, bounded, NUL-free native bytes.
     pub fn accepts_selection(&self, paths: &[FilePath]) -> bool {
         let maximum = match self {
+            Self::Capabilities => return false,
             Self::Open(config) if config.multiple => MAX_SELECTED_PATHS,
             Self::Open(_) | Self::Save(_) => 1,
         };
@@ -89,6 +107,7 @@ pub enum FileDialogResult {
     Selected(Vec<FilePath>),
     Cancelled,
     Failed(FileDialogError),
+    Capabilities(FileDialogCapabilities),
 }
 
 #[cfg(test)]

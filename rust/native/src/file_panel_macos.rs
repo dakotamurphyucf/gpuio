@@ -121,6 +121,7 @@ impl Panel {
             return Err(FileDialogError::Busy);
         }
         let native = match &config {
+            FileDialogConfig::Capabilities => return Err(FileDialogError::InvalidRequest),
             FileDialogConfig::Open(config) => {
                 let panel = NSOpenPanel::openPanel(marker);
                 panel.setCanChooseFiles(matches!(

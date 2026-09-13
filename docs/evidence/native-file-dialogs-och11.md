@@ -112,8 +112,47 @@ These are test-driver adaptations, not changes to application selection policy.
 
 ## Still required
 
-Capability reporting remains unimplemented. The Linux portal protocol and native
-worker ownership have local unit evidence; the Wayland export adapter compiles
+Capability reporting is now implemented as described below. The Linux portal
+protocol and native worker ownership have local unit evidence; the Wayland export adapter compiles
 locally but its system-libwayland tests await Linux execution. See the
 [portal report](linux-file-portal-och11.md). Linux build/unit checks and
 consolidated hosted CI/merge remain required. No Linux GUI acceptance is claimed.
+
+## Public capabilities checkpoint
+
+`Gpuio_eio.File_dialog.capabilities window` now returns a typed snapshot without
+presenting a picker. Core exposes selection/cardinality and save predicates.
+Independent OCaml/Rust fixtures verify the appended query/result tags and all
+selection-support variants. OCaml rejects malformed enum/Boolean tags, truncation
+and a payload of the wrong result kind. The bridge advertises bit 524288
+(total mask 1048575); actual backend availability remains a runtime query.
+
+Local macOS validation passed:
+
+| Check | Evidence |
+| --- | --- |
+| Workspace all-target/native-tests Clippy, Rust tests, Dune `@runtest @all @fmt` (10774) | New protocol fixtures, typed Core/Eio API, existing unit/expect tests and full linking |
+| Native file-dialog harness (9724) | Capability probe returns all supported AppKit modes with no attached sheet or retained panel; existing selection/save/ownership assertions pass |
+| Public `--capabilities-self-test` (87486) | Actual native capabilities, pre-open Not_ready, overlap Busy, pending window-close and app-shutdown Closed |
+| Public `--self-test` and AX read script (87486) | Existing picker cancellation and real selection through Bonsai into an Eio LICENSE read still pass |
+
+The native driver for this run was
+`target/debug/deps/native_file_dialog-8d8e8113a91a4994`. Reproduce the public checks:
+
+```sh
+./scripts/gpuio exec dune exec examples/file_dialogs/main.exe -- --capabilities-self-test
+./scripts/gpuio exec dune exec examples/file_dialogs/main.exe -- --self-test
+python3 scripts/test_file_dialog_read.py --driver target/debug/deps/native_file_dialog-<actual-hash>
+```
+
+An initial capability self-test timed out before it had stage diagnostics. A
+rerun with diagnostics passed without changing the runtime. The final test
+queries until the native window is open instead of waiting for a painted frame:
+capability queries do not require painting, and frame waits unnecessarily couple
+this test to desktop occlusion/activation. The original timeout's exact stage
+was not established. Stage-specific timeout errors remain in the test.
+
+These checks ran locally with real macOS windows. Linux GUI acceptance and the
+three system-libwayland protocol tests remain unverified on this machine; the
+latter are explicitly ignored on macOS and enabled for the Linux build/test gate.
+No hosted CI or merge is claimed for this checkpoint; OCH-11 remains In Progress.

@@ -4,7 +4,7 @@ Status, 2026-09-13: `gpuio-portal` implements the D-Bus request layer and is now
 connected to the native manager for X11 and Wayland. The worker ownership adapter
 is compiled and unit-tested on macOS. The Wayland export adapter compiles locally,
 but its system-libwayland protocol tests await the Linux gate. Public capabilities
-and Linux build validation remain required; this is not Linux GUI acceptance or
+are implemented; Linux build validation remains required. This is not Linux GUI acceptance or
 completion of file dialogs.
 
 ## Ownership and request flow
@@ -119,8 +119,9 @@ Next implementation requirements:
 - Run the Wayland guest-queue tests with system libwayland on Linux. Confirm exact
   surface identity, registry/export disposal and cancellation at the protocol
   boundary; compilation on macOS does not prove those runtime properties.
-- Provide truthful public capabilities, including portal availability/version,
-  mixed selection and parenting. Runtime unavailability is not a build-time fact.
+- Verify the implemented public capability query on Linux along with the worker.
+  It probes actual portal availability/version and native parenting without
+  issuing OpenFile/SaveFile. Runtime unavailability is not a build-time fact.
 - Validate X11 and Wayland builds/unit behavior. Actual Linux portal GUI acceptance
   stays under the deferred Linux GUI gate (OCH-17); compilation must not be
   described as GUI acceptance.

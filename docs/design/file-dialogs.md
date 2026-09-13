@@ -1,10 +1,12 @@
 # Native file dialogs — OCH-11 implementation design
 
 Status, 2026-09-13: the configuration models, bounded wire protocol, correlated
-Bonsai/Eio effects, native request ownership and macOS panels are implemented
-locally. Native selection/ownership and the public selection-to-Eio-read and
-close/shutdown tests pass. Capability queries and the Linux portal adapter remain
-pending; these checkpoints do not complete the OCH-11 file-dialog requirement.
+Bonsai/Eio effects, native request ownership, capability queries, macOS panels and
+the X11/Wayland portal adapter are implemented locally. macOS selection/ownership
+and public selection-to-Eio-read/close tests have local evidence. Linux build/unit
+verification remains required, including three new system-libwayland tests that
+are ignored on macOS. These checkpoints do not complete OCH-11 or establish Linux
+portal GUI acceptance.
 
 ## Path and configuration contracts
 
@@ -66,6 +68,44 @@ must be bounded and cleared after every terminal path. A capability query must
 describe mixed selection, parenting and cancellation truthfully; availability of
 a Linux portal is a runtime property, not proven by compilation.
 
+## Capability query
+
+`Gpuio_eio.File_dialog.capabilities window` returns
+`(Capabilities.t, Error.t) Result.t Bonsai.Effect.t` without showing a picker.
+Call it after the native window opens, such as from an action on a rendered view.
+The abstract snapshot exposes `Capabilities.supports_open t ~selection ~multiple`
+and `Capabilities.supports_save t`. It does not expose portal versions or raw
+platform handles to application code.
+
+```ocaml
+let open Bonsai.Effect.Let_syntax in
+let%bind result = Gpuio_eio.File_dialog.capabilities window in
+match result with
+| Error error -> show_error error
+| Ok capabilities ->
+  let supports_mixed =
+    Gpuio_eio.File_dialog.Capabilities.supports_open
+      capabilities
+      ~selection:Files_and_directories
+      ~multiple:true
+  in
+  set_mixed_selection_enabled supports_mixed
+```
+
+The query shares the one-pending-request limit with open/save. Before opening it
+returns Not_ready; overlap returns Busy; closing the window or shutting down
+returns Closed. The snapshot describes mode support, not a reservation or a
+guarantee that a later picker succeeds. Native backend failure remains possible.
+
+macOS reports single/multiple files, directories and mixed selection, plus save.
+Linux probes the actual portal service and its version after validating the
+requesting native parent. Files support multiple selection; directories require
+FileChooser version 3; mixed selection is Unsupported; save is supported by an
+available FileChooser service. Missing portal/export support returns Unsupported.
+Wayland must obtain and retain the exact exported parent during the probe, then
+release it through the same cleanup barrier as an actual picker. No OpenFile or
+SaveFile method is issued for a capability query.
+
 ## Findings from pinned sources
 
 Pinned GPUI: `a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b`.
@@ -88,10 +128,9 @@ Pinned GPUI: `a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b`.
 - Pinned ashpd 0.13.13 exposes `Request::close`, but `Proxy::request` waits for
   `prepare_response` before returning the request. The high-level file chooser
   therefore does not provide a straightforward live handle for cancellation.
-  Investigate an owned portal request through zbus before choosing the Linux
-  adapter. Parent identifiers for X11/Wayland and request closure before/after
-  the portal method reply need explicit lifetime handling; no implementation or
-  Linux GUI success is claimed here.
+  The implemented adapter uses an owned zbus request and explicit X11/Wayland
+  parent lifetimes; see the [Linux design](linux-file-portal.md). This source
+  investigation does not establish Linux GUI acceptance.
 
 The macOS adapter uses the already-pinned objc2 0.6.4, objc2-foundation 0.3.2,
 objc2-app-kit 0.3.2, block2 0.6.2 and raw-window-handle 0.6.2 dependencies.
@@ -123,13 +162,20 @@ disposal. See [native evidence](../evidence/native-file-dialogs-och11.md).
 
 ## Bridge validation and example
 
-Message tag 7 carries correlation, window ID and open/save configuration. Event
-tag 21 carries correlation, window ID and Selected/Cancelled/Failed. Paths use
+Message tag 7 carries correlation, window ID and open/save/capability configuration.
+Config tag 2 is the capability query. Event tag 21 carries correlation, window ID
+and Selected/Cancelled/Failed/Capabilities; result tag 3 is the capability record.
+The record contains three selection-support enums (Unsupported/Single/Multiple)
+and a save Boolean. File-dialog capability bit 524288 is advertised; the complete
+required mask is 1048575. This bit describes bridge support, not runtime portal
+availability. Existing open/save/result tags and bytes are unchanged. Paths use
 bounded raw OCaml-string bytes on both sides. OCaml result decoding checks the
 path count, individual size and aggregate size before allocating their declared
 payloads; request-specific cardinality is checked again before the public effect
 completes. Independent fixtures and truncation/invalid-input tests cover both
 languages. Mailbox drain accounts for the path lengths and their encoded prefixes.
+The typed public effect also rejects a capability payload for a selection request
+or a selection/cancellation payload for a capability query.
 
 The runner rejects pre-open requests with Not_ready and overlaps with Busy.
 Window-close/shutdown yields Closed, removes pending callbacks, and cancels the
@@ -138,17 +184,12 @@ a closing/stopped window cannot receive a successful late selection.
 
 `examples/file_dialogs/main.ml` demonstrates selection followed by explicit Eio
 I/O with the application's filesystem capability. Its normal open action reads
-UTF-8 text up to 64 KiB; save only selects a destination. The self-test modes
-exercise lifecycle errors and actual selection followed by an Eio read. See the
+UTF-8 text up to 64 KiB; save only selects a destination. A separate action displays
+capability support. The self-test modes exercise capability/picker lifecycle
+errors and actual selection followed by an Eio read. See the
 [evidence report](../evidence/native-file-dialogs-och11.md) for commands and limits.
 
 ## Required acceptance work
-
-Implement capability reporting and the Linux portal backend, including runtime
-portal availability, X11/Wayland parenting, explicit unsupported mixed selection,
-all-or-error URI conversion and physical cancellation races. No new file-dialog
-capability is advertised yet. The non-macOS manager currently returns Unsupported
-as an explicit implementation placeholder, not as the accepted Linux outcome.
 
 Linux build/unit tests remain required; full portal GUI validation belongs to
 the deferred Linux GUI gate. Consolidated hosted CI and merge follow completion
@@ -157,8 +198,8 @@ remain distinct from inspection of configuration properties.
 
 ## Linux protocol-layer checkpoint
 
-`rust/portal` now implements the owned D-Bus request layer and has local socket
-peer tests for request, cancellation and URI behavior. See the
-[Linux portal design](linux-file-portal.md). It is not yet connected to the native
-manager; parent export/lifetimes and public capabilities remain pending. A passing
-protocol test does not establish Linux GUI support.
+`rust/portal` implements the owned D-Bus request layer with local socket-peer
+tests for request, cancellation, capability policy and URI behavior. The native
+adapter uses exact X11 IDs or shared-registry Wayland exports. See the
+[Linux portal design](linux-file-portal.md). Passing protocol tests does not
+establish Linux GUI support.

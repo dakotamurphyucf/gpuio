@@ -93,6 +93,7 @@ impl Decoder<'_> {
                 title: self.bounded_text(4096)?,
                 accept_label: self.bounded_text(4096)?,
             }),
+            2 => FileDialogConfig::Capabilities,
             _ => return Err(DecodeError::Malformed),
         };
         if config.is_valid() {

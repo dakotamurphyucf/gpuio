@@ -697,10 +697,29 @@ module type S = sig
       [@@deriving bin_io, equal, sexp_of]
     end
 
+    module Selection_support : sig
+      type t =
+        | Unsupported
+        | Single
+        | Multiple
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Capabilities : sig
+      type t =
+        { files : Selection_support.t
+        ; directories : Selection_support.t
+        ; files_and_directories : Selection_support.t
+        ; save : bool
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
     module Config : sig
       type t =
         | Open of Open.t
         | Save of Save.t
+        | Capabilities
       [@@deriving bin_io, equal, sexp_of]
     end
 
@@ -721,6 +740,7 @@ module type S = sig
         | Selected of string list
         | Cancelled
         | Failed of Error.t
+        | Capabilities of Capabilities.t
       [@@deriving bin_io, equal, sexp_of]
     end
   end

@@ -35,8 +35,9 @@ real session-bus discovery/activation. Cargo.lock adds only the new workspace
 package and references existing locked dependencies; existing versions are unchanged.
 
 The following native-integration checkpoint supersedes the original protocol-only
-integration status. Remaining acceptance: expose public capabilities and run the
-Linux build/unit gate, including the Wayland ownership tests below.
+integration status. Remaining acceptance: run the Linux build/unit gate,
+including the Wayland ownership tests below. Public capabilities now have the
+additional local evidence recorded at the end of this report.
 Actual portal GUI validation belongs to the deferred Linux GUI gate (OCH-17).
 These checks do not complete file dialogs, OCH-11 or milestone 2.
 
@@ -110,3 +111,23 @@ proxy after initial binding. This avoids per-dialog server allocations and idle
 registry-event accumulation. Native shutdown drains export workers, then drops
 the shared guest display before GPUI clears windows. All foreign native objects
 remain subject to the explicit lifetime contract in the design document.
+
+## Public capability integration
+
+The public typed capability query uses the same correlated native worker and
+parent lifecycle as a picker, but sends no OpenFile/SaveFile or Response
+subscription. Actual service discovery pins the portal owner/version. File
+selection supports multiple results; directory selection requires interface
+version 3; mixed selection is unsupported. Absent portals/export protocols fail
+explicitly. The snapshot cannot guarantee future service availability.
+
+A fifteenth portal test passes locally over private D-Bus peers: versions 0–4
+produce the expected capability/error result and close the connection without
+sending any picker method/subscription. Pre-cancellation returns Closed with no
+request. Existing discovery tests separately verify owner/version consistency
+and missing-service behavior. Independent bridge fixtures and Core capability
+predicates pass in both language suites. The complete public macOS capability
+and lifecycle checks are recorded in the [native report](native-file-dialogs-och11.md).
+
+This evidence does not substitute for the Linux build/test gate or real Linux
+GUI parenting. Consolidated hosted CI follows the remaining OCH-11 implementation.

@@ -71,3 +71,45 @@ fn independent_file_dialog_fixtures_and_bounded_request_decoding() {
     invalid[position + 1] = 0;
     assert_eq!(decode(&invalid), Err(DecodeError::Malformed));
 }
+
+#[test]
+fn capability_query_and_selection_support_have_independent_wire_fixtures() {
+    let request = Message::FileDialog(140, fixture::window(), FileDialogConfig::Capabilities);
+    let expected = bytes(include_str!(
+        "../../../test/fixtures/file-dialog-capabilities-v1-request.hex"
+    ));
+    assert_eq!(encode(request.clone()), expected);
+    assert_eq!(decode(&expected).unwrap(), request);
+    let mut unknown = expected.clone();
+    *unknown.last_mut().unwrap() = 3;
+    assert_eq!(decode(&unknown), Err(DecodeError::Malformed));
+    assert!(!FileDialogConfig::Capabilities.accepts_selection(&[fixture::directory()]));
+    use FileSelectionSupport::*;
+    let events: Vec<_> = [
+        (Multiple, Multiple, Multiple, true),
+        (Multiple, Unsupported, Unsupported, true),
+        (Multiple, Multiple, Unsupported, true),
+        (Single, Unsupported, Single, false),
+    ]
+    .into_iter()
+    .enumerate()
+    .map(|(i, (files, directories, files_and_directories, save))| {
+        Event::FileDialogResult(
+            140 + i as i64,
+            fixture::window(),
+            FileDialogResult::Capabilities(FileDialogCapabilities {
+                files,
+                directories,
+                files_and_directories,
+                save,
+            }),
+        )
+    })
+    .collect();
+    assert_eq!(
+        encode(events),
+        bytes(include_str!(
+            "../../../test/fixtures/file-dialog-capabilities-v1-events.hex"
+        ))
+    );
+}

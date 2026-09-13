@@ -181,6 +181,7 @@ fn options<'a>(
         ("modal", Value::from(true)),
     ]);
     let (method, title, label, directory) = match config {
+        FileDialogConfig::Capabilities => return Err(FileDialogError::InvalidRequest),
         FileDialogConfig::Open(config) => {
             if config.selection == FileSelection::FilesAndDirectories
                 || (version < 3 && config.selection == FileSelection::Directories)
@@ -281,6 +282,22 @@ async fn execute(
     }
     if cancelled(cancel) {
         return failed(FileDialogError::Closed);
+    }
+    if matches!(config, FileDialogConfig::Capabilities) {
+        return if version == 0 {
+            failed(FileDialogError::Unsupported)
+        } else {
+            FileDialogResult::Capabilities(FileDialogCapabilities {
+                files: FileSelectionSupport::Multiple,
+                directories: if version >= 3 {
+                    FileSelectionSupport::Multiple
+                } else {
+                    FileSelectionSupport::Unsupported
+                },
+                files_and_directories: FileSelectionSupport::Unsupported,
+                save: true,
+            })
+        };
     }
     let (method, title, options) = match options(config, token, version) {
         Ok(options) => options,

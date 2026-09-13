@@ -69,6 +69,16 @@ module Error : sig
   [@@deriving equal, sexp_of]
 end
 
+module Capabilities : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** Whether this snapshot supports the requested mode and cardinality. Native
+      availability may change; a later picker can still return an error. *)
+  val supports_open : t -> selection:Open.Selection.t -> multiple:bool -> bool
+
+  val supports_save : t -> bool
+end
+
 module Request : sig
   type t =
     | Open of Open.t
@@ -85,4 +95,8 @@ module Expert : sig
     :  Request.t
     -> Gpuio_protocol.Wire.File_dialog.Result.t
     -> (File_path.t list option, Error.t) Result.t
+
+  val capabilities_of_wire
+    :  Gpuio_protocol.Wire.File_dialog.Result.t
+    -> (Capabilities.t, Error.t) Result.t
 end

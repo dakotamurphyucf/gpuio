@@ -62,6 +62,23 @@ let component env window graph =
     | Ok (Some path) ->
       set_content ("Chosen destination (not written): " ^ display_path path)
   in
+  let check_support =
+    let open E.Let_syntax in
+    let%bind result = Dialog.capabilities window in
+    match result with
+    | Error error -> set_content (error_text error)
+    | Ok caps ->
+      let mode selection =
+        Dialog.Capabilities.supports_open caps ~selection ~multiple:true
+      in
+      set_content
+        (sprintf
+           "Multiple selection — files: %b; folders: %b; mixed: %b. Save: %b."
+           (mode Files)
+           (mode Directories)
+           (mode Files_and_directories)
+           (Dialog.Capabilities.supports_save caps))
+  in
   View.column
     ~style:
       (Gpuio.Style.create_exn
@@ -69,6 +86,7 @@ let component env window graph =
     [ View.text "Native file dialogs"
     ; View.button ~on_click:open_text "Open text file"
     ; View.button ~on_click:choose_destination "Choose save destination"
+    ; View.button ~on_click:check_support "Check dialog support"
     ; View.text content
     ]
 ;;
@@ -140,9 +158,84 @@ let read_self_test directory =
      Eio file read"
 ;;
 
+let capabilities_self_test () =
+  let before_open = ref None in
+  let busy = ref None in
+  let closing = ref None in
+  let closed = ref None in
+  let stopping = ref None in
+  let failure = ref None in
+  let succeeded = ref false in
+  let stage = ref "probing first capability window" in
+  App.run (fun env app ->
+    let make title =
+      App.open_window app ~title ~width:420. ~height:240. (fun _ _ ->
+        B.return (View.text "Testing file-dialog capabilities"))
+      |> Or_error.ok_exn
+    in
+    let first = make "GPUIO capability query" in
+    let second = make "GPUIO capability cancellation" in
+    observe (Dialog.capabilities first) before_open;
+    let clock = Eio.Stdenv.clock env in
+    (* A capability query needs an open native window, not a painted frame.
+       Waiting for paint couples this test to desktop occlusion and activation. *)
+    let rec query window =
+      let promise, resolve = Eio.Promise.create () in
+      E.Expert.handle
+        (E.map (Dialog.capabilities window) ~f:(Eio.Promise.resolve resolve));
+      match Eio.Promise.await promise with
+      | Error Not_ready ->
+        Eio.Time.sleep clock 0.005;
+        query window
+      | (Ok _ | Error _) as result -> result
+    in
+    Scope.start
+      (App.scope app)
+      ~f:(fun () ->
+        Eio.Time.with_timeout_exn clock 15. (fun () ->
+          let result = query first in
+          stage := "probing second capability window";
+          match query second with
+          | Ok _ -> result
+          | Error _ as error -> error))
+      ~on_result:(fun result ->
+        E.of_thunk (fun () ->
+          (match result with
+           | Ok (Ok caps) ->
+             assert (
+               Dialog.Capabilities.supports_open caps ~selection:Files ~multiple:true);
+             assert (Dialog.Capabilities.supports_save caps);
+             succeeded := true;
+             observe (Dialog.capabilities first) closing;
+             observe (Dialog.capabilities first) busy;
+             App.Window.close first;
+             observe (Dialog.capabilities first) closed;
+             observe (Dialog.capabilities second) stopping
+           | Ok (Error error) -> failure := Some (Error.of_string (error_text error))
+           | Error error -> failure := Some (Error.tag error ~tag:!stage));
+          App.shutdown app))
+    |> Or_error.ok_exn
+    |> fun (_ : Scope.Task.t) -> ());
+  Option.iter !failure ~f:Error.raise;
+  let error_is expected = function
+    | Some (Error actual) -> Dialog.Error.equal expected actual
+    | Some (Ok _) | None -> false
+  in
+  assert !succeeded;
+  assert (error_is Not_ready !before_open);
+  assert (error_is Busy !busy);
+  assert (error_is Closed !closing);
+  assert (error_is Closed !closed);
+  assert (error_is Closed !stopping);
+  Eio.traceln
+    "GPUIO_FILE_DIALOG_CAPABILITIES_OK: native support, Not_ready, Busy, window-close \
+     and shutdown cancellation"
+;;
+
 let () =
   match Array.to_list (Sys.get_argv ()) with
   | [ _; "--read-self-test"; directory ] -> read_self_test directory
+  | [ _; "--capabilities-self-test" ] -> capabilities_self_test ()
   | _ ->
     let self_test = Array.exists (Sys.get_argv ()) ~f:(String.equal "--self-test") in
     let before_open = ref None in
