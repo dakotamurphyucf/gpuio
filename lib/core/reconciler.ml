@@ -946,6 +946,7 @@ let dispatch t = function
   | Choice _
   | Combobox_selected _
   | Editor_event _
+  | File_dialog_result _
   | Editor_result _
   | Failed _
   | Stopped

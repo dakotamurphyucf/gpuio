@@ -52,13 +52,54 @@ impl Decoder<'_> {
     }
 
     fn text(&mut self) -> Result<String, DecodeError> {
-        let count = self.count(MAX_TEXT_BYTES)?;
+        self.bounded_text(MAX_TEXT_BYTES)
+    }
+
+    fn bounded_text(&mut self, maximum: usize) -> Result<String, DecodeError> {
+        let count = self.count(maximum)?;
         let start = self.0.position() as usize;
         let value = std::str::from_utf8(&self.0.get_ref()[start..start + count])
             .map_err(|_| DecodeError::Malformed)?
             .to_owned();
         self.0.set_position((start + count) as u64);
         Ok(value)
+    }
+
+    fn file_path(&mut self) -> Result<crate::file_path::FilePath, DecodeError> {
+        let count = self.count(crate::file_path::MAX_PATH_BYTES)?;
+        let start = self.0.position() as usize;
+        let bytes = self.0.get_ref()[start..start + count].to_vec();
+        self.0.set_position((start + count) as u64);
+        crate::file_path::FilePath::new(bytes).map_err(|_| DecodeError::Malformed)
+    }
+
+    fn file_dialog(&mut self) -> Result<FileDialogConfig, DecodeError> {
+        let config = match self.tag()? {
+            0 => FileDialogConfig::Open(OpenFileConfig {
+                selection: match self.tag()? {
+                    0 => FileSelection::Files,
+                    1 => FileSelection::Directories,
+                    2 => FileSelection::FilesAndDirectories,
+                    _ => return Err(DecodeError::Malformed),
+                },
+                multiple: self.boolean()?,
+                title: self.bounded_text(4096)?,
+                accept_label: self.bounded_text(4096)?,
+                directory: self.option(Self::file_path)?,
+            }),
+            1 => FileDialogConfig::Save(SaveFileConfig {
+                directory: self.file_path()?,
+                suggested_name: self.bounded_text(255)?,
+                title: self.bounded_text(4096)?,
+                accept_label: self.bounded_text(4096)?,
+            }),
+            _ => return Err(DecodeError::Malformed),
+        };
+        if config.is_valid() {
+            Ok(config)
+        } else {
+            Err(DecodeError::Malformed)
+        }
     }
 
     fn window(&mut self) -> Result<WindowId, DecodeError> {
@@ -627,7 +668,7 @@ impl Decoder<'_> {
 }
 
 /// Decode one message, rejecting trailing data, non-finite numbers and oversized
-/// containers before allocating their declared capacity. UTF-8 text is required.
+/// containers before allocating their declared capacity. UTF-8 text is required except for validated native path bytes.
 pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
     if bytes.len() > MAX_MESSAGE_BYTES {
         return Err(DecodeError::LimitExceeded);
@@ -646,6 +687,13 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
         4 => Message::RequestFrame(d.int()?, d.window()?),
         5 => Message::Shutdown,
         6 => Message::EditorCommand(d.int()?, d.window()?, d.node()?, d.editor_command()?),
+        7 => {
+            let correlation = d.int()?;
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::FileDialog(correlation, d.window()?, d.file_dialog()?)
+        }
         _ => return Err(DecodeError::Malformed),
     };
     if d.remaining() != 0 {

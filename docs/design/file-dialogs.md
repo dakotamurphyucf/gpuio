@@ -1,11 +1,10 @@
 # Native file dialogs — OCH-11 implementation design
 
-Status, 2026-09-13: pure `Gpuio.File_path`, `Gpuio.File_dialog.Open` and
-`Gpuio.File_dialog.Save` configuration models and corresponding Rust data are
-implemented locally. The macOS Rust panel adapter now also passes actual native
-open/save/cancellation checks. Bridge request/result routing, runtime window-close
-integration, capability queries and the Linux adapter are still pending. These
-checkpoints do not complete the OCH-11 file-dialog requirement.
+Status, 2026-09-13: the configuration models, bounded wire protocol, correlated
+Bonsai/Eio effects, native request ownership and macOS panels are implemented
+locally. Native selection/ownership and the public selection-to-Eio-read and
+close/shutdown tests pass. Capability queries and the Linux portal adapter remain
+pending; these checkpoints do not complete the OCH-11 file-dialog requirement.
 
 ## Path and configuration contracts
 
@@ -43,10 +42,13 @@ bounded to 128 paths and 262,144 aggregate path bytes. Cancellation is distinct
 from a native error. Selecting a destination and native overwrite confirmation
 do not themselves create, reserve or write the file.
 
-## Runtime direction to implement
+## Runtime and public effects
 
-Use correlated window-owned requests, delivered through Bonsai effects on the
-OCaml UI domain. Rust owns native presentation and receives no OCaml callback
+`Gpuio_eio.File_dialog.open_ window ~config` returns a
+`(File_path.t list option, File_dialog.Error.t) Result.t Bonsai.Effect.t`;
+`save window ~config` returns the single-path equivalent. `Ok None` is user
+cancellation. The effect submits a correlated window-owned request on the OCaml
+UI domain. Rust owns native presentation and receives no OCaml callback
 objects. Permit at most one pending picker per window, with the existing bounded
 window count providing an application limit. Return an explicit Busy result for
 overlap. A result belongs to its exact window generation/request identity;
@@ -77,8 +79,8 @@ Pinned GPUI: `a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b`.
   panel now implements exact result paths, explicit parent attachment and
   physical cancellation. The locally pinned objc2-app-kit 0.3.2
   declarations expose sheet presentation, `cancel:` and `orderOut:`. Local native
-  behavior and callback/drop evidence is recorded below; runtime integration
-  remains pending.
+  behavior and callback/drop evidence is recorded below. The runtime now owns
+  and disposes panels on window closure and application shutdown.
 - `crates/gpui_linux/src/linux/platform.rs` uses ashpd and explicitly reports
   mixed file/directory selection as unavailable. Its result handling treats any
   portal Response error as cancellation and filters unconvertible URIs out of
@@ -101,14 +103,16 @@ research evidence, not a build input.
 
 ## Implemented macOS panel ownership
 
-`rust/native/src/file_dialog.rs` presents a sheet on the exact GPUI native window.
+`rust/native/src/file_panel_macos.rs` presents a sheet on the exact GPUI native window.
 `Panel` owns its native panel and completion; the Objective-C block holds only a
 weak reference back to that state. Completion claims the callback before calling
 AppKit or the caller, so reentrancy/repeated cancellation cannot deliver it twice.
 An already-attached sheet produces Busy. Explicit native cancellation closes the
 panel and returns Cancelled; dropping an outstanding owner physically closes it
-and returns Closed. This is the native ownership primitive; the application
-runtime still needs to drop that owner on window close/shutdown.
+and returns Closed. `rust/native/src/file_dialog.rs` owns pending panels by
+window generation and request correlation. It removes owners before invoking
+callbacks and drops them outside map borrows, including close/shutdown cleanup.
+Native completions cannot remove a newer request or consume its response slot.
 
 Open results reject invalid/unconvertible paths as a whole, with incremental
 aggregate-byte validation. Save returns the native URL path unchanged. Local
@@ -117,13 +121,36 @@ ending in `.sql.s`, and verify no destination file was created. They also cover
 native Cancel, cancellation/drop during presentation, Busy and reference-cycle
 disposal. See [native evidence](../evidence/native-file-dialogs-och11.md).
 
+## Bridge validation and example
+
+Message tag 7 carries correlation, window ID and open/save configuration. Event
+tag 21 carries correlation, window ID and Selected/Cancelled/Failed. Paths use
+bounded raw OCaml-string bytes on both sides. OCaml result decoding checks the
+path count, individual size and aggregate size before allocating their declared
+payloads; request-specific cardinality is checked again before the public effect
+completes. Independent fixtures and truncation/invalid-input tests cover both
+languages. Mailbox drain accounts for the path lengths and their encoded prefixes.
+
+The runner rejects pre-open requests with Not_ready and overlaps with Busy.
+Window-close/shutdown yields Closed, removes pending callbacks, and cancels the
+physical panel. Results must match both request identity and window generation;
+a closing/stopped window cannot receive a successful late selection.
+
+`examples/file_dialogs/main.ml` demonstrates selection followed by explicit Eio
+I/O with the application's filesystem capability. Its normal open action reads
+UTF-8 text up to 64 KiB; save only selects a destination. The self-test modes
+exercise lifecycle errors and actual selection followed by an Eio read. See the
+[evidence report](../evidence/native-file-dialogs-och11.md) for commands and limits.
+
 ## Required acceptance work
 
-Add bounded independent request/result fixtures and truncation/invalid-input
-tests when introducing wire messages. Exercise correlation, Busy, unsupported
-capabilities, cancellation versus failure, close/remount races and late replies.
-On macOS, verify actual open/save dialogs, selection/cancel/parent closure and
-exact filenames without writing a selected save destination. Add a public
-Bonsai/Eio example demonstrating selection followed by explicit Eio I/O. Linux
-build/unit tests remain required; full portal GUI validation belongs to the
-deferred Linux GUI gate, with limitations recorded explicitly.
+Implement capability reporting and the Linux portal backend, including runtime
+portal availability, X11/Wayland parenting, explicit unsupported mixed selection,
+all-or-error URI conversion and physical cancellation races. No new file-dialog
+capability is advertised yet. The non-macOS manager currently returns Unsupported
+as an explicit implementation placeholder, not as the accepted Linux outcome.
+
+Linux build/unit tests remain required; full portal GUI validation belongs to
+the deferred Linux GUI gate. Consolidated hosted CI and merge follow completion
+of all remaining OCH-11 work. Actual two-file selection and bounded bridge-result tests pass locally; they
+remain distinct from inspection of configuration properties.

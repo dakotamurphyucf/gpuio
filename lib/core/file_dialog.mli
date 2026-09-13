@@ -56,3 +56,33 @@ module Save : sig
   val title : t -> string
   val accept_label : t -> string
 end
+
+module Error : sig
+  type t =
+    | Invalid_request
+    | Unsupported
+    | Busy
+    | Closed
+    | Not_ready
+    | Native_failure
+    | Limit_exceeded
+  [@@deriving equal, sexp_of]
+end
+
+module Request : sig
+  type t =
+    | Open of Open.t
+    | Save of Save.t
+  [@@deriving equal, sexp_of]
+end
+
+module Expert : sig
+  val to_wire : Request.t -> Gpuio_protocol.Wire.File_dialog.Config.t
+
+  (** Validate the entire result against the original request. [Ok None] means
+      user cancellation; invalid/partial native selections are never accepted. *)
+  val result_of_wire
+    :  Request.t
+    -> Gpuio_protocol.Wire.File_dialog.Result.t
+    -> (File_path.t list option, Error.t) Result.t
+end

@@ -665,6 +665,97 @@ module Op = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module File_dialog = struct
+  module Selection = struct
+    type t =
+      | Files
+      | Directories
+      | Files_and_directories
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Open = struct
+    type t =
+      { selection : Selection.t
+      ; multiple : bool
+      ; title : string
+      ; accept_label : string
+      ; directory : string option
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Save = struct
+    type t =
+      { directory : string
+      ; suggested_name : string
+      ; title : string
+      ; accept_label : string
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Config = struct
+    type t =
+      | Open of Open.t
+      | Save of Save.t
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Error = struct
+    type t =
+      | Invalid_request
+      | Unsupported
+      | Busy
+      | Closed
+      | Not_ready
+      | Native_failure
+      | Limit_exceeded
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  exception Invalid_wire_result
+
+  module Paths = struct
+    type t = string list [@@deriving bin_io, equal, sexp_of]
+
+    (* Reject declared counts/lengths before allocating lists or strings. Unix
+       path bytes intentionally have no UTF-8 requirement. *)
+    let bin_read_t buffer ~pos_ref =
+      let count = (Bin_prot.Read.bin_read_nat0 buffer ~pos_ref :> int) in
+      if count <= 0 || count > 128 then raise Invalid_wire_result;
+      let rec read remaining total reversed =
+        if remaining = 0
+        then List.rev reversed
+        else (
+          let start = !pos_ref in
+          let length = (Bin_prot.Read.bin_read_nat0 buffer ~pos_ref :> int) in
+          if length <= 0 || length > 16_384 || total + length > 262_144
+          then raise Invalid_wire_result;
+          if length > Bigstring.length buffer - !pos_ref
+          then raise Bin_prot.Common.Buffer_short;
+          pos_ref := start;
+          let path = Bin_prot.Read.bin_read_string buffer ~pos_ref in
+          if (not (Char.equal path.[0] '/')) || String.contains path '\000'
+          then raise Invalid_wire_result;
+          read (remaining - 1) (total + length) (path :: reversed))
+      in
+      read count 0 []
+    ;;
+
+    let bin_reader_t = { bin_reader_t with read = bin_read_t }
+    let bin_t = { bin_t with reader = bin_reader_t }
+  end
+
+  module Result = struct
+    type t =
+      | Selected of Paths.t
+      | Cancelled
+      | Failed of Error.t
+    [@@deriving bin_io, equal, sexp_of]
+  end
+end
+
 module Transaction = struct
   type t =
     { window : Window_id.t
@@ -684,6 +775,7 @@ module Message = struct
     | Request_frame of int64 * Window_id.t
     | Shutdown
     | Editor_command of int64 * Window_id.t * Node_id.t * Editor.Command.t
+    | File_dialog of int64 * Window_id.t * File_dialog.Config.t
   [@@deriving bin_io, equal, sexp_of]
 
   let encode t =
@@ -743,6 +835,7 @@ module Event = struct
     | Toast_dismissed of
         Window_id.t * Node_id.t * Handler_id.t * int64 * Toast_dismissal.t
     | Pointer_event of Window_id.t * Node_id.t * Handler_id.t * int64 * Pointer.Sample.t
+    | File_dialog_result of int64 * Window_id.t * File_dialog.Result.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -761,14 +854,25 @@ module Event = struct
       Int64.(range.anchor <= range.head) && selection range)
   ;;
 
-  let rec valid_editor_event = function
+  let rec valid_event = function
+    | File_dialog_result (request, _, Selected paths) ->
+      Int64.(request > 0L)
+      && (not (List.is_empty paths))
+      && List.length paths <= 128
+      && List.sum (module Int) paths ~f:String.length <= 262_144
+      && List.for_all paths ~f:(fun path ->
+        String.length path > 0
+        && String.length path <= 16_384
+        && Char.equal path.[0] '/'
+        && not (String.contains path '\000'))
+    | File_dialog_result (request, _, (Cancelled | Failed _)) -> Int64.(request > 0L)
     | Pointer_event (_, _, _, revision, sample) ->
       Int64.(revision >= 0L && sample.gesture > 0L)
       && List.for_all
            [ sample.window_x; sample.window_y; sample.local_x; sample.local_y ]
            ~f:Float.is_finite
     | Palette_dismissed (window, node, handler, revision, Selected id) ->
-      valid_editor_event (Choice (window, node, handler, revision, id))
+      valid_event (Choice (window, node, handler, revision, id))
     | Palette_dismissed (_, _, _, revision, (Escape | Outside_pointer)) ->
       Int64.(revision >= 0L)
     | Command_invoked (_, _, _, revision, id, generation, _) ->
@@ -778,7 +882,7 @@ module Event = struct
       && Stdlib.String.is_valid_utf_8 id
       && not (String.contains id '\000')
     | Combobox_selected (window, node, handler, revision, id, snapshot) ->
-      valid_editor_event (Choice (window, node, handler, revision, id))
+      valid_event (Choice (window, node, handler, revision, id))
       && valid_snapshot snapshot
       && Option.is_none snapshot.composition
       && not (String.contains snapshot.text '\n' || String.contains snapshot.text '\r')
@@ -836,14 +940,15 @@ module Event = struct
           let events = read count [] in
           if !pos_ref = String.length bytes
           then
-            if List.for_all events ~f:valid_editor_event
+            if List.for_all events ~f:valid_event
             then Ok events
-            else Or_error.error_string "invalid native editor snapshot"
+            else Or_error.error_string "invalid native event data"
           else Or_error.error_string "trailing event bytes")
       with
       | Bin_prot.Common.Buffer_short
       | Bin_prot.Common.Read_error _
-      | Generational_id.Invalid_wire_handle ->
+      | Generational_id.Invalid_wire_handle
+      | File_dialog.Invalid_wire_result ->
         Or_error.error_string "malformed event envelope")
   ;;
 end

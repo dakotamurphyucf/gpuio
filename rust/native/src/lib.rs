@@ -1,6 +1,5 @@
 mod appearance;
 mod ffi;
-#[cfg(target_os = "macos")]
 pub mod file_dialog;
 mod host;
 pub mod mailbox;
@@ -53,4 +52,9 @@ pub fn run_native_pointer_test() {
 #[cfg(all(feature = "native-tests", target_os = "macos"))]
 pub fn run_native_file_dialog_test() {
     file_dialog::test::run();
+}
+
+#[cfg(all(feature = "native-tests", target_os = "macos"))]
+pub fn drive_native_file_dialog_test(pid: i32, filename: &str, accept_label: &str) {
+    file_dialog::test::drive(pid, filename, accept_label);
 }

@@ -667,6 +667,64 @@ module type S = sig
     [@@deriving bin_io, equal, sexp_of]
   end
 
+  module File_dialog : sig
+    module Selection : sig
+      type t =
+        | Files
+        | Directories
+        | Files_and_directories
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Open : sig
+      type t =
+        { selection : Selection.t
+        ; multiple : bool
+        ; title : string
+        ; accept_label : string
+        ; directory : string option
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Save : sig
+      type t =
+        { directory : string
+        ; suggested_name : string
+        ; title : string
+        ; accept_label : string
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Config : sig
+      type t =
+        | Open of Open.t
+        | Save of Save.t
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Error : sig
+      type t =
+        | Invalid_request
+        | Unsupported
+        | Busy
+        | Closed
+        | Not_ready
+        | Native_failure
+        | Limit_exceeded
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Result : sig
+      type t =
+        | Selected of string list
+        | Cancelled
+        | Failed of Error.t
+      [@@deriving bin_io, equal, sexp_of]
+    end
+  end
+
   module Transaction : sig
     type t =
       { window : Window_id.t
@@ -686,6 +744,7 @@ module type S = sig
       | Request_frame of int64 * Window_id.t
       | Shutdown
       | Editor_command of int64 * Window_id.t * Node_id.t * Editor.Command.t
+      | File_dialog of int64 * Window_id.t * File_dialog.Config.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Bounded outgoing encoding. Native decoding additionally validates all
@@ -749,6 +808,7 @@ module type S = sig
       | Toast_dismissed of
           Window_id.t * Node_id.t * Handler_id.t * int64 * Toast_dismissal.t
       | Pointer_event of Window_id.t * Node_id.t * Handler_id.t * int64 * Pointer.Sample.t
+      | File_dialog_result of int64 * Window_id.t * File_dialog.Result.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

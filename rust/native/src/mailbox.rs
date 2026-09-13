@@ -10,10 +10,14 @@ pub const MAX_INPUT_EVENTS: usize = 128;
 pub const MAX_INPUT_BYTES: usize = 4 * MAX_MESSAGE_BYTES;
 
 // Conservative encoded-size bound (all non-text fields fit within 256 bytes).
-// Responses have their existing count reservation; editor payloads are bounded
-// by MAX_TEXT_BYTES, hence at most MAX_RESPONSES * (MAX_TEXT_BYTES + 256).
+// Responses retain their count reservation. Editor text and selected path bytes
+// have per-result bounds; each path also needs its bin_prot length prefix.
+// Drain includes those prefixes when fitting a response batch into 1 MiB.
 fn event_bytes(event: &Event) -> usize {
     256 + match event {
+        Event::FileDialogResult(_, _, FileDialogResult::Selected(paths)) => {
+            paths.iter().map(|path| path.as_bytes().len() + 9).sum()
+        }
         Event::Choice(_, _, _, _, id)
         | Event::CommandInvoked(_, _, _, _, id, _, _)
         | Event::PaletteDismissed(_, _, _, _, PaletteDismissal::Selected(id)) => id.len(),
@@ -212,6 +216,7 @@ impl Mailbox {
             | Event::PaletteDismissed(id, ..)
             | Event::ComboboxSelected(id, ..)
             | Event::EditorResult(_, id, ..)
+            | Event::FileDialogResult(_, id, ..)
             | Event::Overloaded(id) => id.slot() == window_slot,
             Event::Welcome(..) | Event::Failed(..) | Event::Stopped => false,
         })

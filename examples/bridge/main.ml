@@ -95,6 +95,7 @@ let worker native notification_read =
       | Failed _ | Rejected _ | Overloaded _ -> failwith "unexpected bridge failure"
       | Press _
       | Editor_event _
+      | File_dialog_result _
       | Editor_result _
       | Choice _
       | Combobox_selected _

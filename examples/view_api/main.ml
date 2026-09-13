@@ -94,7 +94,11 @@ let worker native notification_read ~self_test =
       | Closed _ -> Reconciler.close reconciler
       | Rejected _ | Failed _ | Overloaded _ ->
         failwith "native view example rejected an update"
-      | Rendered _ | Frame_requested _ | Editor_event _ | Editor_result _ -> ()
+      | Rendered _
+      | Frame_requested _
+      | Editor_event _
+      | Editor_result _
+      | File_dialog_result _ -> ()
     in
     send (Hello (Wire.version, Wire.capabilities));
     let loop () =

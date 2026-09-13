@@ -3,6 +3,7 @@ open Gpuio_protocol
 module Guard = Gpuio_runtime_core.Domain_guard
 module Driver = Gpuio_runtime_core.Window_driver
 module Input = Gpuio.Text_input
+module Dialog = Gpuio.File_dialog
 
 type editor_result = (Input.Snapshot.t, Input.Command_error.t) Result.t
 
@@ -10,6 +11,14 @@ type editor_request =
   { window : Window_id.t
   ; node : Node_id.t
   ; complete : editor_result -> unit
+  }
+
+type dialog_result = (Gpuio.File_path.t list option, Dialog.Error.t) Result.t
+
+type dialog_request =
+  { window : Window_id.t
+  ; config : Dialog.Request.t
+  ; complete : dialog_result -> unit
   }
 
 module Stats = struct
@@ -43,6 +52,7 @@ type t =
   ; mutable closes : Window_id.t Int64.Map.t
   ; mutable frames : (Window_id.t * (revision:int64 -> unit Bonsai.Effect.t)) Int64.Map.t
   ; mutable editors : editor_request Int64.Map.t
+  ; mutable dialogs : dialog_request Int64.Map.t
   ; mutable correlation : int64
   ; mutable welcomed : bool
   ; mutable stopping : bool
@@ -92,6 +102,12 @@ let release_window window =
     in
     window.app.editors <- remaining;
     Map.iter cancelled ~f:(fun request -> request.complete (Error Closed));
+    let cancelled_dialogs, remaining_dialogs =
+      Map.partition_tf window.app.dialogs ~f:(fun request ->
+        Window_id.equal request.window window.id)
+    in
+    window.app.dialogs <- remaining_dialogs;
+    Map.iter cancelled_dialogs ~f:(fun request -> request.complete (Error Closed));
     Scope.cancel window.scope;
     Option.iter window.driver ~f:Driver.close;
     window.driver <- None;
@@ -167,6 +183,29 @@ module Window = struct
   ;;
 
   module Expert = struct
+    let file_dialog t config =
+      Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+        check t.app;
+        if is_closed t || t.app.stopping
+        then callback (Error Dialog.Error.Closed)
+        else if
+          match t.phase with
+          | Open -> false
+          | Opening | Closing_before_open | Closing | Closed -> true
+        then callback (Error Not_ready)
+        else if
+          Map.exists t.app.dialogs ~f:(fun request -> Window_id.equal request.window t.id)
+        then callback (Error Busy)
+        else (
+          let request = correlation t.app in
+          t.app.dialogs
+          <- Map.set
+               t.app.dialogs
+               ~key:request
+               ~data:{ window = t.id; config; complete = callback };
+          queue t.app (File_dialog (request, t.id, Dialog.Expert.to_wire config))))
+    ;;
+
     let editor_command t snapshot command =
       Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
         check t.app;
@@ -287,6 +326,18 @@ let process t = function
     Option.iter (find_window t id) ~f:(fun window ->
       if not (Window.is_closed window)
       then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))
+  | File_dialog_result (request, id, result) ->
+    (match Map.find t.dialogs request with
+     | Some pending when Window_id.equal pending.window id ->
+       t.dialogs <- Map.remove t.dialogs request;
+       let result =
+         match find_window t id with
+         | Some window when (not (Window.is_closed window)) && not t.stopping ->
+           Dialog.Expert.result_of_wire pending.config result
+         | Some _ | None -> Error Dialog.Error.Closed
+       in
+       pending.complete result
+     | Some _ | None -> ())
   | Editor_result (request, id, node, result) ->
     (match Map.find t.editors request with
      | Some pending
@@ -310,6 +361,20 @@ let process t = function
          if not (Window.is_closed window)
          then Bonsai.Effect.Expert.handle (callback ~revision))
      | Some _ | None -> ())
+  | Failed (request, code) when Map.mem t.dialogs request ->
+    let pending = Map.find_exn t.dialogs request in
+    t.dialogs <- Map.remove t.dialogs request;
+    let error : Dialog.Error.t =
+      match code with
+      | Closed | Stale_handle -> Closed
+      | Busy -> Busy
+      | Limit_exceeded -> Limit_exceeded
+      | Unsupported_version | Unsupported_capability -> Unsupported
+      | Not_ready -> Not_ready
+      | Malformed | Invalid_revision | Invalid_tree | Overloaded | Native_failure ->
+        Native_failure
+    in
+    pending.complete (Error error)
   | Failed (request, code) when Map.mem t.editors request ->
     let pending = Map.find_exn t.editors request in
     t.editors <- Map.remove t.editors request;
@@ -437,6 +502,7 @@ let worker native read ~tick_hz ~max_tasks initialize =
         ; closes = Int64.Map.empty
         ; frames = Int64.Map.empty
         ; editors = Int64.Map.empty
+        ; dialogs = Int64.Map.empty
         ; correlation = 0L
         ; welcomed = false
         ; stopping = false

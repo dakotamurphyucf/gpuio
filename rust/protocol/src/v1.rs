@@ -1,4 +1,5 @@
 pub use crate::command::*;
+pub use crate::file_dialog::*;
 pub use crate::menu::{MenuConfig, MenuDefinition, MenuItem, MenuPresentation};
 pub use crate::palette::*;
 pub use crate::pointer::*;
@@ -551,6 +552,7 @@ pub enum Message {
     RequestFrame(i64, WindowId),
     Shutdown,
     EditorCommand(i64, WindowId, NodeId, EditorCommand),
+    FileDialog(i64, WindowId, FileDialogConfig),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -599,4 +601,5 @@ pub enum Event {
     PaletteDismissed(WindowId, NodeId, HandlerId, i64, PaletteDismissal),
     ToastDismissed(WindowId, NodeId, HandlerId, i64, ToastDismissal),
     PointerEvent(WindowId, NodeId, HandlerId, i64, PointerSample),
+    FileDialogResult(i64, WindowId, FileDialogResult),
 }

@@ -244,6 +244,18 @@ directory selection, exact save-path return without file creation, Busy,
 cancellation and owner disposal checks. Full Clippy, Rust workspace tests and
 Dune build/tests/format pass with its direct macOS dependencies. The
 [file-panel evidence](evidence/native-file-dialogs-och11.md) describes the actual
-AX-based test and its permission requirement. Runtime/Eio/Bonsai integration,
-capability reporting, Linux portal support and application-close cancellation
-remain pending; this is not a completed file-dialog feature or OCH-11 ticket.
+AX-based test and its permission requirement. The bridge checkpoint below adds Runtime/Eio/Bonsai integration and application
+close cancellation. Capability reporting and Linux portal support remain pending;
+this is not a completed file-dialog feature or OCH-11 ticket.
+
+
+The OCH-11 file-dialog bridge now connects the OCaml configuration models to
+window-owned macOS panels through correlated Bonsai/Eio effects. Local native
+ownership tests and public close/shutdown tests pass; an end-to-end test selects
+the LICENSE file through real AppKit controls and reads it explicitly with Eio.
+Independent fixtures cover exact raw path bytes; result decoding and mailbox
+accounting enforce count/size bounds. See the updated
+[file-dialog evidence](evidence/native-file-dialogs-och11.md). Capability queries
+and the Linux portal backend remain pending (non-macOS currently returns
+Unsupported), so file dialogs and OCH-11 are not complete. No hosted CI or Linux
+GUI acceptance is claimed for this checkpoint.

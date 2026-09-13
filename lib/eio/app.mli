@@ -33,6 +33,14 @@ module Window : sig
     -> unit Or_error.t
 
   module Expert : sig
+    (** Correlated native picker, scoped to this exact window generation. Only
+        one request may be pending per window. Closing returns [Closed]. *)
+    val file_dialog
+      :  t
+      -> Gpuio.File_dialog.Request.t
+      -> (Gpuio.File_path.t list option, Gpuio.File_dialog.Error.t) Result.t
+           Bonsai.Effect.t
+
     (** Correlated native commands for controller adapters. Captures the exact
         editor lease; a delayed effect never targets a remounted replacement. *)
     val editor_command
