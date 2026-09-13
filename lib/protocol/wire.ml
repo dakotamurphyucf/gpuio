@@ -1,7 +1,7 @@
 open Core
 
 let version = 1L
-let capabilities = 16383L
+let capabilities = 32767L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -20,6 +20,7 @@ module Kind = struct
     | Tooltip
     | Command_scope
     | Command_button
+    | Menu
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -94,7 +95,7 @@ module Command_source = struct
   type t =
     | Button of Node_id.t
     | Shortcut
-    | Menu
+    | Menu of Node_id.t
     | Palette of Node_id.t
   [@@deriving bin_io, equal, sexp_of]
 end
@@ -458,6 +459,37 @@ module Editor = struct
   end
 end
 
+module Menu_definition = struct
+  type t =
+    { label : string
+    ; disabled : bool
+    ; items : item list
+    }
+
+  and item =
+    | Command of string
+    | Separator
+    | Submenu of t
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Menu_presentation = struct
+  type t =
+    | Button
+    | Context
+    | Bar
+    | Platform_bar
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Menu = struct
+  type t =
+    { presentation : Menu_presentation.t
+    ; menus : Menu_definition.t list
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Op = struct
   type t =
     | Create of Node_id.t * Kind.t * string * Handler_id.t option
@@ -478,6 +510,7 @@ module Op = struct
     | Set_tooltip of Node_id.t * Tooltip.t
     | Set_commands of Node_id.t * Command.t list
     | Set_command_ref of Node_id.t * string
+    | Set_menu of Node_id.t * Menu.t
   [@@deriving bin_io, equal, sexp_of]
 end
 

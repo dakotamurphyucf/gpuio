@@ -17,6 +17,7 @@ pub struct Node {
     pub tooltip: Option<Arc<TooltipConfig>>,
     pub commands: Option<Arc<[CommandConfig]>>,
     pub command_ref: Option<Arc<str>>,
+    pub menu: Option<Arc<MenuConfig>>,
     pub placement: Option<Placement>,
     pub combobox_filter: Option<ComboboxFilter>,
     pub choice_appearance: Option<Arc<ChoiceAppearance>>,
@@ -36,6 +37,7 @@ impl Node {
                     .sum::<usize>()
             })
             + self.command_ref.as_ref().map_or(0, |id| id.len())
+            + self.menu.as_ref().map_or(0, |menu| menu.retained_bytes())
             + self.tooltip.as_ref().map_or(0, |config| {
                 std::mem::size_of::<TooltipConfig>() + config.label.len()
             })
@@ -207,7 +209,7 @@ impl Tree {
         for slot in plan.changes.values() {
             if let Some(node) = &slot.node {
                 if node.choice_appearance.is_some()
-                    && !matches!(node.kind, Kind::Select | Kind::Combobox)
+                    && !matches!(node.kind, Kind::Select | Kind::Combobox | Kind::Menu)
                 {
                     return Err(ErrorCode::InvalidTree);
                 }
@@ -235,6 +237,18 @@ impl Tree {
                         return Err(ErrorCode::InvalidTree);
                     }
                 } else if node.combobox_filter.is_some() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                if (node.kind == Kind::Menu) != node.menu.is_some()
+                    || node.menu.as_ref().is_some_and(|menu| {
+                        !menu.is_valid()
+                            || node.handler.is_some()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                            || node.children.len()
+                                != usize::from(menu.presentation == MenuPresentation::Context)
+                    })
+                {
                     return Err(ErrorCode::InvalidTree);
                 }
                 if (node.kind == Kind::CommandScope) != node.commands.is_some()
@@ -291,6 +305,7 @@ impl Tree {
                     | Kind::Tooltip
                     | Kind::CommandScope
                     | Kind::CommandButton
+                    | Kind::Menu
                     | Kind::Text
                     | Kind::Button => {
                         if node.editor.is_some() {
@@ -418,6 +433,7 @@ impl Plan<'_> {
             | Op::SetTooltip(id, ..)
             | Op::SetCommands(id, ..)
             | Op::SetCommandRef(id, ..)
+            | Op::SetMenu(id, ..)
             | Op::SetComboboxFilter(id, ..)
             | Op::SetChoiceAppearance(id, ..)
             | Op::Bind(id, ..)
@@ -482,6 +498,7 @@ impl Plan<'_> {
                             tooltip: None,
                             commands: None,
                             command_ref: None,
+                            menu: None,
                             placement: None,
                             style: Arc::from([]),
                             handler: *handler,
@@ -524,6 +541,13 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.editor = Some(Arc::new(config.clone()));
+            }
+            Op::SetMenu(id, config) => {
+                if self.node(*id)?.kind != Kind::Menu || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.menu = Some(Arc::new(config.clone()));
+                self.structural = true;
             }
             Op::SetCommands(id, commands) => {
                 if self.node(*id)?.kind != Kind::CommandScope
@@ -578,7 +602,10 @@ impl Plan<'_> {
                 self.node_mut(*id)?.combobox_filter = Some(*filter);
             }
             Op::SetChoiceAppearance(id, appearance) => {
-                if !matches!(self.node(*id)?.kind, Kind::Select | Kind::Combobox) {
+                if !matches!(
+                    self.node(*id)?.kind,
+                    Kind::Select | Kind::Combobox | Kind::Menu
+                ) {
                     return Err(ErrorCode::InvalidTree);
                 }
                 crate::appearance::validate(appearance)?;
@@ -609,7 +636,11 @@ impl Plan<'_> {
                 let node = self.node(*parent)?;
                 if !matches!(
                     node.kind,
-                    Kind::Container | Kind::FocusScope | Kind::Tooltip | Kind::CommandScope
+                    Kind::Container
+                        | Kind::FocusScope
+                        | Kind::Tooltip
+                        | Kind::CommandScope
+                        | Kind::Menu
                 ) {
                     return Err(ErrorCode::InvalidTree);
                 }
@@ -660,7 +691,11 @@ impl Plan<'_> {
             }
             if !matches!(
                 node.kind,
-                Kind::Container | Kind::FocusScope | Kind::Tooltip | Kind::CommandScope
+                Kind::Container
+                    | Kind::FocusScope
+                    | Kind::Tooltip
+                    | Kind::CommandScope
+                    | Kind::Menu
             ) && !node.children.is_empty()
             {
                 return Err(ErrorCode::InvalidTree);
@@ -685,15 +720,34 @@ impl Plan<'_> {
         for (id, parent) in parents {
             self.node_mut(id)?.parent = parent;
         }
+        let mut platform_menus = 0;
         for id in &seen {
-            if let Some(command) = &self.node(*id)?.command_ref {
+            let node = self.node(*id)?;
+            let mut references = node
+                .menu
+                .as_ref()
+                .map_or_else(Vec::new, |menu| menu.command_ids());
+            references.extend(node.command_ref.as_deref());
+            if node
+                .menu
+                .as_ref()
+                .is_some_and(|menu| menu.presentation == MenuPresentation::PlatformBar)
+            {
+                platform_menus += 1;
+                if platform_menus > 1 {
+                    return Err(ErrorCode::InvalidTree);
+                }
+            }
+            for command in references {
                 let mut cursor = Some(*id);
                 let mut found = false;
                 while let Some(id) = cursor {
                     let node = self.node(id)?;
-                    if node.commands.as_ref().is_some_and(|commands| {
-                        commands.iter().any(|entry| entry.id == command.as_ref())
-                    }) {
+                    if node
+                        .commands
+                        .as_ref()
+                        .is_some_and(|commands| commands.iter().any(|entry| entry.id == command))
+                    {
                         found = true;
                         break;
                     }

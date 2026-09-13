@@ -6,7 +6,7 @@ use gpui::{App, Context, Keystroke, Window};
 use gpuio_protocol::{HandlerId, NodeId, v1::*};
 use std::{collections::BTreeSet, sync::Arc};
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub(super) struct Route {
     scope: NodeId,
     handler: HandlerId,
@@ -33,7 +33,7 @@ impl Route {
             source,
         }
     }
-    fn request(&self) -> CommandInvocation<'_> {
+    pub(super) fn request(&self) -> CommandInvocation<'_> {
         CommandInvocation {
             scope: self.scope,
             handler: self.handler,
@@ -109,26 +109,9 @@ impl View {
         let Some(editor) = self.command_editor(window, cx) else {
             return false;
         };
-        let snapshot = self.editors[&editor].snapshot(window, cx);
-        let session = self.session.borrow();
-        let Some(editor) = session
-            .tree(self.id)
-            .and_then(|tree| tree.get(editor))
-            .and_then(|node| node.editor.as_ref())
-        else {
-            return false;
-        };
-        if editor.disabled {
-            return false;
-        }
-        let selection = snapshot.selection.anchor != snapshot.selection.head;
-        match action {
-            NativeCommand::Copy => selection,
-            NativeCommand::Cut => selection && !editor.read_only,
-            NativeCommand::Paste | NativeCommand::Undo | NativeCommand::Redo => !editor.read_only,
-            NativeCommand::SelectAll => !snapshot.text.is_empty(),
-        }
+        self.editors[&editor].command_available(action, cx)
     }
+
     pub(super) fn invoke_command(
         &mut self,
         route: &Route,
@@ -136,16 +119,33 @@ impl View {
         cx: &mut Context<Self>,
     ) -> bool {
         let source = match route.source {
-            CommandSource::Button(node) | CommandSource::Palette(node) => node,
-            CommandSource::Shortcut | CommandSource::Menu => route.scope,
+            CommandSource::Button(node)
+            | CommandSource::Palette(node)
+            | CommandSource::Menu(node) => node,
+            CommandSource::Shortcut => route.scope,
         };
         let allowed = match route.source {
+            CommandSource::Menu(menu) => {
+                if !self.focus.borrow().visible(menu) {
+                    return false;
+                }
+                let platform = self
+                    .session
+                    .borrow()
+                    .tree(self.id)
+                    .and_then(|tree| tree.get(menu))
+                    .and_then(|node| node.menu.as_ref())
+                    .is_some_and(|config| config.presentation == MenuPresentation::PlatformBar);
+                if platform {
+                    !self.focus.borrow().blocks_pointer(route.scope)
+                } else {
+                    self.focus.borrow().allows(source)
+                }
+            }
             CommandSource::Button(_) | CommandSource::Palette(_) => {
                 self.focus.borrow().allows(source)
             }
-            CommandSource::Shortcut | CommandSource::Menu => {
-                !self.focus.borrow().blocks_pointer(source)
-            }
+            CommandSource::Shortcut => !self.focus.borrow().blocks_pointer(source),
         };
         if !allowed || !self.command_available(&route.config, window, cx) {
             return false;
@@ -226,8 +226,7 @@ impl View {
             .editors
             .values()
             .find(|editor| editor.focus_handle(cx).is_focused(window));
-        let composing =
-            editor.is_some_and(|editor| editor.snapshot(window, cx).composition.is_some());
+        let composing = editor.is_some_and(|editor| editor.is_composing(cx));
         let editing = editor.is_some();
         let route = {
             let session = self.session.borrow();

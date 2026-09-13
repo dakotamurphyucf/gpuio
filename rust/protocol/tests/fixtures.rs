@@ -385,3 +385,47 @@ fn commands_and_native_targets_match_ocaml() {
         ))
     );
 }
+
+#[path = "common/menu_fixture.rs"]
+mod menu_fixture;
+#[test]
+fn menu_presentations_nested_definitions_and_bounded_decoding_match_ocaml() {
+    let expected = bytes(include_str!("../../../test/fixtures/menus-v1-request.hex"));
+    let request = menu_fixture::request();
+    let mut actual = Vec::new();
+    request.binprot_write(&mut actual).unwrap();
+    assert_eq!(actual, expected);
+    assert_eq!(gpuio_protocol::decode(&expected).unwrap(), request);
+    for end in 0..expected.len() {
+        assert!(gpuio_protocol::decode(&expected[..end]).is_err());
+    }
+    actual.push(0);
+    assert!(gpuio_protocol::decode(&actual).is_err());
+    use gpuio_protocol::{NodeId, WindowId, v1::*};
+    let mut deep = menu_fixture::definition();
+    for _ in 0..8 {
+        deep = MenuDefinition {
+            label: "Nested".into(),
+            disabled: false,
+            items: vec![MenuItem::Submenu(deep)],
+        };
+    }
+    let message = Message::Apply(Transaction {
+        window: WindowId::from_parts(0, 1).unwrap(),
+        base: 0,
+        revision: 1,
+        operations: vec![Op::SetMenu(
+            NodeId::from_parts(0, 1).unwrap(),
+            MenuConfig {
+                presentation: MenuPresentation::Button,
+                menus: vec![deep],
+            },
+        )],
+    });
+    let mut bytes = Vec::new();
+    message.binprot_write(&mut bytes).unwrap();
+    assert_eq!(
+        gpuio_protocol::decode(&bytes),
+        Err(gpuio_protocol::DecodeError::LimitExceeded)
+    );
+}

@@ -392,6 +392,33 @@ impl Instance {
             State::Textarea(entity) => snapshot(entity.read(cx), window, cx),
         }
     }
+    pub(super) fn is_composing(&self, cx: &App) -> bool {
+        match &self.state {
+            State::Input(entity) => entity.read(cx).bridge_composition().is_some(),
+            State::Textarea(entity) => entity.read(cx).bridge_composition().is_some(),
+        }
+    }
+    pub(super) fn command_available(&self, action: NativeCommand, cx: &App) -> bool {
+        if self.config.disabled {
+            return false;
+        }
+        fn available<M: InputModeKind>(
+            state: &InputBaseState<M>,
+            action: NativeCommand,
+            read_only: bool,
+        ) -> bool {
+            match action {
+                NativeCommand::Copy => state.is_copyable(),
+                NativeCommand::Cut => state.is_copyable() && !read_only,
+                NativeCommand::Paste | NativeCommand::Undo | NativeCommand::Redo => !read_only,
+                NativeCommand::SelectAll => state.text().len() > 0,
+            }
+        }
+        match &self.state {
+            State::Input(entity) => available(entity.read(cx), action, self.config.read_only),
+            State::Textarea(entity) => available(entity.read(cx), action, self.config.read_only),
+        }
+    }
     pub(super) fn focus_handle(&self, cx: &App) -> FocusHandle {
         match &self.state {
             State::Input(entity) => entity.read(cx).focus_handle(cx),

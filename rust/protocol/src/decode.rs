@@ -265,6 +265,57 @@ impl Decoder<'_> {
             during_composition: self.boolean()?,
         })
     }
+    fn menu_definition(
+        &mut self,
+        depth: usize,
+        count: &mut usize,
+    ) -> Result<MenuDefinition, DecodeError> {
+        if depth > 8 {
+            return Err(DecodeError::LimitExceeded);
+        }
+        let label = self.text()?;
+        let disabled = self.boolean()?;
+        let size = self.count(1024usize.saturating_sub(*count))?;
+        *count += size;
+        let mut items = Vec::with_capacity(size);
+        for _ in 0..size {
+            items.push(match self.tag()? {
+                0 => MenuItem::Command(self.text()?),
+                1 => MenuItem::Separator,
+                2 => MenuItem::Submenu(self.menu_definition(depth + 1, count)?),
+                _ => return Err(DecodeError::Malformed),
+            });
+        }
+        Ok(MenuDefinition {
+            label,
+            disabled,
+            items,
+        })
+    }
+    fn menu_config(&mut self) -> Result<MenuConfig, DecodeError> {
+        let presentation = match self.tag()? {
+            0 => MenuPresentation::Button,
+            1 => MenuPresentation::Context,
+            2 => MenuPresentation::Bar,
+            3 => MenuPresentation::PlatformBar,
+            _ => return Err(DecodeError::Malformed),
+        };
+        let size = self.count(32)?;
+        let mut count = 0;
+        let mut menus = Vec::with_capacity(size);
+        for _ in 0..size {
+            menus.push(self.menu_definition(1, &mut count)?);
+        }
+        let config = MenuConfig {
+            presentation,
+            menus,
+        };
+        if !config.is_valid() {
+            return Err(DecodeError::Malformed);
+        }
+        Ok(config)
+    }
+
     fn command_config(&mut self) -> Result<CommandConfig, DecodeError> {
         Ok(CommandConfig {
             id: self.text()?,
@@ -339,6 +390,7 @@ impl Decoder<'_> {
                     11 => Kind::Tooltip,
                     12 => Kind::CommandScope,
                     13 => Kind::CommandButton,
+                    14 => Kind::Menu,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -357,6 +409,7 @@ impl Decoder<'_> {
             7 => Op::SetEditor(self.node()?, self.editor_config()?),
             8 => Op::SetControl(self.node()?, self.control()?),
             9 => Op::SetChoice(self.node()?, self.choice_config()?),
+            18 => Op::SetMenu(self.node()?, self.menu_config()?),
             17 => Op::SetCommandRef(self.node()?, self.text()?),
             16 => Op::SetCommands(self.node()?, self.list(1024, Self::command_config)?),
             15 => Op::SetTooltip(

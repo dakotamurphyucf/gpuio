@@ -17,6 +17,7 @@ module Kind = struct
     | Tooltip
     | Command_scope
     | Command_button
+    | Menu
   [@@deriving equal, sexp_of]
 end
 
@@ -77,6 +78,12 @@ type 'action tooltip =
   ; on_open_change : (bool -> 'action) option
   }
 
+type menu =
+  { presentation : Menu.Expert.presentation
+  ; menus : Menu.t list
+  ; appearance : Menu.Appearance.t
+  }
+
 type 'action t =
   { key : Key.t option
   ; kind : Kind.t
@@ -91,6 +98,7 @@ type 'action t =
   ; tooltip : 'action tooltip option
   ; commands : 'action Ui_command.Registry.t option
   ; command_ref : Ui_command.Id.t option
+  ; menu : menu option
   ; focus_scope : Focus_scope.t option
   ; children : 'action t list
   }
@@ -108,6 +116,7 @@ let text ?key ?(style = Style.empty) text =
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; menu = None
   ; focus_scope = None
   ; control = None
   ; children = []
@@ -150,6 +159,7 @@ let button ?key ?(style = Style.empty) ?accessible_name ?(disabled = false) ~on_
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; menu = None
   ; focus_scope = None
   ; control = Some (Button { disabled })
   ; children = []
@@ -197,6 +207,7 @@ let toggle
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; menu = None
   ; focus_scope = None
   ; control = Some control
   ; children = []
@@ -240,6 +251,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; menu = None
   ; focus_scope = None
   ; control = None
   ; children
@@ -251,6 +263,7 @@ let focus_scope ?key ?style ~config children =
     kind = Focus_scope
   ; commands = None
   ; command_ref = None
+  ; menu = None
   ; focus_scope = Some config
   }
 ;;
@@ -320,6 +333,48 @@ let command_button ?key ?style ~command () =
   }
 ;;
 
+let menu_button
+      ?key
+      ?(style = Style.empty)
+      ?(appearance = Menu.Appearance.default)
+      ~menu
+      ()
+  =
+  { (text ?key ~style:(button_style style) "") with
+    kind = Menu
+  ; menu = Some { presentation = Button; menus = [ menu ]; appearance }
+  }
+;;
+
+let context_menu
+      ?key
+      ?(style = Style.empty)
+      ?(appearance = Menu.Appearance.default)
+      ~menu
+      child
+  =
+  { (text ?key ~style "") with
+    kind = Menu
+  ; menu = Some { presentation = Context; menus = [ menu ]; appearance }
+  ; children = [ child ]
+  }
+;;
+
+let menu_bar
+      ?key
+      ?(style = Style.empty)
+      ?(appearance = Menu.Appearance.default)
+      ?(platform = true)
+      menus
+  =
+  let%map.Or_error () = Menu.Expert.validate_collection menus in
+  { (text ?key ~style "") with
+    kind = Menu
+  ; menu =
+      Some { presentation = (if platform then Platform_bar else Bar); menus; appearance }
+  }
+;;
+
 let tooltip ?key ?(style = Style.empty) ~config ?on_open_change ~anchor ~content () =
   { (container ?key ~style:(overlay_style (Some style)) [] [ anchor; content ]) with
     kind = Tooltip
@@ -370,6 +425,7 @@ let text_input
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; menu = None
   ; focus_scope = None
   ; control = None
   ; children = []
@@ -390,6 +446,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; menu = None
   ; focus_scope = None
   ; children = []
   }
@@ -432,6 +489,7 @@ let combobox
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; menu = None
   ; focus_scope = None
   ; children = []
   }
@@ -471,6 +529,12 @@ module Expert = struct
     ; on_event : Text_input.Event.t -> 'action
     }
 
+  type nonrec menu = menu =
+    { presentation : Menu.Expert.presentation
+    ; menus : Menu.t list
+    ; appearance : Menu.Appearance.t
+    }
+
   type 'action description = 'action t =
     { key : Key.t option
     ; kind : Kind.t
@@ -485,6 +549,7 @@ module Expert = struct
     ; tooltip : 'action tooltip option
     ; commands : 'action Ui_command.Registry.t option
     ; command_ref : Ui_command.Id.t option
+    ; menu : menu option
     ; focus_scope : Focus_scope.t option
     ; children : 'action t list
     }

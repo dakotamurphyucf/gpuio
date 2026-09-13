@@ -132,7 +132,7 @@ impl CommandConfig {
 pub enum CommandSource {
     Button(NodeId),
     Shortcut,
-    Menu,
+    Menu(NodeId),
     Palette(NodeId),
 }
 

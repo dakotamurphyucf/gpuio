@@ -88,6 +88,8 @@ type 'a mounted =
   ; controllers : String.Set.t
   ; commands : Wire.Command.t list
   ; free_commands : String.Set.t
+  ; menu : Wire.Menu.t option
+  ; platform_menus : int
   }
 
 type 'a state =
@@ -190,6 +192,7 @@ let kind = function
   | Tooltip -> Tooltip
   | Command_scope -> Command_scope
   | Command_button -> Command_button
+  | Menu -> Menu
 ;;
 
 let compatible mounted view =
@@ -382,6 +385,24 @@ let rec mount builder ~depth previous view =
       in
       if not (Option.equal Ui_command.Id.equal old (Some command))
       then emit builder (Set_command_ref (id, Ui_command.Id.to_string command)));
+    let menu =
+      Option.map description.menu ~f:(fun menu ->
+        { Wire.Menu.presentation =
+            (match menu.presentation with
+             | Menu.Expert.Button -> Button
+             | Context -> Context
+             | Bar -> Bar
+             | Platform_bar -> Platform_bar)
+        ; menus = List.map menu.menus ~f:Menu.Expert.to_wire
+        })
+    in
+    if
+      not
+        (Option.equal
+           Wire.Menu.equal
+           menu
+           (Option.bind previous ~f:(fun mounted -> mounted.menu)))
+    then Option.iter menu ~f:(fun config -> emit builder (Set_menu (id, config)));
     let editor_config (description : _ View.Expert.description) =
       match description.editor, description.combobox with
       | Some editor, None -> Some editor.config
@@ -477,9 +498,10 @@ let rec mount builder ~depth previous view =
       if not (Option.equal Choice.Config.equal old (Some config))
       then emit builder (Set_choice (id, Choice.Expert.config_to_wire config)));
     let choice_appearance =
-      (match description.combobox with
-       | Some combo -> Some combo.appearance
-       | None -> Option.bind description.choice ~f:(fun choice -> choice.appearance))
+      (match description.menu, description.combobox with
+       | Some menu, _ -> Some menu.appearance
+       | None, Some combo -> Some combo.appearance
+       | None, None -> Option.bind description.choice ~f:(fun choice -> choice.appearance))
       |> Option.map ~f:(fun appearance ->
         Choice.Expert.appearance_to_wire appearance ~theme:builder.theme |> value)
     in
@@ -537,20 +559,35 @@ let rec mount builder ~depth previous view =
         then fail "text input controller appears more than once in a window";
         Set.union keys child.controllers)
     in
+    let menu_commands =
+      Option.value_map description.menu ~default:String.Set.empty ~f:(fun menu ->
+        List.concat_map menu.menus ~f:Menu.Expert.command_ids
+        |> List.map ~f:Ui_command.Id.to_string
+        |> String.Set.of_list)
+    in
     let free_commands =
       List.fold
         children
         ~init:
-          (Option.value_map
-             description.command_ref
-             ~default:String.Set.empty
-             ~f:(fun id -> String.Set.singleton (Ui_command.Id.to_string id)))
+          (Option.value_map description.command_ref ~default:menu_commands ~f:(fun id ->
+             Set.add menu_commands (Ui_command.Id.to_string id)))
         ~f:(fun refs child -> Set.union refs child.free_commands)
     in
     let free_commands =
       List.fold commands ~init:free_commands ~f:(fun refs command ->
         Set.remove refs command.id)
     in
+    let platform_menus =
+      (if
+         Option.exists menu ~f:(fun menu ->
+           match menu.presentation with
+           | Platform_bar -> true
+           | Button | Context | Bar -> false)
+       then 1
+       else 0)
+      + List.sum (module Int) children ~f:(fun child -> child.platform_menus)
+    in
+    if platform_menus > 1 then fail "only one platform menu bar may be mounted per window";
     { view
     ; id
     ; handler
@@ -560,6 +597,8 @@ let rec mount builder ~depth previous view =
     ; controllers
     ; commands
     ; free_commands
+    ; menu
+    ; platform_menus
     }
 ;;
 

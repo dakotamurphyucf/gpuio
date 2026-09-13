@@ -36,6 +36,30 @@ module View : sig
     -> string
     -> t
 
+  val menu_button
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Menu.Appearance.t
+    -> menu:Gpuio.Menu.t
+    -> unit
+    -> t
+
+  val context_menu
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Menu.Appearance.t
+    -> menu:Gpuio.Menu.t
+    -> t
+    -> t
+
+  val menu_bar
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Menu.Appearance.t
+    -> ?platform:bool
+    -> Gpuio.Menu.t list
+    -> t Core.Or_error.t
+
   val command_scope
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

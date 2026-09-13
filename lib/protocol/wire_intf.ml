@@ -21,6 +21,7 @@ module type S = sig
       | Tooltip
       | Command_scope
       | Command_button
+      | Menu
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -95,7 +96,7 @@ module type S = sig
     type t =
       | Button of Node_id.t
       | Shortcut
-      | Menu
+      | Menu of Node_id.t
       | Palette of Node_id.t
     [@@deriving bin_io, equal, sexp_of]
   end
@@ -460,6 +461,37 @@ module type S = sig
     end
   end
 
+  module Menu_definition : sig
+    type t =
+      { label : string
+      ; disabled : bool
+      ; items : item list
+      }
+
+    and item =
+      | Command of string
+      | Separator
+      | Submenu of t
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Menu_presentation : sig
+    type t =
+      | Button
+      | Context
+      | Bar
+      | Platform_bar
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Menu : sig
+    type t =
+      { presentation : Menu_presentation.t
+      ; menus : Menu_definition.t list
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
   module Op : sig
     type t =
       | Create of Node_id.t * Kind.t * string * Handler_id.t option
@@ -480,6 +512,7 @@ module type S = sig
       | Set_tooltip of Node_id.t * Tooltip.t
       | Set_commands of Node_id.t * Command.t list
       | Set_command_ref of Node_id.t * string
+      | Set_menu of Node_id.t * Menu.t
     [@@deriving bin_io, equal, sexp_of]
   end
 

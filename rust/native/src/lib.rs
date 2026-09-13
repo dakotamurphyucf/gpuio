@@ -20,6 +20,10 @@ pub fn run_native_editor_test() {
 }
 
 #[cfg(feature = "native-tests")]
+pub fn run_native_menu_test() {
+    host::control_test::run_menus();
+}
+#[cfg(feature = "native-tests")]
 pub fn run_native_control_test() {
     host::control_test::run();
 }

@@ -30,6 +30,10 @@ mod editor;
 pub(super) mod editor_test;
 #[path = "focus.rs"]
 mod focus;
+#[path = "menu.rs"]
+mod menu;
+#[path = "menu_platform.rs"]
+mod menu_platform;
 #[path = "overlay.rs"]
 mod overlay;
 #[path = "popup.rs"]
@@ -75,6 +79,8 @@ struct View {
     tooltips: BTreeMap<NodeId, tooltip::State>,
     tooltip_last_closed: Option<std::time::Instant>,
     command_subscription: Option<gpui::Subscription>,
+    menus: BTreeMap<NodeId, Rc<RefCell<menu::State>>>,
+    menu_activation: Option<gpui::Subscription>,
     visited: std::collections::BTreeSet<NodeId>,
     #[cfg(feature = "native-tests")]
     probes: Rc<RefCell<BTreeMap<NodeId, native_test::Probe>>>,
@@ -247,6 +253,8 @@ impl View {
             tooltips: BTreeMap::new(),
             tooltip_last_closed: None,
             command_subscription: None,
+            menus: BTreeMap::new(),
+            menu_activation: None,
             selects: BTreeMap::new(),
             visited: Default::default(),
             #[cfg(feature = "native-tests")]
@@ -255,6 +263,7 @@ impl View {
     }
     fn update_editors(&mut self, dirty: &[NodeId], window: &mut Window, cx: &mut Context<Self>) {
         self.install_command_interceptor(window, cx);
+        self.install_menu_observers(window, cx);
         self.sync_tooltips(window, cx);
         let nodes = {
             let session = self.session.borrow();
@@ -296,6 +305,9 @@ impl View {
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let node = tree.get(id).expect("validated retained node");
+        if node.kind == Kind::Menu {
+            return self.menu_element(tree, node, interaction, window, cx);
+        }
         if node.kind == Kind::Tooltip {
             return self.tooltip_element(tree, node, interaction, window, cx);
         }
@@ -803,6 +815,11 @@ impl Render for View {
         let tab_focus = self.focus.clone();
         let begin_focus = self.focus.clone();
         let mut root = div()
+            .on_action(
+                cx.listener(|view, action: &menu_platform::Invoke, window, cx| {
+                    view.platform_menu_action(action, window, cx)
+                }),
+            )
             .track_focus(&root_focus)
             .size_full()
             .on_key_down(cx.listener(|view, event: &gpui::KeyDownEvent, window, cx| {
@@ -844,11 +861,17 @@ impl Render for View {
         self.buttons.retain(|id, _| self.visited.contains(id));
         self.radios.retain(|id, _| self.visited.contains(id));
         self.selects.retain(|id, _| self.visited.contains(id));
+        self.menus.retain(|id, _| self.visited.contains(id));
+        self.sync_platform_menus(window, cx);
         self.selections.retain(|id, _| self.visited.contains(id));
         // GPUI routes key events along the focused element's ancestry. Keep a
         // non-tab-stop fallback so Tab also works before the first click and
         // after a focused control is disabled or removed.
-        let has_focus = self.focus.borrow().contains_focus(window)
+        let has_focus = self
+            .menus
+            .values()
+            .any(|state| state.borrow().focus.is_focused(window))
+            || self.focus.borrow().contains_focus(window)
             || root_focus.is_focused(window)
             || self
                 .buttons

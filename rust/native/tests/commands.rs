@@ -56,7 +56,10 @@ fn registry_shadowing_reference_changes_and_invocation_guards_are_atomic() {
         source: CommandSource::Button(node(1)),
     };
     assert!(session.invoke_command(window, request).is_some());
-    for source in [CommandSource::Menu, CommandSource::Palette(node(1))] {
+    for source in [
+        CommandSource::Menu(node(1)),
+        CommandSource::Palette(node(1)),
+    ] {
         assert!(
             session
                 .invoke_command(window, CommandInvocation { source, ..request })

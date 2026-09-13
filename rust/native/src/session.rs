@@ -276,10 +276,25 @@ impl Session {
                         .command(button, request.command)
                         .is_some_and(|(scope, _)| scope == request.scope)
             }
+            CommandSource::Menu(menu) => {
+                window
+                    .tree
+                    .get(menu)
+                    .and_then(|node| node.menu.as_ref())
+                    .is_some_and(|config| config.permits(request.command))
+                    && (window
+                        .tree
+                        .get(menu)
+                        .and_then(|node| node.menu.as_ref())
+                        .is_some_and(|config| config.presentation == MenuPresentation::PlatformBar)
+                        || window
+                            .tree
+                            .command(menu, request.command)
+                            .is_some_and(|(scope, _)| scope == request.scope))
+            }
             CommandSource::Shortcut => true,
-            // Reserved sources require their presentation adapters and source
-            // lifetime validation before they can produce invocations.
-            CommandSource::Menu | CommandSource::Palette(_) => false,
+            // Palette requires its presentation adapter and source validation.
+            CommandSource::Palette(_) => false,
         };
         (!window.overloaded
             && request.revision >= 0

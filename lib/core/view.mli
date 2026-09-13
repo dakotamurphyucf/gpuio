@@ -57,6 +57,36 @@ val command_button
   -> unit
   -> 'action t
 
+(** Native-managed menu navigation resolves the same command registry as buttons
+    and shortcuts. The context menu wraps one arbitrary child and opens on right
+    click or Shift-F10. Escape restores prior focus. [menu_bar] defaults to the
+    native menu bar on macOS and an in-window bar on Linux; [platform=false]
+    renders an in-window bar on either platform. At most one platform bar may be
+    mounted per window. Menus are replaced with the active window's definitions. *)
+val menu_button
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?appearance:Menu.Appearance.t
+  -> menu:Menu.t
+  -> unit
+  -> 'action t
+
+val context_menu
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?appearance:Menu.Appearance.t
+  -> menu:Menu.t
+  -> 'action t
+  -> 'action t
+
+val menu_bar
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?appearance:Menu.Appearance.t
+  -> ?platform:bool
+  -> Menu.t list
+  -> 'action t Core.Or_error.t
+
 (** Native focus policy for the supplied subtree. Scope lifetime follows keyed
     mount/unmount; changing descendants preserves the scope's restoration target. *)
 val focus_scope
@@ -176,6 +206,7 @@ module Expert : sig
       | Tooltip
       | Command_scope
       | Command_button
+      | Menu
     [@@deriving equal, sexp_of]
   end
 
@@ -225,6 +256,12 @@ module Expert : sig
     ; on_event : Text_input.Event.t -> 'action
     }
 
+  type menu =
+    { presentation : Menu.Expert.presentation
+    ; menus : Menu.t list
+    ; appearance : Menu.Appearance.t
+    }
+
   type 'action description =
     { key : Key.t option
     ; kind : Kind.t
@@ -239,6 +276,7 @@ module Expert : sig
     ; tooltip : 'action tooltip option
     ; commands : 'action Command.Registry.t option
     ; command_ref : Command.Id.t option
+    ; menu : menu option
     ; focus_scope : Focus_scope.t option
     ; children : 'action t list
     }

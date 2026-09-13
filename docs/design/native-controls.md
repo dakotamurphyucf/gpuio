@@ -1,9 +1,10 @@
 # Native controls (OCH-11, in progress)
 
 The controls add `View.checkbox`, `View.switch`, `View.radio_group`, `View.select`,
-`View.combobox`, `View.tooltip`, focus scopes, dialogs/popovers and disabled buttons
-to both the pure action API and the Bonsai effect API. The rest of OCH-11 remains
-in progress: menus, progress/notifications, commands, pointer/drag interactions,
+`View.combobox`, `View.tooltip`, menus, shared commands, focus scopes,
+dialogs/popovers and disabled buttons to both the pure action API and the Bonsai
+effect API. The rest of OCH-11 remains in progress: the command palette,
+progress/notifications, pointer/drag interactions,
 assets, and their acceptance checks. This document records the implemented
 contracts and the integration findings; it is not completion evidence for the
 whole ticket.
@@ -437,6 +438,96 @@ nested shortcut scopes and a native Copy button. Its `--self-test` checks public
 registry mounting, render acknowledgements, disable/re-enable and scope removal.
 Actual native tests separately exercise key dispatch, native-first/override
 priority, composition, editing targets, accessibility activation, nested shadowing
-and two-window isolation. Menus, platform menus and a command palette will use
-this registry; their adapters remain OCH-11 work. The reserved menu/palette event
-sources do not imply those components are implemented.
+and two-window isolation. Menus use the same registry as described below. The
+command palette remains OCH-11 work; its reserved event source does not imply
+that component is implemented.
+
+
+## Menus
+
+`Menu.create ~label items` constructs a validated immutable menu. Items are
+`Menu.Item.Command id`, `Separator` and `Submenu menu`. Command references obtain
+labels, enabled state, optional checked state and actions from `Command.Registry`;
+there is no second callback or shortcut registration mechanism. Define referenced
+commands in an enclosing `View.command_scope`, including commands that a focused
+inner scope may override. Missing references are rejected on both sides of the
+bridge, including after reparenting a physically shared OCaml view.
+
+Three presentations reuse this definition:
+
+- `View.menu_button ~menu ()` renders a dropdown trigger.
+- `View.context_menu ~menu child` wraps an arbitrary view. Right-click opens at
+  the pointer; Shift-F10 opens from keyboard focus within the child.
+- `View.menu_bar menus` uses the native application menu on macOS and an
+  in-window bar on Linux. `~platform:false` renders an in-window bar on either OS.
+  At most one platform bar may be mounted per window; multiple ordinary bars and
+  dropdowns are allowed. An empty bar is valid.
+
+Dropdowns, context menus and ordinary in-window bars resolve references at their
+location in the view tree. The native macOS application menu resolves commands
+from the focused scope outward, falling back to the menu's enclosing registry.
+A disabled inner definition shadows an enabled outer definition. The active
+window owns the application menu; opening an inactive window does not replace it.
+Activation updates ownership without waiting for new OCaml state. Closing an
+active window restores the surviving window's menu. Hiding or unmounting the bar
+clears it, and the last window releases the installed menu definitions.
+
+Rust owns open state, active row, submenu path, prefix search, scroll position and
+focus restoration. Navigation does not require an OCaml render. Up/Down/Home/End
+skip separators and disabled items; Right opens a submenu, Left returns, and
+Enter/Space activates. Escape closes the menu before an enclosing popover can
+receive dismissal. Tab closes the menu and resumes ordinary focus traversal.
+Pointer hover opens nested menus and pointer/accessibility activation uses the
+same command route. Context menus restore the previous eligible focus on Escape
+or activation; outside clicks close without stealing the destination's focus.
+Native editing commands restore the retained editor and run on the GPUI thread.
+
+Popup positioning uses current-frame trigger/row geometry, preferred bottom/right
+placement, edge flipping and viewport clamping. Every submenu panel participates
+in its enclosing overlay's hit region, even where it extends beyond that panel.
+Overlay priority reserves space for all eight nested menu levels. Lists virtualize
+uniform rows; wheel scrolling remains independent of the keyboard highlight until
+navigation requests a new reveal. Only visible row anchors and open-depth scroll
+handles are retained, and closing releases them. Updating the menu definition
+closes transient navigation; changing command metadata refreshes rows without
+replacing the menu definition.
+
+`Menu.Appearance` shares `Choice.Appearance`: popup width, row height, maximum
+visible rows, localized empty label, and popup/option/empty styles, resolved
+through the OCaml theme. Focused row styling marks the navigation target; Selected
+styling marks checked commands. Native OS menu styling is controlled by macOS;
+these appearance settings apply to GPUI-rendered menus. Semantic output includes
+MenuBar/Menu/MenuItem roles, labels, checked/disabled state, expanded submenus,
+active descendants and accessible activation. No full screen-reader acceptance
+is inferred from the targeted accessibility checks.
+
+A definition is bounded to eight levels, 1024 aggregate items and 256 KiB of
+labels/command IDs; a bar has at most 32 top-level menus, with collective bounds.
+Labels are nonblank UTF-8 without NUL and at most 4096 bytes. Native decoding
+checks recursive limits before allocation. Definitions count against retained-tree
+budgets. Installed native actions carry window, source node and command identity;
+dispatch revalidates lifetime, availability and current command scope, so queued
+actions cannot target a closed window or an obsolete focused scope. Native edit
+availability reads borrowed editor text/selection rather than copying the buffer
+on every menu refresh.
+
+Capability 16384 (combined mask 32767) adds kind 14 and `Set_menu` operation 18.
+The previously reserved `Command_source.Menu` now carries its source node ID on
+both sides of the still-unreleased protocol. Independent `menus-v1-request.hex`
+and updated command event fixtures verify the encoding.
+
+`examples/menus` demonstrates a platform bar, dropdowns, a context-wrapped editor
+and nested command registries. Its public self-test checks mounting, native render
+acknowledgements, metadata changes and scope removal; actual input behavior is
+validated separately in `native_menus` and the combined `native_controls` scenario.
+Targeted macOS checks cover NSMenu activation, accessibility activation/state,
+right-click Copy, 1000-entry scrolling/navigation, popover hit routing, focused
+scope changes, active-window replacement and stale actions. Final whole-ticket
+CI and Linux graphical acceptance are not implied by these local checks.
+
+Current presentation limits: registry shortcuts execute through the shared native
+matcher, but menu rows do not yet show accelerator labels, and macOS items do not
+install OS key equivalents or responder-selector associations. This avoids adding
+mutable global key bindings that could bypass the declared native-first and IME
+policies. The command palette and broader desktop services remain separate work
+within OCH-11.

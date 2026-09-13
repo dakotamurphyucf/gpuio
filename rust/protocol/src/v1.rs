@@ -1,4 +1,5 @@
 pub use crate::command::*;
+pub use crate::menu::{MenuConfig, MenuDefinition, MenuItem, MenuPresentation};
 use crate::{HandlerId, NodeId, WindowId};
 use binprot::macros::BinProtWrite;
 
@@ -17,6 +18,7 @@ pub const CAP_OVERLAYS: i64 = 1024;
 pub const CAP_PLACEMENT: i64 = 2048;
 pub const CAP_TOOLTIPS: i64 = 4096;
 pub const CAP_COMMANDS: i64 = 8192;
+pub const CAP_MENUS: i64 = 16384;
 pub const CAPABILITIES: i64 = CAP_TREE
     | CAP_NATIVE_STYLES
     | CAP_FRAME_EVENTS
@@ -30,7 +32,8 @@ pub const CAPABILITIES: i64 = CAP_TREE
     | CAP_OVERLAYS
     | CAP_PLACEMENT
     | CAP_TOOLTIPS
-    | CAP_COMMANDS;
+    | CAP_COMMANDS
+    | CAP_MENUS;
 pub const EDITOR_HISTORY_BYTES: usize = 2 * 1024 * 1024;
 pub const EDITOR_RESERVED_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_MESSAGE_BYTES: usize = 1_048_576;
@@ -59,6 +62,7 @@ pub enum Kind {
     Tooltip,
     CommandScope,
     CommandButton,
+    Menu,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -505,6 +509,7 @@ pub enum Op {
     SetTooltip(NodeId, TooltipConfig),
     SetCommands(NodeId, Vec<CommandConfig>),
     SetCommandRef(NodeId, String),
+    SetMenu(NodeId, MenuConfig),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]

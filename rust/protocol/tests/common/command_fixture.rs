@@ -96,7 +96,7 @@ pub fn events() -> Vec<Event> {
     [
         CommandSource::Button(node(1)),
         CommandSource::Shortcut,
-        CommandSource::Menu,
+        CommandSource::Menu(node(1)),
         CommandSource::Palette(node(2)),
     ]
     .into_iter()

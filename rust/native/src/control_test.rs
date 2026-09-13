@@ -1,6 +1,8 @@
 //! Real-window control activation, focus traversal and native accessibility.
 #[path = "command_test.rs"]
 mod command_test;
+#[path = "menu_test.rs"]
+mod menu_test;
 #[path = "overlay_test.rs"]
 mod overlay_test;
 #[path = "tooltip_test.rs"]
@@ -1335,6 +1337,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
     overlay_test::exercise(cx, handle, &transport).await;
     tooltip_test::exercise(cx, handle, &transport).await;
     command_test::exercise(cx, handle, &transport).await;
+    menu_test::exercise(cx, handle, &transport).await;
     // Remove a focused native node and enter the surviving Tab order again.
     handle
         .update(cx, |view, window, cx| {
@@ -1388,6 +1391,12 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
 }
 
 pub fn run() {
+    run_with_menus_only(false);
+}
+pub fn run_menus() {
+    run_with_menus_only(true);
+}
+fn run_with_menus_only(menus_only: bool) {
     let failure = Rc::new(RefCell::new(None));
     let task_failure = failure.clone();
     let mut fds = [0; 2];
@@ -1466,6 +1475,14 @@ pub fn run() {
             Op::Splice(node(0), 0, 0, vec![node(1), node(2), node(3), node(4)]),
             Op::SetRoot(Some(node(0))),
         ]);
+        if menus_only {
+            // Reserve the same generational slots used by preceding component
+            // fixtures, without exercising those unrelated windows/interactions.
+            for slot in 5..38 {
+                operations.push(Op::Create(node(slot), Kind::Text, String::new(), None));
+                operations.push(Op::Remove(node(slot)));
+            }
+        }
         let applied = session
             .borrow_mut()
             .apply(&Transaction {
@@ -1498,7 +1515,18 @@ pub fn run() {
             .unwrap();
         cx.activate(true);
         cx.spawn(async move |cx| {
-            let result = super::native_test::protect(exercise(cx, handle, transport)).await;
+            let result = super::native_test::protect(async {
+                if menus_only {
+                    frame(cx, handle).await;
+                    menu_test::exercise(cx, handle, &transport).await;
+                    handle
+                        .update(cx, |_, window, _| window.remove_window())
+                        .unwrap();
+                } else {
+                    exercise(cx, handle, transport).await;
+                }
+            })
+            .await;
             *task_failure.borrow_mut() = result.err();
             cx.update(stop_application);
         })
@@ -1506,6 +1534,9 @@ pub fn run() {
     });
     if let Some(error) = failure.borrow_mut().take() {
         std::panic::resume_unwind(error);
+    }
+    if menus_only {
+        return;
     }
     println!(
         "GPUIO_CONTROLS_NATIVE_OK: activation, keyboard, Tab/Shift-Tab, pointer policy, native state styling, disable/re-enable and disposal"

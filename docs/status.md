@@ -165,5 +165,18 @@ implemented locally. Native macOS tests pass scoped dispatch, native editing tar
 keyboard/IME priority and two-window isolation, including closing one window and
 continuing in the other. Independent OCaml/Rust protocol fixtures pass. The public
 Bonsai/Eio example, full OCaml build/tests/format, Rust workspace tests and
-Clippy pass locally. Menus/platform
-menus/palette are not implemented yet; OCH-11 remains In Progress.
+Clippy pass locally. Menu adapters are being validated locally as described below;
+the command palette and other OCH-11 requirements remain In Progress.
+
+
+Menus are implemented on the local OCH-11 branch: immutable command-reference
+models, dropdown/context/in-window/platform presentations, virtualized cascading
+popups and active-window macOS menu ownership. Targeted macOS native tests pass
+actual NSMenu and accessibility activation, right-click Copy/focus restoration,
+1000-entry wheel/keyboard navigation, popover integration, focused command scopes,
+hidden/stale actions and menu restoration after closing a second window. The
+activation test found and fixed menu ownership refresh when returning to an
+unchanged surviving window. Hidden triggers now close detached popup state and
+release focus. The combined native controls suite, public Bonsai/Eio example,
+Rust workspace tests and Clippy pass locally; the [menu evidence report](evidence/native-menus-och11.md)
+records coverage and limitations. No hosted or Linux GUI acceptance is claimed.

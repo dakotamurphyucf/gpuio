@@ -214,7 +214,11 @@ let%expect_test
   in
   let events =
     List.map
-      [ Wire.Command_source.Button (node 1L); Shortcut; Menu; Palette (node 2L) ]
+      [ Wire.Command_source.Button (node 1L)
+      ; Shortcut
+      ; Menu (node 1L)
+      ; Palette (node 2L)
+      ]
       ~f:(fun source ->
         Wire.Event.Command_invoked (window, node 0L, handler, 1L, "run", 1L, source))
   in

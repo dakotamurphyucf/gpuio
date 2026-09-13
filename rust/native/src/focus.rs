@@ -28,7 +28,7 @@ pub(super) struct Manager {
     session: SharedSession,
     scopes: BTreeMap<NodeId, Scope>,
     entries: Vec<Entry>,
-    surfaces: BTreeMap<NodeId, Rc<Cell<Bounds<Pixels>>>>,
+    surfaces: BTreeMap<NodeId, Vec<Rc<Cell<Bounds<Pixels>>>>>,
     seen: BTreeSet<NodeId>,
     active: Option<NodeId>,
     hidden: BTreeSet<NodeId>,
@@ -111,9 +111,23 @@ impl Manager {
         if item.control.is_some_and(Control::disabled)
             || item.editor.as_ref().is_some_and(|config| config.disabled)
             || item.choice.as_ref().is_some_and(|config| config.disabled)
+            || item
+                .menu
+                .as_ref()
+                .is_some_and(|config| config.menus.iter().all(|menu| menu.disabled))
         {
             return false;
         }
+        self.visible(node)
+    }
+    pub(super) fn visible(&self, node: NodeId) -> bool {
+        if self.hidden(node) {
+            return false;
+        }
+        let session = self.session.borrow();
+        let Some(tree) = session.tree(self.window) else {
+            return false;
+        };
         let mut cursor = Some(node);
         while let Some(id) = cursor {
             let Some(item) = tree.get(id) else {
@@ -139,12 +153,13 @@ impl Manager {
         self.surfaces.clear();
     }
     pub(super) fn surface(&mut self, node: NodeId, bounds: Rc<Cell<Bounds<Pixels>>>) {
-        self.surfaces.insert(node, bounds);
+        self.surfaces.entry(node).or_default().push(bounds);
     }
     pub(super) fn surface_contains(&self, scope: NodeId, position: gpui::Point<Pixels>) -> bool {
-        self.surfaces
-            .iter()
-            .any(|(node, bounds)| self.within(*node, scope) && bounds.get().contains(&position))
+        self.surfaces.iter().any(|(node, bounds)| {
+            self.within(*node, scope)
+                && bounds.iter().any(|bounds| bounds.get().contains(&position))
+        })
     }
     pub(super) fn anchor(&self, node: NodeId) -> Option<Rc<Cell<Bounds<Pixels>>>> {
         self.scopes.get(&node).map(|scope| scope.anchor.clone())
@@ -153,7 +168,8 @@ impl Manager {
         self.scopes
             .iter()
             .filter(|(id, _)| self.within(node, **id))
-            .map(|(_, scope)| scope.order as usize * 4)
+            // Reserve room for the bounded eight-level menu cascade beneath the next overlay.
+            .map(|(_, scope)| scope.order as usize * 16)
             .max()
             .unwrap_or(0)
     }
@@ -271,6 +287,11 @@ impl Manager {
             .iter()
             .find(|entry| entry.handle.is_focused(window))
             .map(|entry| entry.node)
+    }
+    pub(super) fn can_restore(&self, handle: &FocusHandle) -> bool {
+        self.entries
+            .iter()
+            .any(|entry| &entry.handle == handle && self.eligible(entry.node))
     }
     pub(super) fn last_editor(&self) -> Option<NodeId> {
         self.last_editor.filter(|node| self.eligible(*node))
