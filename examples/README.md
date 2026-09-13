@@ -7,11 +7,15 @@ editor lifetime. These tests open actual windows, but input probes invoke native
 handlers; they do not prove real OS IME or accessibility behavior.
 
 The bootstrap protocol and single-window application host are private to this
-example. OCH-7–9 implement the production protocol/API/scheduler. The two-window
-scenario is native scaffolding, not the future per-window Bonsai application API.
+example. The production per-window Bonsai/Eio API is demonstrated in `runtime/`.
 Agent chat and graphics examples grow with subsequent milestones.
 
 `view_api/` demonstrates the public typed view/style/theme vocabulary, reusable
 components, a compiled Bonsai.Cont component and an explicit Eio bridge runner.
 See its [README](view_api/README.md) for interactive and automated commands.
 `bridge/` separately exercises production transaction rollback and ownership.
+
+`text_input/` demonstrates a single-line input and multiline composer, stable
+Bonsai controllers, submit observations and explicit native commands. See its
+[README](text_input/README.md). Local foreground GUI checks are authorized for fast iteration; avoid activation
+where a test permits background execution. CI supplies the final platform gates.

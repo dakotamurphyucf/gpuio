@@ -9,6 +9,7 @@ pub struct Node {
     pub id: NodeId,
     pub kind: Kind,
     pub text: Arc<str>,
+    pub editor: Option<Arc<EditorConfig>>,
     pub style: Arc<[Style]>,
     pub handler: Option<HandlerId>,
     pub children: Arc<[NodeId]>,
@@ -18,6 +19,15 @@ pub struct Node {
 impl Node {
     fn payload_bytes(&self) -> usize {
         self.text.len()
+            + self
+                .editor
+                .as_ref()
+                .map_or(0, |config| config.label.len() + config.placeholder.len())
+            + if matches!(self.kind, Kind::Input | Kind::Textarea) {
+                EDITOR_RESERVED_BYTES
+            } else {
+                0
+            }
             + std::mem::size_of_val(self.style.as_ref())
             + self
                 .style
@@ -129,6 +139,30 @@ impl Tree {
         for op in &tx.operations {
             plan.operation(op)?;
         }
+        for slot in plan.changes.values() {
+            if let Some(node) = &slot.node {
+                match node.kind {
+                    Kind::Input | Kind::Textarea => {
+                        let config = node.editor.as_ref().ok_or(ErrorCode::InvalidTree)?;
+                        if node.handler.is_none()
+                            || !config.is_valid()
+                            || node.text.contains('\0')
+                            || (node.kind == Kind::Input
+                                && (config.min_rows != 1
+                                    || config.max_rows != 1
+                                    || node.text.contains(['\r', '\n'])))
+                        {
+                            return Err(ErrorCode::InvalidTree);
+                        }
+                    }
+                    Kind::Container | Kind::Text | Kind::Button => {
+                        if node.editor.is_some() {
+                            return Err(ErrorCode::InvalidTree);
+                        }
+                    }
+                }
+            }
+        }
         let validated_nodes = if plan.structural {
             plan.validate_structure()?
         } else {
@@ -220,6 +254,7 @@ impl Plan<'_> {
             | Op::Remove(id)
             | Op::SetText(id, ..)
             | Op::SetStyle(id, ..)
+            | Op::SetEditor(id, ..)
             | Op::Bind(id, ..)
             | Op::Splice(id, ..) => Some(*id),
             Op::SetRoot(_) => None,
@@ -272,6 +307,7 @@ impl Plan<'_> {
                             id: *id,
                             kind: *kind,
                             text: Arc::from(text.as_str()),
+                            editor: None,
                             style: Arc::from([]),
                             handler: *handler,
                             children: Arc::from([]),
@@ -294,8 +330,20 @@ impl Plan<'_> {
                 self.structural = true;
             }
             Op::SetText(id, text) => {
+                if matches!(self.node(*id)?.kind, Kind::Input | Kind::Textarea) {
+                    // Native editor contents change only through explicit commands.
+                    return Err(ErrorCode::InvalidTree);
+                }
                 validate_text(text)?;
                 self.node_mut(*id)?.text = Arc::from(text.as_str());
+            }
+            Op::SetEditor(id, config) => {
+                if !matches!(self.node(*id)?.kind, Kind::Input | Kind::Textarea)
+                    || !config.is_valid()
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.editor = Some(Arc::new(config.clone()));
             }
             Op::SetStyle(id, style) => {
                 validate_style(style)?;

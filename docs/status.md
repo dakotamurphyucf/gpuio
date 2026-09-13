@@ -1,6 +1,6 @@
 # Implementation status
 
-Updated 2026-09-13. Milestone 01: reproducible foundation, in progress.
+Updated 2026-09-13. Milestone 01: reproducible foundation, complete. Milestone 02: native interaction, in progress.
 
 Repository: `dakotamurphyucf/gpuio`, public, Apache-2.0, default branch `main`.
 These settings were selected by the owner on 2026-09-11.
@@ -32,7 +32,10 @@ are superseded by this priority; native GUI coverage must still be reported hone
 - OCH-9 public Bonsai/Eio runtime merged in PR #4 at
   `02558d8d393c49e5e159812394dd9061820c39fc`. Both required CI jobs passed in
   run 34740866262, including all macOS runtime/measurement scenarios. Linux GUI
-  exposed a default quit-policy difference; the small follow-up fixes that policy. See [runtime](design/runtime.md) and [measurements](evidence/runtime-och9.md).
+  exposed a default quit-policy difference, fixed in PR #5 at
+  `88cc9287db49cd27c0b78a6f19eea17fc4c1069e`. Final run 34741216419 passed both
+  required jobs and all OCH-9 scenarios on macOS, X11 and Wayland. X11 passed
+  the full GUI suite; the existing Wayland hover-reset issue remains under OCH-17. See [runtime](design/runtime.md) and [measurements](evidence/runtime-och9.md).
 
 ## Local evidence
 
@@ -85,3 +88,19 @@ Tab/Shift-Tab, pointer policy, Unicode select/copy, replacement and inherited re
 The public OCaml example passes 20 acknowledged native commits and theme changes.
 The [typed API contract](design/typed-ui.md) records all GPUIX style mappings and
 functional limits. Linux graphical execution remains informational under OCH-17.
+
+## Milestone 02
+
+OCH-10 implements native input/composer ownership, stable Bonsai/Eio controllers,
+revisioned commands, native composition and grapheme editing, undo/redo selection,
+auto-grow and basic accessibility. [PR #6](https://github.com/dakotamurphyucf/gpuio/pull/6)
+and [its evidence report](evidence/native-editor-och10.md) record implementation
+and platform validation. Hosted run 34745383026 passed Linux build/tests/lint and
+macOS editor/input/accessibility checks. X11 passed the complete GUI suite;
+Wayland passed public editor commands but its clipboard-based native test failed
+before insertion, tracked in OCH-17. These checks do not claim physical IME
+candidate-panel or complete screen-reader coverage.
+
+OCH-11 controls/native interaction and OCH-12 declarative animations follow.
+The broader component catalog is planned in OCH-33–45; vendoring GPUI Base does
+not expose all of those widgets through the OCaml API.

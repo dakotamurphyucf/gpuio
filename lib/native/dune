@@ -4,6 +4,7 @@
   (sandbox none)
   (env_var CARGO_TARGET_DIR)
   (source_tree ../../rust)
+  (source_tree ../../vendor/gpui-base)
   ../../Cargo.toml
   ../../Cargo.lock
   ../../rust-toolchain.toml

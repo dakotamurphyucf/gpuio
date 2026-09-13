@@ -1,0 +1,746 @@
+--- a/src/input/base/state.rs
++++ b/src/input/base/state.rs
+@@ -125,6 +125,27 @@
+     Focus,
+     Blur,
+ }
++
++/// GPUIO bridge payload captured synchronously at the native submit action.
++/// Observers may run after further native edits, so they must not re-read text.
++#[derive(Clone, Debug)]
++pub struct BridgeSubmission {
++    pub revision: i64,
++    pub text: SharedString,
++    pub selection: (usize, usize),
++    pub focused: bool,
++}
++
++/// Native adapter hook on the actual focus-owning editor element. This avoids
++/// registering the same focus handle again on an outer semantic wrapper.
++pub type BridgeDecorator<M> = Rc<
++    dyn Fn(
++        gpui::Stateful<gpui::Div>,
++        &InputBaseState<M>,
++        &mut Window,
++        &mut Context<InputBaseState<M>>,
++    ) -> gpui::AnyElement,
++>;
+ 
+ pub(super) const CONTEXT: &str = "Input";
+ 
+@@ -340,6 +361,10 @@
+     pub(super) focus_handle: FocusHandle,
+     pub(super) mode: LayoutMode,
+     pub(super) text: Rope,
++    // GPUIO bridge: native edit identity is independent of observed text equality.
++    bridge_revision: i64,
++    bridge_max_bytes: Option<usize>,
++    bridge_decorator: Option<BridgeDecorator<M>>,
+     pub(super) display_map: DisplayMap,
+     pub(super) undo_manager: UndoManager,
+     pub(super) search_session: super::SearchSession,
+@@ -524,6 +549,7 @@
+ }
+ 
+ impl<M: InputModeKind> EventEmitter<InputEvent> for InputBaseState<M> {}
++impl<M: InputModeKind> EventEmitter<BridgeSubmission> for InputBaseState<M> {}
+ 
+ impl<M: InputModeKind> InputBaseState<M> {
+     #[doc(hidden)]
+@@ -679,6 +705,9 @@
+             extras: M::Extras::default(),
+             focus_handle: focus_handle.clone(),
+             text: "".into(),
++            bridge_revision: 0,
++            bridge_max_bytes: None,
++            bridge_decorator: None,
+             display_map: DisplayMap::new(text_style.font(), window.rem_size(), None),
+             search_session: super::SearchSession::default(),
+             search_activation_revision: 0,
+@@ -811,6 +840,11 @@
+         self.mode.ensure_highlighter_factory(factory);
+     }
+ 
++    /// Install native semantics on the element that owns keyboard focus.
++    pub fn set_bridge_decorator(&mut self, decorate: BridgeDecorator<M>) {
++        self.bridge_decorator = Some(decorate);
++    }
++
+     pub fn set_editor_style(&mut self, style: InputEditorStyle) {
+         self.editor_style = style.clone();
+         self.projected_editor_style = style;
+@@ -1043,6 +1077,9 @@
+         }
+ 
+         self.disabled = disabled;
++        if self.bridge_max_bytes.is_some() {
++            self.focus_handle = self.focus_handle.clone().tab_stop(!disabled);
++        }
+         cx.notify();
+     }
+ 
+@@ -1076,7 +1113,95 @@
+     /// This is false when the input is `disabled` or `readonly`, the programmatic
+     /// APIs (e.g.: [`Self::set_value`], [`Self::insert`]) are not limited by this.
+     pub fn is_editable(&self) -> bool {
+-        !self.disabled && !self.readonly
++        !self.disabled && !self.readonly && self.bridge_revision < i64::MAX
++    }
++
++    /// GPUIO adapter: set an immutable byte limit before mounting the editor.
++    pub fn bridge_max_bytes(mut self, max_bytes: usize) -> Self {
++        assert!(max_bytes > 0 && self.text.len() <= max_bytes);
++        self.bridge_max_bytes = Some(max_bytes);
++        self
++    }
++
++    /// GPUIO adapter: bound retained change/selection history, including IME.
++    pub fn bridge_history_budget(mut self, bytes: usize) -> Self {
++        self.undo_manager.bridge_set_budget(bytes);
++        self
++    }
++
++    pub fn bridge_history_bytes(&self) -> usize {
++        self.undo_manager.bridge_bytes()
++    }
++
++    /// Advances on accepted edits, including edits restoring the previous text.
++    pub fn bridge_revision(&self) -> i64 {
++        self.bridge_revision
++    }
++
++    /// Marked composition range, in UTF-8 bytes.
++    pub fn bridge_composition(&self) -> Option<Range<usize>> {
++        self.ime_marked_range.map(|range| range.start..range.end)
++    }
++
++    /// Selection anchor/head, preserving its direction.
++    pub fn bridge_selection(&self) -> (usize, usize) {
++        let selection = self.active_selection();
++        if selection.reversed {
++            (selection.end, selection.start)
++        } else {
++            (selection.start, selection.end)
++        }
++    }
++
++    /// Replace text and capture the command's final selection in the same undo
++    /// transaction. The adapter validates text, composition and offsets first.
++    pub fn bridge_replace_all(
++        &mut self,
++        text: SharedString,
++        selection: (usize, usize),
++        record_undo: bool,
++        window: &mut Window,
++        cx: &mut Context<Self>,
++    ) {
++        assert!(text.is_char_boundary(selection.0) && text.is_char_boundary(selection.1));
++        let before = self.selections.iter().copied().collect();
++        if record_undo {
++            self.undo_manager.begin_transaction();
++            self.replace_all(text, window, cx);
++        } else {
++            self.set_value(text, window, cx);
++        }
++        assert!(self.bridge_select(selection.0, selection.1, cx));
++        if record_undo {
++            let after = self.selections.iter().copied().collect();
++            self.undo_manager.record_selections(before, after);
++            self.undo_manager.commit_transaction();
++        }
++    }
++
++    /// Reject invalid offsets rather than clipping bridge commands silently.
++    pub fn bridge_select(&mut self, anchor: usize, head: usize, cx: &mut Context<Self>) -> bool {
++        if self.text.clip_offset(anchor, Bias::Left) != anchor
++            || self.text.clip_offset(head, Bias::Left) != head
++        {
++            return false;
++        }
++        self.selections.remove_all_but_active();
++        self.move_to(anchor, None, cx);
++        self.select_to(head, cx);
++        true
++    }
++
++    pub fn bridge_undo(&mut self, window: &mut Window, cx: &mut Context<Self>) {
++        self.undo(&Undo, window, cx);
++    }
++
++    pub fn bridge_redo(&mut self, window: &mut Window, cx: &mut Context<Self>) {
++        self.redo(&Redo, window, cx);
++    }
++
++    fn bridge_accepts_size(&self, size: usize) -> bool {
++        self.bridge_max_bytes.is_none_or(|limit| size <= limit)
+     }
+ 
+     /// Set true to clear the input by pressing Escape key.
+@@ -1250,6 +1375,9 @@
+ 
+     /// Focus the input field.
+     pub fn focus(&self, window: &mut Window, cx: &mut Context<Self>) {
++        if self.bridge_max_bytes.is_some() && self.disabled {
++            return;
++        }
+         self.focus_handle.focus(window, cx);
+         self.blink_cursor.update(cx, |cursor, cx| {
+             cursor.start(cx);
+@@ -1882,6 +2010,9 @@
+     }
+ 
+     pub(super) fn enter(&mut self, action: &Enter, window: &mut Window, cx: &mut Context<Self>) {
++        if self.bridge_max_bytes.is_some() && self.ime_marked_range.is_some() {
++            return;
++        }
+         if M::handle_context_menu_action(self, Box::new(action.clone()), window, cx) {
+             return;
+         }
+@@ -1989,7 +2120,18 @@
+             // Single line input or submit-on-enter: just emit the event
+             // (e.g.: in a dialog to confirm, or a chat textarea to send).
+             self.undo_manager.break_transaction_coalescing();
+-            cx.propagate();
++            if self.bridge_max_bytes.is_some() {
++                if self.submit_on_enter && !self.disabled {
++                    cx.emit(BridgeSubmission {
++                        revision: self.bridge_revision,
++                        text: self.value(),
++                        selection: self.bridge_selection(),
++                        focused: self.focus_handle.is_focused(window),
++                    });
++                }
++            } else {
++                cx.propagate();
++            }
+         }
+ 
+         cx.emit(InputEvent::PressEnter {
+@@ -3122,13 +3264,50 @@
+     }
+ 
+     pub(super) fn previous_boundary(&self, offset: usize) -> usize {
++        if self.bridge_max_bytes.is_some() {
++            return self.bridge_grapheme_boundary(offset, false);
++        }
+         let offset = self.cursor_boundary(offset.saturating_sub(1), Bias::Left);
+         self.clamp_offset_to_visible_backward(offset)
+     }
+ 
+     pub(super) fn next_boundary(&self, offset: usize) -> usize {
++        if self.bridge_max_bytes.is_some() {
++            return self.bridge_grapheme_boundary(offset, true);
++        }
+         let offset = self.cursor_boundary(offset.saturating_add(1), Bias::Right);
+         self.clamp_offset_to_visible_forward(offset)
++    }
++
++    /// GPUIO's ordinary inputs navigate extended graphemes, including clusters
++    /// spanning rope chunks. Avoid copying/scanning the full document per key.
++    fn bridge_grapheme_boundary(&self, offset: usize, forward: bool) -> usize {
++        let len = self.text.len();
++        let offset = offset.min(len);
++        let mut cursor = GraphemeCursor::new(offset, len, true);
++        let (mut chunk, mut start) = self.text.chunk(offset);
++        loop {
++            let result = if forward {
++                cursor.next_boundary(chunk, start)
++            } else {
++                cursor.prev_boundary(chunk, start)
++            };
++            match result {
++                Ok(Some(offset)) => return offset,
++                Ok(None) => return if forward { len } else { 0 },
++                Err(GraphemeIncomplete::PreContext(end)) => {
++                    let (context, context_start) = self.text.chunk(end - 1);
++                    cursor.provide_context(&context[..end - context_start], context_start);
++                }
++                Err(GraphemeIncomplete::NextChunk) => {
++                    (chunk, start) = self.text.chunk(start + chunk.len());
++                }
++                Err(GraphemeIncomplete::PrevChunk) => {
++                    (chunk, start) = self.text.chunk(start - 1);
++                }
++                Err(GraphemeIncomplete::InvalidOffset) => unreachable!("validated rope offset"),
++            }
++        }
+     }
+ 
+     /// Returns the true to let InputElement to render cursor, when Input is focused and current BlinkCursor is visible.
+@@ -3432,7 +3611,18 @@
+         window: &mut Window,
+         cx: &mut Context<Self>,
+     ) {
+-        if !self.is_editable() || edits.is_empty() {
++        if !self.is_editable()
++            || edits.is_empty()
++            || (self.bridge_max_bytes.is_some()
++                && edits.iter().any(|(_, text)| text.contains('\0')))
++        {
++            return;
++        }
++
++        let next_size = edits.iter().fold(self.text.len(), |size, (range, text)| {
++            size.saturating_sub(range.len()).saturating_add(text.len())
++        });
++        if !self.bridge_accepts_size(next_size) {
+             return;
+         }
+ 
+@@ -3583,6 +3773,10 @@
+         if self.is_multi_line() {
+             self.mode.update_auto_grow(&self.display_map);
+         }
++        self.bridge_revision = self
++            .bridge_revision
++            .checked_add(1)
++            .expect("editor revision exhausted");
+         if self.emit_events {
+             cx.emit(InputEvent::Change);
+         }
+@@ -3686,7 +3880,7 @@
+         cx: &mut Context<Self>,
+     ) {
+         let requested_intent = self.undo_manager.take_pending_intent();
+-        if !self.is_editable() {
++        if !self.is_editable() || (self.bridge_max_bytes.is_some() && new_text.contains('\0')) {
+             return;
+         }
+         let selection_before = *self.active_selection();
+@@ -3710,6 +3904,14 @@
+                 self.range_from_utf16(&range)
+             }))
+             .unwrap_or(self.selected_range());
++        if !self.bridge_accepts_size(
++            self.text
++                .len()
++                .saturating_sub(range.len())
++                .saturating_add(new_text.len()),
++        ) {
++            return;
++        }
+ 
+         // Skip-over as a pure cursor move: a typed closer that already follows
+         // the cursor moves past it without touching text or history, so Undo
+@@ -3830,6 +4032,11 @@
+             }
+         }
+ 
++        if !self.bridge_accepts_size(self.text.len()) {
++            self.text = old_text;
++            return;
++        }
++
+         if mask_changed {
+             // Masking rewrites the whole document, so ranges recorded against
+             // the old text no longer point at anything.
+@@ -3902,6 +4109,10 @@
+         if !self.silent_replace_text {
+             M::on_text_typed(self, &range, &new_text, window, cx);
+         }
++        self.bridge_revision = self
++            .bridge_revision
++            .checked_add(1)
++            .expect("editor revision exhausted");
+         if self.emit_events {
+             cx.emit(InputEvent::Change);
+         }
+@@ -3918,7 +4129,7 @@
+         cx: &mut Context<Self>,
+     ) {
+         let requested_intent = self.undo_manager.take_pending_intent();
+-        if !self.is_editable() {
++        if !self.is_editable() || (self.bridge_max_bytes.is_some() && new_text.contains('\0')) {
+             return;
+         }
+         let selection_before = *self.active_selection();
+@@ -3945,6 +4156,17 @@
+                 self.range_from_utf16(&range)
+             }))
+             .unwrap_or(self.selected_range());
++        if !self.bridge_accepts_size(
++            self.text
++                .len()
++                .saturating_sub(range.len())
++                .saturating_add(new_text.len()),
++        ) {
++            if starts_composition {
++                self.undo_manager.commit_transaction();
++            }
++            return;
++        }
+ 
+         let auto_closed_pairs_before = self.mode.auto_closed_pairs().clone();
+         let old_text = self.text.clone();
+@@ -4026,6 +4248,10 @@
+         if new_text.is_empty() {
+             self.undo_manager.commit_transaction();
+         }
++        self.bridge_revision = self
++            .bridge_revision
++            .checked_add(1)
++            .expect("editor revision exhausted");
+         cx.notify();
+     }
+ 
+@@ -4243,7 +4469,11 @@
+ 
+         // Actions only one mode handles are registered by that mode, where
+         // `Self` is concrete enough to name its own entity type.
+-        M::register_actions(element, &entity, window)
++        let element = M::register_actions(element, &entity, window);
++        match &self.bridge_decorator {
++            Some(decorate) => decorate(element, self, window, cx),
++            None => element.into_any_element(),
++        }
+     }
+ }
+ 
+@@ -4352,6 +4582,157 @@
+                 f(crate::input::InputState::new(window, cx))
+             })
+         }
++    }
++
++    #[gpui::test]
++    fn test_gpuio_graphemes_across_rope_chunks(cx: &mut TestAppContext) {
++        let view = InputView::build_textarea(cx, |state| state.bridge_max_bytes(262144));
++        let mut cx = VisualTestContext::from_window(view.window_handle.into(), cx);
++        cx.update(|window, cx| {
++            view.input.update(cx, |state, cx| {
++                // Long combining and regional-indicator runs force context
++                // requests across several rope chunks in both directions.
++                let texts = [
++                    String::new(),
++                    "Aé👨‍👩‍👧‍👦e\u{301}👍🏽\r\n🇺🇸Z".repeat(100),
++                    format!("{}e{}Z", "a".repeat(2000), "\u{301}".repeat(2000)),
++                    format!("{}Z", "🇺".repeat(1001)),
++                ];
++                for text in texts {
++                    state.set_value(text.clone(), window, cx);
++                    if text.len() > 2000 {
++                        assert!(state.text.chunks().count() > 1);
++                    }
++                    let mut boundaries = text
++                        .grapheme_indices(true)
++                        .map(|(offset, _)| offset)
++                        .collect::<Vec<_>>();
++                    boundaries.push(text.len());
++                    assert_eq!(state.previous_boundary(0), 0);
++                    assert_eq!(state.next_boundary(text.len()), text.len());
++                    for pair in boundaries.windows(2) {
++                        assert_eq!(state.next_boundary(pair[0]), pair[1]);
++                        assert_eq!(state.previous_boundary(pair[1]), pair[0]);
++                    }
++                }
++            })
++        });
++    }
++
++    #[gpui::test]
++    fn test_gpuio_history_budget_includes_pending_composition(cx: &mut TestAppContext) {
++        let view = InputView::build_textarea(cx, |state| {
++            state.bridge_max_bytes(16384).bridge_history_budget(4096)
++        });
++        let mut cx = VisualTestContext::from_window(view.window_handle.into(), cx);
++        let input = view.input;
++        cx.update(|window, cx| {
++            input.update(cx, |state, cx| {
++                for _ in 0..20 {
++                    state.replace_all("a".repeat(1024), window, cx);
++                    state.replace_all("b".repeat(1024), window, cx);
++                    assert!(state.bridge_history_bytes() <= 4096);
++                }
++                state.set_value("", window, cx);
++                for i in 0..100 {
++                    state.replace_and_mark_text_in_range(
++                        None,
++                        &format!("{}{}", "x".repeat(1024), i),
++                        None,
++                        window,
++                        cx,
++                    );
++                    assert!(state.bridge_history_bytes() <= 4096);
++                }
++                state.replace_text_in_range(None, "confirmed", window, cx);
++                assert_eq!(state.value(), "confirmed");
++                state.bridge_undo(window, cx);
++                assert_eq!(
++                    state.value(),
++                    "confirmed",
++                    "an over-budget composition must not leave a partial undo"
++                );
++                state.replace_text_in_range(None, "!", window, cx);
++                state.bridge_undo(window, cx);
++                assert_eq!(state.value(), "confirmed", "later edits remain undoable");
++            })
++        });
++    }
++
++    #[gpui::test]
++    fn test_gpuio_edit_revision_size_selection_and_composition(cx: &mut TestAppContext) {
++        use std::{cell::Cell, rc::Rc};
++        let view =
++            InputView::build_textarea(cx, |state| state.bridge_max_bytes(8).submit_on_enter(true));
++        let mut cx = VisualTestContext::from_window(view.window_handle.into(), cx);
++        let input = view.input;
++        let submitted = Rc::new(Cell::new(0));
++        let count = submitted.clone();
++        let _subscription = cx.update(|_, cx| {
++            cx.subscribe(&input, move |_, event, _| {
++                if matches!(event, InputEvent::PressEnter { .. }) {
++                    count.set(count.get() + 1);
++                }
++            })
++        });
++        cx.update(|window, cx| {
++            input.update(cx, |state, cx| {
++                state.replace_text_in_range(None, "é", window, cx);
++                let observed = state.bridge_revision();
++                state.replace_text_in_range(None, "x", window, cx);
++                state.backspace(&Backspace, window, cx);
++                assert_eq!(state.value(), "é");
++                assert!(state.bridge_revision() > observed);
++                let revision = state.bridge_revision();
++                state.replace_text_in_range(None, "1234567", window, cx);
++                assert_eq!(state.value(), "é");
++                assert_eq!(state.bridge_revision(), revision);
++                assert!(!state.bridge_select(1, 1, cx));
++                assert!(state.bridge_select(2, 2, cx));
++                state.replace_and_mark_text_in_range(None, "界", Some(1..1), window, cx);
++                assert_eq!(state.bridge_composition(), Some(2..5));
++                assert!(state.bridge_revision() > revision);
++                state.enter(
++                    &Enter {
++                        secondary: false,
++                        shift: false,
++                    },
++                    window,
++                    cx,
++                );
++                assert_eq!(state.value(), "é界");
++                assert!(state.bridge_composition().is_some());
++            })
++        });
++        assert_eq!(submitted.get(), 0);
++        cx.update(|window, cx| {
++            input.update(cx, |state, cx| {
++                state.replace_text_in_range(None, "界", window, cx);
++                assert!(state.bridge_composition().is_none());
++                assert!(state.bridge_select(5, 2, cx));
++                assert_eq!(state.bridge_selection(), (5, 2));
++                state.enter(
++                    &Enter {
++                        secondary: false,
++                        shift: false,
++                    },
++                    window,
++                    cx,
++                );
++                let revision = state.bridge_revision();
++                state.bridge_undo(window, cx);
++                assert!(state.bridge_revision() > revision);
++                let revision = state.bridge_revision();
++                state.bridge_redo(window, cx);
++                assert!(state.bridge_revision() > revision);
++                state.bridge_revision = i64::MAX;
++                let text = state.value();
++                state.replace_text_in_range(None, "x", window, cx);
++                assert_eq!(state.value(), text);
++                assert_eq!(state.bridge_revision(), i64::MAX);
++            })
++        });
++        assert_eq!(submitted.get(), 1);
+     }
+ 
+     #[gpui::test]
+--- a/src/input/base/undo_manager.rs
++++ b/src/input/base/undo_manager.rs
+@@ -34,6 +34,7 @@
+ /// matching `commit_transaction`.
+ #[derive(Debug)]
+ struct PendingTransaction {
++    bridge_discarded: bool,
+     intent: EditIntent,
+     changes: Vec<Change>,
+     selections_before: Option<Vec<CursorSelection>>,
+@@ -67,6 +68,7 @@
+     pending: Option<PendingTransaction>,
+     pending_intent: Option<EditIntent>,
+     coalescing_boundary: bool,
++    bridge_budget: Option<usize>,
+ }
+ 
+ impl UndoManager {
+@@ -79,6 +81,81 @@
+             pending: None,
+             pending_intent: None,
+             coalescing_boundary: false,
++            bridge_budget: None,
++        }
++    }
++
++    /// GPUIO's history budget counts retained change and selection payloads.
++    pub(super) fn bridge_set_budget(&mut self, bytes: usize) {
++        assert!(bytes >= 4096);
++        self.bridge_budget = Some(bytes);
++        self.enforce_bridge_budget();
++    }
++
++    pub(super) fn bridge_bytes(&self) -> usize {
++        fn cost(
++            changes: &[Change],
++            before: &Option<Vec<CursorSelection>>,
++            after: &Option<Vec<CursorSelection>>,
++        ) -> usize {
++            changes
++                .iter()
++                .map(|change| {
++                    std::mem::size_of::<Change>()
++                        + change.old_text.capacity()
++                        + change.new_text.capacity()
++                })
++                .sum::<usize>()
++                + before
++                    .as_ref()
++                    .map_or(0, |items| std::mem::size_of_val(items.as_slice()))
++                + after
++                    .as_ref()
++                    .map_or(0, |items| std::mem::size_of_val(items.as_slice()))
++        }
++        self.undo_transactions
++            .iter()
++            .chain(&self.redo_transactions)
++            .map(|transaction| {
++                cost(
++                    &transaction.changes,
++                    &transaction.selections_before,
++                    &transaction.selections_after,
++                )
++            })
++            .sum::<usize>()
++            + self.pending.as_ref().map_or(0, |pending| {
++                cost(
++                    &pending.changes,
++                    &pending.selections_before,
++                    &pending.selections_after,
++                )
++            })
++    }
++
++    fn enforce_bridge_budget(&mut self) {
++        let Some(limit) = self.bridge_budget else {
++            return;
++        };
++        while self.bridge_bytes() > limit {
++            if !self.undo_transactions.is_empty() {
++                self.undo_transactions.remove(0);
++            } else if !self.redo_transactions.is_empty() {
++                self.redo_transactions.remove(0);
++            } else if let Some(pending) = self.pending.as_mut() {
++                // A partial composition must never become a broken undo entry.
++                // Forget the whole unrecordable transaction and keep collecting
++                // no history until its original bracket closes.
++                pending.bridge_discarded = true;
++                pending.changes = Vec::new();
++                pending.selections_before = None;
++                pending.selections_after = None;
++                pending.auto_closed_pairs_before = None;
++                pending.auto_closed_pairs_after = None;
++                self.coalescing_boundary = true;
++            } else {
++                break;
++            }
+         }
+     }
+ 
+@@ -102,11 +179,22 @@
+             return false;
+         }
+ 
++        if self
++            .pending
++            .as_ref()
++            .is_some_and(|pending| pending.bridge_discarded)
++        {
++            return false;
++        }
+         match self.pending.as_mut() {
+             Some(pending) => pending.changes.push(change),
+             None => self.push_batch(vec![change], intent),
+         }
+-        true
++        self.enforce_bridge_budget();
++        !self
++            .pending
++            .as_ref()
++            .is_some_and(|pending| pending.bridge_discarded)
+     }
+ 
+     /// Open a transaction whose changes commit as one atomic undo entry.
+@@ -124,6 +212,7 @@
+         self.transaction_depth += 1;
+         if self.transaction_depth == 1 {
+             self.pending = Some(PendingTransaction {
++                bridge_discarded: false,
+                 intent,
+                 changes: Vec::new(),
+                 selections_before: None,
+@@ -149,7 +238,8 @@
+         };
+         // A composition that ends where it started (typed then canceled) leaves
+         // the document untouched and must not become an undo entry.
+-        if pending.changes.is_empty() || is_noop_batch(&pending.changes) {
++        if pending.bridge_discarded || pending.changes.is_empty() || is_noop_batch(&pending.changes)
++        {
+             return;
+         }
+         self.push_batch(pending.changes, pending.intent);
+@@ -195,6 +285,7 @@
+                 .expect("coalescing requires a previous transaction");
+             previous.last_batch_len = changes.len();
+             previous.changes.extend(changes);
++            self.enforce_bridge_budget();
+             return;
+         }
+ 
+@@ -211,6 +302,7 @@
+             auto_closed_pairs_after: None,
+         });
+         self.coalescing_boundary = intent == EditIntent::Atomic;
++        self.enforce_bridge_budget();
+     }
+ 
+     /// Record the cursors around the transaction being built, or around the
+@@ -263,6 +355,7 @@
+         } else if let Some(transaction) = self.undo_transactions.last_mut() {
+             transaction.selections_before.get_or_insert(before);
+         }
++        self.enforce_bridge_budget();
+     }
+ 
+     fn record_selections_after(&mut self, after: Vec<CursorSelection>) {
+@@ -271,6 +364,7 @@
+         } else if let Some(transaction) = self.undo_transactions.last_mut() {
+             transaction.selections_after = Some(after);
+         }
++        self.enforce_bridge_budget();
+     }
+ 
+     /// True while a `begin_transaction` bracket is collecting changes.
+--- a/src/text/text_view.rs
++++ b/src/text/text_view.rs
+@@ -1264,8 +1264,11 @@
+         fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+             self.renders.fetch_add(1, Ordering::Relaxed);
+             div().child(
+-                TextView::markdown("stateless-markdown", include_str!("../../../../README.md"))
+-                    .markdown_block_parser(|_, _| None),
++                TextView::markdown(
++                    "stateless-markdown",
++                    include_str!("../../UPSTREAM_README.md"),
++                )
++                .markdown_block_parser(|_, _| None),
+             )
+         }
+     }

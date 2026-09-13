@@ -10,3 +10,5 @@ target/
 .env
 /scratch/
 __pycache__/
+
+/vendor/gpui-base/Cargo.lock

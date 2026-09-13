@@ -5,7 +5,10 @@ pub const VERSION: i64 = 1;
 pub const CAP_TREE: i64 = 1;
 pub const CAP_NATIVE_STYLES: i64 = 2;
 pub const CAP_FRAME_EVENTS: i64 = 4;
-pub const CAPABILITIES: i64 = CAP_TREE | CAP_NATIVE_STYLES | CAP_FRAME_EVENTS;
+pub const CAP_EDITOR: i64 = 8;
+pub const CAPABILITIES: i64 = CAP_TREE | CAP_NATIVE_STYLES | CAP_FRAME_EVENTS | CAP_EDITOR;
+pub const EDITOR_HISTORY_BYTES: usize = 2 * 1024 * 1024;
+pub const EDITOR_RESERVED_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_MESSAGE_BYTES: usize = 1_048_576;
 pub const MAX_TEXT_BYTES: usize = 262_144;
 pub const MAX_OPERATIONS: usize = 4096;
@@ -21,6 +24,8 @@ pub enum Kind {
     Container,
     Text,
     Button,
+    Input,
+    Textarea,
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -146,6 +151,85 @@ pub enum Style {
     State(i64, Vec<Field>),
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct EditorSelection {
+    pub anchor: i64,
+    pub head: i64,
+}
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct EditorConfig {
+    pub label: String,
+    pub placeholder: String,
+    pub read_only: bool,
+    pub disabled: bool,
+    pub submit_on_enter: bool,
+    pub auto_focus: bool,
+    pub min_rows: i64,
+    pub max_rows: i64,
+}
+impl EditorConfig {
+    pub fn is_valid(&self) -> bool {
+        !self.label.is_empty()
+            && self.label.len() <= 1024
+            && !self.label.contains('\0')
+            && self.placeholder.len() <= 4096
+            && !self.placeholder.contains('\0')
+            && (1..=256).contains(&self.min_rows)
+            && (self.min_rows..=256).contains(&self.max_rows)
+    }
+}
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct EditorSnapshot {
+    pub revision: i64,
+    pub text: String,
+    pub selection: EditorSelection,
+    pub composition: Option<EditorSelection>,
+    pub focused: bool,
+}
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum EditorSelectionPolicy {
+    Start,
+    End,
+    Preserve,
+    Select(EditorSelection),
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum EditorUndoPolicy {
+    Record,
+    Reset,
+}
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum EditorCommand {
+    Replace(String, EditorSelectionPolicy, EditorUndoPolicy, Option<i64>),
+    Select(EditorSelection),
+    Focus,
+    Undo,
+    Redo,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum EditorError {
+    NotMounted,
+    Closed,
+    StaleEditor,
+    StaleRevision,
+    Composing,
+    InvalidSelection,
+    LimitExceeded,
+    Busy,
+    NativeFailure,
+    InvalidText,
+}
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum EditorResult {
+    Applied(EditorSnapshot),
+    Failed(EditorError),
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum EditorEventKind {
+    Changed,
+    Submitted,
+}
+
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub enum Op {
     Create(NodeId, Kind, String, Option<HandlerId>),
@@ -155,6 +239,7 @@ pub enum Op {
     Bind(NodeId, Option<HandlerId>),
     Splice(NodeId, i64, i64, Vec<NodeId>),
     SetRoot(Option<NodeId>),
+    SetEditor(NodeId, EditorConfig),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -173,6 +258,7 @@ pub enum Message {
     Apply(Transaction),
     RequestFrame(i64, WindowId),
     Shutdown,
+    EditorCommand(i64, WindowId, NodeId, EditorCommand),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -204,4 +290,13 @@ pub enum Event {
     Failed(i64, ErrorCode),
     Stopped,
     Overloaded(WindowId),
+    EditorEvent(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        EditorEventKind,
+        EditorSnapshot,
+    ),
+    EditorResult(i64, WindowId, NodeId, EditorResult),
 }

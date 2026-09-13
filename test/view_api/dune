@@ -4,8 +4,14 @@
  (inline_tests
   (deps
    (sandbox preserve_file_kind)
-   style-v1.hex))
+   style-v1.hex
+   editor-v1-requests.hex
+   editor-v1-events.hex))
  (preprocess
   (pps ppx_jane)))
 
 (copy_files ../fixtures/style-v1.hex)
+
+(copy_files ../fixtures/editor-v1-requests.hex)
+
+(copy_files ../fixtures/editor-v1-events.hex)

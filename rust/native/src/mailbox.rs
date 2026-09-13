@@ -7,6 +7,18 @@ pub const MAX_COMMANDS: usize = 64;
 pub const MAX_COMMAND_BYTES: usize = 4 * MAX_MESSAGE_BYTES;
 pub const MAX_RESPONSES: usize = 128;
 pub const MAX_INPUT_EVENTS: usize = 128;
+pub const MAX_INPUT_BYTES: usize = 4 * MAX_MESSAGE_BYTES;
+
+// Conservative encoded-size bound (all non-text fields fit within 256 bytes).
+// Responses have their existing count reservation; editor payloads are bounded
+// by MAX_TEXT_BYTES, hence at most MAX_RESPONSES * (MAX_TEXT_BYTES + 256).
+fn event_bytes(event: &Event) -> usize {
+    256 + match event {
+        Event::EditorEvent(_, _, _, _, _, snapshot)
+        | Event::EditorResult(_, _, _, EditorResult::Applied(snapshot)) => snapshot.text.len(),
+        _ => 0,
+    }
+}
 
 struct Queued {
     message: Message,
@@ -33,6 +45,7 @@ pub struct Mailbox {
     reserved: usize,
     responses: usize,
     inputs: usize,
+    input_bytes: usize,
     faults: BTreeSet<WindowId>,
     in_flight: BTreeSet<WindowId>,
     closed: bool,
@@ -108,7 +121,7 @@ impl Mailbox {
 
     /// Coalesce only consecutive render observations for the same window. Never
     /// cross input/response barriers. Other input is ordered and never discarded.
-    pub fn input(&mut self, event: Event) -> Result<(), Event> {
+    pub fn input(&mut self, event: Event) -> Result<(), Box<Event>> {
         if let Event::Rendered(id, _) = &event
             && let Some(Output {
                 event: Event::Rendered(last, revision),
@@ -122,10 +135,26 @@ impl Mailbox {
             *revision = next;
             return Ok(());
         }
-        if self.inputs >= MAX_INPUT_EVENTS {
-            return Err(event);
+        let bytes = event_bytes(&event);
+        if let Event::EditorEvent(window, node, handler, revision, EditorEventKind::Changed, _) =
+            &event
+            && let Some(last) = self.events.back_mut()
+            && let Event::EditorEvent(w, n, h, r, EditorEventKind::Changed, _) = &last.event
+            && (window, node, handler, revision) == (w, n, h, r)
+        {
+            let next_bytes = self.input_bytes - event_bytes(&last.event) + bytes;
+            if next_bytes > MAX_INPUT_BYTES {
+                return Err(Box::new(event));
+            }
+            last.event = event;
+            self.input_bytes = next_bytes;
+            return Ok(());
+        }
+        if self.inputs >= MAX_INPUT_EVENTS || self.input_bytes + bytes > MAX_INPUT_BYTES {
+            return Err(Box::new(event));
         }
         self.inputs += 1;
+        self.input_bytes += bytes;
         self.events.push_back(Output {
             event,
             class: Class::Input,
@@ -159,6 +188,8 @@ impl Mailbox {
             | Event::Rendered(id, _)
             | Event::FrameRequested(_, id, _)
             | Event::Press(id, ..)
+            | Event::EditorEvent(id, ..)
+            | Event::EditorResult(_, id, ..)
             | Event::Overloaded(id) => id.slot() == window_slot,
             Event::Welcome(..) | Event::Failed(..) | Event::Stopped => false,
         })
@@ -166,13 +197,24 @@ impl Mailbox {
 
     pub fn drain(&mut self, maximum: usize) -> Vec<Event> {
         let mut result = Vec::with_capacity(maximum.min(self.events.len()).min(256));
+        let mut bytes = 8; // Bin_prot list prefix.
         for _ in 0..maximum.min(256) {
+            if let Some(output) = self.events.front() {
+                let next = bytes + event_bytes(&output.event);
+                if next > MAX_MESSAGE_BYTES {
+                    break;
+                }
+                bytes = next;
+            }
             let Some(output) = self.events.pop_front() else {
                 break;
             };
             match output.class {
                 Class::Response => self.responses -= 1,
-                Class::Input => self.inputs -= 1,
+                Class::Input => {
+                    self.inputs -= 1;
+                    self.input_bytes -= event_bytes(&output.event);
+                }
                 Class::Fault => {
                     if let Event::Overloaded(id) = output.event {
                         self.faults.remove(&id);

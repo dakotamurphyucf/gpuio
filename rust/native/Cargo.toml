@@ -9,12 +9,13 @@ repository.workspace = true
 crate-type = ["staticlib", "rlib"]
 
 [features]
-native-tests = []
+native-tests = ["dep:raw-window-handle", "dep:objc2", "dep:objc2-foundation"]
 default = ["wayland", "x11"]
 wayland = ["gpui/wayland", "gpui_platform/wayland"]
 x11 = ["gpui/x11", "gpui_platform/x11"]
 
 [dependencies]
+gpui-base = { path = "../../vendor/gpui-base" }
 gpuio-protocol = { path = "../protocol" }
 gpui = { git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b", default-features = false }
 gpui_platform = { git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b", features = ["font-kit", "runtime_shaders"] }
@@ -26,9 +27,18 @@ libc = "0.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "=0.26.0"
+raw-window-handle = { version = "0.6.2", optional = true }
+objc2 = { version = "0.6.4", optional = true }
+objc2-foundation = { version = "0.3.2", optional = true, default-features = false, features = ["std", "NSString", "NSRange"] }
 
 [[test]]
 name = "native_ui"
 path = "tests/native_ui.rs"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_editor"
+path = "tests/native_editor.rs"
 harness = false
 required-features = ["native-tests"]

@@ -29,7 +29,7 @@ let request =
 ;;
 
 let events : Wire.Event.t list =
-  [ Welcome (Wire.version, Wire.capabilities)
+  [ Welcome (Wire.version, 7L)
   ; Opened (1L, window)
   ; Accepted (window, 128L)
   ; Rendered (window, 128L)

@@ -1,7 +1,7 @@
 open Core
 
 let version = 1L
-let capabilities = 7L
+let capabilities = 15L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -9,6 +9,8 @@ module Kind = struct
     | Container
     | Text
     | Button
+    | Input
+    | Textarea
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -142,6 +144,96 @@ module Style = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Editor = struct
+  module Selection = struct
+    type t =
+      { anchor : int64
+      ; head : int64
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Config = struct
+    type t =
+      { label : string
+      ; placeholder : string
+      ; read_only : bool
+      ; disabled : bool
+      ; submit_on_enter : bool
+      ; auto_focus : bool
+      ; min_rows : int64
+      ; max_rows : int64
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Snapshot = struct
+    type t =
+      { revision : int64
+      ; text : string
+      ; selection : Selection.t
+      ; composition : Selection.t option
+      ; focused : bool
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Selection_policy = struct
+    type t =
+      | Start
+      | End
+      | Preserve
+      | Select of Selection.t
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Undo_policy = struct
+    type t =
+      | Record
+      | Reset
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Command = struct
+    type t =
+      | Replace of string * Selection_policy.t * Undo_policy.t * int64 option
+      | Select of Selection.t
+      | Focus
+      | Undo
+      | Redo
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Error = struct
+    type t =
+      | Not_mounted
+      | Closed
+      | Stale_editor
+      | Stale_revision
+      | Composing
+      | Invalid_selection
+      | Limit_exceeded
+      | Busy
+      | Native_failure
+      | Invalid_text
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Result = struct
+    type t =
+      | Applied of Snapshot.t
+      | Failed of Error.t
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Event_kind = struct
+    type t =
+      | Changed
+      | Submitted
+    [@@deriving bin_io, equal, sexp_of]
+  end
+end
+
 module Op = struct
   type t =
     | Create of Node_id.t * Kind.t * string * Handler_id.t option
@@ -151,6 +243,7 @@ module Op = struct
     | Bind of Node_id.t * Handler_id.t option
     | Splice of Node_id.t * int64 * int64 * Node_id.t list
     | Set_root of Node_id.t option
+    | Set_editor of Node_id.t * Editor.Config.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -172,6 +265,7 @@ module Message = struct
     | Apply of Transaction.t
     | Request_frame of int64 * Window_id.t
     | Shutdown
+    | Editor_command of int64 * Window_id.t * Node_id.t * Editor.Command.t
   [@@deriving bin_io, equal, sexp_of]
 
   let encode t =
@@ -211,7 +305,54 @@ module Event = struct
     | Failed of int64 * Error_code.t
     | Stopped
     | Overloaded of Window_id.t
+    | Editor_event of
+        Window_id.t
+        * Node_id.t
+        * Handler_id.t
+        * int64
+        * Editor.Event_kind.t
+        * Editor.Snapshot.t
+    | Editor_result of int64 * Window_id.t * Node_id.t * Editor.Result.t
   [@@deriving bin_io, equal, sexp_of]
+
+  let valid_snapshot (t : Editor.Snapshot.t) =
+    let boundary offset =
+      Int64.(offset >= 0L && offset <= of_int (String.length t.text))
+      && (Int64.equal offset (Int64.of_int (String.length t.text))
+          || Char.to_int t.text.[Int64.to_int_exn offset] land 0xc0 <> 0x80)
+    in
+    let selection (t : Editor.Selection.t) = boundary t.anchor && boundary t.head in
+    Int64.(t.revision >= 0L)
+    && String.length t.text <= 262_144
+    && Stdlib.String.is_valid_utf_8 t.text
+    && (not (String.contains t.text '\000'))
+    && selection t.selection
+    && Option.for_all t.composition ~f:(fun range ->
+      Int64.(range.anchor <= range.head) && selection range)
+  ;;
+
+  let valid_editor_event = function
+    | Editor_event (_, _, _, revision, kind, snapshot) ->
+      Int64.(revision >= 0L)
+      && valid_snapshot snapshot
+      &&
+        (match kind with
+        | Changed -> true
+        | Submitted -> Option.is_none snapshot.composition)
+    | Editor_result (_, _, _, Applied snapshot) -> valid_snapshot snapshot
+    | Editor_result (_, _, _, Failed _)
+    | Welcome _
+    | Opened _
+    | Closed _
+    | Accepted _
+    | Rejected _
+    | Rendered _
+    | Frame_requested _
+    | Press _
+    | Failed _
+    | Stopped
+    | Overloaded _ -> true
+  ;;
 
   let decode bytes =
     if String.length bytes > max_message_bytes
@@ -235,7 +376,10 @@ module Event = struct
           in
           let events = read count [] in
           if !pos_ref = String.length bytes
-          then Ok events
+          then
+            if List.for_all events ~f:valid_editor_event
+            then Ok events
+            else Or_error.error_string "invalid native editor snapshot"
           else Or_error.error_string "trailing event bytes")
       with
       | Bin_prot.Common.Buffer_short
