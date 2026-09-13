@@ -238,6 +238,24 @@ impl Decoder<'_> {
         (0..count).map(|_| f(self)).collect()
     }
 
+    fn placement(&mut self) -> Result<Placement, DecodeError> {
+        Ok(Placement {
+            side: match self.tag()? {
+                0 => Side::Top,
+                1 => Side::Right,
+                2 => Side::Bottom,
+                3 => Side::Left,
+                _ => return Err(DecodeError::Malformed),
+            },
+            align: match self.tag()? {
+                0 => Align::Start,
+                1 => Align::Center,
+                2 => Align::End,
+                _ => return Err(DecodeError::Malformed),
+            },
+            offset: self.float()?,
+        })
+    }
     fn overlay_config(&mut self) -> Result<OverlayConfig, DecodeError> {
         Ok(OverlayConfig {
             kind: match self.tag()? {
@@ -285,6 +303,7 @@ impl Decoder<'_> {
             7 => Op::SetEditor(self.node()?, self.editor_config()?),
             8 => Op::SetControl(self.node()?, self.control()?),
             9 => Op::SetChoice(self.node()?, self.choice_config()?),
+            14 => Op::SetPlacement(self.node()?, self.option(Self::placement)?),
             13 => Op::SetOverlay(self.node()?, self.option(Self::overlay_config)?),
             12 => Op::SetFocusScope(
                 self.node()?,

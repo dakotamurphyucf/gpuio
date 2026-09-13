@@ -1,7 +1,7 @@
 open Core
 
 let version = 1L
-let capabilities = 2047L
+let capabilities = 4095L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -17,6 +17,32 @@ module Kind = struct
     | Select
     | Combobox
     | Focus_scope
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Side = struct
+  type t =
+    | Top
+    | Right
+    | Bottom
+    | Left
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Align = struct
+  type t =
+    | Start
+    | Center
+    | End
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Placement = struct
+  type t =
+    { side : Side.t
+    ; align : Align.t
+    ; offset : float
+    }
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -348,6 +374,7 @@ module Op = struct
     | Set_combobox_filter of Node_id.t * Combobox_filter.t
     | Set_focus_scope of Node_id.t * Focus_scope.t
     | Set_overlay of Node_id.t * Overlay.t option
+    | Set_placement of Node_id.t * Placement.t option
   [@@deriving bin_io, equal, sexp_of]
 end
 

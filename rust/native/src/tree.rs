@@ -14,6 +14,7 @@ pub struct Node {
     pub choice: Option<Arc<ChoiceConfig>>,
     pub focus_scope: Option<FocusScopeConfig>,
     pub overlay: Option<Arc<OverlayConfig>>,
+    pub placement: Option<Placement>,
     pub combobox_filter: Option<ComboboxFilter>,
     pub choice_appearance: Option<Arc<ChoiceAppearance>>,
     pub style: Arc<[Style]>,
@@ -25,6 +26,9 @@ pub struct Node {
 impl Node {
     fn payload_bytes(&self) -> usize {
         self.text.len()
+            + self
+                .placement
+                .map_or(0, |_| std::mem::size_of::<Placement>())
             + self.overlay.as_ref().map_or(0, |config| {
                 std::mem::size_of::<OverlayConfig>() + config.label.len()
             })
@@ -191,6 +195,9 @@ impl Tree {
                 if (node.kind == Kind::FocusScope) != node.focus_scope.is_some() {
                     return Err(ErrorCode::InvalidTree);
                 }
+                if node.placement.is_some() && node.overlay.is_none() {
+                    return Err(ErrorCode::InvalidTree);
+                }
                 if let Some(config) = &node.overlay
                     && (node.kind != Kind::FocusScope
                         || !config.is_valid()
@@ -337,6 +344,7 @@ impl Plan<'_> {
             | Op::SetChoice(id, ..)
             | Op::SetFocusScope(id, ..)
             | Op::SetOverlay(id, ..)
+            | Op::SetPlacement(id, ..)
             | Op::SetComboboxFilter(id, ..)
             | Op::SetChoiceAppearance(id, ..)
             | Op::Bind(id, ..)
@@ -398,6 +406,7 @@ impl Plan<'_> {
                             combobox_filter: None,
                             focus_scope: None,
                             overlay: None,
+                            placement: None,
                             style: Arc::from([]),
                             handler: *handler,
                             children: Arc::from([]),
@@ -439,6 +448,14 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.editor = Some(Arc::new(config.clone()));
+            }
+            Op::SetPlacement(id, placement) => {
+                if self.node(*id)?.kind != Kind::FocusScope
+                    || placement.is_some_and(|placement| !placement.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.placement = *placement;
             }
             Op::SetOverlay(id, config) => {
                 if self.node(*id)?.kind != Kind::FocusScope

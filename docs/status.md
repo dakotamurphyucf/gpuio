@@ -141,3 +141,10 @@ public Bonsai/Eio overlay example passes native mount, editor commands, modal
 focus denial, stale unmount and close. OCaml/Rust tests, independent fixtures,
 full build/format and Clippy pass locally. No hosted acceptance is claimed;
 tooltips/menus/commands and the rest of OCH-11 remain in progress.
+
+Anchored placement is implemented locally: popovers accept preferred side,
+start/center/end alignment and signed offset, with current-frame edge flipping
+and viewport clamping. Local native checks retain focus while changing placement
+and moving the anchor; positioning/validation unit tests and independent protocol
+fixtures pass. The extension appends a new operation without changing earlier
+overlay records.

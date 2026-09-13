@@ -690,6 +690,7 @@ impl View {
             return overlay::element(
                 element,
                 config.clone(),
+                node.placement.unwrap_or_default(),
                 choice::Route {
                     window: self.id,
                     node: id,

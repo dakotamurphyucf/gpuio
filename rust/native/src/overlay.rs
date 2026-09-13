@@ -30,6 +30,7 @@ fn dismiss(route: &Route, reason: Dismissal) {
 pub(super) fn element(
     mut panel: Stateful<Div>,
     config: Arc<OverlayConfig>,
+    placement: Placement,
     route: Route,
     window: &Window,
 ) -> AnyElement {
@@ -113,6 +114,7 @@ pub(super) fn element(
             .expect("mounted overlay scope");
         deferred(super::popup::Surface {
             trigger,
+            placement,
             content: panel,
         })
         .with_priority(priority)

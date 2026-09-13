@@ -10,6 +10,7 @@ end
 module Config = struct
   type t =
     { label : string
+    ; placement : Placement.t
     ; width : float
     ; dismiss_on_escape : bool
     ; dismiss_on_outside_pointer : bool
@@ -19,6 +20,7 @@ module Config = struct
   let create
         ~label
         ?(width = 480.)
+        ?(placement = Placement.default)
         ?(dismiss_on_escape = true)
         ?(dismiss_on_outside_pointer = false)
         ()
@@ -32,11 +34,13 @@ module Config = struct
     else if (not (Float.is_finite width)) || Float.(width < 1. || width > 16384.)
     then
       Or_error.error_string "overlay width must be finite and in 1..16384 logical pixels"
-    else Ok { label; width; dismiss_on_escape; dismiss_on_outside_pointer }
+    else Ok { label; width; placement; dismiss_on_escape; dismiss_on_outside_pointer }
   ;;
 end
 
 module Expert = struct
+  let placement (t : Config.t) = t.placement
+
   let to_wire (t : Config.t) ~kind : Gpuio_protocol.Wire.Overlay.t =
     { kind
     ; label = t.label

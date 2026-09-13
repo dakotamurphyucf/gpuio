@@ -239,6 +239,7 @@ pub(super) fn element<T: 'static>(
             );
             base = base.child(
                 deferred(super::popup::Surface {
+                    placement: Placement::default(),
                     trigger: popup_state.borrow().trigger.clone(),
                     content: popup.into_any_element(),
                 })

@@ -13,6 +13,7 @@ pub const CAP_CHOICE_APPEARANCE: i64 = 128;
 pub const CAP_COMBOBOX: i64 = 256;
 pub const CAP_FOCUS_SCOPES: i64 = 512;
 pub const CAP_OVERLAYS: i64 = 1024;
+pub const CAP_PLACEMENT: i64 = 2048;
 pub const CAPABILITIES: i64 = CAP_TREE
     | CAP_NATIVE_STYLES
     | CAP_FRAME_EVENTS
@@ -23,7 +24,8 @@ pub const CAPABILITIES: i64 = CAP_TREE
     | CAP_CHOICE_APPEARANCE
     | CAP_COMBOBOX
     | CAP_FOCUS_SCOPES
-    | CAP_OVERLAYS;
+    | CAP_OVERLAYS
+    | CAP_PLACEMENT;
 pub const EDITOR_HISTORY_BYTES: usize = 2 * 1024 * 1024;
 pub const EDITOR_RESERVED_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_MESSAGE_BYTES: usize = 1_048_576;
@@ -379,6 +381,40 @@ impl Default for ChoiceAppearance {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum Side {
+    Top,
+    Right,
+    Bottom,
+    Left,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum Align {
+    Start,
+    Center,
+    End,
+}
+#[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
+pub struct Placement {
+    pub side: Side,
+    pub align: Align,
+    pub offset: f64,
+}
+impl Default for Placement {
+    fn default() -> Self {
+        Self {
+            side: Side::Bottom,
+            align: Align::Start,
+            offset: 0.,
+        }
+    }
+}
+impl Placement {
+    pub fn is_valid(&self) -> bool {
+        self.offset.is_finite() && (-16384.0..=16384.0).contains(&self.offset)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum OverlayKind {
     Dialog,
     Popover,
@@ -428,6 +464,7 @@ pub enum Op {
     SetComboboxFilter(NodeId, ComboboxFilter),
     SetFocusScope(NodeId, FocusScopeConfig),
     SetOverlay(NodeId, Option<OverlayConfig>),
+    SetPlacement(NodeId, Option<Placement>),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]

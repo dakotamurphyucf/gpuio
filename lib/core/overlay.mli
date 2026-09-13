@@ -15,10 +15,12 @@ module Config : sig
   (** [width] is the desired panel width in logical pixels, clamped to the window.
       Defaults: width 480, Escape enabled, outside-pointer dismissal disabled.
       Supply an accessible label and ordinary styled views as the content.
-      Explicit panel style dimensions override the default geometry. *)
+      Explicit panel style dimensions override the default geometry. [placement]
+      applies to popovers; centered dialogs ignore it. *)
   val create
     :  label:string
     -> ?width:float
+    -> ?placement:Placement.t
     -> ?dismiss_on_escape:bool
     -> ?dismiss_on_outside_pointer:bool
     -> unit
@@ -26,6 +28,8 @@ module Config : sig
 end
 
 module Expert : sig
+  val placement : Config.t -> Placement.t
+
   val to_wire
     :  Config.t
     -> kind:Gpuio_protocol.Wire.Overlay_kind.t

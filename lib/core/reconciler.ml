@@ -359,6 +359,17 @@ let rec mount builder ~depth previous view =
     in
     if not (Option.equal Wire.Overlay.equal old_overlay overlay)
     then emit builder (Set_overlay (id, overlay));
+    let placement description =
+      Option.map description.View.Expert.overlay ~f:(fun overlay ->
+        Overlay.Expert.placement overlay.config |> Placement.Expert.to_wire)
+    in
+    let next_placement = placement description in
+    let old_placement =
+      Option.bind previous ~f:(fun mounted ->
+        placement (View.Expert.describe mounted.view))
+    in
+    if not (Option.equal Wire.Placement.equal old_placement next_placement)
+    then emit builder (Set_placement (id, next_placement));
     Option.iter description.control ~f:(fun control ->
       let old =
         Option.bind previous ~f:(fun mounted ->

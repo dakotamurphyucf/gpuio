@@ -259,3 +259,36 @@ fn overlays_match_ocaml_and_reject_malformed_envelopes() {
         bytes(include_str!("../../../test/fixtures/overlay-v1-events.hex"))
     );
 }
+
+#[test]
+fn placement_update_matches_ocaml_without_changing_overlay_records() {
+    use gpuio_protocol::{NodeId, WindowId, v1::*};
+    let expected = bytes(include_str!(
+        "../../../test/fixtures/placement-v1-request.hex"
+    ));
+    let request = Message::Apply(Transaction {
+        window: WindowId::from_parts(0, 1).unwrap(),
+        base: 1,
+        revision: 2,
+        operations: vec![Op::SetPlacement(
+            NodeId::from_parts(0, 1).unwrap(),
+            Some(Placement {
+                side: Side::Left,
+                align: Align::End,
+                offset: -3.5,
+            }),
+        )],
+    });
+    let mut actual = Vec::new();
+    request.binprot_write(&mut actual).unwrap();
+    assert_eq!(actual, expected);
+    assert_eq!(gpuio_protocol::decode(&expected).unwrap(), request);
+    for length in 0..expected.len() {
+        assert!(gpuio_protocol::decode(&expected[..length]).is_err());
+    }
+    for (index, value) in [(9, 2), (10, 4), (11, 3)] {
+        let mut malformed = expected.clone();
+        malformed[index] = value;
+        assert!(gpuio_protocol::decode(&malformed).is_err());
+    }
+}

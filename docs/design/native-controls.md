@@ -214,7 +214,7 @@ claim physical IME candidate-panel or complete screen-reader certification.
 
 Capability bit 16 advertises simple controls; bit 32 advertises stable choices;
 bit 64 advertises Select; bit 128 advertises choice appearance; bit 256 advertises
-Combobox; bit 512 advertises focus scopes (current mask 1023). Append-only tags:
+Combobox; bit 512 advertises focus scopes; bits 1024/2048 advertise overlays/placement (current mask 4095). Append-only tags:
 checkbox/switch kinds 5/6; Set_control operation 8; Control variants button 0,
 checkbox 1, switch 2; check states unchecked/checked/indeterminate 0/1/2. Each
 control's final Boolean is disabled. Semantic style states occupy 4 through 7.
@@ -300,7 +300,7 @@ ends composition without also dismissing the overlay. Backdrops block underlying
 pointer focus and wheel routing. Panels carry Dialog accessibility semantics;
 modal panels additionally expose the modal flag.
 
-Capability 1024 (current mask 2047) adds optional `Set_overlay` operation 13 on a
+Capability 1024 (current mask 4095) adds optional `Set_overlay` operation 13 on a
 focus-scope node and `Overlay_dismissed` event 15. The configuration carries
 Dialog/Popover kind, bounded label, desired width and two dismissal policies.
 Native validation checks kind/policy invariants and charges configuration/string
@@ -316,3 +316,16 @@ Run `./scripts/gpuio exec dune exec examples/overlays/main.exe` for the public
 Bonsai/Eio example. Add `-- --self-test` for actual native mount/editor-command,
 modal focus-denial, stale unmount, popover and shutdown checks. Keyboard, pointer
 and macOS text-client dismissal checks are separately in `native_controls`.
+
+
+`Placement.create ?side ?align ?offset ()` controls anchored surfaces. Sides are
+Top/Right/Bottom/Left; cross-axis alignment is Start/Center/End. The default is
+Bottom/Start with zero gap. Signed offsets are logical pixels, finite and bounded
+to -16384..16384; negative offsets permit overlap. Pass a placement to
+`Overlay.Config.create ~placement`. Centered dialogs ignore anchored placement.
+The native positioner prefers the requested side, flips when the opposite side
+fits or offers more space, and clamps both axes to the current viewport. Position
+updates retain the overlay, editor and focus identity. Capability 2048 and appended
+`Set_placement` operation 14 carry optional placement metadata; previous overlay
+records and fixtures remain unchanged. `placement-v1-request.hex` independently
+checks the new operation in both languages.

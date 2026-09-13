@@ -323,6 +323,54 @@ pub(super) async fn exercise(
     // Canvas probes begin inside the panel's one-pixel border.
     assert!((panel.top() - anchor.bottom()).abs() <= px(1.));
     assert!((panel.left() - anchor.left()).abs() <= px(1.));
+    apply(
+        cx,
+        handle,
+        vec![Op::SetPlacement(
+            node(25),
+            Some(Placement {
+                side: Side::Top,
+                align: Align::End,
+                offset: 6.,
+            }),
+        )],
+    );
+    frame(cx, handle).await;
+    let flipped = bounds(cx, handle, 25);
+    assert!(
+        (flipped.top() - anchor.bottom() - px(6.)).abs() <= px(1.),
+        "top preference flips below when space is insufficient"
+    );
+    assert!(
+        (flipped.right() - anchor.right()).abs() <= px(1.),
+        "end alignment follows current width"
+    );
+    apply(
+        cx,
+        handle,
+        vec![Op::SetStyle(
+            node(23),
+            vec![Style::Fields(vec![
+                Field::Position(1),
+                Field::Left(Length::Px(100.)),
+                Field::Top(Length::Px(150.)),
+                Field::Width(Length::Px(160.)),
+                Field::Height(Length::Px(28.)),
+            ])],
+        )],
+    );
+    frame(cx, handle).await;
+    let anchor = bounds(cx, handle, 23);
+    let above = bounds(cx, handle, 25);
+    assert!(
+        (anchor.top() - above.bottom() - px(6.)).abs() <= px(1.),
+        "available top placement uses the requested gap"
+    );
+    assert!((above.right() - anchor.right()).abs() <= px(1.));
+    assert!(
+        focused(cx, handle, node(26)),
+        "placement edits retain focus"
+    );
     events(transport);
     key(cx, handle, "escape");
     frame(cx, handle).await;

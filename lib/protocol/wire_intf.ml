@@ -21,6 +21,32 @@ module type S = sig
     [@@deriving bin_io, equal, sexp_of]
   end
 
+  module Side : sig
+    type t =
+      | Top
+      | Right
+      | Bottom
+      | Left
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Align : sig
+    type t =
+      | Start
+      | Center
+      | End
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Placement : sig
+    type t =
+      { side : Side.t
+      ; align : Align.t
+      ; offset : float
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
   module Overlay_kind : sig
     type t =
       | Dialog
@@ -350,6 +376,7 @@ module type S = sig
       | Set_combobox_filter of Node_id.t * Combobox_filter.t
       | Set_focus_scope of Node_id.t * Focus_scope.t
       | Set_overlay of Node_id.t * Overlay.t option
+      | Set_placement of Node_id.t * Placement.t option
     [@@deriving bin_io, equal, sexp_of]
   end
 

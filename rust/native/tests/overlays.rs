@@ -105,10 +105,41 @@ fn overlay_validation_dismissal_policy_and_lifetime_are_atomic() {
             )
             .is_none()
     );
+    for offset in [f64::NAN, f64::INFINITY, -16385., 16385.] {
+        assert_eq!(
+            session.apply(&tx(
+                1,
+                vec![Op::SetPlacement(
+                    node,
+                    Some(Placement {
+                        offset,
+                        ..Default::default()
+                    })
+                )]
+            )),
+            Err(ErrorCode::InvalidTree)
+        );
+        assert_eq!(session.retained_bytes(), retained);
+    }
     session
         .apply(&tx(
             1,
-            vec![Op::SetOverlay(node, None), Op::Bind(node, None)],
+            vec![Op::SetPlacement(node, Some(Placement::default()))],
+        ))
+        .unwrap();
+    assert!(session.retained_bytes() > retained);
+    assert_eq!(
+        session.apply(&tx(2, vec![Op::SetOverlay(node, None)])),
+        Err(ErrorCode::InvalidTree)
+    );
+    session
+        .apply(&tx(
+            2,
+            vec![
+                Op::SetPlacement(node, None),
+                Op::SetOverlay(node, None),
+                Op::Bind(node, None),
+            ],
         ))
         .unwrap();
     assert!(session.retained_bytes() < retained);
@@ -118,7 +149,7 @@ fn overlay_validation_dismissal_policy_and_lifetime_are_atomic() {
             .is_none()
     );
     session
-        .apply(&tx(2, vec![Op::Remove(node), Op::SetRoot(None)]))
+        .apply(&tx(3, vec![Op::Remove(node), Op::SetRoot(None)]))
         .unwrap();
     assert_eq!(session.retained_bytes(), 0);
 }
