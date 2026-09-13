@@ -42,3 +42,8 @@ pub fn run_native_progress_test() {
 pub fn run_native_toast_test() {
     host::control_test::run_toast();
 }
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_pointer_test() {
+    host::control_test::run_pointer();
+}

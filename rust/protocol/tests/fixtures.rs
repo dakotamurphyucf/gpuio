@@ -496,3 +496,30 @@ fn toast_ownership_and_dismissal_fixtures_match_ocaml() {
     toast_fixture::events().binprot_write(&mut actual).unwrap();
     assert_eq!(actual, events);
 }
+
+#[path = "common/pointer_fixture.rs"]
+mod pointer_fixture;
+#[test]
+fn pointer_capture_request_and_phase_fixtures_match_ocaml() {
+    let request = bytes(include_str!(
+        "../../../test/fixtures/pointer-v1-request.hex"
+    ));
+    let events = bytes(include_str!("../../../test/fixtures/pointer-v1-events.hex"));
+    let mut actual = vec![];
+    pointer_fixture::request()
+        .binprot_write(&mut actual)
+        .unwrap();
+    assert_eq!(actual, request);
+    assert_eq!(
+        gpuio_protocol::decode(&actual).unwrap(),
+        pointer_fixture::request()
+    );
+    for end in 0..actual.len() {
+        assert!(gpuio_protocol::decode(&actual[..end]).is_err());
+    }
+    actual.clear();
+    pointer_fixture::events()
+        .binprot_write(&mut actual)
+        .unwrap();
+    assert_eq!(actual, events);
+}

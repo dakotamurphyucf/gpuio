@@ -1,6 +1,7 @@
 pub use crate::command::*;
 pub use crate::menu::{MenuConfig, MenuDefinition, MenuItem, MenuPresentation};
 pub use crate::palette::*;
+pub use crate::pointer::*;
 pub use crate::progress::*;
 pub use crate::toast::*;
 use crate::{HandlerId, NodeId, WindowId};
@@ -25,6 +26,7 @@ pub const CAP_MENUS: i64 = 16384;
 pub const CAP_TOASTS: i64 = 131072;
 pub const CAP_PROGRESS: i64 = 65536;
 pub const CAP_PALETTE: i64 = 32768;
+pub const CAP_POINTER: i64 = 262144;
 pub const CAPABILITIES: i64 = CAP_TREE
     | CAP_NATIVE_STYLES
     | CAP_FRAME_EVENTS
@@ -42,7 +44,8 @@ pub const CAPABILITIES: i64 = CAP_TREE
     | CAP_MENUS
     | CAP_PALETTE
     | CAP_PROGRESS
-    | CAP_TOASTS;
+    | CAP_TOASTS
+    | CAP_POINTER;
 pub const EDITOR_HISTORY_BYTES: usize = 2 * 1024 * 1024;
 pub const EDITOR_RESERVED_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_MESSAGE_BYTES: usize = 1_048_576;
@@ -76,6 +79,7 @@ pub enum Kind {
     Progress,
     Toast,
     ToastStack,
+    PointerArea,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -527,6 +531,7 @@ pub enum Op {
     SetProgress(NodeId, ProgressConfig),
     SetToast(NodeId, ToastConfig),
     SetToastStack(NodeId, ToastStackConfig),
+    SetPointer(NodeId, PointerConfig),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -593,4 +598,5 @@ pub enum Event {
     CommandInvoked(WindowId, NodeId, HandlerId, i64, String, i64, CommandSource),
     PaletteDismissed(WindowId, NodeId, HandlerId, i64, PaletteDismissal),
     ToastDismissed(WindowId, NodeId, HandlerId, i64, ToastDismissal),
+    PointerEvent(WindowId, NodeId, HandlerId, i64, PointerSample),
 }

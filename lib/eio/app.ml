@@ -280,6 +280,7 @@ let process t = function
     | Combobox_selected (id, _, _, _, _, _)
     | Palette_dismissed (id, _, _, _, _)
     | Toast_dismissed (id, _, _, _, _)
+    | Pointer_event (id, _, _, _, _)
     | Overlay_dismissed (id, _, _, _, _)
     | Tooltip_open_changed (id, _, _, _, _)
     | Command_invoked (id, _, _, _, _, _, _) ) as event ->

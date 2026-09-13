@@ -717,3 +717,67 @@ no vendor patch or second widget toolkit is added. Protocol extensions are kinds
 [public example](../../examples/toasts/main.ml) demonstrates keyed collections,
 ordinary action content, native expiry and Bonsai removal. OS notifications are
 separately owned by OCH-28; public motion/reduced-motion integration is OCH-12.
+
+## Captured pointer regions
+
+`View.pointer_area ~config ~on_event children` is a raw mouse-gesture primitive
+for resize handles, canvas interactions and similar application-defined controls.
+It uses ordinary children/root styles and a labeled Group accessibility role.
+`Pointer.Config.create ~label ()` defaults to the left button, enabled, with native
+`prevent_default` and `stop_propagation` both true. Left/right/middle/back/forward
+buttons are supported. Labels must be nonblank UTF-8 without NUL, at most 4096
+bytes. This primitive does not invent slider or button semantics: provide keyboard
+and accessible alternatives with ordinary controls, as the
+[resize example](../../examples/pointer/main.ml) does.
+
+The callback receives a typed `Pointer.Event.t`: a window-local `Gesture_id`,
+phase, initiating button, logical-pixel window/local positions, and modifiers.
+Local coordinates use the region's bounds at that native sample and may be outside
+the region. `Started` begins capture, `Moved` observes movement, and `Released` or
+`Cancelled reason` ends the gesture. A cancelled sample carries the last observed
+position. `command` in the modifier record corresponds to GPUI's platform modifier.
+
+```ocaml
+let on_event (event : Gpuio.Pointer.Event.t) =
+  match event.phase with
+  | Started | Moved | Released -> set_width event.local_position.x
+  | Cancelled _ -> Bonsai.Effect.Ignore
+```
+
+Rust takes capture synchronously on the initiating press and keeps it outside the
+region. At most one GPUIO gesture owns capture in each window; an unrelated native
+capture is left alone. Nested pointer regions select the innermost eligible owner.
+Descendant native controls that prevent the default press take precedence over
+ancestor capture. The begin-time propagation/default policies stay fixed for the
+active gesture; changing label/content/style/callback does not recreate it.
+Changing the configured button, disabling input, hiding the region, a modal scope
+blocking it, Escape, window deactivation or capture loss cancels the gesture.
+Unmount releases capture; its removed callback cannot receive a stale terminal
+event. A different-button release cancels with Capture_lost because the pinned
+GPUI releases native capture after every mouse-up.
+
+GPUI creates new hitboxes during redraws. The adapter transfers an active gesture
+from its old hitbox to the current one only while it still owns native capture.
+Moving/reconciling the region during a drag therefore preserves gesture identity
+and updates local coordinates. Pressed styling reads the native captured gesture
+and clears on release/cancel without requiring an OCaml state change. Release
+handling waits until bubbling, after native click/pressed cleanup in capture
+phase. Its listener is registered after child paint so it precedes descendant
+click handlers during reverse-order bubbling, preventing accidental activation
+when propagation is stopped.
+
+Events are asynchronous observations. Their callbacks cannot retroactively choose
+native propagation, prevent a default, or decide capture. Consecutive Moved events
+coalesce only when window/node/handler/revision/gesture all match; no lifecycle,
+response or other input barrier is crossed. Absolute positions make this
+coalescing useful without losing the final location. Started/Released/Cancelled
+are never coalesced. Existing bounded mailbox/overload rules still apply.
+
+The protocol appends kind 19, operation 23, event 20 and capability bit 262144.
+Metadata and event samples are validated, including finite coordinates and a
+positive gesture ID. Regions participate in ordinary tree memory accounting; the
+native adapter retains only one active route/config/sample per window and does not
+allocate an ancestor vector for every mouse move. The
+[local evidence report](../evidence/native-pointer-och11.md) separates protocol,
+native window and public lifecycle checks. Drag/drop and file dialogs remain
+separate OCH-11 work; captured mouse input does not complete those APIs.

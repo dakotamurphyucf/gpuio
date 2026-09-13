@@ -218,3 +218,16 @@ records exact coverage and remaining validation. No hosted or Linux GUI acceptan
 is claimed. OCH-11 still includes pointer capture/drag-drop/file dialogs, assets/
 images/SVG/cache and theme-scale integration, remaining state/transition work,
 scrolling/lifetime checks, documentation and consolidated CI/merge.
+
+Captured pointer regions are implemented locally for OCH-11. Real macOS native
+tests pass out-of-bounds movement, redraw/reposition retention, cancellation,
+modal gating, nested ownership, native child-control precedence and pressed
+styling. The combined controls suite passes after final release-order review;
+Clippy and the full Dune build/tests/format also pass. Independent protocol/Core
+tests cover validation, callback lifetimes and motion coalescing. The public
+Bonsai/Eio resize example passes its lifecycle self-test. See the
+[pointer evidence report](evidence/native-pointer-och11.md) for precise coverage.
+Pointer capture remains distinct from drag/drop and file dialogs, which are still
+pending alongside assets/images/SVG/cache, theme-scale integration, remaining
+state/transitions, scrolling/lifetime checks and consolidated CI/merge. No hosted
+or Linux GUI acceptance is claimed for this checkpoint.

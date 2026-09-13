@@ -139,6 +139,16 @@ impl Mailbox {
             *revision = next;
             return Ok(());
         }
+        if let Event::PointerEvent(window, node, handler, revision, sample) = &event
+            && sample.phase == PointerPhase::Moved
+            && let Some(last) = self.events.back_mut()
+            && let Event::PointerEvent(w, n, h, r, previous) = &last.event
+            && previous.phase == PointerPhase::Moved
+            && (window, node, handler, revision, sample.gesture) == (w, n, h, r, previous.gesture)
+        {
+            last.event = event;
+            return Ok(());
+        }
         let bytes = event_bytes(&event);
         if let Event::EditorEvent(window, node, handler, revision, EditorEventKind::Changed, _) =
             &event
@@ -198,6 +208,7 @@ impl Mailbox {
             | Event::TooltipOpenChanged(id, ..)
             | Event::CommandInvoked(id, ..)
             | Event::ToastDismissed(id, ..)
+            | Event::PointerEvent(id, ..)
             | Event::PaletteDismissed(id, ..)
             | Event::ComboboxSelected(id, ..)
             | Event::EditorResult(_, id, ..)

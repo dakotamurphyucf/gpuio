@@ -234,6 +234,26 @@ impl Session {
         .then_some(Event::OverlayDismissed(id, node, handler, revision, reason))
     }
 
+    pub fn pointer_event(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        sample: PointerSample,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.pointer.as_ref()?;
+        (!state.overloaded
+            && sample.is_valid()
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision()
+            && (matches!(sample.phase, PointerPhase::Cancelled(_))
+                || (!config.disabled && config.button == sample.button)))
+            .then_some(Event::PointerEvent(window, node, handler, revision, sample))
+    }
+
     pub fn toast_dismissed(
         &self,
         window: WindowId,

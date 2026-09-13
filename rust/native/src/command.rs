@@ -82,6 +82,17 @@ impl View {
                 return;
             }
             let _ = owner.update(cx, |view, cx| {
+                if event.keystroke.key == "escape"
+                    && !event.keystroke.modifiers.modified()
+                    && view
+                        .pointer_capture
+                        .borrow_mut()
+                        .cancel(PointerCancel::Escape, window)
+                {
+                    window.prevent_default();
+                    cx.stop_propagation();
+                    return;
+                }
                 view.command_shortcut(&event.keystroke, ShortcutPriority::Override, window, cx)
             });
         }));

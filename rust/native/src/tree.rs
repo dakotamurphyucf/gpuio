@@ -14,6 +14,7 @@ fn allows_children(kind: Kind) -> bool {
             | Kind::Menu
             | Kind::Toast
             | Kind::ToastStack
+            | Kind::PointerArea
     )
 }
 
@@ -35,6 +36,7 @@ pub struct Node {
     pub progress: Option<Arc<ProgressConfig>>,
     pub toast: Option<Arc<ToastConfig>>,
     pub toast_stack: Option<Arc<ToastStackConfig>>,
+    pub pointer: Option<Arc<PointerConfig>>,
     pub placement: Option<Placement>,
     pub combobox_filter: Option<ComboboxFilter>,
     pub choice_appearance: Option<Arc<ChoiceAppearance>>,
@@ -47,6 +49,10 @@ pub struct Node {
 impl Node {
     fn payload_bytes(&self) -> usize {
         self.text.len()
+            + self
+                .pointer
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
             + self
                 .toast
                 .as_ref()
@@ -273,6 +279,17 @@ impl Tree {
                 } else if node.combobox_filter.is_some() {
                     return Err(ErrorCode::InvalidTree);
                 }
+                if (node.kind == Kind::PointerArea) != node.pointer.is_some()
+                    || node.pointer.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || node.handler.is_none()
+                            || !node.text.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
                 if (node.kind == Kind::Toast) != node.toast.is_some()
                     || node.toast.as_ref().is_some_and(|config| {
                         !config.is_valid()
@@ -386,6 +403,7 @@ impl Tree {
                     | Kind::Tooltip
                     | Kind::Toast
                     | Kind::ToastStack
+                    | Kind::PointerArea
                     | Kind::CommandScope
                     | Kind::CommandButton
                     | Kind::Menu
@@ -523,6 +541,7 @@ impl Plan<'_> {
             | Op::SetProgress(id, ..)
             | Op::SetToast(id, ..)
             | Op::SetToastStack(id, ..)
+            | Op::SetPointer(id, ..)
             | Op::SetComboboxFilter(id, ..)
             | Op::SetChoiceAppearance(id, ..)
             | Op::Bind(id, ..)
@@ -592,6 +611,7 @@ impl Plan<'_> {
                             progress: None,
                             toast: None,
                             toast_stack: None,
+                            pointer: None,
                             placement: None,
                             style: Arc::from([]),
                             handler: *handler,
@@ -640,6 +660,12 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.toast = Some(Arc::new(config.clone()));
+            }
+            Op::SetPointer(id, config) => {
+                if self.node(*id)?.kind != Kind::PointerArea || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.pointer = Some(Arc::new(config.clone()));
             }
             Op::SetToastStack(id, config) => {
                 if self.node(*id)?.kind != Kind::ToastStack || !config.is_valid() {

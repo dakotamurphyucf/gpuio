@@ -395,6 +395,7 @@ impl Decoder<'_> {
                     16 => Kind::Progress,
                     17 => Kind::Toast,
                     18 => Kind::ToastStack,
+                    19 => Kind::PointerArea,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -414,6 +415,23 @@ impl Decoder<'_> {
             8 => Op::SetControl(self.node()?, self.control()?),
             9 => Op::SetChoice(self.node()?, self.choice_config()?),
             18 => Op::SetMenu(self.node()?, self.menu_config()?),
+            23 => Op::SetPointer(
+                self.node()?,
+                PointerConfig {
+                    label: self.text()?,
+                    button: match self.tag()? {
+                        0 => PointerButton::Left,
+                        1 => PointerButton::Right,
+                        2 => PointerButton::Middle,
+                        3 => PointerButton::Back,
+                        4 => PointerButton::Forward,
+                        _ => return Err(DecodeError::Malformed),
+                    },
+                    disabled: self.boolean()?,
+                    prevent_default: self.boolean()?,
+                    stop_propagation: self.boolean()?,
+                },
+            ),
             21 => Op::SetToast(
                 self.node()?,
                 ToastConfig {

@@ -39,6 +39,8 @@ mod menu_platform;
 mod overlay;
 #[path = "palette.rs"]
 mod palette;
+#[path = "pointer.rs"]
+mod pointer;
 #[path = "popup.rs"]
 mod popup;
 #[path = "progress.rs"]
@@ -91,6 +93,8 @@ struct View {
     menus: BTreeMap<NodeId, Rc<RefCell<menu::State>>>,
     menu_activation: Option<gpui::Subscription>,
     palettes: BTreeMap<NodeId, palette::State>,
+    pointer_capture: pointer::Shared,
+    pointer_activation: Option<gpui::Subscription>,
     toasts: BTreeMap<NodeId, toast::State>,
     toast_stacks: BTreeMap<NodeId, toast::Stack>,
     visited: std::collections::BTreeSet<NodeId>,
@@ -270,6 +274,8 @@ impl View {
             menus: BTreeMap::new(),
             menu_activation: None,
             palettes: BTreeMap::new(),
+            pointer_capture: Default::default(),
+            pointer_activation: None,
             toasts: BTreeMap::new(),
             toast_stacks: BTreeMap::new(),
             selects: BTreeMap::new(),
@@ -282,6 +288,7 @@ impl View {
     }
     fn update_editors(&mut self, dirty: &[NodeId], window: &mut Window, cx: &mut Context<Self>) {
         self.install_command_interceptor(window, cx);
+        self.install_pointer_observer(window, cx);
         self.install_menu_observers(window, cx);
         self.sync_palettes(window, cx);
         self.sync_toasts(cx);
@@ -374,7 +381,11 @@ impl View {
         }
         if matches!(
             node.kind,
-            Kind::Container | Kind::FocusScope | Kind::CommandScope | Kind::RadioGroup
+            Kind::Container
+                | Kind::FocusScope
+                | Kind::CommandScope
+                | Kind::RadioGroup
+                | Kind::PointerArea
         ) {
             element = element.flex().flex_col();
         } else if node.kind == Kind::Select {
@@ -387,6 +398,11 @@ impl View {
                 .border_1()
                 .border_color(rgba(0x80808080))
                 .rounded(px(4.));
+        }
+        if let Some(config) = &node.pointer {
+            element = element
+                .role(gpui::Role::Group)
+                .aria_label(config.label.clone());
         }
         if let Some(config) = &node.progress {
             element = element
@@ -431,6 +447,7 @@ impl View {
         let disabled = command
             .as_ref()
             .is_some_and(|route| !self.command_available(&route.config, window, cx))
+            || node.pointer.as_ref().is_some_and(|config| config.disabled)
             || node.choice.as_ref().is_some_and(|config| config.disabled)
             || node.control.is_some_and(Control::disabled)
             || node.editor.as_ref().is_some_and(|config| config.disabled);
@@ -549,7 +566,13 @@ impl View {
             element = element.hover(move |_| style);
         }
         if let Some(style) = pressed {
-            element = element.active(move |_| style);
+            if node.pointer.is_some() {
+                if self.pointer_capture.borrow().is_active(id) {
+                    element.style().refine(&style);
+                }
+            } else {
+                element = element.active(move |_| style);
+            }
         }
         if disabled {
             element.style().mouse_cursor = None;
@@ -735,6 +758,7 @@ impl View {
             && node.editor.is_none()
             && node.choice.is_none()
             && node.overlay.is_none()
+            && node.pointer.is_none()
             && !disabled
         {
             let window = self.id;
@@ -854,14 +878,32 @@ impl View {
                 window,
             );
         }
-        crate::semantics::State {
+        let element = crate::semantics::State {
             live: None,
             element,
             disabled,
             read_only: false,
             modal: false,
+        };
+        if let Some(config) = &node.pointer {
+            pointer::Region {
+                element,
+                capture: self.pointer_capture.clone(),
+                config: config.clone(),
+                route: choice::Route {
+                    window: self.id,
+                    node: id,
+                    handler: node.handler.expect("validated pointer region"),
+                    revision: tree.revision(),
+                    session: self.session.clone(),
+                    gate: self.focus.clone(),
+                    transport: self.transport.clone(),
+                },
+            }
+            .into_any_element()
+        } else {
+            element.into_any_element()
         }
-        .into_any_element()
     }
 }
 impl Render for View {

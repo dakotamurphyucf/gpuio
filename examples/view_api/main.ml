@@ -69,6 +69,7 @@ let worker native notification_read ~self_test =
         | Combobox_selected _
         | Overlay_dismissed _
         | Tooltip_open_changed _
+        | Pointer_event _
         | Toast_dismissed _
         | Palette_dismissed _
         | Command_invoked _ ) as event ->

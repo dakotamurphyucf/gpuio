@@ -7,6 +7,8 @@ mod menu_test;
 mod overlay_test;
 #[path = "palette_test.rs"]
 mod palette_test;
+#[path = "pointer_test.rs"]
+mod pointer_test;
 #[path = "progress_test.rs"]
 mod progress_test;
 #[path = "toast_test.rs"]
@@ -1400,6 +1402,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
     palette_test::exercise(cx, handle, &transport).await;
     progress_test::exercise(cx, handle, &transport).await;
     toast_test::exercise(cx, handle, &transport).await;
+    pointer_test::exercise(cx, handle, &transport).await;
     // Remove a focused native node and enter the surviving Tab order again.
     handle
         .update(cx, |view, window, cx| {
@@ -1459,12 +1462,16 @@ enum Suite {
     Palette,
     Progress,
     Toast,
+    Pointer,
 }
 pub fn run() {
     run_suite(Suite::Controls);
 }
 pub fn run_menus() {
     run_suite(Suite::Menus);
+}
+pub fn run_pointer() {
+    run_suite(Suite::Pointer);
 }
 pub fn run_toast() {
     run_suite(Suite::Toast);
@@ -1562,6 +1569,7 @@ fn run_suite(suite: Suite) {
                 Suite::Palette => 47,
                 Suite::Progress => 60,
                 Suite::Toast => 61,
+                Suite::Pointer => 82,
                 Suite::Controls => unreachable!(),
             };
             for slot in 5..end {
@@ -1609,6 +1617,7 @@ fn run_suite(suite: Suite) {
                         Suite::Palette => palette_test::exercise(cx, handle, &transport).await,
                         Suite::Progress => progress_test::exercise(cx, handle, &transport).await,
                         Suite::Toast => toast_test::exercise(cx, handle, &transport).await,
+                        Suite::Pointer => pointer_test::exercise(cx, handle, &transport).await,
                         Suite::Controls => unreachable!(),
                     }
                     handle

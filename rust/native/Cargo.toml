@@ -72,3 +72,9 @@ name = "native_toast"
 path = "tests/native_toast.rs"
 harness = false
 required-features = ["native-tests"]
+
+[[test]]
+name = "native_pointer"
+path = "tests/native_pointer.rs"
+harness = false
+required-features = ["native-tests"]

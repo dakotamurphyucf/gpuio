@@ -6,6 +6,14 @@ module View : sig
   type t = unit Bonsai.Effect.t Gpuio.View.t
   type toast = unit Bonsai.Effect.t Gpuio.View.toast
 
+  val pointer_area
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Pointer.Config.t
+    -> on_event:(Gpuio.Pointer.Event.t -> unit Bonsai.Effect.t)
+    -> t list
+    -> t
+
   val toast
     :  key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

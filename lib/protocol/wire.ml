@@ -1,7 +1,7 @@
 open Core
 
 let version = 1L
-let capabilities = 262143L
+let capabilities = 524287L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -25,6 +25,7 @@ module Kind = struct
     | Progress
     | Toast
     | Toast_stack
+    | Pointer_area
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -565,6 +566,76 @@ module Toast_dismissal = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Pointer = struct
+  module Button = struct
+    type t =
+      | Left
+      | Right
+      | Middle
+      | Back
+      | Forward
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Cancel_reason = struct
+    type t =
+      | Escape
+      | Hidden
+      | Blocked
+      | Disabled
+      | Reconfigured
+      | Capture_lost
+      | Window_inactive
+      | Removed
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Phase = struct
+    type t =
+      | Started
+      | Moved
+      | Released
+      | Cancelled of Cancel_reason.t
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Modifiers = struct
+    type t =
+      { shift : bool
+      ; control : bool
+      ; alt : bool
+      ; command : bool
+      ; function_ : bool
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Config = struct
+    type t =
+      { label : string
+      ; button : Button.t
+      ; disabled : bool
+      ; prevent_default : bool
+      ; stop_propagation : bool
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Sample = struct
+    type t =
+      { gesture : int64
+      ; phase : Phase.t
+      ; button : Button.t
+      ; window_x : float
+      ; window_y : float
+      ; local_x : float
+      ; local_y : float
+      ; modifiers : Modifiers.t
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+end
+
 module Op = struct
   type t =
     | Create of Node_id.t * Kind.t * string * Handler_id.t option
@@ -590,6 +661,7 @@ module Op = struct
     | Set_progress of Node_id.t * Progress.t
     | Set_toast of Node_id.t * Toast.t
     | Set_toast_stack of Node_id.t * Toast_stack.t
+    | Set_pointer of Node_id.t * Pointer.Config.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -670,6 +742,7 @@ module Event = struct
         Window_id.t * Node_id.t * Handler_id.t * int64 * Palette_dismissal.t
     | Toast_dismissed of
         Window_id.t * Node_id.t * Handler_id.t * int64 * Toast_dismissal.t
+    | Pointer_event of Window_id.t * Node_id.t * Handler_id.t * int64 * Pointer.Sample.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -689,6 +762,11 @@ module Event = struct
   ;;
 
   let rec valid_editor_event = function
+    | Pointer_event (_, _, _, revision, sample) ->
+      Int64.(revision >= 0L && sample.gesture > 0L)
+      && List.for_all
+           [ sample.window_x; sample.window_y; sample.local_x; sample.local_y ]
+           ~f:Float.is_finite
     | Palette_dismissed (window, node, handler, revision, Selected id) ->
       valid_editor_event (Choice (window, node, handler, revision, id))
     | Palette_dismissed (_, _, _, revision, (Escape | Outside_pointer)) ->

@@ -22,6 +22,7 @@ module Kind = struct
     | Progress
     | Toast
     | Toast_stack
+    | Pointer_area
   [@@deriving equal, sexp_of]
 end
 
@@ -94,6 +95,11 @@ type 'action palette =
   ; on_dismiss : Command_palette.Dismissal.t -> 'action
   }
 
+type 'action pointer =
+  { config : Pointer.Config.t
+  ; on_event : Pointer.Event.t -> 'action
+  }
+
 type 'action notification =
   { config : Toast.Config.t
   ; on_dismiss : Toast.Dismissal.t -> 'action
@@ -113,6 +119,7 @@ type 'action t =
   ; tooltip : 'action tooltip option
   ; commands : 'action Ui_command.Registry.t option
   ; command_ref : Ui_command.Id.t option
+  ; pointer : 'action pointer option
   ; notification : 'action notification option
   ; toast_stack : Toast.Stack.t option
   ; progress : Progress.Config.t option
@@ -137,6 +144,7 @@ let text ?key ?(style = Style.empty) text =
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; pointer = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -184,6 +192,7 @@ let button ?key ?(style = Style.empty) ?accessible_name ?(disabled = false) ~on_
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; pointer = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -236,6 +245,7 @@ let toggle
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; pointer = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -284,6 +294,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; pointer = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -300,6 +311,7 @@ let focus_scope ?key ?style ~config children =
     kind = Focus_scope
   ; commands = None
   ; command_ref = None
+  ; pointer = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -466,6 +478,7 @@ let text_input
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; pointer = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -491,6 +504,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; pointer = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -538,6 +552,7 @@ let combobox
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; pointer = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -572,6 +587,13 @@ let progress ?key ?(style = Style.empty) ~config () =
   { (text ?key ~style "") with kind = Progress; progress = Some config }
 ;;
 
+let pointer_area ?key ?(style = Style.empty) ~config ~on_event children =
+  { (column ?key ~style children) with
+    kind = Pointer_area
+  ; pointer = Some { config; on_event }
+  }
+;;
+
 let toast ~key ?(style = Style.empty) ~config ~on_dismiss children =
   Toast_item
     { (column ~key ~style children) with
@@ -593,6 +615,11 @@ let toast_stack ?key ?(style = Style.empty) ?(config = Toast.Stack.default) item
 ;;
 
 module Expert = struct
+  type nonrec 'action pointer = 'action pointer =
+    { config : Pointer.Config.t
+    ; on_event : Pointer.Event.t -> 'action
+    }
+
   type nonrec 'action notification = 'action notification =
     { config : Toast.Config.t
     ; on_dismiss : Toast.Dismissal.t -> 'action
@@ -657,6 +684,7 @@ module Expert = struct
     ; tooltip : 'action tooltip option
     ; commands : 'action Ui_command.Registry.t option
     ; command_ref : Ui_command.Id.t option
+    ; pointer : 'action pointer option
     ; notification : 'action notification option
     ; toast_stack : Toast.Stack.t option
     ; progress : Progress.Config.t option

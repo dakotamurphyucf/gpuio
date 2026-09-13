@@ -26,6 +26,7 @@ module type S = sig
       | Progress
       | Toast
       | Toast_stack
+      | Pointer_area
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -567,6 +568,76 @@ module type S = sig
     [@@deriving bin_io, equal, sexp_of]
   end
 
+  module Pointer : sig
+    module Button : sig
+      type t =
+        | Left
+        | Right
+        | Middle
+        | Back
+        | Forward
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Cancel_reason : sig
+      type t =
+        | Escape
+        | Hidden
+        | Blocked
+        | Disabled
+        | Reconfigured
+        | Capture_lost
+        | Window_inactive
+        | Removed
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Phase : sig
+      type t =
+        | Started
+        | Moved
+        | Released
+        | Cancelled of Cancel_reason.t
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Modifiers : sig
+      type t =
+        { shift : bool
+        ; control : bool
+        ; alt : bool
+        ; command : bool
+        ; function_ : bool
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Config : sig
+      type t =
+        { label : string
+        ; button : Button.t
+        ; disabled : bool
+        ; prevent_default : bool
+        ; stop_propagation : bool
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Sample : sig
+      type t =
+        { gesture : int64
+        ; phase : Phase.t
+        ; button : Button.t
+        ; window_x : float
+        ; window_y : float
+        ; local_x : float
+        ; local_y : float
+        ; modifiers : Modifiers.t
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+  end
+
   module Op : sig
     type t =
       | Create of Node_id.t * Kind.t * string * Handler_id.t option
@@ -592,6 +663,7 @@ module type S = sig
       | Set_progress of Node_id.t * Progress.t
       | Set_toast of Node_id.t * Toast.t
       | Set_toast_stack of Node_id.t * Toast_stack.t
+      | Set_pointer of Node_id.t * Pointer.Config.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -676,6 +748,7 @@ module type S = sig
           Window_id.t * Node_id.t * Handler_id.t * int64 * Palette_dismissal.t
       | Toast_dismissed of
           Window_id.t * Node_id.t * Handler_id.t * int64 * Toast_dismissal.t
+      | Pointer_event of Window_id.t * Node_id.t * Handler_id.t * int64 * Pointer.Sample.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and
