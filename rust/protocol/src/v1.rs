@@ -9,13 +9,15 @@ pub const CAP_EDITOR: i64 = 8;
 pub const CAP_CONTROLS: i64 = 16;
 pub const CAP_CHOICES: i64 = 32;
 pub const CAP_SELECT: i64 = 64;
+pub const CAP_CHOICE_APPEARANCE: i64 = 128;
 pub const CAPABILITIES: i64 = CAP_TREE
     | CAP_NATIVE_STYLES
     | CAP_FRAME_EVENTS
     | CAP_EDITOR
     | CAP_CONTROLS
     | CAP_CHOICES
-    | CAP_SELECT;
+    | CAP_SELECT
+    | CAP_CHOICE_APPEARANCE;
 pub const EDITOR_HISTORY_BYTES: usize = 2 * 1024 * 1024;
 pub const EDITOR_RESERVED_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_MESSAGE_BYTES: usize = 1_048_576;
@@ -331,6 +333,30 @@ pub enum EditorEventKind {
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct ChoiceAppearance {
+    pub popup_width: f64,
+    pub row_height: f64,
+    pub max_visible_rows: i64,
+    pub empty_label: String,
+    pub popup_style: Vec<Style>,
+    pub option_style: Vec<Style>,
+    pub empty_style: Vec<Style>,
+}
+impl Default for ChoiceAppearance {
+    fn default() -> Self {
+        Self {
+            popup_width: 320.,
+            row_height: 32.,
+            max_visible_rows: 8,
+            empty_label: "No options".into(),
+            popup_style: vec![],
+            option_style: vec![],
+            empty_style: vec![],
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub enum Op {
     Create(NodeId, Kind, String, Option<HandlerId>),
     Remove(NodeId),
@@ -342,6 +368,7 @@ pub enum Op {
     SetEditor(NodeId, EditorConfig),
     SetControl(NodeId, Control),
     SetChoice(NodeId, ChoiceConfig),
+    SetChoiceAppearance(NodeId, ChoiceAppearance),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]

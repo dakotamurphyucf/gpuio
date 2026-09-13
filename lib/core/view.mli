@@ -83,6 +83,7 @@ val radio_group
 val select
   :  ?key:Key.t
   -> ?style:Style.t
+  -> ?appearance:Choice.Appearance.t
   -> config:Choice.Config.t
   -> on_select:(Choice.Id.t -> 'action)
   -> unit
@@ -121,6 +122,7 @@ module Expert : sig
 
   type 'action choice =
     { config : Choice.Config.t
+    ; appearance : Choice.Appearance.t option
     ; on_select : Choice.Id.t -> 'action
     }
 

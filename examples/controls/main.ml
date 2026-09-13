@@ -13,6 +13,26 @@ let modes =
   |> Or_error.ok_exn
 ;;
 
+let choice_appearance =
+  let open Gpuio in
+  Choice.Appearance.create
+    ~row_height:40.
+    ~empty_label:"No reasoning modes available"
+    ~popup_style:
+      (Style.create_exn
+         [ Background (Background.solid (Color.token_exn "background"))
+         ; Foreground (Color.token_exn "foreground")
+         ; Border_color (Color.token_exn "muted")
+         ])
+    ~option_style:
+      (Style.with_state_exn
+         Style.empty
+         Focused
+         [ Background (Background.solid (Color.token_exn "accent")) ])
+    ()
+  |> Or_error.ok_exn
+;;
+
 let component window graph =
   let enabled, toggle_enabled = B.toggle ~default_model:true graph in
   let streaming, toggle_streaming = B.toggle ~default_model:true graph in
@@ -62,6 +82,7 @@ let component window graph =
         ~on_select:(fun id -> set_mode (Some id))
         ()
     ; View.select
+        ~appearance:choice_appearance
         ~config:
           (Gpuio.Choice.Config.create
              ~label:"Reasoning mode dropdown"

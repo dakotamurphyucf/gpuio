@@ -222,6 +222,16 @@ impl View {
         let mut element = div().id(("gpuio-node", identity));
         if matches!(node.kind, Kind::Container | Kind::RadioGroup) {
             element = element.flex().flex_col();
+        } else if node.kind == Kind::Select {
+            element = element
+                .flex()
+                .items_center()
+                .justify_between()
+                .gap(px(8.))
+                .p(px(8.))
+                .border_1()
+                .border_color(rgba(0x80808080))
+                .rounded(px(4.));
         }
         let disabled = node.choice.as_ref().is_some_and(|config| config.disabled)
             || node.control.is_some_and(Control::disabled)
@@ -404,6 +414,10 @@ impl View {
                     element,
                     select::Render {
                         config,
+                        appearance: node
+                            .choice_appearance
+                            .clone()
+                            .unwrap_or_else(crate::appearance::default),
                         state,
                         focus,
                         route,

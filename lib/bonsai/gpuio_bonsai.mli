@@ -49,6 +49,7 @@ module View : sig
   val select
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Choice.Appearance.t
     -> config:Gpuio.Choice.Config.t
     -> on_select:(Gpuio.Choice.Id.t -> unit Bonsai.Effect.t)
     -> unit

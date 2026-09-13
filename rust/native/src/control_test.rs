@@ -293,6 +293,46 @@ async fn select_control(
     );
     key(cx, handle, "down");
     assert!(choices(transport).is_empty(), "highlight is not selection");
+    let appearance = ChoiceAppearance {
+        popup_width: 240.,
+        row_height: 48.,
+        max_visible_rows: 3,
+        empty_label: "Keine Optionen".into(),
+        popup_style: vec![Style::Fields(vec![Field::Foreground(Color::Rgba(
+            0x445566ff,
+        ))])],
+        option_style: vec![
+            Style::Fields(vec![Field::Foreground(Color::Rgba(0x123456ff))]),
+            Style::State(1, vec![Field::Foreground(Color::Rgba(0xabcdefff))]),
+            Style::State(7, vec![Field::Foreground(Color::Rgba(0xff0000ff))]),
+            Style::State(6, vec![Field::Foreground(Color::Rgba(0x999999ff))]),
+        ],
+        empty_style: vec![Style::Fields(vec![Field::FontSize(14.)])],
+    };
+    let retained_state = handle
+        .update(cx, |view, _, _| view.selects[&node(6)].clone())
+        .unwrap();
+    apply(
+        cx,
+        handle,
+        vec![Op::SetChoiceAppearance(node(6), appearance)],
+    );
+    frame(cx, handle).await;
+    assert!(focused(cx, handle, node(6)));
+    assert!(select_is_open(cx, handle));
+    handle
+        .update(cx, |view, _, _| {
+            assert!(Rc::ptr_eq(&retained_state, &view.selects[&node(6)]));
+            let state = view.selects[&node(6)].borrow();
+            let bounds = state.popup_bounds.get();
+            assert!(bounds.size.width >= px(236.) && bounds.size.width <= px(240.));
+            let probes = state.option_probes.borrow();
+            assert_eq!(probes["deep"].color, rgba(0xabcdefff).into());
+            assert_eq!(probes["fast"].color, rgba(0xff0000ff).into());
+            assert_eq!(probes["blocked"].color, rgba(0x999999ff).into());
+            assert_eq!(probes["deep"].bounds.size.height, px(48.));
+        })
+        .unwrap();
     key(cx, handle, "escape");
     frame(cx, handle).await;
     assert!(!select_is_open(cx, handle));
@@ -428,6 +468,28 @@ async fn select_control(
         accessible(cx, handle, "Option 4095", false).is_some(),
         "last choice is actually rendered after End"
     );
+    handle
+        .update(cx, |_, window, _| {
+            window.resize(gpui::size(px(400.), px(160.)))
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, _, _| {
+            let state = view.selects[&node(6)].borrow();
+            let probes = state.option_probes.borrow();
+            assert!(
+                probes["item-4095"].bounds.bottom() <= state.popup_bounds.get().bottom() + px(1.),
+                "resize reveals entire active option"
+            );
+        })
+        .unwrap();
+    handle
+        .update(cx, |_, window, _| {
+            window.resize(gpui::size(px(400.), px(280.)))
+        })
+        .unwrap();
+    frame(cx, handle).await;
     config.items.reverse();
     apply(cx, handle, vec![Op::SetChoice(node(6), config.clone())]);
     frame(cx, handle).await;
@@ -462,7 +524,7 @@ async fn select_control(
     apply(cx, handle, vec![Op::SetChoice(node(6), config.clone())]);
     frame(cx, handle).await;
     #[cfg(target_os = "macos")]
-    assert!(accessible(cx, handle, "No options", false).is_some());
+    assert!(accessible(cx, handle, "Keine Optionen", false).is_some());
     key(cx, handle, "enter");
     assert!(
         choices(transport).is_empty(),
@@ -486,7 +548,10 @@ async fn select_control(
         .update(cx, |view, _, _| assert!(view.selects.is_empty()))
         .unwrap();
     println!(
-        "GPUIO_SELECT_TYPEAHEAD_OK: printable prefix navigation, explicit confirmation and accessible empty state"
+        "GPUIO_SELECT_TYPEAHEAD_OK: printable prefix navigation, explicit confirmation and accessible localized empty state"
+    );
+    println!(
+        "GPUIO_SELECT_APPEARANCE_OK: identity/focus/open retained, custom geometry and native active/selected/disabled colors"
     );
     println!(
         "GPUIO_SELECT_NATIVE_OK: popup position, keyboard/cancel, stable highlight, pointer, focus, 4096-option virtualization and disposal"

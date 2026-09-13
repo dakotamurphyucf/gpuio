@@ -622,6 +622,27 @@ let unset t ?(state = State.Base) name =
 ;;
 
 module Expert = struct
+  let declaration_count t =
+    Map.fold t ~init:0 ~f:(fun ~key:_ ~data count -> count + Map.length data)
+  ;;
+
+  let validate_scope t ~states ~properties =
+    Map.to_alist t
+    |> List.fold_result ~init:() ~f:(fun () (state, fields) ->
+      if
+        not (List.exists states ~f:(fun allowed -> Int.equal (state_index allowed) state))
+      then Or_error.error_string "unsupported state in component appearance"
+      else
+        Map.keys fields
+        |> List.fold_result ~init:() ~f:(fun () name ->
+          if List.mem properties name ~equal:Property.Name.equal
+          then Ok ()
+          else
+            Or_error.error_s
+              [%sexp
+                "unsupported property in component appearance", (name : Property.Name.t)]))
+  ;;
+
   let color theme color =
     Theme.resolve theme color |> Or_error.map ~f:(fun rgba -> Wire.Color.Rgba rgba)
   ;;

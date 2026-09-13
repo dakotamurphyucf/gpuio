@@ -49,6 +49,7 @@ type 'action editor =
 
 type 'action choice =
   { config : Choice.Config.t
+  ; appearance : Choice.Appearance.t option
   ; on_select : Choice.Id.t -> 'action
   }
 
@@ -238,13 +239,23 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; on_click = None
   ; editor = None
   ; control = None
-  ; choice = Some { config; on_select }
+  ; choice = Some { config; appearance = None; on_select }
   ; children = []
   }
 ;;
 
-let select ?key ?(style = Style.empty) ~config ~on_select () =
-  { (radio_group ?key ~style ~config ~on_select ()) with kind = Select }
+let select
+      ?key
+      ?(style = Style.empty)
+      ?(appearance = Choice.Appearance.default)
+      ~config
+      ~on_select
+      ()
+  =
+  { (radio_group ?key ~style ~config ~on_select ()) with
+    kind = Select
+  ; choice = Some { config; appearance = Some appearance; on_select }
+  }
 ;;
 
 module Expert = struct
@@ -253,6 +264,7 @@ module Expert = struct
 
   type nonrec 'action choice = 'action choice =
     { config : Choice.Config.t
+    ; appearance : Choice.Appearance.t option
     ; on_select : Choice.Id.t -> 'action
     }
 

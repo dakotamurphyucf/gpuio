@@ -106,11 +106,13 @@ in PR #7 (`0ef2c7dc5b71235c090d4dc6373f505db69624e5`); CI 34747606484 passed bot
 required jobs and control windows on macOS, X11 and Wayland. The existing Wayland
 editor clipboard limitation remains under OCH-17. Radio groups in PR #8 pass
 both required jobs in CI34748629291, including actual control windows on macOS,
-X11 and Wayland. The PR remains open while GitHub merge requests return HTTP 502.
+X11 and Wayland. PR #8 merged as `5448842ffd9bff9e249071698a294a3afc3ffb42`.
 The initial Select adapter adds native popup navigation/cancellation, current-frame
 positioning and virtualized options. Local macOS window/accessibility checks,
 4096-option navigation, OCaml/Rust tests, full build/format and Clippy passed.
-Configurable popup presentation and broader overlay integration remain OCH-11 work. [Native controls](design/native-controls.md) records these families
+Choice appearance adds theme-aware popup/option/empty styles, configurable uniform
+row geometry and localized empty text while retaining native focus/open state.
+Local tests validate these changes; general overlay integration remains OCH-11 work. [Native controls](design/native-controls.md) records these families
 and the remaining ticket scope. OCH-12 declarative animations follows.
 The broader component catalog is planned in OCH-33–45; vendoring GPUI Base does
 not expose all of those widgets through the OCaml API.

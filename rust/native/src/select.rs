@@ -19,11 +19,15 @@ pub(super) struct State {
     search: super::typeahead::Search,
     scroll: UniformListScrollHandle,
     active_index: Option<usize>,
+    geometry: Option<(f64, i64, gpui::Size<Pixels>)>,
     #[cfg(feature = "native-tests")]
     pub(super) rendered_options: Rc<Cell<usize>>,
     trigger: Rc<Cell<Bounds<Pixels>>>,
     #[cfg(feature = "native-tests")]
     pub(super) popup_bounds: Rc<Cell<Bounds<Pixels>>>,
+    #[cfg(feature = "native-tests")]
+    pub(super) option_probes:
+        Rc<RefCell<std::collections::BTreeMap<String, super::native_test::Probe>>>,
 }
 impl State {
     fn open(&mut self, config: &ChoiceConfig) {
@@ -54,6 +58,7 @@ impl State {
 
 pub(super) struct Render<'a> {
     pub config: &'a Arc<ChoiceConfig>,
+    pub appearance: Arc<ChoiceAppearance>,
     pub state: Rc<RefCell<State>>,
     pub focus: FocusHandle,
     pub route: Option<Route>,
@@ -69,6 +74,7 @@ pub(super) fn element<T: 'static>(
 ) -> Stateful<Div> {
     let Render {
         config,
+        appearance,
         state,
         focus,
         route,
@@ -87,9 +93,15 @@ pub(super) fn element<T: 'static>(
             .items
             .iter()
             .position(|item| Some(&item.id) == state.navigation.active.as_ref());
-        if open && index != state.active_index {
+        let geometry = (
+            appearance.row_height,
+            appearance.max_visible_rows,
+            window.viewport_size(),
+        );
+        if open && (index != state.active_index || state.geometry != Some(geometry)) {
             state.reveal(config);
         }
+        state.geometry = Some(geometry);
     }
     let open = state.borrow().open;
     let value = config
@@ -102,9 +114,31 @@ pub(super) fn element<T: 'static>(
         .relative()
         .aria_expanded(open)
         .aria_value(value.clone().unwrap_or_default())
-        .child(gpui::SharedString::from(
-            value.unwrap_or_else(|| config.label.clone()),
-        ))
+        .child(
+            div()
+                .flex_1()
+                .overflow_hidden()
+                .child(gpui::SharedString::from(
+                    value.unwrap_or_else(|| config.label.clone()),
+                )),
+        )
+        .child(
+            canvas(
+                |_, _, _| (),
+                |bounds, _, window, _| {
+                    let mut path = gpui::PathBuilder::stroke(px(1.5));
+                    path.move_to(bounds.origin + gpui::point(px(2.), px(4.)));
+                    path.line_to(bounds.origin + gpui::point(px(6.), px(8.)));
+                    path.line_to(bounds.origin + gpui::point(px(10.), px(4.)));
+                    if let Ok(path) = path.build() {
+                        window.paint_path(path, window.text_style().color);
+                    }
+                },
+            )
+            .w(px(12.))
+            .h(px(12.))
+            .flex_shrink_0(),
+        )
         .child(
             canvas(move |bounds, _, _| trigger.set(bounds), |_, _, _, _| {})
                 .absolute()
@@ -224,14 +258,18 @@ pub(super) fn element<T: 'static>(
             let background = rgba(if dark { 0x242424ff } else { 0xffffffff });
             let foreground = rgba(if dark { 0xf0f0f0ff } else { 0x202020ff });
             let active_color = rgba(if dark { 0x385477ff } else { 0xdbeaffff });
+            #[cfg(feature = "native-tests")]
+            state.borrow().option_probes.borrow_mut().clear();
             let options = config.clone();
             let option_state = state.clone();
             let scroll = state.borrow().scroll.clone();
             let count = config.items.len();
             #[cfg(feature = "native-tests")]
             let rendered = state.borrow().rendered_options.clone();
-            let list_height = px((count.clamp(1, 8) * 32) as f32)
-                .min((window.viewport_size().height - px(18.)).max(px(1.)));
+            let option_appearance = appearance.clone();
+            let list_height = px((count.clamp(1, appearance.max_visible_rows as usize) as f64
+                * appearance.row_height) as f32)
+            .min((window.viewport_size().height - px(18.)).max(px(1.)));
             let list = gpui::uniform_list("options", count, move |range, _, _| {
                 #[cfg(feature = "native-tests")]
                 rendered.set(range.len());
@@ -242,7 +280,7 @@ pub(super) fn element<T: 'static>(
                         let selected = options.selected.as_ref() == Some(&item.id);
                         let mut row = div()
                             .id(gpui::SharedString::from(item.id.clone()))
-                            .h(px(32.))
+                            .h(px(option_appearance.row_height as f32))
                             .px(px(8.))
                             .flex()
                             .items_center()
@@ -250,16 +288,48 @@ pub(super) fn element<T: 'static>(
                             .role(gpui::Role::ListBoxOption)
                             .aria_label(item.label.clone())
                             .aria_selected(selected);
+                        if pointer && !item.disabled {
+                            row = row.cursor_pointer();
+                        }
+                        gpui::Refineable::refine(
+                            row.style(),
+                            &crate::appearance::refinement(&option_appearance.option_style, 0),
+                        );
                         if selected && let Some(style) = &selected_style {
                             gpui::Refineable::refine(row.style(), style);
                         }
+                        if selected {
+                            gpui::Refineable::refine(
+                                row.style(),
+                                &crate::appearance::refinement(&option_appearance.option_style, 7),
+                            );
+                        }
                         if active.as_ref() == Some(&item.id) && !item.disabled {
                             row = row.bg(active_color).aria_active_descendant();
+                            gpui::Refineable::refine(
+                                row.style(),
+                                &crate::appearance::refinement(&option_appearance.option_style, 1),
+                            );
                         }
                         row = row.child(gpui::SharedString::from(item.label.clone()));
                         if item.disabled {
                             row = row.opacity(0.5);
+                            gpui::Refineable::refine(
+                                row.style(),
+                                &crate::appearance::refinement(&option_appearance.option_style, 6),
+                            );
                         } else {
+                            if pointer {
+                                let hovered = crate::appearance::refinement(
+                                    &option_appearance.option_style,
+                                    2,
+                                );
+                                let pressed = crate::appearance::refinement(
+                                    &option_appearance.option_style,
+                                    3,
+                                );
+                                row = row.hover(move |_| hovered).active(move |_| pressed);
+                            }
                             let state = option_state.clone();
                             let id = item.id.clone();
                             let route = route.clone();
@@ -276,7 +346,6 @@ pub(super) fn element<T: 'static>(
                             );
                             if pointer {
                                 row = row
-                                    .cursor_pointer()
                                     .on_mouse_down(gpui::MouseButton::Left, |_, window, cx| {
                                         window.prevent_default();
                                         cx.stop_propagation();
@@ -288,6 +357,32 @@ pub(super) fn element<T: 'static>(
                                         cx.stop_propagation();
                                     });
                             }
+                        }
+                        if !pointer || item.disabled {
+                            row.style().mouse_cursor = None;
+                        }
+                        #[cfg(feature = "native-tests")]
+                        {
+                            let probes = option_state.borrow().option_probes.clone();
+                            let id = item.id.clone();
+                            row = row.child(
+                                canvas(
+                                    |bounds, _, _| bounds,
+                                    move |_, bounds, window, _| {
+                                        probes.borrow_mut().insert(
+                                            id,
+                                            super::native_test::Probe {
+                                                bounds,
+                                                color: window.text_style().color,
+                                            },
+                                        );
+                                    },
+                                )
+                                .absolute()
+                                .top_0()
+                                .left_0()
+                                .size_full(),
+                            );
                         }
                         crate::semantics::State {
                             element: row,
@@ -304,9 +399,9 @@ pub(super) fn element<T: 'static>(
             let trigger = state.borrow().trigger.clone();
             let width = (window.viewport_size().width - px(16.))
                 .max(px(1.))
-                .min(px(320.));
+                .min(px(appearance.popup_width as f32));
             let height = (window.viewport_size().height - px(16.)).max(px(1.));
-            let popup = div()
+            let mut popup = div()
                 .id("choice-popup")
                 .role(gpui::Role::ListBox)
                 .aria_label(config.label.clone())
@@ -325,19 +420,33 @@ pub(super) fn element<T: 'static>(
                     }
                 })
                 .child(if count == 0 {
-                    div()
+                    let mut empty = div()
                         .id("choice-empty")
                         .h(list_height)
                         .px(px(8.))
                         .flex()
                         .items_center()
                         .role(gpui::Role::Label)
-                        .aria_label("No options")
-                        .child("No options")
-                        .into_any_element()
+                        .aria_label(appearance.empty_label.clone())
+                        .child(gpui::SharedString::from(appearance.empty_label.clone()));
+                    gpui::Refineable::refine(
+                        empty.style(),
+                        &crate::appearance::refinement(&appearance.empty_style, 0),
+                    );
+                    empty.into_any_element()
                 } else {
                     list.into_any_element()
                 });
+            gpui::Refineable::refine(
+                popup.style(),
+                &crate::appearance::refinement(&appearance.popup_style, 0),
+            );
+            if pointer {
+                let hovered = crate::appearance::refinement(&appearance.popup_style, 2);
+                popup = popup.hover(move |_| hovered);
+            } else {
+                popup.style().mouse_cursor = None;
+            }
             #[cfg(feature = "native-tests")]
             let popup = {
                 let bounds = state.borrow().popup_bounds.clone();
