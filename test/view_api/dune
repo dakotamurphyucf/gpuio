@@ -22,6 +22,8 @@
    pointer-v1-events.hex
    drag-drop-v1-sources.hex
    drag-drop-v1-target.hex
+   drag-drop-v1-request.hex
+   drag-drop-v1-events.hex
    toast-v1-request.hex
    toast-v1-events.hex
    progress-v1-request.hex
@@ -99,3 +101,7 @@
 (copy_files ../fixtures/drag-drop-v1-sources.hex)
 
 (copy_files ../fixtures/drag-drop-v1-target.hex)
+
+(copy_files ../fixtures/drag-drop-v1-request.hex)
+
+(copy_files ../fixtures/drag-drop-v1-events.hex)

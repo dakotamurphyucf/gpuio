@@ -15,6 +15,8 @@ fn allows_children(kind: Kind) -> bool {
             | Kind::Toast
             | Kind::ToastStack
             | Kind::PointerArea
+            | Kind::DragSource
+            | Kind::DropTarget
     )
 }
 
@@ -36,6 +38,8 @@ pub struct Node {
     pub progress: Option<Arc<ProgressConfig>>,
     pub toast: Option<Arc<ToastConfig>>,
     pub toast_stack: Option<Arc<ToastStackConfig>>,
+    pub drag_source: Option<Arc<gpuio_protocol::drag_drop::Source>>,
+    pub drop_target: Option<Arc<gpuio_protocol::drag_drop::Target>>,
     pub pointer: Option<Arc<PointerConfig>>,
     pub placement: Option<Placement>,
     pub combobox_filter: Option<ComboboxFilter>,
@@ -49,6 +53,14 @@ pub struct Node {
 impl Node {
     fn payload_bytes(&self) -> usize {
         self.text.len()
+            + self
+                .drag_source
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
+            + self
+                .drop_target
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
             + self
                 .pointer
                 .as_ref()
@@ -279,6 +291,16 @@ impl Tree {
                 } else if node.combobox_filter.is_some() {
                     return Err(ErrorCode::InvalidTree);
                 }
+                if (node.kind == Kind::DragSource) != node.drag_source.is_some()
+                    || (node.kind == Kind::DropTarget) != node.drop_target.is_some()
+                    || ((node.drag_source.is_some() || node.drop_target.is_some())
+                        && (node.handler.is_none()
+                            || !node.text.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()))
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
                 if (node.kind == Kind::PointerArea) != node.pointer.is_some()
                     || node.pointer.as_ref().is_some_and(|config| {
                         !config.is_valid()
@@ -404,6 +426,8 @@ impl Tree {
                     | Kind::Toast
                     | Kind::ToastStack
                     | Kind::PointerArea
+                    | Kind::DragSource
+                    | Kind::DropTarget
                     | Kind::CommandScope
                     | Kind::CommandButton
                     | Kind::Menu
@@ -541,6 +565,8 @@ impl Plan<'_> {
             | Op::SetProgress(id, ..)
             | Op::SetToast(id, ..)
             | Op::SetToastStack(id, ..)
+            | Op::SetDragSource(id, ..)
+            | Op::SetDropTarget(id, ..)
             | Op::SetPointer(id, ..)
             | Op::SetComboboxFilter(id, ..)
             | Op::SetChoiceAppearance(id, ..)
@@ -611,6 +637,8 @@ impl Plan<'_> {
                             progress: None,
                             toast: None,
                             toast_stack: None,
+                            drag_source: None,
+                            drop_target: None,
                             pointer: None,
                             placement: None,
                             style: Arc::from([]),
@@ -660,6 +688,18 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.toast = Some(Arc::new(config.clone()));
+            }
+            Op::SetDragSource(id, config) => {
+                if self.node(*id)?.kind != Kind::DragSource {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.drag_source = Some(Arc::new(config.clone()));
+            }
+            Op::SetDropTarget(id, config) => {
+                if self.node(*id)?.kind != Kind::DropTarget {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.drop_target = Some(Arc::new(config.clone()));
             }
             Op::SetPointer(id, config) => {
                 if self.node(*id)?.kind != Kind::PointerArea || !config.is_valid() {

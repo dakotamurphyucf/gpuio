@@ -166,3 +166,24 @@ fn readers_enforce_aggregate_file_bytes_and_inclusive_payload_boundaries() {
         assert_eq!(Source::decode(&encode(&source)).unwrap(), source);
     }
 }
+
+#[path = "common/drag_drop_fixture.rs"]
+mod fixture;
+#[test]
+fn view_operations_and_every_event_variant_match_independent_bytes() {
+    let request = fixture::request();
+    let bytes = unhex(include_str!(
+        "../../../test/fixtures/drag-drop-v1-request.hex"
+    ));
+    assert_eq!(encode(&request), bytes);
+    assert_eq!(gpuio_protocol::decode(&bytes).unwrap(), request);
+    for length in 0..bytes.len() {
+        assert!(gpuio_protocol::decode(&bytes[..length]).is_err());
+    }
+    assert_eq!(
+        encode(&fixture::events()),
+        unhex(include_str!(
+            "../../../test/fixtures/drag-drop-v1-events.hex"
+        ))
+    );
+}

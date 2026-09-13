@@ -509,6 +509,8 @@ impl Decoder<'_> {
                     17 => Kind::Toast,
                     18 => Kind::ToastStack,
                     19 => Kind::PointerArea,
+                    20 => Kind::DragSource,
+                    21 => Kind::DropTarget,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -528,6 +530,8 @@ impl Decoder<'_> {
             8 => Op::SetControl(self.node()?, self.control()?),
             9 => Op::SetChoice(self.node()?, self.choice_config()?),
             18 => Op::SetMenu(self.node()?, self.menu_config()?),
+            24 => Op::SetDragSource(self.node()?, self.drag_source()?),
+            25 => Op::SetDropTarget(self.node()?, self.drag_target()?),
             23 => Op::SetPointer(
                 self.node()?,
                 PointerConfig {

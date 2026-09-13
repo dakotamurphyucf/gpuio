@@ -167,7 +167,7 @@ Config tag 2 is the capability query. Event tag 21 carries correlation, window I
 and Selected/Cancelled/Failed/Capabilities; result tag 3 is the capability record.
 The record contains three selection-support enums (Unsupported/Single/Multiple)
 and a save Boolean. File-dialog capability bit 524288 is advertised; the complete
-required mask is 1048575. This bit describes bridge support, not runtime portal
+required mask is 2097151 (including the drag/drop bridge bit). This bit describes bridge support, not runtime portal
 availability. Existing open/save/result tags and bytes are unchanged. Paths use
 bounded raw OCaml-string bytes on both sides. OCaml result decoding checks the
 path count, individual size and aggregate size before allocating their declared

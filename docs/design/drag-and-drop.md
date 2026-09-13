@@ -1,9 +1,13 @@
 # Drag and drop
 
-OCH-11 implementation in progress. The typed data/configuration layer and its
-OCaml/Rust codecs are implemented. Native gestures, view factories, event routing,
-capability reporting and actual desktop tests are still pending. The transport
-does not advertise a drag/drop capability yet.
+OCH-11 implementation in progress. Typed data/configuration, view factories,
+OCaml/Rust codecs, event routing and the native gesture adapter are implemented.
+Local macOS GPUI window-dispatch tests and a public Bonsai/Eio lifecycle test pass.
+Actual OS file-export/reentry, cross-window behavior and further focus/lifetime
+validation remain required; this is not complete drag/drop or OCH-11 acceptance.
+The bridge advertises capability bit 1048576; the required mask is 2097151.
+This bit identifies protocol support, not a promise of outbound OS support on
+every backend or a successful external file operation.
 
 ## Data and application API
 
@@ -41,8 +45,7 @@ format when enabled. Rust applies this declared policy synchronously; an OCaml
 callback observes the result and cannot retroactively veto it. Provide ordinary
 keyboard-operable commands as alternatives to pointer dragging.
 
-Configuration construction currently looks like this; view integration follows
-in the next checkpoint:
+Configuration construction looks like this:
 
 ```ocaml
 let open Or_error.Let_syntax in
@@ -102,7 +105,7 @@ as a successful external operation, nor used to authorize file deletion/moving.
 
 GPUI's current `on_drop` takes its active drag before evaluating `can_drop`.
 Therefore a rejecting child can consume a matching typed drag before an accepting
-parent handles it. The planned GPUIO target adapter uses its own bubble listener:
+parent handles it. The GPUIO target adapter uses its own bubble listener:
 check current hitbox, eligibility and format first; consume and stop propagation
 only on acceptance. Test a rejecting nested target with an accepting ancestor.
 This does not require a GPUI patch.
@@ -121,15 +124,64 @@ must stop local delivery and release framework state, but GPUI's public
 Do not infer internal source identity by matching incoming file paths. Typed
 cross-window behavior needs native evidence before being documented as supported.
 
+## Views, events and ownership
+
+`View.drag_source` and `View.drop_target` accept their respective configuration,
+`on_event`, optional key/style and ordinary children. The Bonsai variants use
+`unit Bonsai.Effect.t` callbacks. See `examples/drag_drop/main.ml` for a usable
+example with hover feedback, text/file handling and a keyboard command alternative.
+The public example's `--self-test` checks mount, disable/enable, keyed removal and
+shutdown, separately from native gesture tests.
+
+Source events are `Started payload`, `Desktop_offered`, `Desktop_unavailable`,
+and `Ended outcome`. Outcomes distinguish `Internal_drop`, `Cancelled reason`
+and `Unconfirmed`. Cancellation reasons include Escape, hidden/blocked/disabled,
+removal/reconfiguration, window close and window inactivity. An already offered
+OS session is not cancelled merely because its source window becomes inactive.
+
+Target events are `Entered offer`, `Moved`, `Left`, `Dropped payload`, and
+`Rejected reason`. The offer summarizes format, byte count, file count and
+internal/desktop origin. Rejection distinguishes invalid data and exceeded limits;
+an invalid incoming file offer can be rejected without first entering accepted
+hover. Do not require an Entered event before processing a Dropped event: a target
+can become eligible between pointer samples. Positions are logical pixels, with
+both window and target-local coordinates and modifier state. Left uses the last
+observed target sample. Consecutive Moved samples coalesce only for the same
+window/node/handler/revision/gesture; lifecycle edges do not coalesce.
+
+Source events carry the immutable gesture snapshot, not the latest source
+configuration. A native lease belongs to GPUI's actual drag value, while the
+application manager retains only a weak source reference. The default preview
+owns label text, not the source lease or full payload. External paths are copied
+once into a bounded snapshot per observed native drag. The shared manager gives
+gestures application-session IDs; these are identities, not ordering timestamps.
+
+Native eligibility uses current handlers, configuration, focus policy, visibility
+and pointer policy. Handler/node/window generation checks suppress callbacks for
+removed or replaced owners. Consequently Ended is delivered at most once to a
+still-live source callback; unmounting does not promise a callback after removal.
+Changing the source payload preserves the active snapshot. Changing target
+acceptance invalidates its previous accepted hover without requiring a mouse move.
+Source removal cancels local interaction and releases manager/preview retention;
+it does not revoke an immutable file offer already owned by the OS.
+
+Operations append `Set_drag_source`/`Set_drop_target` at tags 24/25, node kinds
+at 20/21, and source/target events at 22/23. The event decoder converts drag-data
+validation exceptions to a normal malformed-envelope error. Tree and input queue
+budgets include retained/encoded drag payload bytes. Independent request and
+19-event fixtures cover every source/target phase and cancellation reason.
+
 ## Remaining acceptance
 
-1. Add view/reconciler and tree/protocol operations, event contracts, bounded
-   mailbox accounting and capability negotiation together with native support.
-2. Implement immutable gesture ownership, target hover/drop dispatch, native file
-   conversion, cancellation and cleanup across disable/hide/remove/close/shutdown.
-3. Validate nested rejection fallback, payload updates, blocked focus scopes,
-   terminal delivery once, native file offers and unsupported backend behavior.
-4. Run an OCaml/Bonsai example through actual local macOS native dragging; keep
-   Linux build/unit gates and defer full Linux GUI acceptance to OCH-17.
-5. Publish evidence and complete the remaining OCH-11 families and consolidated
-   CI/merge. This data checkpoint does not complete OCH-11 or milestone 2.
+1. Validate actual macOS OS file offering, outside completion/cancellation and
+   reentry, including source disposal while a platform session retains its offer.
+2. Exercise multi-window behavior, focus blocking, close/shutdown during a live
+   gesture, and actual public Bonsai callback delivery from gestures. Do not infer
+   source identity by matching file paths after an OS-mediated window crossing.
+3. Confirm Linux build/unit gates; full Linux graphical validation remains OCH-17.
+4. Review remaining native state/appearance and lifetime integration together with
+   the other OCH-11 families. Complete consolidated CI and merge after the full
+   ticket scope is implemented locally.
+
+See [local integration evidence](../evidence/drag-drop-och11.md). This checkpoint
+does not complete OCH-11 or milestone 2.

@@ -234,6 +234,56 @@ impl Session {
         .then_some(Event::OverlayDismissed(id, node, handler, revision, reason))
     }
 
+    pub fn drag_source_event(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        sample: gpuio_protocol::drag_drop::SourceSample,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.drag_source.as_ref()?;
+        (!state.overloaded
+            && sample.is_valid()
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision()
+            && (matches!(
+                sample.phase,
+                gpuio_protocol::drag_drop::SourcePhase::Ended(_)
+            ) || !config.disabled()))
+        .then_some(Event::DragSourceEvent(
+            window, node, handler, revision, sample,
+        ))
+    }
+    pub fn drop_target_event(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        sample: gpuio_protocol::drag_drop::TargetSample,
+    ) -> Option<Event> {
+        use gpuio_protocol::drag_drop::TargetPhase;
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.drop_target.as_ref()?;
+        let allowed = match &sample.phase {
+            TargetPhase::Dropped(payload) => config.accepts(payload),
+            TargetPhase::Left => true,
+            _ => !config.disabled(),
+        };
+        (!state.overloaded
+            && sample.is_valid()
+            && allowed
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision())
+        .then_some(Event::DropTargetEvent(
+            window, node, handler, revision, sample,
+        ))
+    }
+
     pub fn pointer_event(
         &self,
         window: WindowId,

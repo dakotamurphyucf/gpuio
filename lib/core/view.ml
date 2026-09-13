@@ -23,6 +23,8 @@ module Kind = struct
     | Toast
     | Toast_stack
     | Pointer_area
+    | Drag_source
+    | Drop_target
   [@@deriving equal, sexp_of]
 end
 
@@ -95,6 +97,16 @@ type 'action palette =
   ; on_dismiss : Command_palette.Dismissal.t -> 'action
   }
 
+type 'action drag_source =
+  { config : Drag_and_drop.Source.t
+  ; on_event : Drag_and_drop.Source_event.t -> 'action
+  }
+
+type 'action drop_target =
+  { config : Drag_and_drop.Target.t
+  ; on_event : Drag_and_drop.Target_event.t -> 'action
+  }
+
 type 'action pointer =
   { config : Pointer.Config.t
   ; on_event : Pointer.Event.t -> 'action
@@ -119,6 +131,8 @@ type 'action t =
   ; tooltip : 'action tooltip option
   ; commands : 'action Ui_command.Registry.t option
   ; command_ref : Ui_command.Id.t option
+  ; drag_source : 'action drag_source option
+  ; drop_target : 'action drop_target option
   ; pointer : 'action pointer option
   ; notification : 'action notification option
   ; toast_stack : Toast.Stack.t option
@@ -144,6 +158,8 @@ let text ?key ?(style = Style.empty) text =
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; drag_source = None
+  ; drop_target = None
   ; pointer = None
   ; notification = None
   ; toast_stack = None
@@ -192,6 +208,8 @@ let button ?key ?(style = Style.empty) ?accessible_name ?(disabled = false) ~on_
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; drag_source = None
+  ; drop_target = None
   ; pointer = None
   ; notification = None
   ; toast_stack = None
@@ -245,6 +263,8 @@ let toggle
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; drag_source = None
+  ; drop_target = None
   ; pointer = None
   ; notification = None
   ; toast_stack = None
@@ -294,6 +314,8 @@ let container ?key ?(style = Style.empty) defaults children =
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; drag_source = None
+  ; drop_target = None
   ; pointer = None
   ; notification = None
   ; toast_stack = None
@@ -311,6 +333,8 @@ let focus_scope ?key ?style ~config children =
     kind = Focus_scope
   ; commands = None
   ; command_ref = None
+  ; drag_source = None
+  ; drop_target = None
   ; pointer = None
   ; notification = None
   ; toast_stack = None
@@ -478,6 +502,8 @@ let text_input
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; drag_source = None
+  ; drop_target = None
   ; pointer = None
   ; notification = None
   ; toast_stack = None
@@ -504,6 +530,8 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; drag_source = None
+  ; drop_target = None
   ; pointer = None
   ; notification = None
   ; toast_stack = None
@@ -552,6 +580,8 @@ let combobox
   ; tooltip = None
   ; commands = None
   ; command_ref = None
+  ; drag_source = None
+  ; drop_target = None
   ; pointer = None
   ; notification = None
   ; toast_stack = None
@@ -587,6 +617,20 @@ let progress ?key ?(style = Style.empty) ~config () =
   { (text ?key ~style "") with kind = Progress; progress = Some config }
 ;;
 
+let drag_source ?key ?(style = Style.empty) ~config ~on_event children =
+  { (column ?key ~style children) with
+    kind = Drag_source
+  ; drag_source = Some { config; on_event }
+  }
+;;
+
+let drop_target ?key ?(style = Style.empty) ~config ~on_event children =
+  { (column ?key ~style children) with
+    kind = Drop_target
+  ; drop_target = Some { config; on_event }
+  }
+;;
+
 let pointer_area ?key ?(style = Style.empty) ~config ~on_event children =
   { (column ?key ~style children) with
     kind = Pointer_area
@@ -615,6 +659,16 @@ let toast_stack ?key ?(style = Style.empty) ?(config = Toast.Stack.default) item
 ;;
 
 module Expert = struct
+  type nonrec 'action drag_source = 'action drag_source =
+    { config : Drag_and_drop.Source.t
+    ; on_event : Drag_and_drop.Source_event.t -> 'action
+    }
+
+  type nonrec 'action drop_target = 'action drop_target =
+    { config : Drag_and_drop.Target.t
+    ; on_event : Drag_and_drop.Target_event.t -> 'action
+    }
+
   type nonrec 'action pointer = 'action pointer =
     { config : Pointer.Config.t
     ; on_event : Pointer.Event.t -> 'action
@@ -684,6 +738,8 @@ module Expert = struct
     ; tooltip : 'action tooltip option
     ; commands : 'action Ui_command.Registry.t option
     ; command_ref : Ui_command.Id.t option
+    ; drag_source : 'action drag_source option
+    ; drop_target : 'action drop_target option
     ; pointer : 'action pointer option
     ; notification : 'action notification option
     ; toast_stack : Toast.Stack.t option

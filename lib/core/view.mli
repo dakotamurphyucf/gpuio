@@ -219,6 +219,24 @@ val progress
 (** A keyed notification session, usable only as a toast-stack item. *)
 type 'action toast
 
+(** Native drag source/drop target regions with shared style and children.
+    Callbacks observe native decisions; provide keyboard command alternatives. *)
+val drag_source
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Drag_and_drop.Source.t
+  -> on_event:(Drag_and_drop.Source_event.t -> 'action)
+  -> 'action t list
+  -> 'action t
+
+val drop_target
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Drag_and_drop.Target.t
+  -> on_event:(Drag_and_drop.Target_event.t -> 'action)
+  -> 'action t list
+  -> 'action t
+
 (** Native captured mouse gestures with ordinary content. Root styles do not
     replace the captured node; hiding/unmounting releases native capture. *)
 val pointer_area
@@ -250,6 +268,16 @@ val toast_stack
   -> 'action t Core.Or_error.t
 
 module Expert : sig
+  type 'action drag_source =
+    { config : Drag_and_drop.Source.t
+    ; on_event : Drag_and_drop.Source_event.t -> 'action
+    }
+
+  type 'action drop_target =
+    { config : Drag_and_drop.Target.t
+    ; on_event : Drag_and_drop.Target_event.t -> 'action
+    }
+
   type 'action pointer =
     { config : Pointer.Config.t
     ; on_event : Pointer.Event.t -> 'action
@@ -282,6 +310,8 @@ module Expert : sig
       | Toast
       | Toast_stack
       | Pointer_area
+      | Drag_source
+      | Drop_target
     [@@deriving equal, sexp_of]
   end
 
@@ -357,6 +387,8 @@ module Expert : sig
     ; tooltip : 'action tooltip option
     ; commands : 'action Command.Registry.t option
     ; command_ref : Command.Id.t option
+    ; drag_source : 'action drag_source option
+    ; drop_target : 'action drop_target option
     ; pointer : 'action pointer option
     ; notification : 'action notification option
     ; toast_stack : Toast.Stack.t option

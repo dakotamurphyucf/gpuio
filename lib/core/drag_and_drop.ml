@@ -163,6 +163,64 @@ module Target = struct
   ;;
 end
 
+module Gesture_id = struct
+  type t = int64 [@@deriving equal, compare, sexp_of]
+end
+
+module Origin = Gpuio_protocol.Wire.Drag_and_drop.Origin
+module Cancel_reason = Gpuio_protocol.Wire.Drag_and_drop.Cancel_reason
+module Outcome = Gpuio_protocol.Wire.Drag_and_drop.Outcome
+module Rejection = Gpuio_protocol.Wire.Drag_and_drop.Rejection
+module Modifiers = Gpuio_protocol.Wire.Drag_and_drop.Modifiers
+
+module Offer = struct
+  type t =
+    { format : Format.t
+    ; data_bytes : int
+    ; file_count : int
+    ; origin : Origin.t
+    }
+  [@@deriving equal, sexp_of]
+end
+
+module Source_phase = struct
+  type t =
+    | Started of Payload.t
+    | Desktop_offered
+    | Desktop_unavailable
+    | Ended of Outcome.t
+  [@@deriving equal, sexp_of]
+end
+
+module Source_event = struct
+  type t =
+    { gesture : Gesture_id.t
+    ; phase : Source_phase.t
+    }
+  [@@deriving equal, sexp_of]
+end
+
+module Target_phase = struct
+  type t =
+    | Entered of Offer.t
+    | Moved
+    | Left
+    | Dropped of Payload.t
+    | Rejected of Rejection.t
+  [@@deriving equal, sexp_of]
+end
+
+module Target_event = struct
+  type t =
+    { gesture : Gesture_id.t
+    ; phase : Target_phase.t
+    ; window_position : Pointer.Position.t
+    ; local_position : Pointer.Position.t
+    ; modifiers : Modifiers.t
+    }
+  [@@deriving equal, sexp_of]
+end
+
 module Expert = struct
   module Wire = Gpuio_protocol.Wire.Drag_and_drop
 
@@ -214,5 +272,60 @@ module Expert = struct
             | Custom kind -> Custom (Custom_kind.to_string kind))
       ; disabled = t.disabled
       }
+  ;;
+
+  let source_event_of_wire (sample : Wire.Source_sample.t) =
+    let open Or_error.Let_syntax in
+    if not (Wire.Source_sample.is_valid sample)
+    then Or_error.error_string "invalid drag source sample"
+    else (
+      let%map phase =
+        match sample.phase with
+        | Started payload ->
+          let%map payload = payload_of_wire payload in
+          Source_phase.Started payload
+        | Desktop_offered -> Ok Source_phase.Desktop_offered
+        | Desktop_unavailable -> Ok Source_phase.Desktop_unavailable
+        | Ended outcome -> Ok (Source_phase.Ended outcome)
+      in
+      Source_event.{ gesture = sample.gesture; phase })
+  ;;
+
+  let target_event_of_wire (sample : Wire.Target_sample.t) =
+    let open Or_error.Let_syntax in
+    if not (Wire.Target_sample.is_valid sample)
+    then Or_error.error_string "invalid drop target sample"
+    else (
+      let%map phase =
+        match sample.phase with
+        | Moved -> Ok Target_phase.Moved
+        | Left -> Ok Target_phase.Left
+        | Rejected reason -> Ok (Target_phase.Rejected reason)
+        | Dropped payload ->
+          let%map payload = payload_of_wire payload in
+          Target_phase.Dropped payload
+        | Entered offer ->
+          let%map format =
+            match offer.format with
+            | Text -> Ok Format.Text
+            | Files -> Ok Format.Files
+            | Custom kind ->
+              let%map kind = Custom_kind.of_string kind in
+              Format.Custom kind
+          in
+          Target_phase.Entered
+            { format
+            ; data_bytes = Int64.to_int_exn offer.data_bytes
+            ; file_count = Int64.to_int_exn offer.file_count
+            ; origin = offer.origin
+            }
+      in
+      Target_event.
+        { gesture = sample.gesture
+        ; phase
+        ; window_position = { x = sample.window_x; y = sample.window_y }
+        ; local_position = { x = sample.local_x; y = sample.local_y }
+        ; modifiers = sample.modifiers
+        })
   ;;
 end

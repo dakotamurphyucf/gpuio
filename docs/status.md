@@ -304,3 +304,15 @@ format allowlist. Full local workspace Clippy/Rust and Dune build/tests/format
 pass. These are data/configuration tests, with no native drag/drop interaction
 claimed yet. View/event/native ownership integration is next; see the
 [drag/drop design and remaining acceptance](design/drag-and-drop.md).
+
+The next OCH-11 drag/drop checkpoint integrates source/target views through
+reconciliation, protocol, native trees and Bonsai/Eio event routing. Local macOS
+native window-dispatch tests pass for nested acceptance, immutable gesture
+snapshots, cancellation/removal, raw incoming files, size limits and release of
+source/hover state. The public example's lifecycle test, independent operation/
+event fixtures, queue/ownership tests, full builds/format/Clippy and existing
+native pointer regressions pass. The bridge advertises drag/drop bit 1048576
+(required mask 2097151). See [integration evidence](evidence/drag-drop-och11.md).
+Actual OS file export/reentry, multi-window/focus/active-close checks and public
+gesture callback testing remain; this is not completed drag/drop or OCH-11
+acceptance. No hosted CI or Linux GUI acceptance is claimed.

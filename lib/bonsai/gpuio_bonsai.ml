@@ -2,6 +2,8 @@ module View = struct
   type t = unit Bonsai.Effect.t Gpuio.View.t
   type toast = unit Bonsai.Effect.t Gpuio.View.toast
 
+  let drag_source = Gpuio.View.drag_source
+  let drop_target = Gpuio.View.drop_target
   let pointer_area = Gpuio.View.pointer_area
   let toast = Gpuio.View.toast
   let toast_stack = Gpuio.View.toast_stack

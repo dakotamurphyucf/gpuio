@@ -1,7 +1,7 @@
 open Core
 
 let version = 1L
-let capabilities = 1048575L
+let capabilities = 2097151L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -26,6 +26,8 @@ module Kind = struct
     | Toast
     | Toast_stack
     | Pointer_area
+    | Drag_source
+    | Drop_target
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -664,6 +666,8 @@ module Op = struct
     | Set_toast of Node_id.t * Toast.t
     | Set_toast_stack of Node_id.t * Toast_stack.t
     | Set_pointer of Node_id.t * Pointer.Config.t
+    | Set_drag_source of Node_id.t * Drag_and_drop.Source.t
+    | Set_drop_target of Node_id.t * Drag_and_drop.Target.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -858,6 +862,10 @@ module Event = struct
         Window_id.t * Node_id.t * Handler_id.t * int64 * Toast_dismissal.t
     | Pointer_event of Window_id.t * Node_id.t * Handler_id.t * int64 * Pointer.Sample.t
     | File_dialog_result of int64 * Window_id.t * File_dialog.Result.t
+    | Drag_source_event of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Drag_and_drop.Source_sample.t
+    | Drop_target_event of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Drag_and_drop.Target_sample.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -889,6 +897,10 @@ module Event = struct
         && not (String.contains path '\000'))
     | File_dialog_result (request, _, (Cancelled | Failed _ | Capabilities _)) ->
       Int64.(request > 0L)
+    | Drag_source_event (_, _, _, revision, sample) ->
+      Int64.(revision >= 0L) && Drag_and_drop.Source_sample.is_valid sample
+    | Drop_target_event (_, _, _, revision, sample) ->
+      Int64.(revision >= 0L) && Drag_and_drop.Target_sample.is_valid sample
     | Pointer_event (_, _, _, revision, sample) ->
       Int64.(revision >= 0L && sample.gesture > 0L)
       && List.for_all
@@ -971,6 +983,7 @@ module Event = struct
       | Bin_prot.Common.Buffer_short
       | Bin_prot.Common.Read_error _
       | Generational_id.Invalid_wire_handle
+      | Drag_and_drop.Invalid_wire_data
       | File_dialog.Invalid_wire_result ->
         Or_error.error_string "malformed event envelope")
   ;;

@@ -6,6 +6,22 @@ module View : sig
   type t = unit Bonsai.Effect.t Gpuio.View.t
   type toast = unit Bonsai.Effect.t Gpuio.View.toast
 
+  val drag_source
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Drag_and_drop.Source.t
+    -> on_event:(Gpuio.Drag_and_drop.Source_event.t -> unit Bonsai.Effect.t)
+    -> t list
+    -> t
+
+  val drop_target
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Drag_and_drop.Target.t
+    -> on_event:(Gpuio.Drag_and_drop.Target_event.t -> unit Bonsai.Effect.t)
+    -> t list
+    -> t
+
   val pointer_area
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

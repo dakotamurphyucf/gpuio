@@ -24,6 +24,8 @@ mod choice_popup;
 mod combobox;
 #[path = "command.rs"]
 mod command;
+#[path = "drag_drop.rs"]
+mod drag_drop;
 #[path = "editor.rs"]
 mod editor;
 #[cfg(feature = "native-tests")]
@@ -386,6 +388,8 @@ impl View {
                 | Kind::CommandScope
                 | Kind::RadioGroup
                 | Kind::PointerArea
+                | Kind::DragSource
+                | Kind::DropTarget
         ) {
             element = element.flex().flex_col();
         } else if node.kind == Kind::Select {
@@ -398,6 +402,16 @@ impl View {
                 .border_1()
                 .border_color(rgba(0x80808080))
                 .rounded(px(4.));
+        }
+        if let Some(config) = &node.drag_source {
+            element = element
+                .role(gpui::Role::Group)
+                .aria_label(config.label().to_owned());
+        }
+        if let Some(config) = &node.drop_target {
+            element = element
+                .role(gpui::Role::Group)
+                .aria_label(config.label().to_owned());
         }
         if let Some(config) = &node.pointer {
             element = element
@@ -447,6 +461,14 @@ impl View {
         let disabled = command
             .as_ref()
             .is_some_and(|route| !self.command_available(&route.config, window, cx))
+            || node
+                .drag_source
+                .as_ref()
+                .is_some_and(|config| config.disabled())
+            || node
+                .drop_target
+                .as_ref()
+                .is_some_and(|config| config.disabled())
             || node.pointer.as_ref().is_some_and(|config| config.disabled)
             || node.choice.as_ref().is_some_and(|config| config.disabled)
             || node.control.is_some_and(Control::disabled)
@@ -878,6 +900,25 @@ impl View {
                 window,
             );
         }
+        if let Some(config) = &node.drag_source
+            && interaction.pointer
+            && !disabled
+        {
+            element = drag_drop::source(
+                element,
+                choice::Route {
+                    window: self.id,
+                    node: id,
+                    handler: node.handler.expect("validated drag/drop"),
+                    revision: tree.revision(),
+                    session: self.session.clone(),
+                    gate: self.focus.clone(),
+                    transport: self.transport.clone(),
+                },
+                config.clone(),
+                cx,
+            );
+        }
         let element = crate::semantics::State {
             live: None,
             element,
@@ -885,6 +926,21 @@ impl View {
             read_only: false,
             modal: false,
         };
+        if node.drop_target.is_some() {
+            return drag_drop::Region {
+                element,
+                route: choice::Route {
+                    window: self.id,
+                    node: id,
+                    handler: node.handler.expect("validated drag/drop"),
+                    revision: tree.revision(),
+                    session: self.session.clone(),
+                    gate: self.focus.clone(),
+                    transport: self.transport.clone(),
+                },
+            }
+            .into_any_element();
+        }
         if let Some(config) = &node.pointer {
             pointer::Region {
                 element,
@@ -918,7 +974,8 @@ impl Render for View {
             .clone();
         let tab_focus = self.focus.clone();
         let begin_focus = self.focus.clone();
-        let mut root = div()
+        let drag_window = self.id;
+        let mut root = drag_drop::root(div(), self.id, cx)
             .on_action(
                 cx.listener(|view, action: &menu_platform::Invoke, window, cx| {
                     view.platform_menu_action(action, window, cx)
@@ -940,7 +997,10 @@ impl Render for View {
             .child(
                 canvas(
                     |_, _, _| (),
-                    move |_, _, _, _| begin_focus.borrow_mut().begin_frame(),
+                    move |_, _, window, cx| {
+                        begin_focus.borrow_mut().begin_frame();
+                        drag_drop::install_cleanup(drag_window, window, cx);
+                    },
                 )
                 .absolute()
                 .top_0()
@@ -1050,7 +1110,8 @@ pub fn run(transport: Arc<Transport>) {
         let mut windows: BTreeMap<WindowId, WindowHandle<View>> = BTreeMap::new();
         let dialogs = crate::file_dialog::Dialogs::default();
         let quit_dialogs = dialogs.clone();
-        cx.on_app_quit(move |_| {
+        cx.on_app_quit(move |cx| {
+            drag_drop::shutdown(cx);
             quit_dialogs.finish_before_quit();
             std::future::ready(())
         })
@@ -1098,7 +1159,15 @@ pub fn run(transport: Arc<Transport>) {
                             .native_closed(id);
                         transport.wake_ocaml();
                         if let Some(window) = windows.remove(&id) {
-                            let _ = window.update(cx, |_, window, _| window.remove_window());
+                            let _ = window.update(cx, |view, window, cx| {
+                                drag_drop::cancel(
+                                    view.id,
+                                    gpuio_protocol::drag_drop::CancelReason::WindowClosed,
+                                    window,
+                                    cx,
+                                );
+                                window.remove_window();
+                            });
                         }
                     }
                 }
@@ -1261,7 +1330,7 @@ pub fn run(transport: Arc<Transport>) {
                                     transport.respond(Event::Closed(correlation, id));
                                     if let Some(window) = windows.remove(&id) {
                                         let _ = window
-                                            .update(cx, |_, window, _| window.remove_window());
+                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); window.remove_window(); });
                                     }
                                 }
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),
@@ -1299,6 +1368,7 @@ pub(crate) fn stop_application(cx: &mut App) {
         base::{YES, nil},
         foundation::NSPoint,
     };
+    drag_drop::shutdown(cx);
     cx.shutdown();
     // Embedded runtime must regain control instead of NSApplication.terminate.
     unsafe {
@@ -1310,6 +1380,7 @@ pub(crate) fn stop_application(cx: &mut App) {
 }
 #[cfg(not(target_os = "macos"))]
 fn stop_application(cx: &mut App) {
+    drag_drop::shutdown(cx);
     cx.quit();
 }
 

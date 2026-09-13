@@ -58,3 +58,8 @@ pub fn run_native_file_dialog_test() {
 pub fn drive_native_file_dialog_test(pid: i32, filename: &str, accept_label: &str) {
     file_dialog::test::drive(pid, filename, accept_label);
 }
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_drag_drop_test() {
+    host::control_test::run_drag_drop();
+}

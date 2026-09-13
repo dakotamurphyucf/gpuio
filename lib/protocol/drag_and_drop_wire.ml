@@ -181,3 +181,119 @@ module Target = struct
     }
   [@@deriving bin_io, equal, sexp_of]
 end
+
+module Origin = struct
+  type t =
+    | Internal
+    | Desktop
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Offer = struct
+  type t =
+    { format : Format.t
+    ; data_bytes : int64
+    ; file_count : int64
+    ; origin : Origin.t
+    }
+  [@@deriving bin_io, equal, sexp_of]
+
+  let is_valid t =
+    Int64.(t.data_bytes >= 0L && t.data_bytes <= 262_144L)
+    &&
+    match t.format with
+    | Files ->
+      Int64.(t.file_count >= 1L && t.file_count <= 128L && t.data_bytes >= t.file_count)
+    | Text | Custom _ -> Int64.equal t.file_count 0L
+  ;;
+end
+
+module Cancel_reason = struct
+  type t =
+    | Escape
+    | Hidden
+    | Blocked
+    | Disabled
+    | Removed
+    | Reconfigured
+    | Window_closed
+    | Window_inactive
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Outcome = struct
+  type t =
+    | Internal_drop
+    | Cancelled of Cancel_reason.t
+    | Unconfirmed
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Source_phase = struct
+  type t =
+    | Started of Payload.t
+    | Desktop_offered
+    | Desktop_unavailable
+    | Ended of Outcome.t
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Source_sample = struct
+  type t =
+    { gesture : int64
+    ; phase : Source_phase.t
+    }
+  [@@deriving bin_io, equal, sexp_of]
+
+  let is_valid t = Int64.(t.gesture > 0L)
+end
+
+module Rejection = struct
+  type t =
+    | Invalid_data
+    | Limit_exceeded
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Target_phase = struct
+  type t =
+    | Entered of Offer.t
+    | Moved
+    | Left
+    | Dropped of Payload.t
+    | Rejected of Rejection.t
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Modifiers = struct
+  type t =
+    { shift : bool
+    ; control : bool
+    ; alt : bool
+    ; command : bool
+    ; function_ : bool
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Target_sample = struct
+  type t =
+    { gesture : int64
+    ; phase : Target_phase.t
+    ; window_x : float
+    ; window_y : float
+    ; local_x : float
+    ; local_y : float
+    ; modifiers : Modifiers.t
+    }
+  [@@deriving bin_io, equal, sexp_of]
+
+  let is_valid t =
+    Int64.(t.gesture > 0L)
+    && List.for_all [ t.window_x; t.window_y; t.local_x; t.local_y ] ~f:Float.is_finite
+    &&
+    match t.phase with
+    | Entered offer -> Offer.is_valid offer
+    | Moved | Left | Dropped _ | Rejected _ -> true
+  ;;
+end

@@ -104,6 +104,139 @@ pub enum PayloadRef<'a> {
     },
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum Origin {
+    Internal,
+    Desktop,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct Offer {
+    pub format: Format,
+    pub data_bytes: i64,
+    pub file_count: i64,
+    pub origin: Origin,
+}
+
+impl Offer {
+    pub fn new(payload: &Payload, origin: Origin) -> Self {
+        Self {
+            format: payload.format(),
+            data_bytes: payload.data_bytes() as i64,
+            file_count: match payload.as_ref() {
+                PayloadRef::Files(files) => files.len() as i64,
+                _ => 0,
+            },
+            origin,
+        }
+    }
+
+    pub fn is_valid(&self) -> bool {
+        (0..=MAX_DATA_BYTES as i64).contains(&self.data_bytes)
+            && match self.format {
+                Format::Files => {
+                    (1..=MAX_FILES as i64).contains(&self.file_count)
+                        && self.data_bytes >= self.file_count
+                }
+                Format::Text | Format::Custom(_) => self.file_count == 0,
+            }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum CancelReason {
+    Escape,
+    Hidden,
+    Blocked,
+    Disabled,
+    Removed,
+    Reconfigured,
+    WindowClosed,
+    WindowInactive,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum Outcome {
+    InternalDrop,
+    Cancelled(CancelReason),
+    Unconfirmed,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum SourcePhase {
+    Started(Payload),
+    DesktopOffered,
+    DesktopUnavailable,
+    Ended(Outcome),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct SourceSample {
+    pub gesture: i64,
+    pub phase: SourcePhase,
+}
+
+impl SourceSample {
+    pub fn is_valid(&self) -> bool {
+        self.gesture > 0
+    }
+    pub fn payload_bytes(&self) -> usize {
+        match &self.phase {
+            SourcePhase::Started(payload) => payload.retained_bytes(),
+            _ => 0,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum Rejection {
+    InvalidData,
+    LimitExceeded,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum TargetPhase {
+    Entered(Offer),
+    Moved,
+    Left,
+    Dropped(Payload),
+    Rejected(Rejection),
+}
+
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct TargetSample {
+    pub gesture: i64,
+    pub phase: TargetPhase,
+    pub window_x: f64,
+    pub window_y: f64,
+    pub local_x: f64,
+    pub local_y: f64,
+    pub modifiers: crate::pointer::PointerModifiers,
+}
+
+impl TargetSample {
+    pub fn is_valid(&self) -> bool {
+        self.gesture > 0
+            && [self.window_x, self.window_y, self.local_x, self.local_y]
+                .iter()
+                .all(|v| v.is_finite())
+            && match &self.phase {
+                TargetPhase::Entered(offer) => offer.is_valid(),
+                _ => true,
+            }
+    }
+    pub fn payload_bytes(&self) -> usize {
+        match &self.phase {
+            TargetPhase::Dropped(payload) => payload.retained_bytes(),
+            TargetPhase::Entered(Offer {
+                format: Format::Custom(kind),
+                ..
+            }) => kind.as_str().len(),
+            _ => 0,
+        }
+    }
+}
+
 impl Payload {
     pub fn text(text: String) -> Result<Self, InvalidDragData> {
         if text.len() > MAX_DATA_BYTES || text.contains('\0') {
@@ -155,6 +288,17 @@ impl Payload {
             Data::Files(files) => files.iter().map(|f| f.path.as_bytes().len()).sum(),
             Data::Custom { data, .. } => data.len(),
         }
+    }
+
+    /// Conservative retained/encoded variable-data bound, including metadata.
+    pub fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + self.data_bytes()
+            + match self.as_ref() {
+                PayloadRef::Files(files) => files.len() * (std::mem::size_of::<File>() + 16),
+                PayloadRef::Custom { kind, .. } => kind.as_str().len() + 32,
+                PayloadRef::Text(_) => 16,
+            }
     }
 
     fn can_offer_desktop_files(&self) -> bool {
@@ -219,6 +363,10 @@ impl Source {
     pub fn allow_desktop_files(&self) -> bool {
         self.allow_desktop_files
     }
+
+    pub fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>() + self.label.len() + self.payload.retained_bytes()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
@@ -267,6 +415,22 @@ impl Target {
 
     pub fn disabled(&self) -> bool {
         self.disabled
+    }
+
+    pub fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + self.label.len()
+            + self
+                .accepted_formats
+                .iter()
+                .map(|format| {
+                    std::mem::size_of::<Format>()
+                        + match format {
+                            Format::Custom(kind) => kind.as_str().len(),
+                            _ => 0,
+                        }
+                })
+                .sum::<usize>()
     }
 
     pub fn accepts(&self, payload: &Payload) -> bool {

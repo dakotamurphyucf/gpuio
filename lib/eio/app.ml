@@ -332,6 +332,8 @@ let process t = function
     | Combobox_selected (id, _, _, _, _, _)
     | Palette_dismissed (id, _, _, _, _)
     | Toast_dismissed (id, _, _, _, _)
+    | Drag_source_event (id, _, _, _, _)
+    | Drop_target_event (id, _, _, _, _)
     | Pointer_event (id, _, _, _, _)
     | Overlay_dismissed (id, _, _, _, _)
     | Tooltip_open_changed (id, _, _, _, _)

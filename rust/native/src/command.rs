@@ -84,6 +84,19 @@ impl View {
             let _ = owner.update(cx, |view, cx| {
                 if event.keystroke.key == "escape"
                     && !event.keystroke.modifiers.modified()
+                    && super::drag_drop::cancel(
+                        view.id,
+                        gpuio_protocol::drag_drop::CancelReason::Escape,
+                        window,
+                        cx,
+                    )
+                {
+                    window.prevent_default();
+                    cx.stop_propagation();
+                    return;
+                }
+                if event.keystroke.key == "escape"
+                    && !event.keystroke.modifiers.modified()
                     && view
                         .pointer_capture
                         .borrow_mut()

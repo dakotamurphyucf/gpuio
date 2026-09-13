@@ -29,6 +29,8 @@ module type S = sig
       | Toast
       | Toast_stack
       | Pointer_area
+      | Drag_source
+      | Drop_target
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -666,6 +668,8 @@ module type S = sig
       | Set_toast of Node_id.t * Toast.t
       | Set_toast_stack of Node_id.t * Toast_stack.t
       | Set_pointer of Node_id.t * Pointer.Config.t
+      | Set_drag_source of Node_id.t * Drag_and_drop.Source.t
+      | Set_drop_target of Node_id.t * Drag_and_drop.Target.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -831,6 +835,10 @@ module type S = sig
           Window_id.t * Node_id.t * Handler_id.t * int64 * Toast_dismissal.t
       | Pointer_event of Window_id.t * Node_id.t * Handler_id.t * int64 * Pointer.Sample.t
       | File_dialog_result of int64 * Window_id.t * File_dialog.Result.t
+      | Drag_source_event of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Drag_and_drop.Source_sample.t
+      | Drop_target_event of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Drag_and_drop.Target_sample.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

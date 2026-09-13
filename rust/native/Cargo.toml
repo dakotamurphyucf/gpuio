@@ -95,3 +95,9 @@ name = "native_file_dialog"
 path = "tests/native_file_dialog.rs"
 harness = false
 required-features = ["native-tests"]
+
+[[test]]
+name = "native_drag_drop"
+path = "tests/native_drag_drop.rs"
+harness = false
+required-features = ["native-tests"]

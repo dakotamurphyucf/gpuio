@@ -363,8 +363,14 @@ impl View {
     pub(super) fn install_pointer_observer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.pointer_activation.is_none() {
             self.pointer_activation =
-                Some(cx.observe_window_activation(window, |view, window, _| {
+                Some(cx.observe_window_activation(window, |view, window, cx| {
                     if !window.is_window_active() {
+                        super::drag_drop::cancel(
+                            view.id,
+                            gpuio_protocol::drag_drop::CancelReason::WindowInactive,
+                            window,
+                            cx,
+                        );
                         view.pointer_capture
                             .borrow_mut()
                             .cancel(PointerCancel::WindowInactive, window);

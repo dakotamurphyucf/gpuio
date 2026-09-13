@@ -65,6 +65,8 @@ end
 
 type 'a callback =
   | Pointer of (Pointer.Event.t -> 'a)
+  | Drag_source of (Drag_and_drop.Source_event.t -> 'a)
+  | Drop_target of (Drag_and_drop.Target_event.t -> 'a)
   | Toast of (Toast.Dismissal.t -> 'a)
   | Palette of Command_palette.Config.t * (Command_palette.Dismissal.t -> 'a)
   | Click of (unit -> 'a)
@@ -201,6 +203,8 @@ let kind = function
   | Toast -> Toast
   | Toast_stack -> Toast_stack
   | Pointer_area -> Pointer_area
+  | Drag_source -> Drag_source
+  | Drop_target -> Drop_target
 ;;
 
 let compatible mounted view =
@@ -343,6 +347,18 @@ let rec mount builder ~depth previous view =
       | None, callback -> callback
       | Some _, Some _ -> fail "pointer region cannot combine another handler"
     in
+    let callback =
+      match description.drag_source, callback with
+      | Some item, None -> Some (Drag_source item.on_event)
+      | None, callback -> callback
+      | Some _, Some _ -> fail "drag_source cannot combine another handler"
+    in
+    let callback =
+      match description.drop_target, callback with
+      | Some item, None -> Some (Drop_target item.on_event)
+      | None, callback -> callback
+      | Some _, Some _ -> fail "drop_target cannot combine another handler"
+    in
     let rotate_handler =
       (match description.combobox, previous with
        | Some combo, Some mounted ->
@@ -429,6 +445,28 @@ let rec mount builder ~depth previous view =
            menu
            (Option.bind previous ~f:(fun mounted -> mounted.menu)))
     then Option.iter menu ~f:(fun config -> emit builder (Set_menu (id, config)));
+    Option.iter description.drag_source ~f:(fun item ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).drag_source ~f:(fun item ->
+            item.config))
+      in
+      if not (Option.equal Drag_and_drop.Source.equal old (Some item.config))
+      then
+        emit
+          builder
+          (Set_drag_source (id, Drag_and_drop.Expert.source_to_wire item.config)));
+    Option.iter description.drop_target ~f:(fun item ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).drop_target ~f:(fun item ->
+            item.config))
+      in
+      if not (Option.equal Drag_and_drop.Target.equal old (Some item.config))
+      then
+        emit
+          builder
+          (Set_drop_target (id, Drag_and_drop.Expert.target_to_wire item.config)));
     Option.iter description.pointer ~f:(fun item ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -779,7 +817,9 @@ let dispatch t = function
         | Commands _
         | Palette _
         | Toast _
-        | Pointer _ -> None)
+        | Pointer _
+        | Drag_source _
+        | Drop_target _ -> None)
      | Some _ | None -> None)
   | Choice (window, node, handler, revision, selected)
     when (not t.closed)
@@ -878,6 +918,30 @@ let dispatch t = function
             && ((not open_) || not (Tooltip.Expert.is_disabled config)) ->
        Some (callback open_)
      | Some _ | None -> None)
+  | Drag_source_event (window, node, handler, revision, sample)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected; handler = expected_handler; callback = Drag_source callback }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       Drag_and_drop.Expert.source_event_of_wire sample
+       |> Result.ok
+       |> Option.map ~f:callback
+     | Some _ | None -> None)
+  | Drop_target_event (window, node, handler, revision, sample)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected; handler = expected_handler; callback = Drop_target callback }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       Drag_and_drop.Expert.target_event_of_wire sample
+       |> Result.ok
+       |> Option.map ~f:callback
+     | Some _ | None -> None)
   | Pointer_event (window, node, handler, revision, sample)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -929,6 +993,8 @@ let dispatch t = function
          |> Option.bind ~f:Ui_command.Expert.invoke
        else None
      | Some _ | None -> None)
+  | Drag_source_event _
+  | Drop_target_event _
   | Pointer_event _
   | Toast_dismissed _
   | Palette_dismissed _

@@ -1,6 +1,8 @@
 //! Real-window control activation, focus traversal and native accessibility.
 #[path = "command_test.rs"]
 mod command_test;
+#[path = "drag_drop_test.rs"]
+mod drag_drop_test;
 #[path = "menu_test.rs"]
 mod menu_test;
 #[path = "overlay_test.rs"]
@@ -1463,12 +1465,16 @@ enum Suite {
     Progress,
     Toast,
     Pointer,
+    DragDrop,
 }
 pub fn run() {
     run_suite(Suite::Controls);
 }
 pub fn run_menus() {
     run_suite(Suite::Menus);
+}
+pub fn run_drag_drop() {
+    run_suite(Suite::DragDrop);
 }
 pub fn run_pointer() {
     run_suite(Suite::Pointer);
@@ -1570,6 +1576,7 @@ fn run_suite(suite: Suite) {
                 Suite::Progress => 60,
                 Suite::Toast => 61,
                 Suite::Pointer => 82,
+                Suite::DragDrop => 90,
                 Suite::Controls => unreachable!(),
             };
             for slot in 5..end {
@@ -1617,6 +1624,7 @@ fn run_suite(suite: Suite) {
                         Suite::Palette => palette_test::exercise(cx, handle, &transport).await,
                         Suite::Progress => progress_test::exercise(cx, handle, &transport).await,
                         Suite::Toast => toast_test::exercise(cx, handle, &transport).await,
+                        Suite::DragDrop => drag_drop_test::exercise(cx, handle, &transport).await,
                         Suite::Pointer => pointer_test::exercise(cx, handle, &transport).await,
                         Suite::Controls => unreachable!(),
                     }

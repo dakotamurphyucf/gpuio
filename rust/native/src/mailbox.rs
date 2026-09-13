@@ -15,6 +15,8 @@ pub const MAX_INPUT_BYTES: usize = 4 * MAX_MESSAGE_BYTES;
 // Drain includes those prefixes when fitting a response batch into 1 MiB.
 fn event_bytes(event: &Event) -> usize {
     256 + match event {
+        Event::DragSourceEvent(_, _, _, _, sample) => sample.payload_bytes(),
+        Event::DropTargetEvent(_, _, _, _, sample) => sample.payload_bytes(),
         Event::FileDialogResult(_, _, FileDialogResult::Selected(paths)) => {
             paths.iter().map(|path| path.as_bytes().len() + 9).sum()
         }
@@ -153,6 +155,16 @@ impl Mailbox {
             last.event = event;
             return Ok(());
         }
+        if let Event::DropTargetEvent(window, node, handler, revision, sample) = &event
+            && sample.phase == gpuio_protocol::drag_drop::TargetPhase::Moved
+            && let Some(last) = self.events.back_mut()
+            && let Event::DropTargetEvent(w, n, h, r, previous) = &last.event
+            && previous.phase == gpuio_protocol::drag_drop::TargetPhase::Moved
+            && (window, node, handler, revision, sample.gesture) == (w, n, h, r, previous.gesture)
+        {
+            last.event = event;
+            return Ok(());
+        }
         let bytes = event_bytes(&event);
         if let Event::EditorEvent(window, node, handler, revision, EditorEventKind::Changed, _) =
             &event
@@ -212,6 +224,8 @@ impl Mailbox {
             | Event::TooltipOpenChanged(id, ..)
             | Event::CommandInvoked(id, ..)
             | Event::ToastDismissed(id, ..)
+            | Event::DragSourceEvent(id, ..)
+            | Event::DropTargetEvent(id, ..)
             | Event::PointerEvent(id, ..)
             | Event::PaletteDismissed(id, ..)
             | Event::ComboboxSelected(id, ..)

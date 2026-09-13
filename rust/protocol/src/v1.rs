@@ -29,6 +29,7 @@ pub const CAP_PROGRESS: i64 = 65536;
 pub const CAP_PALETTE: i64 = 32768;
 pub const CAP_POINTER: i64 = 262144;
 pub const CAP_FILE_DIALOGS: i64 = 524288;
+pub const CAP_DRAG_DROP: i64 = 1048576;
 pub const CAPABILITIES: i64 = CAP_TREE
     | CAP_NATIVE_STYLES
     | CAP_FRAME_EVENTS
@@ -48,7 +49,8 @@ pub const CAPABILITIES: i64 = CAP_TREE
     | CAP_PROGRESS
     | CAP_TOASTS
     | CAP_POINTER
-    | CAP_FILE_DIALOGS;
+    | CAP_FILE_DIALOGS
+    | CAP_DRAG_DROP;
 pub const EDITOR_HISTORY_BYTES: usize = 2 * 1024 * 1024;
 pub const EDITOR_RESERVED_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_MESSAGE_BYTES: usize = 1_048_576;
@@ -83,6 +85,8 @@ pub enum Kind {
     Toast,
     ToastStack,
     PointerArea,
+    DragSource,
+    DropTarget,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -535,6 +539,8 @@ pub enum Op {
     SetToast(NodeId, ToastConfig),
     SetToastStack(NodeId, ToastStackConfig),
     SetPointer(NodeId, PointerConfig),
+    SetDragSource(NodeId, crate::drag_drop::Source),
+    SetDropTarget(NodeId, crate::drag_drop::Target),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -604,4 +610,18 @@ pub enum Event {
     ToastDismissed(WindowId, NodeId, HandlerId, i64, ToastDismissal),
     PointerEvent(WindowId, NodeId, HandlerId, i64, PointerSample),
     FileDialogResult(i64, WindowId, FileDialogResult),
+    DragSourceEvent(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::drag_drop::SourceSample,
+    ),
+    DropTargetEvent(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::drag_drop::TargetSample,
+    ),
 }
