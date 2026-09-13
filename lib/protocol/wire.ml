@@ -1,7 +1,7 @@
 open Core
 
 let version = 1L
-let capabilities = 1023L
+let capabilities = 2047L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -17,6 +17,31 @@ module Kind = struct
     | Select
     | Combobox
     | Focus_scope
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Overlay_kind = struct
+  type t =
+    | Dialog
+    | Popover
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Dismissal = struct
+  type t =
+    | Escape
+    | Outside_pointer
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Overlay = struct
+  type t =
+    { kind : Overlay_kind.t
+    ; label : string
+    ; width : float
+    ; dismiss_on_escape : bool
+    ; dismiss_on_outside_pointer : bool
+    }
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -322,6 +347,7 @@ module Op = struct
     | Set_choice_appearance of Node_id.t * Choice_appearance.t
     | Set_combobox_filter of Node_id.t * Combobox_filter.t
     | Set_focus_scope of Node_id.t * Focus_scope.t
+    | Set_overlay of Node_id.t * Overlay.t option
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -394,6 +420,7 @@ module Event = struct
     | Choice of Window_id.t * Node_id.t * Handler_id.t * int64 * string
     | Combobox_selected of
         Window_id.t * Node_id.t * Handler_id.t * int64 * string * Editor.Snapshot.t
+    | Overlay_dismissed of Window_id.t * Node_id.t * Handler_id.t * int64 * Dismissal.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -418,6 +445,7 @@ module Event = struct
       && valid_snapshot snapshot
       && Option.is_none snapshot.composition
       && not (String.contains snapshot.text '\n' || String.contains snapshot.text '\r')
+    | Overlay_dismissed (_, _, _, revision, _) -> Int64.(revision >= 0L)
     | Choice (_, _, _, revision, id) ->
       Int64.(revision >= 0L)
       && String.length id > 0

@@ -12,6 +12,7 @@ pub const CAP_SELECT: i64 = 64;
 pub const CAP_CHOICE_APPEARANCE: i64 = 128;
 pub const CAP_COMBOBOX: i64 = 256;
 pub const CAP_FOCUS_SCOPES: i64 = 512;
+pub const CAP_OVERLAYS: i64 = 1024;
 pub const CAPABILITIES: i64 = CAP_TREE
     | CAP_NATIVE_STYLES
     | CAP_FRAME_EVENTS
@@ -21,7 +22,8 @@ pub const CAPABILITIES: i64 = CAP_TREE
     | CAP_SELECT
     | CAP_CHOICE_APPEARANCE
     | CAP_COMBOBOX
-    | CAP_FOCUS_SCOPES;
+    | CAP_FOCUS_SCOPES
+    | CAP_OVERLAYS;
 pub const EDITOR_HISTORY_BYTES: usize = 2 * 1024 * 1024;
 pub const EDITOR_RESERVED_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_MESSAGE_BYTES: usize = 1_048_576;
@@ -376,6 +378,40 @@ impl Default for ChoiceAppearance {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum OverlayKind {
+    Dialog,
+    Popover,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum Dismissal {
+    Escape,
+    OutsidePointer,
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct OverlayConfig {
+    pub kind: OverlayKind,
+    pub label: String,
+    pub width: f64,
+    pub dismiss_on_escape: bool,
+    pub dismiss_on_outside_pointer: bool,
+}
+impl OverlayConfig {
+    pub fn is_valid(&self) -> bool {
+        !self.label.trim().is_empty()
+            && self.label.len() <= 4096
+            && !self.label.contains('\0')
+            && self.width.is_finite()
+            && (1.0..=16384.0).contains(&self.width)
+    }
+    pub fn allows(&self, reason: Dismissal) -> bool {
+        match reason {
+            Dismissal::Escape => self.dismiss_on_escape,
+            Dismissal::OutsidePointer => self.dismiss_on_outside_pointer,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub enum Op {
     Create(NodeId, Kind, String, Option<HandlerId>),
@@ -391,6 +427,7 @@ pub enum Op {
     SetChoiceAppearance(NodeId, ChoiceAppearance),
     SetComboboxFilter(NodeId, ComboboxFilter),
     SetFocusScope(NodeId, FocusScopeConfig),
+    SetOverlay(NodeId, Option<OverlayConfig>),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -452,4 +489,5 @@ pub enum Event {
     EditorResult(i64, WindowId, NodeId, EditorResult),
     Choice(WindowId, NodeId, HandlerId, i64, String),
     ComboboxSelected(WindowId, NodeId, HandlerId, i64, String, EditorSnapshot),
+    OverlayDismissed(WindowId, NodeId, HandlerId, i64, Dismissal),
 }

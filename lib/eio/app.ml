@@ -277,7 +277,8 @@ let process t = function
   | ( Press (id, _, _, _)
     | Editor_event (id, _, _, _, _, _)
     | Choice (id, _, _, _, _)
-    | Combobox_selected (id, _, _, _, _, _) ) as event ->
+    | Combobox_selected (id, _, _, _, _, _)
+    | Overlay_dismissed (id, _, _, _, _) ) as event ->
     Option.iter (find_window t id) ~f:(fun window ->
       if not (Window.is_closed window)
       then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))

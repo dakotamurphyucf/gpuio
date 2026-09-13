@@ -51,6 +51,27 @@ val focus_scope
   -> 'action t list
   -> 'action t
 
+(** [None] closes and unmounts modal content. A dialog traps focus until closed.
+    [style] applies to the panel, and content can contain any ordinary views. *)
+val dialog
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Overlay.Config.t
+  -> on_dismiss:(Overlay.Dismissal.t -> 'action)
+  -> 'action t option
+  -> 'action t
+
+(** The anchor remains mounted when closed. Content is positioned against its
+    current frame's bounds, enters focus without trapping, and restores on close. *)
+val popover
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Overlay.Config.t
+  -> on_dismiss:(Overlay.Dismissal.t -> 'action)
+  -> anchor:'action t
+  -> 'action t option
+  -> 'action t
+
 val row : ?key:Key.t -> ?style:Style.t -> 'action t list -> 'action t
 val column : ?key:Key.t -> ?style:Style.t -> 'action t list -> 'action t
 
@@ -143,6 +164,12 @@ module Expert : sig
     val to_wire : t -> Gpuio_protocol.Wire.Control.t
   end
 
+  type 'action overlay =
+    { kind : Gpuio_protocol.Wire.Overlay_kind.t
+    ; config : Overlay.Config.t
+    ; on_dismiss : Overlay.Dismissal.t -> 'action
+    }
+
   type 'action combobox =
     { controller : Key.t
     ; config : Combobox.Config.t
@@ -172,6 +199,7 @@ module Expert : sig
     ; control : Control.t option
     ; choice : 'action choice option
     ; combobox : 'action combobox option
+    ; overlay : 'action overlay option
     ; focus_scope : Focus_scope.t option
     ; children : 'action t list
     }

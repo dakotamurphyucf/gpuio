@@ -62,6 +62,12 @@ type 'action combobox =
   ; on_event : Combobox.Event.t -> 'action
   }
 
+type 'action overlay =
+  { kind : Gpuio_protocol.Wire.Overlay_kind.t
+  ; config : Overlay.Config.t
+  ; on_dismiss : Overlay.Dismissal.t -> 'action
+  }
+
 type 'action t =
   { key : Key.t option
   ; kind : Kind.t
@@ -72,6 +78,7 @@ type 'action t =
   ; control : Control.t option
   ; choice : 'action choice option
   ; combobox : 'action combobox option
+  ; overlay : 'action overlay option
   ; focus_scope : Focus_scope.t option
   ; children : 'action t list
   }
@@ -85,6 +92,7 @@ let text ?key ?(style = Style.empty) text =
   ; editor = None
   ; choice = None
   ; combobox = None
+  ; overlay = None
   ; focus_scope = None
   ; control = None
   ; children = []
@@ -119,6 +127,7 @@ let button ?key ?(style = Style.empty) ?accessible_name ?(disabled = false) ~on_
   ; editor = None
   ; choice = None
   ; combobox = None
+  ; overlay = None
   ; focus_scope = None
   ; control = Some (Button { disabled })
   ; children = []
@@ -162,6 +171,7 @@ let toggle
   ; editor = None
   ; choice = None
   ; combobox = None
+  ; overlay = None
   ; focus_scope = None
   ; control = Some control
   ; children = []
@@ -201,6 +211,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; editor = None
   ; choice = None
   ; combobox = None
+  ; overlay = None
   ; focus_scope = None
   ; control = None
   ; children
@@ -212,6 +223,54 @@ let focus_scope ?key ?style ~config children =
     kind = Focus_scope
   ; focus_scope = Some config
   }
+;;
+
+let overlay_style style =
+  Style.merge
+    [ Style.create_exn
+        [ Background (Background.solid (Color.token_exn "background"))
+        ; Foreground (Color.token_exn "foreground")
+        ; Border_color (Color.token_exn "muted")
+        ]
+    ; Option.value style ~default:Style.empty
+    ]
+;;
+
+let dialog ?key ?style ~config ~on_dismiss content =
+  match content with
+  | None ->
+    container
+      ?key
+      [ Position Absolute; Width (Length.px_exn 0.); Height (Length.px_exn 0.) ]
+      []
+  | Some content ->
+    { (focus_scope
+         ?key
+         ~style:(overlay_style style)
+         ~config:(Focus_scope.create ~trap:true ())
+         [ content ])
+      with
+      overlay = Some { kind = Dialog; config; on_dismiss }
+    }
+;;
+
+let popover ?key ?style ~config ~on_dismiss ~anchor content =
+  let children =
+    match content with
+    | None -> [ anchor ]
+    | Some content ->
+      let panel =
+        { (focus_scope
+             ~style:(overlay_style style)
+             ~config:(Focus_scope.create ~auto_focus:true ())
+             [ content ])
+          with
+          overlay = Some { kind = Popover; config; on_dismiss }
+        }
+      in
+      [ anchor; panel ]
+  in
+  container ?key [ Position Relative ] children
 ;;
 
 let row ?key ?style children =
@@ -253,6 +312,7 @@ let text_input
   ; editor = Some { controller; config; on_event }
   ; choice = None
   ; combobox = None
+  ; overlay = None
   ; focus_scope = None
   ; control = None
   ; children = []
@@ -269,6 +329,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; control = None
   ; choice = Some { config; appearance = None; on_select }
   ; combobox = None
+  ; overlay = None
   ; focus_scope = None
   ; children = []
   }
@@ -307,6 +368,7 @@ let combobox
   ; control = None
   ; choice = None
   ; combobox = Some { controller; config; appearance; on_event }
+  ; overlay = None
   ; focus_scope = None
   ; children = []
   }
@@ -315,6 +377,12 @@ let combobox
 module Expert = struct
   module Kind = Kind
   module Control = Control
+
+  type nonrec 'action overlay = 'action overlay =
+    { kind : Gpuio_protocol.Wire.Overlay_kind.t
+    ; config : Overlay.Config.t
+    ; on_dismiss : Overlay.Dismissal.t -> 'action
+    }
 
   type nonrec 'action combobox = 'action combobox =
     { controller : Key.t
@@ -345,6 +413,7 @@ module Expert = struct
     ; control : Control.t option
     ; choice : 'action choice option
     ; combobox : 'action combobox option
+    ; overlay : 'action overlay option
     ; focus_scope : Focus_scope.t option
     ; children : 'action t list
     }

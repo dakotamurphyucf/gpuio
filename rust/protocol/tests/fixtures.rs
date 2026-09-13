@@ -195,3 +195,67 @@ fn focus_scope_and_focus_denial_match_ocaml() {
         bytes(include_str!("../../../test/fixtures/focus-v1-events.hex"))
     );
 }
+
+#[test]
+fn overlays_match_ocaml_and_reject_malformed_envelopes() {
+    use gpuio_protocol::{HandlerId, NodeId, WindowId, v1::*};
+    let window = WindowId::from_parts(0, 1).unwrap();
+    let node = NodeId::from_parts(0, 1).unwrap();
+    let handler = HandlerId::from_parts(0, 1).unwrap();
+    let request = Message::Apply(Transaction {
+        window,
+        base: 0,
+        revision: 1,
+        operations: vec![
+            Op::Create(node, Kind::FocusScope, "".into(), Some(handler)),
+            Op::SetFocusScope(
+                node,
+                FocusScopeConfig {
+                    trap: true,
+                    auto_focus: true,
+                    restore_focus: true,
+                },
+            ),
+            Op::SetOverlay(
+                node,
+                Some(OverlayConfig {
+                    kind: OverlayKind::Dialog,
+                    label: "Settings".into(),
+                    width: 220.,
+                    dismiss_on_escape: true,
+                    dismiss_on_outside_pointer: false,
+                }),
+            ),
+            Op::SetRoot(Some(node)),
+        ],
+    });
+    let expected = bytes(include_str!(
+        "../../../test/fixtures/overlay-v1-request.hex"
+    ));
+    let mut actual = Vec::new();
+    request.binprot_write(&mut actual).unwrap();
+    assert_eq!(actual, expected);
+    assert_eq!(gpuio_protocol::decode(&expected).unwrap(), request);
+    for length in 0..expected.len() {
+        assert!(gpuio_protocol::decode(&expected[..length]).is_err());
+    }
+    for index in [24, expected.len() - 6, expected.len() - 5] {
+        let mut malformed = expected.clone();
+        malformed[index] = 2;
+        assert!(gpuio_protocol::decode(&malformed).is_err());
+    }
+    actual.clear();
+    vec![Event::OverlayDismissed(
+        window,
+        node,
+        handler,
+        1,
+        Dismissal::Escape,
+    )]
+    .binprot_write(&mut actual)
+    .unwrap();
+    assert_eq!(
+        actual,
+        bytes(include_str!("../../../test/fixtures/overlay-v1-events.hex"))
+    );
+}

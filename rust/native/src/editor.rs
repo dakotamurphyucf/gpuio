@@ -3,8 +3,8 @@
 use super::SharedSession;
 use crate::transport::Transport;
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement,
-    StatefulInteractiveElement, Subscription, Window,
+    App, AppContext, Context, Entity, EntityInputHandler, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, StatefulInteractiveElement, Subscription, Window,
 };
 use gpui_base::input::{
     BridgeSubmission, InputBaseState, InputModeKind, InputState, TextareaState,
@@ -140,6 +140,16 @@ fn configure<M: InputModeKind>(
             .aria_label(config.label.clone())
             .aria_placeholder(config.placeholder.clone())
             .aria_value(state.value());
+        let composing_editor = cx.entity();
+        element = element.capture_action(move |_: &gpui_base::input::Escape, window, cx| {
+            if composing_editor.read(cx).bridge_composition().is_some() {
+                composing_editor.update(cx, |state, cx| {
+                    state.unmark_text(window, cx);
+                    cx.notify();
+                });
+                cx.stop_propagation();
+            }
+        });
         if let Some(combo) = &combobox {
             element = element.aria_expanded(combo.borrow().popup.borrow().open);
         }
@@ -182,6 +192,7 @@ fn configure<M: InputModeKind>(
             element,
             disabled: config.disabled,
             read_only: config.read_only,
+            modal: false,
         }
         .into_any_element()
     }));

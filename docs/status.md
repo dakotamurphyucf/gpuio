@@ -130,5 +130,14 @@ not expose all of those widgets through the OCaml API.
 Focus scopes are also implemented locally for OCH-11: native Tab trapping, nested
 entry/restoration, hidden/disabled traversal, empty-root fallback, command and
 accessibility gating, and bounded cleanup pass actual macOS control-window tests.
-Dialogs/popovers and the other remaining OCH-11 families are still in progress.
+The other remaining OCH-11 families are still in progress.
 No hosted acceptance is claimed for this local scope implementation.
+
+Dialog/Popover surfaces are implemented locally with application-controlled
+content lifetime, typed dismissal, native stacking/placement and accessibility
+semantics. Local macOS tests pass nested dialogs, restoration, choice-popup
+interaction beyond panel bounds, marked-text Escape and moving anchors. The
+public Bonsai/Eio overlay example passes native mount, editor commands, modal
+focus denial, stale unmount and close. OCaml/Rust tests, independent fixtures,
+full build/format and Clippy pass locally. No hosted acceptance is claimed;
+tooltips/menus/commands and the rest of OCH-11 remain in progress.

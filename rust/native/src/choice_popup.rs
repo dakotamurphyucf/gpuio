@@ -1,7 +1,6 @@
 //! Bounded option popup shared by choice controls. The owning control supplies
 //! activation; this module owns highlight, geometry, virtualized rows and semantics.
 use super::choice;
-#[cfg(feature = "native-tests")]
 use gpui::canvas;
 use gpui::{
     App, Bounds, Div, EntityId, Pixels, Stateful, UniformListScrollHandle, Window, div, prelude::*,
@@ -24,7 +23,6 @@ pub(super) struct State {
     #[cfg(feature = "native-tests")]
     pub(super) rendered_options: Rc<Cell<usize>>,
     pub(super) trigger: Rc<Cell<Bounds<Pixels>>>,
-    #[cfg(feature = "native-tests")]
     pub(super) popup_bounds: Rc<Cell<Bounds<Pixels>>>,
     #[cfg(feature = "native-tests")]
     pub(super) option_probes:
@@ -223,6 +221,7 @@ pub(super) fn element(render: Render<'_>, window: &Window) -> Stateful<Div> {
                     element: row,
                     disabled: item.disabled,
                     read_only: false,
+                    modal: false,
                 }
             })
             .collect::<Vec<_>>()
@@ -282,8 +281,7 @@ pub(super) fn element(render: Render<'_>, window: &Window) -> Stateful<Div> {
     } else {
         popup.style().mouse_cursor = None;
     }
-    #[cfg(feature = "native-tests")]
-    let popup = {
+    {
         let bounds = state.borrow().popup_bounds.clone();
         popup.child(
             canvas(move |value, _, _| bounds.set(value), |_, _, _, _| {})
@@ -292,6 +290,5 @@ pub(super) fn element(render: Render<'_>, window: &Window) -> Stateful<Div> {
                 .left_0()
                 .size_full(),
         )
-    };
-    popup
+    }
 }

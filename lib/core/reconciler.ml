@@ -64,6 +64,7 @@ end
 
 type 'a callback =
   | Click of (unit -> 'a)
+  | Dismiss of Overlay.Config.t * (Overlay.Dismissal.t -> 'a)
   | Editor of (Text_input.Event.t -> 'a)
   | Choice of Choice.Config.t * (Choice.Id.t -> 'a)
   | Combobox of Combobox.Config.t * (Combobox.Event.t -> 'a)
@@ -249,16 +250,23 @@ let rec mount builder ~depth previous view =
     let old_handler = Option.bind previous ~f:(fun mounted -> mounted.handler) in
     let callback =
       match
-        description.on_click, description.editor, description.choice, description.combobox
+        ( description.on_click
+        , description.editor
+        , description.choice
+        , description.combobox
+        , description.overlay )
       with
-      | Some callback, None, None, None -> Some (Click callback)
-      | None, Some editor, None, None -> Some (Editor editor.on_event)
-      | None, None, Some choice, None ->
+      | Some callback, None, None, None, None -> Some (Click callback)
+      | None, Some editor, None, None, None -> Some (Editor editor.on_event)
+      | None, None, Some choice, None, None ->
         if Choice.Config.is_disabled choice.config
         then None
         else Some (Choice (choice.config, choice.on_select))
-      | None, None, None, Some combo -> Some (Combobox (combo.config, combo.on_event))
-      | None, None, None, None -> None
+      | None, None, None, Some combo, None ->
+        Some (Combobox (combo.config, combo.on_event))
+      | None, None, None, None, Some overlay ->
+        Some (Dismiss (overlay.config, overlay.on_dismiss))
+      | None, None, None, None, None -> None
       | _ -> fail "a view cannot combine incompatible handler kinds"
     in
     let rotate_handler =
@@ -340,6 +348,17 @@ let rec mount builder ~depth previous view =
       in
       if not (Option.equal Focus_scope.equal old (Some config))
       then emit builder (Set_focus_scope (id, Focus_scope.Expert.to_wire config)));
+    let overlay =
+      Option.map description.overlay ~f:(fun overlay ->
+        Overlay.Expert.to_wire overlay.config ~kind:overlay.kind)
+    in
+    let old_overlay =
+      Option.bind previous ~f:(fun mounted ->
+        Option.map (View.Expert.describe mounted.view).overlay ~f:(fun overlay ->
+          Overlay.Expert.to_wire overlay.config ~kind:overlay.kind))
+    in
+    if not (Option.equal Wire.Overlay.equal old_overlay overlay)
+    then emit builder (Set_overlay (id, overlay));
     Option.iter description.control ~f:(fun control ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -513,7 +532,7 @@ let dispatch t = function
        when Node_id.equal node binding.node && Handler_id.equal handler binding.handler ->
        (match binding.callback with
         | Click callback -> Some (callback ())
-        | Editor _ | Choice _ | Combobox _ -> None)
+        | Editor _ | Choice _ | Combobox _ | Dismiss _ -> None)
      | Some _ | None -> None)
   | Choice (window, node, handler, revision, selected)
     when (not t.closed)
@@ -579,6 +598,25 @@ let dispatch t = function
        in
        Result.ok selection |> Option.map ~f:(fun selected -> callback (Selected selected))
      | Some _ | None -> None)
+  | Overlay_dismissed (window, node, handler, revision, reason)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Dismiss (config, callback)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       let reason =
+         match reason with
+         | Wire.Dismissal.Escape -> Overlay.Dismissal.Escape
+         | Outside_pointer -> Outside_pointer
+       in
+       if Overlay.Expert.allows config reason then Some (callback reason) else None
+     | Some _ | None -> None)
+  | Overlay_dismissed _
   | Welcome _
   | Opened _
   | Closed _

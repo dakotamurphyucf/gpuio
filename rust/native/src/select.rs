@@ -27,6 +27,7 @@ impl State {
 }
 
 pub(super) struct Render<'a> {
+    pub priority: usize,
     pub config: &'a Arc<ChoiceConfig>,
     pub appearance: Arc<ChoiceAppearance>,
     pub state: Rc<RefCell<State>>,
@@ -43,6 +44,7 @@ pub(super) fn element<T: 'static>(
     cx: &mut Context<T>,
 ) -> Stateful<Div> {
     let Render {
+        priority,
         config,
         appearance,
         state,
@@ -67,7 +69,6 @@ pub(super) fn element<T: 'static>(
         .map(|item| item.label.clone());
     let trigger = popup_state.borrow().trigger.clone();
     base = base
-        .relative()
         .aria_expanded(open)
         .aria_value(value.clone().unwrap_or_default())
         .child(
@@ -220,6 +221,10 @@ pub(super) fn element<T: 'static>(
             });
         }
         if open {
+            route
+                .gate
+                .borrow_mut()
+                .surface(route.node, popup_state.borrow().popup_bounds.clone());
             let popup = super::choice_popup::element(
                 super::choice_popup::Render {
                     config,
@@ -237,7 +242,7 @@ pub(super) fn element<T: 'static>(
                     trigger: popup_state.borrow().trigger.clone(),
                     content: popup.into_any_element(),
                 })
-                .with_priority(gpui_base::POPUP_PRIORITY),
+                .with_priority(priority),
             );
         }
     }

@@ -21,6 +21,31 @@ module type S = sig
     [@@deriving bin_io, equal, sexp_of]
   end
 
+  module Overlay_kind : sig
+    type t =
+      | Dialog
+      | Popover
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Dismissal : sig
+    type t =
+      | Escape
+      | Outside_pointer
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Overlay : sig
+    type t =
+      { kind : Overlay_kind.t
+      ; label : string
+      ; width : float
+      ; dismiss_on_escape : bool
+      ; dismiss_on_outside_pointer : bool
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
   module Focus_scope : sig
     type t =
       { trap : bool
@@ -324,6 +349,7 @@ module type S = sig
       | Set_choice_appearance of Node_id.t * Choice_appearance.t
       | Set_combobox_filter of Node_id.t * Combobox_filter.t
       | Set_focus_scope of Node_id.t * Focus_scope.t
+      | Set_overlay of Node_id.t * Overlay.t option
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -394,6 +420,7 @@ module type S = sig
       | Choice of Window_id.t * Node_id.t * Handler_id.t * int64 * string
       | Combobox_selected of
           Window_id.t * Node_id.t * Handler_id.t * int64 * string * Editor.Snapshot.t
+      | Overlay_dismissed of Window_id.t * Node_id.t * Handler_id.t * int64 * Dismissal.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

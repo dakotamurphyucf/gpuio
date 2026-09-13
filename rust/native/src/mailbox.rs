@@ -192,6 +192,7 @@ impl Mailbox {
             | Event::Press(id, ..)
             | Event::EditorEvent(id, ..)
             | Event::Choice(id, ..)
+            | Event::OverlayDismissed(id, ..)
             | Event::ComboboxSelected(id, ..)
             | Event::EditorResult(_, id, ..)
             | Event::Overloaded(id) => id.slot() == window_slot,

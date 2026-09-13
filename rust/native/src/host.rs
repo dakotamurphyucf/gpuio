@@ -28,6 +28,8 @@ mod editor;
 pub(super) mod editor_test;
 #[path = "focus.rs"]
 mod focus;
+#[path = "overlay.rs"]
+mod overlay;
 #[path = "popup.rs"]
 mod popup;
 #[path = "radio.rs"]
@@ -218,6 +220,7 @@ impl View {
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let node = tree.get(id).expect("validated retained node");
+        let popup_priority = self.focus.borrow().layer(id) + 2;
         let identity = ((id.generation() as u64) << 32) | id.slot() as u64;
         let mut accessible_name = gpui::SharedString::from(node.text.clone());
         for style in node.style.iter() {
@@ -249,6 +252,19 @@ impl View {
                 .border_1()
                 .border_color(rgba(0x80808080))
                 .rounded(px(4.));
+        }
+        if let Some(config) = &node.overlay {
+            let available = window.viewport_size();
+            element = element
+                .w(px(config.width as f32).min((available.width - px(32.)).max(px(1.))))
+                .max_h((available.height - px(32.)).max(px(1.)))
+                .overflow_y_scroll()
+                .p(px(16.))
+                .gap(px(8.))
+                .rounded(px(8.))
+                .bg(rgba(0x25272aff))
+                .border_1()
+                .border_color(rgba(0x80808080));
         }
         let disabled = node.choice.as_ref().is_some_and(|config| config.disabled)
             || node.control.is_some_and(Control::disabled)
@@ -436,6 +452,7 @@ impl View {
             element = combobox::element(
                 element,
                 combobox::Render {
+                    priority: popup_priority,
                     editor,
                     state,
                     config: node.choice.as_ref().expect("validated combobox choices"),
@@ -471,6 +488,7 @@ impl View {
                 element = select::element(
                     element,
                     select::Render {
+                        priority: popup_priority,
                         config,
                         appearance: node
                             .choice_appearance
@@ -541,6 +559,22 @@ impl View {
         } else if !node.text.is_empty() {
             element = element.child(gpui::SharedString::from(node.text.clone()));
         }
+        for child in node.children.iter() {
+            if tree
+                .get(*child)
+                .and_then(|node| node.overlay.as_ref())
+                .is_some_and(|config| config.kind == OverlayKind::Popover)
+            {
+                let anchor = self.focus.borrow().anchor(*child).expect("mounted scope");
+                element = element.child(
+                    canvas(move |bounds, _, _| anchor.set(bounds), |_, _, _, _| {})
+                        .absolute()
+                        .top_0()
+                        .left_0()
+                        .size_full(),
+                );
+            }
+        }
         element = element.children(
             node.children
                 .iter()
@@ -550,6 +584,7 @@ impl View {
         if let Some(handler) = node.handler
             && node.editor.is_none()
             && node.choice.is_none()
+            && node.overlay.is_none()
             && !disabled
         {
             let window = self.id;
@@ -611,7 +646,7 @@ impl View {
         if let Some(handle) = handle.filter(|_| !disabled) {
             let tab_stop = node.kind != Kind::FocusScope;
             let manager = self.focus.clone();
-            element = element.relative().child(
+            element = element.child(
                 canvas(
                     |_, _, _| (),
                     move |bounds, _, window, _| {
@@ -632,7 +667,7 @@ impl View {
         #[cfg(feature = "native-tests")]
         {
             let probes = self.probes.clone();
-            element = element.relative().child(
+            element = element.child(
                 canvas(
                     |bounds, _, _| bounds,
                     move |_, bounds, window, _| {
@@ -651,10 +686,27 @@ impl View {
                 .size_full(),
             );
         }
+        if let Some(config) = &node.overlay {
+            return overlay::element(
+                element,
+                config.clone(),
+                choice::Route {
+                    window: self.id,
+                    node: id,
+                    handler: node.handler.expect("validated overlay"),
+                    revision: tree.revision(),
+                    session: self.session.clone(),
+                    gate: self.focus.clone(),
+                    transport: self.transport.clone(),
+                },
+                window,
+            );
+        }
         crate::semantics::State {
             element,
             disabled,
             read_only: false,
+            modal: false,
         }
         .into_any_element()
     }
@@ -662,6 +714,7 @@ impl View {
 impl Render for View {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.visited.clear();
+        self.focus.borrow_mut().clear_surfaces();
         let shared = self.session.clone();
         let session = shared.borrow();
         let root_focus = self

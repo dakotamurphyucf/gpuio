@@ -238,6 +238,19 @@ impl Decoder<'_> {
         (0..count).map(|_| f(self)).collect()
     }
 
+    fn overlay_config(&mut self) -> Result<OverlayConfig, DecodeError> {
+        Ok(OverlayConfig {
+            kind: match self.tag()? {
+                0 => OverlayKind::Dialog,
+                1 => OverlayKind::Popover,
+                _ => return Err(DecodeError::Malformed),
+            },
+            label: self.text()?,
+            width: self.float()?,
+            dismiss_on_escape: self.boolean()?,
+            dismiss_on_outside_pointer: self.boolean()?,
+        })
+    }
     fn op(&mut self) -> Result<Op, DecodeError> {
         Ok(match self.tag()? {
             0 => {
@@ -272,6 +285,7 @@ impl Decoder<'_> {
             7 => Op::SetEditor(self.node()?, self.editor_config()?),
             8 => Op::SetControl(self.node()?, self.control()?),
             9 => Op::SetChoice(self.node()?, self.choice_config()?),
+            13 => Op::SetOverlay(self.node()?, self.option(Self::overlay_config)?),
             12 => Op::SetFocusScope(
                 self.node()?,
                 FocusScopeConfig {

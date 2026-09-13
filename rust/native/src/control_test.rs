@@ -1,4 +1,6 @@
 //! Real-window control activation, focus traversal and native accessibility.
+#[path = "overlay_test.rs"]
+mod overlay_test;
 use super::editor_test::{frame, key};
 use super::*;
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
@@ -1092,16 +1094,19 @@ fn apply(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, operations: Vec<Op
     handle
         .update(cx, |view, window, cx| {
             let base = view.session.borrow().tree(view.id).unwrap().revision();
+            let transaction = Transaction {
+                window: view.id,
+                base,
+                revision: base + 1,
+                operations,
+            };
             let applied = view
                 .session
                 .borrow_mut()
-                .apply(&Transaction {
-                    window: view.id,
-                    base,
-                    revision: base + 1,
-                    operations,
-                })
-                .unwrap();
+                .apply(&transaction)
+                .unwrap_or_else(|error| {
+                    panic!("native test transaction rejected: {error:?}: {transaction:?}")
+                });
             view.update_editors(&applied.dirty, window, cx);
             cx.notify();
         })
@@ -1323,6 +1328,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
     select_control(cx, handle, &transport).await;
     combobox_control(cx, handle, &transport).await;
     focus_scopes(cx, handle, &transport).await;
+    overlay_test::exercise(cx, handle, &transport).await;
     // Remove a focused native node and enter the surviving Tab order again.
     handle
         .update(cx, |view, window, cx| {

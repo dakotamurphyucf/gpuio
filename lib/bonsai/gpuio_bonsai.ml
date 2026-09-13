@@ -37,6 +37,8 @@ module View = struct
 
   let row = Gpuio.View.row
   let focus_scope = Gpuio.View.focus_scope
+  let dialog = Gpuio.View.dialog
+  let popover = Gpuio.View.popover
   let radio_group = Gpuio.View.radio_group
   let select = Gpuio.View.select
   let combobox = Gpuio.View.combobox

@@ -13,6 +13,7 @@ pub struct Node {
     pub control: Option<Control>,
     pub choice: Option<Arc<ChoiceConfig>>,
     pub focus_scope: Option<FocusScopeConfig>,
+    pub overlay: Option<Arc<OverlayConfig>>,
     pub combobox_filter: Option<ComboboxFilter>,
     pub choice_appearance: Option<Arc<ChoiceAppearance>>,
     pub style: Arc<[Style]>,
@@ -24,6 +25,9 @@ pub struct Node {
 impl Node {
     fn payload_bytes(&self) -> usize {
         self.text.len()
+            + self.overlay.as_ref().map_or(0, |config| {
+                std::mem::size_of::<OverlayConfig>() + config.label.len()
+            })
             + self.choice_appearance.as_ref().map_or(0, |appearance| {
                 crate::appearance::retained_bytes(appearance)
             })
@@ -187,6 +191,16 @@ impl Tree {
                 if (node.kind == Kind::FocusScope) != node.focus_scope.is_some() {
                     return Err(ErrorCode::InvalidTree);
                 }
+                if let Some(config) = &node.overlay
+                    && (node.kind != Kind::FocusScope
+                        || !config.is_valid()
+                        || node.handler.is_none()
+                        || (config.kind == OverlayKind::Dialog
+                            && !node.focus_scope.is_some_and(|scope| scope.trap))
+                        || (config.kind == OverlayKind::Popover && Some(node.id) == plan.root))
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
                 match node.kind {
                     Kind::Input | Kind::Textarea | Kind::Combobox => {
                         let config = node.editor.as_ref().ok_or(ErrorCode::InvalidTree)?;
@@ -322,6 +336,7 @@ impl Plan<'_> {
             | Op::SetControl(id, ..)
             | Op::SetChoice(id, ..)
             | Op::SetFocusScope(id, ..)
+            | Op::SetOverlay(id, ..)
             | Op::SetComboboxFilter(id, ..)
             | Op::SetChoiceAppearance(id, ..)
             | Op::Bind(id, ..)
@@ -382,6 +397,7 @@ impl Plan<'_> {
                             choice_appearance: None,
                             combobox_filter: None,
                             focus_scope: None,
+                            overlay: None,
                             style: Arc::from([]),
                             handler: *handler,
                             children: Arc::from([]),
@@ -423,6 +439,14 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.editor = Some(Arc::new(config.clone()));
+            }
+            Op::SetOverlay(id, config) => {
+                if self.node(*id)?.kind != Kind::FocusScope
+                    || config.as_ref().is_some_and(|config| !config.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.overlay = config.clone().map(Arc::new);
             }
             Op::SetFocusScope(id, config) => {
                 if self.node(*id)?.kind != Kind::FocusScope {
@@ -506,6 +530,14 @@ impl Plan<'_> {
                 return Err(ErrorCode::InvalidTree);
             }
             let node = self.node(id)?;
+            if parent.is_none()
+                && node
+                    .overlay
+                    .as_ref()
+                    .is_some_and(|config| config.kind == OverlayKind::Popover)
+            {
+                return Err(ErrorCode::InvalidTree);
+            }
             if !matches!(node.kind, Kind::Container | Kind::FocusScope) && !node.children.is_empty()
             {
                 return Err(ErrorCode::InvalidTree);

@@ -93,7 +93,12 @@ let worker native notification_read =
         assert (Int64.equal !painted 50L && !other_closed && !rollback && !containment);
         stopped := true
       | Failed _ | Rejected _ | Overloaded _ -> failwith "unexpected bridge failure"
-      | Press _ | Editor_event _ | Editor_result _ | Choice _ | Combobox_selected _ -> ()
+      | Press _
+      | Editor_event _
+      | Editor_result _
+      | Choice _
+      | Combobox_selected _
+      | Overlay_dismissed _ -> ()
     in
     send (Hello (Wire.version, Wire.capabilities));
     Eio.Time.with_timeout_exn (Eio.Stdenv.clock env) 30. (fun () ->

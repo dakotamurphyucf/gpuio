@@ -54,6 +54,7 @@ impl State {
 }
 
 pub(super) struct Render<'a> {
+    pub priority: usize,
     pub editor: Entity<InputState>,
     pub state: Rc<RefCell<State>>,
     pub config: &'a Arc<ChoiceConfig>,
@@ -71,6 +72,7 @@ pub(super) fn element<T: 'static>(
     cx: &mut Context<T>,
 ) -> Stateful<Div> {
     let Render {
+        priority,
         editor,
         state,
         config,
@@ -108,7 +110,7 @@ pub(super) fn element<T: 'static>(
         (options, popup)
     };
     let trigger = popup_state.borrow().trigger.clone();
-    base = base.relative().child(editor.clone()).child(
+    base = base.child(editor.clone()).child(
         canvas(move |bounds, _, _| trigger.set(bounds), |_, _, _, _| {})
             .absolute()
             .top_0()
@@ -118,6 +120,12 @@ pub(super) fn element<T: 'static>(
     let Some(route) = route else {
         return base;
     };
+    if popup_state.borrow().open {
+        route
+            .gate
+            .borrow_mut()
+            .surface(route.node, popup_state.borrow().popup_bounds.clone());
+    }
     let choose_editor = editor.clone();
     let choose: choice_popup::Choose = Rc::new(move |id, window, cx| {
         let snapshot = super::editor::snapshot(choose_editor.read(cx), window, cx);
@@ -222,7 +230,7 @@ pub(super) fn element<T: 'static>(
                 trigger: popup_state.borrow().trigger.clone(),
                 content: popup.into_any_element(),
             })
-            .with_priority(gpui_base::POPUP_PRIORITY),
+            .with_priority(priority),
         );
     }
     base

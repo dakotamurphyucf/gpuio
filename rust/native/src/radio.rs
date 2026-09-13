@@ -118,6 +118,7 @@ pub(super) fn element<T: 'static>(
             element: option,
             disabled,
             read_only: false,
+            modal: false,
         });
     }
     if let Some(route) = route {

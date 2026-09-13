@@ -207,6 +207,23 @@ impl Session {
         .then(|| Event::Choice(id, node, handler, revision, selected.to_owned()))
     }
 
+    pub fn dismiss(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        reason: Dismissal,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        (!window.overloaded
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && window.tree.accepts_handler(node, handler)
+            && window.tree.get(node)?.overlay.as_ref()?.allows(reason))
+        .then_some(Event::OverlayDismissed(id, node, handler, revision, reason))
+    }
+
     pub fn overload(&mut self, id: WindowId) -> bool {
         let Ok(window) = self.window_mut(id) else {
             return false;

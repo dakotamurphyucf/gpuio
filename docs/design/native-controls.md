@@ -1,9 +1,9 @@
 # Native controls (OCH-11, in progress)
 
 The controls add `View.checkbox`, `View.switch`, `View.radio_group`, `View.select`,
-`View.combobox` and disabled buttons
+`View.combobox`, focus scopes, dialogs/popovers and disabled buttons
 to both the pure action API and the Bonsai effect API. The rest of OCH-11 remains
-in progress: general overlays, commands, pointer/drag interactions, dialogs,
+in progress: tooltips/menus, commands, pointer/drag interactions,
 assets, and their acceptance checks. This document records the implemented
 contracts and the integration findings; it is not completion evidence for the
 whole ticket.
@@ -265,4 +265,54 @@ editor command error 10 is `Focus_blocked`. Independent `focus-v1-request.hex`
 and `focus-v1-events.hex` fixtures cover both languages. Actual local macOS native
 controls tests cover nested traps/restoration, empty scopes, reordered and hidden/
 disabled descendants, blocked command/accessibility requests and cleanup. This
-foundation does not by itself expose a dialog, popover or tooltip surface.
+primitive is also the foundation for the dialog/popover surfaces below.
+
+## Dialogs and popovers
+
+`View.dialog ~config ~on_dismiss content` uses an optional ordinary view as its
+content. `None` closes and unmounts the modal subtree. `Some content` mounts a
+native trapped scope on a centered, viewport-sized backdrop. `View.popover`
+additionally takes `~anchor`; that anchor remains mounted while optional panel
+content opens and closes. Popovers enter focus without trapping it. Both restore
+eligible previous focus on close and support arbitrary styled child views,
+including native editors and choices. `Overlay.Config.create` validates the
+accessible label and desired width (logical pixels); Escape dismissal defaults
+to enabled, outside-pointer dismissal to disabled. Enable outside dismissal
+explicitly for dismissible popovers. The panel uses theme background/foreground/
+muted tokens by default; `~style` customizes it.
+
+`Overlay.Dismissal.Escape` and `Outside_pointer` request closure. They do not
+silently modify the application's state or remove the trap. The application
+handles the request and renders `None`; queued requests for an old mount are
+rejected by node/handler generation checks. Callback and dismissal-policy changes
+are checked against the latest accepted view. There is no asynchronous
+prevent-default round trip.
+
+Overlay placement uses current-frame prepaint geometry, including scrolling and
+anchor movement. Modal surfaces occupy the viewport without contributing layout
+space to their mounting parent. Popovers flip/clamp using the shared popup
+positioner. Native mount order determines stacking: a child Select/Combobox popup
+paints above its containing surface, and a later nested dialog paints above both.
+The current top overlay receives dismissal. Popup bounds belonging to descendants
+count as inside the overlay even when they extend outside its panel. Native child
+widgets consume their own Escape before an overlay sees it; marked-text Escape
+ends composition without also dismissing the overlay. Backdrops block underlying
+pointer focus and wheel routing. Panels carry Dialog accessibility semantics;
+modal panels additionally expose the modal flag.
+
+Capability 1024 (current mask 2047) adds optional `Set_overlay` operation 13 on a
+focus-scope node and `Overlay_dismissed` event 15. The configuration carries
+Dialog/Popover kind, bounded label, desired width and two dismissal policies.
+Native validation checks kind/policy invariants and charges configuration/string
+storage to the retained-tree budget. Removing metadata or the scope releases that
+storage and its per-window placement/focus records. Independent overlay fixtures,
+OCaml callback/lifetime expectations and native transaction checks cover this
+contract. Local macOS control-window checks exercise nested dialog restoration,
+child choice activation beyond panel bounds, native marked-text Escape, and a
+moving popover anchor. Full screen-reader and Linux GUI acceptance remain separate
+validation work.
+
+Run `./scripts/gpuio exec dune exec examples/overlays/main.exe` for the public
+Bonsai/Eio example. Add `-- --self-test` for actual native mount/editor-command,
+modal focus-denial, stale unmount, popover and shutdown checks. Keyboard, pointer
+and macOS text-client dismissal checks are separately in `native_controls`.

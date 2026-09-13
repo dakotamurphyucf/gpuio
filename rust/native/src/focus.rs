@@ -1,10 +1,10 @@
 //! Window-owned focus scopes. Tab order is observed from painted controls;
 //! eligibility and modal gating use the current retained tree, never a probe focus.
 use super::SharedSession;
-use gpui::{App, FocusHandle, WeakFocusHandle, Window};
+use gpui::{App, Bounds, FocusHandle, Pixels, WeakFocusHandle, Window};
 use gpuio_protocol::{NodeId, WindowId, v1::*};
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
@@ -15,6 +15,8 @@ struct Scope {
     restore: Option<WeakFocusHandle>,
     config: FocusScopeConfig,
     order: u64,
+    overlay: Option<OverlayKind>,
+    anchor: Rc<Cell<Bounds<Pixels>>>,
 }
 struct Entry {
     node: NodeId,
@@ -26,6 +28,7 @@ pub(super) struct Manager {
     session: SharedSession,
     scopes: BTreeMap<NodeId, Scope>,
     entries: Vec<Entry>,
+    surfaces: BTreeMap<NodeId, Rc<Cell<Bounds<Pixels>>>>,
     seen: BTreeSet<NodeId>,
     active: Option<NodeId>,
     order: u64,
@@ -39,6 +42,7 @@ impl Manager {
             session,
             scopes: BTreeMap::new(),
             entries: Vec::new(),
+            surfaces: BTreeMap::new(),
             seen: BTreeSet::new(),
             active: None,
             order: 0,
@@ -105,6 +109,37 @@ impl Manager {
     pub(super) fn handle(&self, node: NodeId) -> Option<FocusHandle> {
         self.scopes.get(&node).map(|scope| scope.handle.clone())
     }
+    pub(super) fn clear_surfaces(&mut self) {
+        self.surfaces.clear();
+    }
+    pub(super) fn surface(&mut self, node: NodeId, bounds: Rc<Cell<Bounds<Pixels>>>) {
+        self.surfaces.insert(node, bounds);
+    }
+    pub(super) fn surface_contains(&self, scope: NodeId, position: gpui::Point<Pixels>) -> bool {
+        self.surfaces
+            .iter()
+            .any(|(node, bounds)| self.within(*node, scope) && bounds.get().contains(&position))
+    }
+    pub(super) fn anchor(&self, node: NodeId) -> Option<Rc<Cell<Bounds<Pixels>>>> {
+        self.scopes.get(&node).map(|scope| scope.anchor.clone())
+    }
+    pub(super) fn layer(&self, node: NodeId) -> usize {
+        self.scopes
+            .iter()
+            .filter(|(id, _)| self.within(node, **id))
+            .map(|(_, scope)| scope.order as usize * 4)
+            .max()
+            .unwrap_or(0)
+    }
+    pub(super) fn top_overlay(&self, node: NodeId) -> bool {
+        !self.blocks_pointer(node)
+            && self
+                .scopes
+                .iter()
+                .filter(|(_, scope)| scope.overlay.is_some())
+                .max_by_key(|(_, scope)| scope.order)
+                .is_some_and(|(id, _)| *id == node)
+    }
     pub(super) fn contains_focus(&self, window: &Window) -> bool {
         self.scopes
             .values()
@@ -120,14 +155,17 @@ impl Manager {
                 while let Some(id) = stack.pop() {
                     let node = tree.get(id).expect("validated node");
                     if let Some(config) = node.focus_scope {
-                        result.push((id, config));
+                        result.push((id, config, node.overlay.as_ref().map(|config| config.kind)));
                     }
                     stack.extend(node.children.iter().rev().copied());
                 }
             }
             result
         };
-        let present = configs.iter().map(|(id, _)| *id).collect::<BTreeSet<_>>();
+        let present = configs
+            .iter()
+            .map(|(id, _, _)| *id)
+            .collect::<BTreeSet<_>>();
         let mut restore = None;
         let mut removed = self
             .scopes
@@ -143,12 +181,13 @@ impl Manager {
             }
         }
         let mut enter = None;
-        for (id, config) in configs {
+        for (id, config, overlay) in configs {
             if let Some(scope) = self.scopes.get_mut(&id) {
                 if !scope.config.trap && config.trap {
                     enter = Some(id);
                 }
                 scope.config = config;
+                scope.overlay = overlay;
             } else {
                 self.order += 1;
                 self.scopes.insert(
@@ -158,6 +197,8 @@ impl Manager {
                         restore: window.focused(cx).map(|handle| handle.downgrade()),
                         config,
                         order: self.order,
+                        overlay,
+                        anchor: Rc::new(Cell::new(Bounds::default())),
                     },
                 );
                 if config.trap || config.auto_focus {

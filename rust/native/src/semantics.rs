@@ -8,6 +8,7 @@ pub struct State<E> {
     pub element: E,
     pub disabled: bool,
     pub read_only: bool,
+    pub modal: bool,
 }
 impl<E: Element> IntoElement for State<E> {
     type Element = Self;
@@ -63,6 +64,9 @@ impl<E: Element> Element for State<E> {
     }
     fn write_a11y_info(&self, node: &mut accesskit::Node) {
         self.element.write_a11y_info(node);
+        if self.modal {
+            node.set_modal();
+        }
         if self.disabled {
             node.set_disabled();
         }
