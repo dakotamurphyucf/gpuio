@@ -1,0 +1,11 @@
+[package]
+name = "gpuio-wayland"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+wayland-backend = { version = "=0.3.17", features = ["client_system", "dlopen"] }
+wayland-client = "=0.31.15"
+wayland-protocols = { version = "=0.32.13", features = ["client", "unstable"] }

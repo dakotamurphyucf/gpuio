@@ -120,7 +120,7 @@ fn natural_completion_and_cleanup_failure_retire_requests_once() {
     );
 }
 #[test]
-fn x11_parent_is_the_exact_native_id_and_wayland_is_not_faked() {
+fn scalar_parent_is_exact_and_wayland_requires_the_separate_export_adapter() {
     assert_eq!(
         parent(RawWindowHandle::Xlib(
             raw_window_handle::XlibWindowHandle::new(0x1234)

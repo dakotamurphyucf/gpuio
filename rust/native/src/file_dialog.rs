@@ -78,6 +78,13 @@ pub(crate) struct Dialogs {
 }
 
 impl Dialogs {
+    pub(crate) fn finish_before_quit(&self) {
+        #[cfg(target_os = "macos")]
+        self.clear().wait_before_quit();
+        #[cfg(target_os = "linux")]
+        self.portal.finish_before_quit();
+    }
+
     #[cfg(target_os = "macos")]
     pub(crate) fn show(
         &self,

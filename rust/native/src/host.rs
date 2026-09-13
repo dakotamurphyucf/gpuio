@@ -1051,7 +1051,7 @@ pub fn run(transport: Arc<Transport>) {
         let dialogs = crate::file_dialog::Dialogs::default();
         let quit_dialogs = dialogs.clone();
         cx.on_app_quit(move |_| {
-            quit_dialogs.clear().wait_before_quit();
+            quit_dialogs.finish_before_quit();
             std::future::ready(())
         })
         .detach();

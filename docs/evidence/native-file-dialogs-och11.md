@@ -112,8 +112,8 @@ These are test-driver adaptations, not changes to application selection policy.
 
 ## Still required
 
-Capability reporting and Wayland export ownership remain unimplemented. The Linux
-portal protocol and native X11 worker integration now have local unit evidence;
-see the [portal report](linux-file-portal-och11.md). Wayland currently returns
-Unsupported. Linux build/unit checks and consolidated hosted CI/merge remain
-required. No Linux GUI acceptance is claimed.
+Capability reporting remains unimplemented. The Linux portal protocol and native
+worker ownership have local unit evidence; the Wayland export adapter compiles
+locally but its system-libwayland tests await Linux execution. See the
+[portal report](linux-file-portal-och11.md). Linux build/unit checks and
+consolidated hosted CI/merge remain required. No Linux GUI acceptance is claimed.

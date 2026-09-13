@@ -1,8 +1,11 @@
 //! Linux portal worker ownership, also compiled/tested on macOS. GPUI native
-//! handles are inspected only on the UI thread; workers receive owned data.
+//! handles are inspected only on the UI thread. Workers own their export queue;
+//! the host's cleanup barrier retains borrowed native parents until they finish.
 use super::{Cleanup, Completion};
 use crate::transport::Transport;
 use gpuio_protocol::{WindowId, v1::*};
+#[cfg(feature = "wayland")]
+use raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use std::{
     collections::BTreeMap,
@@ -36,6 +39,8 @@ pub struct Dialogs {
 #[derive(Default)]
 struct Owner {
     jobs: Jobs,
+    #[cfg(feature = "wayland")]
+    display: Mutex<Option<(usize, gpuio_wayland::Display)>>,
 }
 
 impl Dialogs {
@@ -48,20 +53,6 @@ impl Dialogs {
         cx: &gpui::App,
         transport: Arc<Transport>,
     ) {
-        let parent = HasWindowHandle::window_handle(window)
-            .map_err(|_| FileDialogError::NativeFailure)
-            .and_then(|handle| parent(handle.as_raw()));
-        let parent = match parent {
-            Ok(parent) => parent,
-            Err(error) => {
-                transport.respond(Event::FileDialogResult(
-                    correlation,
-                    id,
-                    FileDialogResult::Failed(error),
-                ));
-                return;
-            }
-        };
         let (cancel, worker) = match self.begin(correlation, id, transport.clone()) {
             Ok(request) => request,
             Err(error) => {
@@ -73,12 +64,21 @@ impl Dialogs {
                 return;
             }
         };
+        let parent = match Parent::new(window, &self.owner) {
+            Ok(parent) => parent,
+            Err(error) => {
+                worker.finish(FileDialogResult::Failed(error));
+                return;
+            }
+        };
         let token = format!("gpuio_{}_{}_{}", id.slot(), id.generation(), correlation);
+        let executor = cx.background_executor().clone();
+        let request = Request {
+            parent: Some(parent),
+            worker: Some(worker),
+        };
         cx.background_executor()
-            .spawn(async move {
-                let result = protect(gpuio_portal::choose(config, &parent, &token, cancel)).await;
-                worker.finish(result);
-            })
+            .spawn(request.run(config, token, cancel, executor))
             .detach();
     }
 
@@ -131,6 +131,142 @@ impl Dialogs {
     }
     pub fn clear(&self) -> Cleanup {
         self.owner.cancel(None)
+    }
+
+    pub fn finish_before_quit(&self) {
+        self.clear().wait_before_quit();
+        // No worker/export remains. Release the one shared guest registry
+        // before GPUI can dispose its foreign display, even if host tasks or
+        // manager clones survive until after App::shutdown returns.
+        #[cfg(feature = "wayland")]
+        self.owner
+            .display
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .take();
+    }
+}
+
+// An explicit owner also covers a task dropped BEFORE its first poll. Do not
+// rely on the capture-field order of an anonymous async block to drop a foreign
+// parent before its worker publishes completion.
+struct Request {
+    parent: Option<Parent>,
+    worker: Option<Worker>,
+}
+impl Request {
+    async fn run(
+        mut self,
+        config: FileDialogConfig,
+        token: String,
+        cancel: async_channel::Receiver<()>,
+        executor: gpui::BackgroundExecutor,
+    ) {
+        let result = protect(async {
+            match self
+                .parent
+                .as_mut()
+                .unwrap()
+                .resolve(&cancel, &executor)
+                .await
+            {
+                Ok(identifier) => gpuio_portal::choose(config, &identifier, &token, cancel).await,
+                Err(error) => FileDialogResult::Failed(error),
+            }
+        })
+        .await;
+        drop(self.parent.take());
+        self.worker.take().unwrap().finish(result);
+    }
+}
+impl Drop for Request {
+    fn drop(&mut self) {
+        drop(self.parent.take());
+        // Worker drop reports abandonment and closes its completion channel
+        // only after the parent is gone, whether run was ever polled or not.
+    }
+}
+
+enum Parent {
+    X11(String),
+    #[cfg(feature = "wayland")]
+    Wayland(gpuio_wayland::Export),
+}
+impl Parent {
+    fn new(window: &gpui::Window, _owner: &Owner) -> Result<Self, FileDialogError> {
+        let handle =
+            HasWindowHandle::window_handle(window).map_err(|_| FileDialogError::NativeFailure)?;
+        #[cfg(feature = "wayland")]
+        if let RawWindowHandle::Wayland(surface) = handle.as_raw() {
+            let display = HasDisplayHandle::display_handle(window)
+                .map_err(|_| FileDialogError::NativeFailure)?;
+            let RawDisplayHandle::Wayland(display) = display.as_raw() else {
+                return Err(FileDialogError::NativeFailure);
+            };
+            // SAFETY: GPUI supplied both handles from this exact live window.
+            // Its host routes every close/abort/shutdown through Dialogs cleanup
+            // and drains unconditional quit BEFORE App::shutdown clears windows.
+            // Worker completion is published only after this export drops. No
+            // detached exporter thread or raw surface outlives that barrier.
+            let mut cached = _owner.display.lock().unwrap();
+            let identity = display.display.as_ptr() as usize;
+            if cached
+                .as_ref()
+                .is_some_and(|(existing, _)| *existing != identity)
+            {
+                return Err(FileDialogError::NativeFailure);
+            }
+            let (_, exporter) = cached.get_or_insert_with(|| {
+                (identity, unsafe {
+                    gpuio_wayland::Display::new(display.display)
+                })
+            });
+            return unsafe { exporter.export(surface.surface) }
+                .map(Self::Wayland)
+                .map_err(export_error);
+        }
+        parent(handle.as_raw()).map(Self::X11)
+    }
+
+    async fn resolve(
+        &mut self,
+        _cancel: &async_channel::Receiver<()>,
+        _executor: &gpui::BackgroundExecutor,
+    ) -> Result<String, FileDialogError> {
+        match self {
+            Self::X11(identifier) => Ok(identifier.clone()),
+            #[cfg(feature = "wayland")]
+            Self::Wayland(export) => {
+                futures_lite::future::or(
+                    async {
+                        let deadline =
+                            std::time::Instant::now() + std::time::Duration::from_secs(5);
+                        loop {
+                            if let Some(identifier) = export.poll().map_err(export_error)? {
+                                return Ok(identifier);
+                            }
+                            if std::time::Instant::now() >= deadline {
+                                return Err(FileDialogError::NativeFailure);
+                            }
+                            _executor.timer(std::time::Duration::from_millis(10)).await;
+                        }
+                    },
+                    async {
+                        let _ = _cancel.recv().await;
+                        Err(FileDialogError::Closed)
+                    },
+                )
+                .await
+            }
+        }
+    }
+}
+
+#[cfg(feature = "wayland")]
+fn export_error(error: gpuio_wayland::Error) -> FileDialogError {
+    match error {
+        gpuio_wayland::Error::Unsupported => FileDialogError::Unsupported,
+        gpuio_wayland::Error::NativeFailure => FileDialogError::NativeFailure,
     }
 }
 

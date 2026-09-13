@@ -1,10 +1,11 @@
 # Linux file-chooser portal — OCH-11
 
 Status, 2026-09-13: `gpuio-portal` implements the D-Bus request layer and is now
-connected to the native manager for X11. The shared worker ownership adapter is
-compiled and unit-tested on macOS. Wayland still returns Unsupported while its
-export adapter is implemented. Public capabilities and Linux build validation
-remain required; this is not Linux GUI acceptance or completion of file dialogs.
+connected to the native manager for X11 and Wayland. The worker ownership adapter
+is compiled and unit-tested on macOS. The Wayland export adapter compiles locally,
+but its system-libwayland protocol tests await the Linux gate. Public capabilities
+and Linux build validation remain required; this is not Linux GUI acceptance or
+completion of file dialogs.
 
 ## Ownership and request flow
 
@@ -72,9 +73,10 @@ defines versioned directory selection, byte-array folder hints and URI results.
 ## Native ownership and shutdown
 
 The native adapter copies the exact requesting X11 window ID on the GPUI thread.
-The background worker receives owned configuration, parent text, correlation,
-window generation and cancellation channels. It does not access GPUI window
-objects. Each request remains tracked as Running, Delivering or Cancelled until
+The background worker receives owned configuration, parent text or an explicitly
+retained Wayland export, correlation, window generation and cancellation channels.
+It does not access GPUI window objects. Each request remains tracked as Running,
+Delivering or Cancelled until
 its final response/wake operation has finished. Closing a window while a worker
 is already delivering a response still waits for that worker; it cannot dispose
 the runtime wake pipe underneath delivery.
@@ -114,13 +116,9 @@ private test peers. Production uses session-bus-assigned identities.
 
 Next implementation requirements:
 
-- Complete Wayland's exact requesting-window parent identifier. X11 now copies
-  the native window ID. Wayland needs an owned exported surface with a proven
-  lifetime through presentation/cancellation; borrowed GPUI raw pointers must not
-  be carried across an uncontrolled export task.
-- Preserve the implemented worker cleanup barrier when adding Wayland. Destroy
-  exported objects before completing that barrier, including export timeout,
-  cancellation before a handle arrives and unconditional application quit.
+- Run the Wayland guest-queue tests with system libwayland on Linux. Confirm exact
+  surface identity, registry/export disposal and cancellation at the protocol
+  boundary; compilation on macOS does not prove those runtime properties.
 - Provide truthful public capabilities, including portal availability/version,
   mixed selection and parenting. Runtime unavailability is not a build-time fact.
 - Validate X11 and Wayland builds/unit behavior. Actual Linux portal GUI acceptance
@@ -133,16 +131,43 @@ removes the borrowed surface/display. The pinned GPUI private portal helper also
 chooses the keyboard-focused window, not an explicit requested window. Neither
 is an acceptable lifetime/parenting shortcut without additional ownership work.
 
-The next adapter can use a guest event queue on GPUI's existing libwayland
-display. Pinned `wayland-client` 0.31.15 explicitly supports processing guest
+## Wayland export adapter
+
+`gpuio-wayland` uses a guest event queue on GPUI's existing libwayland display.
+Pinned `wayland-client` 0.31.15 explicitly supports processing guest
 events with `dispatch_pending` while the host reads the socket. The pinned GPUI
 Wayland backend uses the system client through `calloop-wayland-source`. This
-provides a route without another blocking reader or roundtrip thread: issue
-export requests while the native parent is retained, flush and dispatch only
-the guest queue, and stop polling on completion/cancellation/timeout. This is a
-source-supported implementation direction, not an implemented or GUI-tested
-Wayland adapter. Its owned objects and foreign-display lifetime must be covered
-by the cleanup barrier above.
+allows the adapter to issue exports while the native parent is retained, flush
+and dispatch only the guest queue, and stop polling on completion/cancellation/
+timeout. It never calls prepare_read, blocking_dispatch or roundtrip and starts
+no independent reader thread. While an export is pending, a background timer
+dispatches at 10 ms intervals, with a five-second deadline and immediate channel
+cancellation. Waiting for the actual user picker still has no arbitrary timeout.
+
+One shared `Display` owns the application's guest registry, queue and bound
+exporter. A separate `Export` owns each requested surface's exported object.
+The native manager caches the shared display until quit, checking display identity
+before reusing it. The exact surface is obtained from the requesting GPUI window.
+The unsafe Rust boundary documents both lifetimes: the host display outlives all
+shared owners, and the host surface outlives its export. The host cleanup barrier
+enforces this; after draining workers, the quit hook explicitly releases the
+cached display before GPUI can dispose its native resources.
+
+The first registry sync selects xdg-foreign v2 when advertised, with v1 fallback.
+Missing protocols return Unsupported; empty/oversized/NUL handles return
+NativeFailure. Protocol support is a connection-lifetime snapshot, not a guarantee
+that a later request succeeds. Once the exporter is bound, the adapter destroys
+the client registry proxy so idle global notifications cannot accumulate. The
+server registry resource remains until disconnect, as Wayland specifies; sharing
+one registry avoids allocating another server resource for every dialog.
+
+Dropping an export sends its destructor even before its Handle event arrives.
+The shared exporter is destroyed only after the last display/export owner drops.
+An explicit native request owner disposes its parent before publishing worker
+completion, including an async task dropped before its first poll; this ordering
+does not depend on anonymous future capture order. Guest cleanup requires no
+foreground callback. These are implemented ownership contracts; their new
+system-libwayland tests still require execution on Linux.
 
 Exact commands and platform limits are recorded in the
 [portal protocol evidence report](../evidence/linux-file-portal-och11.md).

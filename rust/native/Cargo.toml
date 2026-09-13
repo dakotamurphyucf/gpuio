@@ -11,7 +11,7 @@ crate-type = ["staticlib", "rlib"]
 [features]
 native-tests = []
 default = ["wayland", "x11"]
-wayland = ["gpui/wayland", "gpui_platform/wayland"]
+wayland = ["gpui/wayland", "gpui_platform/wayland", "dep:gpuio-wayland"]
 x11 = ["gpui/x11", "gpui_platform/x11"]
 
 [dependencies]
@@ -25,6 +25,7 @@ async-channel = "2"
 unicode-segmentation = "1"
 libc = "0.2"
 raw-window-handle = "0.6.2"
+futures-lite = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "=0.26.0"
@@ -35,9 +36,11 @@ block2 = "0.6.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gpuio-portal = { path = "../portal" }
+gpuio-wayland = { path = "../wayland", optional = true }
 
 [dev-dependencies]
 gpuio-portal = { path = "../portal" }
+gpuio-wayland = { path = "../wayland" }
 
 [[test]]
 name = "native_ui"

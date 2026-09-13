@@ -276,3 +276,12 @@ tests, full Rust/OCaml checks, actual macOS picker suite and public Bonsai/Eio
 close/selection/read regressions pass. See the updated
 [portal evidence](evidence/linux-file-portal-och11.md). Wayland exports, public
 capabilities and Linux build validation remain pending. OCH-11 stays In Progress.
+
+Wayland file-dialog parenting is now implemented locally with one shared guest
+registry per application display and separately owned surface exports. It uses
+GPUI's existing socket reader, bounded pending-export polling, cancellation and
+the native cleanup barrier. Full workspace Clippy/Rust and Dune checks pass on
+macOS; three new system-libwayland protocol tests compile but are explicitly
+ignored here and await Linux execution. Public capabilities and consolidated
+Linux/macOS CI remain pending. No Linux GUI or complete OCH-11 acceptance is
+claimed; see the [Wayland checkpoint evidence](evidence/linux-file-portal-och11.md).
