@@ -159,3 +159,11 @@ editor commands, controlled visibility, stale unmount and shutdown. Independent
 protocol fixtures, OCaml/Rust tests, full build/format and Clippy pass locally.
 No hosted or full Linux GUI acceptance is claimed for this local checkpoint;
 menus/commands, feedback, pointer/desktop interactions and assets remain OCH-11 work.
+
+Shared command registries, command buttons and single-chord shortcuts are
+implemented locally. Native macOS tests pass scoped dispatch, native editing targets,
+keyboard/IME priority and two-window isolation, including closing one window and
+continuing in the other. Independent OCaml/Rust protocol fixtures pass. The public
+Bonsai/Eio example, full OCaml build/tests/format, Rust workspace tests and
+Clippy pass locally. Menus/platform
+menus/palette are not implemented yet; OCH-11 remains In Progress.

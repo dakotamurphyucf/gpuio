@@ -238,6 +238,57 @@ impl Decoder<'_> {
         (0..count).map(|_| f(self)).collect()
     }
 
+    fn shortcut(&mut self) -> Result<Shortcut, DecodeError> {
+        Ok(Shortcut {
+            key: self.text()?,
+            modifiers: self.list(5, |this| {
+                Ok(match this.tag()? {
+                    0 => ShortcutModifier::Primary,
+                    1 => ShortcutModifier::Control,
+                    2 => ShortcutModifier::Alt,
+                    3 => ShortcutModifier::Shift,
+                    4 => ShortcutModifier::Super,
+                    _ => return Err(DecodeError::Malformed),
+                })
+            })?,
+            priority: match self.tag()? {
+                0 => ShortcutPriority::NativeFirst,
+                1 => ShortcutPriority::Override,
+                _ => return Err(DecodeError::Malformed),
+            },
+            text_input: match self.tag()? {
+                0 => ShortcutTextInput::ModifiedOnly,
+                1 => ShortcutTextInput::Always,
+                2 => ShortcutTextInput::Never,
+                _ => return Err(DecodeError::Malformed),
+            },
+            during_composition: self.boolean()?,
+        })
+    }
+    fn command_config(&mut self) -> Result<CommandConfig, DecodeError> {
+        Ok(CommandConfig {
+            id: self.text()?,
+            generation: self.int()?,
+            label: self.text()?,
+            enabled: self.boolean()?,
+            checked: self.option(Self::boolean)?,
+            shortcuts: self.list(4, Self::shortcut)?,
+            target: match self.tag()? {
+                0 => CommandTarget::Callback,
+                1 => CommandTarget::Native(match self.tag()? {
+                    0 => NativeCommand::Copy,
+                    1 => NativeCommand::Cut,
+                    2 => NativeCommand::Paste,
+                    3 => NativeCommand::SelectAll,
+                    4 => NativeCommand::Undo,
+                    5 => NativeCommand::Redo,
+                    _ => return Err(DecodeError::Malformed),
+                }),
+                _ => return Err(DecodeError::Malformed),
+            },
+        })
+    }
+
     fn placement(&mut self) -> Result<Placement, DecodeError> {
         Ok(Placement {
             side: match self.tag()? {
@@ -286,6 +337,8 @@ impl Decoder<'_> {
                     9 => Kind::Combobox,
                     10 => Kind::FocusScope,
                     11 => Kind::Tooltip,
+                    12 => Kind::CommandScope,
+                    13 => Kind::CommandButton,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -304,6 +357,8 @@ impl Decoder<'_> {
             7 => Op::SetEditor(self.node()?, self.editor_config()?),
             8 => Op::SetControl(self.node()?, self.control()?),
             9 => Op::SetChoice(self.node()?, self.choice_config()?),
+            17 => Op::SetCommandRef(self.node()?, self.text()?),
+            16 => Op::SetCommands(self.node()?, self.list(1024, Self::command_config)?),
             15 => Op::SetTooltip(
                 self.node()?,
                 TooltipConfig {

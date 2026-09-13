@@ -1,7 +1,7 @@
 open Core
 
 let version = 1L
-let capabilities = 8191L
+let capabilities = 16383L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -18,6 +18,84 @@ module Kind = struct
     | Combobox
     | Focus_scope
     | Tooltip
+    | Command_scope
+    | Command_button
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Shortcut_modifier = struct
+  type t =
+    | Primary
+    | Control
+    | Alt
+    | Shift
+    | Super
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Shortcut_priority = struct
+  type t =
+    | Native_first
+    | Override
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Shortcut_text_input = struct
+  type t =
+    | Modified_only
+    | Always
+    | Never
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Shortcut = struct
+  type t =
+    { key : string
+    ; modifiers : Shortcut_modifier.t list
+    ; priority : Shortcut_priority.t
+    ; text_input : Shortcut_text_input.t
+    ; during_composition : bool
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Native_command = struct
+  type t =
+    | Copy
+    | Cut
+    | Paste
+    | Select_all
+    | Undo
+    | Redo
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Command_target = struct
+  type t =
+    | Callback
+    | Native of Native_command.t
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Command = struct
+  type t =
+    { id : string
+    ; generation : int64
+    ; label : string
+    ; enabled : bool
+    ; checked : bool option
+    ; shortcuts : Shortcut.t list
+    ; target : Command_target.t
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Command_source = struct
+  type t =
+    | Button of Node_id.t
+    | Shortcut
+    | Menu
+    | Palette of Node_id.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -398,6 +476,8 @@ module Op = struct
     | Set_overlay of Node_id.t * Overlay.t option
     | Set_placement of Node_id.t * Placement.t option
     | Set_tooltip of Node_id.t * Tooltip.t
+    | Set_commands of Node_id.t * Command.t list
+    | Set_command_ref of Node_id.t * string
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -472,6 +552,8 @@ module Event = struct
         Window_id.t * Node_id.t * Handler_id.t * int64 * string * Editor.Snapshot.t
     | Overlay_dismissed of Window_id.t * Node_id.t * Handler_id.t * int64 * Dismissal.t
     | Tooltip_open_changed of Window_id.t * Node_id.t * Handler_id.t * int64 * bool
+    | Command_invoked of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * string * int64 * Command_source.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -491,6 +573,12 @@ module Event = struct
   ;;
 
   let rec valid_editor_event = function
+    | Command_invoked (_, _, _, revision, id, generation, _) ->
+      Int64.(revision >= 0L && generation > 0L)
+      && String.length id > 0
+      && String.length id <= 256
+      && Stdlib.String.is_valid_utf_8 id
+      && not (String.contains id '\000')
     | Combobox_selected (window, node, handler, revision, id, snapshot) ->
       valid_editor_event (Choice (window, node, handler, revision, id))
       && valid_snapshot snapshot

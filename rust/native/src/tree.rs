@@ -15,6 +15,8 @@ pub struct Node {
     pub focus_scope: Option<FocusScopeConfig>,
     pub overlay: Option<Arc<OverlayConfig>>,
     pub tooltip: Option<Arc<TooltipConfig>>,
+    pub commands: Option<Arc<[CommandConfig]>>,
+    pub command_ref: Option<Arc<str>>,
     pub placement: Option<Placement>,
     pub combobox_filter: Option<ComboboxFilter>,
     pub choice_appearance: Option<Arc<ChoiceAppearance>>,
@@ -27,6 +29,13 @@ pub struct Node {
 impl Node {
     fn payload_bytes(&self) -> usize {
         self.text.len()
+            + self.commands.as_ref().map_or(0, |commands| {
+                commands
+                    .iter()
+                    .map(CommandConfig::retained_bytes)
+                    .sum::<usize>()
+            })
+            + self.command_ref.as_ref().map_or(0, |id| id.len())
             + self.tooltip.as_ref().map_or(0, |config| {
                 std::mem::size_of::<TooltipConfig>() + config.label.len()
             })
@@ -138,6 +147,22 @@ impl Tree {
         None
     }
 
+    /// Resolve the nearest matching registry entry, preserving shadowing even
+    /// when that entry is disabled.
+    pub fn command(&self, node: NodeId, command: &str) -> Option<(NodeId, &CommandConfig)> {
+        let mut cursor = Some(node);
+        while let Some(id) = cursor {
+            let node = self.get(id)?;
+            if let Some(commands) = &node.commands
+                && let Some(command) = commands.iter().find(|entry| entry.id == command)
+            {
+                return Some((id, command));
+            }
+            cursor = node.parent;
+        }
+        None
+    }
+
     pub fn accepts_handler(&self, node: NodeId, handler: HandlerId) -> bool {
         self.get(node)
             .is_some_and(|node| node.handler == Some(handler))
@@ -212,6 +237,16 @@ impl Tree {
                 } else if node.combobox_filter.is_some() {
                     return Err(ErrorCode::InvalidTree);
                 }
+                if (node.kind == Kind::CommandScope) != node.commands.is_some()
+                    || (node.kind == Kind::CommandButton) != node.command_ref.is_some()
+                    || node.commands.as_ref().is_some_and(|commands| {
+                        !CommandConfig::registry_is_valid(commands) || node.handler.is_none()
+                    })
+                    || (node.kind == Kind::CommandButton
+                        && (node.handler.is_some() || node.control.is_some()))
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
                 if (node.kind == Kind::FocusScope) != node.focus_scope.is_some() {
                     return Err(ErrorCode::InvalidTree);
                 }
@@ -254,6 +289,8 @@ impl Tree {
                     Kind::Container
                     | Kind::FocusScope
                     | Kind::Tooltip
+                    | Kind::CommandScope
+                    | Kind::CommandButton
                     | Kind::Text
                     | Kind::Button => {
                         if node.editor.is_some() {
@@ -379,6 +416,8 @@ impl Plan<'_> {
             | Op::SetOverlay(id, ..)
             | Op::SetPlacement(id, ..)
             | Op::SetTooltip(id, ..)
+            | Op::SetCommands(id, ..)
+            | Op::SetCommandRef(id, ..)
             | Op::SetComboboxFilter(id, ..)
             | Op::SetChoiceAppearance(id, ..)
             | Op::Bind(id, ..)
@@ -441,6 +480,8 @@ impl Plan<'_> {
                             focus_scope: None,
                             overlay: None,
                             tooltip: None,
+                            commands: None,
+                            command_ref: None,
                             placement: None,
                             style: Arc::from([]),
                             handler: *handler,
@@ -483,6 +524,24 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.editor = Some(Arc::new(config.clone()));
+            }
+            Op::SetCommands(id, commands) => {
+                if self.node(*id)?.kind != Kind::CommandScope
+                    || !CommandConfig::registry_is_valid(commands)
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.commands = Some(Arc::from(commands.as_slice()));
+                self.structural = true;
+            }
+            Op::SetCommandRef(id, command) => {
+                if self.node(*id)?.kind != Kind::CommandButton
+                    || !CommandConfig::valid_text(command, 256)
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.command_ref = Some(Arc::from(command.as_str()));
+                self.structural = true;
             }
             Op::SetTooltip(id, config) => {
                 if self.node(*id)?.kind != Kind::Tooltip || !config.is_valid() {
@@ -550,7 +609,7 @@ impl Plan<'_> {
                 let node = self.node(*parent)?;
                 if !matches!(
                     node.kind,
-                    Kind::Container | Kind::FocusScope | Kind::Tooltip
+                    Kind::Container | Kind::FocusScope | Kind::Tooltip | Kind::CommandScope
                 ) {
                     return Err(ErrorCode::InvalidTree);
                 }
@@ -601,7 +660,7 @@ impl Plan<'_> {
             }
             if !matches!(
                 node.kind,
-                Kind::Container | Kind::FocusScope | Kind::Tooltip
+                Kind::Container | Kind::FocusScope | Kind::Tooltip | Kind::CommandScope
             ) && !node.children.is_empty()
             {
                 return Err(ErrorCode::InvalidTree);
@@ -625,6 +684,25 @@ impl Plan<'_> {
         }
         for (id, parent) in parents {
             self.node_mut(id)?.parent = parent;
+        }
+        for id in &seen {
+            if let Some(command) = &self.node(*id)?.command_ref {
+                let mut cursor = Some(*id);
+                let mut found = false;
+                while let Some(id) = cursor {
+                    let node = self.node(id)?;
+                    if node.commands.as_ref().is_some_and(|commands| {
+                        commands.iter().any(|entry| entry.id == command.as_ref())
+                    }) {
+                        found = true;
+                        break;
+                    }
+                    cursor = node.parent;
+                }
+                if !found {
+                    return Err(ErrorCode::InvalidTree);
+                }
+            }
         }
         Ok(seen.len())
     }

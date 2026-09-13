@@ -68,7 +68,8 @@ let worker native notification_read ~self_test =
         | Choice _
         | Combobox_selected _
         | Overlay_dismissed _
-        | Tooltip_open_changed _ ) as event ->
+        | Tooltip_open_changed _
+        | Command_invoked _ ) as event ->
         (match Reconciler.dispatch reconciler event with
          | Some Action.Increment ->
            incr value;

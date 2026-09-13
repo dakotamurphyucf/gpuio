@@ -21,6 +21,8 @@ mod choice;
 mod choice_popup;
 #[path = "combobox.rs"]
 mod combobox;
+#[path = "command.rs"]
+mod command;
 #[path = "editor.rs"]
 mod editor;
 #[cfg(feature = "native-tests")]
@@ -72,6 +74,7 @@ struct View {
     radios: BTreeMap<NodeId, Rc<RefCell<choice::State>>>,
     tooltips: BTreeMap<NodeId, tooltip::State>,
     tooltip_last_closed: Option<std::time::Instant>,
+    command_subscription: Option<gpui::Subscription>,
     visited: std::collections::BTreeSet<NodeId>,
     #[cfg(feature = "native-tests")]
     probes: Rc<RefCell<BTreeMap<NodeId, native_test::Probe>>>,
@@ -243,6 +246,7 @@ impl View {
             radios: BTreeMap::new(),
             tooltips: BTreeMap::new(),
             tooltip_last_closed: None,
+            command_subscription: None,
             selects: BTreeMap::new(),
             visited: Default::default(),
             #[cfg(feature = "native-tests")]
@@ -250,6 +254,7 @@ impl View {
         }
     }
     fn update_editors(&mut self, dirty: &[NodeId], window: &mut Window, cx: &mut Context<Self>) {
+        self.install_command_interceptor(window, cx);
         self.sync_tooltips(window, cx);
         let nodes = {
             let session = self.session.borrow();
@@ -296,7 +301,18 @@ impl View {
         }
         let popup_priority = self.focus.borrow().layer(id) + 2;
         let identity = ((id.generation() as u64) << 32) | id.slot() as u64;
-        let mut accessible_name = gpui::SharedString::from(node.text.clone());
+        let command = node
+            .command_ref
+            .as_ref()
+            .and_then(|id| tree.command(node.id, id))
+            .map(|(scope, config)| {
+                command::Route::new(tree, scope, config, CommandSource::Button(id))
+            });
+        let label = command.as_ref().map_or_else(
+            || node.text.clone(),
+            |route| Arc::from(route.config.label.as_str()),
+        );
+        let mut accessible_name = gpui::SharedString::from(label.clone());
         for style in node.style.iter() {
             if let Style::Fields(fields) = style {
                 for field in fields {
@@ -316,7 +332,7 @@ impl View {
         }
         if matches!(
             node.kind,
-            Kind::Container | Kind::FocusScope | Kind::RadioGroup
+            Kind::Container | Kind::FocusScope | Kind::CommandScope | Kind::RadioGroup
         ) {
             element = element.flex().flex_col();
         } else if node.kind == Kind::Select {
@@ -343,13 +359,19 @@ impl View {
                 .border_1()
                 .border_color(rgba(0x80808080));
         }
-        let disabled = node.choice.as_ref().is_some_and(|config| config.disabled)
+        let disabled = command
+            .as_ref()
+            .is_some_and(|route| !self.command_available(&route.config, window, cx))
+            || node.choice.as_ref().is_some_and(|config| config.disabled)
             || node.control.is_some_and(Control::disabled)
             || node.editor.as_ref().is_some_and(|config| config.disabled);
-        let checked = matches!(
-            node.control,
-            Some(Control::Checkbox(CheckState::Checked, _) | Control::Switch(true, _))
-        );
+        let checked = command
+            .as_ref()
+            .is_some_and(|route| route.config.checked == Some(true))
+            || matches!(
+                node.control,
+                Some(Control::Checkbox(CheckState::Checked, _) | Control::Switch(true, _))
+            );
         let indeterminate = matches!(
             node.control,
             Some(Control::Checkbox(CheckState::Indeterminate, _))
@@ -359,7 +381,12 @@ impl View {
         }
         if matches!(
             node.kind,
-            Kind::Button | Kind::Checkbox | Kind::Switch | Kind::RadioGroup | Kind::Select
+            Kind::Button
+                | Kind::CommandButton
+                | Kind::Checkbox
+                | Kind::Switch
+                | Kind::RadioGroup
+                | Kind::Select
         ) {
             self.visited.insert(id);
             let state = self
@@ -398,7 +425,11 @@ impl View {
                     _ => gpui::Role::Button,
                 })
                 .aria_label(accessible_name);
-            if matches!(node.kind, Kind::Checkbox | Kind::Switch) {
+            if command
+                .as_ref()
+                .is_some_and(|route| route.config.checked.is_some())
+                || matches!(node.kind, Kind::Checkbox | Kind::Switch)
+            {
                 element = element.aria_toggled(if indeterminate {
                     gpui::accesskit::Toggled::Mixed
                 } else if checked {
@@ -580,8 +611,8 @@ impl View {
             if !node.text.is_empty() {
                 element = element.child(gpui::SharedString::from(node.text.clone()));
             }
-        } else if !node.text.is_empty() {
-            element = element.child(gpui::SharedString::from(node.text.clone()));
+        } else if !label.is_empty() {
+            element = element.child(gpui::SharedString::from(label));
         }
         for child in node.children.iter() {
             if tree
@@ -605,7 +636,29 @@ impl View {
                 .map(|id| self.element(tree, *id, interaction, window, cx))
                 .collect::<Vec<_>>(),
         );
+        if let Some(route) = command.filter(|_| !disabled) {
+            let accessible = route.clone();
+            let owner = cx.weak_entity();
+            element =
+                element.on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
+                    let _ =
+                        owner.update(cx, |view, cx| view.invoke_command(&accessible, window, cx));
+                    cx.stop_propagation();
+                });
+            if !interaction.pointer {
+                element = element.on_mouse_down(gpui::MouseButton::Left, |_, window, _| {
+                    window.prevent_default()
+                });
+            }
+            element = element.on_click(cx.listener(move |view, event, window, cx| {
+                if interaction.pointer || matches!(event, gpui::ClickEvent::Keyboard(_)) {
+                    view.invoke_command(&route, window, cx);
+                    cx.stop_propagation();
+                }
+            }));
+        }
         if let Some(handler) = node.handler
+            && node.commands.is_none()
             && node.editor.is_none()
             && node.choice.is_none()
             && node.overlay.is_none()
@@ -678,7 +731,8 @@ impl View {
                             && bounds.size.height > px(0.)
                             && bounds.intersects(&window.content_mask().bounds)
                         {
-                            manager.borrow_mut().record(id, handle, tab_stop);
+                            let focused = handle.is_focused(window);
+                            manager.borrow_mut().record(id, handle, tab_stop, focused);
                         }
                     },
                 )
@@ -751,6 +805,9 @@ impl Render for View {
         let mut root = div()
             .track_focus(&root_focus)
             .size_full()
+            .on_key_down(cx.listener(|view, event: &gpui::KeyDownEvent, window, cx| {
+                view.command_shortcut(&event.keystroke, ShortcutPriority::NativeFirst, window, cx);
+            }))
             .on_key_down(move |event, window, cx| {
                 if event.keystroke.key == "tab" {
                     tab_focus

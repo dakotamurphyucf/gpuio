@@ -99,7 +99,8 @@ let worker native notification_read =
       | Choice _
       | Combobox_selected _
       | Overlay_dismissed _
-      | Tooltip_open_changed _ -> ()
+      | Tooltip_open_changed _
+      | Command_invoked _ -> ()
     in
     send (Hello (Wire.version, Wire.capabilities));
     Eio.Time.with_timeout_exn (Eio.Stdenv.clock env) 30. (fun () ->

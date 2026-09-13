@@ -32,6 +32,7 @@ pub(super) struct Manager {
     seen: BTreeSet<NodeId>,
     active: Option<NodeId>,
     hidden: BTreeSet<NodeId>,
+    last_editor: Option<NodeId>,
     order: u64,
     enter: Option<NodeId>,
     pending: bool,
@@ -47,6 +48,7 @@ impl Manager {
             seen: BTreeSet::new(),
             active: None,
             hidden: BTreeSet::new(),
+            last_editor: None,
             order: 0,
             enter: None,
             pending: false,
@@ -264,7 +266,32 @@ impl Manager {
         self.entries.clear();
         self.seen.clear();
     }
-    pub(super) fn record(&mut self, node: NodeId, handle: FocusHandle, tab_stop: bool) {
+    pub(super) fn focused_node(&self, window: &Window) -> Option<NodeId> {
+        self.entries
+            .iter()
+            .find(|entry| entry.handle.is_focused(window))
+            .map(|entry| entry.node)
+    }
+    pub(super) fn last_editor(&self) -> Option<NodeId> {
+        self.last_editor.filter(|node| self.eligible(*node))
+    }
+    pub(super) fn record(
+        &mut self,
+        node: NodeId,
+        handle: FocusHandle,
+        tab_stop: bool,
+        focused: bool,
+    ) {
+        if focused
+            && self
+                .session
+                .borrow()
+                .tree(self.window)
+                .and_then(|tree| tree.get(node))
+                .is_some_and(|node| node.editor.is_some())
+        {
+            self.last_editor = Some(node);
+        }
         if self.seen.insert(node) {
             self.entries.push(Entry {
                 node,

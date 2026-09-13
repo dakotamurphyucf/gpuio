@@ -19,6 +19,84 @@ module type S = sig
       | Combobox
       | Focus_scope
       | Tooltip
+      | Command_scope
+      | Command_button
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Shortcut_modifier : sig
+    type t =
+      | Primary
+      | Control
+      | Alt
+      | Shift
+      | Super
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Shortcut_priority : sig
+    type t =
+      | Native_first
+      | Override
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Shortcut_text_input : sig
+    type t =
+      | Modified_only
+      | Always
+      | Never
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Shortcut : sig
+    type t =
+      { key : string
+      ; modifiers : Shortcut_modifier.t list
+      ; priority : Shortcut_priority.t
+      ; text_input : Shortcut_text_input.t
+      ; during_composition : bool
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Native_command : sig
+    type t =
+      | Copy
+      | Cut
+      | Paste
+      | Select_all
+      | Undo
+      | Redo
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Command_target : sig
+    type t =
+      | Callback
+      | Native of Native_command.t
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Command : sig
+    type t =
+      { id : string
+      ; generation : int64
+      ; label : string
+      ; enabled : bool
+      ; checked : bool option
+      ; shortcuts : Shortcut.t list
+      ; target : Command_target.t
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Command_source : sig
+    type t =
+      | Button of Node_id.t
+      | Shortcut
+      | Menu
+      | Palette of Node_id.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -400,6 +478,8 @@ module type S = sig
       | Set_overlay of Node_id.t * Overlay.t option
       | Set_placement of Node_id.t * Placement.t option
       | Set_tooltip of Node_id.t * Tooltip.t
+      | Set_commands of Node_id.t * Command.t list
+      | Set_command_ref of Node_id.t * string
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -472,6 +552,14 @@ module type S = sig
           Window_id.t * Node_id.t * Handler_id.t * int64 * string * Editor.Snapshot.t
       | Overlay_dismissed of Window_id.t * Node_id.t * Handler_id.t * int64 * Dismissal.t
       | Tooltip_open_changed of Window_id.t * Node_id.t * Handler_id.t * int64 * bool
+      | Command_invoked of
+          Window_id.t
+          * Node_id.t
+          * Handler_id.t
+          * int64
+          * string
+          * int64
+          * Command_source.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

@@ -379,3 +379,64 @@ remain separate work.
 `examples/tooltips` demonstrates managed information and an application-controlled
 editable note. `--self-test` exercises retained editor commands and visibility
 through the public Bonsai/Eio bridge.
+
+## Shared commands and shortcuts
+
+`Command.Id` names an application action. `Command.create` stores its label,
+optional checked state, enabled state, shortcuts and OCaml callback;
+`Command.native` selects Copy/Cut/Paste/Select_all/Undo/Redo instead. A
+`Command.Registry` belongs to a `View.command_scope`. A
+`View.command_button ~command ()` obtains its label and behavior from the nearest
+registry defining that ID. Nested registries shadow outer definitions, including
+when the inner definition is disabled. A reference with no enclosing definition
+is rejected before submitting the tree; native transaction validation also checks
+references against the final parent graph atomically.
+
+Callbacks execute as Bonsai effects on the OCaml UI domain. Rust keeps only
+serializable command metadata and sends the owning scope, handler, command ID,
+generation and source through the bounded event bridge. The reconciler refreshes
+callback closures without replacing native nodes or publishing a transaction when
+metadata is unchanged. Disable/re-enable, removal/reintroduction and changing the
+target invalidate old command generations. Labels, checked state and shortcuts
+can change without replacing command identity. Native dispatch and OCaml delivery
+both reject stale or disabled commands.
+
+`Shortcut.create` describes one key chord. `Primary` maps to Command on macOS and
+Control on Linux; explicit Control/Alt/Shift/Super are available. Matching uses
+GPUI's keyboard-layout-aware key matching. `Native_first` is the default: native
+editor actions, Tab traversal and button Enter/Space activation retain priority.
+`Override` intercepts before those actions. `Modified_only` preserves ordinary
+editor typing; `Always` and `Never` explicitly change text-input behavior.
+Composition suppresses shortcuts unless `during_composition=true`. Resolve scopes
+from the focused element outward, then use registry declaration order for chord
+conflicts. Disabled inner commands do not fall through to an outer definition of
+the same ID. A rejected invocation does not consume the keystroke. Multi-stroke
+sequences are not part of this initial shortcut API.
+
+Native editing actions use the focused editor, or the last eligible editor when
+focus has moved to a command button. They restore that editor's focus and dispatch
+the native edit action without an OCaml editing round trip. Hidden, disabled or
+modal-blocked editors cannot become targets. Copy requires a selection; Cut also
+requires an editable buffer; Select_all requires nonempty text. Paste/Undo/Redo
+require an editable buffer. Undo/Redo may be no-ops when history is empty; this
+adapter does not yet expose history availability. Ordinary buttons expose Button
+semantics, enabled state and accessibility press; commands with a checked value
+also expose their toggle state.
+
+Each registry is limited to 1024 unique IDs, four shortcuts per command and
+256 KiB aggregate text. Registries count against native retained-tree budgets.
+The window owns one removable keystroke subscription, filtered by GPUI window
+identity; dynamic commands never append to or clear the application's global
+keymap. Unmounting scopes removes their metadata, callbacks and references.
+Closing a window releases its subscription. Capability 8192 (mask 16383) appends
+kinds 12/13, operations 16/17 and event 17. Independent OCaml/Rust fixtures cover
+all shortcut policies, native edit targets and event sources.
+
+`examples/commands` demonstrates stateful Bonsai callbacks, shared command buttons,
+nested shortcut scopes and a native Copy button. Its `--self-test` checks public
+registry mounting, render acknowledgements, disable/re-enable and scope removal.
+Actual native tests separately exercise key dispatch, native-first/override
+priority, composition, editing targets, accessibility activation, nested shadowing
+and two-window isolation. Menus, platform menus and a command palette will use
+this registry; their adapters remain OCH-11 work. The reserved menu/palette event
+sources do not imply those components are implemented.

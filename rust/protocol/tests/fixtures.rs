@@ -356,3 +356,32 @@ fn tooltip_ownership_modes_and_events_match_ocaml() {
         bytes(include_str!("../../../test/fixtures/tooltip-v1-events.hex"))
     );
 }
+
+#[path = "common/command_fixture.rs"]
+mod command_fixture;
+#[test]
+fn commands_and_native_targets_match_ocaml() {
+    let expected = bytes(include_str!(
+        "../../../test/fixtures/commands-v1-request.hex"
+    ));
+    let request = command_fixture::request();
+    let mut actual = Vec::new();
+    request.binprot_write(&mut actual).unwrap();
+    assert_eq!(actual, expected);
+    assert_eq!(gpuio_protocol::decode(&actual).unwrap(), request);
+    for end in 0..actual.len() {
+        assert!(gpuio_protocol::decode(&actual[..end]).is_err());
+    }
+    actual.push(0);
+    assert!(gpuio_protocol::decode(&actual).is_err());
+    actual.clear();
+    command_fixture::events()
+        .binprot_write(&mut actual)
+        .unwrap();
+    assert_eq!(
+        actual,
+        bytes(include_str!(
+            "../../../test/fixtures/commands-v1-events.hex"
+        ))
+    );
+}

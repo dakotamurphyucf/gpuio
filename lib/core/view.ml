@@ -1,3 +1,4 @@
+module Ui_command = Command
 open Core
 
 module Kind = struct
@@ -14,6 +15,8 @@ module Kind = struct
     | Combobox
     | Focus_scope
     | Tooltip
+    | Command_scope
+    | Command_button
   [@@deriving equal, sexp_of]
 end
 
@@ -86,6 +89,8 @@ type 'action t =
   ; combobox : 'action combobox option
   ; overlay : 'action overlay option
   ; tooltip : 'action tooltip option
+  ; commands : 'action Ui_command.Registry.t option
+  ; command_ref : Ui_command.Id.t option
   ; focus_scope : Focus_scope.t option
   ; children : 'action t list
   }
@@ -101,19 +106,15 @@ let text ?key ?(style = Style.empty) text =
   ; combobox = None
   ; overlay = None
   ; tooltip = None
+  ; commands = None
+  ; command_ref = None
   ; focus_scope = None
   ; control = None
   ; children = []
   }
 ;;
 
-let button ?key ?(style = Style.empty) ?accessible_name ?(disabled = false) ~on_click text
-  =
-  let style =
-    match accessible_name with
-    | None -> style
-    | Some name -> Style.merge [ style; Style.create_exn [ Accessible_name name ] ]
-  in
+let button_style style =
   let defaults =
     Style.create_exn
       [ Padding (Length.px_exn 8.)
@@ -127,16 +128,28 @@ let button ?key ?(style = Style.empty) ?accessible_name ?(disabled = false) ~on_
     |> fun t ->
     Style.with_state_exn t Focused [ Border_color (Color.token_exn "foreground") ]
   in
+  Style.merge [ defaults; style ]
+;;
+
+let button ?key ?(style = Style.empty) ?accessible_name ?(disabled = false) ~on_click text
+  =
+  let style =
+    match accessible_name with
+    | None -> style
+    | Some name -> Style.merge [ style; Style.create_exn [ Accessible_name name ] ]
+  in
   { key
   ; kind = Button
   ; text
-  ; style = Style.merge [ defaults; style ]
+  ; style = button_style style
   ; on_click = (if disabled then None else Some on_click)
   ; editor = None
   ; choice = None
   ; combobox = None
   ; overlay = None
   ; tooltip = None
+  ; commands = None
+  ; command_ref = None
   ; focus_scope = None
   ; control = Some (Button { disabled })
   ; children = []
@@ -182,6 +195,8 @@ let toggle
   ; combobox = None
   ; overlay = None
   ; tooltip = None
+  ; commands = None
+  ; command_ref = None
   ; focus_scope = None
   ; control = Some control
   ; children = []
@@ -223,6 +238,8 @@ let container ?key ?(style = Style.empty) defaults children =
   ; combobox = None
   ; overlay = None
   ; tooltip = None
+  ; commands = None
+  ; command_ref = None
   ; focus_scope = None
   ; control = None
   ; children
@@ -232,6 +249,8 @@ let container ?key ?(style = Style.empty) defaults children =
 let focus_scope ?key ?style ~config children =
   { (container ?key ?style [] children) with
     kind = Focus_scope
+  ; commands = None
+  ; command_ref = None
   ; focus_scope = Some config
   }
 ;;
@@ -284,6 +303,23 @@ let popover ?key ?style ~config ~on_dismiss ~anchor content =
   container ?key [ Position Relative ] children
 ;;
 
+let command_scope ?key ?style ~commands children =
+  { (container ?key ?style [] children) with
+    kind = Command_scope
+  ; commands = Some commands
+  }
+;;
+
+let command_button ?key ?style ~command () =
+  let style = button_style (Option.value style ~default:Style.empty) in
+  { (text ?key ~style "") with
+    kind = Command_button
+  ; on_click = None
+  ; control = None
+  ; command_ref = Some command
+  }
+;;
+
 let tooltip ?key ?(style = Style.empty) ~config ?on_open_change ~anchor ~content () =
   { (container ?key ~style:(overlay_style (Some style)) [] [ anchor; content ]) with
     kind = Tooltip
@@ -332,6 +368,8 @@ let text_input
   ; combobox = None
   ; overlay = None
   ; tooltip = None
+  ; commands = None
+  ; command_ref = None
   ; focus_scope = None
   ; control = None
   ; children = []
@@ -350,6 +388,8 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; combobox = None
   ; overlay = None
   ; tooltip = None
+  ; commands = None
+  ; command_ref = None
   ; focus_scope = None
   ; children = []
   }
@@ -390,6 +430,8 @@ let combobox
   ; combobox = Some { controller; config; appearance; on_event }
   ; overlay = None
   ; tooltip = None
+  ; commands = None
+  ; command_ref = None
   ; focus_scope = None
   ; children = []
   }
@@ -441,6 +483,8 @@ module Expert = struct
     ; combobox : 'action combobox option
     ; overlay : 'action overlay option
     ; tooltip : 'action tooltip option
+    ; commands : 'action Ui_command.Registry.t option
+    ; command_ref : Ui_command.Id.t option
     ; focus_scope : Focus_scope.t option
     ; children : 'action t list
     }

@@ -36,6 +36,20 @@ module View : sig
     -> string
     -> t
 
+  val command_scope
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> commands:unit Bonsai.Effect.t Gpuio.Command.Registry.t
+    -> t list
+    -> t
+
+  val command_button
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> command:Gpuio.Command.Id.t
+    -> unit
+    -> t
+
   val focus_scope
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

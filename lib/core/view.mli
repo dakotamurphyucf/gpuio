@@ -1,5 +1,3 @@
-open Core
-
 (** Pure, immutable UI descriptions. Actions need not be Bonsai effects: tests and
     other runtimes can use ordinary variants. Callbacks run only on the OCaml UI
     domain, after generation validation, using the latest accepted closure. *)
@@ -40,6 +38,23 @@ val switch
   -> checked:bool
   -> on_toggle:(unit -> 'action)
   -> string
+  -> 'action t
+
+(** Registry definitions are inherited by descendants; the nearest definition of
+    an ID wins. A command button uses the registry's label/enabled state. Missing
+    command references are rejected before a view update is submitted. *)
+val command_scope
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> commands:'action Command.Registry.t
+  -> 'action t list
+  -> 'action t
+
+val command_button
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> command:Command.Id.t
+  -> unit
   -> 'action t
 
 (** Native focus policy for the supplied subtree. Scope lifetime follows keyed
@@ -93,7 +108,7 @@ val grid
   -> ?style:Style.t
   -> columns:int
   -> 'action t list
-  -> 'action t Or_error.t
+  -> 'action t Core.Or_error.t
 
 (** One controller identifies one placement across a window tree. Initial text is
     read only on native creation; use explicit editor commands for later edits. *)
@@ -104,7 +119,7 @@ val text_input
   -> config:Text_input.Config.t
   -> on_event:(Text_input.Event.t -> 'action)
   -> unit
-  -> 'action t Or_error.t
+  -> 'action t Core.Or_error.t
 
 (** One native Tab stop. Arrow/Home/End keys navigate enabled options; native
     activation requests a stable option ID. OCaml owns the selected value. *)
@@ -142,7 +157,7 @@ val combobox
   -> config:Combobox.Config.t
   -> on_event:(Combobox.Event.t -> 'action)
   -> unit
-  -> 'action t Or_error.t
+  -> 'action t Core.Or_error.t
 
 module Expert : sig
   module Kind : sig
@@ -159,6 +174,8 @@ module Expert : sig
       | Combobox
       | Focus_scope
       | Tooltip
+      | Command_scope
+      | Command_button
     [@@deriving equal, sexp_of]
   end
 
@@ -220,6 +237,8 @@ module Expert : sig
     ; combobox : 'action combobox option
     ; overlay : 'action overlay option
     ; tooltip : 'action tooltip option
+    ; commands : 'action Command.Registry.t option
+    ; command_ref : Command.Id.t option
     ; focus_scope : Focus_scope.t option
     ; children : 'action t list
     }

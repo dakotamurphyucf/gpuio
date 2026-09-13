@@ -1,4 +1,6 @@
 //! Real-window control activation, focus traversal and native accessibility.
+#[path = "command_test.rs"]
+mod command_test;
 #[path = "overlay_test.rs"]
 mod overlay_test;
 #[path = "tooltip_test.rs"]
@@ -1332,6 +1334,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
     focus_scopes(cx, handle, &transport).await;
     overlay_test::exercise(cx, handle, &transport).await;
     tooltip_test::exercise(cx, handle, &transport).await;
+    command_test::exercise(cx, handle, &transport).await;
     // Remove a focused native node and enter the surviving Tab order again.
     handle
         .update(cx, |view, window, cx| {

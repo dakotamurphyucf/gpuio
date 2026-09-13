@@ -1,3 +1,4 @@
+module Ui_command = Command
 open Core
 open Gpuio_protocol
 module Wire = Wire
@@ -64,6 +65,7 @@ end
 
 type 'a callback =
   | Click of (unit -> 'a)
+  | Commands of 'a Ui_command.Registry.t * Wire.Command.t list
   | Dismiss of Overlay.Config.t * (Overlay.Dismissal.t -> 'a)
   | Tooltip of Tooltip.Config.t * (bool -> 'a)
   | Editor of (Text_input.Event.t -> 'a)
@@ -84,6 +86,8 @@ type 'a mounted =
   ; choice_appearance : Wire.Choice_appearance.t option
   ; children : 'a mounted list
   ; controllers : String.Set.t
+  ; commands : Wire.Command.t list
+  ; free_commands : String.Set.t
   }
 
 type 'a state =
@@ -94,6 +98,7 @@ type 'a state =
   ; theme : Theme.t
   ; revision : int64
   ; epoch : int
+  ; command_generation : int64
   }
 
 type 'a t =
@@ -116,6 +121,7 @@ type 'a builder =
   ; mutable bindings : 'a binding Int.Map.t
   ; mutable operations : Wire.Op.t list
   ; mutable operation_count : int
+  ; mutable command_generation : int64
   ; theme : Theme.t
   ; theme_unchanged : bool
   }
@@ -132,6 +138,7 @@ let create window =
       ; theme = Theme.default
       ; revision = 0L
       ; epoch = 0
+      ; command_generation = 0L
       }
   }
 ;;
@@ -181,6 +188,8 @@ let kind = function
   | Combobox -> Combobox
   | Focus_scope -> Focus_scope
   | Tooltip -> Tooltip
+  | Command_scope -> Command_scope
+  | Command_button -> Command_button
 ;;
 
 let compatible mounted view =
@@ -250,6 +259,33 @@ let rec mount builder ~depth previous view =
       | None -> new_node builder
     in
     let old_handler = Option.bind previous ~f:(fun mounted -> mounted.handler) in
+    let old_commands =
+      Option.value_map previous ~default:[] ~f:(fun mounted -> mounted.commands)
+    in
+    let old_commands_by_id =
+      String.Map.of_alist_exn
+        (List.map old_commands ~f:(fun command -> command.Wire.Command.id, command))
+    in
+    let commands =
+      Option.value_map description.commands ~default:[] ~f:(fun registry ->
+        List.map (Ui_command.Registry.to_list registry) ~f:(fun command ->
+          let id = Ui_command.Id.to_string (Ui_command.id command) in
+          let old = Map.find old_commands_by_id id in
+          let candidate = Ui_command.Expert.to_wire command ~generation:0L in
+          let generation =
+            match old with
+            | Some old
+              when Bool.equal old.enabled candidate.enabled
+                   && Wire.Command_target.equal old.target candidate.target ->
+              old.generation
+            | Some _ | None ->
+              if Int64.equal builder.command_generation Int64.max_value
+              then fail "command generation exhausted";
+              builder.command_generation <- Int64.succ builder.command_generation;
+              builder.command_generation
+          in
+          { candidate with generation }))
+    in
     let callback =
       match
         ( description.on_click
@@ -257,22 +293,25 @@ let rec mount builder ~depth previous view =
         , description.choice
         , description.combobox
         , description.overlay
-        , description.tooltip )
+        , description.tooltip
+        , description.commands )
       with
-      | Some callback, None, None, None, None, None -> Some (Click callback)
-      | None, Some editor, None, None, None, None -> Some (Editor editor.on_event)
-      | None, None, Some choice, None, None, None ->
+      | Some callback, None, None, None, None, None, None -> Some (Click callback)
+      | None, Some editor, None, None, None, None, None -> Some (Editor editor.on_event)
+      | None, None, Some choice, None, None, None, None ->
         if Choice.Config.is_disabled choice.config
         then None
         else Some (Choice (choice.config, choice.on_select))
-      | None, None, None, Some combo, None, None ->
+      | None, None, None, Some combo, None, None, None ->
         Some (Combobox (combo.config, combo.on_event))
-      | None, None, None, None, Some overlay, None ->
+      | None, None, None, None, Some overlay, None, None ->
         Some (Dismiss (overlay.config, overlay.on_dismiss))
-      | None, None, None, None, None, Some tooltip ->
+      | None, None, None, None, None, Some tooltip, None ->
         Option.map tooltip.on_open_change ~f:(fun callback ->
           Tooltip (tooltip.config, callback))
-      | None, None, None, None, None, None -> None
+      | None, None, None, None, None, None, Some registry ->
+        Some (Commands (registry, commands))
+      | None, None, None, None, None, None, None -> None
       | _ -> fail "a view cannot combine incompatible handler kinds"
     in
     let rotate_handler =
@@ -326,6 +365,23 @@ let rec mount builder ~depth previous view =
        then emit builder (Set_text (id, description.text));
        if not (Option.equal Handler_id.equal old_handler handler)
        then emit builder (Bind (id, handler)));
+    if
+      Option.is_some description.commands
+      && not (List.equal Wire.Command.equal old_commands commands)
+    then emit builder (Set_commands (id, commands));
+    (* An empty registry still needs its metadata on first mount. *)
+    if
+      Option.is_some description.commands
+      && Option.is_none previous
+      && List.is_empty commands
+    then emit builder (Set_commands (id, []));
+    Option.iter description.command_ref ~f:(fun command ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          (View.Expert.describe mounted.view).command_ref)
+      in
+      if not (Option.equal Ui_command.Id.equal old (Some command))
+      then emit builder (Set_command_ref (id, Ui_command.Id.to_string command)));
     let editor_config (description : _ View.Expert.description) =
       match description.editor, description.combobox with
       | Some editor, None -> Some editor.config
@@ -481,7 +537,30 @@ let rec mount builder ~depth previous view =
         then fail "text input controller appears more than once in a window";
         Set.union keys child.controllers)
     in
-    { view; id; handler; style; choice_appearance; children; controllers }
+    let free_commands =
+      List.fold
+        children
+        ~init:
+          (Option.value_map
+             description.command_ref
+             ~default:String.Set.empty
+             ~f:(fun id -> String.Set.singleton (Ui_command.Id.to_string id)))
+        ~f:(fun refs child -> Set.union refs child.free_commands)
+    in
+    let free_commands =
+      List.fold commands ~init:free_commands ~f:(fun refs command ->
+        Set.remove refs command.id)
+    in
+    { view
+    ; id
+    ; handler
+    ; style
+    ; choice_appearance
+    ; children
+    ; controllers
+    ; commands
+    ; free_commands
+    }
 ;;
 
 let prepare t ~theme view =
@@ -497,6 +576,7 @@ let prepare t ~theme view =
         ; bindings = t.state.bindings
         ; operations = []
         ; operation_count = 0
+        ; command_generation = t.state.command_generation
         ; theme
         ; theme_unchanged = Theme.equal theme t.state.theme
         }
@@ -508,6 +588,12 @@ let prepare t ~theme view =
           None
         | Some view -> Some (mount builder ~depth:0 t.state.root view)
       in
+      Option.iter root ~f:(fun root ->
+        if not (Set.is_empty root.free_commands)
+        then
+          fail
+            ("command references have no registry definition: "
+             ^ String.concat ~sep:", " (Set.to_list root.free_commands)));
       let root_id = Option.map root ~f:(fun node -> node.id) in
       if
         not
@@ -543,6 +629,7 @@ let prepare t ~theme view =
             ; theme
             ; revision
             ; epoch = t.state.epoch + 1
+            ; command_generation = builder.command_generation
             }
         ; message
         }
@@ -572,7 +659,7 @@ let dispatch t = function
        when Node_id.equal node binding.node && Handler_id.equal handler binding.handler ->
        (match binding.callback with
         | Click callback -> Some (callback ())
-        | Editor _ | Choice _ | Combobox _ | Dismiss _ | Tooltip _ -> None)
+        | Editor _ | Choice _ | Combobox _ | Dismiss _ | Tooltip _ | Commands _ -> None)
      | Some _ | None -> None)
   | Choice (window, node, handler, revision, selected)
     when (not t.closed)
@@ -671,6 +758,27 @@ let dispatch t = function
             && ((not open_) || not (Tooltip.Expert.is_disabled config)) ->
        Some (callback open_)
      | Some _ | None -> None)
+  | Command_invoked (window, node, handler, revision, id, generation, _)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Commands (registry, commands)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       if
+         List.exists commands ~f:(fun command ->
+           String.equal command.id id && Int64.equal command.generation generation)
+       then
+         Result.ok (Ui_command.Id.of_string id)
+         |> Option.bind ~f:(Ui_command.Registry.find registry)
+         |> Option.bind ~f:Ui_command.Expert.invoke
+       else None
+     | Some _ | None -> None)
+  | Command_invoked _
   | Tooltip_open_changed _
   | Overlay_dismissed _
   | Welcome _

@@ -2,6 +2,16 @@
 use crate::tree::{Applied, Tree};
 use gpuio_protocol::{HandlerId, NodeId, WindowId, v1::*};
 
+#[derive(Clone, Copy, Debug)]
+pub struct CommandInvocation<'a> {
+    pub scope: NodeId,
+    pub handler: HandlerId,
+    pub revision: i64,
+    pub command: &'a str,
+    pub generation: i64,
+    pub source: CommandSource,
+}
+
 #[derive(Default)]
 struct Slot {
     generation: u32,
@@ -240,6 +250,59 @@ impl Session {
             && (!open || !window.tree.get(node)?.tooltip.as_ref()?.disabled)
             && window.tree.get(node)?.tooltip.is_some())
         .then_some(Event::TooltipOpenChanged(id, node, handler, revision, open))
+    }
+
+    pub fn command_target(
+        &self,
+        id: WindowId,
+        request: CommandInvocation<'_>,
+    ) -> Option<CommandTarget> {
+        let window = self.window(id).ok()?;
+        let config = window
+            .tree
+            .get(request.scope)?
+            .commands
+            .as_ref()?
+            .iter()
+            .find(|entry| entry.id == request.command)?;
+        let valid_source = match request.source {
+            CommandSource::Button(button) => {
+                window
+                    .tree
+                    .get(button)
+                    .is_some_and(|node| node.command_ref.as_deref() == Some(request.command))
+                    && window
+                        .tree
+                        .command(button, request.command)
+                        .is_some_and(|(scope, _)| scope == request.scope)
+            }
+            CommandSource::Shortcut => true,
+            // Reserved sources require their presentation adapters and source
+            // lifetime validation before they can produce invocations.
+            CommandSource::Menu | CommandSource::Palette(_) => false,
+        };
+        (!window.overloaded
+            && request.revision >= 0
+            && request.revision <= window.tree.revision()
+            && window.tree.accepts_handler(request.scope, request.handler)
+            && config.enabled
+            && config.generation == request.generation
+            && valid_source)
+            .then_some(config.target)
+    }
+
+    pub fn invoke_command(&self, id: WindowId, request: CommandInvocation<'_>) -> Option<Event> {
+        (self.command_target(id, request)? == CommandTarget::Callback).then(|| {
+            Event::CommandInvoked(
+                id,
+                request.scope,
+                request.handler,
+                request.revision,
+                request.command.to_owned(),
+                request.generation,
+                request.source,
+            )
+        })
     }
 
     pub fn overload(&mut self, id: WindowId) -> bool {
