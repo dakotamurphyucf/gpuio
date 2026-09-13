@@ -11,6 +11,7 @@ pub const CAP_CHOICES: i64 = 32;
 pub const CAP_SELECT: i64 = 64;
 pub const CAP_CHOICE_APPEARANCE: i64 = 128;
 pub const CAP_COMBOBOX: i64 = 256;
+pub const CAP_FOCUS_SCOPES: i64 = 512;
 pub const CAPABILITIES: i64 = CAP_TREE
     | CAP_NATIVE_STYLES
     | CAP_FRAME_EVENTS
@@ -19,7 +20,8 @@ pub const CAPABILITIES: i64 = CAP_TREE
     | CAP_CHOICES
     | CAP_SELECT
     | CAP_CHOICE_APPEARANCE
-    | CAP_COMBOBOX;
+    | CAP_COMBOBOX
+    | CAP_FOCUS_SCOPES;
 pub const EDITOR_HISTORY_BYTES: usize = 2 * 1024 * 1024;
 pub const EDITOR_RESERVED_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_MESSAGE_BYTES: usize = 1_048_576;
@@ -44,6 +46,14 @@ pub enum Kind {
     RadioGroup,
     Select,
     Combobox,
+    FocusScope,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct FocusScopeConfig {
+    pub trap: bool,
+    pub auto_focus: bool,
+    pub restore_focus: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -329,6 +339,7 @@ pub enum EditorError {
     Busy,
     NativeFailure,
     InvalidText,
+    FocusBlocked,
 }
 #[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum EditorResult {
@@ -379,6 +390,7 @@ pub enum Op {
     SetChoice(NodeId, ChoiceConfig),
     SetChoiceAppearance(NodeId, ChoiceAppearance),
     SetComboboxFilter(NodeId, ComboboxFilter),
+    SetFocusScope(NodeId, FocusScopeConfig),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]

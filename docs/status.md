@@ -126,3 +126,9 @@ Per owner instruction, remaining OCH-11 work stays local until the complete tick
 is ready for a consolidated CI pass. No Combobox hosted acceptance is claimed.
 The broader component catalog is planned in OCH-33–45; vendoring GPUI Base does
 not expose all of those widgets through the OCaml API.
+
+Focus scopes are also implemented locally for OCH-11: native Tab trapping, nested
+entry/restoration, hidden/disabled traversal, empty-root fallback, command and
+accessibility gating, and bounded cleanup pass actual macOS control-window tests.
+Dialogs/popovers and the other remaining OCH-11 families are still in progress.
+No hosted acceptance is claimed for this local scope implementation.

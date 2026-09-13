@@ -177,6 +177,7 @@ let kind = function
   | Radio_group -> Radio_group
   | Select -> Select
   | Combobox -> Combobox
+  | Focus_scope -> Focus_scope
 ;;
 
 let compatible mounted view =
@@ -332,6 +333,13 @@ let rec mount builder ~depth previous view =
              , match filter with
                | Substring -> Substring
                | Unfiltered -> Unfiltered )));
+    Option.iter description.focus_scope ~f:(fun config ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          (View.Expert.describe mounted.view).focus_scope)
+      in
+      if not (Option.equal Focus_scope.equal old (Some config))
+      then emit builder (Set_focus_scope (id, Focus_scope.Expert.to_wire config)));
     Option.iter description.control ~f:(fun control ->
       let old =
         Option.bind previous ~f:(fun mounted ->

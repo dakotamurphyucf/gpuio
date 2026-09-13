@@ -12,6 +12,7 @@ module Kind = struct
     | Radio_group
     | Select
     | Combobox
+    | Focus_scope
   [@@deriving equal, sexp_of]
 end
 
@@ -71,6 +72,7 @@ type 'action t =
   ; control : Control.t option
   ; choice : 'action choice option
   ; combobox : 'action combobox option
+  ; focus_scope : Focus_scope.t option
   ; children : 'action t list
   }
 
@@ -83,6 +85,7 @@ let text ?key ?(style = Style.empty) text =
   ; editor = None
   ; choice = None
   ; combobox = None
+  ; focus_scope = None
   ; control = None
   ; children = []
   }
@@ -116,6 +119,7 @@ let button ?key ?(style = Style.empty) ?accessible_name ?(disabled = false) ~on_
   ; editor = None
   ; choice = None
   ; combobox = None
+  ; focus_scope = None
   ; control = Some (Button { disabled })
   ; children = []
   }
@@ -158,6 +162,7 @@ let toggle
   ; editor = None
   ; choice = None
   ; combobox = None
+  ; focus_scope = None
   ; control = Some control
   ; children = []
   }
@@ -196,8 +201,16 @@ let container ?key ?(style = Style.empty) defaults children =
   ; editor = None
   ; choice = None
   ; combobox = None
+  ; focus_scope = None
   ; control = None
   ; children
+  }
+;;
+
+let focus_scope ?key ?style ~config children =
+  { (container ?key ?style [] children) with
+    kind = Focus_scope
+  ; focus_scope = Some config
   }
 ;;
 
@@ -240,6 +253,7 @@ let text_input
   ; editor = Some { controller; config; on_event }
   ; choice = None
   ; combobox = None
+  ; focus_scope = None
   ; control = None
   ; children = []
   }
@@ -255,6 +269,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; control = None
   ; choice = Some { config; appearance = None; on_select }
   ; combobox = None
+  ; focus_scope = None
   ; children = []
   }
 ;;
@@ -292,6 +307,7 @@ let combobox
   ; control = None
   ; choice = None
   ; combobox = Some { controller; config; appearance; on_event }
+  ; focus_scope = None
   ; children = []
   }
 ;;
@@ -329,6 +345,7 @@ module Expert = struct
     ; control : Control.t option
     ; choice : 'action choice option
     ; combobox : 'action combobox option
+    ; focus_scope : Focus_scope.t option
     ; children : 'action t list
     }
 

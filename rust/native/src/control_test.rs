@@ -790,6 +790,296 @@ async fn combobox_control(
     );
 }
 
+async fn focus_scopes(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport: &Transport) {
+    let scope = FocusScopeConfig {
+        trap: true,
+        auto_focus: true,
+        restore_focus: true,
+    };
+    let outside_config = handle
+        .update(cx, |view, window, cx| {
+            window.focus(&view.editors[&node(4)].focus_handle(cx), cx);
+            view.session
+                .borrow()
+                .tree(view.id)
+                .unwrap()
+                .get(node(4))
+                .unwrap()
+                .editor
+                .as_ref()
+                .unwrap()
+                .as_ref()
+                .clone()
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    let button = |slot, label: &str, disabled| {
+        vec![
+            Op::Create(
+                node(slot),
+                Kind::Button,
+                label.into(),
+                Some(gpuio_protocol::HandlerId::from_parts(slot, 1).unwrap()),
+            ),
+            Op::SetControl(node(slot), Control::Button(disabled)),
+            Op::SetStyle(
+                node(slot),
+                vec![Style::Fields(vec![
+                    Field::Width(Length::Px(200.)),
+                    Field::Height(Length::Px(28.)),
+                ])],
+            ),
+        ]
+    };
+    let mut operations = vec![
+        Op::SetControl(node(1), Control::Checkbox(CheckState::Unchecked, false)),
+        Op::Create(node(8), Kind::FocusScope, "".into(), None),
+        Op::SetFocusScope(node(8), scope),
+        Op::SetStyle(
+            node(8),
+            vec![Style::Fields(vec![
+                Field::Position(1),
+                Field::Top(Length::Px(0.)),
+                Field::Left(Length::Px(0.)),
+                Field::Width(Length::Px(240.)),
+                Field::Height(Length::Px(140.)),
+            ])],
+        ),
+    ];
+    operations.extend(button(9, "Scope first", false));
+    operations.extend([
+        Op::Create(
+            node(10),
+            Kind::Input,
+            "inside".into(),
+            Some(gpuio_protocol::HandlerId::from_parts(10, 1).unwrap()),
+        ),
+        Op::SetEditor(
+            node(10),
+            EditorConfig {
+                label: "Scope editor".into(),
+                placeholder: "".into(),
+                disabled: false,
+                read_only: false,
+                submit_on_enter: false,
+                auto_focus: false,
+                min_rows: 1,
+                max_rows: 1,
+            },
+        ),
+        Op::SetStyle(
+            node(10),
+            vec![Style::Fields(vec![
+                Field::Width(Length::Px(200.)),
+                Field::Height(Length::Px(28.)),
+            ])],
+        ),
+    ]);
+    operations.extend(button(11, "Scope hidden", false));
+    operations.push(Op::SetStyle(
+        node(11),
+        vec![Style::Fields(vec![Field::Visibility(1)])],
+    ));
+    operations.extend(button(12, "Scope disabled", true));
+    operations.extend([
+        Op::Splice(node(8), 0, 0, vec![node(9), node(10), node(11), node(12)]),
+        Op::Splice(node(0), 4, 0, vec![node(8)]),
+    ]);
+    apply(cx, handle, operations);
+    frame(cx, handle).await;
+    assert!(
+        focused(cx, handle, node(9)),
+        "scope enters first visible enabled control"
+    );
+    key(cx, handle, "tab");
+    frame(cx, handle).await;
+    assert!(focused(cx, handle, node(10)));
+    key(cx, handle, "tab");
+    frame(cx, handle).await;
+    assert!(
+        focused(cx, handle, node(9)),
+        "Tab skips hidden/disabled and wraps inside"
+    );
+    key(cx, handle, "shift-tab");
+    frame(cx, handle).await;
+    assert!(focused(cx, handle, node(10)));
+    let result = handle
+        .update(cx, |view, window, cx| {
+            view.editors
+                .get_mut(&node(4))
+                .unwrap()
+                .command(&EditorCommand::Focus, window, cx)
+        })
+        .unwrap();
+    assert_eq!(result, EditorResult::Failed(EditorError::FocusBlocked));
+    assert!(
+        focused(cx, handle, node(10)),
+        "blocked command never moves focus outside"
+    );
+    #[cfg(target_os = "macos")]
+    {
+        presses(transport);
+        assert!(accessible(cx, handle, "Check", true).unwrap().enabled);
+        frame(cx, handle).await;
+        assert!(
+            focused(cx, handle, node(10)),
+            "outside accessibility focus is blocked"
+        );
+        assert!(
+            presses(transport).is_empty(),
+            "outside accessibility activation is blocked"
+        );
+    }
+    apply(
+        cx,
+        handle,
+        vec![Op::SetStyle(
+            node(9),
+            vec![Style::Fields(vec![Field::Visibility(1)])],
+        )],
+    );
+    frame(cx, handle).await;
+    key(cx, handle, "tab");
+    frame(cx, handle).await;
+    assert!(
+        focused(cx, handle, node(10)),
+        "one eligible control wraps to itself"
+    );
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::SetStyle(
+                node(9),
+                vec![Style::Fields(vec![
+                    Field::Width(Length::Px(200.)),
+                    Field::Height(Length::Px(28.)),
+                ])],
+            ),
+            Op::Splice(node(8), 0, 2, vec![node(10), node(9)]),
+        ],
+    );
+    frame(cx, handle).await;
+    key(cx, handle, "tab");
+    frame(cx, handle).await;
+    assert!(
+        focused(cx, handle, node(9)),
+        "native order follows keyed reorder"
+    );
+    key(cx, handle, "shift-tab");
+    frame(cx, handle).await;
+    let mut nested = vec![
+        Op::Create(node(13), Kind::FocusScope, "".into(), None),
+        Op::SetFocusScope(node(13), scope),
+    ];
+    nested.extend(button(14, "Nested", false));
+    nested.extend([
+        Op::Splice(node(13), 0, 0, vec![node(14)]),
+        Op::Splice(node(8), 4, 0, vec![node(13)]),
+    ]);
+    apply(cx, handle, nested);
+    frame(cx, handle).await;
+    assert!(focused(cx, handle, node(14)));
+    key(cx, handle, "shift-tab");
+    frame(cx, handle).await;
+    assert!(focused(cx, handle, node(14)), "nested trap is exclusive");
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Splice(node(8), 4, 1, vec![]),
+            Op::Remove(node(14)),
+            Op::Remove(node(13)),
+        ],
+    );
+    frame(cx, handle).await;
+    assert!(
+        focused(cx, handle, node(10)),
+        "closing nested scope restores parent focus"
+    );
+    let mut disabled = outside_config.clone();
+    disabled.disabled = true;
+    apply(cx, handle, vec![Op::SetEditor(node(4), disabled)]);
+    frame(cx, handle).await;
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Splice(node(0), 4, 1, vec![]),
+            Op::Remove(node(9)),
+            Op::Remove(node(10)),
+            Op::Remove(node(11)),
+            Op::Remove(node(12)),
+            Op::Remove(node(8)),
+        ],
+    );
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, window, _| {
+            assert!(
+                view.root_focus.as_ref().unwrap().is_focused(window),
+                "disabled restoration target falls back without focus probe"
+            )
+        })
+        .unwrap();
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::SetEditor(node(4), outside_config),
+            Op::Create(node(15), Kind::FocusScope, "".into(), None),
+            Op::SetFocusScope(node(15), scope),
+            Op::Splice(node(0), 4, 0, vec![node(15)]),
+        ],
+    );
+    frame(cx, handle).await;
+    key(cx, handle, "tab");
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, window, _| {
+            assert!(
+                view.focus
+                    .borrow()
+                    .handle(node(15))
+                    .unwrap()
+                    .is_focused(window),
+                "empty trap retains its root"
+            )
+        })
+        .unwrap();
+    let mut populated = button(16, "Late child", false);
+    populated.push(Op::Splice(node(15), 0, 0, vec![node(16)]));
+    apply(cx, handle, populated);
+    frame(cx, handle).await;
+    key(cx, handle, "tab");
+    frame(cx, handle).await;
+    assert!(focused(cx, handle, node(16)));
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Splice(node(0), 4, 1, vec![]),
+            Op::Remove(node(16)),
+            Op::Remove(node(15)),
+        ],
+    );
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, _, _| {
+            for id in [8, 13, 15] {
+                assert!(view.focus.borrow().handle(node(id)).is_none());
+            }
+            assert!(
+                !view.focus.borrow_mut().take_pending(),
+                "focus repair does not permanently poll"
+            );
+        })
+        .unwrap();
+    println!(
+        "GPUIO_FOCUS_SCOPES_OK: painted traversal, hidden/disabled/reorder, nested traps/restoration, blocked commands/AX, empty fallback and cleanup"
+    );
+}
+
 fn select_is_open(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> bool {
     handle
         .update(cx, |view, _, _| {
@@ -1032,6 +1322,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
     radio(cx, handle, &transport).await;
     select_control(cx, handle, &transport).await;
     combobox_control(cx, handle, &transport).await;
+    focus_scopes(cx, handle, &transport).await;
     // Remove a focused native node and enter the surviving Tab order again.
     handle
         .update(cx, |view, window, cx| {

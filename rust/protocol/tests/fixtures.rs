@@ -145,3 +145,53 @@ fn editable_choice_request_and_exact_snapshot_fixture_match_ocaml() {
         .unwrap();
     assert_eq!(actual, events);
 }
+
+#[test]
+fn focus_scope_and_focus_denial_match_ocaml() {
+    use gpuio_protocol::{NodeId, WindowId, v1::*};
+    let window = WindowId::from_parts(0, 1).unwrap();
+    let node = NodeId::from_parts(0, 1).unwrap();
+    let request = Message::Apply(Transaction {
+        window,
+        base: 0,
+        revision: 1,
+        operations: vec![
+            Op::Create(node, Kind::FocusScope, "".into(), None),
+            Op::SetFocusScope(
+                node,
+                FocusScopeConfig {
+                    trap: true,
+                    auto_focus: false,
+                    restore_focus: true,
+                },
+            ),
+            Op::SetRoot(Some(node)),
+        ],
+    });
+    let expected = bytes(include_str!("../../../test/fixtures/focus-v1-request.hex"));
+    let mut actual = Vec::new();
+    request.binprot_write(&mut actual).unwrap();
+    assert_eq!(actual, expected);
+    assert_eq!(gpuio_protocol::decode(&expected).unwrap(), request);
+    for length in 0..expected.len() {
+        assert!(gpuio_protocol::decode(&expected[..length]).is_err());
+    }
+    for index in [15, 16, 17] {
+        let mut invalid = expected.clone();
+        invalid[index] = 2;
+        assert!(gpuio_protocol::decode(&invalid).is_err());
+    }
+    actual.clear();
+    vec![Event::EditorResult(
+        7,
+        window,
+        node,
+        EditorResult::Failed(EditorError::FocusBlocked),
+    )]
+    .binprot_write(&mut actual)
+    .unwrap();
+    assert_eq!(
+        actual,
+        bytes(include_str!("../../../test/fixtures/focus-v1-events.hex"))
+    );
+}

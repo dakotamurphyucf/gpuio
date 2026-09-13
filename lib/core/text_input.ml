@@ -197,6 +197,7 @@ module Command_error = struct
     | Busy
     | Native_failure
     | Invalid_text
+    | Focus_blocked
   [@@deriving equal, sexp_of]
 end
 
@@ -321,5 +322,6 @@ module Expert = struct
     | Busy -> Busy
     | Native_failure -> Native_failure
     | Invalid_text -> Invalid_text
+    | Focus_blocked -> Focus_blocked
   ;;
 end

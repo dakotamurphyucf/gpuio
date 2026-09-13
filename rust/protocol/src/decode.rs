@@ -253,6 +253,7 @@ impl Decoder<'_> {
                     7 => Kind::RadioGroup,
                     8 => Kind::Select,
                     9 => Kind::Combobox,
+                    10 => Kind::FocusScope,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -271,6 +272,14 @@ impl Decoder<'_> {
             7 => Op::SetEditor(self.node()?, self.editor_config()?),
             8 => Op::SetControl(self.node()?, self.control()?),
             9 => Op::SetChoice(self.node()?, self.choice_config()?),
+            12 => Op::SetFocusScope(
+                self.node()?,
+                FocusScopeConfig {
+                    trap: self.boolean()?,
+                    auto_focus: self.boolean()?,
+                    restore_focus: self.boolean()?,
+                },
+            ),
             11 => Op::SetComboboxFilter(
                 self.node()?,
                 match self.tag()? {

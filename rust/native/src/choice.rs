@@ -60,11 +60,12 @@ pub(super) struct Route {
     pub handler: HandlerId,
     pub revision: i64,
     pub session: SharedSession,
+    pub gate: super::focus::Shared,
     pub transport: Arc<Transport>,
 }
 impl Route {
     pub(super) fn select_combobox(&self, selected: &str, snapshot: EditorSnapshot) {
-        if snapshot.composition.is_some() {
+        if snapshot.composition.is_some() || !self.gate.borrow().allows(self.node) {
             return;
         }
         let event = {
@@ -103,6 +104,9 @@ impl Route {
         }
     }
     pub(super) fn select(&self, selected: &str) {
+        if !self.gate.borrow().allows(self.node) {
+            return;
+        }
         let event = self.session.borrow().choose(
             self.window,
             self.node,

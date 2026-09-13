@@ -36,6 +36,13 @@ module View : sig
     -> string
     -> t
 
+  val focus_scope
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Focus_scope.t
+    -> t list
+    -> t
+
   val row : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> t list -> t
 
   val radio_group

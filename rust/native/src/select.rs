@@ -199,7 +199,12 @@ pub(super) fn element<T: 'static>(
         let action_state = state.clone();
         let action_config = config.clone();
         let action_focus = focus.clone();
+        let action_gate = route.gate.clone();
+        let action_node = route.node;
         base = base.on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
+            if !action_gate.borrow().allows(action_node) {
+                return;
+            }
             window.focus(&action_focus, cx);
             let mut state = action_state.borrow_mut();
             if state.popup.borrow().open {

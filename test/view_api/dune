@@ -10,6 +10,8 @@
    choice-v1-events.hex
    combobox-v1-request.hex
    combobox-v1-events.hex
+   focus-v1-request.hex
+   focus-v1-events.hex
    editor-v1-requests.hex
    editor-v1-events.hex))
  (preprocess
@@ -30,3 +32,7 @@
 (copy_files ../fixtures/combobox-v1-request.hex)
 
 (copy_files ../fixtures/combobox-v1-events.hex)
+
+(copy_files ../fixtures/focus-v1-request.hex)
+
+(copy_files ../fixtures/focus-v1-events.hex)

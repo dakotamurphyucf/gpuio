@@ -26,6 +26,8 @@ mod editor;
 #[cfg(feature = "native-tests")]
 #[path = "editor_test.rs"]
 pub(super) mod editor_test;
+#[path = "focus.rs"]
+mod focus;
 #[path = "popup.rs"]
 mod popup;
 #[path = "radio.rs"]
@@ -61,6 +63,7 @@ struct View {
     selections: BTreeMap<NodeId, Rc<RefCell<crate::selection::State>>>,
     editors: BTreeMap<NodeId, editor::Instance>,
     root_focus: Option<gpui::FocusHandle>,
+    focus: focus::Shared,
     selects: BTreeMap<NodeId, Rc<RefCell<select::State>>>,
     radios: BTreeMap<NodeId, Rc<RefCell<choice::State>>>,
     visited: std::collections::BTreeSet<NodeId>,
@@ -69,12 +72,16 @@ struct View {
 }
 fn emit_press(
     session: &SharedSession,
+    gate: &focus::Shared,
     transport: &Transport,
     window: WindowId,
     node: NodeId,
     handler: gpuio_protocol::HandlerId,
     revision: i64,
 ) {
+    if !gate.borrow().allows(node) {
+        return;
+    }
     let event = session.borrow().press(window, node, handler, revision);
     if let Some(event) = event
         && !transport.input(event)
@@ -155,6 +162,7 @@ impl View {
     fn new(id: WindowId, session: SharedSession, transport: Arc<Transport>) -> Self {
         Self {
             id,
+            focus: focus::Manager::new(id, session.clone()),
             session,
             transport,
             buttons: BTreeMap::new(),
@@ -169,6 +177,7 @@ impl View {
         }
     }
     fn update_editors(&mut self, dirty: &[NodeId], window: &mut Window, cx: &mut Context<Self>) {
+        self.focus.borrow_mut().sync(window, cx);
         let nodes = {
             let session = self.session.borrow();
             let Some(tree) = session.tree(self.id) else {
@@ -191,6 +200,7 @@ impl View {
                     self.id,
                     &node,
                     self.session.clone(),
+                    self.focus.clone(),
                     self.transport.clone(),
                     window,
                     cx,
@@ -224,7 +234,10 @@ impl View {
             }
         }
         let mut element = div().id(("gpuio-node", identity));
-        if matches!(node.kind, Kind::Container | Kind::RadioGroup) {
+        if matches!(
+            node.kind,
+            Kind::Container | Kind::FocusScope | Kind::RadioGroup
+        ) {
             element = element.flex().flex_col();
         } else if node.kind == Kind::Select {
             element = element
@@ -248,6 +261,9 @@ impl View {
             node.control,
             Some(Control::Checkbox(CheckState::Indeterminate, _))
         );
+        if let Some(handle) = self.focus.borrow().handle(id) {
+            element = element.track_focus(&handle);
+        }
         if matches!(
             node.kind,
             Kind::Button | Kind::Checkbox | Kind::Switch | Kind::RadioGroup | Kind::Select
@@ -272,9 +288,12 @@ impl View {
                     .track_focus(&state.focus.clone().tab_stop(true))
                     .tab_index(0);
                 let focus = state.focus.clone();
-                element = element
-                    .on_a11y_action(gpui::AccessibleAction::Focus, move |_, window, cx| {
-                        window.focus(&focus, cx)
+                let gate = self.focus.clone();
+                element =
+                    element.on_a11y_action(gpui::AccessibleAction::Focus, move |_, window, cx| {
+                        if gate.borrow().allows(id) {
+                            window.focus(&focus, cx);
+                        }
                     });
             }
             element = element
@@ -411,6 +430,7 @@ impl View {
                     handler,
                     revision: tree.revision(),
                     session: self.session.clone(),
+                    gate: self.focus.clone(),
                     transport: self.transport.clone(),
                 });
             element = combobox::element(
@@ -443,6 +463,7 @@ impl View {
                     handler,
                     revision: tree.revision(),
                     session: self.session.clone(),
+                    gate: self.focus.clone(),
                     transport: self.transport.clone(),
                 });
             if node.kind == Kind::Select {
@@ -481,13 +502,15 @@ impl View {
                 );
             }
         } else if let Some(editor) = self.editors.get(&id) {
+            let next = self.focus.clone();
+            let previous = self.focus.clone();
             element = element
-                .capture_action(|_: &gpui_base::input::IndentInline, window, cx| {
-                    window.focus_next(cx);
+                .capture_action(move |_: &gpui_base::input::IndentInline, window, cx| {
+                    next.borrow().traverse(false, window, cx);
                     cx.stop_propagation();
                 })
-                .capture_action(|_: &gpui_base::input::OutdentInline, window, cx| {
-                    window.focus_prev(cx);
+                .capture_action(move |_: &gpui_base::input::OutdentInline, window, cx| {
+                    previous.borrow().traverse(true, window, cx);
                     cx.stop_propagation();
                 })
                 .child(editor.element());
@@ -533,6 +556,8 @@ impl View {
             let revision = tree.revision();
             let session = self.session.clone();
             let transport = self.transport.clone();
+            let gate = self.focus.clone();
+            let accessible_gate = gate.clone();
             let accessible_session = session.clone();
             let accessible_transport = transport.clone();
             // GPUI's fallback accessibility Click synthesizes pointer input.
@@ -541,6 +566,7 @@ impl View {
             element = element.on_a11y_action(gpui::AccessibleAction::Click, move |_, _, cx| {
                 emit_press(
                     &accessible_session,
+                    &accessible_gate,
                     &accessible_transport,
                     window,
                     id,
@@ -560,9 +586,48 @@ impl View {
                 if !interaction.pointer && !matches!(event, gpui::ClickEvent::Keyboard(_)) {
                     return;
                 }
-                emit_press(&session, &transport, window, id, handler, revision);
+                emit_press(&session, &gate, &transport, window, id, handler, revision);
                 cx.stop_propagation();
             });
+        }
+        let gate = self.focus.clone();
+        element = element.capture_any_mouse_down(move |_, window, cx| {
+            if gate.borrow().blocks_pointer(id) {
+                window.prevent_default();
+                cx.stop_propagation();
+            }
+        });
+        let handle = self
+            .editors
+            .get(&id)
+            .map(|editor| editor.focus_handle(cx))
+            .or_else(|| self.buttons.get(&id).map(|button| button.focus.clone()))
+            .or_else(|| {
+                self.selections
+                    .get(&id)
+                    .map(|state| state.borrow().focus.clone())
+            })
+            .or_else(|| self.focus.borrow().handle(id));
+        if let Some(handle) = handle.filter(|_| !disabled) {
+            let tab_stop = node.kind != Kind::FocusScope;
+            let manager = self.focus.clone();
+            element = element.relative().child(
+                canvas(
+                    |_, _, _| (),
+                    move |bounds, _, window, _| {
+                        if bounds.size.width > px(0.)
+                            && bounds.size.height > px(0.)
+                            && bounds.intersects(&window.content_mask().bounds)
+                        {
+                            manager.borrow_mut().record(id, handle, tab_stop);
+                        }
+                    },
+                )
+                .absolute()
+                .top_0()
+                .left_0()
+                .size_full(),
+            );
         }
         #[cfg(feature = "native-tests")]
         {
@@ -603,20 +668,36 @@ impl Render for View {
             .root_focus
             .get_or_insert_with(|| cx.focus_handle())
             .clone();
-        let mut root =
-            div()
-                .track_focus(&root_focus)
-                .size_full()
-                .on_key_down(|event, window, cx| {
-                    if event.keystroke.key == "tab" {
-                        if event.keystroke.modifiers.shift {
-                            window.focus_prev(cx);
-                        } else {
-                            window.focus_next(cx);
-                        }
-                        cx.stop_propagation();
-                    }
-                });
+        let tab_focus = self.focus.clone();
+        let begin_focus = self.focus.clone();
+        let mut root = div()
+            .track_focus(&root_focus)
+            .size_full()
+            .on_key_down(move |event, window, cx| {
+                if event.keystroke.key == "tab" {
+                    tab_focus
+                        .borrow()
+                        .traverse(event.keystroke.modifiers.shift, window, cx);
+                    cx.stop_propagation();
+                }
+            })
+            .child(
+                canvas(
+                    |_, _, _| (),
+                    move |_, _, _, _| begin_focus.borrow_mut().begin_frame(),
+                )
+                .absolute()
+                .top_0()
+                .left_0()
+                .size_full(),
+            );
+        if self.focus.borrow_mut().take_pending() {
+            let focus = self.focus.clone();
+            let fallback = root_focus.clone();
+            window.on_next_frame(move |window, cx| {
+                focus.borrow_mut().finish_frame(&fallback, window, cx)
+            });
+        }
         let revision = if let Some(tree) = session.tree(self.id) {
             if let Some(id) = tree.root() {
                 root = root.child(self.element(tree, id, Interaction::default(), window, cx));
@@ -632,7 +713,8 @@ impl Render for View {
         // GPUI routes key events along the focused element's ancestry. Keep a
         // non-tab-stop fallback so Tab also works before the first click and
         // after a focused control is disabled or removed.
-        let has_focus = root_focus.is_focused(window)
+        let has_focus = self.focus.borrow().contains_focus(window)
+            || root_focus.is_focused(window)
             || self
                 .buttons
                 .values()

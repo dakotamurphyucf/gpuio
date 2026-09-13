@@ -12,6 +12,7 @@ pub struct Node {
     pub editor: Option<Arc<EditorConfig>>,
     pub control: Option<Control>,
     pub choice: Option<Arc<ChoiceConfig>>,
+    pub focus_scope: Option<FocusScopeConfig>,
     pub combobox_filter: Option<ComboboxFilter>,
     pub choice_appearance: Option<Arc<ChoiceAppearance>>,
     pub style: Arc<[Style]>,
@@ -183,6 +184,9 @@ impl Tree {
                 } else if node.combobox_filter.is_some() {
                     return Err(ErrorCode::InvalidTree);
                 }
+                if (node.kind == Kind::FocusScope) != node.focus_scope.is_some() {
+                    return Err(ErrorCode::InvalidTree);
+                }
                 match node.kind {
                     Kind::Input | Kind::Textarea | Kind::Combobox => {
                         let config = node.editor.as_ref().ok_or(ErrorCode::InvalidTree)?;
@@ -197,7 +201,7 @@ impl Tree {
                             return Err(ErrorCode::InvalidTree);
                         }
                     }
-                    Kind::Container | Kind::Text | Kind::Button => {
+                    Kind::Container | Kind::FocusScope | Kind::Text | Kind::Button => {
                         if node.editor.is_some() {
                             return Err(ErrorCode::InvalidTree);
                         }
@@ -317,6 +321,7 @@ impl Plan<'_> {
             | Op::SetEditor(id, ..)
             | Op::SetControl(id, ..)
             | Op::SetChoice(id, ..)
+            | Op::SetFocusScope(id, ..)
             | Op::SetComboboxFilter(id, ..)
             | Op::SetChoiceAppearance(id, ..)
             | Op::Bind(id, ..)
@@ -376,6 +381,7 @@ impl Plan<'_> {
                             choice: None,
                             choice_appearance: None,
                             combobox_filter: None,
+                            focus_scope: None,
                             style: Arc::from([]),
                             handler: *handler,
                             children: Arc::from([]),
@@ -418,6 +424,12 @@ impl Plan<'_> {
                 }
                 self.node_mut(*id)?.editor = Some(Arc::new(config.clone()));
             }
+            Op::SetFocusScope(id, config) => {
+                if self.node(*id)?.kind != Kind::FocusScope {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.focus_scope = Some(*config);
+            }
             Op::SetComboboxFilter(id, filter) => {
                 if self.node(*id)?.kind != Kind::Combobox {
                     return Err(ErrorCode::InvalidTree);
@@ -454,7 +466,7 @@ impl Plan<'_> {
             Op::Bind(id, handler) => self.node_mut(*id)?.handler = *handler,
             Op::Splice(parent, offset, remove, insert) => {
                 let node = self.node(*parent)?;
-                if node.kind != Kind::Container {
+                if !matches!(node.kind, Kind::Container | Kind::FocusScope) {
                     return Err(ErrorCode::InvalidTree);
                 }
                 let start = usize::try_from(*offset).map_err(|_| ErrorCode::InvalidTree)?;
@@ -494,7 +506,8 @@ impl Plan<'_> {
                 return Err(ErrorCode::InvalidTree);
             }
             let node = self.node(id)?;
-            if node.kind != Kind::Container && !node.children.is_empty() {
+            if !matches!(node.kind, Kind::Container | Kind::FocusScope) && !node.children.is_empty()
+            {
                 return Err(ErrorCode::InvalidTree);
             }
             if node.parent != parent {

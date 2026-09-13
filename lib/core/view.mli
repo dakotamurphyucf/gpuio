@@ -42,6 +42,15 @@ val switch
   -> string
   -> 'action t
 
+(** Native focus policy for the supplied subtree. Scope lifetime follows keyed
+    mount/unmount; changing descendants preserves the scope's restoration target. *)
+val focus_scope
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Focus_scope.t
+  -> 'action t list
+  -> 'action t
+
 val row : ?key:Key.t -> ?style:Style.t -> 'action t list -> 'action t
 val column : ?key:Key.t -> ?style:Style.t -> 'action t list -> 'action t
 
@@ -114,6 +123,7 @@ module Expert : sig
       | Radio_group
       | Select
       | Combobox
+      | Focus_scope
     [@@deriving equal, sexp_of]
   end
 
@@ -162,6 +172,7 @@ module Expert : sig
     ; control : Control.t option
     ; choice : 'action choice option
     ; combobox : 'action combobox option
+    ; focus_scope : Focus_scope.t option
     ; children : 'action t list
     }
 

@@ -214,7 +214,7 @@ claim physical IME candidate-panel or complete screen-reader certification.
 
 Capability bit 16 advertises simple controls; bit 32 advertises stable choices;
 bit 64 advertises Select; bit 128 advertises choice appearance; bit 256 advertises
-Combobox (current mask 511). Append-only tags:
+Combobox; bit 512 advertises focus scopes (current mask 1023). Append-only tags:
 checkbox/switch kinds 5/6; Set_control operation 8; Control variants button 0,
 checkbox 1, switch 2; check states unchecked/checked/indeterminate 0/1/2. Each
 control's final Boolean is disabled. Semantic style states occupy 4 through 7.
@@ -239,3 +239,30 @@ macOS accessibility actions; Linux GUI remains informational under OCH-17.
 
 `examples/controls/main.ml` demonstrates the public Bonsai API. Run it with
 `./scripts/gpuio exec dune exec examples/controls/main.exe`.
+
+## Focus scopes
+
+`Focus_scope.create` declares native subtree policy; `View.focus_scope ~config`
+and the Bonsai equivalent wrap arbitrary children. Defaults are untrapped,
+no automatic entry, and restoration enabled. Trapping always requests entry.
+Keyed mount/unmount determines lifetime; configuration and descendant updates
+preserve the restoration target and native editor identity.
+
+The newest mounted trap governs the window. Tab/Shift-Tab traverse eligible
+painted controls and wrap inside it, skipping hidden/disabled descendants. Entry
+uses the first eligible painted control or an empty scope's non-Tab root. Closing
+restores the prior eligible focus when possible, falling back to an enclosing
+scope or window root. Traversal never temporarily focuses an outside editor.
+Explicit outside editor focus returns `Focus_blocked`; native pointer and
+accessibility activation/focus obey the same gate. Programmatic text replacement
+remains available for an unfocused editor. Removing a scope releases its handles;
+focus repair schedules a frame only after a retained-tree update, with no new
+permanent polling loop. Hiding a scope with styles is not unmounting it: applications
+must unmount closed modal content to release its trap.
+
+Wire kind 10 and operation 12 (`Set_focus_scope`) carry three Boolean policies;
+editor command error 10 is `Focus_blocked`. Independent `focus-v1-request.hex`
+and `focus-v1-events.hex` fixtures cover both languages. Actual local macOS native
+controls tests cover nested traps/restoration, empty scopes, reordered and hidden/
+disabled descendants, blocked command/accessibility requests and cleanup. This
+foundation does not by itself expose a dialog, popover or tooltip surface.

@@ -1,7 +1,7 @@
 open Core
 
 let version = 1L
-let capabilities = 511L
+let capabilities = 1023L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -16,6 +16,16 @@ module Kind = struct
     | Radio_group
     | Select
     | Combobox
+    | Focus_scope
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Focus_scope = struct
+  type t =
+    { trap : bool
+    ; auto_focus : bool
+    ; restore_focus : bool
+    }
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -278,6 +288,7 @@ module Editor = struct
       | Busy
       | Native_failure
       | Invalid_text
+      | Focus_blocked
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -310,6 +321,7 @@ module Op = struct
     | Set_choice of Node_id.t * Choice.Config.t
     | Set_choice_appearance of Node_id.t * Choice_appearance.t
     | Set_combobox_filter of Node_id.t * Combobox_filter.t
+    | Set_focus_scope of Node_id.t * Focus_scope.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
