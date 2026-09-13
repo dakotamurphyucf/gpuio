@@ -1,7 +1,7 @@
 open Core
 
 let version = 1L
-let capabilities = 4095L
+let capabilities = 8191L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -17,6 +17,28 @@ module Kind = struct
     | Select
     | Combobox
     | Focus_scope
+    | Tooltip
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Tooltip_open_state = struct
+  type t =
+    | Managed of bool
+    | Controlled of bool
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Tooltip = struct
+  type t =
+    { label : string
+    ; width : float
+    ; open_state : Tooltip_open_state.t
+    ; disabled : bool
+    ; hoverable : bool
+    ; show_delay_ns : int64
+    ; hide_delay_ns : int64
+    ; skip_delay_ns : int64
+    }
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -375,6 +397,7 @@ module Op = struct
     | Set_focus_scope of Node_id.t * Focus_scope.t
     | Set_overlay of Node_id.t * Overlay.t option
     | Set_placement of Node_id.t * Placement.t option
+    | Set_tooltip of Node_id.t * Tooltip.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -448,6 +471,7 @@ module Event = struct
     | Combobox_selected of
         Window_id.t * Node_id.t * Handler_id.t * int64 * string * Editor.Snapshot.t
     | Overlay_dismissed of Window_id.t * Node_id.t * Handler_id.t * int64 * Dismissal.t
+    | Tooltip_open_changed of Window_id.t * Node_id.t * Handler_id.t * int64 * bool
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -472,6 +496,7 @@ module Event = struct
       && valid_snapshot snapshot
       && Option.is_none snapshot.composition
       && not (String.contains snapshot.text '\n' || String.contains snapshot.text '\r')
+    | Tooltip_open_changed (_, _, _, revision, _)
     | Overlay_dismissed (_, _, _, revision, _) -> Int64.(revision >= 0L)
     | Choice (_, _, _, revision, id) ->
       Int64.(revision >= 0L)

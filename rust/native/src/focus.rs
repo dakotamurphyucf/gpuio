@@ -31,6 +31,7 @@ pub(super) struct Manager {
     surfaces: BTreeMap<NodeId, Rc<Cell<Bounds<Pixels>>>>,
     seen: BTreeSet<NodeId>,
     active: Option<NodeId>,
+    hidden: BTreeSet<NodeId>,
     order: u64,
     enter: Option<NodeId>,
     pending: bool,
@@ -45,6 +46,7 @@ impl Manager {
             surfaces: BTreeMap::new(),
             seen: BTreeSet::new(),
             active: None,
+            hidden: BTreeSet::new(),
             order: 0,
             enter: None,
             pending: false,
@@ -64,12 +66,34 @@ impl Manager {
         }
         false
     }
+    pub(super) fn hidden(&self, node: NodeId) -> bool {
+        let session = self.session.borrow();
+        let Some(tree) = session.tree(self.window) else {
+            return true;
+        };
+        let mut cursor = Some(node);
+        while let Some(id) = cursor {
+            if self.hidden.contains(&id) {
+                return true;
+            }
+            cursor = tree.get(id).and_then(|node| node.parent);
+        }
+        false
+    }
+    pub(super) fn set_hidden(&mut self, hidden: BTreeSet<NodeId>) {
+        if self.hidden != hidden {
+            self.hidden = hidden;
+            self.pending = true;
+        }
+    }
     pub(super) fn allows(&self, node: NodeId) -> bool {
-        self.active.is_none_or(|scope| self.within(node, scope))
+        !self.hidden(node) && self.active.is_none_or(|scope| self.within(node, scope))
     }
     pub(super) fn blocks_pointer(&self, node: NodeId) -> bool {
-        self.active
-            .is_some_and(|scope| !self.within(node, scope) && !self.within(scope, node))
+        self.hidden(node)
+            || self
+                .active
+                .is_some_and(|scope| !self.within(node, scope) && !self.within(scope, node))
     }
     fn eligible(&self, node: NodeId) -> bool {
         if !self.allows(node) {
@@ -153,8 +177,18 @@ impl Manager {
             if let Some(tree) = session.tree(self.window) {
                 let mut stack = tree.root().into_iter().collect::<Vec<_>>();
                 while let Some(id) = stack.pop() {
+                    if self.hidden.contains(&id) {
+                        continue;
+                    }
                     let node = tree.get(id).expect("validated node");
-                    if let Some(config) = node.focus_scope {
+                    let config = node.focus_scope.or_else(|| {
+                        node.tooltip.as_ref().map(|_| FocusScopeConfig {
+                            trap: false,
+                            auto_focus: false,
+                            restore_focus: false,
+                        })
+                    });
+                    if let Some(config) = config {
                         result.push((id, config, node.overlay.as_ref().map(|config| config.kind)));
                     }
                     stack.extend(node.children.iter().rev().copied());

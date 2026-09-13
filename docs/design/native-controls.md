@@ -1,9 +1,9 @@
 # Native controls (OCH-11, in progress)
 
 The controls add `View.checkbox`, `View.switch`, `View.radio_group`, `View.select`,
-`View.combobox`, focus scopes, dialogs/popovers and disabled buttons
+`View.combobox`, `View.tooltip`, focus scopes, dialogs/popovers and disabled buttons
 to both the pure action API and the Bonsai effect API. The rest of OCH-11 remains
-in progress: tooltips/menus, commands, pointer/drag interactions,
+in progress: menus, progress/notifications, commands, pointer/drag interactions,
 assets, and their acceptance checks. This document records the implemented
 contracts and the integration findings; it is not completion evidence for the
 whole ticket.
@@ -214,7 +214,7 @@ claim physical IME candidate-panel or complete screen-reader certification.
 
 Capability bit 16 advertises simple controls; bit 32 advertises stable choices;
 bit 64 advertises Select; bit 128 advertises choice appearance; bit 256 advertises
-Combobox; bit 512 advertises focus scopes; bits 1024/2048 advertise overlays/placement (current mask 4095). Append-only tags:
+Combobox; bit 512 advertises focus scopes; bits 1024/2048 advertise overlays/placement; bit 4096 advertises tooltips (current mask 8191). Append-only tags:
 checkbox/switch kinds 5/6; Set_control operation 8; Control variants button 0,
 checkbox 1, switch 2; check states unchecked/checked/indeterminate 0/1/2. Each
 control's final Boolean is disabled. Semantic style states occupy 4 through 7.
@@ -300,7 +300,7 @@ ends composition without also dismissing the overlay. Backdrops block underlying
 pointer focus and wheel routing. Panels carry Dialog accessibility semantics;
 modal panels additionally expose the modal flag.
 
-Capability 1024 (current mask 4095) adds optional `Set_overlay` operation 13 on a
+Capability 1024 adds optional `Set_overlay` operation 13 on a
 focus-scope node and `Overlay_dismissed` event 15. The configuration carries
 Dialog/Popover kind, bounded label, desired width and two dismissal policies.
 Native validation checks kind/policy invariants and charges configuration/string
@@ -329,3 +329,53 @@ updates retain the overlay, editor and focus identity. Capability 2048 and appen
 `Set_placement` operation 14 carry optional placement metadata; previous overlay
 records and fixtures remain unchanged. `placement-v1-request.hex` independently
 checks the new operation in both languages.
+
+## Tooltips
+
+`View.tooltip ~config ~anchor ~content ()` accepts arbitrary retained views for
+both anchor and content. `Tooltip.Config.create ~label ()` defaults to native
+managed visibility, 250 ms hover opening, 80 ms delayed closure, a 300 ms shared
+per-window grace interval and Top/Center placement with a six-pixel gap. Focus
+within the anchor opens immediately. Moving into hoverable content cancels delayed
+closure. Escape and pointer-down on the anchor dismiss; unchanged hover/focus does
+not immediately reopen it. Native editors consume composition Escape first.
+
+`Tooltip.Open_state.Managed { initially_open }` reads the initial Boolean on mount
+and keeps subsequent transient state in Rust. `Controlled open_` follows the
+accepted application value; optional `~on_open_change` reports requests. A
+controlled request never changes visibility before the application accepts it.
+Callback-only updates need no wire transaction; disable/re-enable rotates handler
+generations to reject queued requests. Disabling the tooltip suppresses its
+surface and accessible description without disabling its anchor. Switching from
+Controlled to Managed preserves current visibility.
+
+Content remains in the retained tree while closed, preserving Bonsai models and
+native editor buffers, undo history and revisioned controller identity. Closed
+content does not paint or appear in the accessibility tree; its editors cannot
+autofocus or receive explicit focus commands. Focus scopes inside closed content
+are inactive. Opening does not itself steal focus, but an explicit child focus
+scope may request entry. Unmounting the tooltip disposes its children and makes
+old editor controllers stale. `hoverable=false` disables pointer interaction with
+the panel; applications should use noninteractive content for that mode.
+
+The panel uses the normal style vocabulary, inherited text styling, native state
+refinements and theme background/foreground/muted tokens. The anchor owns its own
+style. Placement uses the same current-frame flip/clamp implementation as popovers.
+Descendant tooltip bounds count as inside their containing popover for outside-click dismissal.
+The panel exposes Tooltip semantics; anchor descendants expose the tooltip label
+as their accessible description even while the panel is closed. Tooltip-owned
+show/hide tasks and focus subscriptions are cancelled on unmount. No additional
+permanent polling loop is introduced.
+
+Capability 4096 (current mask 8191) adds structural kind 11, `Set_tooltip` operation
+15 and `Tooltip_open_changed` event 16. The node has exactly two children; config
+label/width/delays are validated and charged to retained memory. Both languages
+independently verify `tooltip-v1-request.hex` and `tooltip-v1-events.hex` alongside
+previous fixtures. Native checks cover keyboard and pointer triggers, controlled
+visibility, hidden focus traps/editors, native identity retention, timer disposal
+and macOS accessibility exposure. Full screen-reader and Linux GUI acceptance
+remain separate work.
+
+`examples/tooltips` demonstrates managed information and an application-controlled
+editable note. `--self-test` exercises retained editor commands and visibility
+through the public Bonsai/Eio bridge.

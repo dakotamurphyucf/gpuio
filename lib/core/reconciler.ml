@@ -65,6 +65,7 @@ end
 type 'a callback =
   | Click of (unit -> 'a)
   | Dismiss of Overlay.Config.t * (Overlay.Dismissal.t -> 'a)
+  | Tooltip of Tooltip.Config.t * (bool -> 'a)
   | Editor of (Text_input.Event.t -> 'a)
   | Choice of Choice.Config.t * (Choice.Id.t -> 'a)
   | Combobox of Combobox.Config.t * (Combobox.Event.t -> 'a)
@@ -179,6 +180,7 @@ let kind = function
   | Select -> Select
   | Combobox -> Combobox
   | Focus_scope -> Focus_scope
+  | Tooltip -> Tooltip
 ;;
 
 let compatible mounted view =
@@ -254,29 +256,42 @@ let rec mount builder ~depth previous view =
         , description.editor
         , description.choice
         , description.combobox
-        , description.overlay )
+        , description.overlay
+        , description.tooltip )
       with
-      | Some callback, None, None, None, None -> Some (Click callback)
-      | None, Some editor, None, None, None -> Some (Editor editor.on_event)
-      | None, None, Some choice, None, None ->
+      | Some callback, None, None, None, None, None -> Some (Click callback)
+      | None, Some editor, None, None, None, None -> Some (Editor editor.on_event)
+      | None, None, Some choice, None, None, None ->
         if Choice.Config.is_disabled choice.config
         then None
         else Some (Choice (choice.config, choice.on_select))
-      | None, None, None, Some combo, None ->
+      | None, None, None, Some combo, None, None ->
         Some (Combobox (combo.config, combo.on_event))
-      | None, None, None, None, Some overlay ->
+      | None, None, None, None, Some overlay, None ->
         Some (Dismiss (overlay.config, overlay.on_dismiss))
-      | None, None, None, None, None -> None
+      | None, None, None, None, None, Some tooltip ->
+        Option.map tooltip.on_open_change ~f:(fun callback ->
+          Tooltip (tooltip.config, callback))
+      | None, None, None, None, None, None -> None
       | _ -> fail "a view cannot combine incompatible handler kinds"
     in
     let rotate_handler =
-      match description.combobox, previous with
-      | Some combo, Some mounted ->
-        Option.exists (View.Expert.describe mounted.view).combobox ~f:(fun old ->
+      (match description.combobox, previous with
+       | Some combo, Some mounted ->
+         Option.exists (View.Expert.describe mounted.view).combobox ~f:(fun old ->
+           not
+             (Bool.equal
+                (Choice.Config.is_disabled (Combobox.Config.choices old.config))
+                (Choice.Config.is_disabled (Combobox.Config.choices combo.config))))
+       | None, _ | Some _, None -> false)
+      ||
+      match description.tooltip, previous with
+      | Some tooltip, Some mounted ->
+        Option.exists (View.Expert.describe mounted.view).tooltip ~f:(fun old ->
           not
             (Bool.equal
-               (Choice.Config.is_disabled (Combobox.Config.choices old.config))
-               (Choice.Config.is_disabled (Combobox.Config.choices combo.config))))
+               (Tooltip.Expert.is_disabled old.config)
+               (Tooltip.Expert.is_disabled tooltip.config)))
       | None, _ | Some _, None -> false
     in
     let handler =
@@ -348,6 +363,15 @@ let rec mount builder ~depth previous view =
       in
       if not (Option.equal Focus_scope.equal old (Some config))
       then emit builder (Set_focus_scope (id, Focus_scope.Expert.to_wire config)));
+    Option.iter description.tooltip ~f:(fun tooltip ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).tooltip ~f:(fun old ->
+            Tooltip.Expert.to_wire old.config))
+      in
+      let next = Tooltip.Expert.to_wire tooltip.config in
+      if not (Option.equal Wire.Tooltip.equal old (Some next))
+      then emit builder (Set_tooltip (id, next)));
     let overlay =
       Option.map description.overlay ~f:(fun overlay ->
         Overlay.Expert.to_wire overlay.config ~kind:overlay.kind)
@@ -360,8 +384,13 @@ let rec mount builder ~depth previous view =
     if not (Option.equal Wire.Overlay.equal old_overlay overlay)
     then emit builder (Set_overlay (id, overlay));
     let placement description =
-      Option.map description.View.Expert.overlay ~f:(fun overlay ->
-        Overlay.Expert.placement overlay.config |> Placement.Expert.to_wire)
+      match description.View.Expert.overlay, description.tooltip with
+      | Some overlay, None ->
+        Some (Overlay.Expert.placement overlay.config |> Placement.Expert.to_wire)
+      | None, Some tooltip ->
+        Some (Tooltip.Expert.placement tooltip.config |> Placement.Expert.to_wire)
+      | None, None -> None
+      | Some _, Some _ -> fail "incompatible overlay descriptions"
     in
     let next_placement = placement description in
     let old_placement =
@@ -543,7 +572,7 @@ let dispatch t = function
        when Node_id.equal node binding.node && Handler_id.equal handler binding.handler ->
        (match binding.callback with
         | Click callback -> Some (callback ())
-        | Editor _ | Choice _ | Combobox _ | Dismiss _ -> None)
+        | Editor _ | Choice _ | Combobox _ | Dismiss _ | Tooltip _ -> None)
      | Some _ | None -> None)
   | Choice (window, node, handler, revision, selected)
     when (not t.closed)
@@ -627,6 +656,22 @@ let dispatch t = function
        in
        if Overlay.Expert.allows config reason then Some (callback reason) else None
      | Some _ | None -> None)
+  | Tooltip_open_changed (window, node, handler, revision, open_)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Tooltip (config, callback)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && ((not open_) || not (Tooltip.Expert.is_disabled config)) ->
+       Some (callback open_)
+     | Some _ | None -> None)
+  | Tooltip_open_changed _
   | Overlay_dismissed _
   | Welcome _
   | Opened _

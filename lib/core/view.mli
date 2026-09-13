@@ -72,6 +72,19 @@ val popover
   -> 'action t option
   -> 'action t
 
+(** Content remains retained while native open state hides it. This preserves
+    Bonsai models and editor buffers; unmount the tooltip to dispose its content.
+    [style] customizes the tooltip panel. The anchor retains its own styles. *)
+val tooltip
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Tooltip.Config.t
+  -> ?on_open_change:(bool -> 'action)
+  -> anchor:'action t
+  -> content:'action t
+  -> unit
+  -> 'action t
+
 val row : ?key:Key.t -> ?style:Style.t -> 'action t list -> 'action t
 val column : ?key:Key.t -> ?style:Style.t -> 'action t list -> 'action t
 
@@ -145,6 +158,7 @@ module Expert : sig
       | Select
       | Combobox
       | Focus_scope
+      | Tooltip
     [@@deriving equal, sexp_of]
   end
 
@@ -168,6 +182,11 @@ module Expert : sig
     { kind : Gpuio_protocol.Wire.Overlay_kind.t
     ; config : Overlay.Config.t
     ; on_dismiss : Overlay.Dismissal.t -> 'action
+    }
+
+  type 'action tooltip =
+    { config : Tooltip.Config.t
+    ; on_open_change : (bool -> 'action) option
     }
 
   type 'action combobox =
@@ -200,6 +219,7 @@ module Expert : sig
     ; choice : 'action choice option
     ; combobox : 'action combobox option
     ; overlay : 'action overlay option
+    ; tooltip : 'action tooltip option
     ; focus_scope : Focus_scope.t option
     ; children : 'action t list
     }

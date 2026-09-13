@@ -13,6 +13,7 @@ module Kind = struct
     | Select
     | Combobox
     | Focus_scope
+    | Tooltip
   [@@deriving equal, sexp_of]
 end
 
@@ -68,6 +69,11 @@ type 'action overlay =
   ; on_dismiss : Overlay.Dismissal.t -> 'action
   }
 
+type 'action tooltip =
+  { config : Tooltip.Config.t
+  ; on_open_change : (bool -> 'action) option
+  }
+
 type 'action t =
   { key : Key.t option
   ; kind : Kind.t
@@ -79,6 +85,7 @@ type 'action t =
   ; choice : 'action choice option
   ; combobox : 'action combobox option
   ; overlay : 'action overlay option
+  ; tooltip : 'action tooltip option
   ; focus_scope : Focus_scope.t option
   ; children : 'action t list
   }
@@ -93,6 +100,7 @@ let text ?key ?(style = Style.empty) text =
   ; choice = None
   ; combobox = None
   ; overlay = None
+  ; tooltip = None
   ; focus_scope = None
   ; control = None
   ; children = []
@@ -128,6 +136,7 @@ let button ?key ?(style = Style.empty) ?accessible_name ?(disabled = false) ~on_
   ; choice = None
   ; combobox = None
   ; overlay = None
+  ; tooltip = None
   ; focus_scope = None
   ; control = Some (Button { disabled })
   ; children = []
@@ -172,6 +181,7 @@ let toggle
   ; choice = None
   ; combobox = None
   ; overlay = None
+  ; tooltip = None
   ; focus_scope = None
   ; control = Some control
   ; children = []
@@ -212,6 +222,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; choice = None
   ; combobox = None
   ; overlay = None
+  ; tooltip = None
   ; focus_scope = None
   ; control = None
   ; children
@@ -273,6 +284,13 @@ let popover ?key ?style ~config ~on_dismiss ~anchor content =
   container ?key [ Position Relative ] children
 ;;
 
+let tooltip ?key ?(style = Style.empty) ~config ?on_open_change ~anchor ~content () =
+  { (container ?key ~style:(overlay_style (Some style)) [] [ anchor; content ]) with
+    kind = Tooltip
+  ; tooltip = Some { config; on_open_change }
+  }
+;;
+
 let row ?key ?style children =
   container ?key ?style [ Display Flex; Direction Row ] children
 ;;
@@ -313,6 +331,7 @@ let text_input
   ; choice = None
   ; combobox = None
   ; overlay = None
+  ; tooltip = None
   ; focus_scope = None
   ; control = None
   ; children = []
@@ -330,6 +349,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; choice = Some { config; appearance = None; on_select }
   ; combobox = None
   ; overlay = None
+  ; tooltip = None
   ; focus_scope = None
   ; children = []
   }
@@ -369,6 +389,7 @@ let combobox
   ; choice = None
   ; combobox = Some { controller; config; appearance; on_event }
   ; overlay = None
+  ; tooltip = None
   ; focus_scope = None
   ; children = []
   }
@@ -377,6 +398,11 @@ let combobox
 module Expert = struct
   module Kind = Kind
   module Control = Control
+
+  type nonrec 'action tooltip = 'action tooltip =
+    { config : Tooltip.Config.t
+    ; on_open_change : (bool -> 'action) option
+    }
 
   type nonrec 'action overlay = 'action overlay =
     { kind : Gpuio_protocol.Wire.Overlay_kind.t
@@ -414,6 +440,7 @@ module Expert = struct
     ; choice : 'action choice option
     ; combobox : 'action combobox option
     ; overlay : 'action overlay option
+    ; tooltip : 'action tooltip option
     ; focus_scope : Focus_scope.t option
     ; children : 'action t list
     }

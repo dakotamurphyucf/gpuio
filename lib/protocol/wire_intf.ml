@@ -18,6 +18,28 @@ module type S = sig
       | Select
       | Combobox
       | Focus_scope
+      | Tooltip
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Tooltip_open_state : sig
+    type t =
+      | Managed of bool
+      | Controlled of bool
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Tooltip : sig
+    type t =
+      { label : string
+      ; width : float
+      ; open_state : Tooltip_open_state.t
+      ; disabled : bool
+      ; hoverable : bool
+      ; show_delay_ns : int64
+      ; hide_delay_ns : int64
+      ; skip_delay_ns : int64
+      }
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -377,6 +399,7 @@ module type S = sig
       | Set_focus_scope of Node_id.t * Focus_scope.t
       | Set_overlay of Node_id.t * Overlay.t option
       | Set_placement of Node_id.t * Placement.t option
+      | Set_tooltip of Node_id.t * Tooltip.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -448,6 +471,7 @@ module type S = sig
       | Combobox_selected of
           Window_id.t * Node_id.t * Handler_id.t * int64 * string * Editor.Snapshot.t
       | Overlay_dismissed of Window_id.t * Node_id.t * Handler_id.t * int64 * Dismissal.t
+      | Tooltip_open_changed of Window_id.t * Node_id.t * Handler_id.t * int64 * bool
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

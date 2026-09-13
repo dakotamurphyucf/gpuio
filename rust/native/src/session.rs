@@ -224,6 +224,24 @@ impl Session {
         .then_some(Event::OverlayDismissed(id, node, handler, revision, reason))
     }
 
+    pub fn tooltip_open_changed(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        open: bool,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        (!window.overloaded
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && window.tree.accepts_handler(node, handler)
+            && (!open || !window.tree.get(node)?.tooltip.as_ref()?.disabled)
+            && window.tree.get(node)?.tooltip.is_some())
+        .then_some(Event::TooltipOpenChanged(id, node, handler, revision, open))
+    }
+
     pub fn overload(&mut self, id: WindowId) -> bool {
         let Ok(window) = self.window_mut(id) else {
             return false;

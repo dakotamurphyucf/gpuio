@@ -14,6 +14,7 @@ pub struct Node {
     pub choice: Option<Arc<ChoiceConfig>>,
     pub focus_scope: Option<FocusScopeConfig>,
     pub overlay: Option<Arc<OverlayConfig>>,
+    pub tooltip: Option<Arc<TooltipConfig>>,
     pub placement: Option<Placement>,
     pub combobox_filter: Option<ComboboxFilter>,
     pub choice_appearance: Option<Arc<ChoiceAppearance>>,
@@ -26,6 +27,9 @@ pub struct Node {
 impl Node {
     fn payload_bytes(&self) -> usize {
         self.text.len()
+            + self.tooltip.as_ref().map_or(0, |config| {
+                std::mem::size_of::<TooltipConfig>() + config.label.len()
+            })
             + self
                 .placement
                 .map_or(0, |_| std::mem::size_of::<Placement>())
@@ -118,6 +122,22 @@ impl Tree {
             .as_ref()
     }
 
+    /// Nearest enabled tooltip whose anchor subtree contains this node.
+    pub fn tooltip_description(&self, node: NodeId) -> Option<&str> {
+        let mut child = node;
+        while let Some(parent) = self.get(child)?.parent {
+            let node = self.get(parent)?;
+            if let Some(config) = &node.tooltip
+                && !config.disabled
+                && node.children.first() == Some(&child)
+            {
+                return Some(&config.label);
+            }
+            child = parent;
+        }
+        None
+    }
+
     pub fn accepts_handler(&self, node: NodeId, handler: HandlerId) -> bool {
         self.get(node)
             .is_some_and(|node| node.handler == Some(handler))
@@ -195,7 +215,16 @@ impl Tree {
                 if (node.kind == Kind::FocusScope) != node.focus_scope.is_some() {
                     return Err(ErrorCode::InvalidTree);
                 }
-                if node.placement.is_some() && node.overlay.is_none() {
+                if (node.kind == Kind::Tooltip) != node.tooltip.is_some()
+                    || node
+                        .tooltip
+                        .as_ref()
+                        .is_some_and(|config| !config.is_valid())
+                    || (node.kind == Kind::Tooltip && node.children.len() != 2)
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                if node.placement.is_some() && node.overlay.is_none() && node.tooltip.is_none() {
                     return Err(ErrorCode::InvalidTree);
                 }
                 if let Some(config) = &node.overlay
@@ -222,7 +251,11 @@ impl Tree {
                             return Err(ErrorCode::InvalidTree);
                         }
                     }
-                    Kind::Container | Kind::FocusScope | Kind::Text | Kind::Button => {
+                    Kind::Container
+                    | Kind::FocusScope
+                    | Kind::Tooltip
+                    | Kind::Text
+                    | Kind::Button => {
                         if node.editor.is_some() {
                             return Err(ErrorCode::InvalidTree);
                         }
@@ -345,6 +378,7 @@ impl Plan<'_> {
             | Op::SetFocusScope(id, ..)
             | Op::SetOverlay(id, ..)
             | Op::SetPlacement(id, ..)
+            | Op::SetTooltip(id, ..)
             | Op::SetComboboxFilter(id, ..)
             | Op::SetChoiceAppearance(id, ..)
             | Op::Bind(id, ..)
@@ -406,6 +440,7 @@ impl Plan<'_> {
                             combobox_filter: None,
                             focus_scope: None,
                             overlay: None,
+                            tooltip: None,
                             placement: None,
                             style: Arc::from([]),
                             handler: *handler,
@@ -449,8 +484,14 @@ impl Plan<'_> {
                 }
                 self.node_mut(*id)?.editor = Some(Arc::new(config.clone()));
             }
+            Op::SetTooltip(id, config) => {
+                if self.node(*id)?.kind != Kind::Tooltip || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.tooltip = Some(Arc::new(config.clone()));
+            }
             Op::SetPlacement(id, placement) => {
-                if self.node(*id)?.kind != Kind::FocusScope
+                if !matches!(self.node(*id)?.kind, Kind::FocusScope | Kind::Tooltip)
                     || placement.is_some_and(|placement| !placement.is_valid())
                 {
                     return Err(ErrorCode::InvalidTree);
@@ -507,7 +548,10 @@ impl Plan<'_> {
             Op::Bind(id, handler) => self.node_mut(*id)?.handler = *handler,
             Op::Splice(parent, offset, remove, insert) => {
                 let node = self.node(*parent)?;
-                if !matches!(node.kind, Kind::Container | Kind::FocusScope) {
+                if !matches!(
+                    node.kind,
+                    Kind::Container | Kind::FocusScope | Kind::Tooltip
+                ) {
                     return Err(ErrorCode::InvalidTree);
                 }
                 let start = usize::try_from(*offset).map_err(|_| ErrorCode::InvalidTree)?;
@@ -555,7 +599,10 @@ impl Plan<'_> {
             {
                 return Err(ErrorCode::InvalidTree);
             }
-            if !matches!(node.kind, Kind::Container | Kind::FocusScope) && !node.children.is_empty()
+            if !matches!(
+                node.kind,
+                Kind::Container | Kind::FocusScope | Kind::Tooltip
+            ) && !node.children.is_empty()
             {
                 return Err(ErrorCode::InvalidTree);
             }

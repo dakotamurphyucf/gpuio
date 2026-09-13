@@ -36,6 +36,8 @@ mod popup;
 mod radio;
 #[path = "select.rs"]
 mod select;
+#[path = "tooltip.rs"]
+mod tooltip;
 #[path = "typeahead.rs"]
 mod typeahead;
 struct ButtonState {
@@ -68,6 +70,8 @@ struct View {
     focus: focus::Shared,
     selects: BTreeMap<NodeId, Rc<RefCell<select::State>>>,
     radios: BTreeMap<NodeId, Rc<RefCell<choice::State>>>,
+    tooltips: BTreeMap<NodeId, tooltip::State>,
+    tooltip_last_closed: Option<std::time::Instant>,
     visited: std::collections::BTreeSet<NodeId>,
     #[cfg(feature = "native-tests")]
     probes: Rc<RefCell<BTreeMap<NodeId, native_test::Probe>>>,
@@ -160,6 +164,71 @@ fn control_indicator(kind: Kind, checked: bool, indeterminate: bool) -> gpui::An
     .into_any_element()
 }
 
+fn apply_styles(
+    mut element: gpui::Stateful<gpui::Div>,
+    styles: &[Style],
+    interaction: Interaction,
+    disabled: bool,
+) -> (
+    gpui::Stateful<gpui::Div>,
+    [Option<gpui::StyleRefinement>; 7],
+) {
+    let mut states: [Option<gpui::StyleRefinement>; 7] = Default::default();
+    for style in styles {
+        match style {
+            Style::Fields(fields) => {
+                crate::style::refine(element.style(), fields);
+            }
+            Style::State(state, fields) => {
+                if matches!(*state, 2 | 3) && (!interaction.pointer || disabled) {
+                    continue;
+                }
+                let refinement = states[(*state - 1) as usize].get_or_insert_with(Default::default);
+                crate::style::refine(refinement, fields);
+            }
+            Style::Width(v) => element.style().size.width = Some(length(v)),
+            Style::Height(v) => element.style().size.height = Some(length(v)),
+            Style::MinWidth(v) => element.style().min_size.width = Some(length(v)),
+            Style::MinHeight(v) => element.style().min_size.height = Some(length(v)),
+            Style::MaxWidth(v) => element.style().max_size.width = Some(length(v)),
+            Style::MaxHeight(v) => element.style().max_size.height = Some(length(v)),
+            Style::Padding(v) => element = element.p(px(*v as f32)),
+            Style::Gap(v) => element = element.gap(px(*v as f32)),
+            Style::Grow(v) => element.style().flex_grow = Some(*v as f32),
+            Style::Shrink(v) => element.style().flex_shrink = Some(*v as f32),
+            Style::Direction(v) => {
+                element.style().flex_direction = Some(match v {
+                    0 => gpui::FlexDirection::Row,
+                    1 => gpui::FlexDirection::Column,
+                    2 => gpui::FlexDirection::RowReverse,
+                    _ => gpui::FlexDirection::ColumnReverse,
+                })
+            }
+            Style::Background(v) => element = element.bg(color(v)),
+            Style::Foreground(v) => element = element.text_color(color(v)),
+            Style::FontSize(v) => element = element.text_size(px(*v as f32)),
+            Style::Radius(v) => element = element.rounded(px(*v as f32)),
+            Style::Opacity(v) => element = element.opacity(*v as f32),
+            Style::HoverBackground(v) => {
+                if interaction.pointer && !disabled {
+                    states[1].get_or_insert_with(Default::default).background =
+                        Some(color(v).into());
+                }
+            }
+            Style::PressedBackground(v) => {
+                if interaction.pointer && !disabled {
+                    states[2].get_or_insert_with(Default::default).background =
+                        Some(color(v).into());
+                }
+            }
+            Style::FocusBackground(v) => {
+                states[0].get_or_insert_with(Default::default).background = Some(color(v).into());
+            }
+        }
+    }
+    (element, states)
+}
+
 impl View {
     fn new(id: WindowId, session: SharedSession, transport: Arc<Transport>) -> Self {
         Self {
@@ -172,6 +241,8 @@ impl View {
             editors: BTreeMap::new(),
             root_focus: None,
             radios: BTreeMap::new(),
+            tooltips: BTreeMap::new(),
+            tooltip_last_closed: None,
             selects: BTreeMap::new(),
             visited: Default::default(),
             #[cfg(feature = "native-tests")]
@@ -179,7 +250,7 @@ impl View {
         }
     }
     fn update_editors(&mut self, dirty: &[NodeId], window: &mut Window, cx: &mut Context<Self>) {
-        self.focus.borrow_mut().sync(window, cx);
+        self.sync_tooltips(window, cx);
         let nodes = {
             let session = self.session.borrow();
             let Some(tree) = session.tree(self.id) else {
@@ -220,6 +291,9 @@ impl View {
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let node = tree.get(id).expect("validated retained node");
+        if node.kind == Kind::Tooltip {
+            return self.tooltip_element(tree, node, interaction, window, cx);
+        }
         let popup_priority = self.focus.borrow().layer(id) + 2;
         let identity = ((id.generation() as u64) << 32) | id.slot() as u64;
         let mut accessible_name = gpui::SharedString::from(node.text.clone());
@@ -237,6 +311,9 @@ impl View {
             }
         }
         let mut element = div().id(("gpuio-node", identity));
+        if let Some(description) = tree.tooltip_description(id) {
+            element = element.aria_description(description.to_owned());
+        }
         if matches!(
             node.kind,
             Kind::Container | Kind::FocusScope | Kind::RadioGroup
@@ -334,61 +411,8 @@ impl View {
                 element = element.cursor_pointer();
             }
         }
-        let mut states: [Option<gpui::StyleRefinement>; 7] = Default::default();
-        for style in node.style.iter() {
-            match style {
-                Style::Fields(fields) => {
-                    crate::style::refine(element.style(), fields);
-                }
-                Style::State(state, fields) => {
-                    if matches!(*state, 2 | 3) && (!interaction.pointer || disabled) {
-                        continue;
-                    }
-                    let refinement =
-                        states[(*state - 1) as usize].get_or_insert_with(Default::default);
-                    crate::style::refine(refinement, fields);
-                }
-                Style::Width(v) => element.style().size.width = Some(length(v)),
-                Style::Height(v) => element.style().size.height = Some(length(v)),
-                Style::MinWidth(v) => element.style().min_size.width = Some(length(v)),
-                Style::MinHeight(v) => element.style().min_size.height = Some(length(v)),
-                Style::MaxWidth(v) => element.style().max_size.width = Some(length(v)),
-                Style::MaxHeight(v) => element.style().max_size.height = Some(length(v)),
-                Style::Padding(v) => element = element.p(px(*v as f32)),
-                Style::Gap(v) => element = element.gap(px(*v as f32)),
-                Style::Grow(v) => element.style().flex_grow = Some(*v as f32),
-                Style::Shrink(v) => element.style().flex_shrink = Some(*v as f32),
-                Style::Direction(v) => {
-                    element.style().flex_direction = Some(match v {
-                        0 => gpui::FlexDirection::Row,
-                        1 => gpui::FlexDirection::Column,
-                        2 => gpui::FlexDirection::RowReverse,
-                        _ => gpui::FlexDirection::ColumnReverse,
-                    })
-                }
-                Style::Background(v) => element = element.bg(color(v)),
-                Style::Foreground(v) => element = element.text_color(color(v)),
-                Style::FontSize(v) => element = element.text_size(px(*v as f32)),
-                Style::Radius(v) => element = element.rounded(px(*v as f32)),
-                Style::Opacity(v) => element = element.opacity(*v as f32),
-                Style::HoverBackground(v) => {
-                    if interaction.pointer && !disabled {
-                        states[1].get_or_insert_with(Default::default).background =
-                            Some(color(v).into());
-                    }
-                }
-                Style::PressedBackground(v) => {
-                    if interaction.pointer && !disabled {
-                        states[2].get_or_insert_with(Default::default).background =
-                            Some(color(v).into());
-                    }
-                }
-                Style::FocusBackground(v) => {
-                    states[0].get_or_insert_with(Default::default).background =
-                        Some(color(v).into());
-                }
-            }
-        }
+        let (styled, states) = apply_styles(element, &node.style, interaction, disabled);
+        element = styled;
         let [
             focused,
             hovered,

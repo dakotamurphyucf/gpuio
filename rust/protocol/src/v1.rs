@@ -14,6 +14,7 @@ pub const CAP_COMBOBOX: i64 = 256;
 pub const CAP_FOCUS_SCOPES: i64 = 512;
 pub const CAP_OVERLAYS: i64 = 1024;
 pub const CAP_PLACEMENT: i64 = 2048;
+pub const CAP_TOOLTIPS: i64 = 4096;
 pub const CAPABILITIES: i64 = CAP_TREE
     | CAP_NATIVE_STYLES
     | CAP_FRAME_EVENTS
@@ -25,7 +26,8 @@ pub const CAPABILITIES: i64 = CAP_TREE
     | CAP_COMBOBOX
     | CAP_FOCUS_SCOPES
     | CAP_OVERLAYS
-    | CAP_PLACEMENT;
+    | CAP_PLACEMENT
+    | CAP_TOOLTIPS;
 pub const EDITOR_HISTORY_BYTES: usize = 2 * 1024 * 1024;
 pub const EDITOR_RESERVED_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_MESSAGE_BYTES: usize = 1_048_576;
@@ -51,6 +53,7 @@ pub enum Kind {
     Select,
     Combobox,
     FocusScope,
+    Tooltip,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -415,6 +418,35 @@ impl Placement {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum TooltipOpenState {
+    Managed(bool),
+    Controlled(bool),
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct TooltipConfig {
+    pub label: String,
+    pub width: f64,
+    pub open_state: TooltipOpenState,
+    pub disabled: bool,
+    pub hoverable: bool,
+    pub show_delay_ns: i64,
+    pub hide_delay_ns: i64,
+    pub skip_delay_ns: i64,
+}
+impl TooltipConfig {
+    pub fn is_valid(&self) -> bool {
+        !self.label.trim().is_empty()
+            && self.label.len() <= 4096
+            && !self.label.contains('\0')
+            && self.width.is_finite()
+            && (1.0..=16384.0).contains(&self.width)
+            && [self.show_delay_ns, self.hide_delay_ns, self.skip_delay_ns]
+                .into_iter()
+                .all(|delay| (0..=60_000_000_000).contains(&delay))
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum OverlayKind {
     Dialog,
     Popover,
@@ -465,6 +497,7 @@ pub enum Op {
     SetFocusScope(NodeId, FocusScopeConfig),
     SetOverlay(NodeId, Option<OverlayConfig>),
     SetPlacement(NodeId, Option<Placement>),
+    SetTooltip(NodeId, TooltipConfig),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -527,4 +560,5 @@ pub enum Event {
     Choice(WindowId, NodeId, HandlerId, i64, String),
     ComboboxSelected(WindowId, NodeId, HandlerId, i64, String, EditorSnapshot),
     OverlayDismissed(WindowId, NodeId, HandlerId, i64, Dismissal),
+    TooltipOpenChanged(WindowId, NodeId, HandlerId, i64, bool),
 }

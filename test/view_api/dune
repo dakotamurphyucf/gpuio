@@ -14,6 +14,8 @@
    focus-v1-events.hex
    overlay-v1-request.hex
    overlay-v1-events.hex
+   tooltip-v1-request.hex
+   tooltip-v1-events.hex
    placement-v1-request.hex
    editor-v1-requests.hex
    editor-v1-events.hex))
@@ -45,3 +47,7 @@
 (copy_files ../fixtures/overlay-v1-events.hex)
 
 (copy_files ../fixtures/placement-v1-request.hex)
+
+(copy_files ../fixtures/tooltip-v1-request.hex)
+
+(copy_files ../fixtures/tooltip-v1-events.hex)

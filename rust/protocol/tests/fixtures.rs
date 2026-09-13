@@ -292,3 +292,67 @@ fn placement_update_matches_ocaml_without_changing_overlay_records() {
         assert!(gpuio_protocol::decode(&malformed).is_err());
     }
 }
+
+#[test]
+fn tooltip_ownership_modes_and_events_match_ocaml() {
+    use gpuio_protocol::{HandlerId, NodeId, WindowId, v1::*};
+    let window = WindowId::from_parts(0, 1).unwrap();
+    let node = NodeId::from_parts(0, 1).unwrap();
+    let handler = HandlerId::from_parts(0, 1).unwrap();
+    let config = TooltipConfig {
+        label: "Details".into(),
+        width: 200.,
+        open_state: TooltipOpenState::Managed(false),
+        disabled: false,
+        hoverable: true,
+        show_delay_ns: 250_000_000,
+        hide_delay_ns: 80_000_000,
+        skip_delay_ns: 300_000_000,
+    };
+    let request = Message::Apply(Transaction {
+        window,
+        base: 0,
+        revision: 1,
+        operations: vec![
+            Op::Create(node, Kind::Tooltip, "".into(), Some(handler)),
+            Op::SetTooltip(node, config.clone()),
+            Op::SetTooltip(
+                node,
+                TooltipConfig {
+                    open_state: TooltipOpenState::Controlled(true),
+                    ..config
+                },
+            ),
+            Op::SetPlacement(
+                node,
+                Some(Placement {
+                    side: Side::Top,
+                    align: Align::Center,
+                    offset: 6.,
+                }),
+            ),
+        ],
+    });
+    let expected = bytes(include_str!(
+        "../../../test/fixtures/tooltip-v1-request.hex"
+    ));
+    let mut actual = Vec::new();
+    request.binprot_write(&mut actual).unwrap();
+    assert_eq!(actual, expected);
+    assert_eq!(gpuio_protocol::decode(&actual).unwrap(), request);
+    for end in 0..actual.len() {
+        assert!(gpuio_protocol::decode(&actual[..end]).is_err());
+    }
+    actual.push(0);
+    assert!(gpuio_protocol::decode(&actual).is_err());
+    let events = [true, false]
+        .into_iter()
+        .map(|open| Event::TooltipOpenChanged(window, node, handler, 1, open))
+        .collect::<Vec<_>>();
+    actual.clear();
+    events.binprot_write(&mut actual).unwrap();
+    assert_eq!(
+        actual,
+        bytes(include_str!("../../../test/fixtures/tooltip-v1-events.hex"))
+    );
+}

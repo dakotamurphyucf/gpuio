@@ -60,6 +60,16 @@ module View : sig
     -> t option
     -> t
 
+  val tooltip
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Tooltip.Config.t
+    -> ?on_open_change:(bool -> unit Bonsai.Effect.t)
+    -> anchor:t
+    -> content:t
+    -> unit
+    -> t
+
   val row : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> t list -> t
 
   val radio_group

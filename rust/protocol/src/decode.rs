@@ -285,6 +285,7 @@ impl Decoder<'_> {
                     8 => Kind::Select,
                     9 => Kind::Combobox,
                     10 => Kind::FocusScope,
+                    11 => Kind::Tooltip,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -303,6 +304,23 @@ impl Decoder<'_> {
             7 => Op::SetEditor(self.node()?, self.editor_config()?),
             8 => Op::SetControl(self.node()?, self.control()?),
             9 => Op::SetChoice(self.node()?, self.choice_config()?),
+            15 => Op::SetTooltip(
+                self.node()?,
+                TooltipConfig {
+                    label: self.text()?,
+                    width: self.float()?,
+                    open_state: match self.tag()? {
+                        0 => TooltipOpenState::Managed(self.boolean()?),
+                        1 => TooltipOpenState::Controlled(self.boolean()?),
+                        _ => return Err(DecodeError::Malformed),
+                    },
+                    disabled: self.boolean()?,
+                    hoverable: self.boolean()?,
+                    show_delay_ns: self.int()?,
+                    hide_delay_ns: self.int()?,
+                    skip_delay_ns: self.int()?,
+                },
+            ),
             14 => Op::SetPlacement(self.node()?, self.option(Self::placement)?),
             13 => Op::SetOverlay(self.node()?, self.option(Self::overlay_config)?),
             12 => Op::SetFocusScope(

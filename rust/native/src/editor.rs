@@ -140,6 +140,14 @@ fn configure<M: InputModeKind>(
             .aria_label(config.label.clone())
             .aria_placeholder(config.placeholder.clone())
             .aria_value(state.value());
+        if let Some(description) = route
+            .session
+            .borrow()
+            .tree(route.window)
+            .and_then(|tree| tree.tooltip_description(route.node))
+        {
+            element = element.aria_description(description.to_owned());
+        }
         let composing_editor = cx.entity();
         element = element.capture_action(move |_: &gpui_base::input::Escape, window, cx| {
             if composing_editor.read(cx).bridge_composition().is_some() {

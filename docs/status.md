@@ -148,3 +148,14 @@ and viewport clamping. Local native checks retain focus while changing placement
 and moving the anchor; positioning/validation unit tests and independent protocol
 fixtures pass. The extension appends a new operation without changing earlier
 overlay records.
+
+Tooltips are implemented locally with managed or application-controlled visibility,
+retained arbitrary content, delayed hover, shared grace timing and keyboard
+opening/dismissal. Hidden content preserves native editor identity while denying
+focus and deactivating nested traps. Local macOS tests pass hover cancellation,
+interactive content, tooltip/popover hit routing, accessibility exposure and
+bounded timer/subscription disposal. The public Bonsai/Eio example passes retained
+editor commands, controlled visibility, stale unmount and shutdown. Independent
+protocol fixtures, OCaml/Rust tests, full build/format and Clippy pass locally.
+No hosted or full Linux GUI acceptance is claimed for this local checkpoint;
+menus/commands, feedback, pointer/desktop interactions and assets remain OCH-11 work.
