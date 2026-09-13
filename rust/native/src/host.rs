@@ -383,6 +383,9 @@ pub fn run(transport: Arc<Transport>) {
     }
     let stopping = Rc::new(Cell::new(false));
     gpui_platform::application().run(move |cx: &mut App| {
+        // GPUI defaults to last-window exit on Linux. Our explicit lifecycle
+        // policy must control background applications consistently on both OSes.
+        cx.set_quit_mode(gpui::QuitMode::Explicit);
         let session = Rc::new(RefCell::new(Session::default()));
         let mut windows: BTreeMap<WindowId, WindowHandle<View>> = BTreeMap::new();
         let closing = stopping.clone();
