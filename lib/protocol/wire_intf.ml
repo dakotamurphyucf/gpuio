@@ -36,6 +36,7 @@ module type S = sig
       | Drop_target
       | Image
       | Icon
+      | Animated
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -676,6 +677,7 @@ module type S = sig
       | Set_drag_source of Node_id.t * Drag_and_drop.Source.t
       | Set_drop_target of Node_id.t * Drag_and_drop.Target.t
       | Set_image of Node_id.t * Image.Config.t
+      | Set_animation of Node_id.t * Animation.Config.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -848,6 +850,8 @@ module type S = sig
           Window_id.t * Node_id.t * Handler_id.t * int64 * Drag_and_drop.Target_sample.t
       | Asset_response of int64 * Asset.Response.t
       | Image_state of Window_id.t * Node_id.t * Handler_id.t * int64 * Image.State.t
+      | Animation_endpoint of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Animation.Endpoint.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

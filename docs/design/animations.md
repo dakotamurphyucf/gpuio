@@ -1,9 +1,9 @@
 # Native declarative animations (OCH-12)
 
-Status: typed configuration and deterministic Rust timing core implemented locally.
-View/reconciler/transport/GPUI integration and platform policy detection are still
-in progress. The animation capability is not advertised yet. This document does
-not claim that an application can already render these transitions.
+Status: typed configuration, view/reconciler/transport and GPUI rendering now pass
+local macOS tests, including the public Bonsai/Eio example. Application motion
+policy and platform preference detection remain in progress. The final animation
+capability is not advertised yet; consolidated hosted acceptance and merge remain.
 
 ## Configuration
 
@@ -45,7 +45,7 @@ then applied to at most eleven properties.
 
 `rust/native/src/motion.rs` owns a run's configuration, origin, last painted values,
 pause state and terminal status. It has no scheduler, GPUI entity or OCaml callback.
-The host will pass a monotonic clock and interpret the returned scheduling request:
+The host passes a monotonic clock and interprets the returned scheduling request:
 
 - `Idle`: no animation wake requested.
 - `At deadline`: a delayed start needs one deadline wake, without frame polling.
@@ -77,29 +77,45 @@ target, with completion at paint. A repeated run displays its initial values and
 pauses without an endpoint or frame requests; full motion resumes its elapsed phase.
 A finite run completed under reduced motion does not replay when the policy changes.
 Cancellation freezes the last painted values and emits at most one endpoint.
-Removing/window-closing cancellation still needs host lifecycle wiring.
+Unmount cancels native state and pending deadlines; window disposal releases its
+owned state and timers. Application callbacks are discarded on unmount or close.
 
 ## Remaining integration and acceptance
 
-The upcoming view adapter must retain one state per animated node, apply numeric
-samples to GPUI layout/paint, and make animation-owned properties take precedence
-over static/state styles on that wrapper. An outer clipping wrapper will reveal a
-sidebar while its inner content retains a fixed width. No frame callback crosses
-into Bonsai. Optional typed endpoint delivery must validate window/node identities
-and retain deliberate ordering for cancellation of a replaced generation; it must
-not accidentally discard valid cancellation as a stale current-run event.
+`View.animate ?key ?style ?on_event config children` and its Bonsai specialization
+retain native state by node identity. Animation-owned fields take precedence over
+base and state styles. Filtering is cached at configuration/style updates; numeric
+samples are applied without a per-frame temporary vector allocation. The animated
+wrapper remains a flex column and can clip a fixed-width inner sidebar.
 
-Still required before completion:
+The adapter keeps one cancellable deadline task for a delayed run. Its future owns
+a weak View reference; painted elements own weak animation state references. Native
+frame requests are coalesced by GPUI, with no animation callback into Bonsai. A
+prepared sample rejected by the timing core cannot request another frame.
 
-- Bounded Rust command decoding, retained-tree accounting and capability negotiation.
-- Public View/Bonsai API and reconciliation, generation/handler identity, endpoint
-  delivery and stale replacement-widget rejection.
-- GPUI frame/deadline scheduling with disposal, explicit ancestor visibility and
-  native window lifecycle handling; existing progress indicators share this policy.
+`on_event` receives a typed run ID and outcome using the latest callback closure.
+Run numbers are local to the retained node. A replacement can report cancellation
+of its previous run after the new generation is accepted. The bridge keeps FIFO
+endpoint order; the reconciler checks node/handler/revision, bounds the endpoint
+by the current generation, and keeps a shared delivery watermark to reject duplicate
+or older endpoints. Removed widgets cannot deliver callbacks to replacements.
+Adding an observer does not replay earlier completed runs.
+
+The protocol adds Kind 24, Set_animation operation 27 and Animation_endpoint event
+26. The Rust decoder caps property lists before allocation and validates geometry,
+easing, initial sets and timing. Tree validation rejects incompatible configuration,
+backward/reused changed generations and invalid updates atomically; retained
+configuration buffers count toward the tree budget.
+
+Still required before OCH-12 completion:
+
 - `System`/`Reduce`/`Full` application policy, platform preference detection where
-  available and documented fallback behavior.
-- Real native/sidebar/repeat/idle tests and public FFI integration; required macOS
-  functionality and Linux build/tests under the existing platform gate.
+  available and documented fallback behavior. Native tests currently exercise
+  GPUI's explicit reduced-motion flag; no OS preference detection is claimed.
+- Final capability negotiation, shared application policy for progress indicators,
+  policy-change/window-lifecycle acceptance and any remaining target/scale review.
+- Consolidated required macOS functionality and Linux build/tests and merge under
+  the existing platform gate. Linux GUI checks remain informational for OCH-17.
 
 Springs, sequences and synchronized repetition belong to OCH-25. This does not
 remove any OCH-12 baseline requirement or OCH-11's shared basic-transition scope.
@@ -115,7 +131,22 @@ OCaml expect tests validate property expansion/canonical identity, geometry,
 initial range, timing, easing and bridge generation. An independent binary fixture
 checks the Rust and OCaml configuration encoders and full OCaml decoding.
 
-These tests exercise the configuration and timing core. Actual GPUI rendering,
-platform policy detection, endpoint transport and idle-window acceptance are not
-established by them. Local logs are `motion-*.log` in the implementing agent's ignored
-scratch directory; hosted validation remains deferred to the consolidated delivery.
+The production-window `native_animation` test additionally verifies zero-width
+initial placement, midpoint geometry, fixed-width inner content, interruption and
+once-only native endpoints with a controlled clock. A real-clock repeat schedules
+its own frames without tree revisions. Whole-window render counts stay unchanged
+after completion, while an ancestor is hidden and under reduced motion. A finite
+run settles immediately under reduced motion; removal releases a pending deadline
+and weak state owner. This is a background GPUI window, not physical input testing.
+
+The public `examples/animation --self-test` passes Bonsai/Eio target updates,
+endpoint decoding/delivery, theme change and shutdown. A slow first frame may finish
+the initial run before interruption, so that smoke accepts either initial outcome;
+the deterministic native test proves interruption itself. Reconciler expect tests
+cover current callbacks, stable identities, ordered prior-run cancellation,
+duplicate/future generation rejection and unmount. Native validation and decoder
+tests cover rollback, list limits and invalid values.
+
+Local logs are `motion-*.log` and `animation-*.log` in the implementing agent's ignored
+scratch directory. The checked-in CI adds native/public macOS runs and informational
+Linux runs; hosted execution remains deferred to the consolidated delivery.

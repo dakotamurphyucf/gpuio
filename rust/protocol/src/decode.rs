@@ -76,6 +76,73 @@ impl Decoder<'_> {
     fn resource(&mut self) -> Result<crate::ResourceId, DecodeError> {
         crate::ResourceId::from_parts(self.int()?, self.int()?).ok_or(DecodeError::Malformed)
     }
+    fn animation_targets(&mut self) -> Result<Vec<crate::animation::Target>, DecodeError> {
+        use crate::animation::{PROPERTY_COUNT, Property, Target};
+        let count = self.count(PROPERTY_COUNT)?;
+        (0..count)
+            .map(|_| {
+                let property = match self.tag()? {
+                    0 => Property::Width,
+                    1 => Property::Height,
+                    2 => Property::Top,
+                    3 => Property::Right,
+                    4 => Property::Bottom,
+                    5 => Property::Left,
+                    6 => Property::Opacity,
+                    7 => Property::TopLeftRadius,
+                    8 => Property::TopRightRadius,
+                    9 => Property::BottomLeftRadius,
+                    10 => Property::BottomRightRadius,
+                    _ => return Err(DecodeError::Malformed),
+                };
+                Ok(Target {
+                    property,
+                    value: self.float()?,
+                })
+            })
+            .collect()
+    }
+    fn animation_config(&mut self) -> Result<crate::animation::Config, DecodeError> {
+        use crate::animation::{Config, Easing, Repeat};
+        let generation = self.int()?;
+        let targets = self.animation_targets()?;
+        let initial = match self.tag()? {
+            0 => None,
+            1 => Some(self.animation_targets()?),
+            _ => return Err(DecodeError::Malformed),
+        };
+        let duration_ms = self.int()?;
+        let delay_ms = self.int()?;
+        let easing = match self.tag()? {
+            0 => Easing::Linear,
+            1 => Easing::Ease,
+            2 => Easing::EaseIn,
+            3 => Easing::EaseOut,
+            4 => Easing::EaseInOut,
+            5 => Easing::CubicBezier(self.float()?, self.float()?, self.float()?, self.float()?),
+            _ => return Err(DecodeError::Malformed),
+        };
+        let repeat = match self.tag()? {
+            0 => Repeat::Once,
+            1 => Repeat::Loop,
+            2 => Repeat::Alternate,
+            _ => return Err(DecodeError::Malformed),
+        };
+        let config = Config {
+            generation,
+            targets,
+            initial,
+            duration_ms,
+            delay_ms,
+            easing,
+            repeat,
+        };
+        if config.is_valid() {
+            Ok(config)
+        } else {
+            Err(DecodeError::Malformed)
+        }
+    }
     fn image_error(&mut self) -> Result<ImageError, DecodeError> {
         Ok(match self.tag()? {
             0 => ImageError::WrongApplication,
@@ -585,6 +652,7 @@ impl Decoder<'_> {
                     21 => Kind::DropTarget,
                     22 => Kind::Image,
                     23 => Kind::Icon,
+                    24 => Kind::Animated,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -652,6 +720,7 @@ impl Decoder<'_> {
                 },
             ),
             26 => Op::SetImage(self.node()?, self.image_config()?),
+            27 => Op::SetAnimation(self.node()?, self.animation_config()?),
             20 => Op::SetProgress(
                 self.node()?,
                 ProgressConfig {

@@ -126,7 +126,8 @@ Choice appearance adds theme-aware popup/option/empty styles, configurable unifo
 row geometry and localized empty text while retaining native focus/open state.
 Local tests validate these changes; general overlay integration remains OCH-11 work. [Native controls](design/native-controls.md) records these families
 and the remaining ticket scope. OCH-12's declarative animation configuration and
-timing core are now in progress; view/bridge/native integration remains pending.
+timing core and view/bridge/native integration now pass local tests; application
+motion policy and platform preference detection remain pending.
 Combobox is implemented on the local OCH-11 branch with native editor ownership,
 query filtering, exact selection snapshots, the editable accessibility role and
 shared popup appearance/virtualization. Local native control tests pass including
@@ -479,3 +480,12 @@ configuration has an independent OCaml/Rust binary fixture. No animation capabil
 is advertised: View/reconciliation/transport, GPUI scheduling, platform motion
 preferences and actual native acceptance still need implementation. See
 [animation design and current evidence](design/animations.md).
+
+The OCH-12 view/bridge/rendering pipeline now passes local native and public checks.
+`View.animate` retains node/run identity, delivers typed endpoints, and applies
+Rust-computed values to GPUI. Actual native tests cover sidebar geometry without
+inner reflow, interruption, native repetition, whole-window idle/hidden/reduced
+behavior and delayed-task disposal. The public Bonsai/Eio example passes endpoints,
+theme change and shutdown. Platform preference detection, application policy,
+final capability advertisement and consolidated gates/merge remain pending; see
+[animation design](design/animations.md).

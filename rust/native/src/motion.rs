@@ -226,13 +226,15 @@ impl State {
         result.wake = Wake::Frame;
         result
     }
+    pub fn accepts_sample(&self, sample: &Sample) -> bool {
+        !self.finished
+            && self.visible
+            && sample.generation == self.config.generation
+            && Arc::ptr_eq(&sample.epoch, &self.epoch)
+            && sample.at >= self.last_paint
+    }
     pub fn painted(&mut self, sample: Sample) -> Option<Endpoint> {
-        if self.finished
-            || !self.visible
-            || sample.generation != self.config.generation
-            || !Arc::ptr_eq(&sample.epoch, &self.epoch)
-            || sample.at < self.last_paint
-        {
+        if !self.accepts_sample(&sample) {
             return None;
         }
         self.last_paint = sample.at;

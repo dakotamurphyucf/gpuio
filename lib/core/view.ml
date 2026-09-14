@@ -27,6 +27,7 @@ module Kind = struct
     | Drop_target
     | Image
     | Icon
+    | Animated
   [@@deriving equal, sexp_of]
 end
 
@@ -119,6 +120,11 @@ type 'action notification =
   ; on_dismiss : Toast.Dismissal.t -> 'action
   }
 
+type 'action animation =
+  { config : Animation.Config.t
+  ; on_event : (Animation.Event.t -> 'action) option
+  }
+
 type 'action image =
   { config : Image.Config.t
   ; on_change : (Image.State.t -> 'action) option
@@ -144,6 +150,7 @@ type 'action t =
   ; notification : 'action notification option
   ; toast_stack : Toast.Stack.t option
   ; progress : Progress.Config.t option
+  ; animation : 'action animation option
   ; image : 'action image option
   ; palette : 'action palette option
   ; menu : menu option
@@ -172,12 +179,21 @@ let text ?key ?(style = Style.empty) text =
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; animation = None
   ; image = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
   ; control = None
   ; children = []
+  }
+;;
+
+let animate ?key ?(style = Style.empty) ?on_event config children =
+  { (text ?key ~style "") with
+    kind = Animated
+  ; animation = Some { config; on_event }
+  ; children
   }
 ;;
 
@@ -208,6 +224,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; animation = None
   ; image = None
   ; palette = None
   ; menu = None
@@ -296,6 +313,7 @@ let button
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; animation = None
   ; image = None
   ; palette = None
   ; menu = None
@@ -356,6 +374,7 @@ let toggle
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; animation = None
   ; image = None
   ; palette = None
   ; menu = None
@@ -400,6 +419,7 @@ let focus_scope ?key ?style ~config children =
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; animation = None
   ; image = None
   ; palette = None
   ; menu = None
@@ -574,6 +594,7 @@ let text_input
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; animation = None
   ; image = None
   ; palette = None
   ; menu = None
@@ -603,6 +624,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; animation = None
   ; image = None
   ; palette = None
   ; menu = None
@@ -654,6 +676,7 @@ let combobox
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; animation = None
   ; image = None
   ; palette = None
   ; menu = None
@@ -728,6 +751,11 @@ let toast_stack ?key ?(style = Style.empty) ?(config = Toast.Stack.default) item
 ;;
 
 module Expert = struct
+  type nonrec 'action animation = 'action animation =
+    { config : Animation.Config.t
+    ; on_event : (Animation.Event.t -> 'action) option
+    }
+
   type nonrec 'action image = 'action image =
     { config : Image.Config.t
     ; on_change : (Image.State.t -> 'action) option
@@ -818,6 +846,7 @@ module Expert = struct
     ; notification : 'action notification option
     ; toast_stack : Toast.Stack.t option
     ; progress : Progress.Config.t option
+    ; animation : 'action animation option
     ; image : 'action image option
     ; palette : 'action palette option
     ; menu : menu option

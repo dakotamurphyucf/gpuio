@@ -112,3 +112,79 @@ let%expect_test "animation configuration matches the independent native fixture"
   print_endline "canonical config: OCaml and Rust encoding, full OCaml decode";
   [%expect {| canonical config: OCaml and Rust encoding, full OCaml decode |}]
 ;;
+
+let%expect_test "retained animation generations and ordered endpoint delivery" =
+  let module W = Gpuio_protocol.Wire in
+  let module Id = Gpuio_protocol.Node_id in
+  let window =
+    Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> Or_error.ok_exn
+  in
+  let reconciler = Reconciler.create window in
+  let config width =
+    Animation.Config.create
+      ~initial:(target [ Width, 0. ])
+      ~target:(target [ Width, width ])
+      ()
+    |> Or_error.ok_exn
+  in
+  let view label config =
+    View.animate config [] ~on_event:(fun event ->
+      label, Animation.Run_id.to_int64 event.run_id, event.outcome)
+  in
+  let prepare view =
+    Reconciler.prepare reconciler ~theme:Theme.default (Some view) |> Or_error.ok_exn
+  in
+  let first = prepare (view "first" (config 100.)) in
+  let id, handler =
+    match Reconciler.message first with
+    | Some (Apply tx) ->
+      List.find_map_exn tx.operations ~f:(function
+        | Create (id, Animated, _, Some handler) -> Some (id, handler)
+        | _ -> None)
+    | _ -> assert false
+  in
+  Reconciler.accept reconciler first |> Or_error.ok_exn;
+  let unchanged = prepare (view "refreshed" (config 100.)) in
+  assert (Option.is_none (Reconciler.message unchanged));
+  Reconciler.accept reconciler unchanged |> Or_error.ok_exn;
+  let second = prepare (view "latest" (config 200.)) in
+  let revision =
+    match Reconciler.message second with
+    | Some (Apply tx) ->
+      assert (
+        List.exists tx.operations ~f:(function
+          | Set_animation (found, config) ->
+            Id.equal id found && Int64.equal config.generation 2L
+          | _ -> false));
+      assert (
+        List.for_all tx.operations ~f:(function
+          | Create _ | Bind _ | Remove _ -> false
+          | _ -> true));
+      tx.revision
+    | _ -> assert false
+  in
+  Reconciler.accept reconciler second |> Or_error.ok_exn;
+  let event generation outcome =
+    W.Event.Animation_endpoint (window, id, handler, revision, { generation; outcome })
+  in
+  let cancelled = event 1L (Cancelled Replaced) in
+  let label, run, outcome =
+    Reconciler.dispatch reconciler cancelled |> Option.value_exn
+  in
+  assert (String.equal label "latest" && Int64.equal run 1L);
+  assert (Animation.Outcome.equal outcome (Cancelled Replaced));
+  assert (Option.is_none (Reconciler.dispatch reconciler cancelled));
+  let finished = event 2L Finished in
+  let _, run, outcome = Reconciler.dispatch reconciler finished |> Option.value_exn in
+  assert (Int64.equal run 2L && Animation.Outcome.equal outcome Finished);
+  assert (Option.is_none (Reconciler.dispatch reconciler finished));
+  assert (Option.is_none (Reconciler.dispatch reconciler (event 3L Finished)));
+  let replacement = prepare (View.text "replacement") in
+  Reconciler.accept reconciler replacement |> Or_error.ok_exn;
+  assert (Option.is_none (Reconciler.dispatch reconciler finished));
+  print_endline
+    "stable node/handler, latest closure, prior-run cancellation, once-only endpoints, \
+     disposal";
+  [%expect
+    {| stable node/handler, latest closure, prior-run cancellation, once-only endpoints, disposal |}]
+;;

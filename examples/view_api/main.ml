@@ -102,6 +102,7 @@ let worker native notification_read ~self_test =
       | Editor_result _
       | Image_state _
       | Asset_response _
+      | Animation_endpoint _
       | File_dialog_result _ -> ()
     in
     send (Hello (Wire.version, Wire.capabilities));

@@ -8,6 +8,7 @@ fn allows_children(kind: Kind) -> bool {
     matches!(
         kind,
         Kind::Container
+            | Kind::Animated
             | Kind::Button
             | Kind::CommandButton
             | Kind::FocusScope
@@ -39,6 +40,7 @@ pub struct Node {
     pub palette: Option<Arc<PaletteConfig>>,
     pub progress: Option<Arc<ProgressConfig>>,
     pub image: Option<Arc<ImageConfig>>,
+    pub animation: Option<Arc<gpuio_protocol::animation::Config>>,
     pub toast: Option<Arc<ToastConfig>>,
     pub toast_stack: Option<Arc<ToastStackConfig>>,
     pub drag_source: Option<Arc<gpuio_protocol::drag_drop::Source>>,
@@ -77,6 +79,14 @@ impl Node {
             })
             + self.image.as_ref().map_or(0, |config| {
                 std::mem::size_of::<ImageConfig>() + config.label.as_ref().map_or(0, String::len)
+            })
+            + self.animation.as_ref().map_or(0, |config| {
+                std::mem::size_of::<gpuio_protocol::animation::Config>()
+                    + std::mem::size_of_val(config.targets.as_slice())
+                    + config
+                        .initial
+                        .as_ref()
+                        .map_or(0, |targets| std::mem::size_of_val(targets.as_slice()))
             })
             + self.progress.as_ref().map_or(0, |config| {
                 std::mem::size_of::<ProgressConfig>() + config.label.len()
@@ -345,6 +355,16 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree);
                 }
+                if (node.kind == Kind::Animated) != node.animation.is_some()
+                    || node.animation.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || !node.text.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
                 if matches!(node.kind, Kind::Image | Kind::Icon) != node.image.is_some()
                     || node.image.as_ref().is_some_and(|config| {
                         !config.is_valid()
@@ -457,6 +477,7 @@ impl Tree {
                     | Kind::Progress
                     | Kind::Image
                     | Kind::Icon
+                    | Kind::Animated
                     | Kind::Text
                     | Kind::Button => {
                         if node.editor.is_some() {
@@ -625,6 +646,7 @@ impl Plan<'_> {
             | Op::SetCommandRef(id, ..)
             | Op::SetMenu(id, ..)
             | Op::SetPalette(id, ..)
+            | Op::SetAnimation(id, ..)
             | Op::SetImage(id, ..)
             | Op::SetProgress(id, ..)
             | Op::SetToast(id, ..)
@@ -700,6 +722,7 @@ impl Plan<'_> {
                             palette: None,
                             progress: None,
                             image: None,
+                            animation: None,
                             toast: None,
                             toast_stack: None,
                             drag_source: None,
@@ -777,6 +800,19 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.toast_stack = Some(Arc::new(config.clone()));
+            }
+            Op::SetAnimation(id, config) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::Animated
+                    || !config.is_valid()
+                    || node.animation.as_ref().is_some_and(|old| {
+                        config != old.as_ref() && config.generation <= old.generation
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.animation = Some(Arc::new(config.clone()));
+                self.structural = true;
             }
             Op::SetImage(id, config) => {
                 if !matches!(self.node(*id)?.kind, Kind::Image | Kind::Icon) || !config.is_valid() {

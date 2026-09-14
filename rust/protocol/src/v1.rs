@@ -98,6 +98,7 @@ pub enum Kind {
     DropTarget,
     Image,
     Icon,
+    Animated,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -553,6 +554,7 @@ pub enum Op {
     SetDragSource(NodeId, crate::drag_drop::Source),
     SetDropTarget(NodeId, crate::drag_drop::Target),
     SetImage(NodeId, ImageConfig),
+    SetAnimation(NodeId, crate::animation::Config),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -639,4 +641,5 @@ pub enum Event {
     ),
     AssetResponse(i64, crate::asset::Response),
     ImageState(WindowId, NodeId, HandlerId, i64, ImageState),
+    AnimationEndpoint(WindowId, NodeId, HandlerId, i64, crate::animation::Endpoint),
 }

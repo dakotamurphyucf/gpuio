@@ -1,3 +1,8 @@
+#[path = "animation_view.rs"]
+mod animation;
+#[cfg(feature = "native-tests")]
+#[path = "animation_test.rs"]
+pub(super) mod animation_test;
 use crate::{session::Session, transport::Transport};
 use gpui::Focusable;
 use gpui::{
@@ -115,6 +120,9 @@ struct View {
     #[cfg(feature = "native-tests")]
     progress_probes: BTreeMap<NodeId, progress::Probe>,
     scrolls: BTreeMap<NodeId, Rc<scroll::State>>,
+    animations: BTreeMap<NodeId, Rc<RefCell<animation::State>>>,
+    #[cfg(feature = "native-tests")]
+    render_count: u64,
 }
 fn emit_press(
     session: &SharedSession,
@@ -299,6 +307,9 @@ impl View {
             #[cfg(feature = "native-tests")]
             progress_probes: Default::default(),
             scrolls: Default::default(),
+            animations: Default::default(),
+            #[cfg(feature = "native-tests")]
+            render_count: 0,
         }
     }
     fn update_editors(&mut self, dirty: &[NodeId], window: &mut Window, cx: &mut Context<Self>) {
@@ -306,6 +317,7 @@ impl View {
         self.install_pointer_observer(window, cx);
         self.install_menu_observers(window, cx);
         self.sync_images(dirty, window, cx);
+        self.sync_animations(dirty, cx);
         self.sync_palettes(window, cx);
         self.sync_toasts(cx);
         self.sync_tooltips(window, cx);
@@ -403,6 +415,7 @@ impl View {
         if matches!(
             node.kind,
             Kind::Container
+                | Kind::Animated
                 | Kind::FocusScope
                 | Kind::CommandScope
                 | Kind::RadioGroup
@@ -579,7 +592,12 @@ impl View {
                 element = element.cursor_pointer();
             }
         }
-        let (styled, states) = apply_styles(element, &node.style, interaction, disabled);
+        let animation = self.animation_frame(node, window, cx);
+        let styles = animation
+            .as_ref()
+            .map(|(state, _)| state.borrow().styles.clone())
+            .unwrap_or_else(|| node.style.clone());
+        let (styled, states) = apply_styles(element, &styles, interaction, disabled);
         element = styled;
         let [
             focused,
@@ -630,6 +648,9 @@ impl View {
         }
         if !interaction.pointer {
             element.style().mouse_cursor = None;
+        }
+        if let Some((_, sample)) = &animation {
+            animation::apply(element.style(), &sample.values);
         }
         let scrolling = if scroll::declared(&node.style)
             || element.style().overflow.x == Some(gpui::Overflow::Scroll)
@@ -839,6 +860,7 @@ impl View {
             && node.overlay.is_none()
             && node.pointer.is_none()
             && node.image.is_none()
+            && node.animation.is_none()
             && !disabled
         {
             let window = self.id;
@@ -978,6 +1000,9 @@ impl View {
                 cx,
             );
         }
+        if let Some((state, sample)) = animation {
+            element = element.child(animation::paint(&state, sample));
+        }
         if let Some(corners) = image_corners {
             let image = image_corners::Rounded::capture(element, corners);
             return match &scrolling {
@@ -1053,6 +1078,10 @@ impl View {
 }
 impl Render for View {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        #[cfg(feature = "native-tests")]
+        {
+            self.render_count += 1;
+        }
         self.visited.clear();
         self.focus.borrow_mut().clear_surfaces();
         let shared = self.session.clone();

@@ -220,6 +220,19 @@ val combobox
   -> unit
   -> 'action t Core.Or_error.t
 
+(** A retained animation wrapper. Animation targets own the corresponding numeric
+    style properties. Native frames do not recompute Bonsai. Endpoint callbacks use
+    the latest closure; [run_id] identifies the completed/cancelled run. Replacing
+    a running config can report its cancellation while the new run is current.
+    Callbacks are discarded on unmount and never run after window disposal. *)
+val animate
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?on_event:(Animation.Event.t -> 'action)
+  -> Animation.Config.t
+  -> 'action t list
+  -> 'action t
+
 (** Encoded assets registered with [Gpuio_eio.Asset]. Layout comes from [style];
     [config] declares fit and accessibility. State changes are asynchronous and
     refer to the currently mounted source. Retired registrations keep existing
@@ -303,6 +316,11 @@ val toast_stack
   -> 'action t Core.Or_error.t
 
 module Expert : sig
+  type 'action animation =
+    { config : Animation.Config.t
+    ; on_event : (Animation.Event.t -> 'action) option
+    }
+
   type 'action image =
     { config : Image.Config.t
     ; on_change : (Image.State.t -> 'action) option
@@ -354,6 +372,7 @@ module Expert : sig
       | Drop_target
       | Image
       | Icon
+      | Animated
     [@@deriving equal, sexp_of]
   end
 
@@ -435,6 +454,7 @@ module Expert : sig
     ; notification : 'action notification option
     ; toast_stack : Toast.Stack.t option
     ; progress : Progress.Config.t option
+    ; animation : 'action animation option
     ; image : 'action image option
     ; palette : 'action palette option
     ; menu : menu option

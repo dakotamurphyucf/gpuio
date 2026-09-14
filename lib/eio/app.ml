@@ -383,6 +383,7 @@ let process t = function
     | Toast_dismissed (id, _, _, _, _)
     | Drag_source_event (id, _, _, _, _)
     | Image_state (id, _, _, _, _)
+    | Animation_endpoint (id, _, _, _, _)
     | Drop_target_event (id, _, _, _, _)
     | Pointer_event (id, _, _, _, _)
     | Overlay_dismissed (id, _, _, _, _)

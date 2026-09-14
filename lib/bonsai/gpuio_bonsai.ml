@@ -8,6 +8,7 @@ module View = struct
   let toast = Gpuio.View.toast
   let toast_stack = Gpuio.View.toast_stack
   let icon = Gpuio.View.icon
+  let animate = Gpuio.View.animate
   let image = Gpuio.View.image
   let text = Gpuio.View.text
 

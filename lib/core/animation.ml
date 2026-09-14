@@ -156,7 +156,42 @@ module Config = struct
   ;;
 end
 
+module Run_id = struct
+  type t = int64 [@@deriving equal, compare, sexp_of]
+
+  let to_int64 t = t
+end
+
+module Cancel_reason = struct
+  type t = W.Cancel_reason.t =
+    | Replaced
+    | Removed
+    | Window_closed
+  [@@deriving equal, sexp_of]
+end
+
+module Outcome = struct
+  type t = W.Outcome.t =
+    | Finished
+    | Cancelled of Cancel_reason.t
+  [@@deriving equal, sexp_of]
+end
+
+module Event = struct
+  type t =
+    { run_id : Run_id.t
+    ; outcome : Outcome.t
+    }
+  [@@deriving equal, sexp_of]
+end
+
 module Expert = struct
+  let event_of_wire ({ generation; outcome } : W.Endpoint.t) =
+    if Int64.(generation <= 0L)
+    then Or_error.error_string "invalid animation run"
+    else Ok ({ run_id = generation; outcome } : Event.t)
+  ;;
+
   let to_wire
         ({ targets; initial; duration_ms; delay_ms; easing; repeat } : Config.t)
         ~generation

@@ -64,6 +64,7 @@ module Identity = struct
 end
 
 type 'a callback =
+  | Animation of int64 * int64 ref * (Animation.Event.t -> 'a)
   | Image of (Image.State.t -> 'a)
   | Pointer of (Pointer.Event.t -> 'a)
   | Drag_source of (Drag_and_drop.Source_event.t -> 'a)
@@ -89,6 +90,8 @@ type 'a mounted =
   ; id : Node_id.t
   ; handler : Handler_id.t option
   ; style : Wire.Style.t list
+  ; animation : Wire.Animation.Config.t option
+  ; animation_seen : int64 ref
   ; choice_appearance : Wire.Choice_appearance.t option
   ; children : 'a mounted list
   ; controllers : String.Set.t
@@ -211,6 +214,7 @@ let kind = function
   | Drop_target -> Drop_target
   | Image -> Image
   | Icon -> Icon
+  | Animated -> Animated
 ;;
 
 let compatible mounted view =
@@ -307,6 +311,30 @@ let rec mount builder ~depth previous view =
           in
           { candidate with generation }))
     in
+    let animation_seen =
+      Option.value_map previous ~default:(ref 0L) ~f:(fun old -> old.animation_seen)
+    in
+    let animation =
+      Option.map description.animation ~f:(fun item ->
+        let old = Option.bind previous ~f:(fun mounted -> mounted.animation) in
+        let old_config =
+          Option.bind previous ~f:(fun mounted ->
+            Option.map (View.Expert.describe mounted.view).animation ~f:(fun old ->
+              old.config))
+        in
+        let generation =
+          match old with
+          | None -> 1L
+          | Some old
+            when Option.equal Animation.Config.equal old_config (Some item.config) ->
+            old.generation
+          | Some old ->
+            if Int64.equal old.generation Int64.max_value
+            then fail "animation generation exhausted";
+            Int64.succ old.generation
+        in
+        Animation.Expert.to_wire item.config ~generation |> value)
+    in
     let callback =
       match
         ( description.on_click
@@ -370,6 +398,15 @@ let rec mount builder ~depth previous view =
       | Some image, None -> Option.map image.on_change ~f:(fun callback -> Image callback)
       | None, callback -> callback
       | Some _, Some _ -> fail "image cannot combine another handler"
+    in
+    let callback =
+      match description.animation, animation, callback with
+      | Some item, Some config, None ->
+        Option.map item.on_event ~f:(fun callback ->
+          Animation (config.generation, animation_seen, callback))
+      | None, None, callback -> callback
+      | Some _, _, Some _ -> fail "animation cannot combine another handler"
+      | Some _, None, None | None, Some _, _ -> fail "missing animation configuration"
     in
     let rotate_handler =
       (match description.image, previous with
@@ -510,6 +547,10 @@ let rec mount builder ~depth previous view =
       in
       if not (Option.equal Toast.Stack.equal old (Some config))
       then emit builder (Set_toast_stack (id, Toast.Expert.stack_to_wire config)));
+    let old_animation = Option.bind previous ~f:(fun mounted -> mounted.animation) in
+    if not (Option.equal Wire.Animation.Config.equal animation old_animation)
+    then
+      Option.iter animation ~f:(fun config -> emit builder (Set_animation (id, config)));
     Option.iter description.image ~f:(fun image ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -734,6 +775,8 @@ let rec mount builder ~depth previous view =
     ; id
     ; handler
     ; style
+    ; animation
+    ; animation_seen
     ; choice_appearance
     ; children
     ; controllers
@@ -832,6 +875,25 @@ let accept t update =
 ;;
 
 let dispatch t = function
+  | Wire.Event.Animation_endpoint (window, node, handler, revision, endpoint)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match
+       Map.find t.state.bindings (node_slot node), Animation.Expert.event_of_wire endpoint
+     with
+     | ( Some
+           { node = expected
+           ; handler = expected_handler
+           ; callback = Animation (generation, seen, callback)
+           }
+       , Ok event )
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Int64.(endpoint.generation > !seen && endpoint.generation <= generation) ->
+       seen := endpoint.generation;
+       Some (callback event)
+     | _ -> None)
   | Wire.Event.Image_state (window, node, handler, revision, state)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -864,6 +926,7 @@ let dispatch t = function
         | Pointer _
         | Drag_source _
         | Drop_target _
+        | Animation _
         | Image _ -> None)
      | Some _ | None -> None)
   | Choice (window, node, handler, revision, selected)
@@ -1059,6 +1122,7 @@ let dispatch t = function
   | Editor_event _
   | File_dialog_result _
   | Image_state _
+  | Animation_endpoint _
   | Asset_response _
   | Editor_result _
   | Failed _

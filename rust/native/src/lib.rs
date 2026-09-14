@@ -6,6 +6,10 @@ pub mod asset_svg;
 mod ffi;
 pub mod file_dialog;
 mod host;
+#[cfg(feature = "native-tests")]
+pub fn run_native_animation_test() {
+    host::animation_test::run();
+}
 pub mod image_host;
 pub mod mailbox;
 pub mod motion;

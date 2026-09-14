@@ -226,6 +226,7 @@ impl Mailbox {
             | Event::ToastDismissed(id, ..)
             | Event::DragSourceEvent(id, ..)
             | Event::ImageState(id, ..)
+            | Event::AnimationEndpoint(id, ..)
             | Event::DropTargetEvent(id, ..)
             | Event::PointerEvent(id, ..)
             | Event::PaletteDismissed(id, ..)

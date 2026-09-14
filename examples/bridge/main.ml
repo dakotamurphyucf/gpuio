@@ -108,6 +108,7 @@ let worker native notification_read =
       | Pointer_event _
       | Toast_dismissed _
       | Palette_dismissed _
+      | Animation_endpoint _
       | Command_invoked _ -> ()
     in
     send (Hello (Wire.version, Wire.capabilities));

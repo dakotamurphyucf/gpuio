@@ -1,7 +1,7 @@
 open Core
 
 (** Declarative motion configuration. Numeric geometry uses logical pixels.
-    View/native transport integration is under development in OCH-12. *)
+    Native frames do not call OCaml timing functions. *)
 module Property : sig
   type t =
     | Width
@@ -81,7 +81,39 @@ module Config : sig
     -> t Or_error.t
 end
 
+(** Run numbers are scoped to one retained animated wrapper, not globally unique. *)
+module Run_id : sig
+  type t [@@deriving equal, compare, sexp_of]
+
+  val to_int64 : t -> int64
+end
+
+module Cancel_reason : sig
+  type t =
+    | Replaced
+    | Removed
+    | Window_closed
+  [@@deriving equal, sexp_of]
+end
+
+module Outcome : sig
+  type t =
+    | Finished
+    | Cancelled of Cancel_reason.t
+  [@@deriving equal, sexp_of]
+end
+
+module Event : sig
+  type t = private
+    { run_id : Run_id.t
+    ; outcome : Outcome.t
+    }
+  [@@deriving equal, sexp_of]
+end
+
 module Expert : sig
+  val event_of_wire : Gpuio_protocol.Wire.Animation.Endpoint.t -> Event.t Or_error.t
+
   val to_wire
     :  Config.t
     -> generation:int64

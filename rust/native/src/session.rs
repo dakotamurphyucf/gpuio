@@ -77,6 +77,25 @@ impl Session {
         self.assets.acquire(id).map_err(|_| ImageError::Released)
     }
 
+    pub fn animation_endpoint(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: gpuio_protocol::HandlerId,
+        revision: i64,
+        endpoint: gpuio_protocol::animation::Endpoint,
+    ) -> Option<Event> {
+        let tree = self.tree(window)?;
+        let current = tree.get(node)?;
+        (current.handler == Some(handler)
+            && revision >= 0
+            && revision <= tree.revision()
+            && endpoint.generation > 0
+            && endpoint.generation <= current.animation.as_ref()?.generation)
+            .then_some(Event::AnimationEndpoint(
+                window, node, handler, revision, endpoint,
+            ))
+    }
     pub fn image_state(
         &self,
         window: WindowId,

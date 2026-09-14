@@ -120,6 +120,12 @@ harness = false
 required-features = ["native-image-tests"]
 
 [[test]]
+name = "native_animation"
+path = "tests/native_animation.rs"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
 name = "native_image_views"
 path = "tests/native_image_views.rs"
 harness = false

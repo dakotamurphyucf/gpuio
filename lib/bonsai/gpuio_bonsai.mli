@@ -6,6 +6,15 @@ module View : sig
   type t = unit Bonsai.Effect.t Gpuio.View.t
   type toast = unit Bonsai.Effect.t Gpuio.View.toast
 
+  (** Retained native motion; endpoint callbacks execute as Bonsai effects. *)
+  val animate
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?on_event:(Gpuio.Animation.Event.t -> unit Bonsai.Effect.t)
+    -> Gpuio.Animation.Config.t
+    -> t list
+    -> t
+
   (** Pure image placement; register encoded bytes with [Gpuio_eio.Asset]. *)
   val image
     :  ?key:Gpuio.Key.t
