@@ -29,6 +29,10 @@ pub(super) struct State {
         Rc<RefCell<std::collections::BTreeMap<String, super::native_test::Probe>>>,
 }
 impl State {
+    #[cfg(feature = "native-tests")]
+    pub(super) fn scroll_offset(&self) -> gpui::Point<Pixels> {
+        self.scroll.0.borrow().base_handle.offset()
+    }
     pub(super) fn open(&mut self, config: &ChoiceConfig) {
         self.open = !config.disabled;
         self.navigation.reconcile(config, false);

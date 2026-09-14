@@ -21,6 +21,11 @@ pub fn run_native_ui_test() {
 }
 
 #[cfg(feature = "native-tests")]
+pub fn run_native_scroll_test() {
+    host::scroll_test::run();
+}
+
+#[cfg(feature = "native-tests")]
 pub fn run_native_editor_test() {
     host::editor_test::run();
 }

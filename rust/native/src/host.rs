@@ -53,6 +53,11 @@ mod popup;
 mod progress;
 #[path = "radio.rs"]
 mod radio;
+#[path = "scroll.rs"]
+mod scroll;
+#[cfg(feature = "native-tests")]
+#[path = "scroll_test.rs"]
+pub(super) mod scroll_test;
 #[path = "select.rs"]
 mod select;
 #[path = "toast.rs"]
@@ -109,6 +114,7 @@ struct View {
     probes: Rc<RefCell<BTreeMap<NodeId, native_test::Probe>>>,
     #[cfg(feature = "native-tests")]
     progress_probes: BTreeMap<NodeId, progress::Probe>,
+    scrolls: BTreeMap<NodeId, Rc<scroll::State>>,
 }
 fn emit_press(
     session: &SharedSession,
@@ -292,6 +298,7 @@ impl View {
             probes: Default::default(),
             #[cfg(feature = "native-tests")]
             progress_probes: Default::default(),
+            scrolls: Default::default(),
         }
     }
     fn update_editors(&mut self, dirty: &[NodeId], window: &mut Window, cx: &mut Context<Self>) {
@@ -306,9 +313,14 @@ impl View {
             let session = self.session.borrow();
             let Some(tree) = session.tree(self.id) else {
                 self.editors.clear();
+                self.scrolls.clear();
                 return;
             };
             self.editors.retain(|id, _| tree.get(*id).is_some());
+            self.scrolls.retain(|id, _| {
+                tree.get(*id)
+                    .is_some_and(|node| node.overlay.is_some() || scroll::declared(&node.style))
+            });
             dirty
                 .iter()
                 .filter_map(|id| tree.get(*id))
@@ -619,6 +631,16 @@ impl View {
         if !interaction.pointer {
             element.style().mouse_cursor = None;
         }
+        let scrolling = if scroll::declared(&node.style)
+            || element.style().overflow.x == Some(gpui::Overflow::Scroll)
+            || element.style().overflow.y == Some(gpui::Overflow::Scroll)
+        {
+            let state = self.scrolls.entry(id).or_default().clone();
+            element = scroll::attach(element, &state);
+            Some(state)
+        } else {
+            None
+        };
         if node.kind == Kind::Combobox {
             let (editor, state) = self.editors[&id]
                 .combobox()
@@ -933,6 +955,7 @@ impl View {
                     gate: self.focus.clone(),
                     transport: self.transport.clone(),
                 },
+                scrolling.as_ref(),
                 window,
             );
         }
@@ -956,15 +979,35 @@ impl View {
             );
         }
         if let Some(corners) = image_corners {
-            return crate::semantics::State {
-                element: image_corners::Rounded::capture(element, corners),
-                live: None,
-                disabled,
-                read_only: false,
-                modal: false,
-            }
-            .into_any_element();
+            let image = image_corners::Rounded::capture(element, corners);
+            return match &scrolling {
+                Some(state) => self.finish_element(
+                    scroll::Frame::new(image, state),
+                    node,
+                    tree.revision(),
+                    disabled,
+                ),
+                None => self.finish_element(image, node, tree.revision(), disabled),
+            };
         }
+        match scrolling {
+            Some(state) => self.finish_element(
+                scroll::Frame::new(element, &state),
+                node,
+                tree.revision(),
+                disabled,
+            ),
+            None => self.finish_element(element, node, tree.revision(), disabled),
+        }
+    }
+    fn finish_element<E: gpui::Element>(
+        &self,
+        element: E,
+        node: &crate::tree::Node,
+        revision: i64,
+        disabled: bool,
+    ) -> gpui::AnyElement {
+        let id = node.id;
         let element = crate::semantics::State {
             live: None,
             element,
@@ -979,7 +1022,7 @@ impl View {
                     window: self.id,
                     node: id,
                     handler: node.handler.expect("validated drag/drop"),
-                    revision: tree.revision(),
+                    revision,
                     session: self.session.clone(),
                     gate: self.focus.clone(),
                     transport: self.transport.clone(),
@@ -996,7 +1039,7 @@ impl View {
                     window: self.id,
                     node: id,
                     handler: node.handler.expect("validated pointer region"),
-                    revision: tree.revision(),
+                    revision,
                     session: self.session.clone(),
                     gate: self.focus.clone(),
                     transport: self.transport.clone(),

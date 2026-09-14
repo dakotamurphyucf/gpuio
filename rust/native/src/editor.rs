@@ -399,6 +399,13 @@ impl Instance {
             State::Textarea(entity) => entity.read(cx).bridge_composition().is_some(),
         }
     }
+    #[cfg(feature = "native-tests")]
+    pub(super) fn scroll_offset(&self, cx: &App) -> gpui::Point<gpui::Pixels> {
+        match &self.state {
+            State::Input(entity) => entity.read(cx).scroll_offset(),
+            State::Textarea(entity) => entity.read(cx).scroll_offset(),
+        }
+    }
     pub(super) fn command_available(&self, action: NativeCommand, cx: &App) -> bool {
         if self.config.disabled {
             return false;

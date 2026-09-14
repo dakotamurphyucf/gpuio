@@ -451,4 +451,13 @@ with existing native activation/focus/accessibility. Core identity tests, native
 slot validation, actual GPU/AXButton and synthetic GPUI input/command-label checks pass.
 Public raster/SVG/icon example modes pass with the new button compositions. See
 [button icon evidence](evidence/button-icons-och11.md). OCH-11 remains in progress;
-remaining theme/state/transitions, scrolling/lifetimes and consolidated gates remain.
+remaining theme/state/transitions, scrolling/lifetimes and consolidated gates remain
+at that checkpoint.
+
+Nested container scrolling now passes local native acceptance for transcript,
+horizontal code, composer, Select popup and modal shielding. Same-node offsets
+survive updates, wheel input leaves the tree revision unchanged, and removed
+scroll owners dispose immediately. Native image/button and pointer regressions pass;
+see [scrolling evidence](evidence/scrolling-och11.md). OCH-11 still needs the remaining
+theme/state audit, basic transitions shared with OCH-12, aggregate lifetime review
+and consolidated macOS/Linux gates and merge.

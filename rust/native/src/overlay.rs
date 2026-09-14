@@ -32,6 +32,7 @@ pub(super) fn element(
     config: Arc<OverlayConfig>,
     placement: Placement,
     route: Route,
+    scrolling: Option<&std::rc::Rc<super::scroll::State>>,
     window: &Window,
 ) -> AnyElement {
     let priority = route.gate.borrow().layer(route.node);
@@ -77,6 +78,10 @@ pub(super) fn element(
         })
         .on_any_mouse_down(|_, _, cx| cx.stop_propagation())
         .on_scroll_wheel(|_, _, cx| cx.stop_propagation());
+    let panel = match scrolling {
+        Some(state) => super::scroll::Frame::new(panel, state).into_any_element(),
+        None => panel.into_any_element(),
+    };
     let panel = crate::semantics::State {
         live: None,
         element: panel,

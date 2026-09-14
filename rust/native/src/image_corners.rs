@@ -119,3 +119,14 @@ impl<E: Element<PrepaintState = Option<Hitbox>> + InteractiveElement + Styled> E
         self.element.a11y_synthetic_children(prepaint, builder);
     }
 }
+
+impl<E: Styled> Styled for Rounded<E> {
+    fn style(&mut self) -> &mut gpui::StyleRefinement {
+        self.element.style()
+    }
+}
+impl<E: InteractiveElement> InteractiveElement for Rounded<E> {
+    fn interactivity(&mut self) -> &mut gpui::Interactivity {
+        self.element.interactivity()
+    }
+}

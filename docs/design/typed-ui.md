@@ -77,6 +77,28 @@ mouse handlers; it does not disable keyboard activation or native scroll handlin
 It is not a general browser-style hit-test pass-through system. Use the future
 input/overlay facilities for broader routing policy.
 
+### Native container scrolling
+
+`Overflow_x Scroll` and `Overflow_y Scroll` keep offsets in Rust for the retained
+node. Native wheel input does not submit an OCaml tree transaction. Same-node
+content/style changes retain the native handle; removing the node or its last
+scrolling declaration releases the owner. State-specific overflow declarations
+also keep that owner available, with eligible axes taken from the computed native
+style. Layout continues to determine the viewport, scroll extent and clamping.
+
+A nested container consumes a wheel event when its permitted axis can move.
+At a boundary it allows the event to continue to an ancestor. A horizontal code
+container therefore leaves a vertical wheel event for its transcript; deltas are
+not translated between axes. An event that moves partially to a boundary is
+consumed in full; remaining overshoot is not split into another event. Precise
+gesture filtering uses the pinned GPUI implementation.
+
+Editors and choice popups retain their widget-owned scrolling. Popup occlusion
+and modal backdrops shield underlying application scroll regions, including at
+popup boundaries. This is native routing, with no asynchronous OCaml
+`preventDefault` decision. [Native acceptance evidence](../evidence/scrolling-och11.md)
+distinguishes synthetic GPUI dispatch from physical input testing.
+
 `User_select true` inherits into read-only Text nodes. Rust owns the selection and
 clipboard operations; no per-drag callback crosses the bridge. Mouse selection,
 shift-click, double-click word selection, triple-click select-all, grapheme-aware
