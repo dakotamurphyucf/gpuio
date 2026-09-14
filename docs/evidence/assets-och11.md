@@ -324,3 +324,26 @@ notepad directory. CI schedules all three public modes, but has not run this cha
 Image corner clipping/composition, remaining theme/state/transitions and scrolling
 acceptance, aggregate lifetimes, consolidated macOS/Linux gates and merge remain
 OCH-11 work. OCH-12 follows; this is not milestone completion.
+
+
+## Native image corner clipping
+
+A 64x64 solid raster displayed in a 96x96 background window reproduced square
+image pixels despite a top-left radius of 40. The original 4x4 fixture was unsuitable
+for corner assertions because magnified texture-edge filtering blends atlas padding;
+using a higher-resolution fixture isolated the actual rendering bug.
+
+The root now propagates computed native radii to the raster pixel element and SVG
+canvas. Actual GPU checks pass a clipped top-left corner, unchanged square top-right
+and unchanged center. Icon checks also pass native hover clearing the top-left radius
+and adding a top-right radius while changing foreground. Existing full-color SVG
+resize/retired-source handling, weak disposal and raster AXImage checks pass in the
+same focus:false run. Hover remains synthetic GPUI dispatch, not physical OS input.
+
+Native all-target Clippy with `native-image-tests` and warnings denied, plus full
+Dune `@all @runtest @fmt`, pass. The rebuilt public `--self-test --icon` example
+also passes its FFI/lifecycle regression.
+Logs `assets-rounded-before.log` and `assets-rounded-after.log` record the reproduced
+failure and passing native run; `assets-rounded-clippy.log` records lint validation.
+This fixes image corner propagation; it does not claim general rounded clipping of
+arbitrary container children. Common icon/button composition remains to implement.

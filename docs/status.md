@@ -105,7 +105,7 @@ Current OCH-11 summary: the controls/commands/focus/overlays, pointer capture,
 file-dialog bridge and drag/drop behaviors below are implemented and validated
 locally. Drag/drop includes actual AppKit handoff/reentry/cancel/unmount and held-
 gesture close/shutdown checks. Raster/SVG assets, bounded caches and foreground-tinted icons now pass local
-integration checks. Remaining work includes image clipping/composition acceptance,
+integration checks. Remaining work includes icon/control composition acceptance,
 full theme/scale integration, remaining native state/basic transitions, scrolling
 and aggregate lifetime checks. Consolidated macOS/Linux CI and merge
 remain. The chronological checkpoints below distinguish earlier partial states
@@ -438,3 +438,9 @@ and cross-language Icon fixtures, full Rust workspace and Dune checks pass. Publ
 raster/SVG/icon example modes all pass lifecycle and FFI state integration. See
 [SVG evidence](evidence/assets-och11.md#svgicon-integration--local-macos-continuation).
 Remaining image clipping/composition and the other OCH-11 acceptance/gates remain.
+
+
+Image corner propagation now passes an actual native regression: asymmetric raster
+corners and changing icon hover radii clip the pixels while preserving center color,
+image lifetime and AXImage semantics. See [clipping evidence](evidence/assets-och11.md#native-image-corner-clipping).
+Icon/control composition and the remaining OCH-11 acceptance/gates are still pending.

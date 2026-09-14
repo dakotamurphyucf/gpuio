@@ -33,6 +33,8 @@ mod editor;
 pub(super) mod editor_test;
 #[path = "focus.rs"]
 mod focus;
+#[path = "image_corners.rs"]
+mod image_corners;
 #[path = "image_view.rs"]
 pub(crate) mod image_view;
 #[path = "menu.rs"]
@@ -423,8 +425,11 @@ impl View {
                 .role(gpui::Role::Group)
                 .aria_label(config.label.clone());
         }
+        let mut image_corners = None;
         if let Some(config) = &node.image {
-            element = self.image_element(tree, node, config, element, window, cx);
+            let (image, corners) = self.image_element(tree, node, config, element, window, cx);
+            element = image;
+            image_corners = Some(corners);
         }
         if let Some(config) = &node.progress {
             element = element
@@ -927,6 +932,16 @@ impl View {
                 config.clone(),
                 cx,
             );
+        }
+        if let Some(corners) = image_corners {
+            return crate::semantics::State {
+                element: image_corners::Rounded::capture(element, corners),
+                live: None,
+                disabled,
+                read_only: false,
+                modal: false,
+            }
+            .into_any_element();
         }
         let element = crate::semantics::State {
             live: None,

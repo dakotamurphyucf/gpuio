@@ -4,8 +4,8 @@ OCH-11 implementation in progress. Encoded registration, scoped public ownership
 bounded image scheduling, raster/SVG views and foreground-tinted icons are connected.
 `CAP_ASSETS` (2097152) means encoded registration; `CAP_IMAGES` (4194304) adds image
 views and state events; `CAP_SVG` (8388608) adds SVG and icon rendering. The aggregate
-mask is 16777215. This is not completion of OCH-11. Image corner clipping and common
-icon/control composition still require acceptance checks.
+mask is 16777215. This is not completion of OCH-11. Common icon/control composition still requires
+acceptance checks.
 
 ## Interface direction
 
@@ -441,3 +441,14 @@ have additional allocations. The worker shutdown contract requires no UI callbac
 or waits for UI progress; it does not assume workers perform only CPU operations.
 SVG scripting/animation and browser DOM/CSS behavior are not provided by resvg.
 Use the separate declarative motion API for native view animation (OCH-12).
+
+### Native image corner styling
+
+The image root captures its computed GPUI corner radii at paint time, using the
+native hitbox and interaction state. Raster images receive these radii through a
+small Element wrapper; SVG/icon canvases pass them to `Window.paint_image`.
+This is necessary because GPUI Div overflow masks are rectangular and image
+sprites paint their own corners. The wrapper forwards layout, element identity and
+accessibility; raster images still use GPUI's existing animation/frame lifecycle.
+The shared per-frame value contains only four radii, not an image/source lease.
+GPUI retains its own fitting and radius clamping semantics for the visible image.

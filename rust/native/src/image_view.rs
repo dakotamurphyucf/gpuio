@@ -1,6 +1,6 @@
 //! Mounted image leases. Acquire at accepted tree application, before later
 //! source release messages; paint observes pixels without acquiring new readers.
-use super::View;
+use super::{View, image_corners};
 use crate::{
     asset_svg, image_host,
     tree::{Node, Tree},
@@ -108,7 +108,12 @@ fn fit(value: ImageFit) -> gpui::ObjectFit {
         ImageFit::None => gpui::ObjectFit::None,
     }
 }
-fn vector(binding: &Rc<RefCell<Binding>>, fitting: ImageFit, icon: bool) -> impl gpui::IntoElement {
+fn vector(
+    binding: &Rc<RefCell<Binding>>,
+    fitting: ImageFit,
+    icon: bool,
+    corners: image_corners::Shared,
+) -> impl gpui::IntoElement {
     let weak = Rc::downgrade(binding);
     canvas(
         |_, _, _| (),
@@ -160,7 +165,7 @@ fn vector(binding: &Rc<RefCell<Binding>>, fitting: ImageFit, icon: bool) -> impl
                 // Both color SVGs and tinted masks are decoded off-thread. GPUI
                 // only uploads/paints the ready bitmap at the measured bounds.
                 let painted =
-                    window.paint_image(bounds, image_bounds, Default::default(), image, 0, false);
+                    window.paint_image(bounds, image_bounds, corners.get(), image, 0, false);
                 if painted.is_err() && binding.resize_error != Some(ImageError::NativeFailure) {
                     binding.resize_error = Some(ImageError::NativeFailure);
                     window.refresh();
@@ -241,9 +246,10 @@ impl View {
         mut element: Stateful<Div>,
         window: &mut Window,
         cx: &mut Context<Self>,
-    ) -> Stateful<Div> {
+    ) -> (Stateful<Div>, image_corners::Shared) {
+        let corners = image_corners::Shared::default();
         let Some(state) = self.images.get_mut(&node.id) else {
-            return element;
+            return (element, corners);
         };
         let (observed, status) = state.binding.borrow_mut().observe(window, cx);
         if let Some(handler) = node.handler {
@@ -283,16 +289,22 @@ impl View {
                 .overflow_hidden();
         }
         if binding.svg {
-            element = element.child(vector(&state.binding, config.fit, node.kind == Kind::Icon));
+            element = element.child(vector(
+                &state.binding,
+                config.fit,
+                node.kind == Kind::Icon,
+                corners.clone(),
+            ));
         } else if let Some(image) = observed {
-            element = element.child(
+            element = element.child(image_corners::Rounded::apply(
                 img(image.clone())
                     .id(("image-pixels", image.id.0 as u64))
                     .size_full()
                     .object_fit(fit(config.fit)),
-            );
+                corners.clone(),
+            ));
         }
-        element
+        (element, corners)
     }
 }
 

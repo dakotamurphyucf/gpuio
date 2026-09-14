@@ -95,6 +95,24 @@ fn pixels(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, expected: [u8; 4]
         })
         .unwrap();
 }
+fn rounded_pixels(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, color: [u8; 4]) {
+    handle
+        .update(cx, |_, window, _| {
+            let image = window.render_to_image().unwrap();
+            let clipped = image.get_pixel(4, 4).0;
+            assert_ne!(clipped, color, "top-left image pixels must be clipped");
+            assert_eq!(
+                image.get_pixel(image.width() - 5, 4).0,
+                color,
+                "top-right stays square"
+            );
+            assert_eq!(
+                image.get_pixel(image.width() / 2, image.height() / 2).0,
+                color
+            );
+        })
+        .unwrap();
+}
 pub(crate) fn run() {
     let failure = Rc::new(RefCell::new(None));
     let task_failure = failure.clone();
@@ -153,11 +171,21 @@ pub(crate) fn run() {
                 pause(cx).await; pause(cx).await;
                 #[cfg(target_os = "macos")]
                 assert!(crate::host::control_test::accessible_role(cx, window, "Restyled preview").is_none());
-                let blue = source(&mut session.borrow_mut(), [10,20,250]);
+                // Sufficient source resolution prevents atlas-edge filtering
+                // from being mistaken for rounded clipping at the sample points.
+                let mut blue_bytes = b"P6\n64 64\n255\n".to_vec();
+                for _ in 0..64*64 { blue_bytes.extend([10,20,250]); }
+                let blue = upload(&mut session.borrow_mut(), &blue_bytes);
                 apply(cx, window, vec![Op::Bind(node(), Some(handler(2))), Op::SetImage(node(), config(ImageSource::Reference(blue)))]);
                 session.borrow_mut().assets().unwrap().release(blue).unwrap();
-                observed(cx, window, ready).await;
+                observed(cx, window, ImageState::Ready(ImageMetadata { width_px:64, height_px:64, frames:1 })).await;
                 pixels(cx, window, [10,20,250,255]);
+                apply(cx, window, vec![Op::SetStyle(node(), vec![Style::Fields(vec![
+                    Field::Width(Length::Percent(100.)), Field::Height(Length::Percent(100.)),
+                    Field::TopLeftRadius(40.),
+                ])])]);
+                pause(cx).await; pause(cx).await;
+                rounded_pixels(cx, window, [10,20,250,255]);
                 let invalid = upload(&mut session.borrow_mut(), b"malformed image");
                 apply(cx, window, vec![Op::SetImage(node(), config(ImageSource::Reference(invalid)))]);
                 observed(cx, window, ImageState::Failed(ImageError::InvalidData)).await;

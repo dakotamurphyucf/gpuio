@@ -1,6 +1,12 @@
 //! Production SVG canvas: measured native raster size, inherited foreground,
 //! synthetic GPUI hover dispatch, and disposal of weak paint references.
 use super::*;
+fn config(source: ImageSource) -> ImageConfig {
+    ImageConfig {
+        fit: ImageFit::Fill,
+        ..super::config(source)
+    }
+}
 fn vector_source(session: &Rc<RefCell<Session>>) -> ResourceId {
     let bytes=br#"<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><rect width="2" height="4" fill="red"/><rect x="2" width="2" height="4" fill="blue"/></svg>"#;
     let mut session = session.borrow_mut();
@@ -41,6 +47,7 @@ async fn rasterized(
                             asset_svg::RasterSize::new(width, height).unwrap(),
                         )
                     && state.rendered.tint == tint
+                    && state.rendered.fit == ImageFit::Fill
             })
             .unwrap();
         if done {
@@ -168,6 +175,33 @@ pub(super) async fn exercise(
     apply(cx, window, vec![Op::SetStyle(icon, style(0x6633ccff))]);
     rasterized(cx, window, icon, Some(0x6633ccff)).await;
     halves(cx, window, [102, 51, 204, 255], [102, 51, 204, 255]);
+    let mut rounded = style(0x6633ccff);
+    rounded.push(Style::Fields(vec![Field::TopLeftRadius(40.)]));
+    rounded.push(Style::State(
+        2,
+        vec![Field::TopLeftRadius(0.), Field::TopRightRadius(40.)],
+    ));
+    apply(cx, window, vec![Op::SetStyle(icon, rounded)]);
+    pause(cx).await;
+    pause(cx).await;
+    rounded_pixels(cx, window, [102, 51, 204, 255]);
+    crate::host::native_test::move_mouse(cx, window, gpui::point(px(20.), px(20.)), false);
+    rasterized(cx, window, icon, Some(0xff8800ff)).await;
+    window
+        .update(cx, |_, window, _| {
+            let image = window.render_to_image().unwrap();
+            assert_eq!(
+                image.get_pixel(4, 4).0,
+                [255, 136, 0, 255],
+                "hover clears top-left rounding"
+            );
+            assert_ne!(
+                image.get_pixel(image.width() - 5, 4).0,
+                [255, 136, 0, 255],
+                "hover rounds top-right pixels"
+            );
+        })
+        .unwrap();
     let weak = window
         .update(cx, |view, _, _| Rc::downgrade(&view.images[&icon].binding))
         .unwrap();
