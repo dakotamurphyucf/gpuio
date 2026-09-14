@@ -3,6 +3,7 @@ open Core
 module type S = sig
   module Asset = Asset_wire
   module Image = Image_wire
+  module Animation = Animation_wire
   module Drag_and_drop = Drag_and_drop_wire
 
   val version : int64

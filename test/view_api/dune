@@ -4,6 +4,7 @@
  (inline_tests
   (deps
    (sandbox preserve_file_kind)
+   animation-v1-config.hex
    icons-v1-request.hex
    images-v1-request.hex
    images-v1-events.hex
@@ -46,6 +47,8 @@
   (pps ppx_jane)))
 
 (copy_files ../fixtures/style-v1.hex)
+
+(copy_files ../fixtures/animation-v1-config.hex)
 
 (copy_files ../fixtures/controls-v1.hex)
 

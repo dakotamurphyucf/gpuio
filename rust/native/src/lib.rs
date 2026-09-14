@@ -8,6 +8,7 @@ pub mod file_dialog;
 mod host;
 pub mod image_host;
 pub mod mailbox;
+pub mod motion;
 mod selection;
 mod semantics;
 pub mod session;

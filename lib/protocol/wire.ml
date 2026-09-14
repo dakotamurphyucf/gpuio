@@ -1,6 +1,7 @@
 open Core
 module Asset = Asset_wire
 module Image = Image_wire
+module Animation = Animation_wire
 
 let version = 1L
 let capabilities = 33554431L

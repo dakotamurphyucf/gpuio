@@ -125,7 +125,8 @@ positioning and virtualized options. Local macOS window/accessibility checks,
 Choice appearance adds theme-aware popup/option/empty styles, configurable uniform
 row geometry and localized empty text while retaining native focus/open state.
 Local tests validate these changes; general overlay integration remains OCH-11 work. [Native controls](design/native-controls.md) records these families
-and the remaining ticket scope. OCH-12 declarative animations follows.
+and the remaining ticket scope. OCH-12's declarative animation configuration and
+timing core are now in progress; view/bridge/native integration remains pending.
 Combobox is implemented on the local OCH-11 branch with native editor ownership,
 query filtering, exact selection snapshots, the editable accessibility role and
 shared popup appearance/virtualization. Local native control tests pass including
@@ -470,3 +471,11 @@ native controls and image/button suites pass locally. See
 [command lifetime evidence](evidence/command-lifetimes-och11.md). This closes the
 identified command-payload duplication concern; remaining OCH-11 scope and hosted
 gates are still pending.
+
+OCH-12 now has validated OCaml animation configuration and a deterministic Rust
+timing core. Tests cover delayed starts, paint-confirmed completion, interruption,
+repetition, hidden/reduced-motion state and prepared-frame invalidation. The numeric
+configuration has an independent OCaml/Rust binary fixture. No animation capability
+is advertised: View/reconciliation/transport, GPUI scheduling, platform motion
+preferences and actual native acceptance still need implementation. See
+[animation design and current evidence](design/animations.md).
