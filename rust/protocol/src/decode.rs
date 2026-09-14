@@ -76,6 +76,38 @@ impl Decoder<'_> {
     fn resource(&mut self) -> Result<crate::ResourceId, DecodeError> {
         crate::ResourceId::from_parts(self.int()?, self.int()?).ok_or(DecodeError::Malformed)
     }
+    fn image_error(&mut self) -> Result<ImageError, DecodeError> {
+        Ok(match self.tag()? {
+            0 => ImageError::WrongApplication,
+            1 => ImageError::Released,
+            2 => ImageError::InvalidData,
+            3 => ImageError::Unsupported,
+            4 => ImageError::ResourceLimit,
+            5 => ImageError::NativeFailure,
+            _ => return Err(DecodeError::Malformed),
+        })
+    }
+    fn image_config(&mut self) -> Result<ImageConfig, DecodeError> {
+        let source = match self.tag()? {
+            0 => ImageSource::Reference(self.resource()?),
+            1 => ImageSource::Unavailable(self.image_error()?),
+            _ => return Err(DecodeError::Malformed),
+        };
+        let fit = match self.tag()? {
+            0 => ImageFit::Fill,
+            1 => ImageFit::Contain,
+            2 => ImageFit::Cover,
+            3 => ImageFit::ScaleDown,
+            4 => ImageFit::None,
+            _ => return Err(DecodeError::Malformed),
+        };
+        let label = self.option(|decoder| decoder.bounded_text(4096))?;
+        let config = ImageConfig { source, fit, label };
+        if !config.is_valid() {
+            return Err(DecodeError::Malformed);
+        }
+        Ok(config)
+    }
     fn asset(&mut self) -> Result<crate::asset::Request, DecodeError> {
         use crate::asset::{Chunk, Format, MAX_CHUNK_BYTES, Request};
         Ok(match self.tag()? {
@@ -551,6 +583,7 @@ impl Decoder<'_> {
                     19 => Kind::PointerArea,
                     20 => Kind::DragSource,
                     21 => Kind::DropTarget,
+                    22 => Kind::Image,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -617,6 +650,7 @@ impl Decoder<'_> {
                     max_visible: self.int()?,
                 },
             ),
+            26 => Op::SetImage(self.node()?, self.image_config()?),
             20 => Op::SetProgress(
                 self.node()?,
                 ProgressConfig {

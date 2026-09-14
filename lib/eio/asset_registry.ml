@@ -30,6 +30,7 @@ end
 
 type t =
   { scope : Scope.t
+  ; owner : Gpuio.Asset.Expert.Owner.t
   ; wake : unit -> unit
   ; mutable entries : registration Int.Map.t
   ; mutable next : int
@@ -42,6 +43,8 @@ type t =
 and registration =
   { registry : t
   ; key : int
+  ; format : Gpuio.Asset.Format.t
+  ; mutable published : Gpuio.Asset.Handle.t option
   ; mutable phase : Phase.t
   ; mutable notify : ((registration, Error.t) Result.t -> unit) option
   ; mutable unregister : (unit -> unit) option
@@ -99,6 +102,13 @@ module Registration = struct
 
   let release = release
 
+  let handle t =
+    check t.registry;
+    (* Registrations only escape through their successful publication callback.
+       Keep the immutable reference available after registration retirement. *)
+    Option.value_exn t.published
+  ;;
+
   let is_released t =
     check t.registry;
     match t.phase with
@@ -124,6 +134,7 @@ end
 let create ~scope ~wake =
   Scope.Expert.check scope;
   { scope
+  ; owner = Gpuio.Asset.Expert.Owner.create ()
   ; wake
   ; entries = Int.Map.empty
   ; next = 0
@@ -150,6 +161,8 @@ let register t ~scope source ~(on_result : (registration, Error.t) Result.t -> u
     let entry =
       { registry = t
       ; key = t.next
+      ; format = Source.format source
+      ; published = None
       ; phase = Beginning source
       ; notify = Some on_result
       ; unregister = None
@@ -270,6 +283,8 @@ let complete t (response : Wire.Response.t) =
      | Finishing id, Finish _, Ack ->
        end_upload entry;
        entry.phase <- Ready id;
+       entry.published
+       <- Some (Gpuio.Asset.Expert.handle ~owner:t.owner ~id ~format:entry.format);
        let notify = entry.notify in
        entry.notify <- None;
        Option.iter notify ~f:(fun notify -> notify (Ok entry))
@@ -292,6 +307,11 @@ let close t =
 ;;
 
 module Expert = struct
+  let owner t =
+    check t;
+    t.owner
+  ;;
+
   let counts t =
     check t;
     Map.length t.entries, t.uploads, t.source_bytes

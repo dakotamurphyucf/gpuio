@@ -24,6 +24,9 @@ module Registration : sig
 
   val is_released : t -> bool
 
+  (** Published immutable reference, still available after release. *)
+  val handle : t -> Gpuio.Asset.Handle.t
+
   module Expert : sig
     val native_id : t -> Gpuio_protocol.Resource_id.t option
   end
@@ -50,6 +53,8 @@ val complete : t -> Gpuio_protocol.Wire.Asset.Response.t -> unit
 val close : t -> unit
 
 module Expert : sig
+  val owner : t -> Gpuio.Asset.Expert.Owner.t
+
   (** Entries, unfinished uploads and held source bytes. *)
   val counts : t -> int * int * int
 end

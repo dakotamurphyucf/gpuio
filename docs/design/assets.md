@@ -1,17 +1,12 @@
 # Images, SVG and asset ownership
 
-OCH-11 implementation in progress. `Gpuio.Asset.Format` and `Asset.Source` plus
-matching Rust source descriptors are implemented. They preserve opaque encoded
-bytes, reject empty or greater-than-16-MiB inputs, and keep diagnostics bounded.
-The native session owns a bounded encoded registry, connected through correlated
-wire requests and the raw `Gpuio_eio.App.Expert.asset` effect. Capability
-`CAP_ASSETS` (2097152; aggregate mask 4194303) means encoded registration only.
-Scoped public ownership is now connected through `Gpuio_eio.Asset.register`.
-A native raster decoder and decoded-cache/work-ticket controller are implemented
-and tested, with GPUI host scheduling and per-window atlas cleanup connected.
-SVG rasterization and public image/icon views remain to integrate.
-Independent OCaml/Rust fixtures, Rust workspace/Clippy, full Dune checks and an
-actual windowless >2-MiB FFI upload pass locally on macOS.
+OCH-11 implementation in progress. Encoded registration, scoped public ownership,
+bounded native raster decoding/cache scheduling, and declarative image views are
+connected. `CAP_ASSETS` (2097152) means encoded registration; `CAP_IMAGES` (4194304)
+adds image views and state events. The current aggregate mask is 8388607.
+PNG/JPEG/WebP/GIF/BMP/TIFF/ICO/PNM use the pinned raster decoder. SVG rasterization
+and icon tint/scale integration remain pending; declaring SVG currently produces
+an image-local `Unsupported` result. This is not completion of OCH-11.
 
 ## Interface direction
 
@@ -24,9 +19,8 @@ errors. `Source.of_bytes ~format data` accepts binary data, including NUL.
 
 `Gpuio_eio.Asset.register app ~scope source` registers a source with the
 application runtime under an explicit scope and returns an encoded registration.
-Its native generational ID remains behind an Expert interface until the pure
-image/icon view integration is implemented. Image/icon views refer to
-that handle, so unrelated state changes do not resend megabytes of encoded data.
+`Gpuio_eio.Asset.handle registration` returns an immutable `Gpuio.Asset.Handle.t`.
+Image views refer to that handle, so unrelated state changes do not resend megabytes of encoded data.
 Support deliberate release and scope cleanup. The native registry now defines
 release as retiring acquisition: existing leases remain readable, while new uses
 of the retired handle fail. Image nodes must retain their own leases to preserve
@@ -331,3 +325,69 @@ for GPU readback. It adds test-only dependency packages without changing existin
 locked package versions/sources; production features remain unchanged. CI is
 configured to compile/lint the target on both platforms and execute its GPU test
 on macOS. Hosted results are still deferred until the full local OCH-11 scope.
+
+## Declarative image contract
+
+```ocaml
+let config =
+  Gpuio.Image.Config.create
+    ~asset:(Gpuio_eio.Asset.handle registered)
+    ~description:(Gpuio.Image.Description.label "Attachment preview" |> Or_error.ok_exn)
+    ~fit:Contain
+    ()
+in
+Gpuio_bonsai.View.image
+  ~style:(Gpuio.Style.create_exn
+    [ Width (Gpuio.Length.px_exn 240.); Height (Gpuio.Length.px_exn 180.) ])
+  ~on_change:(fun state -> (* observe asynchronously *) on_image_state state)
+  config
+```
+
+The pure configuration retains a small handle containing application allocation
+identity, native slot/generation and declared format. It does not retain the
+registration, scope, runtime or encoded bytes. Equality includes application
+identity. The owning registry passes that identity through the window driver to
+the reconciler; a foreign handle becomes an `Unavailable Wrong_application` wire
+source, without sending its numeric ID into another application's store.
+
+Descriptions are mandatory: `Description.decorative` deliberately omits the image
+role; `Description.label` supplies bounded, nonblank UTF-8. A meaningful image uses
+the native Image role, keeps its accessible identity while loading/failed, and has
+no click/focus action merely because an `on_change` observer is installed. Use a
+button or pointer region around an image for explicit interaction.
+
+`Fit` maps to GPUI Fill, Contain (default), Cover, Scale_down and None. Ordinary
+styles control logical layout and native state styling; when size is unspecified,
+the decoded pixel dimensions provide GPUI's natural raster size. Prefer explicit
+logical dimensions for application layout. Animated GIF playback remains native;
+the GPUI image-element identity includes the decoded image ID so replacement starts
+its own animation state. There is no OCaml frame-by-frame image transport.
+
+Native image bindings acquire their encoded lease during accepted tree application,
+before a later release request can arrive, including before their first paint.
+Restyling or changing a description keeps that lease when the source is unchanged.
+Changing source or remounting requires a fresh store acquisition; retired sources
+fail locally with `Released`. Unmount/close drops the mounted handle. A registration
+handle remains an immutable value after release, but does not extend registration
+lifetime. An initial admission/decode failure persists for that mount/source; a
+new key can explicitly request a fresh binding where retry is appropriate.
+
+`on_change` observes `Loading`, `Ready metadata` or `Failed error` asynchronously.
+An already decoded source can become Ready without a separately delivered Loading.
+Unchanged status is not emitted every render; attaching a new observer gets the
+current observed state. Source replacement rotates callback identity so old queued
+results cannot be delivered to the replacement. Native deferred delivery additionally
+checks current node/source/handler/revision. Errors are Wrong_application, Released,
+Invalid_data, Unsupported, Resource_limit and Native_failure. Metadata exposes pixel
+width/height and frame count, validates 1..16384 dimensions, 1..120 frames and a
+64-MiB full-frame BGRA footprint on both sides. Messages remain under the existing
+transport bounds; state observers use the existing bounded event mailbox.
+
+Wire additions are append-only Kind 22, operation 26 (`Set_image`) and event 25
+(`Image_state`). Independent OCaml/Rust fixtures fix variant order, optional
+accessibility labels, all fit/error variants, and metadata representation.
+
+The runnable `examples/images` example uses scoped Eio registration and Bonsai
+views; its self-test waits for a native Ready observation, restyles after retirement,
+and checks that a newly keyed mount reports Released. Native GPU/AX evidence and
+remaining SVG work are recorded in [asset evidence](../evidence/assets-och11.md).

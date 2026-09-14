@@ -79,3 +79,8 @@ pub fn drive_native_drag_drop_test(pid: i32, mode: &str) {
 pub fn run_native_image_test() {
     image_host::test::run();
 }
+
+#[cfg(feature = "native-image-tests")]
+pub fn run_native_image_view_test() {
+    host::image_view::test::run();
+}

@@ -64,6 +64,7 @@ module Identity = struct
 end
 
 type 'a callback =
+  | Image of (Image.State.t -> 'a)
   | Pointer of (Pointer.Event.t -> 'a)
   | Drag_source of (Drag_and_drop.Source_event.t -> 'a)
   | Drop_target of (Drag_and_drop.Target_event.t -> 'a)
@@ -110,6 +111,7 @@ type 'a state =
 
 type 'a t =
   { owner : unit ref
+  ; asset_owner : Asset.Expert.Owner.t option
   ; window : Window_id.t
   ; mutable state : 'a state
   ; mutable closed : bool
@@ -131,10 +133,12 @@ type 'a builder =
   ; mutable command_generation : int64
   ; theme : Theme.t
   ; theme_unchanged : bool
+  ; asset_owner : Asset.Expert.Owner.t option
   }
 
-let create window =
+let create ?asset_owner window =
   { owner = ref ()
+  ; asset_owner
   ; window
   ; closed = false
   ; state =
@@ -205,6 +209,7 @@ let kind = function
   | Pointer_area -> Pointer_area
   | Drag_source -> Drag_source
   | Drop_target -> Drop_target
+  | Image -> Image
 ;;
 
 let compatible mounted view =
@@ -359,15 +364,29 @@ let rec mount builder ~depth previous view =
       | None, callback -> callback
       | Some _, Some _ -> fail "drop_target cannot combine another handler"
     in
+    let callback =
+      match description.image, callback with
+      | Some image, None -> Option.map image.on_change ~f:(fun callback -> Image callback)
+      | None, callback -> callback
+      | Some _, Some _ -> fail "image cannot combine another handler"
+    in
     let rotate_handler =
-      (match description.combobox, previous with
-       | Some combo, Some mounted ->
-         Option.exists (View.Expert.describe mounted.view).combobox ~f:(fun old ->
+      (match description.image, previous with
+       | Some image, Some mounted ->
+         Option.exists (View.Expert.describe mounted.view).image ~f:(fun old ->
            not
-             (Bool.equal
-                (Choice.Config.is_disabled (Combobox.Config.choices old.config))
-                (Choice.Config.is_disabled (Combobox.Config.choices combo.config))))
+             (Asset.Handle.equal
+                (Image.Config.asset old.config)
+                (Image.Config.asset image.config)))
        | None, _ | Some _, None -> false)
+      || (match description.combobox, previous with
+          | Some combo, Some mounted ->
+            Option.exists (View.Expert.describe mounted.view).combobox ~f:(fun old ->
+              not
+                (Bool.equal
+                   (Choice.Config.is_disabled (Combobox.Config.choices old.config))
+                   (Choice.Config.is_disabled (Combobox.Config.choices combo.config))))
+          | None, _ | Some _, None -> false)
       ||
       match description.tooltip, previous with
       | Some tooltip, Some mounted ->
@@ -490,6 +509,17 @@ let rec mount builder ~depth previous view =
       in
       if not (Option.equal Toast.Stack.equal old (Some config))
       then emit builder (Set_toast_stack (id, Toast.Expert.stack_to_wire config)));
+    Option.iter description.image ~f:(fun image ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).image ~f:(fun image ->
+            image.config))
+      in
+      if not (Option.equal Image.Config.equal old (Some image.config))
+      then
+        emit
+          builder
+          (Set_image (id, Image.Expert.to_wire image.config ~owner:builder.asset_owner)));
     Option.iter description.progress ~f:(fun progress ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -729,6 +759,7 @@ let prepare t ~theme view =
         ; command_generation = t.state.command_generation
         ; theme
         ; theme_unchanged = Theme.equal theme t.state.theme
+        ; asset_owner = t.asset_owner
         }
       in
       let root =
@@ -800,6 +831,18 @@ let accept t update =
 ;;
 
 let dispatch t = function
+  | Wire.Event.Image_state (window, node, handler, revision, state)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match
+       Map.find t.state.bindings (node_slot node), Image.Expert.state_of_wire state
+     with
+     | ( Some { node = expected; handler = expected_handler; callback = Image callback }
+       , Ok state )
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       Some (callback state)
+     | _ -> None)
   | Wire.Event.Press (window, node, handler, revision)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -819,7 +862,8 @@ let dispatch t = function
         | Toast _
         | Pointer _
         | Drag_source _
-        | Drop_target _ -> None)
+        | Drop_target _
+        | Image _ -> None)
      | Some _ | None -> None)
   | Choice (window, node, handler, revision, selected)
     when (not t.closed)
@@ -1013,6 +1057,7 @@ let dispatch t = function
   | Combobox_selected _
   | Editor_event _
   | File_dialog_result _
+  | Image_state _
   | Asset_response _
   | Editor_result _
   | Failed _

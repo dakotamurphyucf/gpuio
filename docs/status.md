@@ -414,3 +414,14 @@ replacement and two-outstanding-job shutdown checks. The optional native-image-t
 feature/CI target adds test-only readback support; no hosted run or Linux GPU result
 is claimed. Public OCaml image/icon views and SVG remain pending; see the
 [asset evidence](evidence/assets-och11.md).
+
+Declarative raster image views now work through the public scoped Asset/Bonsai/Eio
+path, with immutable application-specific handles, fit/description configuration,
+loading/ready/failure observations and native mounted leases. Pure owner/protocol/
+reconciliation tests, native tree validation, full Dune/Rust workspace checks and
+feature-enabled Clippy pass locally. A background macOS production-view test passes
+exact GPU pixels, retirement/restyle/replacement/disposal and AXImage label checks;
+the public example separately passes actual FFI event integration. See
+[asset design](design/assets.md) and [asset evidence](evidence/assets-och11.md).
+SVG/icons and the remaining OCH-11 families are still pending. CI definitions are
+updated, but hosted/Linux gates and merge remain deferred until local scope is done.

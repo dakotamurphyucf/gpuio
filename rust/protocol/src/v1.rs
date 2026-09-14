@@ -1,5 +1,6 @@
 pub use crate::command::*;
 pub use crate::file_dialog::*;
+pub use crate::image::*;
 pub use crate::menu::{MenuConfig, MenuDefinition, MenuItem, MenuPresentation};
 pub use crate::palette::*;
 pub use crate::pointer::*;
@@ -31,7 +32,9 @@ pub const CAP_POINTER: i64 = 262144;
 pub const CAP_FILE_DIALOGS: i64 = 524288;
 pub const CAP_DRAG_DROP: i64 = 1048576;
 pub const CAP_ASSETS: i64 = 2097152;
-pub const CAPABILITIES: i64 = CAP_ASSETS
+pub const CAP_IMAGES: i64 = 4194304;
+pub const CAPABILITIES: i64 = CAP_IMAGES
+    | CAP_ASSETS
     | CAP_TREE
     | CAP_NATIVE_STYLES
     | CAP_FRAME_EVENTS
@@ -89,6 +92,7 @@ pub enum Kind {
     PointerArea,
     DragSource,
     DropTarget,
+    Image,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -543,6 +547,7 @@ pub enum Op {
     SetPointer(NodeId, PointerConfig),
     SetDragSource(NodeId, crate::drag_drop::Source),
     SetDropTarget(NodeId, crate::drag_drop::Target),
+    SetImage(NodeId, ImageConfig),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -628,4 +633,5 @@ pub enum Event {
         crate::drag_drop::TargetSample,
     ),
     AssetResponse(i64, crate::asset::Response),
+    ImageState(WindowId, NodeId, HandlerId, i64, ImageState),
 }

@@ -210,3 +210,65 @@ test explicitly covers that loading-window case; it and native-image-tests
 all-target Clippy pass (`assets-host-sharing-native.log`,
 `assets-host-sharing-clippy.log`). The preceding coalescing check also passed
 (`assets-host-final-native.log`). No further hosted verification is claimed.
+
+## Public raster image views and application identity
+
+The public path now connects `Gpuio_eio.Asset.register`/`Asset.handle` to pure
+`Gpuio.Image.Config`, `Gpuio.View.image` and its Bonsai specialization. The wire
+carries image configuration/state, never source bytes in tree updates. The native
+view acquires mounted leases when a transaction is accepted, retains them across
+restyling and reports bounded decoded metadata or local errors. New source bindings
+require fresh registration acquisition. `CAP_IMAGES` is 4194304; aggregate 8388607.
+SVG still reports Unsupported and its separate raster/tint/scale work is pending.
+
+Local macOS validation passed:
+
+- OCaml owner/handle tests distinguish equal numeric IDs in different applications
+  and native generations. Scoped registration tests check handle publication,
+  identity after retirement/shutdown, and zero registry counts.
+- Pure view tests preserve node/handler on fit changes, use the latest callback,
+  rotate handlers on source replacement, reject old/future events, and encode a
+  foreign application as an image-local failure.
+- Independent OCaml/Rust image fixtures exercise all five fits, six errors,
+  optional labels, Ready metadata, every truncated prefix and trailing bytes.
+  Invalid dimensions/animation footprints and numeric overflow inputs reject.
+- The native tree/session test checks atomic invalid-tree rejection, source,
+  handler and revision checks, invalid metadata, disposal, and rejection of Press
+  on image-state observers.
+- `native_image_views` runs the production declarative View in a window with
+  `focus = false`. Actual GPU readback verifies red and blue pixels through initial
+  decoding, source replacement and restyling a retired source. Registration is
+  retired before the first native paint: the accepted mount still renders. A fresh
+  use of the retired source fails Released; malformed bytes and wrong-application
+  placeholders fail locally. Observed state reaches the native event mailbox,
+  restyling does not duplicate unchanged state, and removal frees mounted handles
+  and retired encoded leases.
+- On macOS, that test queries AppKit accessibility: the initial and updated labels
+  expose AXImage; changing to decorative removes the previous named AX image.
+  Image observers do not install the generic native click/accessibility action.
+  This background test is not foreground keyboard/IME validation.
+- The actual public Bonsai/Eio `examples/images --self-test` passes scoped upload,
+  native Ready metadata, post-retirement restyle, newly keyed remount rejection and
+  shutdown. This verifies the OCaml owner plumbing, FFI and callback path; GPU
+  pixels are asserted by the separate native test.
+
+Commands/evidence:
+
+```sh
+./scripts/gpuio exec dune build @all @runtest @fmt
+./scripts/gpuio exec cargo test --locked --workspace
+./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-image-tests --all-targets -- -D warnings
+./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_image_views --no-run
+# Run the reported binary with a 45-second subprocess timeout.
+./scripts/gpuio exec cargo test --locked -p gpuio-native --test image_tree
+# Run _build/default/examples/images/main.exe --self-test with a 35-second timeout.
+```
+
+The full Rust workspace passed before the final image-specific activation guard;
+the final guard passed its image-tree test, feature-enabled all-target Clippy,
+actual native GPU/AX test, full Dune checks and public FFI smoke. Logs are in the
+implementing agent's ignored scratch directory (`assets-image-*.log`). CI now
+compiles the image-view target on both platforms and schedules its macOS native
+and public smoke checks. Nothing has been pushed; no hosted or Linux execution is
+claimed. Remaining OCH-11 work includes SVG/icons, theme/scale/state/transitions,
+scroll routing, aggregate lifetime review and consolidated platform gates/merge.

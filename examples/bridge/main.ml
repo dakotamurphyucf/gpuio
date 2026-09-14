@@ -95,6 +95,7 @@ let worker native notification_read =
       | Failed _ | Rejected _ | Overloaded _ -> failwith "unexpected bridge failure"
       | Press _
       | Editor_event _
+      | Image_state _
       | Asset_response _
       | File_dialog_result _
       | Editor_result _

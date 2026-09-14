@@ -69,6 +69,40 @@ impl Session {
         Ok(&mut self.assets)
     }
 
+    pub fn acquire_image(
+        &self,
+        id: gpuio_protocol::ResourceId,
+    ) -> Result<crate::asset_store::Lease, ImageError> {
+        self.check_ready().map_err(|_| ImageError::Released)?;
+        self.assets.acquire(id).map_err(|_| ImageError::Released)
+    }
+
+    pub fn image_state(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: gpuio_protocol::HandlerId,
+        revision: i64,
+        source: ImageSource,
+        image_state: ImageState,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.image.as_ref()?;
+        (!state.overloaded
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision()
+            && config.source == source
+            && image_state.is_valid())
+        .then_some(Event::ImageState(
+            window,
+            node,
+            handler,
+            revision,
+            image_state,
+        ))
+    }
+
     pub fn asset_request(
         &mut self,
         request: gpuio_protocol::asset::Request,
@@ -240,10 +274,9 @@ impl Session {
         (!window.overloaded
             && revision <= window.tree.revision()
             && revision >= 0
-            && window
-                .tree
-                .get(node)
-                .is_some_and(|node| !node.control.is_some_and(Control::disabled))
+            && window.tree.get(node).is_some_and(|node| {
+                node.image.is_none() && !node.control.is_some_and(Control::disabled)
+            })
             && window.tree.accepts_handler(node, handler))
         .then_some(Event::Press(id, node, handler, revision))
     }

@@ -205,6 +205,17 @@ val combobox
   -> unit
   -> 'action t Core.Or_error.t
 
+(** Encoded assets registered with [Gpuio_eio.Asset]. Layout comes from [style];
+    [config] declares fit and accessibility. State changes are asynchronous and
+    refer to the currently mounted source. Retired registrations keep existing
+    mounts usable but cannot create new bindings. *)
+val image
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?on_change:(Image.State.t -> 'action)
+  -> Image.Config.t
+  -> 'action t
+
 (** A noninteractive native progress bar. Root Background styles the track and
     Foreground styles the indicator. Indeterminate motion stays on the native side;
     updates retain node identity. The accessible value is a percentage or absent
@@ -268,6 +279,11 @@ val toast_stack
   -> 'action t Core.Or_error.t
 
 module Expert : sig
+  type 'action image =
+    { config : Image.Config.t
+    ; on_change : (Image.State.t -> 'action) option
+    }
+
   type 'action drag_source =
     { config : Drag_and_drop.Source.t
     ; on_event : Drag_and_drop.Source_event.t -> 'action
@@ -312,6 +328,7 @@ module Expert : sig
       | Pointer_area
       | Drag_source
       | Drop_target
+      | Image
     [@@deriving equal, sexp_of]
   end
 
@@ -393,6 +410,7 @@ module Expert : sig
     ; notification : 'action notification option
     ; toast_stack : Toast.Stack.t option
     ; progress : Progress.Config.t option
+    ; image : 'action image option
     ; palette : 'action palette option
     ; menu : menu option
     ; focus_scope : Focus_scope.t option

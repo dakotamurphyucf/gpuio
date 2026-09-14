@@ -36,6 +36,7 @@ pub struct Node {
     pub menu: Option<Arc<MenuConfig>>,
     pub palette: Option<Arc<PaletteConfig>>,
     pub progress: Option<Arc<ProgressConfig>>,
+    pub image: Option<Arc<ImageConfig>>,
     pub toast: Option<Arc<ToastConfig>>,
     pub toast_stack: Option<Arc<ToastStackConfig>>,
     pub drag_source: Option<Arc<gpuio_protocol::drag_drop::Source>>,
@@ -71,6 +72,9 @@ impl Node {
                 .map_or(0, |config| config.retained_bytes())
             + self.toast_stack.as_ref().map_or(0, |config| {
                 std::mem::size_of::<ToastStackConfig>() + config.label.len()
+            })
+            + self.image.as_ref().map_or(0, |config| {
+                std::mem::size_of::<ImageConfig>() + config.label.as_ref().map_or(0, String::len)
             })
             + self.progress.as_ref().map_or(0, |config| {
                 std::mem::size_of::<ProgressConfig>() + config.label.len()
@@ -335,6 +339,17 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree);
                 }
+                if (node.kind == Kind::Image) != node.image.is_some()
+                    || node.image.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || !node.text.is_empty()
+                            || !node.children.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
                 if (node.kind == Kind::Progress) != node.progress.is_some()
                     || node.progress.as_ref().is_some_and(|config| {
                         !config.is_valid()
@@ -433,6 +448,7 @@ impl Tree {
                     | Kind::Menu
                     | Kind::CommandPalette
                     | Kind::Progress
+                    | Kind::Image
                     | Kind::Text
                     | Kind::Button => {
                         if node.editor.is_some() {
@@ -562,6 +578,7 @@ impl Plan<'_> {
             | Op::SetCommandRef(id, ..)
             | Op::SetMenu(id, ..)
             | Op::SetPalette(id, ..)
+            | Op::SetImage(id, ..)
             | Op::SetProgress(id, ..)
             | Op::SetToast(id, ..)
             | Op::SetToastStack(id, ..)
@@ -635,6 +652,7 @@ impl Plan<'_> {
                             menu: None,
                             palette: None,
                             progress: None,
+                            image: None,
                             toast: None,
                             toast_stack: None,
                             drag_source: None,
@@ -712,6 +730,12 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.toast_stack = Some(Arc::new(config.clone()));
+            }
+            Op::SetImage(id, config) => {
+                if self.node(*id)?.kind != Kind::Image || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.image = Some(Arc::new(config.clone()));
             }
             Op::SetProgress(id, config) => {
                 if self.node(*id)?.kind != Kind::Progress || !config.is_valid() {

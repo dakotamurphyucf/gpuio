@@ -24,6 +24,11 @@ val release : t -> unit
 
 val is_released : t -> bool
 
+(** Immutable reference for pure image configurations. Available after successful
+    registration, including after release; it does not extend the registration's
+    lifetime. New bindings to a retired reference must fail locally. *)
+val handle : t -> Gpuio.Asset.Handle.t
+
 module Expert : sig
   (** Encoded identity for the owning app only. Not a portable or persistent ID.
       Returns [None] immediately upon release, before its acknowledgement. *)

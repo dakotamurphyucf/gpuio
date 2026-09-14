@@ -7,5 +7,6 @@ type t = Asset_registry.Registration.t
 let register = App.Expert.register_asset
 let release = Asset_registry.Registration.release
 let is_released = Asset_registry.Registration.is_released
+let handle = Asset_registry.Registration.handle
 
 module Expert = Asset_registry.Registration.Expert

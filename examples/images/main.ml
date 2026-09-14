@@ -1,0 +1,134 @@
+open Core
+module App = Gpuio_eio.App
+module Scope = Gpuio_eio.Scope
+module Asset = Gpuio_eio.Asset
+module Image = Gpuio.Image
+module View = Gpuio_bonsai.View
+module B = Bonsai.Cont
+module E = Bonsai.Effect
+
+let component ~asset ~phase ~observed ~status _window graph =
+  let phase = B.Expert.Var.value phase in
+  B.Edge.on_change
+    phase
+    ~equal:Int.equal
+    ~callback:(B.return (fun phase -> E.of_thunk (fun () -> observed := phase)))
+    graph;
+  let open B.Let_syntax in
+  let%arr asset = B.Expert.Var.value asset
+  and phase = phase in
+  match asset with
+  | None -> View.text "Registering image…"
+  | Some asset ->
+    let config =
+      Image.Config.create
+        ~asset
+        ~description:(Image.Description.label "Generated blue preview" |> Or_error.ok_exn)
+        ~fit:(if phase = 0 then Contain else Cover)
+        ()
+    in
+    View.column
+      [ View.text "An encoded asset, rendered by the native image view"
+      ; View.image
+          ~key:(Gpuio.Key.of_string_exn (if phase < 2 then "preview" else "remounted"))
+          ~style:
+            (Gpuio.Style.create_exn
+               [ Width (Gpuio.Length.px_exn 192.); Height (Gpuio.Length.px_exn 192.) ])
+          ~on_change:(fun state -> E.of_thunk (fun () -> status := Some state))
+          config
+      ]
+;;
+
+let () =
+  let self_test = Array.exists (Sys.get_argv ()) ~f:(String.equal "--self-test") in
+  let completed = ref false in
+  App.run (fun env app ->
+    let scope = App.scope app in
+    let asset = B.Expert.Var.create None in
+    let phase = B.Expert.Var.create 0 in
+    let observed = ref (-1) in
+    let status = ref None in
+    let window =
+      App.open_window
+        app
+        ~title:"GPUIO images"
+        ~width:480.
+        ~height:300.
+        (component ~asset ~phase ~observed ~status)
+      |> Or_error.ok_exn
+    in
+    Scope.start
+      scope
+      ~f:(fun () ->
+        let clock = Eio.Stdenv.clock env in
+        Eio.Time.with_timeout_exn clock 20. (fun () ->
+          let on_ui ui_effect =
+            let promise, resolver = Eio.Promise.create () in
+            Scope.Expert.enqueue scope (fun () ->
+              E.Expert.handle (E.map ui_effect ~f:(Eio.Promise.resolve resolver)));
+            Eio.Promise.await promise
+          in
+          let source =
+            Asset.Source.of_bytes
+              ~format:Pnm
+              ("P6\n4 4\n255\n"
+               ^ String.concat (List.init 16 ~f:(fun _ -> "\020\100\240")))
+            |> Or_error.ok_exn
+          in
+          let rec register () =
+            match on_ui (Asset.register app ~scope source) with
+            | Ok asset -> asset
+            | Error Not_ready ->
+              Eio.Time.sleep clock 0.005;
+              register ()
+            | Error error -> raise_s [%sexp (error : Asset.Error.t)]
+          in
+          let registered = register () in
+          B.Expert.Var.set asset (Some (Asset.handle registered));
+          let rec await_state predicate =
+            match !status with
+            | Some state when predicate state -> ()
+            | Some (Failed error) -> raise_s [%sexp (error : Image.Error.t)]
+            | Some Loading | Some (Ready _) | None ->
+              Eio.Time.sleep clock 0.005;
+              await_state predicate
+          in
+          await_state (function
+            | Ready metadata ->
+              Image.Metadata.width_px metadata = 4
+              && Image.Metadata.height_px metadata = 4
+            | Loading | Failed _ -> false);
+          if self_test
+          then (
+            Asset.release registered;
+            B.Expert.Var.set phase 1;
+            while !observed <> 1 do
+              Eio.Time.sleep clock 0.005
+            done;
+            let promise, resolver = Eio.Promise.create () in
+            App.Window.request_frame window ~on_rendered:(fun ~revision:_ ->
+              E.of_thunk (fun () -> Eio.Promise.resolve resolver ()))
+            |> Or_error.ok_exn;
+            Eio.Promise.await promise;
+            assert (
+              Option.exists !status ~f:(function
+                | Ready _ -> true
+                | Loading | Failed _ -> false));
+            B.Expert.Var.set phase 2;
+            await_state (function
+              | Failed Released -> true
+              | Loading | Ready _ | Failed _ -> false);
+            completed := true)))
+      ~on_result:(fun result ->
+        E.of_thunk (fun () ->
+          Or_error.ok_exn result;
+          if self_test then App.Window.close window))
+    |> Or_error.ok_exn
+    |> fun (_ : Scope.Task.t) -> ());
+  if self_test
+  then (
+    assert !completed;
+    Eio.traceln
+      "GPUIO_IMAGES_PUBLIC_OK: scoped upload, Bonsai image, native ready, restyle after \
+       retirement, remount rejection and shutdown")
+;;

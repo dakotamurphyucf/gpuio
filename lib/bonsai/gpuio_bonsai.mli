@@ -6,6 +6,14 @@ module View : sig
   type t = unit Bonsai.Effect.t Gpuio.View.t
   type toast = unit Bonsai.Effect.t Gpuio.View.toast
 
+  (** Pure image placement; register encoded bytes with [Gpuio_eio.Asset]. *)
+  val image
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?on_change:(Gpuio.Image.State.t -> unit Bonsai.Effect.t)
+    -> Gpuio.Image.Config.t
+    -> t
+
   val drag_source
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

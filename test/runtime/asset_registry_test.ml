@@ -123,6 +123,10 @@ let%expect_test
       | _ -> failwith "missing registration"
     in
     assert (Option.value_exn (Registry.Registration.Expert.native_id asset) |> Id.equal id);
+    let handle = Registry.Registration.handle asset in
+    assert (Gpuio.Asset.Expert.belongs_to handle ~owner:(Registry.Expert.owner registry));
+    assert (Gpuio.Asset.Format.equal (Gpuio.Asset.Handle.format handle) Png);
+    assert (Id.equal (Gpuio.Asset.Expert.native_id handle) id);
     assert ([%equal: int * int * int] (Registry.Expert.counts registry) (1, 0, 0));
     Registry.Registration.release asset;
     Registry.Registration.release asset;
@@ -134,6 +138,9 @@ let%expect_test
     Registry.complete registry Ack;
     assert (Option.is_none (Registry.next_request registry));
     assert ([%equal: int * int * int] (Registry.Expert.counts registry) (0, 0, 0));
+    assert (Gpuio.Asset.Handle.equal handle (Registry.Registration.handle asset));
+    Registry.close registry;
+    assert (Gpuio.Asset.Handle.equal handle (Registry.Registration.handle asset));
     print_endline "exact bytes; source freed; one retirement; retry acknowledged");
   [%expect {| exact bytes; source freed; one retirement; retry acknowledged |}]
 ;;

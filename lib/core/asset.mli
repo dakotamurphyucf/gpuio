@@ -37,3 +37,38 @@ module Source : sig
   val bytes : t -> string
   val byte_length : t -> int
 end
+
+module Handle : sig
+  (** Immutable reference to one encoded registration in one application.
+      It holds no encoded bytes, scope, callback or runtime. Equality includes
+      application lifetime as well as the native slot/generation. This value is
+      neither portable between applications nor suitable for persistence.
+
+      Keeping it does not keep the registration alive. Releasing the registration
+      prevents new native bindings; already mounted readers keep their own leases. *)
+  type t [@@deriving equal, sexp_of]
+
+  (** Declared source format, not a successful decode result. *)
+  val format : t -> Format.t
+end
+
+module Expert : sig
+  module Owner : sig
+    type t
+
+    (** Fresh application identity; deliberate allocation identity. Contains no
+        runtime or I/O capability, and must never be serialized. *)
+    val create : unit -> t
+
+    val equal : t -> t -> bool
+  end
+
+  val handle
+    :  owner:Owner.t
+    -> id:Gpuio_protocol.Resource_id.t
+    -> format:Format.t
+    -> Handle.t
+
+  val belongs_to : Handle.t -> owner:Owner.t -> bool
+  val native_id : Handle.t -> Gpuio_protocol.Resource_id.t
+end

@@ -1,8 +1,9 @@
 open Core
 module Asset = Asset_wire
+module Image = Image_wire
 
 let version = 1L
-let capabilities = 4194303L
+let capabilities = 8388607L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -29,6 +30,7 @@ module Kind = struct
     | Pointer_area
     | Drag_source
     | Drop_target
+    | Image
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -669,6 +671,7 @@ module Op = struct
     | Set_pointer of Node_id.t * Pointer.Config.t
     | Set_drag_source of Node_id.t * Drag_and_drop.Source.t
     | Set_drop_target of Node_id.t * Drag_and_drop.Target.t
+    | Set_image of Node_id.t * Image.Config.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -888,6 +891,7 @@ module Event = struct
     | Drop_target_event of
         Window_id.t * Node_id.t * Handler_id.t * int64 * Drag_and_drop.Target_sample.t
     | Asset_response of int64 * Asset.Response.t
+    | Image_state of Window_id.t * Node_id.t * Handler_id.t * int64 * Image.State.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -907,6 +911,20 @@ module Event = struct
   ;;
 
   let rec valid_event = function
+    | Image_state (_, _, _, revision, state) ->
+      Int64.(revision >= 0L)
+      &&
+        (match state with
+        | Loading | Failed _ -> true
+        | Ready { width_px; height_px; frames } ->
+          Int64.(
+            width_px > 0L
+            && width_px <= 16384L
+            && height_px > 0L
+            && height_px <= 16384L
+            && frames > 0L
+            && frames <= 120L
+            && width_px * height_px * 4L * frames <= 67108864L))
     | Asset_response (correlation, _) -> Int64.(correlation > 0L)
     | File_dialog_result (request, _, Selected paths) ->
       Int64.(request > 0L)

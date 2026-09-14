@@ -99,7 +99,7 @@ jobs:
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_editor --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_controls --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-tests --all-targets -- -D warnings
-          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_images --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_images --test native_image_views --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-image-tests --all-targets -- -D warnings
       - name: macOS public runtime checks
         if: runner.os == 'macOS'
@@ -120,6 +120,8 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_images"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-images-native.log
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_image_views"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-image-views-native.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/images/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-images-public.log
       - name: macOS native editor checks
         if: runner.os == 'macOS'
         run: |

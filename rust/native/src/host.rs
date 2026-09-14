@@ -33,6 +33,8 @@ mod editor;
 pub(super) mod editor_test;
 #[path = "focus.rs"]
 mod focus;
+#[path = "image_view.rs"]
+pub(crate) mod image_view;
 #[path = "menu.rs"]
 mod menu;
 #[path = "menu_platform.rs"]
@@ -82,6 +84,7 @@ struct View {
     id: WindowId,
     session: SharedSession,
     transport: Arc<Transport>,
+    images: BTreeMap<NodeId, image_view::State>,
     buttons: BTreeMap<NodeId, Rc<ButtonState>>,
     selections: BTreeMap<NodeId, Rc<RefCell<crate::selection::State>>>,
     editors: BTreeMap<NodeId, editor::Instance>,
@@ -265,6 +268,7 @@ impl View {
             focus: focus::Manager::new(id, session.clone()),
             session,
             transport,
+            images: BTreeMap::new(),
             buttons: BTreeMap::new(),
             selections: BTreeMap::new(),
             editors: BTreeMap::new(),
@@ -292,6 +296,7 @@ impl View {
         self.install_command_interceptor(window, cx);
         self.install_pointer_observer(window, cx);
         self.install_menu_observers(window, cx);
+        self.sync_images(dirty, window, cx);
         self.sync_palettes(window, cx);
         self.sync_toasts(cx);
         self.sync_tooltips(window, cx);
@@ -417,6 +422,9 @@ impl View {
             element = element
                 .role(gpui::Role::Group)
                 .aria_label(config.label.clone());
+        }
+        if let Some(config) = &node.image {
+            element = self.image_element(tree, node, config, element, window, cx);
         }
         if let Some(config) = &node.progress {
             element = element
@@ -781,6 +789,7 @@ impl View {
             && node.choice.is_none()
             && node.overlay.is_none()
             && node.pointer.is_none()
+            && node.image.is_none()
             && !disabled
         {
             let window = self.id;

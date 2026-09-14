@@ -1167,6 +1167,14 @@ fn accessible(
 ) -> Option<Accessible> {
     accessible_with_role(cx, handle, label, None, press)
 }
+#[cfg(all(target_os = "macos", feature = "native-image-tests"))]
+pub(super) fn accessible_role(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    label: &str,
+) -> Option<String> {
+    accessible(cx, handle, label, false).map(|node| node.role)
+}
 #[cfg(target_os = "macos")]
 #[derive(Clone, Copy)]
 enum AccessibilityRequest<'a> {

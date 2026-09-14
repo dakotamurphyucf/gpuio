@@ -25,6 +25,7 @@ module Kind = struct
     | Pointer_area
     | Drag_source
     | Drop_target
+    | Image
   [@@deriving equal, sexp_of]
 end
 
@@ -117,6 +118,11 @@ type 'action notification =
   ; on_dismiss : Toast.Dismissal.t -> 'action
   }
 
+type 'action image =
+  { config : Image.Config.t
+  ; on_change : (Image.State.t -> 'action) option
+  }
+
 type 'action t =
   { key : Key.t option
   ; kind : Kind.t
@@ -137,6 +143,7 @@ type 'action t =
   ; notification : 'action notification option
   ; toast_stack : Toast.Stack.t option
   ; progress : Progress.Config.t option
+  ; image : 'action image option
   ; palette : 'action palette option
   ; menu : menu option
   ; focus_scope : Focus_scope.t option
@@ -164,6 +171,7 @@ let text ?key ?(style = Style.empty) text =
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; image = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -214,6 +222,7 @@ let button ?key ?(style = Style.empty) ?accessible_name ?(disabled = false) ~on_
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; image = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -269,6 +278,7 @@ let toggle
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; image = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -320,6 +330,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; image = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -339,6 +350,7 @@ let focus_scope ?key ?style ~config children =
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; image = None
   ; palette = None
   ; menu = None
   ; focus_scope = Some config
@@ -508,6 +520,7 @@ let text_input
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; image = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -536,6 +549,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; image = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -586,6 +600,7 @@ let combobox
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; image = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -658,7 +673,16 @@ let toast_stack ?key ?(style = Style.empty) ?(config = Toast.Stack.default) item
       { (column ?key ~style children) with kind = Toast_stack; toast_stack = Some config }
 ;;
 
+let image ?key ?(style = Style.empty) ?on_change config =
+  { (text ?key ~style "") with kind = Image; image = Some { config; on_change } }
+;;
+
 module Expert = struct
+  type nonrec 'action image = 'action image =
+    { config : Image.Config.t
+    ; on_change : (Image.State.t -> 'action) option
+    }
+
   type nonrec 'action drag_source = 'action drag_source =
     { config : Drag_and_drop.Source.t
     ; on_event : Drag_and_drop.Source_event.t -> 'action
@@ -744,6 +768,7 @@ module Expert = struct
     ; notification : 'action notification option
     ; toast_stack : Toast.Stack.t option
     ; progress : Progress.Config.t option
+    ; image : 'action image option
     ; palette : 'action palette option
     ; menu : menu option
     ; focus_scope : Focus_scope.t option

@@ -325,7 +325,14 @@ let open_window t ?(theme = Gpuio.Theme.default) ~title ~width ~height component
       let%bind scope = Scope.child t.scope ~name:"window" in
       let window = { app = t; id; scope; phase = Opening; driver = None } in
       let driver =
-        try Driver.create id ~start:(t.now ()) ~theme (component window) with
+        try
+          Driver.create
+            ~asset_owner:(Asset_registry.Expert.owner t.asset_registry)
+            id
+            ~start:(t.now ())
+            ~theme
+            (component window)
+        with
         | exn ->
           Scope.cancel scope;
           raise exn
@@ -375,6 +382,7 @@ let process t = function
     | Palette_dismissed (id, _, _, _, _)
     | Toast_dismissed (id, _, _, _, _)
     | Drag_source_event (id, _, _, _, _)
+    | Image_state (id, _, _, _, _)
     | Drop_target_event (id, _, _, _, _)
     | Pointer_event (id, _, _, _, _)
     | Overlay_dismissed (id, _, _, _, _)
