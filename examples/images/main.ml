@@ -7,7 +7,7 @@ module View = Gpuio_bonsai.View
 module B = Bonsai.Cont
 module E = Bonsai.Effect
 
-let component ~icon ~asset ~phase ~observed ~status _window graph =
+let component ~clicks ~icon ~asset ~phase ~observed ~status _window graph =
   let phase = B.Expert.Var.value phase in
   B.Edge.on_change
     phase
@@ -16,6 +16,7 @@ let component ~icon ~asset ~phase ~observed ~status _window graph =
     graph;
   let open B.Let_syntax in
   let%arr asset = B.Expert.Var.value asset
+  and count = B.Expert.Var.value clicks
   and phase = phase in
   match asset with
   | None -> View.text "Registering image…"
@@ -47,8 +48,40 @@ let component ~icon ~asset ~phase ~observed ~status _window graph =
           ~on_change
           (Image.Config.create ~asset ~description ~fit ())
     in
+    let controls =
+      if not icon
+      then []
+      else (
+        let decoration = Gpuio.Icon.Decoration.create ~asset () |> Or_error.ok_exn in
+        let invoke () = E.of_thunk (fun () -> B.Expert.Var.set clicks (count + 1)) in
+        let command = Gpuio.Command.Id.of_string "send" |> Or_error.ok_exn in
+        let commands =
+          [ Gpuio.Command.create
+              ~id:command
+              ~label:("Run command (" ^ Int.to_string count ^ ")")
+              ~on_invoke:invoke
+              ()
+            |> Or_error.ok_exn
+          ]
+          |> Gpuio.Command.Registry.create
+          |> Or_error.ok_exn
+        in
+        [ View.row
+            [ View.button
+                ~leading_icon:decoration
+                ?trailing_icon:(if phase = 0 then Some decoration else None)
+                ~on_click:(invoke ())
+                "Send"
+            ; View.icon_button ~label:"Send icon" ~on_click:(invoke ()) decoration
+            ]
+        ; View.command_scope
+            ~commands
+            [ View.command_button ~command ~trailing_icon:decoration () ]
+        ])
+    in
     View.column
-      [ View.text "An encoded asset, rendered by the native image view"; preview ]
+      ([ View.text "An encoded asset, rendered by the native image view"; preview ]
+       @ controls)
 ;;
 
 let () =
@@ -59,6 +92,7 @@ let () =
   App.run (fun env app ->
     let scope = App.scope app in
     let asset = B.Expert.Var.create None in
+    let clicks = B.Expert.Var.create 0 in
     let phase = B.Expert.Var.create 0 in
     let observed = ref (-1) in
     let status = ref None in
@@ -68,7 +102,7 @@ let () =
         ~title:"GPUIO images"
         ~width:480.
         ~height:300.
-        (component ~icon ~asset ~phase ~observed ~status)
+        (component ~clicks ~icon ~asset ~phase ~observed ~status)
       |> Or_error.ok_exn
     in
     Scope.start

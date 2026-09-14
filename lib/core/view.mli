@@ -12,8 +12,21 @@ val button
   -> ?style:Style.t
   -> ?accessible_name:string
   -> ?disabled:bool
+  -> ?leading_icon:Icon.Decoration.t
+  -> ?trailing_icon:Icon.Decoration.t
   -> on_click:(unit -> 'action)
   -> string
+  -> 'action t
+
+(** Icon-only button with a required accessible label. The icon has no separate
+    focus/action target. [style] customizes the button; the decoration styles its icon. *)
+val icon_button
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?disabled:bool
+  -> label:string
+  -> on_click:(unit -> 'action)
+  -> Icon.Decoration.t
   -> 'action t
 
 (** Controlled application values. Activation emits an intent, never a Boolean
@@ -53,6 +66,8 @@ val command_scope
 val command_button
   :  ?key:Key.t
   -> ?style:Style.t
+  -> ?leading_icon:Icon.Decoration.t
+  -> ?trailing_icon:Icon.Decoration.t
   -> command:Command.Id.t
   -> unit
   -> 'action t

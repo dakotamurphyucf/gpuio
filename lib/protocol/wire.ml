@@ -3,7 +3,7 @@ module Asset = Asset_wire
 module Image = Image_wire
 
 let version = 1L
-let capabilities = 16777215L
+let capabilities = 33554431L
 let max_message_bytes = 1_048_576
 
 module Kind = struct

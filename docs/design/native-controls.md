@@ -781,3 +781,43 @@ allocate an ancestor vector for every mouse move. The
 [local evidence report](../evidence/native-pointer-och11.md) separates protocol,
 native window and public lifecycle checks. Drag/drop and file dialogs remain
 separate OCH-11 work; captured mouse input does not complete those APIs.
+
+
+## Decorative button icons
+
+`Icon.Decoration.create ~asset ?style ()` validates an SVG handle and creates a
+pure decorative control adornment. It defaults to 16 logical pixels square, no
+shrinking, and inherited foreground; explicit styles override the defaults.
+Decorations do not have their own accessible name, focus target or callback.
+
+Both `View.button` and `View.command_button` accept optional `~leading_icon` and
+`~trailing_icon`. `View.icon_button ~label ~on_click decoration` provides an icon-only
+button with a required accessible label. Button styles and icon styles remain
+separate: the outer button owns padding, background, focus/disabled appearance and
+activation; the decoration controls icon dimensions and appearance. Bonsai's wrappers
+accept effects with the same public conventions as existing buttons.
+
+```ocaml
+let send_icon = Icon.Decoration.create ~asset:send_svg () |> Or_error.ok_exn in
+View.button ~leading_icon:send_icon ~on_click "Send"
+(* Or: View.icon_button ~label:"Send message" ~on_click send_icon *)
+```
+
+Decorated buttons add row/center/gap defaults, with caller styles taking precedence.
+The native renderer lays out a present leading icon, the current button/registry
+label, and a present trailing icon. Empty slots do not paint or add gaps. Command
+labels stay native and reflect registry changes without copying text into a separate
+OCaml-owned child. Icon source ownership and tinting reuse the image pipeline,
+including mounted resampling after asset retirement. A failed decoration is local
+and does not turn the button into an invalid action target.
+
+The internal tree contract is deliberately constrained: a decorated Button or
+CommandButton has exactly two keyed Container slots; each has zero or one decorative
+Icon leaf. Slots and icons cannot have callbacks or separate labels. Other controls
+cannot be nested here. Validation runs for changed ancestors, including nonstructural
+Bind/SetImage updates, and rejects invalid transactions atomically. Removing one icon
+preserves the other slot's identity and the button's existing handler/focus target.
+`CAP_BUTTON_ICONS` is 16777216; the aggregate bridge mask is 33554431. The existing
+Create/Splice/image encodings are reused, without a new action/config message family.
+
+See [button icon evidence](../evidence/button-icons-och11.md).

@@ -105,8 +105,8 @@ Current OCH-11 summary: the controls/commands/focus/overlays, pointer capture,
 file-dialog bridge and drag/drop behaviors below are implemented and validated
 locally. Drag/drop includes actual AppKit handoff/reentry/cancel/unmount and held-
 gesture close/shutdown checks. Raster/SVG assets, bounded caches and foreground-tinted icons now pass local
-integration checks. Remaining work includes icon/control composition acceptance,
-full theme/scale integration, remaining native state/basic transitions, scrolling
+integration checks. Decorative button/command-button icon slots also pass local
+checks. Remaining work includes full theme/scale integration, remaining native state/basic transitions, scrolling
 and aggregate lifetime checks. Consolidated macOS/Linux CI and merge
 remain. The chronological checkpoints below distinguish earlier partial states
 from later validation; they do not all describe the latest remaining scope.
@@ -444,3 +444,11 @@ Image corner propagation now passes an actual native regression: asymmetric rast
 corners and changing icon hover radii clip the pixels while preserving center color,
 image lifetime and AXImage semantics. See [clipping evidence](evidence/assets-och11.md#native-image-corner-clipping).
 Icon/control composition and the remaining OCH-11 acceptance/gates are still pending.
+
+
+Decorative leading/trailing button icons and labelled icon-only buttons now compose
+with existing native activation/focus/accessibility. Core identity tests, native atomic
+slot validation, actual GPU/AXButton and synthetic GPUI input/command-label checks pass.
+Public raster/SVG/icon example modes pass with the new button compositions. See
+[button icon evidence](evidence/button-icons-och11.md). OCH-11 remains in progress;
+remaining theme/state/transitions, scrolling/lifetimes and consolidated gates remain.

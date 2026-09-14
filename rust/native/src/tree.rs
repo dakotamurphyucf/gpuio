@@ -8,6 +8,8 @@ fn allows_children(kind: Kind) -> bool {
     matches!(
         kind,
         Kind::Container
+            | Kind::Button
+            | Kind::CommandButton
             | Kind::FocusScope
             | Kind::Tooltip
             | Kind::CommandScope
@@ -492,6 +494,9 @@ impl Tree {
                 id = plan.node(current)?.parent;
             }
         }
+        for id in &dirty {
+            plan.validate_button_icons(*id)?;
+        }
         if let Some(root) = plan.root {
             dirty.insert(root);
         }
@@ -537,6 +542,42 @@ struct Plan<'a> {
 }
 
 impl Plan<'_> {
+    // Buttons retain one action/focus target. Their optional children represent
+    // two fixed decorative icon slots, never nested controls or callbacks.
+    // Run for dirty ancestors too: Bind/SetImage can invalidate a slot without
+    // changing the structural edges.
+    fn validate_button_icons(&self, id: NodeId) -> Result<(), ErrorCode> {
+        let node = self.node(id)?;
+        if !matches!(node.kind, Kind::Button | Kind::CommandButton) || node.children.is_empty() {
+            return Ok(());
+        }
+        if node.children.len() != 2 {
+            return Err(ErrorCode::InvalidTree);
+        }
+        for slot in node.children.iter() {
+            let slot = self.node(*slot)?;
+            if slot.kind != Kind::Container
+                || slot.handler.is_some()
+                || !slot.text.is_empty()
+                || slot.children.len() > 1
+            {
+                return Err(ErrorCode::InvalidTree);
+            }
+            if let Some(icon) = slot.children.first() {
+                let icon = self.node(*icon)?;
+                if icon.kind != Kind::Icon
+                    || icon.handler.is_some()
+                    || !icon
+                        .image
+                        .as_ref()
+                        .is_some_and(|image| image.label.is_none())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+            }
+        }
+        Ok(())
+    }
     fn slot(&self, index: usize) -> Option<&Slot> {
         self.changes
             .get(&index)

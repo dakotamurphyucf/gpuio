@@ -742,6 +742,27 @@ impl View {
             if !node.text.is_empty() {
                 element = element.child(gpui::SharedString::from(node.text.clone()));
             }
+        } else if matches!(node.kind, Kind::Button | Kind::CommandButton)
+            && !node.children.is_empty()
+        {
+            let [leading, trailing] = node.children.as_ref() else {
+                unreachable!("validated button icon slots")
+            };
+            if tree
+                .get(*leading)
+                .is_some_and(|slot| !slot.children.is_empty())
+            {
+                element = element.child(self.element(tree, *leading, interaction, window, cx));
+            }
+            if !label.is_empty() {
+                element = element.child(gpui::SharedString::from(label));
+            }
+            if tree
+                .get(*trailing)
+                .is_some_and(|slot| !slot.children.is_empty())
+            {
+                element = element.child(self.element(tree, *trailing, interaction, window, cx));
+            }
         } else if !label.is_empty() {
             element = element.child(gpui::SharedString::from(label));
         }
@@ -764,6 +785,7 @@ impl View {
         element = element.children(
             node.children
                 .iter()
+                .filter(|_| !matches!(node.kind, Kind::Button | Kind::CommandButton))
                 .map(|id| self.element(tree, *id, interaction, window, cx))
                 .collect::<Vec<_>>(),
         );

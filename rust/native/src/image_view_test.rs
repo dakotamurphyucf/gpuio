@@ -1,5 +1,7 @@
 //! Real background window rendering through the production declarative View.
 use super::*;
+#[path = "button_icon_test.rs"]
+mod buttons;
 #[path = "image_svg_view_test.rs"]
 mod svg;
 use crate::{session::Session, transport::Transport};
@@ -198,6 +200,7 @@ pub(crate) fn run() {
                 window.update(cx, |view, _, _| assert!(view.images.is_empty())).unwrap();
                 assert_eq!(session.borrow_mut().assets().unwrap().stats().retired, 0);
                 svg::exercise(cx, window, &session).await;
+                buttons::exercise(cx, window, &session, &transport).await;
                 image_host::shutdown(cx).await;
                 window.update(cx, |_, window, _| window.remove_window()).unwrap();
                 eprintln!("GPUIO_NATIVE_IMAGE_VIEWS_OK: actual pixels, accepted mount retirement, restyle, replacement, local errors, state events and disposal");

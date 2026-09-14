@@ -181,6 +181,69 @@ let text ?key ?(style = Style.empty) text =
   }
 ;;
 
+let image ?key ?(style = Style.empty) ?on_change config =
+  { (text ?key ~style "") with kind = Image; image = Some { config; on_change } }
+;;
+
+let icon ?key ?style ?on_change config =
+  { (image ?key ?style ?on_change (Icon.Expert.image config)) with kind = Icon }
+;;
+
+let container ?key ?(style = Style.empty) defaults children =
+  { key
+  ; kind = Container
+  ; text = ""
+  ; style = Style.merge [ Style.create_exn defaults; style ]
+  ; on_click = None
+  ; editor = None
+  ; choice = None
+  ; combobox = None
+  ; overlay = None
+  ; tooltip = None
+  ; commands = None
+  ; command_ref = None
+  ; drag_source = None
+  ; drop_target = None
+  ; pointer = None
+  ; notification = None
+  ; toast_stack = None
+  ; progress = None
+  ; image = None
+  ; palette = None
+  ; menu = None
+  ; focus_scope = None
+  ; control = None
+  ; children
+  }
+;;
+
+let icon_slots leading trailing =
+  match leading, trailing with
+  | None, None -> []
+  | _ ->
+    List.map
+      [ "leading-icon", leading; "trailing-icon", trailing ]
+      ~f:(fun (key, decoration) ->
+        let children =
+          Option.to_list decoration
+          |> List.map ~f:(fun decoration ->
+            let config, style = Icon.Expert.decoration decoration in
+            icon ~style config)
+        in
+        container ~key:(Key.of_string_exn key) [] children)
+;;
+
+let icon_button_style style children =
+  if List.is_empty children
+  then style
+  else
+    Style.merge
+      [ Style.create_exn
+          [ Display Flex; Direction Row; Align_items Center; Gap (Length.px_exn 8.) ]
+      ; style
+      ]
+;;
+
 let button_style style =
   let defaults =
     Style.create_exn
@@ -198,8 +261,18 @@ let button_style style =
   Style.merge [ defaults; style ]
 ;;
 
-let button ?key ?(style = Style.empty) ?accessible_name ?(disabled = false) ~on_click text
+let button
+      ?key
+      ?(style = Style.empty)
+      ?accessible_name
+      ?(disabled = false)
+      ?leading_icon
+      ?trailing_icon
+      ~on_click
+      text
   =
+  let children = icon_slots leading_icon trailing_icon in
+  let style = icon_button_style style children in
   let style =
     match accessible_name with
     | None -> style
@@ -228,8 +301,12 @@ let button ?key ?(style = Style.empty) ?accessible_name ?(disabled = false) ~on_
   ; menu = None
   ; focus_scope = None
   ; control = Some (Button { disabled })
-  ; children = []
+  ; children
   }
+;;
+
+let icon_button ?key ?style ?disabled ~label ~on_click icon =
+  button ?key ?style ?disabled ~accessible_name:label ~leading_icon:icon ~on_click ""
 ;;
 
 let toggle
@@ -312,34 +389,6 @@ let switch ?key ?style ?accessible_name ?(disabled = false) ~checked ~on_toggle 
     text
 ;;
 
-let container ?key ?(style = Style.empty) defaults children =
-  { key
-  ; kind = Container
-  ; text = ""
-  ; style = Style.merge [ Style.create_exn defaults; style ]
-  ; on_click = None
-  ; editor = None
-  ; choice = None
-  ; combobox = None
-  ; overlay = None
-  ; tooltip = None
-  ; commands = None
-  ; command_ref = None
-  ; drag_source = None
-  ; drop_target = None
-  ; pointer = None
-  ; notification = None
-  ; toast_stack = None
-  ; progress = None
-  ; image = None
-  ; palette = None
-  ; menu = None
-  ; focus_scope = None
-  ; control = None
-  ; children
-  }
-;;
-
 let focus_scope ?key ?style ~config children =
   { (container ?key ?style [] children) with
     kind = Focus_scope
@@ -413,13 +462,17 @@ let command_scope ?key ?style ~commands children =
   }
 ;;
 
-let command_button ?key ?style ~command () =
-  let style = button_style (Option.value style ~default:Style.empty) in
+let command_button ?key ?style ?leading_icon ?trailing_icon ~command () =
+  let children = icon_slots leading_icon trailing_icon in
+  let style =
+    button_style (icon_button_style (Option.value style ~default:Style.empty) children)
+  in
   { (text ?key ~style "") with
     kind = Command_button
   ; on_click = None
   ; control = None
   ; command_ref = Some command
+  ; children
   }
 ;;
 
@@ -672,14 +725,6 @@ let toast_stack ?key ?(style = Style.empty) ?(config = Toast.Stack.default) item
   else
     Ok
       { (column ?key ~style children) with kind = Toast_stack; toast_stack = Some config }
-;;
-
-let image ?key ?(style = Style.empty) ?on_change config =
-  { (text ?key ~style "") with kind = Image; image = Some { config; on_change } }
-;;
-
-let icon ?key ?style ?on_change config =
-  { (image ?key ?style ?on_change (Icon.Expert.image config)) with kind = Icon }
 ;;
 
 module Expert = struct

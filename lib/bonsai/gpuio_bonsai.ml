@@ -11,14 +11,35 @@ module View = struct
   let image = Gpuio.View.image
   let text = Gpuio.View.text
 
-  let button ?key ?style ?accessible_name ?disabled ~on_click text =
+  let button
+        ?key
+        ?style
+        ?accessible_name
+        ?disabled
+        ?leading_icon
+        ?trailing_icon
+        ~on_click
+        text
+    =
     Gpuio.View.button
       ?key
       ?style
       ?accessible_name
       ?disabled
+      ?leading_icon
+      ?trailing_icon
       ~on_click:(fun () -> on_click)
       text
+  ;;
+
+  let icon_button ?key ?style ?disabled ~label ~on_click icon =
+    Gpuio.View.icon_button
+      ?key
+      ?style
+      ?disabled
+      ~label
+      ~on_click:(fun () -> on_click)
+      icon
   ;;
 
   let checkbox ?key ?style ?accessible_name ?disabled ~state ~on_toggle text =

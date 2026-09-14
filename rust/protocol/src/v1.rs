@@ -34,7 +34,9 @@ pub const CAP_DRAG_DROP: i64 = 1048576;
 pub const CAP_ASSETS: i64 = 2097152;
 pub const CAP_IMAGES: i64 = 4194304;
 pub const CAP_SVG: i64 = 8388608;
-pub const CAPABILITIES: i64 = CAP_SVG
+pub const CAP_BUTTON_ICONS: i64 = 16777216;
+pub const CAPABILITIES: i64 = CAP_BUTTON_ICONS
+    | CAP_SVG
     | CAP_IMAGES
     | CAP_ASSETS
     | CAP_TREE

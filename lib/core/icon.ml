@@ -10,6 +10,25 @@ module Config = struct
   ;;
 end
 
+module Decoration = struct
+  type t =
+    { config : Config.t
+    ; style : Style.t
+    }
+  [@@deriving equal, sexp_of]
+
+  let create ~asset ?(style = Style.empty) () =
+    let open Or_error.Let_syntax in
+    let%map config = Config.create ~asset ~description:Image.Description.decorative () in
+    let defaults =
+      Style.create_exn
+        [ Width (Length.px_exn 16.); Height (Length.px_exn 16.); Shrink 0. ]
+    in
+    { config; style = Style.merge [ defaults; style ] }
+  ;;
+end
+
 module Expert = struct
   let image t = t
+  let decoration { Decoration.config; style } = config, style
 end

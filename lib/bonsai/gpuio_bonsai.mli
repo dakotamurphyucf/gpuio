@@ -67,8 +67,19 @@ module View : sig
     -> ?style:Gpuio.Style.t
     -> ?accessible_name:string
     -> ?disabled:bool
+    -> ?leading_icon:Gpuio.Icon.Decoration.t
+    -> ?trailing_icon:Gpuio.Icon.Decoration.t
     -> on_click:unit Bonsai.Effect.t
     -> string
+    -> t
+
+  val icon_button
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?disabled:bool
+    -> label:string
+    -> on_click:unit Bonsai.Effect.t
+    -> Gpuio.Icon.Decoration.t
     -> t
 
   val checkbox
@@ -141,6 +152,8 @@ module View : sig
   val command_button
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
+    -> ?leading_icon:Gpuio.Icon.Decoration.t
+    -> ?trailing_icon:Gpuio.Icon.Decoration.t
     -> command:Gpuio.Command.Id.t
     -> unit
     -> t
