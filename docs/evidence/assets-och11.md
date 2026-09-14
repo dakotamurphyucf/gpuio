@@ -272,3 +272,55 @@ compiles the image-view target on both platforms and schedules its macOS native
 and public smoke checks. Nothing has been pushed; no hosted or Linux execution is
 claimed. Remaining OCH-11 work includes SVG/icons, theme/scale/state/transitions,
 scroll routing, aggregate lifetime review and consolidated platform gates/merge.
+
+
+## SVG/icon integration — local macOS continuation
+
+The public image path now renders full-color SVG; `Icon.Config` and `View.icon`
+provide a validated SVG alpha-mask icon tinted by native foreground. The adapter
+uses measured viewport pixels, device density, fit and tint as bounded cache keys.
+It retains the mounted source through native resampling after registration release.
+The [design](../design/assets.md#svg-and-monochrome-icons) records parsing/resource,
+font discovery, output and failure contracts, including limits that are not RSS bounds.
+
+Observed local macOS evidence:
+
+- Six SVG decoder tests cover alpha/colors/tint, gradients, clipping/internal use,
+  embedded raster/nested SVG, malformed/external resources, bounded SVGZ/XML,
+  deterministic supplied-font text and missing fonts. All five fits match pinned
+  GPUI bounds at device densities 1 and 2 using actual rendered pixels.
+- Cache tests cover shared variants, out-of-order completion, density/fit/tint keys,
+  foreign-cache rejection and resampling a mounted lease after retirement. Dropping
+  all mounted owners releases retired encoded bytes even with warm pixel entries.
+- The production `native_image_views` test passes with `focus:false`, asserting
+  actual GPU pixels for full-color SVG, asynchronous native resize to 144x96 without
+  a tree commit, post-retirement resampling and green/orange/purple icon foregrounds.
+  Hover uses synthetic GPUI mouse dispatch; it is not an OS input/focus test. Native
+  window scale is read directly; changing physical monitors was not tested.
+- Removal releases the weak canvas binding immediately and clears retired encoded
+  leases. Existing raster pixels, failure states and macOS AXImage tests still pass
+  in the same run.
+- Core expect tests validate SVG-only icon configuration and replacement of an image
+  with an icon. Both OCaml and Rust independently construct the shared Icon-kind
+  request fixture. Rust rejects every truncated fixture prefix.
+- Public `examples/images/main.exe --self-test` passes in default raster, `--svg`
+  and `--icon` modes: upload, Bonsai view/native Ready metadata, restyle after
+  retirement, remount rejection and shutdown. This proves public FFI/event integration;
+  the separate native test proves GPU pixels.
+- Full Dune `@all @runtest @fmt`, `cargo test --locked --workspace` and
+  feature-enabled native all-target Clippy with warnings denied pass locally.
+  A misplaced OCaml doc comment was corrected before the final successful Dune run.
+
+The native binary was built with:
+
+```sh
+./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_image_views --no-run
+```
+
+It ran under a 45-second subprocess timeout; each public example mode used 35 seconds.
+Logs: `assets-svg-native-run.log`, `assets-{raster,svg,icon}-public-run.log`,
+`assets-svg-dune.log` and `assets-svg-workspace.log` in the agent's ignored scratch
+notepad directory. CI schedules all three public modes, but has not run this change.
+Image corner clipping/composition, remaining theme/state/transitions and scrolling
+acceptance, aggregate lifetimes, consolidated macOS/Linux gates and merge remain
+OCH-11 work. OCH-12 follows; this is not milestone completion.

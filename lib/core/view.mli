@@ -216,6 +216,15 @@ val image
   -> Image.Config.t
   -> 'action t
 
+(** SVG alpha mask tinted by the native foreground, with ordinary logical
+    layout styles. Source bytes are registered once; size/tint updates stay native. *)
+val icon
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?on_change:(Image.State.t -> 'action)
+  -> Icon.Config.t
+  -> 'action t
+
 (** A noninteractive native progress bar. Root Background styles the track and
     Foreground styles the indicator. Indeterminate motion stays on the native side;
     updates retain node identity. The accessible value is a percentage or absent
@@ -329,6 +338,7 @@ module Expert : sig
       | Drag_source
       | Drop_target
       | Image
+      | Icon
     [@@deriving equal, sexp_of]
   end
 

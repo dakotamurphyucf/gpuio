@@ -7,6 +7,7 @@ module View = struct
   let pointer_area = Gpuio.View.pointer_area
   let toast = Gpuio.View.toast
   let toast_stack = Gpuio.View.toast_stack
+  let icon = Gpuio.View.icon
   let image = Gpuio.View.image
   let text = Gpuio.View.text
 

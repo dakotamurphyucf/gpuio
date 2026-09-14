@@ -46,7 +46,7 @@ fn limits() -> image::Limits {
     limits
 }
 
-fn pixel_bytes(width: u32, height: u32) -> Result<usize, Error> {
+pub(crate) fn pixel_bytes(width: u32, height: u32) -> Result<usize, Error> {
     if width == 0 || height == 0 {
         return Err(Error::InvalidData);
     }

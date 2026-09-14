@@ -7,7 +7,7 @@ module View = Gpuio_bonsai.View
 module B = Bonsai.Cont
 module E = Bonsai.Effect
 
-let component ~asset ~phase ~observed ~status _window graph =
+let component ~icon ~asset ~phase ~observed ~status _window graph =
   let phase = B.Expert.Var.value phase in
   B.Edge.on_change
     phase
@@ -20,27 +20,41 @@ let component ~asset ~phase ~observed ~status _window graph =
   match asset with
   | None -> View.text "Registering image…"
   | Some asset ->
-    let config =
-      Image.Config.create
-        ~asset
-        ~description:(Image.Description.label "Generated blue preview" |> Or_error.ok_exn)
-        ~fit:(if phase = 0 then Contain else Cover)
-        ()
+    let description = Image.Description.label "Generated preview" |> Or_error.ok_exn in
+    let fit = if phase = 0 then Image.Fit.Contain else Cover in
+    let key = Gpuio.Key.of_string_exn (if phase < 2 then "preview" else "remounted") in
+    let style =
+      Gpuio.Style.create_exn
+        [ Width (Gpuio.Length.px_exn 192.)
+        ; Height (Gpuio.Length.px_exn 192.)
+        ; Foreground
+            (Gpuio.Color.rgba ~red:51 ~green:102 ~blue:204 ~alpha:255 |> Or_error.ok_exn)
+        ]
+    in
+    let on_change state = E.of_thunk (fun () -> status := Some state) in
+    let preview =
+      if icon
+      then
+        View.icon
+          ~key
+          ~style
+          ~on_change
+          (Gpuio.Icon.Config.create ~asset ~description ~fit () |> Or_error.ok_exn)
+      else
+        View.image
+          ~key
+          ~style
+          ~on_change
+          (Image.Config.create ~asset ~description ~fit ())
     in
     View.column
-      [ View.text "An encoded asset, rendered by the native image view"
-      ; View.image
-          ~key:(Gpuio.Key.of_string_exn (if phase < 2 then "preview" else "remounted"))
-          ~style:
-            (Gpuio.Style.create_exn
-               [ Width (Gpuio.Length.px_exn 192.); Height (Gpuio.Length.px_exn 192.) ])
-          ~on_change:(fun state -> E.of_thunk (fun () -> status := Some state))
-          config
-      ]
+      [ View.text "An encoded asset, rendered by the native image view"; preview ]
 ;;
 
 let () =
   let self_test = Array.exists (Sys.get_argv ()) ~f:(String.equal "--self-test") in
+  let icon = Array.exists (Sys.get_argv ()) ~f:(String.equal "--icon") in
+  let svg = icon || Array.exists (Sys.get_argv ()) ~f:(String.equal "--svg") in
   let completed = ref false in
   App.run (fun env app ->
     let scope = App.scope app in
@@ -54,7 +68,7 @@ let () =
         ~title:"GPUIO images"
         ~width:480.
         ~height:300.
-        (component ~asset ~phase ~observed ~status)
+        (component ~icon ~asset ~phase ~observed ~status)
       |> Or_error.ok_exn
     in
     Scope.start
@@ -69,10 +83,16 @@ let () =
             Eio.Promise.await promise
           in
           let source =
-            Asset.Source.of_bytes
-              ~format:Pnm
-              ("P6\n4 4\n255\n"
-               ^ String.concat (List.init 16 ~f:(fun _ -> "\020\100\240")))
+            (if svg
+             then
+               Asset.Source.of_bytes
+                 ~format:Svg
+                 {|<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><rect width="2" height="4" fill="red"/><rect x="2" width="2" height="4" fill="blue"/></svg>|}
+             else
+               Asset.Source.of_bytes
+                 ~format:Pnm
+                 ("P6\n4 4\n255\n"
+                  ^ String.concat (List.init 16 ~f:(fun _ -> "\020\100\240"))))
             |> Or_error.ok_exn
           in
           let rec register () =
@@ -129,6 +149,8 @@ let () =
   then (
     assert !completed;
     Eio.traceln
-      "GPUIO_IMAGES_PUBLIC_OK: scoped upload, Bonsai image, native ready, restyle after \
-       retirement, remount rejection and shutdown")
+      "GPUIO_IMAGES_PUBLIC_OK (svg=%b icon=%b): scoped upload, Bonsai image, native \
+       ready, restyle after retirement, remount rejection and shutdown"
+      svg
+      icon)
 ;;

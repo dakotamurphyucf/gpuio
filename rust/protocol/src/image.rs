@@ -2,7 +2,7 @@
 use crate::{ResourceId, v1::CommandConfig};
 use binprot::macros::BinProtWrite;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, BinProtWrite)]
 pub enum ImageFit {
     Fill,
     Contain,

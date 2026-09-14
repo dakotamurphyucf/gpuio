@@ -584,6 +584,7 @@ impl Decoder<'_> {
                     20 => Kind::DragSource,
                     21 => Kind::DropTarget,
                     22 => Kind::Image,
+                    23 => Kind::Icon,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)

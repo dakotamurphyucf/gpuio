@@ -3,7 +3,7 @@ module Asset = Asset_wire
 module Image = Image_wire
 
 let version = 1L
-let capabilities = 8388607L
+let capabilities = 16777215L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -31,6 +31,7 @@ module Kind = struct
     | Drag_source
     | Drop_target
     | Image
+    | Icon
   [@@deriving bin_io, equal, sexp_of]
 end
 

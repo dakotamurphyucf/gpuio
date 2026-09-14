@@ -1,6 +1,6 @@
 //! UI-owned decoded cache with transferable work tickets. The host must execute
 //! work off-thread and process evictions on every window atlas that used it.
-use crate::{asset_decode, asset_store::Lease};
+use crate::{asset_decode, asset_store::Lease, asset_svg};
 use gpuio_protocol::ResourceId;
 use std::{
     collections::BTreeMap,
@@ -10,6 +10,8 @@ use std::{
         atomic::{AtomicBool, Ordering},
     },
 };
+
+type Key = (ResourceId, asset_svg::Request);
 
 pub const MAX_ENTRIES: usize = 256;
 pub const MAX_RETIRED: usize = 256;
@@ -34,9 +36,15 @@ struct Owner {
     cancelled: Arc<AtomicBool>,
     cache: Rc<()>,
     source: Lease,
+    key: Key,
     ticket: u64,
 }
 
+impl Handle {
+    pub fn source_format(&self) -> gpuio_protocol::asset::Format {
+        self.0.source.source().format()
+    }
+}
 impl Drop for Owner {
     fn drop(&mut self) {
         self.cancelled.store(true, Ordering::Release);
@@ -76,25 +84,29 @@ impl Drop for Guard {
 /// job or its undelivered completion is detected by the next cache collection.
 pub struct Work {
     ticket: u64,
-    id: ResourceId,
+    id: Key,
     source: Lease,
     guard: Guard,
 }
 pub struct Completion {
     ticket: u64,
-    id: ResourceId,
+    id: Key,
     result: Result<asset_decode::Decoded, Error>,
     _guard: Guard,
 }
 impl Work {
-    /// CPU-only; may be moved onto GPUI's background executor. Panics are
-    /// contained. Cancellation suppresses both unnecessary and late output.
+    /// No UI callbacks; runs on GPUI's background executor. SVG text can
+    /// trigger native system-font discovery. Panics are contained. Cancellation suppresses both unnecessary and late output.
     pub fn run(self) -> Completion {
         let result = if self.guard.0.cancelled.load(Ordering::Acquire) {
             Err(Error::Closed)
         } else {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                asset_decode::raster(self.source.source())
+                if self.source.source().format() == gpuio_protocol::asset::Format::Svg {
+                    asset_svg::render(self.source.source(), self.id.1)
+                } else {
+                    asset_decode::raster(self.source.source())
+                }
             }))
             .map_err(|_| Error::WorkerFailed)
             .and_then(|result| result.map_err(Error::Decode))
@@ -125,7 +137,7 @@ pub struct Stats {
 #[derive(Default)]
 pub struct Cache {
     identity: Rc<()>,
-    entries: BTreeMap<ResourceId, Entry>,
+    entries: BTreeMap<Key, Entry>,
     running: BTreeMap<u64, Arc<Ticket>>,
     retired: Vec<(Weak<gpui::RenderImage>, usize)>,
     evictions: Vec<Arc<gpui::RenderImage>>,
@@ -196,12 +208,34 @@ impl Cache {
     /// The source must be freshly acquired from this application's encoded
     /// registry. Retired IDs cannot gain new bindings via a warm decoded entry.
     pub fn request(&mut self, source: Lease) -> Result<Handle, Error> {
+        self.request_variant(source, asset_svg::Request::default())
+    }
+    /// Resample an existing mounted SVG lease, including after encoded
+    /// registration retirement. This must not be used to create a new binding.
+    pub fn rerasterize(
+        &mut self,
+        handle: &Handle,
+        request: asset_svg::Request,
+    ) -> Result<Handle, Error> {
+        if self.closed || !Rc::ptr_eq(&self.identity, &handle.0.cache) {
+            return Err(Error::Closed);
+        }
+        if handle.source_format() != gpuio_protocol::asset::Format::Svg {
+            return Err(Error::Decode(asset_decode::Error::Unsupported));
+        }
+        self.request_variant(handle.0.source.clone(), request)
+    }
+    fn request_variant(
+        &mut self,
+        source: Lease,
+        request: asset_svg::Request,
+    ) -> Result<Handle, Error> {
         self.collect();
         if self.closed {
             return Err(Error::Closed);
         }
         let touched = self.touch();
-        let id = source.id();
+        let id = (source.id(), request);
         if let Some(entry) = self.entries.get_mut(&id) {
             entry.touched = touched;
             if let Some(owner) = entry.owner.upgrade() {
@@ -212,6 +246,7 @@ impl Cache {
                 cancelled: Arc::new(AtomicBool::new(false)),
                 cache: self.identity.clone(),
                 source,
+                key: id,
                 ticket: entry.ticket,
             });
             entry.owner = Rc::downgrade(&owner);
@@ -233,6 +268,7 @@ impl Cache {
             cancelled: Arc::new(AtomicBool::new(false)),
             cache: self.identity.clone(),
             source,
+            key: id,
             ticket: self.next,
         });
         self.entries.insert(
@@ -250,7 +286,7 @@ impl Cache {
         if self.closed || !Rc::ptr_eq(&self.identity, &handle.0.cache) {
             return State::Failed(Error::Closed);
         }
-        match self.entries.get(&handle.0.source.id()) {
+        match self.entries.get(&handle.0.key) {
             Some(entry) if entry.ticket == handle.0.ticket => match &entry.state {
                 EntryState::Queued | EntryState::Running => State::Loading,
                 EntryState::Ready(decoded) => State::Ready(decoded.image.clone()),
@@ -618,5 +654,86 @@ mod tests {
         assert!(matches!(completion.result, Err(Error::Closed)));
         assert!(!cache.complete(completion));
         assert_eq!(cache.stats().charged_pixels, 0);
+    }
+    #[test]
+    fn svg_variants_share_by_size_fit_density_and_tint_without_reacquiring_retired_sources() {
+        let mut store = Store::default();
+        let bytes = br#"<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><rect width="4" height="4" fill="red"/></svg>"#;
+        let id = store.begin(Format::Svg, bytes.len()).unwrap();
+        store.append(id, 0, bytes).unwrap();
+        store.finish(id).unwrap();
+        let mut cache = Cache::default();
+        let original = cache.request(store.acquire(id).unwrap()).unwrap();
+        let work = cache.next_work().unwrap();
+        assert!(cache.complete(std::thread::spawn(move || work.run()).join().unwrap()));
+        assert_eq!(
+            ready(&cache, &original).as_bytes(0).unwrap()[..4],
+            [0, 0, 255, 255]
+        );
+        store.release(id).unwrap();
+        assert!(store.acquire(id).is_err());
+        let params = asset_svg::Request {
+            size: asset_svg::Size::Exact(asset_svg::RasterSize::new(8, 8).unwrap()),
+            tint: Some(0x00ff00ff),
+            ..Default::default()
+        };
+        let green = cache.rerasterize(&original, params).unwrap();
+        let shared = cache.rerasterize(&original, params).unwrap();
+        assert!(Rc::ptr_eq(&green.0, &shared.0));
+        let blue = cache
+            .rerasterize(
+                &original,
+                asset_svg::Request {
+                    tint: Some(0x0000ffff),
+                    ..params
+                },
+            )
+            .unwrap();
+        let green_work = cache.next_work().unwrap();
+        let blue_work = cache.next_work().unwrap();
+        assert!(cache.next_work().is_none());
+        assert!(cache.complete(blue_work.run()));
+        assert!(matches!(cache.state(&green), State::Loading));
+        assert_eq!(
+            ready(&cache, &blue).as_bytes(0).unwrap()[..4],
+            [255, 0, 0, 255]
+        );
+        assert!(cache.complete(green_work.run()));
+        assert_eq!(
+            ready(&cache, &green).as_bytes(0).unwrap()[..4],
+            [0, 255, 0, 255]
+        );
+        assert_eq!(cache.stats().charged_pixels, 64 + 256 + 256);
+        let mut foreign = Cache::default();
+        assert!(matches!(
+            foreign.rerasterize(&original, params),
+            Err(Error::Closed)
+        ));
+        let density = cache
+            .rerasterize(
+                &original,
+                asset_svg::Request {
+                    density: asset_svg::Density::new(2.).unwrap(),
+                    ..params
+                },
+            )
+            .unwrap();
+        let fit = cache
+            .rerasterize(
+                &original,
+                asset_svg::Request {
+                    fit: asset_svg::Fit::None,
+                    ..params
+                },
+            )
+            .unwrap();
+        assert_eq!(cache.stats().pending, 2);
+        drop((original, green, shared, blue, density, fit));
+        assert_eq!(cache.stats().pending, 0);
+        assert_eq!(
+            store.stats().retired,
+            0,
+            "warm pixel variants do not retain encoded sources"
+        );
     }
 }

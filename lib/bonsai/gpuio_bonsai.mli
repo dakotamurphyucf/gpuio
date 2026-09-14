@@ -14,6 +14,13 @@ module View : sig
     -> Gpuio.Image.Config.t
     -> t
 
+  val icon
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?on_change:(Gpuio.Image.State.t -> unit Bonsai.Effect.t)
+    -> Gpuio.Icon.Config.t
+    -> t
+
   val drag_source
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

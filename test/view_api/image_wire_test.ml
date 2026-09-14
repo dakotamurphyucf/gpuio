@@ -64,6 +64,21 @@ let%expect_test
       String.equal
         (read "images-v1-request.hex")
         (W.Message.encode message |> Or_error.ok_exn));
+    let icon =
+      match message with
+      | Apply transaction ->
+        W.Message.Apply
+          { transaction with
+            operations =
+              List.map transaction.operations ~f:(function
+                | W.Op.Create (node, Image, text, handler) ->
+                  W.Op.Create (node, Icon, text, handler)
+                | operation -> operation)
+          }
+      | _ -> assert false
+    in
+    assert (
+      String.equal (read "icons-v1-request.hex") (W.Message.encode icon |> Or_error.ok_exn));
     let bytes = read "images-v1-events.hex" in
     assert (String.equal bytes (encode events));
     assert (List.equal W.Event.equal events (W.Event.decode bytes |> Or_error.ok_exn));

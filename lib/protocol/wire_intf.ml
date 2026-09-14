@@ -34,6 +34,7 @@ module type S = sig
       | Drag_source
       | Drop_target
       | Image
+      | Icon
     [@@deriving bin_io, equal, sexp_of]
   end
 

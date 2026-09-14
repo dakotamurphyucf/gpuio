@@ -1,12 +1,11 @@
 # Images, SVG and asset ownership
 
 OCH-11 implementation in progress. Encoded registration, scoped public ownership,
-bounded native raster decoding/cache scheduling, and declarative image views are
-connected. `CAP_ASSETS` (2097152) means encoded registration; `CAP_IMAGES` (4194304)
-adds image views and state events. The current aggregate mask is 8388607.
-PNG/JPEG/WebP/GIF/BMP/TIFF/ICO/PNM use the pinned raster decoder. SVG rasterization
-and icon tint/scale integration remain pending; declaring SVG currently produces
-an image-local `Unsupported` result. This is not completion of OCH-11.
+bounded image scheduling, raster/SVG views and foreground-tinted icons are connected.
+`CAP_ASSETS` (2097152) means encoded registration; `CAP_IMAGES` (4194304) adds image
+views and state events; `CAP_SVG` (8388608) adds SVG and icon rendering. The aggregate
+mask is 16777215. This is not completion of OCH-11. Image corner clipping and common
+icon/control composition still require acceptance checks.
 
 ## Interface direction
 
@@ -210,7 +209,7 @@ in memory. It produces GPUI `RenderImage` frames in BGRA order, applies EXIF
 orientation to static images, preserves GIF frame delays and rejects an entire
 animation on a bad frame rather than returning a silently shortened sequence.
 PNG and WebP currently use the pinned GPUI static-image behavior. SVG has a
-separate size/theme-dependent rasterization path still to implement.
+separate size/theme-dependent rasterization path described below.
 
 Current per-result limits are 16384 pixels per dimension, 64 MiB of RGBA8/BGRA8
 pixels across all retained frames and 120 frames. Static native-color-depth output
@@ -284,8 +283,8 @@ worker failures. Closing forbids work, cancels jobs and suppresses late publicat
 Host integration must drive queued work on GPUI's background executor, refresh
 live consumers on completion/admission failure, drain atlas evictions before reuse,
 and join/drain its outstanding tasks during teardown. The adapter below implements these host requirements and adds native GPU readback
-evidence. Public image views still need to bind to it. SVG will extend cache
-identity with raster size and icon tint.
+evidence. Public image views now bind to it. SVG extends cache identity with
+physical viewport size, device density, fit and optional icon tint.
 
 ## GPUI host scheduling and atlas ownership
 
@@ -315,7 +314,7 @@ Each worker publishes its completion before closing a completion fence. Foregrou
 processing waits for the fence before admitting replacement work. The service
 owns a result waiting for that fence, so shutdown can reclaim it without needing
 the foreground receiver task to run. Ordinary bridge shutdown awaits workers
-asynchronously. Unconditional GPUI quit drains the CPU-only jobs synchronously
+asynchronously. Unconditional GPUI quit drains independent worker jobs synchronously
 before GPUI destroys windows, then performs atlas cleanup. Closing the result
 channel prevents a late worker from waiting for UI delivery. Cache identities and
 cancelled handles continue to reject late publication.
@@ -390,4 +389,55 @@ accessibility labels, all fit/error variants, and metadata representation.
 The runnable `examples/images` example uses scoped Eio registration and Bonsai
 views; its self-test waits for a native Ready observation, restyles after retirement,
 and checks that a newly keyed mount reports Released. Native GPU/AX evidence and
-remaining SVG work are recorded in [asset evidence](../evidence/assets-och11.md).
+SVG integration are recorded in [asset evidence](../evidence/assets-och11.md).
+
+## SVG and monochrome icons
+
+`View.image` accepts an SVG handle and preserves its full color. `View.icon` takes
+`Icon.Config.t`, whose validated constructor requires an SVG handle. Both require
+an explicit meaningful/decorative `Image.Description`, support the five image fits,
+and report `Image.State`. Icons tint the rendered alpha mask with the inherited
+native foreground, including theme and native state styles; they do not reinterpret
+the document's individual fill/stroke colors. Partial SVG and foreground alpha multiply.
+The protocol adds Icon kind 23; image configuration and state layouts are shared.
+Switching an image node to an icon remounts it through ordinary keyed reconciliation.
+
+A native canvas measures logical bounds and the current window scale on paint.
+The cache key includes physical viewport width/height, device density, fit and tint.
+Changes schedule background rasterization; paint only uploads ready pixels. No OCaml
+transaction is needed for native resize or hover tint. A pending replacement keeps
+the previous bitmap visible; initial icons suppress the untinted bootstrap image.
+Repeated identical requests share work. Resampling retains the mounted source lease,
+including after registration retirement. New mounts still require a live registration.
+Paint closures hold weak bindings, so stale frames cannot extend mounted ownership.
+
+The first decode establishes natural dimensions at density 1. Ready metadata and
+natural layout keep those dimensions when viewport variants replace the pixels.
+Natural and viewport outputs obey the existing positive dimensions <=16384 and
+64-MiB retained BGRA limit; an oversized natural SVG fails even when a proposed
+layout would shrink it. Cover rasterizes into the viewport instead of retaining
+an oversized fitted bitmap. Fit semantics match pinned GPUI, including top-left
+placement for None and centered Scale_down. Device density must be finite in (0,16].
+Resampling failures use the local image error channel and may leave old pixels visible.
+
+The decoder uses pinned resvg/usvg 0.46 with custom XML and resource resolution:
+
+- SVGZ expansion and aggregate nested XML are limited to 32 MiB. DTDs are disabled;
+  XML is limited to 100,000 nodes and depth 128, with expanded output trees also checked.
+- Embedded images are limited to 32, nesting 8, aggregate decoded pixels 64 MiB and
+  normalized PNG bytes 64 MiB. PNG/JPEG/GIF/WebP are validated with the raster decoder
+  and embedded as a static first frame; nested SVGs use the same resource policy.
+- Document image references never open files or URLs. External references fail
+  Unsupported; invalid embedded codec data fails the enclosing image. Applications
+  must acquire bytes through Eio and embed/register them explicitly.
+- SVG text lazily discovers native system fonts, separately from pixel-cache
+  accounting. A missing font database produces Unsupported. App-bundled GPUI fonts
+  are not yet synchronized into this decoder, and system font discovery is cached.
+  This is native rendering work; the pure OCaml view API still performs no I/O.
+
+These limits bound input, retained output and job concurrency, not process RSS.
+Parser, font discovery, filters, intermediate render layers and codec working buffers
+have additional allocations. The worker shutdown contract requires no UI callbacks
+or waits for UI progress; it does not assume workers perform only CPU operations.
+SVG scripting/animation and browser DOM/CSS behavior are not provided by resvg.
+Use the separate declarative motion API for native view animation (OCH-12).

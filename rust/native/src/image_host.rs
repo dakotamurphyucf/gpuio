@@ -231,6 +231,36 @@ pub fn request(source: Lease, window: &mut Window, cx: &mut App) -> Result<Handl
     })
 }
 
+/// Resample a lease already held by a mounted SVG. A newly mounted image must
+/// still use request with a fresh encoded-store acquisition.
+pub fn rerasterize(
+    handle: &Handle,
+    request: crate::asset_svg::Request,
+    cx: &mut App,
+) -> Result<Handle, Error> {
+    let service = handle.service.upgrade().ok_or(Error::Closed)?;
+    if !cx
+        .try_global::<Global>()
+        .is_some_and(|global| Rc::ptr_eq(&global.0, &service))
+    {
+        return Err(Error::Closed);
+    }
+    let lease = service
+        .borrow_mut()
+        .cache
+        .rerasterize(&handle.lease, request)?;
+    schedule(&service, cx);
+    Ok(Handle {
+        service: Rc::downgrade(&service),
+        lease,
+    })
+}
+impl Handle {
+    pub fn is_svg(&self) -> bool {
+        self.lease.source_format() == gpuio_protocol::asset::Format::Svg
+    }
+}
+
 /// Observe ready pixels and reserve their full animation footprint for this
 /// window before returning them to img/paint_image. None means still loading.
 /// Reuse of the same image in a window does not charge a second atlas copy.
@@ -320,7 +350,8 @@ pub async fn shutdown(cx: &mut AsyncApp) {
     });
 }
 /// GPUI's unconditional quit destroys windows before polling quit futures. Drain
-/// CPU-only jobs here, before that disposal. Ordinary shutdown uses async above.
+/// independent worker jobs here before disposal. They never await UI callbacks;
+/// SVG text may perform system-font discovery. Ordinary shutdown uses async above.
 pub fn finish_before_quit(cx: &mut App) {
     let Some((service, workers)) = begin_close(cx) else {
         return;

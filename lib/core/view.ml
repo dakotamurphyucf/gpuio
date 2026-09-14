@@ -26,6 +26,7 @@ module Kind = struct
     | Drag_source
     | Drop_target
     | Image
+    | Icon
   [@@deriving equal, sexp_of]
 end
 
@@ -675,6 +676,10 @@ let toast_stack ?key ?(style = Style.empty) ?(config = Toast.Stack.default) item
 
 let image ?key ?(style = Style.empty) ?on_change config =
   { (text ?key ~style "") with kind = Image; image = Some { config; on_change } }
+;;
+
+let icon ?key ?style ?on_change config =
+  { (image ?key ?style ?on_change (Icon.Expert.image config)) with kind = Icon }
 ;;
 
 module Expert = struct

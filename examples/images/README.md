@@ -9,4 +9,10 @@ before constructing `Asset.Source` and registering it under an application scope
 short-lived native window and checks upload → native Ready, restyling after asset
 retirement, rejection of a newly keyed mount, and shutdown. It tests public FFI/event
 integration; exact GPU pixels and macOS accessibility are checked by the separate
-`native_image_views` target. SVG/icon support remains in progress.
+`native_image_views` target.
+
+Add `--svg` to display a full-color embedded SVG or `--icon` for a monochrome SVG
+using the view foreground. Either flag combines with `--self-test`, exercising the
+same public registration, native metadata, retirement and remount contracts.
+The SVG canvas adapts to native measured size/device scale; icons also adapt to
+foreground changes without requiring an OCaml event for each native state change.

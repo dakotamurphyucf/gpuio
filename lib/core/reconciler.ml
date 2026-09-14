@@ -210,6 +210,7 @@ let kind = function
   | Drag_source -> Drag_source
   | Drop_target -> Drop_target
   | Image -> Image
+  | Icon -> Icon
 ;;
 
 let compatible mounted view =

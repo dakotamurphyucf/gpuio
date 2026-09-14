@@ -104,9 +104,10 @@ candidate-panel or complete screen-reader coverage.
 Current OCH-11 summary: the controls/commands/focus/overlays, pointer capture,
 file-dialog bridge and drag/drop behaviors below are implemented and validated
 locally. Drag/drop includes actual AppKit handoff/reentry/cancel/unmount and held-
-gesture close/shutdown checks. Remaining implementation includes images/SVG/assets
-and bounded caches, theme/scale integration, remaining native state/basic transitions,
-scrolling and aggregate lifetime checks. Consolidated macOS/Linux CI and merge
+gesture close/shutdown checks. Raster/SVG assets, bounded caches and foreground-tinted icons now pass local
+integration checks. Remaining work includes image clipping/composition acceptance,
+full theme/scale integration, remaining native state/basic transitions, scrolling
+and aggregate lifetime checks. Consolidated macOS/Linux CI and merge
 remain. The chronological checkpoints below distinguish earlier partial states
 from later validation; they do not all describe the latest remaining scope.
 
@@ -425,3 +426,15 @@ the public example separately passes actual FFI event integration. See
 [asset design](design/assets.md) and [asset evidence](evidence/assets-och11.md).
 SVG/icons and the remaining OCH-11 families are still pending. CI definitions are
 updated, but hosted/Linux gates and merge remain deferred until local scope is done.
+
+
+SVG/icon rendering now passes local native GPU and public OCaml tests. SVG views
+preserve color; icons tint the alpha mask with inherited foreground. Native resize
+and hover select new size/density/fit/tint variants without an OCaml transaction,
+including after registration retirement. The background production-view test passes
+actual color/resize/tint pixels and immediate weak-binding cleanup; it uses synthetic
+GPUI hover dispatch and does not claim physical monitor-scale changes. Decoder/cache
+and cross-language Icon fixtures, full Rust workspace and Dune checks pass. Public
+raster/SVG/icon example modes all pass lifecycle and FFI state integration. See
+[SVG evidence](evidence/assets-och11.md#svgicon-integration--local-macos-continuation).
+Remaining image clipping/composition and the other OCH-11 acceptance/gates remain.

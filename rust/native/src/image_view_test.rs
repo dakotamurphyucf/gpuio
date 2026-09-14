@@ -1,5 +1,7 @@
 //! Real background window rendering through the production declarative View.
 use super::*;
+#[path = "image_svg_view_test.rs"]
+mod svg;
 use crate::{session::Session, transport::Transport};
 use gpui::{AppContext, Bounds, WindowBounds, WindowHandle, WindowOptions, px, size};
 use gpuio_protocol::{ResourceId, WindowId, asset::Format};
@@ -167,6 +169,7 @@ pub(crate) fn run() {
                 apply(cx, window, vec![Op::SetRoot(None), Op::Remove(node())]);
                 window.update(cx, |view, _, _| assert!(view.images.is_empty())).unwrap();
                 assert_eq!(session.borrow_mut().assets().unwrap().stats().retired, 0);
+                svg::exercise(cx, window, &session).await;
                 image_host::shutdown(cx).await;
                 window.update(cx, |_, window, _| window.remove_window()).unwrap();
                 eprintln!("GPUIO_NATIVE_IMAGE_VIEWS_OK: actual pixels, accepted mount retirement, restyle, replacement, local errors, state events and disposal");

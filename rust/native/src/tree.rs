@@ -339,7 +339,7 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree);
                 }
-                if (node.kind == Kind::Image) != node.image.is_some()
+                if matches!(node.kind, Kind::Image | Kind::Icon) != node.image.is_some()
                     || node.image.as_ref().is_some_and(|config| {
                         !config.is_valid()
                             || !node.text.is_empty()
@@ -449,6 +449,7 @@ impl Tree {
                     | Kind::CommandPalette
                     | Kind::Progress
                     | Kind::Image
+                    | Kind::Icon
                     | Kind::Text
                     | Kind::Button => {
                         if node.editor.is_some() {
@@ -732,7 +733,7 @@ impl Plan<'_> {
                 self.node_mut(*id)?.toast_stack = Some(Arc::new(config.clone()));
             }
             Op::SetImage(id, config) => {
-                if self.node(*id)?.kind != Kind::Image || !config.is_valid() {
+                if !matches!(self.node(*id)?.kind, Kind::Image | Kind::Icon) || !config.is_valid() {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.image = Some(Arc::new(config.clone()));

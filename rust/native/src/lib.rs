@@ -2,6 +2,7 @@ mod appearance;
 pub mod asset_cache;
 pub mod asset_decode;
 pub mod asset_store;
+pub mod asset_svg;
 mod ffi;
 pub mod file_dialog;
 mod host;

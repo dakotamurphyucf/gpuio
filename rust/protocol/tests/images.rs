@@ -56,6 +56,17 @@ fn image_wire_matches_ocaml_and_bounds_decode() {
     let fixture = unhex(include_str!("../../../test/fixtures/images-v1-request.hex"));
     assert_eq!(bytes(message.clone()), fixture);
     assert_eq!(decode(&fixture).unwrap(), message);
+    let Message::Apply(mut icon) = message else {
+        unreachable!()
+    };
+    icon.operations[0] = Op::Create(node, Kind::Icon, "".into(), Some(handler));
+    let icon = Message::Apply(icon);
+    let icon_fixture = unhex(include_str!("../../../test/fixtures/icons-v1-request.hex"));
+    assert_eq!(bytes(icon.clone()), icon_fixture);
+    assert_eq!(decode(&icon_fixture).unwrap(), icon);
+    for length in 0..icon_fixture.len() {
+        assert!(decode(&icon_fixture[..length]).is_err());
+    }
     for length in 0..fixture.len() {
         assert!(decode(&fixture[..length]).is_err());
     }

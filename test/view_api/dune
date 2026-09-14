@@ -4,6 +4,7 @@
  (inline_tests
   (deps
    (sandbox preserve_file_kind)
+   icons-v1-request.hex
    images-v1-request.hex
    images-v1-events.hex
    assets-v1-requests.hex
@@ -113,3 +114,5 @@
 (copy_files ../fixtures/assets-v1-*.hex)
 
 (copy_files ../fixtures/images-v1-*.hex)
+
+(copy_files ../fixtures/icons-v1-*.hex)

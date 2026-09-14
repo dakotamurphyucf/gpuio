@@ -2,16 +2,173 @@
 //! source release messages; paint observes pixels without acquiring new readers.
 use super::View;
 use crate::{
-    image_host,
+    asset_svg, image_host,
     tree::{Node, Tree},
 };
-use gpui::{Context, Div, Stateful, Window, img, prelude::*, px};
+use gpui::{Context, Div, Stateful, Window, canvas, img, prelude::*, px};
 use gpuio_protocol::{HandlerId, NodeId, v1::*};
+use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 pub(super) struct State {
     source: ImageSource,
-    handle: Result<image_host::Handle, ImageError>,
+    binding: Rc<RefCell<Binding>>,
     emitted: Option<(HandlerId, ImageState)>,
+}
+struct Binding {
+    current: Result<image_host::Handle, ImageError>,
+    pending: Option<(asset_svg::Request, image_host::Handle)>,
+    requested: Option<asset_svg::Request>,
+    rendered: asset_svg::Request,
+    intrinsic: Option<ImageMetadata>,
+    resize_error: Option<ImageError>,
+    svg: bool,
+}
+impl Binding {
+    fn new(current: Result<image_host::Handle, ImageError>) -> Self {
+        let svg = current.as_ref().is_ok_and(|handle| handle.is_svg());
+        Self {
+            current,
+            pending: None,
+            requested: None,
+            rendered: Default::default(),
+            intrinsic: None,
+            resize_error: None,
+            svg,
+        }
+    }
+    fn observe(
+        &mut self,
+        window: &mut Window,
+        cx: &mut gpui::App,
+    ) -> (Option<Arc<gpui::RenderImage>>, ImageState) {
+        let mut observed = match &self.current {
+            Ok(handle) => image_host::image(handle, window, cx).map_err(error),
+            Err(error) => Err(*error),
+        };
+        if let Ok(Some(image)) = &observed
+            && self.intrinsic.is_none()
+        {
+            self.intrinsic = Some(ImageMetadata {
+                width_px: u32::from(image.size(0).width).into(),
+                height_px: u32::from(image.size(0).height).into(),
+                frames: image.frame_count() as i64,
+            });
+        }
+        if let Some((_, pending)) = &self.pending {
+            match image_host::image(pending, window, cx) {
+                Ok(Some(image)) => {
+                    let (request, handle) = self.pending.take().unwrap();
+                    self.current = Ok(handle);
+                    self.rendered = request;
+                    self.resize_error = None;
+                    observed = Ok(Some(image));
+                }
+                Err(error_) => {
+                    self.resize_error = Some(error(error_));
+                    self.pending = None;
+                }
+                Ok(None) => (),
+            }
+        }
+        let status = if let Some(error) = self.resize_error {
+            ImageState::Failed(error)
+        } else {
+            match &observed {
+                Ok(None) => ImageState::Loading,
+                Err(error) => ImageState::Failed(*error),
+                Ok(Some(_)) => {
+                    ImageState::Ready(self.intrinsic.expect("metadata precedes resampling"))
+                }
+            }
+        };
+        (observed.ok().flatten(), status)
+    }
+    fn request(&mut self, request: asset_svg::Request, window: &mut Window, cx: &mut gpui::App) {
+        if self.intrinsic.is_none() || self.requested == Some(request) {
+            return;
+        }
+        self.pending = None; // Cancel replaced work before asking for another slot.
+        self.requested = Some(request);
+        self.resize_error = None;
+        if let Ok(handle) = &self.current {
+            match image_host::rerasterize(handle, request, cx) {
+                Ok(handle) => self.pending = Some((request, handle)),
+                Err(error_) => self.resize_error = Some(error(error_)),
+            }
+        }
+        window.refresh();
+    }
+}
+fn fit(value: ImageFit) -> gpui::ObjectFit {
+    match value {
+        ImageFit::Fill => gpui::ObjectFit::Fill,
+        ImageFit::Contain => gpui::ObjectFit::Contain,
+        ImageFit::Cover => gpui::ObjectFit::Cover,
+        ImageFit::ScaleDown => gpui::ObjectFit::ScaleDown,
+        ImageFit::None => gpui::ObjectFit::None,
+    }
+}
+fn vector(binding: &Rc<RefCell<Binding>>, fitting: ImageFit, icon: bool) -> impl gpui::IntoElement {
+    let weak = Rc::downgrade(binding);
+    canvas(
+        |_, _, _| (),
+        move |bounds, _, window, cx| {
+            let Some(binding) = weak.upgrade() else {
+                return;
+            };
+            let mut binding = binding.borrow_mut();
+            if bounds.size.width <= px(0.) || bounds.size.height <= px(0.) {
+                return;
+            }
+            let scale = window.scale_factor();
+            let width = (f32::from(bounds.size.width) * scale).ceil();
+            let height = (f32::from(bounds.size.height) * scale).ceil();
+            let desired =
+                asset_svg::RasterSize::new(width as u32, height as u32).and_then(|size| {
+                    Ok(asset_svg::Request {
+                        size: asset_svg::Size::Exact(size),
+                        density: asset_svg::Density::new(scale)?,
+                        fit: fitting,
+                        tint: icon.then(|| {
+                            let color = window.text_style().color.to_rgb();
+                            u32::from_be_bytes(
+                                [color.r, color.g, color.b, color.a]
+                                    .map(|channel| (channel.clamp(0., 1.) * 255.).round() as u8),
+                            )
+                        }),
+                    })
+                });
+            match desired {
+                Ok(request) => binding.request(request, window, cx),
+                Err(error_) => {
+                    let error = error(image_host::Error::Decode(error_));
+                    if binding.resize_error != Some(error) {
+                        binding.resize_error = Some(error);
+                        window.refresh();
+                    }
+                }
+            }
+            let (image, _) = binding.observe(window, cx);
+            if let Some(image) = image {
+                if icon && binding.rendered.tint.is_none() {
+                    return;
+                }
+                let image_bounds = match binding.rendered.size {
+                    asset_svg::Size::Intrinsic => fit(fitting).get_bounds(bounds, image.size(0)),
+                    asset_svg::Size::Exact(_) => bounds,
+                };
+                // Both color SVGs and tinted masks are decoded off-thread. GPUI
+                // only uploads/paints the ready bitmap at the measured bounds.
+                let painted =
+                    window.paint_image(bounds, image_bounds, Default::default(), image, 0, false);
+                if painted.is_err() && binding.resize_error != Some(ImageError::NativeFailure) {
+                    binding.resize_error = Some(ImageError::NativeFailure);
+                    window.refresh();
+                }
+            }
+        },
+    )
+    .size_full()
 }
 fn error(error: image_host::Error) -> ImageError {
     use crate::{asset_cache::Error, asset_decode::Error as Decode};
@@ -39,7 +196,10 @@ impl View {
         self.images
             .retain(|id, _| tree.get(*id).is_some_and(|node| node.image.is_some()));
         for id in dirty {
-            let Some(config) = tree.get(*id).and_then(|node| node.image.as_ref()) else {
+            let Some(node) = tree.get(*id) else {
+                continue;
+            };
+            let Some(config) = node.image.as_ref() else {
                 continue;
             };
             if self
@@ -52,16 +212,21 @@ impl View {
             // Drop the old lease before requesting replacement work.
             self.images.remove(id);
             let handle = match config.source {
-                ImageSource::Reference(id) => session
-                    .acquire_image(id)
-                    .and_then(|lease| image_host::request(lease, window, cx).map_err(error)),
+                ImageSource::Reference(id) => session.acquire_image(id).and_then(|lease| {
+                    if node.kind == Kind::Icon
+                        && lease.source().format() != gpuio_protocol::asset::Format::Svg
+                    {
+                        return Err(ImageError::Unsupported);
+                    }
+                    image_host::request(lease, window, cx).map_err(error)
+                }),
                 ImageSource::Unavailable(error) => Err(error),
             };
             self.images.insert(
                 *id,
                 State {
                     source: config.source,
-                    handle,
+                    binding: Rc::new(RefCell::new(Binding::new(handle))),
                     emitted: None,
                 },
             );
@@ -80,19 +245,7 @@ impl View {
         let Some(state) = self.images.get_mut(&node.id) else {
             return element;
         };
-        let observed = match &state.handle {
-            Ok(handle) => image_host::image(handle, window, cx).map_err(error),
-            Err(error) => Err(*error),
-        };
-        let status = match &observed {
-            Ok(None) => ImageState::Loading,
-            Err(error) => ImageState::Failed(*error),
-            Ok(Some(image)) => ImageState::Ready(ImageMetadata {
-                width_px: u32::from(image.size(0).width).into(),
-                height_px: u32::from(image.size(0).height).into(),
-                frames: image.frame_count() as i64,
-            }),
-        };
+        let (observed, status) = state.binding.borrow_mut().observe(window, cx);
         if let Some(handler) = node.handler {
             if state.emitted != Some((handler, status)) {
                 state.emitted = Some((handler, status));
@@ -122,25 +275,22 @@ impl View {
         if let Some(label) = &config.label {
             element = element.role(gpui::Role::Image).aria_label(label.clone());
         }
-        if let Ok(Some(image)) = observed {
-            let size = image.size(0);
-            let fit = match config.fit {
-                ImageFit::Fill => gpui::ObjectFit::Fill,
-                ImageFit::Contain => gpui::ObjectFit::Contain,
-                ImageFit::Cover => gpui::ObjectFit::Cover,
-                ImageFit::ScaleDown => gpui::ObjectFit::ScaleDown,
-                ImageFit::None => gpui::ObjectFit::None,
-            };
+        let binding = state.binding.borrow();
+        if let Some(metadata) = binding.intrinsic {
             element = element
-                .w(px(u32::from(size.width) as f32))
-                .h(px(u32::from(size.height) as f32))
-                .overflow_hidden()
-                .child(
-                    img(image.clone())
-                        .id(("image-pixels", image.id.0 as u64))
-                        .size_full()
-                        .object_fit(fit),
-                );
+                .w(px(metadata.width_px as f32))
+                .h(px(metadata.height_px as f32))
+                .overflow_hidden();
+        }
+        if binding.svg {
+            element = element.child(vector(&state.binding, config.fit, node.kind == Kind::Icon));
+        } else if let Some(image) = observed {
+            element = element.child(
+                img(image.clone())
+                    .id(("image-pixels", image.id.0 as u64))
+                    .size_full()
+                    .object_fit(fit(config.fit)),
+            );
         }
         element
     }

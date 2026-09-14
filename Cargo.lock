@@ -2452,6 +2452,7 @@ dependencies = [
  "binprot",
  "block2 0.6.2",
  "cocoa 0.26.0",
+ "flate2",
  "futures-lite",
  "gpui",
  "gpui-base",
@@ -2466,6 +2467,8 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "ocaml-interop",
  "raw-window-handle",
+ "resvg",
+ "roxmltree 0.21.1",
  "unicode-segmentation",
 ]
 
