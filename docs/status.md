@@ -106,8 +106,9 @@ file-dialog bridge and drag/drop behaviors below are implemented and validated
 locally. Drag/drop includes actual AppKit handoff/reentry/cancel/unmount and held-
 gesture close/shutdown checks. Raster/SVG assets, bounded caches and foreground-tinted icons now pass local
 integration checks. Decorative button/command-button icon slots also pass local
-checks. Remaining work includes full theme/scale integration, remaining native state/basic transitions, scrolling
-and aggregate lifetime checks. Consolidated macOS/Linux CI and merge
+checks. Nested transcript/code/composer/popup/modal scrolling and scroll-owner
+disposal also pass local native checks. Remaining work includes theme/scale and
+native-state audit, basic transitions and aggregate lifetime review. Consolidated macOS/Linux CI and merge
 remain. The chronological checkpoints below distinguish earlier partial states
 from later validation; they do not all describe the latest remaining scope.
 
@@ -461,3 +462,11 @@ scroll owners dispose immediately. Native image/button and pointer regressions p
 see [scrolling evidence](evidence/scrolling-och11.md). OCH-11 still needs the remaining
 theme/state audit, basic transitions shared with OCH-12, aggregate lifetime review
 and consolidated macOS/Linux gates and merge.
+
+Native command routes now share immutable registry entries instead of cloning
+label/shortcut payloads per button/menu/palette route. A 1,024-route lifetime test
+checks sharing, stale-generation rejection and final-owner disposal; the full
+native controls and image/button suites pass locally. See
+[command lifetime evidence](evidence/command-lifetimes-och11.md). This closes the
+identified command-payload duplication concern; remaining OCH-11 scope and hosted
+gates are still pending.

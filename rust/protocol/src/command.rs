@@ -115,17 +115,27 @@ impl CommandConfig {
                 .sum::<usize>()
     }
     pub fn registry_is_valid(commands: &[Self]) -> bool {
+        Self::registry_entries_are_valid(commands.iter())
+    }
+    /// Validate wire entries and shared native snapshots with the same policy.
+    pub fn registry_entries_are_valid<'a>(
+        mut commands: impl ExactSizeIterator<Item = &'a Self>,
+    ) -> bool {
         let mut ids = std::collections::BTreeSet::new();
+        let mut text_bytes = 0;
         commands.len() <= 1024
-            && commands.iter().all(|command| {
+            && commands.all(|command| {
                 Self::valid_text(&command.id, 256)
                     && Self::valid_text(&command.label, 4096)
                     && command.generation > 0
                     && ids.insert(&command.id)
                     && command.shortcuts.len() <= 4
                     && command.shortcuts.iter().all(Shortcut::is_valid)
+                    && {
+                        text_bytes += command.text_bytes();
+                        text_bytes <= crate::v1::MAX_TEXT_BYTES
+                    }
             })
-            && commands.iter().map(Self::text_bytes).sum::<usize>() <= crate::v1::MAX_TEXT_BYTES
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]

@@ -401,6 +401,13 @@ target invalidate old command generations. Labels, checked state and shortcuts
 can change without replacing command identity. Native dispatch and OCaml delivery
 both reject stale or disabled commands.
 
+Native routes share immutable registry entries, including their label and shortcut
+storage. Creating many button/menu/palette routes does not duplicate those payloads.
+Replacing a registry creates a new snapshot; an old frame can retain its entry
+until disposal, but invocation still checks the live scope and generation. The
+last route releases an obsolete entry. Retained-tree accounting includes each
+entry's Arc pointer and reference-count metadata in addition to its payload.
+
 `Shortcut.create` describes one key chord. `Primary` maps to Command on macOS and
 Control on Linux; explicit Control/Alt/Shift/Super are available. Matching uses
 GPUI's keyboard-layout-aware key matching. `Native_first` is the default: native

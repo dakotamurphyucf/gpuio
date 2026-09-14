@@ -33,7 +33,7 @@ pub struct Node {
     pub focus_scope: Option<FocusScopeConfig>,
     pub overlay: Option<Arc<OverlayConfig>>,
     pub tooltip: Option<Arc<TooltipConfig>>,
-    pub commands: Option<Arc<[CommandConfig]>>,
+    pub commands: Option<Arc<[Arc<CommandConfig>]>>,
     pub command_ref: Option<Arc<str>>,
     pub menu: Option<Arc<MenuConfig>>,
     pub palette: Option<Arc<PaletteConfig>>,
@@ -84,7 +84,11 @@ impl Node {
             + self.commands.as_ref().map_or(0, |commands| {
                 commands
                     .iter()
-                    .map(CommandConfig::retained_bytes)
+                    .map(|command| {
+                        command.retained_bytes()
+                            + std::mem::size_of::<Arc<CommandConfig>>()
+                            + 2 * std::mem::size_of::<usize>()
+                    })
                     .sum::<usize>()
             })
             + self.command_ref.as_ref().map_or(0, |id| id.len())
@@ -206,7 +210,7 @@ impl Tree {
 
     /// Resolve the nearest matching registry entry, preserving shadowing even
     /// when that entry is disabled.
-    pub fn command(&self, node: NodeId, command: &str) -> Option<(NodeId, &CommandConfig)> {
+    pub fn command(&self, node: NodeId, command: &str) -> Option<(NodeId, &Arc<CommandConfig>)> {
         let mut cursor = Some(node);
         while let Some(id) = cursor {
             let node = self.get(id)?;
@@ -391,7 +395,8 @@ impl Tree {
                 if (node.kind == Kind::CommandScope) != node.commands.is_some()
                     || (node.kind == Kind::CommandButton) != node.command_ref.is_some()
                     || node.commands.as_ref().is_some_and(|commands| {
-                        !CommandConfig::registry_is_valid(commands) || node.handler.is_none()
+                        !CommandConfig::registry_entries_are_valid(commands.iter().map(Arc::as_ref))
+                            || node.handler.is_none()
                     })
                     || (node.kind == Kind::CommandButton
                         && (node.handler.is_some() || node.control.is_some()))
@@ -805,7 +810,8 @@ impl Plan<'_> {
                 {
                     return Err(ErrorCode::InvalidTree);
                 }
-                self.node_mut(*id)?.commands = Some(Arc::from(commands.as_slice()));
+                self.node_mut(*id)?.commands =
+                    Some(commands.iter().cloned().map(Arc::new).collect());
                 self.structural = true;
             }
             Op::SetCommandRef(id, command) => {

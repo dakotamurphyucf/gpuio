@@ -6,6 +6,10 @@ use gpui::{App, Context, Focusable, Keystroke, Window};
 use gpuio_protocol::{HandlerId, NodeId, v1::*};
 use std::{collections::BTreeSet, sync::Arc};
 
+#[cfg(test)]
+#[path = "command_lifetime_test.rs"]
+mod lifetime_test;
+
 #[derive(Clone, PartialEq, Eq)]
 pub(super) struct Route {
     scope: NodeId,
@@ -18,7 +22,7 @@ impl Route {
     pub(super) fn new(
         tree: &crate::tree::Tree,
         scope: NodeId,
-        config: &CommandConfig,
+        config: &Arc<CommandConfig>,
         source: CommandSource,
     ) -> Self {
         Self {
@@ -29,7 +33,7 @@ impl Route {
                 .handler
                 .expect("registry handler"),
             revision: tree.revision(),
-            config: Arc::new(config.clone()),
+            config: config.clone(),
             source,
         }
     }

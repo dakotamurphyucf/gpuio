@@ -98,7 +98,9 @@ async fn large_palette(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, tran
                 .commands
                 .as_ref()
                 .unwrap()
-                .to_vec()
+                .iter()
+                .map(|entry| entry.as_ref().clone())
+                .collect::<Vec<_>>()
         })
         .unwrap();
     let ids = (0..1000)
@@ -384,7 +386,9 @@ async fn updates(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport:
                 .commands
                 .as_ref()
                 .unwrap()
-                .to_vec()
+                .iter()
+                .map(|entry| entry.as_ref().clone())
+                .collect::<Vec<_>>()
         })
         .unwrap();
     for command in &mut commands {
