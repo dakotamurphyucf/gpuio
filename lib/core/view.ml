@@ -30,6 +30,8 @@ module Kind = struct
     | Animated
     | Virtual_list
     | Document_view
+    | Tab_bar
+    | Tab_panel
   [@@deriving equal, sexp_of]
 end
 
@@ -589,6 +591,17 @@ let column ?key ?style children =
   container ?key ?style [ Display Flex; Direction Column ] children
 ;;
 
+let tab_panel ~key ~label ~active ?(style = Style.empty) children =
+  let style =
+    Style.merge
+      [ style
+      ; Style.create_exn [ Accessible_name label ]
+      ; (if active then Style.empty else Style.create_exn [ Display Hidden ])
+      ]
+  in
+  { (column ~key ~style children) with kind = Tab_panel; text = label }
+;;
+
 let make_virtual_list
       ?key
       ?style
@@ -734,6 +747,10 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; virtual_list = None
   ; children = []
   }
+;;
+
+let tab_bar ?key ?style ~config ~on_select () =
+  { (radio_group ?key ?style ~config ~on_select ()) with kind = Tab_bar }
 ;;
 
 let select

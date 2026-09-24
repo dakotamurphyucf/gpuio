@@ -89,10 +89,10 @@ impl Manager {
         }
     }
     pub(super) fn allows(&self, node: NodeId) -> bool {
-        !self.hidden(node) && self.active.is_none_or(|scope| self.within(node, scope))
+        self.visible(node) && self.active.is_none_or(|scope| self.within(node, scope))
     }
     pub(super) fn allows_without(&self, excluded: NodeId, node: NodeId) -> bool {
-        !self.hidden(node)
+        self.visible(node)
             && self
                 .scopes
                 .iter()
@@ -101,7 +101,7 @@ impl Manager {
                 .is_none_or(|(scope, _)| self.within(node, *scope))
     }
     pub(super) fn blocks_pointer(&self, node: NodeId) -> bool {
-        self.hidden(node)
+        !self.visible(node)
             || self
                 .active
                 .is_some_and(|scope| !self.within(node, scope) && !self.within(scope, node))
@@ -310,7 +310,17 @@ impl Manager {
             self.enter = Some(id);
             window.focus(&self.scopes[&id].handle, cx);
         }
-        self.pending = had_scopes || !self.scopes.is_empty();
+        // A retained panel can become hidden without removing its editor or
+        // introducing a focus scope. Release its focus immediately, then use
+        // the normal post-layout fallback. Hidden views retain editing state.
+        let hidden_focus = self
+            .entries
+            .iter()
+            .any(|entry| entry.handle.is_focused(window) && !self.eligible(entry.node));
+        if hidden_focus {
+            window.blur(cx);
+        }
+        self.pending = had_scopes || !self.scopes.is_empty() || hidden_focus;
     }
     pub(super) fn begin_frame(&mut self) {
         self.entries.clear();

@@ -8,6 +8,7 @@ fn allows_children(kind: Kind) -> bool {
     matches!(
         kind,
         Kind::Container
+            | Kind::TabPanel
             | Kind::VirtualList
             | Kind::Animated
             | Kind::Button
@@ -328,7 +329,10 @@ impl Tree {
                     return Err(ErrorCode::InvalidTree.into());
                 }
                 if node.choice.is_some()
-                    && !matches!(node.kind, Kind::RadioGroup | Kind::Select | Kind::Combobox)
+                    && !matches!(
+                        node.kind,
+                        Kind::RadioGroup | Kind::TabBar | Kind::Select | Kind::Combobox
+                    )
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
@@ -525,6 +529,7 @@ impl Tree {
                     | Kind::CommandPalette
                     | Kind::Progress
                     | Kind::Image
+                    | Kind::TabPanel
                     | Kind::DocumentView
                     | Kind::Icon
                     | Kind::Animated
@@ -544,7 +549,7 @@ impl Tree {
                             return Err(ErrorCode::InvalidTree.into());
                         }
                     }
-                    Kind::RadioGroup | Kind::Select => {
+                    Kind::RadioGroup | Kind::TabBar | Kind::Select => {
                         let config = node.choice.as_ref().ok_or(ErrorCode::InvalidTree)?;
                         if !config.is_valid()
                             || node.editor.is_some()
@@ -1167,7 +1172,7 @@ impl Plan<'_> {
             Op::SetChoice(id, config) => {
                 if !matches!(
                     self.node(*id)?.kind,
-                    Kind::RadioGroup | Kind::Select | Kind::Combobox
+                    Kind::RadioGroup | Kind::TabBar | Kind::Select | Kind::Combobox
                 ) || !config.is_valid()
                 {
                     return Err(ErrorCode::InvalidTree);

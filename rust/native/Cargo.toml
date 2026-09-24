@@ -150,3 +150,8 @@ required-features = ["native-tests"]
 name = "native_window"
 harness = false
 required-features = ["native-tests"]
+
+[[test]]
+name = "native_tabs"
+harness = false
+required-features = ["native-tests"]

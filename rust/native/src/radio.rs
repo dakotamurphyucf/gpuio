@@ -5,6 +5,7 @@ use gpuio_protocol::v1::*;
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 pub(super) struct Render<'a> {
+    pub tabs: bool,
     pub config: &'a Arc<ChoiceConfig>,
     pub state: Rc<RefCell<State>>,
     pub focus: FocusHandle,
@@ -20,6 +21,7 @@ pub(super) fn element<T: 'static>(
     cx: &mut Context<T>,
 ) -> Stateful<Div> {
     let Render {
+        tabs,
         config,
         state,
         focus,
@@ -41,7 +43,7 @@ pub(super) fn element<T: 'static>(
         gpui::accesskit::Orientation::Vertical
     });
     let active = state.borrow().active.clone();
-    for item in &config.items {
+    for (index, item) in config.items.iter().enumerate() {
         let selected = config.selected.as_ref() == Some(&item.id);
         let disabled = config.disabled || item.disabled;
         let mut option = div()
@@ -50,15 +52,27 @@ pub(super) fn element<T: 'static>(
             .items_center()
             .gap(px(8.))
             .p(px(6.))
-            .role(gpui::Role::RadioButton)
-            .aria_label(item.label.clone())
-            .aria_toggled(if selected {
-                gpui::accesskit::Toggled::True
-            } else {
-                gpui::accesskit::Toggled::False
-            });
+            .aria_label(item.label.clone());
+        if tabs {
+            option = option
+                .role(gpui::Role::Tab)
+                .aria_selected(selected)
+                .aria_position_in_set(index + 1)
+                .aria_size_of_set(config.items.len());
+        } else {
+            option = option
+                .role(gpui::Role::RadioButton)
+                .aria_toggled(if selected {
+                    gpui::accesskit::Toggled::True
+                } else {
+                    gpui::accesskit::Toggled::False
+                });
+        }
         if active.as_ref() == Some(&item.id) && !disabled {
             option = option.aria_active_descendant();
+        }
+        if tabs && selected {
+            option = option.border_b_2().border_color(window.text_style().color);
         }
         if selected && let Some(style) = &selected_style {
             gpui::Refineable::refine(option.style(), style);
@@ -66,9 +80,10 @@ pub(super) fn element<T: 'static>(
         if item.disabled && !config.disabled {
             option = option.opacity(0.5);
         }
-        option = option
-            .child(super::control_indicator(Kind::RadioGroup, selected, false))
-            .child(gpui::SharedString::from(item.label.clone()));
+        if !tabs {
+            option = option.child(super::control_indicator(Kind::RadioGroup, selected, false));
+        }
+        option = option.child(gpui::SharedString::from(item.label.clone()));
         if !disabled && let Some(route) = &route {
             let selected = item.id.clone();
             let route = route.clone();

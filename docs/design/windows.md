@@ -72,6 +72,32 @@ quit decision. Linux application/menu commands can request asynchronous quit;
 termination of the compositor/event loop is not presented as vetoable. OS
 force-kill is not a save protocol on either platform.
 
+## Tabs and retained panels
+
+`Gpuio.Workspace` is an immutable ordered tab model, bounded to128 tabs. IDs
+remain stable through selection and reordering. Each tab carries an
+application-owned payload; updating one payload preserves the others. Removing
+the active tab selects its next neighbor, or its previous neighbor at the end.
+The removed payload is returned so the application decides whether to close a
+conversation, detach a view, or keep background work running. No tab operation
+implicitly cancels tasks.
+
+`View.tab_bar` accepts a validated choice configuration and emits stable ID
+selection intents. Native arrows/Home/End navigate and skip disabled tabs; the
+bar is one Tab stop. Native accessibility exposes TabList/Tab roles, selected
+state and set position. Reordering preserves the active native navigation ID.
+The committed selected value remains application-owned. Selected-state styling
+uses the existing style vocabulary; a default underline identifies selection.
+
+`View.tab_panel ~active:false` keeps its descendants mounted with hidden display
+and a TabPanel role. Switching retained panels changes visibility and selection
+without recreating editor/list nodes. Focus is released from hidden descendants,
+and explicit editor Focus commands return FocusBlocked until visible again.
+Native draft, selection and focus identity survive a hide/show cycle. Applications
+should keep a bounded number of retained panels; unmounting a panel is an explicit
+choice with the normal resource-release semantics. Conversation scopes belong to
+the application/store, not to whether a tab or virtual row is visible.
+
 ## Local evidence and remaining work
 
 `examples/window_lifecycle` exercises two public OCaml windows, title commands,
@@ -88,5 +114,7 @@ last-window scenario, native OS callback/reopen scenario, Clippy with warnings
 denied, and mailbox/session tests. `native_window` includes the parent marker
 check. No hosted CI or merge has run for this milestone yet. Linux build/unit
 checks are required at integration; Linux GUI checks remain informational per
-the owner's platform policy. Tab/split-pane APIs and the integrated agent app
-are the next implementation stages.
+the owner's platform policy. Native tabs and retained panels additionally passed the complete OCaml/Rust
+suites, native keyboard/macOS accessibility/hidden-panel checks, the full native
+controls regression, Clippy, and formatting. Split panes and the integrated
+agent app are the next implementation stages.

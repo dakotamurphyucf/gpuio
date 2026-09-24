@@ -98,7 +98,7 @@ jobs:
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_ui --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_editor --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_controls --no-run
-          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_scroll --test native_list --test native_document --test native_window --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_scroll --test native_list --test native_document --test native_window --test native_tabs --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_animation --test native_drag_drop --test native_file_dialog --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-tests --all-targets -- -D warnings
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_images --test native_image_views --no-run
@@ -140,6 +140,9 @@ jobs:
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_list"], check=True, timeout=180)' 2>&1 | tee .cache/ci/macos-list-native.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/virtual_list/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-list-public.log
+      - name: macOS native tabs and retained panels
+        if: runner.os == 'macOS'
+        run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_tabs"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-tabs-native.log
       - name: macOS window lifecycle
         if: runner.os == 'macOS'
         run: |

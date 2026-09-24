@@ -441,9 +441,11 @@ impl View {
             node.kind,
             Kind::Container
                 | Kind::Animated
+                | Kind::TabPanel
                 | Kind::FocusScope
                 | Kind::CommandScope
                 | Kind::RadioGroup
+                | Kind::TabBar
                 | Kind::PointerArea
                 | Kind::DragSource
                 | Kind::DropTarget
@@ -562,6 +564,7 @@ impl View {
                 | Kind::Checkbox
                 | Kind::Switch
                 | Kind::RadioGroup
+                | Kind::TabBar
                 | Kind::Select
         ) {
             self.visited.insert(id);
@@ -597,10 +600,11 @@ impl View {
                     Kind::Checkbox => gpui::Role::CheckBox,
                     Kind::Switch => gpui::Role::Switch,
                     Kind::RadioGroup => gpui::Role::RadioGroup,
+                    Kind::TabBar => gpui::Role::TabList,
                     Kind::Select => gpui::Role::ComboBox,
                     _ => gpui::Role::Button,
                 })
-                .aria_label(accessible_name);
+                .aria_label(accessible_name.clone());
             if command
                 .as_ref()
                 .is_some_and(|route| route.config.checked.is_some())
@@ -617,6 +621,14 @@ impl View {
             if interaction.pointer && !disabled {
                 element = element.cursor_pointer();
             }
+        }
+        if node.kind == Kind::TabBar {
+            element = element.flex_row();
+        }
+        if node.kind == Kind::TabPanel {
+            element = element
+                .role(gpui::Role::TabPanel)
+                .aria_label(accessible_name);
         }
         let animation = self.animation_frame(node, window, cx);
         let styles = animation
@@ -763,6 +775,7 @@ impl View {
                 element = radio::element(
                     element,
                     radio::Render {
+                        tabs: node.kind == Kind::TabBar,
                         config,
                         state,
                         focus,

@@ -223,6 +223,8 @@ let kind = function
   | Animated -> Animated
   | Virtual_list -> Virtual_list
   | Document_view -> Document_view
+  | Tab_bar -> Tab_bar
+  | Tab_panel -> Tab_panel
 ;;
 
 let compatible mounted view =

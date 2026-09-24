@@ -213,6 +213,22 @@ module View : sig
 
   val row : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> t list -> t
 
+  val tab_bar
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Choice.Config.t
+    -> on_select:(Gpuio.Choice.Id.t -> unit Bonsai.Effect.t)
+    -> unit
+    -> t
+
+  val tab_panel
+    :  key:Gpuio.Key.t
+    -> label:string
+    -> active:bool
+    -> ?style:Gpuio.Style.t
+    -> t list
+    -> t
+
   val radio_group
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

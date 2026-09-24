@@ -41,6 +41,8 @@ module type S = sig
       | Animated
       | Virtual_list
       | Document_view
+      | Tab_bar
+      | Tab_panel
     [@@deriving bin_io, equal, sexp_of]
   end
 

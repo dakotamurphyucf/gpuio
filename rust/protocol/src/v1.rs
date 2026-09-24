@@ -109,6 +109,8 @@ pub enum Kind {
     Animated,
     VirtualList,
     DocumentView,
+    TabBar,
+    TabPanel,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]

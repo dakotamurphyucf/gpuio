@@ -32,6 +32,7 @@ timeout 90 _build/default/examples/bridge/main.exe
     timeout 90 _build/default/examples/documents/main.exe --self-test
     timeout 90 _build/default/examples/window_lifecycle/main.exe
     timeout 90 _build/default/examples/window_lifecycle/main.exe --last-window
+    timeout 90 ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_tabs
     timeout 180 ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_list
     timeout 90 _build/default/examples/virtual_list/main.exe --self-test
     timeout 90 ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_animation

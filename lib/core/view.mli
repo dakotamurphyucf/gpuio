@@ -213,6 +213,28 @@ val radio_group
   -> unit
   -> 'action t
 
+(** Native tab-list roles, one keyboard focus stop, automatic selection with
+    arrows/Home/End and pointer/accessibility activation. The caller owns the
+    selected ID and panel lifetimes. Disabled tabs are skipped. *)
+val tab_bar
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Choice.Config.t
+  -> on_select:(Choice.Id.t -> 'action)
+  -> unit
+  -> 'action t
+
+(** Retained panel with native tab-panel semantics. Inactive panels are hidden,
+    preserving native editor/list state while remaining mounted. Bound the number
+    of retained panels in the application; unmounting is explicit. *)
+val tab_panel
+  :  key:Key.t
+  -> label:string
+  -> active:bool
+  -> ?style:Style.t
+  -> 'action t list
+  -> 'action t
+
 (** A native select with a bounded, scrollable option popup. Focus remains on
     the trigger. Arrows move the open popup highlight without changing the
     application value; Enter requests the highlighted ID, Escape cancels, and
@@ -427,6 +449,8 @@ module Expert : sig
       | Animated
       | Virtual_list
       | Document_view
+      | Tab_bar
+      | Tab_panel
     [@@deriving equal, sexp_of]
   end
 

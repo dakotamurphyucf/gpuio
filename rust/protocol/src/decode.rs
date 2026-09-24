@@ -788,6 +788,8 @@ impl Decoder<'_> {
                     24 => Kind::Animated,
                     25 => Kind::VirtualList,
                     26 => Kind::DocumentView,
+                    27 => Kind::TabBar,
+                    28 => Kind::TabPanel,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)

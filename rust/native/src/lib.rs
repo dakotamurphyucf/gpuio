@@ -125,3 +125,8 @@ pub mod document_search;
 pub fn run_native_window_test() {
     host::window_test::run();
 }
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_tabs_test() {
+    host::control_test::run_tabs();
+}
