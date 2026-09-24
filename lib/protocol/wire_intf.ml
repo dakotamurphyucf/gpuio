@@ -780,6 +780,7 @@ module type S = sig
       | Editor_command of int64 * Window_id.t * Node_id.t * Editor.Command.t
       | File_dialog of int64 * Window_id.t * File_dialog.Config.t
       | Asset of int64 * Asset.Request.t
+      | Set_motion of Animation.Preference.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Bounded outgoing encoding. Native decoding additionally validates all

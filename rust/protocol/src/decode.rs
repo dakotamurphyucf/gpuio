@@ -921,6 +921,12 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
             }
             Message::Asset(correlation, d.asset()?)
         }
+        9 => Message::SetMotion(match d.tag()? {
+            0 => crate::animation::Preference::System,
+            1 => crate::animation::Preference::Reduce,
+            2 => crate::animation::Preference::Full,
+            _ => return Err(DecodeError::Malformed),
+        }),
         _ => return Err(DecodeError::Malformed),
     };
     if d.remaining() != 0 {

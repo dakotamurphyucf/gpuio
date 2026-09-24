@@ -132,6 +132,33 @@ pub(super) async fn exercise(
         -1,
         "indeterminate progress has no fabricated numeric value"
     );
+    cx.update(|cx| cx.set_reduce_motion(true));
+    frame(cx, handle).await;
+    let reduced = paint(cx, handle);
+    let viewport = handle
+        .update(cx, |view, _, _| view.probes.borrow()[&node(60)].bounds)
+        .unwrap();
+    assert_eq!(reduced.bounds.size.width, px(60.));
+    assert_eq!(
+        reduced.bounds.center(),
+        viewport.center(),
+        "reduced indeterminate bar remains visible and centered"
+    );
+    let renders = handle.update(cx, |view, _, _| view.render_count).unwrap();
+    pause(cx).await;
+    assert_eq!(
+        handle.update(cx, |view, _, _| view.render_count).unwrap(),
+        renders,
+        "reduced progress leaves window idle"
+    );
+    cx.update(|cx| cx.set_reduce_motion(false));
+    frame(cx, handle).await;
+    let resumed = paint(cx, handle).count;
+    pause(cx).await;
+    assert!(
+        paint(cx, handle).count > resumed,
+        "full motion resumes progress frames"
+    );
     let mut hidden = styles();
     hidden.push(Style::Fields(vec![Field::Visibility(1)]));
     apply(cx, handle, vec![Op::SetStyle(node(60), hidden)]);

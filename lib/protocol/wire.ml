@@ -811,6 +811,7 @@ module Message = struct
     | Editor_command of int64 * Window_id.t * Node_id.t * Editor.Command.t
     | File_dialog of int64 * Window_id.t * File_dialog.Config.t
     | Asset of int64 * Asset.Request.t
+    | Set_motion of Animation.Preference.t
   [@@deriving bin_io, equal, sexp_of]
 
   let encode t =
@@ -829,7 +830,8 @@ module Message = struct
       | Request_frame _
       | Shutdown
       | Editor_command _
-      | File_dialog _ -> false
+      | File_dialog _
+      | Set_motion _ -> false
     in
     if invalid_asset
     then Or_error.error_string "invalid asset envelope"

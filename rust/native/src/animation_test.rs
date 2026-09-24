@@ -233,7 +233,9 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, transport
     apply(cx, window, vec![Op::SetStyle(node(0), vec![])]);
     frame(cx, window).await;
     assert!(window.update(cx, |view, _, _| view.render_count).unwrap() > hidden);
-    cx.update(|cx| cx.set_reduce_motion(true));
+    cx.update(|cx| {
+        crate::motion_preference::set(gpuio_protocol::animation::Preference::Reduce, cx)
+    });
     window.update(cx, |_, window, _| window.refresh()).unwrap();
     frame(cx, window).await;
     assert_eq!(
@@ -268,7 +270,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, transport
     );
     assert_eq!(outcomes[1].generation, 4);
     assert_eq!(outcomes[1].outcome, Outcome::Finished);
-    cx.update(|cx| cx.set_reduce_motion(false));
+    cx.update(|cx| crate::motion_preference::set(gpuio_protocol::animation::Preference::Full, cx));
     let mut delayed = config(5, 140.);
     delayed.delay_ms = 500;
     apply(cx, window, vec![Op::SetAnimation(node(1), delayed)]);
@@ -314,6 +316,8 @@ pub(crate) fn run() {
     gpui_platform::application().run(move |cx| {
         cx.set_quit_mode(gpui::QuitMode::Explicit);
         gpui_base::init(cx);
+        let motion_watch = crate::motion_preference::init(cx);
+        crate::motion_preference::set(gpuio_protocol::animation::Preference::Full, cx);
         let session = Rc::new(RefCell::new(Session::default()));
         session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
         session
@@ -337,6 +341,7 @@ pub(crate) fn run() {
         cx.spawn(async move |cx| {
             let result = super::native_test::protect(async {
                 exercise(cx, window, &transport).await;
+                crate::motion_preference::test(cx, &motion_watch).await;
                 window
                     .update(cx, |_, window, _| window.remove_window())
                     .unwrap();

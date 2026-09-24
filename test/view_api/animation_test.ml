@@ -188,3 +188,18 @@ let%expect_test "retained animation generations and ordered endpoint delivery" =
   [%expect
     {| stable node/handler, latest closure, prior-run cancellation, once-only endpoints, disposal |}]
 ;;
+
+let%expect_test "application motion preference wire tags" =
+  List.iter
+    [ Gpuio_protocol.Wire.Animation.Preference.System; Reduce; Full ]
+    ~f:(fun preference ->
+      let bytes =
+        Gpuio_protocol.Wire.Message.encode (Set_motion preference) |> Or_error.ok_exn
+      in
+      print_s [%sexp (String.to_list bytes |> List.map ~f:Char.to_int : int list)]);
+  [%expect
+    {|
+    (9 0)
+    (9 1)
+    (9 2) |}]
+;;

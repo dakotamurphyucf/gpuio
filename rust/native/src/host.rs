@@ -478,6 +478,7 @@ impl View {
                 element = element.child(progress::indicator(
                     config.fraction,
                     identity,
+                    cx.reduce_motion(),
                     #[cfg(feature = "native-tests")]
                     self.progress_probes.entry(id).or_default().clone(),
                 ));
@@ -1222,6 +1223,7 @@ pub fn run(transport: Arc<Transport>) {
     gpui_platform::application().run(move |cx: &mut App| {
         gpui_base::init(cx);
         crate::image_host::init(cx);
+        let motion = crate::motion_preference::init(cx);
         // GPUI defaults to last-window exit on Linux. Our explicit lifecycle
         // policy must control background applications consistently on both OSes.
         cx.set_quit_mode(gpui::QuitMode::Explicit);
@@ -1229,7 +1231,9 @@ pub fn run(transport: Arc<Transport>) {
         let mut windows: BTreeMap<WindowId, WindowHandle<View>> = BTreeMap::new();
         let dialogs = crate::file_dialog::Dialogs::default();
         let quit_dialogs = dialogs.clone();
+        let quit_motion = motion.clone();
         cx.on_app_quit(move |cx| {
+            quit_motion.borrow_mut().take();
             drag_drop::shutdown(cx);
             quit_dialogs.finish_before_quit();
             std::future::ready(())
@@ -1250,6 +1254,7 @@ pub fn run(transport: Arc<Transport>) {
                     .aborting
                     .load(std::sync::atomic::Ordering::Acquire)
                 {
+                    motion.borrow_mut().take();
                     dialogs.clear().wait().await;
                     crate::image_host::shutdown(cx).await;
                     if !stopping.replace(true) {
@@ -1460,7 +1465,14 @@ pub fn run(transport: Arc<Transport>) {
                             let response = session.borrow_mut().asset_request(request);
                             transport.respond(Event::AssetResponse(correlation, response));
                         }
+                        Message::SetMotion(preference) => {
+                            match session.borrow().check_ready() {
+                                Ok(()) => cx.update(|cx| crate::motion_preference::set(preference, cx)),
+                                Err(error) => transport.respond(Event::Failed(0, error)),
+                            }
+                        }
                         Message::Shutdown => {
+                            motion.borrow_mut().take();
                             dialogs.clear().wait().await;
                             crate::image_host::shutdown(cx).await;
                             for event in session.borrow_mut().shutdown() {

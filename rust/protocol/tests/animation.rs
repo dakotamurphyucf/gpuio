@@ -119,3 +119,22 @@ fn animation_messages_have_bounded_validated_decoding() {
     bytes.push(0);
     assert_eq!(decode(&bytes), Err(DecodeError::Malformed));
 }
+
+#[test]
+fn application_motion_tags_are_stable_and_invalid_values_rejected() {
+    use gpuio_protocol::{decode, v1::Message};
+    for (tag, preference) in [
+        (0, Preference::System),
+        (1, Preference::Reduce),
+        (2, Preference::Full),
+    ] {
+        let expected = Message::SetMotion(preference);
+        let mut bytes = vec![];
+        expected.binprot_write(&mut bytes).unwrap();
+        assert_eq!(bytes, [9, tag]);
+        assert_eq!(decode(&bytes).unwrap(), expected);
+    }
+    assert!(decode(&[9, 3]).is_err());
+    assert!(decode(&[9]).is_err());
+    assert!(decode(&[9, 1, 0]).is_err());
+}

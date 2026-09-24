@@ -16,6 +16,7 @@ pub(super) type Probe = std::rc::Rc<std::cell::Cell<Paint>>;
 pub(super) fn indicator(
     fraction: Option<f64>,
     identity: u64,
+    reduced: bool,
     #[cfg(feature = "native-tests")] probe: Probe,
 ) -> gpui::AnyElement {
     let fill = canvas(
@@ -34,6 +35,10 @@ pub(super) fn indicator(
     let bar = div().absolute().top_0().h_full().child(fill);
     match fraction {
         Some(fraction) => bar.left_0().w(relative(fraction as f32)).into_any_element(),
+        None if reduced => bar
+            .left(relative(0.375))
+            .w(relative(0.25))
+            .into_any_element(),
         None => bar
             .w(relative(0.25))
             .with_animation(

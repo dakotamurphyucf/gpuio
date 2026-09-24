@@ -1,8 +1,8 @@
 # Native declarative animations (OCH-12)
 
 Status: typed configuration, view/reconciler/transport and GPUI rendering now pass
-local macOS tests, including the public Bonsai/Eio example. Application motion
-policy and platform preference detection remain in progress. The final animation
+local macOS tests, including the public Bonsai/Eio example. Shared application motion
+policy and live platform preference adapters are implemented. The final animation
 capability is not advertised yet; consolidated hosted acceptance and merge remain.
 
 ## Configuration
@@ -80,7 +80,7 @@ Cancellation freezes the last painted values and emits at most one endpoint.
 Unmount cancels native state and pending deadlines; window disposal releases its
 owned state and timers. Application callbacks are discarded on unmount or close.
 
-## Remaining integration and acceptance
+## View integration
 
 `View.animate ?key ?style ?on_event config children` and its Bonsai specialization
 retain native state by node identity. Animation-owned fields take precedence over
@@ -107,15 +107,44 @@ easing, initial sets and timing. Tree validation rejects incompatible configurat
 backward/reused changed generations and invalid updates atomically; retained
 configuration buffers count toward the tree budget.
 
-Still required before OCH-12 completion:
+## Application motion preferences
 
-- `System`/`Reduce`/`Full` application policy, platform preference detection where
-  available and documented fallback behavior. Native tests currently exercise
-  GPUI's explicit reduced-motion flag; no OS preference detection is claimed.
-- Final capability negotiation, shared application policy for progress indicators,
-  policy-change/window-lifecycle acceptance and any remaining target/scale review.
-- Consolidated required macOS functionality and Linux build/tests and merge under
-  the existing platform gate. Linux GUI checks remain informational for OCH-17.
+`App.run ~motion:Animation.Preference.System` is the default.
+`App.set_motion app Reduce` or `Full` overrides the system for all windows, including
+ones opened later. Selecting `System` again uses the latest observed system value.
+The runtime coalesces pending preferences and sends the initial preference before
+opening windows. The wire command is `Set_motion` (message tag 9), with preference
+tags System=0, Reduce=1, Full=2. Native state refreshes windows only when the resolved
+Boolean changes; platform updates do not generate OCaml effects.
+
+macOS reads `NSWorkspace.accessibilityDisplayShouldReduceMotion` on the GPUI main
+thread. Its workspace display-options notification signals a one-slot channel;
+the consumer reads the latest setting on the main thread. Subscription precedes
+the initial read, and disposal unregisters the exact observer token before dropping
+the consumer. See Apple's [preference](https://developer.apple.com/documentation/appkit/nsworkspace/accessibilitydisplayshouldreducemotion)
+and [notification](https://developer.apple.com/documentation/appkit/nsworkspace/accessibilitydisplayoptionsdidchangenotification).
+
+Linux observes the standard XDG Settings `org.freedesktop.appearance/reduced-motion`
+key: unsigned 1 means reduced; 0 or other unsigned values mean no preference.
+It subscribes to setting and portal name-owner changes before `ReadOne`. Signals
+trigger a current read, so queued old payloads cannot revert a newer snapshot.
+The private connection, subscriptions, request timeouts and update queue are bounded;
+requests run on the background executor. See the [XDG Settings specification](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.Settings.html).
+
+`System` falls back to full motion while the asynchronous Linux read is pending or
+when no valid setting is available. Older desktops without this key use that
+fallback and can still use an explicit application override. Portal restarts on an
+existing connection are observed; a missing/disconnected session bus is not polled
+or reconnected until a new application launch. Shutdown drops the observer and its
+consumer. No extra permanent polling timer is introduced.
+
+Both declarative transitions and native progress use the same resolved GPUI flag.
+Reduced indeterminate progress displays a centered, static 25%-width bar with no
+fabricated numeric accessibility value. Full motion resumes its native cycle.
+
+Still required before OCH-12 completion: final capability negotiation and remaining
+native target/window/scale review, then consolidated required macOS functionality
+and Linux build/tests and merge. Linux GUI checks remain informational for OCH-17.
 
 Springs, sequences and synchronized repetition belong to OCH-25. This does not
 remove any OCH-12 baseline requirement or OCH-11's shared basic-transition scope.
@@ -150,3 +179,18 @@ tests cover rollback, list limits and invalid values.
 Local logs are `motion-*.log` and `animation-*.log` in the implementing agent's ignored
 scratch directory. The checked-in CI adds native/public macOS runs and informational
 Linux runs; hosted execution remains deferred to the consolidated delivery.
+
+Motion policy tests pass the precedence/unknown-value matrix. The actual macOS
+animation window passes live application policy and a real workspace-notification
+round trip, then verifies observer disposal. The test posts a notification without
+changing the user's OS settings. The Linux observer's private socket tests pass
+initial and changed values, stale signal payloads, name-owner changes, unavailable
+keys and a silent service timeout; these are protocol tests executed on macOS,
+not Linux desktop validation. The public example's final 60-second transition
+settles within its 15-second test scope after `App.set_motion app Reduce`.
+
+The focused progress suite and full native controls suite pass with the shared
+policy changes: reduced indeterminate progress remains visibly centered, leaves
+the whole window idle, and resumes native frames under Full. Resumed feature-enabled
+all-target Clippy passes. An earlier full-controls run failed an existing tooltip
+hover check during severe host memory pressure; the resumed full suite passes.

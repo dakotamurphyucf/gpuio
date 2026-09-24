@@ -52,7 +52,7 @@ impl Session {
         Ok(Event::Welcome(VERSION, CAPABILITIES))
     }
 
-    fn check_ready(&self) -> Result<(), ErrorCode> {
+    pub(crate) fn check_ready(&self) -> Result<(), ErrorCode> {
         if self.stopped {
             Err(ErrorCode::Closed)
         } else if !self.ready {

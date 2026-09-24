@@ -35,8 +35,8 @@ flate2 = "=1.1.10"
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "=0.26.0"
 objc2 = "0.6.4"
-objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSString", "NSRange", "NSURL", "NSArray"] }
-objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSApplication", "NSOpenPanel", "NSSavePanel", "NSPanel", "NSResponder", "NSWindow", "NSView", "block2"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSString", "NSRange", "NSURL", "NSArray", "NSNotification", "NSOperation"] }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSApplication", "NSOpenPanel", "NSSavePanel", "NSPanel", "NSResponder", "NSWindow", "NSView", "NSWorkspace", "NSAccessibility", "block2"] }
 block2 = "0.6.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]

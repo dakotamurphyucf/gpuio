@@ -489,3 +489,12 @@ behavior and delayed-task disposal. The public Bonsai/Eio example passes endpoin
 theme change and shutdown. Platform preference detection, application policy,
 final capability advertisement and consolidated gates/merge remain pending; see
 [animation design](design/animations.md).
+
+Shared motion preferences now work through `App.run ~motion` and `App.set_motion`.
+macOS uses a live NSWorkspace observer; Linux has an event-driven XDG Settings
+adapter with bounded calls and documented unavailable-setting fallback. The native
+macOS animation suite passes policy changes and a real notification/disposal check;
+the public example passes immediate settling of a long animation under Reduce.
+Portal protocol tests pass using a private mock connection on macOS. Final
+capability/acceptance, hosted macOS/Linux gates and merge remain pending; see
+[animation policy](design/animations.md#application-motion-preferences).

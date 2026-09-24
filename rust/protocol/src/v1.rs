@@ -576,6 +576,7 @@ pub enum Message {
     EditorCommand(i64, WindowId, NodeId, EditorCommand),
     FileDialog(i64, WindowId, FileDialogConfig),
     Asset(i64, crate::asset::Request),
+    SetMotion(crate::animation::Preference),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]

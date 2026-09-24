@@ -4,3 +4,6 @@
 mod request;
 mod response;
 pub use request::{choose, version};
+
+mod motion;
+pub use motion::watch_motion;

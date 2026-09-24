@@ -13,6 +13,7 @@ pub fn run_native_animation_test() {
 pub mod image_host;
 pub mod mailbox;
 pub mod motion;
+mod motion_preference;
 mod selection;
 mod semantics;
 pub mod session;

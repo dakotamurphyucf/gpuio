@@ -55,6 +55,7 @@ type t =
   ; asset_registry : Asset_registry.t
   ; mutable assets : (Wire.Asset.Response.t -> unit) Int64.Map.t
   ; mutable correlation : int64
+  ; mutable motion : Gpuio.Animation.Preference.t option
   ; mutable welcomed : bool
   ; mutable stopping : bool
   ; mutable stopped : bool
@@ -90,6 +91,14 @@ let correlation t =
 let queue t message =
   Queue.enqueue t.commands message;
   Inbox.wake t.inbox
+;;
+
+let set_motion t preference =
+  check t;
+  if not t.stopping
+  then (
+    t.motion <- Some preference;
+    Inbox.wake t.inbox)
 ;;
 
 module Expert = struct
@@ -524,7 +533,26 @@ let submit_commands t =
          | Error Busy -> ()
          | Error code -> Error.raise (native_error code)))
   in
-  if t.welcomed then loop 64
+  if t.welcomed
+  then (
+    let ready =
+      match t.motion with
+      | None -> true
+      | Some preference ->
+        let preference =
+          match preference with
+          | System -> Wire.Animation.Preference.System
+          | Reduce -> Reduce
+          | Full -> Full
+        in
+        (match Gpuio_native.submit t.native (Set_motion preference) with
+         | Ok () ->
+           t.motion <- None;
+           true
+         | Error Busy -> false
+         | Error code -> Error.raise (native_error code))
+    in
+    if ready then loop 64)
 ;;
 
 let step t =
@@ -580,7 +608,7 @@ let step t =
         | (Opening | Closing_before_open | Closing | Closed), _ | Open, _ -> ())))
 ;;
 
-let worker native read ~tick_hz ~max_tasks initialize =
+let worker native read ~tick_hz ~max_tasks ~motion initialize =
   Eio_main.run (fun env ->
     Eio.Switch.run (fun sw ->
       let inbox = Inbox.create ~capacity:1024 () in
@@ -606,6 +634,7 @@ let worker native read ~tick_hz ~max_tasks initialize =
         ; asset_registry = Asset_registry.create ~scope ~wake:(fun () -> Inbox.wake inbox)
         ; assets = Int64.Map.empty
         ; correlation = 0L
+        ; motion = Some motion
         ; welcomed = false
         ; stopping = false
         ; stopped = false
@@ -668,7 +697,13 @@ let reraise_result = function
   | Error (exn, bt) -> Stdlib.Printexc.raise_with_backtrace exn bt
 ;;
 
-let run ?(tick_hz = 60.) ?(max_tasks = 1024) ?(exit_on_last_window = true) initialize =
+let run
+      ?(tick_hz = 60.)
+      ?(max_tasks = 1024)
+      ?(exit_on_last_window = true)
+      ?(motion = Gpuio.Animation.Preference.System)
+      initialize
+  =
   if (not (Float.is_finite tick_hz)) || Float.(tick_hz < 0.01 || tick_hz > 240.)
   then invalid_arg "tick_hz must be in [0.01,240]";
   if max_tasks < 1 || max_tasks > 65536 then invalid_arg "max_tasks must be in 1..65536";
@@ -686,7 +721,7 @@ let run ?(tick_hz = 60.) ?(max_tasks = 1024) ?(exit_on_last_window = true) initi
       Eio.Flow.close write;
       let domain =
         Domain.spawn (fun () ->
-          try worker native read ~tick_hz ~max_tasks initialize with
+          try worker native read ~tick_hz ~max_tasks ~motion initialize with
           | exn ->
             let bt = Stdlib.Printexc.get_raw_backtrace () in
             Gpuio_native.abort native;
