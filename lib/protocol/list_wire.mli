@@ -39,6 +39,7 @@ module Config : sig
     ; max_active : int64
     ; scroll_policy : Scroll_policy.t
     ; scrollbar : bool
+    ; managed : bool
     }
   [@@deriving bin_io, equal, sexp_of]
 
@@ -67,4 +68,22 @@ module Scroll_request : sig
     ; target : Scroll_target.t
     }
   [@@deriving bin_io, equal, sexp_of]
+end
+
+module Viewport : sig
+  type t =
+    { order_revision : int64
+    ; visible_first : int64
+    ; visible_last : int64
+    ; requested : int64 list
+    ; pinned : int64 list
+    ; anchor : (int64 * float) option
+    ; following_tail : bool
+    ; at_start : bool
+    ; at_end : bool
+    ; budget_exhausted : bool
+    }
+  [@@deriving bin_io, equal, sexp_of]
+
+  val validate : t -> unit Or_error.t
 end

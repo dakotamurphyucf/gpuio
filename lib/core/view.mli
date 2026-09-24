@@ -164,6 +164,18 @@ val tooltip
 val row : ?key:Key.t -> ?style:Style.t -> 'action t list -> 'action t
 val column : ?key:Key.t -> ?style:Style.t -> 'action t list -> 'action t
 
+(** Retains all supplied descriptions, building native elements only for the
+    viewport/overscan. Use the managed Bonsai component for bounded row graphs.
+    Keys must be unique. A fixed config height applies to the row wrapper. *)
+val virtual_list
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?on_viewport:(Virtual_list.Viewport.t -> 'action)
+  -> ?scroll:Virtual_list.Scroll_request.t
+  -> config:Virtual_list.Config.t
+  -> (Key.t * 'action t) list
+  -> 'action t Core.Or_error.t
+
 val grid
   :  ?key:Key.t
   -> ?style:Style.t
@@ -316,6 +328,32 @@ val toast_stack
   -> 'action t Core.Or_error.t
 
 module Expert : sig
+  type 'action virtual_list =
+    { config : Virtual_list.Config.t
+    ; order : Virtual_list.Order.t
+    ; managed : bool
+    ; invalidated : Key.t list
+    ; invalidation_revision : int64
+    ; scroll : Virtual_list.Scroll_request.t option
+    ; on_viewport : (Virtual_list.Viewport.t -> 'action) option
+    ; on_retain : (Key.t list -> 'action) option
+    }
+
+  (** Native list adapters supply the desired row set, including pinned rows.
+      [on_retain] handles a native veto of stale viewport-driven eviction. *)
+  val managed_virtual_list
+    :  ?key:Key.t
+    -> ?style:Style.t
+    -> ?scroll:Virtual_list.Scroll_request.t
+    -> ?invalidated:Key.t list
+    -> ?invalidation_revision:int64
+    -> config:Virtual_list.Config.t
+    -> order:Virtual_list.Order.t
+    -> on_viewport:(Virtual_list.Viewport.t -> 'action)
+    -> on_retain:(Key.t list -> 'action)
+    -> (Key.t * 'action t) list
+    -> 'action t Core.Or_error.t
+
   type 'action animation =
     { config : Animation.Config.t
     ; on_event : (Animation.Event.t -> 'action) option
@@ -373,6 +411,7 @@ module Expert : sig
       | Image
       | Icon
       | Animated
+      | Virtual_list
     [@@deriving equal, sexp_of]
   end
 
@@ -459,6 +498,7 @@ module Expert : sig
     ; palette : 'action palette option
     ; menu : menu option
     ; focus_scope : Focus_scope.t option
+    ; virtual_list : 'action virtual_list option
     ; children : 'action t list
     }
 

@@ -55,6 +55,7 @@ pub struct Config {
     pub max_active: i64,
     pub scroll_policy: ScrollPolicy,
     pub scrollbar: bool,
+    pub managed: bool,
 }
 impl Config {
     pub fn is_valid(&self) -> bool {
@@ -83,6 +84,46 @@ pub enum ScrollTarget {
 pub struct ScrollRequest {
     pub serial: i64,
     pub target: ScrollTarget,
+}
+
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct Viewport {
+    pub order_revision: i64,
+    pub visible_first: i64,
+    pub visible_last: i64,
+    pub requested: Vec<i64>,
+    pub pinned: Vec<i64>,
+    pub anchor: Option<(i64, f64)>,
+    pub following_tail: bool,
+    pub at_start: bool,
+    pub at_end: bool,
+    pub budget_exhausted: bool,
+}
+impl Viewport {
+    pub fn is_valid(&self) -> bool {
+        use std::collections::HashSet;
+        let valid_ids = |ids: &[i64]| {
+            ids.len() <= MAX_ACTIVE_ROWS
+                && ids.iter().all(|id| *id > 0)
+                && ids.iter().collect::<HashSet<_>>().len() == ids.len()
+        };
+        self.order_revision > 0
+            && self.visible_first >= 0
+            && self.visible_last >= self.visible_first
+            && self.visible_last <= MAX_LOGICAL_ROWS as i64
+            && valid_ids(&self.requested)
+            && valid_ids(&self.pinned)
+            && self
+                .requested
+                .iter()
+                .chain(&self.pinned)
+                .collect::<HashSet<_>>()
+                .len()
+                <= MAX_ACTIVE_ROWS
+            && self.anchor.is_none_or(|(id, offset)| {
+                id > 0 && offset.is_finite() && (0.0..=1_000_000.0).contains(&offset)
+            })
+    }
 }
 
 #[cfg(test)]

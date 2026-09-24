@@ -37,6 +37,7 @@ module type S = sig
       | Image
       | Icon
       | Animated
+      | Virtual_list
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -678,6 +679,11 @@ module type S = sig
       | Set_drop_target of Node_id.t * Drag_and_drop.Target.t
       | Set_image of Node_id.t * Image.Config.t
       | Set_animation of Node_id.t * Animation.Config.t
+      | Set_list_config of Node_id.t * List_wire.Config.t
+      | Set_list_order of Node_id.t * List_wire.Order.t
+      | Set_list_rows of Node_id.t * List_wire.Row.t list
+      | Invalidate_list_rows of Node_id.t * int64 list
+      | Scroll_list of Node_id.t * List_wire.Scroll_request.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -853,6 +859,8 @@ module type S = sig
       | Image_state of Window_id.t * Node_id.t * Handler_id.t * int64 * Image.State.t
       | Animation_endpoint of
           Window_id.t * Node_id.t * Handler_id.t * int64 * Animation.Endpoint.t
+      | List_viewport of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * List_wire.Viewport.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

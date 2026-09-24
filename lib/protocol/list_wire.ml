@@ -63,6 +63,7 @@ module Config = struct
     ; max_active : int64
     ; scroll_policy : Scroll_policy.t
     ; scrollbar : bool
+    ; managed : bool
     }
   [@@deriving bin_io, equal, sexp_of]
 
@@ -100,4 +101,43 @@ module Scroll_request = struct
     ; target : Scroll_target.t
     }
   [@@deriving bin_io, equal, sexp_of]
+end
+
+module Viewport = struct
+  type t =
+    { order_revision : int64
+    ; visible_first : int64
+    ; visible_last : int64
+    ; requested : int64 list
+    ; pinned : int64 list
+    ; anchor : (int64 * float) option
+    ; following_tail : bool
+    ; at_start : bool
+    ; at_end : bool
+    ; budget_exhausted : bool
+    }
+  [@@deriving bin_io, equal, sexp_of]
+
+  let validate t =
+    let valid_ids ids =
+      List.length ids <= max_active_rows
+      && List.for_all ids ~f:(fun id -> Int64.(id > 0L))
+      && Set.length (Int64.Set.of_list ids) = List.length ids
+    in
+    if
+      Int64.(
+        t.order_revision > 0L
+        && t.visible_first >= 0L
+        && t.visible_last >= t.visible_first
+        && t.visible_last <= of_int max_logical_rows)
+      && valid_ids t.requested
+      && valid_ids t.pinned
+      && Set.length (Int64.Set.of_list (t.requested @ t.pinned)) <= max_active_rows
+      && Option.for_all t.anchor ~f:(fun (id, offset) ->
+        Int64.(id > 0L)
+        && Float.is_finite offset
+        && Float.(offset >= 0. && offset <= 1_000_000.))
+    then Ok ()
+    else Or_error.error_string "invalid list viewport observation"
+  ;;
 end

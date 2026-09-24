@@ -77,6 +77,45 @@ impl Session {
         self.assets.acquire(id).map_err(|_| ImageError::Released)
     }
 
+    pub fn list_viewport(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: gpuio_protocol::HandlerId,
+        revision: i64,
+        viewport: gpuio_protocol::list::Viewport,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let current = state.tree.get(node)?;
+        let index = current.list_index.as_ref()?;
+        let config = current.list_config.as_ref()?;
+        (!state.overloaded
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision()
+            && viewport.is_valid()
+            && viewport.order_revision == index.revision()
+            && viewport.visible_last as usize <= index.len()
+            && viewport
+                .requested
+                .iter()
+                .chain(&viewport.pinned)
+                .all(|id| index.position(*id).is_some())
+            && viewport
+                .requested
+                .iter()
+                .chain(&viewport.pinned)
+                .collect::<std::collections::HashSet<_>>()
+                .len()
+                <= config.max_active as usize
+            && viewport
+                .anchor
+                .is_none_or(|(id, _)| index.position(id).is_some()))
+        .then_some(Event::ListViewport(
+            window, node, handler, revision, viewport,
+        ))
+    }
+
     pub fn animation_endpoint(
         &self,
         window: WindowId,

@@ -28,6 +28,7 @@ module Kind = struct
     | Image
     | Icon
     | Animated
+    | Virtual_list
   [@@deriving equal, sexp_of]
 end
 
@@ -130,6 +131,17 @@ type 'action image =
   ; on_change : (Image.State.t -> 'action) option
   }
 
+type 'action virtual_list =
+  { config : Virtual_list.Config.t
+  ; order : Virtual_list.Order.t
+  ; managed : bool
+  ; invalidated : Key.t list
+  ; invalidation_revision : int64
+  ; scroll : Virtual_list.Scroll_request.t option
+  ; on_viewport : (Virtual_list.Viewport.t -> 'action) option
+  ; on_retain : (Key.t list -> 'action) option
+  }
+
 type 'action t =
   { key : Key.t option
   ; kind : Kind.t
@@ -155,6 +167,7 @@ type 'action t =
   ; palette : 'action palette option
   ; menu : menu option
   ; focus_scope : Focus_scope.t option
+  ; virtual_list : 'action virtual_list option
   ; children : 'action t list
   }
 
@@ -184,6 +197,7 @@ let text ?key ?(style = Style.empty) text =
   ; palette = None
   ; menu = None
   ; focus_scope = None
+  ; virtual_list = None
   ; control = None
   ; children = []
   }
@@ -229,6 +243,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; palette = None
   ; menu = None
   ; focus_scope = None
+  ; virtual_list = None
   ; control = None
   ; children
   }
@@ -318,6 +333,7 @@ let button
   ; palette = None
   ; menu = None
   ; focus_scope = None
+  ; virtual_list = None
   ; control = Some (Button { disabled })
   ; children
   }
@@ -379,6 +395,7 @@ let toggle
   ; palette = None
   ; menu = None
   ; focus_scope = None
+  ; virtual_list = None
   ; control = Some control
   ; children = []
   }
@@ -553,6 +570,69 @@ let column ?key ?style children =
   container ?key ?style [ Display Flex; Direction Column ] children
 ;;
 
+let make_virtual_list
+      ?key
+      ?style
+      ~config
+      ~order
+      ~managed
+      ~invalidated
+      ~invalidation_revision
+      ~scroll
+      ~on_viewport
+      ~on_retain
+      rows
+  =
+  let keys = List.map rows ~f:(fun (key, _) -> Key.to_string key) in
+  if
+    Set.length (String.Set.of_list keys) <> List.length keys
+    || (not (List.for_all rows ~f:(fun (key, _) -> Virtual_list.Order.mem order key)))
+    || (not (List.for_all invalidated ~f:(Virtual_list.Order.mem order)))
+    || Int64.(
+         invalidation_revision < 0L
+         || ((not (List.is_empty invalidated)) && invalidation_revision = 0L))
+    || (managed && List.length rows > Virtual_list.Config.max_active config)
+    || ((not managed) && List.length rows <> Virtual_list.Order.length order)
+  then Core.Or_error.error_string "invalid virtual list row set or active-row budget"
+  else (
+    let row_style = Virtual_list.Expert.row_style config in
+    let children =
+      List.map rows ~f:(fun (key, view) -> column ~key ~style:row_style [ view ])
+    in
+    Ok
+      { (column ?key ?style children) with
+        kind = Virtual_list
+      ; virtual_list =
+          Some
+            { config
+            ; order
+            ; managed
+            ; invalidated
+            ; invalidation_revision
+            ; scroll
+            ; on_viewport
+            ; on_retain
+            }
+      })
+;;
+
+let virtual_list ?key ?style ?on_viewport ?scroll ~config rows =
+  let open Core.Or_error.Let_syntax in
+  let%bind order = Virtual_list.Order.create (List.map rows ~f:fst) in
+  make_virtual_list
+    ?key
+    ?style
+    ~config
+    ~order
+    ~managed:false
+    ~invalidated:[]
+    ~invalidation_revision:0L
+    ~scroll
+    ~on_viewport
+    ~on_retain:None
+    rows
+;;
+
 let grid ?key ?style ~columns children =
   if columns < 1 || columns > 1024
   then Or_error.error_string "grid columns must be in 1..1024"
@@ -599,6 +679,7 @@ let text_input
   ; palette = None
   ; menu = None
   ; focus_scope = None
+  ; virtual_list = None
   ; control = None
   ; children = []
   }
@@ -629,6 +710,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; palette = None
   ; menu = None
   ; focus_scope = None
+  ; virtual_list = None
   ; children = []
   }
 ;;
@@ -681,6 +763,7 @@ let combobox
   ; palette = None
   ; menu = None
   ; focus_scope = None
+  ; virtual_list = None
   ; children = []
   }
 ;;
@@ -751,6 +834,43 @@ let toast_stack ?key ?(style = Style.empty) ?(config = Toast.Stack.default) item
 ;;
 
 module Expert = struct
+  type nonrec 'action virtual_list = 'action virtual_list =
+    { config : Virtual_list.Config.t
+    ; order : Virtual_list.Order.t
+    ; managed : bool
+    ; invalidated : Key.t list
+    ; invalidation_revision : int64
+    ; scroll : Virtual_list.Scroll_request.t option
+    ; on_viewport : (Virtual_list.Viewport.t -> 'action) option
+    ; on_retain : (Key.t list -> 'action) option
+    }
+
+  let managed_virtual_list
+        ?key
+        ?style
+        ?scroll
+        ?(invalidated = [])
+        ?(invalidation_revision = 0L)
+        ~config
+        ~order
+        ~on_viewport
+        ~on_retain
+        rows
+    =
+    make_virtual_list
+      ?key
+      ?style
+      ~config
+      ~order
+      ~managed:true
+      ~invalidated
+      ~invalidation_revision
+      ~scroll
+      ~on_viewport:(Some on_viewport)
+      ~on_retain:(Some on_retain)
+      rows
+  ;;
+
   type nonrec 'action animation = 'action animation =
     { config : Animation.Config.t
     ; on_event : (Animation.Event.t -> 'action) option
@@ -851,6 +971,7 @@ module Expert = struct
     ; palette : 'action palette option
     ; menu : menu option
     ; focus_scope : Focus_scope.t option
+    ; virtual_list : 'action virtual_list option
     ; children : 'action t list
     }
 

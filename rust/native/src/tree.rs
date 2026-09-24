@@ -8,6 +8,7 @@ fn allows_children(kind: Kind) -> bool {
     matches!(
         kind,
         Kind::Container
+            | Kind::VirtualList
             | Kind::Animated
             | Kind::Button
             | Kind::CommandButton
@@ -41,6 +42,10 @@ pub struct Node {
     pub progress: Option<Arc<ProgressConfig>>,
     pub image: Option<Arc<ImageConfig>>,
     pub animation: Option<Arc<gpuio_protocol::animation::Config>>,
+    pub list_config: Option<Arc<gpuio_protocol::list::Config>>,
+    pub list_order: Option<Arc<gpuio_protocol::list::Order>>,
+    pub list_index: Option<Arc<crate::list_index::Index>>,
+    pub list_rows: Arc<[gpuio_protocol::list::Row]>,
     pub toast: Option<Arc<ToastConfig>>,
     pub toast_stack: Option<Arc<ToastStackConfig>>,
     pub drag_source: Option<Arc<gpuio_protocol::drag_drop::Source>>,
@@ -58,6 +63,19 @@ pub struct Node {
 impl Node {
     fn payload_bytes(&self) -> usize {
         self.text.len()
+            + self.list_order.as_ref().map_or(0, |order| {
+                // Admission units include expanded indexing and GPUI measurement
+                // metadata, not merely the compact serialized runs. This is a
+                // conservative quota, not a measurement of allocator RSS.
+                order
+                    .runs
+                    .iter()
+                    .map(|run| run.count as usize)
+                    .sum::<usize>()
+                    * 192
+                    + std::mem::size_of_val(order.runs.as_slice())
+            })
+            + std::mem::size_of_val(self.list_rows.as_ref())
             + self
                 .drag_source
                 .as_ref()
@@ -158,12 +176,19 @@ pub struct Tree {
     retained_bytes: usize,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub struct Applied {
     pub revision: i64,
     pub touched_records: usize,
     pub validated_nodes: usize,
     pub dirty: Vec<NodeId>,
+    pub lists: Vec<ListAction>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ListAction {
+    Invalidate(NodeId, Vec<i64>),
+    Scroll(NodeId, gpuio_protocol::list::ScrollRequest),
 }
 
 impl Tree {
@@ -271,12 +296,14 @@ impl Tree {
             retained_bytes: self.retained_bytes,
             budget: budget.min(MAX_RETAINED_BYTES),
             structural: false,
+            lists: Vec::new(),
         };
         for op in &tx.operations {
             plan.operation(op)?;
         }
         for slot in plan.changes.values() {
             if let Some(node) = &slot.node {
+                plan.validate_list(node)?;
                 if node.choice_appearance.is_some()
                     && !matches!(
                         node.kind,
@@ -478,6 +505,7 @@ impl Tree {
                     | Kind::Image
                     | Kind::Icon
                     | Kind::Animated
+                    | Kind::VirtualList
                     | Kind::Text
                     | Kind::Button => {
                         if node.editor.is_some() {
@@ -527,12 +555,16 @@ impl Tree {
             dirty.insert(root);
         }
         let touched_records = plan.changes.len();
+        for action in &plan.lists {
+            plan.validate_list_action(action)?;
+        }
         let Plan {
             changes,
             root,
             slot_count,
             node_count,
             retained_bytes,
+            lists,
             ..
         } = plan;
         // All validation has succeeded. Reserve before mutating semantic state.
@@ -552,6 +584,7 @@ impl Tree {
             touched_records,
             validated_nodes,
             dirty: dirty.into_iter().collect(),
+            lists,
         })
     }
 }
@@ -565,9 +598,92 @@ struct Plan<'a> {
     retained_bytes: usize,
     budget: usize,
     structural: bool,
+    lists: Vec<ListAction>,
 }
 
 impl Plan<'_> {
+    fn list_contains(index: &crate::list_index::Index, mut ids: impl Iterator<Item = i64>) -> bool {
+        ids.all(|id| index.position(id).is_some())
+    }
+
+    fn validate_list(&self, node: &Node) -> Result<(), ErrorCode> {
+        if node.kind != Kind::VirtualList {
+            return if node.list_config.is_none()
+                && node.list_order.is_none()
+                && node.list_index.is_none()
+                && node.list_rows.is_empty()
+            {
+                Ok(())
+            } else {
+                Err(ErrorCode::InvalidTree)
+            };
+        }
+        let config = node.list_config.as_ref().ok_or(ErrorCode::InvalidTree)?;
+        let order = node.list_order.as_ref().ok_or(ErrorCode::InvalidTree)?;
+        let index = node.list_index.as_ref().ok_or(ErrorCode::InvalidTree)?;
+        if !config.is_valid()
+            || !order.is_valid()
+            || !node.text.is_empty()
+            || (config.managed && node.list_rows.len() > config.max_active as usize)
+            || (!config.managed && node.list_rows.len() != index.len())
+            || node.list_rows.len() != node.children.len()
+            || !Self::list_contains(index, node.list_rows.iter().map(|row| row.id))
+        {
+            return Err(ErrorCode::InvalidTree);
+        }
+        let mut ids = BTreeSet::new();
+        let mut children = BTreeSet::new();
+        for row in node.list_rows.iter() {
+            if !ids.insert(row.id) || !children.insert(row.node) {
+                return Err(ErrorCode::InvalidTree);
+            }
+        }
+        if children != node.children.iter().copied().collect() {
+            return Err(ErrorCode::InvalidTree);
+        }
+        Ok(())
+    }
+
+    fn validate_list_action(&self, action: &ListAction) -> Result<(), ErrorCode> {
+        let id = match action {
+            ListAction::Invalidate(id, _) | ListAction::Scroll(id, _) => *id,
+        };
+        let node = self.node(id)?;
+        if node.kind != Kind::VirtualList {
+            return Err(ErrorCode::InvalidTree);
+        }
+        let index = node.list_index.as_ref().ok_or(ErrorCode::InvalidTree)?;
+        match action {
+            ListAction::Invalidate(_, ids) => {
+                if ids.len() > gpuio_protocol::list::MAX_LOGICAL_ROWS
+                    || !Self::list_contains(index, ids.iter().copied())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+            }
+            ListAction::Scroll(_, request) => {
+                use gpuio_protocol::list::ScrollTarget;
+                if request.serial < 1 {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let row = match request.target {
+                    ScrollTarget::Offset(row, offset) => {
+                        if !offset.is_finite() || !(0.0..=1_000_000.0).contains(&offset) {
+                            return Err(ErrorCode::InvalidTree);
+                        }
+                        Some(row)
+                    }
+                    ScrollTarget::Reveal(row) => Some(row),
+                    ScrollTarget::End => None,
+                };
+                if !Self::list_contains(index, row.into_iter()) {
+                    return Err(ErrorCode::InvalidTree);
+                }
+            }
+        }
+        Ok(())
+    }
+
     // Buttons retain one action/focus target. Their optional children represent
     // two fixed decorative icon slots, never nested controls or callbacks.
     // Run for dirty ancestors too: Bind/SetImage can invalidate a slot without
@@ -630,6 +746,9 @@ impl Plan<'_> {
     }
 
     fn operation(&mut self, op: &Op) -> Result<(), ErrorCode> {
+        if matches!(op, Op::InvalidateListRows(..) | Op::ScrollList(..)) {
+            return self.operation_inner(op);
+        }
         let target = match op {
             Op::Create(id, ..)
             | Op::Remove(id)
@@ -647,6 +766,11 @@ impl Plan<'_> {
             | Op::SetMenu(id, ..)
             | Op::SetPalette(id, ..)
             | Op::SetAnimation(id, ..)
+            | Op::SetListConfig(id, ..)
+            | Op::SetListOrder(id, ..)
+            | Op::SetListRows(id, ..)
+            | Op::InvalidateListRows(id, ..)
+            | Op::ScrollList(id, ..)
             | Op::SetImage(id, ..)
             | Op::SetProgress(id, ..)
             | Op::SetToast(id, ..)
@@ -723,6 +847,10 @@ impl Plan<'_> {
                             progress: None,
                             image: None,
                             animation: None,
+                            list_config: None,
+                            list_order: None,
+                            list_index: None,
+                            list_rows: Arc::from([]),
                             toast: None,
                             toast_stack: None,
                             drag_source: None,
@@ -813,6 +941,58 @@ impl Plan<'_> {
                 }
                 self.node_mut(*id)?.animation = Some(Arc::new(config.clone()));
                 self.structural = true;
+            }
+            Op::SetListConfig(id, config) => {
+                if self.node(*id)?.kind != Kind::VirtualList || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.list_config = Some(Arc::new(config.clone()));
+            }
+            Op::SetListOrder(id, order) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::VirtualList
+                    || !order.is_valid()
+                    || node
+                        .list_order
+                        .as_ref()
+                        .is_some_and(|old| order != old.as_ref() && order.revision <= old.revision)
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                if node.list_order.as_deref() == Some(order) {
+                    return Ok(());
+                }
+                let old_bytes = node.list_order.as_ref().map_or(0, |old| {
+                    old.runs.iter().map(|run| run.count as usize).sum::<usize>() * 192
+                        + std::mem::size_of_val(old.runs.as_slice())
+                });
+                let new_bytes = order
+                    .runs
+                    .iter()
+                    .map(|run| run.count as usize)
+                    .sum::<usize>()
+                    * 192
+                    + std::mem::size_of_val(order.runs.as_slice());
+                if self.retained_bytes - old_bytes + new_bytes > self.budget {
+                    return Err(ErrorCode::LimitExceeded);
+                }
+                let index =
+                    crate::list_index::Index::new(order).map_err(|_| ErrorCode::InvalidTree)?;
+                let node = self.node_mut(*id)?;
+                node.list_order = Some(Arc::new(order.clone()));
+                node.list_index = Some(Arc::new(index));
+            }
+            Op::SetListRows(id, rows) => {
+                if self.node(*id)?.kind != Kind::VirtualList || rows.len() > MAX_NODES {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.list_rows = Arc::from(rows.clone());
+            }
+            Op::InvalidateListRows(id, rows) => {
+                self.lists.push(ListAction::Invalidate(*id, rows.clone()));
+            }
+            Op::ScrollList(id, request) => {
+                self.lists.push(ListAction::Scroll(*id, *request));
             }
             Op::SetImage(id, config) => {
                 if !matches!(self.node(*id)?.kind, Kind::Image | Kind::Icon) || !config.is_valid() {

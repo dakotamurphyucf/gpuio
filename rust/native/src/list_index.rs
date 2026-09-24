@@ -3,10 +3,20 @@
 use gpuio_protocol::list::Order;
 use std::{collections::HashMap, ops::Range};
 
+#[derive(PartialEq, Eq)]
 pub struct Index {
     revision: i64,
     ids: Vec<i64>,
     positions: HashMap<i64, usize>,
+}
+
+impl std::fmt::Debug for Index {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ListIndex")
+            .field("revision", &self.revision)
+            .field("logical_rows", &self.ids.len())
+            .finish()
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

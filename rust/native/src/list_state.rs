@@ -148,6 +148,7 @@ mod tests {
             max_active: 128,
             scroll_policy: policy,
             scrollbar: true,
+            managed: true,
         }
     }
     fn order(revision: i64, ids: &[i64]) -> Order {

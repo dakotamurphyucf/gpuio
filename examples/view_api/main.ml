@@ -102,6 +102,7 @@ let worker native notification_read ~self_test =
       | Editor_result _
       | Image_state _
       | Asset_response _
+      | List_viewport _
       | Animation_endpoint _
       | File_dialog_result _ -> ()
     in

@@ -64,6 +64,7 @@ module Identity = struct
 end
 
 type 'a callback =
+  | Virtual_list of List_identity.t * 'a View.Expert.virtual_list
   | Animation of int64 * int64 ref * (Animation.Event.t -> 'a)
   | Image of (Image.State.t -> 'a)
   | Pointer of (Pointer.Event.t -> 'a)
@@ -92,6 +93,7 @@ type 'a mounted =
   ; style : Wire.Style.t list
   ; animation : Wire.Animation.Config.t option
   ; animation_seen : int64 ref
+  ; list_identity : List_identity.t option
   ; choice_appearance : Wire.Choice_appearance.t option
   ; children : 'a mounted list
   ; controllers : String.Set.t
@@ -215,6 +217,7 @@ let kind = function
   | Image -> Image
   | Icon -> Icon
   | Animated -> Animated
+  | Virtual_list -> Virtual_list
 ;;
 
 let compatible mounted view =
@@ -407,6 +410,22 @@ let rec mount builder ~depth previous view =
       | None, None, callback -> callback
       | Some _, _, Some _ -> fail "animation cannot combine another handler"
       | Some _, None, None | None, Some _, _ -> fail "missing animation configuration"
+    in
+    let list_identity =
+      Option.map description.virtual_list ~f:(fun list ->
+        List_identity.prepare
+          (Option.bind previous ~f:(fun old -> old.list_identity))
+          list.order
+        |> value)
+    in
+    let callback =
+      match description.virtual_list, list_identity, callback with
+      | Some list, Some identity, None ->
+        if Option.is_some list.on_viewport || Option.is_some list.on_retain
+        then Some (Virtual_list (identity, list))
+        else None
+      | None, None, callback -> callback
+      | _ -> fail "incompatible virtual list callback"
     in
     let rotate_handler =
       (match description.image, previous with
@@ -718,6 +737,71 @@ let rec mount builder ~depth previous view =
         mount builder ~depth:(depth + 1) (Map.find old_by_key key) child)
     in
     splice builder id old_children children;
+    Option.iter description.virtual_list ~f:(fun list ->
+      let identity = Option.value_exn list_identity in
+      let old_list =
+        Option.bind previous ~f:(fun old -> (View.Expert.describe old.view).virtual_list)
+      in
+      let config (list : _ View.Expert.virtual_list) =
+        Virtual_list.Expert.config_to_wire list.config ~managed:list.managed
+      in
+      if
+        not
+          (Option.equal
+             Gpuio_protocol.List_wire.Config.equal
+             (Option.map old_list ~f:config)
+             (Some (config list)))
+      then emit builder (Set_list_config (id, config list));
+      let old_identity = Option.bind previous ~f:(fun old -> old.list_identity) in
+      if not (Option.exists old_identity ~f:(fun old -> phys_equal old identity))
+      then emit builder (Set_list_order (id, List_identity.order identity));
+      let rows identity children =
+        List.map children ~f:(fun child ->
+          let key = Option.value_exn (View.Expert.describe child.view).key in
+          { Gpuio_protocol.List_wire.Row.id =
+              Option.value_exn (List_identity.id identity key)
+          ; node = child.id
+          })
+      in
+      let old_rows =
+        Option.value_map old_identity ~default:[] ~f:(fun identity ->
+          rows identity old_children)
+      in
+      let next_rows = rows identity children in
+      if not (List.equal Gpuio_protocol.List_wire.Row.equal old_rows next_rows)
+      then emit builder (Set_list_rows (id, next_rows));
+      let old_invalidation =
+        Option.value_map old_list ~default:0L ~f:(fun old -> old.invalidation_revision)
+      in
+      if list.managed && Int64.(list.invalidation_revision < old_invalidation)
+      then fail "virtual list invalidation revision went backwards";
+      if
+        Int64.equal list.invalidation_revision old_invalidation
+        && Option.exists old_list ~f:(fun old ->
+          not (List.equal Key.equal old.invalidated list.invalidated))
+      then fail "virtual list invalidation batch changed without a new revision";
+      if
+        Int64.(list.invalidation_revision > old_invalidation)
+        && not (List.is_empty list.invalidated)
+      then
+        emit
+          builder
+          (Invalidate_list_rows
+             ( id
+             , List.map list.invalidated ~f:(fun key ->
+                 Option.value_exn (List_identity.id identity key)) ));
+      let old_scroll = Option.bind old_list ~f:(fun old -> old.scroll) in
+      if not (Option.equal Virtual_list.Scroll_request.equal old_scroll list.scroll)
+      then
+        Option.iter list.scroll ~f:(fun request ->
+          emit
+            builder
+            (Scroll_list
+               ( id
+               , Virtual_list.Expert.scroll_to_wire
+                   request
+                   ~find_id:(List_identity.id identity)
+                 |> value ))));
     let controllers =
       let own =
         let controller =
@@ -777,6 +861,7 @@ let rec mount builder ~depth previous view =
     ; style
     ; animation
     ; animation_seen
+    ; list_identity
     ; choice_appearance
     ; children
     ; controllers
@@ -875,6 +960,27 @@ let accept t update =
 ;;
 
 let dispatch t = function
+  | Wire.Event.List_viewport (window, node, handler, revision, viewport)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Virtual_list (identity, list)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Int64.equal viewport.order_revision (List_identity.order identity).revision
+       ->
+       Virtual_list.Expert.viewport_of_wire
+         viewport
+         ~find_key:(List_identity.key identity)
+       |> Result.ok
+       |> Option.bind ~f:(fun viewport ->
+         Option.map list.on_viewport ~f:(fun callback -> callback viewport))
+     | Some _ | None -> None)
   | Wire.Event.Animation_endpoint (window, node, handler, revision, endpoint)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -927,7 +1033,8 @@ let dispatch t = function
         | Drag_source _
         | Drop_target _
         | Animation _
-        | Image _ -> None)
+        | Image _
+        | Virtual_list _ -> None)
      | Some _ | None -> None)
   | Choice (window, node, handler, revision, selected)
     when (not t.closed)
@@ -1123,6 +1230,7 @@ let dispatch t = function
   | File_dialog_result _
   | Image_state _
   | Animation_endpoint _
+  | List_viewport _
   | Asset_response _
   | Editor_result _
   | Failed _

@@ -101,6 +101,7 @@ pub enum Kind {
     Image,
     Icon,
     Animated,
+    VirtualList,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -557,6 +558,11 @@ pub enum Op {
     SetDropTarget(NodeId, crate::drag_drop::Target),
     SetImage(NodeId, ImageConfig),
     SetAnimation(NodeId, crate::animation::Config),
+    SetListConfig(NodeId, crate::list::Config),
+    SetListOrder(NodeId, crate::list::Order),
+    SetListRows(NodeId, Vec<crate::list::Row>),
+    InvalidateListRows(NodeId, Vec<i64>),
+    ScrollList(NodeId, crate::list::ScrollRequest),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -645,4 +651,5 @@ pub enum Event {
     AssetResponse(i64, crate::asset::Response),
     ImageState(WindowId, NodeId, HandlerId, i64, ImageState),
     AnimationEndpoint(WindowId, NodeId, HandlerId, i64, crate::animation::Endpoint),
+    ListViewport(WindowId, NodeId, HandlerId, i64, crate::list::Viewport),
 }
