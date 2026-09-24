@@ -11,6 +11,8 @@ pub fn run_native_animation_test() {
     host::animation_test::run();
 }
 pub mod image_host;
+pub mod list_index;
+pub mod list_state;
 pub mod mailbox;
 pub mod motion;
 mod motion_preference;
@@ -95,4 +97,9 @@ pub fn run_native_image_test() {
 #[cfg(feature = "native-image-tests")]
 pub fn run_native_image_view_test() {
     host::image_view::test::run();
+}
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_list_test() {
+    host::list_test::run();
 }

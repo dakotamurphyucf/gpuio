@@ -10,6 +10,7 @@ pub mod file_dialog;
 pub mod file_path;
 mod id;
 pub mod image;
+pub mod list;
 mod menu;
 mod palette;
 pub mod v1;

@@ -3,9 +3,18 @@ module Incr = Ui_incr
 
 type 'r t
 
+(** GPUIO: [Keep_recent] is the upstream policy. [Release_after_flush] discards
+    action-path bookkeeping only after all queued actions are propagated. It
+    preserves within-batch stabilization optimization while bounding retained
+    history for high-churn native virtual lists. *)
+module Action_history : sig
+  type t = Keep_recent | Release_after_flush
+end
+
 (** Builds a new driver for a bonsai component. *)
 val create
   :  ?optimize:bool
+  -> ?action_history:Action_history.t
   -> clock:Bonsai.Time_source.t
   -> 'r Bonsai.Computation.t
   -> 'r t
@@ -35,7 +44,20 @@ val schedule_event : _ t -> unit Ui_effect.t -> unit
     do after the display is processed. *)
 val has_after_display_events : _ t -> bool
 
+(** GPUIO extension for an asynchronous display acknowledgment. A snapshot
+    retains its originating driver and can be triggered at most once. Dropping
+    it has no lifecycle effect. Trigger snapshots in accepted display order. *)
+module Lifecycle_snapshot : sig
+  type t
+  val trigger : t -> unit
+end
+
 module Expert : sig
+  (** Capture after [flush] alongside [result]. Other drivers may stabilize the
+      shared Incremental universe before this collection is displayed. *)
+  val snapshot_lifecycles : _ t -> Lifecycle_snapshot.t
+
+
   (** An incremental handle on the result of the computation *)
   val result_incr : 'r t -> 'r Incr.t
 

@@ -20,6 +20,15 @@ val cycle : t -> now:Time_ns.t -> unit Or_error.t
 val next_message : t -> Gpuio_protocol.Wire.Message.t option
 val submitted : t -> unit
 val acknowledge : t -> revision:int64 -> unit Or_error.t
+
+(** Discard only the matching unapplied candidate, preserve lifecycle state and
+    schedule retention effects before the next capture. *)
+val retry_list_rows
+  :  t
+  -> revision:int64
+  -> Gpuio_protocol.List_wire.Retained.t list
+  -> unit Or_error.t
+
 val dispatch : t -> Gpuio_protocol.Wire.Event.t -> unit
 val schedule : t -> unit Bonsai.Effect.t -> unit
 val set_theme : t -> Gpuio.Theme.t -> unit

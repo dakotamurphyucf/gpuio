@@ -70,6 +70,10 @@ pub struct State {
     pub focus: FocusHandle,
 }
 impl State {
+    pub(crate) fn is_dragging(&self) -> bool {
+        self.dragging
+    }
+
     pub fn new(text: Arc<str>, cx: &App) -> Self {
         Self {
             text,

@@ -242,3 +242,222 @@ let%expect_test "activation sleep starts from acknowledgment-time clock sample" 
   print_endline "ACK_CLOCK_PASS";
   [%expect {| ACK_CLOCK_PASS |}]
 ;;
+
+let%expect_test
+    "native row retention retries without committing deactivation or resetting a model"
+  =
+  let module Rows = Gpuio_bonsai.Managed_rows in
+  let desired = B.Expert.Var.create true in
+  let activations = ref 0 in
+  let deactivations = ref 0 in
+  let key = Gpuio.Key.of_string_exn "row" in
+  let order = Gpuio.Virtual_list.Order.create [ key ] |> Or_error.ok_exn in
+  let config =
+    Gpuio.Virtual_list.Config.create ~height:(Estimated 80.) () |> Or_error.ok_exn
+  in
+  let component graph =
+    let open B.Let_syntax in
+    let active =
+      let%arr active = B.Expert.Var.value desired in
+      if active then Int.Map.singleton 1 () else Int.Map.empty
+    in
+    let rows =
+      Rows.assoc
+        (module Int)
+        active
+        ~f:(fun _ _ _ graph ->
+          let count, bump =
+            B.state_machine0
+              ~default_model:0
+              ~apply_action:(fun _ count () -> count + 1)
+              graph
+          in
+          B.Edge.lifecycle
+            ~on_activate:(B.return (E.of_thunk (fun () -> Int.incr activations)))
+            ~on_deactivate:(B.return (E.of_thunk (fun () -> Int.incr deactivations)))
+            graph;
+          let%arr count = count
+          and bump = bump in
+          Gpuio.View.button ~on_click:bump (Int.to_string count))
+        graph
+    in
+    let%arr rows = rows in
+    Gpuio.View.Expert.managed_virtual_list
+      ~config
+      ~order
+      ~on_viewport:(fun _ -> E.Ignore)
+      ~on_retain:(fun keys ->
+        E.of_thunk (fun () ->
+          assert (List.equal Gpuio.Key.equal keys [ key ]);
+          B.Expert.Var.set desired true))
+      (Map.data rows |> List.map ~f:(fun row -> key, row))
+    |> Or_error.ok_exn
+  in
+  let driver = create component in
+  cycle driver 0.;
+  let first = accept driver |> Option.value_exn in
+  let list_node =
+    List.find_map_exn first.operations ~f:(function
+      | Create (node, Virtual_list, _, _) -> Some node
+      | _ -> None)
+  in
+  let button, handler =
+    List.find_map_exn first.operations ~f:(function
+      | Create (node, Button, _, Some handler) -> Some (node, handler)
+      | _ -> None)
+  in
+  Driver.dispatch driver (Press (window, button, handler, first.revision));
+  cycle driver 0.;
+  ignore (accept driver : Wire.Transaction.t option);
+  assert (!activations = 1 && !deactivations = 0);
+  B.Expert.Var.set desired false;
+  cycle driver 0.;
+  let eviction =
+    match Driver.next_message driver with
+    | Some (Apply tx) -> tx
+    | _ -> assert false
+  in
+  Driver.submitted driver;
+  let pins = [ { Gpuio_protocol.List_wire.Retained.node = list_node; rows = [ 1L ] } ] in
+  assert (
+    Or_error.is_error
+      (Driver.retry_list_rows driver ~revision:Int64.(eviction.revision + 1L) pins));
+  Driver.retry_list_rows driver ~revision:eviction.revision pins |> Or_error.ok_exn;
+  assert (!deactivations = 0);
+  cycle driver 0.;
+  assert (Option.is_none (Driver.next_message driver));
+  assert (!activations = 1 && !deactivations = 0);
+  Driver.dispatch driver (Press (window, button, handler, first.revision));
+  cycle driver 0.;
+  let updated = accept driver |> Option.value_exn in
+  assert (
+    List.exists updated.operations ~f:(function
+      | Set_text (_, "2") -> true
+      | _ -> false));
+  B.Expert.Var.set desired false;
+  cycle driver 0.;
+  ignore (accept driver : Wire.Transaction.t option);
+  assert (!deactivations = 1);
+  Driver.close driver;
+  [%expect {| |}]
+;;
+
+let%expect_test
+    "an in-flight native commit freezes the lifecycle snapshot until acceptance"
+  =
+  let source = B.Expert.Var.create 0 in
+  let events = ref [] in
+  let component graph =
+    let open B.Let_syntax in
+    let source = B.Expert.Var.value source in
+    let after_display =
+      let%arr value = source in
+      E.of_thunk (fun () -> events := value :: !events)
+    in
+    B.Edge.after_display after_display graph;
+    let%arr value = source in
+    Gpuio.View.text (Int.to_string value)
+  in
+  let driver = create component in
+  cycle driver 0.;
+  Driver.submitted driver;
+  B.Expert.Var.set source 1;
+  cycle driver 1.;
+  let other = create (fun _ -> B.return (Gpuio.View.text "another window")) in
+  cycle other 1.;
+  Driver.close other;
+  Driver.acknowledge driver ~revision:1L |> Or_error.ok_exn;
+  assert (List.equal Int.equal !events [ 0 ]);
+  cycle driver 0.;
+  ignore (accept driver : Wire.Transaction.t option);
+  assert (List.equal Int.equal !events [ 1; 0 ]);
+  Driver.close driver;
+  [%expect {| |}]
+;;
+
+let%expect_test "managed streaming diffs the accepted source without rebuilding 100k keys"
+  =
+  let module C = Gpuio.List_collection in
+  let module V = Gpuio_bonsai.Virtual_list in
+  let data =
+    B.Expert.Var.create
+      (C.of_alist (module Int) (List.init 100_000 ~f:(fun key -> key, "row"))
+       |> Or_error.ok_exn)
+  in
+  let key_calls = ref 0 in
+  let config =
+    V.Config.create ~max_active:8 ~height:(Estimated 80.) () |> Or_error.ok_exn
+  in
+  let driver =
+    create (fun graph ->
+      B.map
+        (V.component
+           (module Int)
+           (B.Expert.Var.value data)
+           ~row_key:(fun key ->
+             Int.incr key_calls;
+             Gpuio.Key.of_int key)
+           ~config
+           ~render_row:(fun ~key:_ ~data ~lifetime:_ _ -> B.map data ~f:Gpuio.View.text)
+           graph)
+        ~f:(fun output -> V.Output.view (Or_error.ok_exn output)))
+  in
+  cycle driver 0.;
+  let first = accept driver |> Option.value_exn in
+  cycle driver 0.;
+  assert (Option.is_none (Driver.next_message driver));
+  assert (!key_calls = 100_000);
+  let node, handler =
+    List.find_map_exn first.operations ~f:(function
+      | Create (node, Virtual_list, _, Some handler) -> Some (node, handler)
+      | _ -> None)
+  in
+  let viewport : Gpuio_protocol.List_wire.Viewport.t =
+    { order_revision = 1L
+    ; visible_first = 50_000L
+    ; visible_last = 50_002L
+    ; requested = [ 50_001L; 50_002L ]
+    ; pinned = []
+    ; anchor = Some (50_001L, 0.)
+    ; following_tail = false
+    ; at_start = false
+    ; at_end = false
+    ; budget_exhausted = false
+    }
+  in
+  Driver.dispatch driver (List_viewport (window, node, handler, first.revision, viewport));
+  cycle driver 0.;
+  ignore (accept driver : Wire.Transaction.t option);
+  let before = !key_calls in
+  let update key text =
+    B.Expert.Var.set
+      data
+      (C.set (B.Expert.Var.get data) ~key ~data:text |> Or_error.ok_exn)
+  in
+  update 50_000 "streamed";
+  cycle driver 0.;
+  let pending =
+    match Driver.next_message driver with
+    | Some (Apply tx) -> tx
+    | _ -> assert false
+  in
+  assert (
+    match pending.operations with
+    | [ Set_text (_, "streamed"); Invalidate_list_rows (_, [ 50_001L ]) ] -> true
+    | _ -> false);
+  Driver.submitted driver;
+  update 17 "offscreen update";
+  cycle driver 0.;
+  Driver.acknowledge driver ~revision:pending.revision |> Or_error.ok_exn;
+  cycle driver 0.;
+  let next = accept driver |> Option.value_exn in
+  assert (
+    match next.operations with
+    | [ Invalidate_list_rows (_, [ 18L ]) ] -> true
+    | _ -> false);
+  cycle driver 0.;
+  assert (Option.is_none (Driver.next_message driver));
+  assert (!key_calls - before < 32);
+  Driver.close driver;
+  [%expect {| |}]
+;;

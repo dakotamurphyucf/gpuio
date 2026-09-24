@@ -166,6 +166,20 @@ impl Mailbox {
             return Ok(());
         }
         let bytes = event_bytes(&event);
+        if let Event::ListViewport(window, node, handler, revision, viewport) = &event
+            && let Some(last) = self.events.back_mut()
+            && let Event::ListViewport(w, n, h, r, previous) = &last.event
+            && (window, node, handler, revision, viewport.order_revision)
+                == (w, n, h, r, previous.order_revision)
+        {
+            let next_bytes = self.input_bytes - event_bytes(&last.event) + bytes;
+            if next_bytes > MAX_INPUT_BYTES {
+                return Err(Box::new(event));
+            }
+            last.event = event;
+            self.input_bytes = next_bytes;
+            return Ok(());
+        }
         if let Event::EditorEvent(window, node, handler, revision, EditorEventKind::Changed, _) =
             &event
             && let Some(last) = self.events.back_mut()
@@ -215,6 +229,7 @@ impl Mailbox {
             | Event::Closed(_, id)
             | Event::Accepted(id, _)
             | Event::Rejected(id, ..)
+            | Event::ListRetained(id, ..)
             | Event::Rendered(id, _)
             | Event::FrameRequested(_, id, _)
             | Event::Press(id, ..)
@@ -227,6 +242,7 @@ impl Mailbox {
             | Event::DragSourceEvent(id, ..)
             | Event::ImageState(id, ..)
             | Event::AnimationEndpoint(id, ..)
+            | Event::ListViewport(id, ..)
             | Event::DropTargetEvent(id, ..)
             | Event::PointerEvent(id, ..)
             | Event::PaletteDismissed(id, ..)
@@ -268,7 +284,9 @@ impl Mailbox {
                 Class::Terminal => (),
                 Class::Control => self.controls -= 1,
             }
-            if let Event::Accepted(id, _) | Event::Rejected(id, ..) = output.event {
+            if let Event::Accepted(id, _) | Event::Rejected(id, ..) | Event::ListRetained(id, ..) =
+                output.event
+            {
                 self.in_flight.remove(&id);
             }
             result.push(output.event);

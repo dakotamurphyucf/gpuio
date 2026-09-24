@@ -36,7 +36,9 @@ pub const CAP_IMAGES: i64 = 4194304;
 pub const CAP_SVG: i64 = 8388608;
 pub const CAP_BUTTON_ICONS: i64 = 16777216;
 pub const CAP_ANIMATIONS: i64 = 33554432;
-pub const CAPABILITIES: i64 = CAP_ANIMATIONS
+pub const CAP_VIRTUAL_LISTS: i64 = 67108864;
+pub const CAPABILITIES: i64 = CAP_VIRTUAL_LISTS
+    | CAP_ANIMATIONS
     | CAP_BUTTON_ICONS
     | CAP_SVG
     | CAP_IMAGES
@@ -101,6 +103,7 @@ pub enum Kind {
     Image,
     Icon,
     Animated,
+    VirtualList,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -557,6 +560,11 @@ pub enum Op {
     SetDropTarget(NodeId, crate::drag_drop::Target),
     SetImage(NodeId, ImageConfig),
     SetAnimation(NodeId, crate::animation::Config),
+    SetListConfig(NodeId, crate::list::Config),
+    SetListOrder(NodeId, crate::list::Order),
+    SetListRows(NodeId, Vec<crate::list::Row>),
+    InvalidateListRows(NodeId, Vec<i64>),
+    ScrollList(NodeId, crate::list::ScrollRequest),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -645,4 +653,6 @@ pub enum Event {
     AssetResponse(i64, crate::asset::Response),
     ImageState(WindowId, NodeId, HandlerId, i64, ImageState),
     AnimationEndpoint(WindowId, NodeId, HandlerId, i64, crate::animation::Endpoint),
+    ListViewport(WindowId, NodeId, HandlerId, i64, crate::list::Viewport),
+    ListRetained(WindowId, i64, Vec<crate::list::Retained>),
 }

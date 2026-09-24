@@ -42,6 +42,11 @@ mod focus;
 mod image_corners;
 #[path = "image_view.rs"]
 pub(crate) mod image_view;
+#[cfg(feature = "native-tests")]
+#[path = "list_test.rs"]
+pub(super) mod list_test;
+#[path = "list_view.rs"]
+mod list_view;
 #[path = "menu.rs"]
 mod menu;
 #[path = "menu_platform.rs"]
@@ -120,6 +125,7 @@ struct View {
     #[cfg(feature = "native-tests")]
     progress_probes: BTreeMap<NodeId, progress::Probe>,
     scrolls: BTreeMap<NodeId, Rc<scroll::State>>,
+    lists: BTreeMap<NodeId, Rc<RefCell<list_view::State>>>,
     animations: BTreeMap<NodeId, Rc<RefCell<animation::State>>>,
     #[cfg(feature = "native-tests")]
     render_count: u64,
@@ -307,6 +313,7 @@ impl View {
             #[cfg(feature = "native-tests")]
             progress_probes: Default::default(),
             scrolls: Default::default(),
+            lists: Default::default(),
             animations: Default::default(),
             #[cfg(feature = "native-tests")]
             render_count: 0,
@@ -316,6 +323,7 @@ impl View {
         self.install_command_interceptor(window, cx);
         self.install_pointer_observer(window, cx);
         self.install_menu_observers(window, cx);
+        self.sync_lists(dirty, cx);
         self.sync_images(dirty, window, cx);
         self.sync_animations(dirty, cx);
         self.sync_palettes(window, cx);
@@ -366,6 +374,9 @@ impl View {
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let node = tree.get(id).expect("validated retained node");
+        if node.kind == Kind::VirtualList {
+            return self.list_element(tree, node, interaction, window, cx);
+        }
         if node.kind == Kind::ToastStack {
             return self.toast_stack_element(tree, node, interaction, window, cx);
         }
@@ -1083,6 +1094,7 @@ impl Render for View {
         {
             self.render_count += 1;
         }
+        self.refresh_list_pins(window, cx);
         self.visited.clear();
         self.focus.borrow_mut().clear_surfaces();
         let shared = self.session.clone();
@@ -1374,21 +1386,24 @@ pub fn run(transport: Arc<Transport>) {
                             }
                         }
                         Message::Apply(tx) => {
-                            let result = session.borrow_mut().apply(&tx);
+                            let pins = windows.get(&tx.window).and_then(|handle|
+                                handle.update(cx, |view, window, cx| view.list_pins(window,cx)).ok()).unwrap_or_default();
+                            let result = session.borrow_mut().apply_guarded(&tx, &pins);
                             match result {
                                 Ok(applied) => {
                                     transport.respond(Event::Accepted(tx.window, tx.revision));
                                     if let Some(window) = windows.get(&tx.window) {
                                         let _ = window.update(cx, |view, window, cx| {
                                             view.update_editors(&applied.dirty, window, cx);
+                                            view.list_actions(&applied.lists);
                                             cx.notify();
                                         });
                                     }
                                 }
-                                Err(error) => transport.respond(Event::Rejected(
-                                    tx.window,
-                                    tx.revision,
-                                    error,
+                                Err(crate::tree::ApplyFailure::Retained(rows)) =>
+                                    transport.respond(Event::ListRetained(tx.window, tx.revision, rows)),
+                                Err(crate::tree::ApplyFailure::Rejected(error)) => transport.respond(Event::Rejected(
+                                    tx.window, tx.revision, error,
                                 )),
                             }
                         }

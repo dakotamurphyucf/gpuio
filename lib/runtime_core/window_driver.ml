@@ -6,6 +6,7 @@ module Wire = Gpuio_protocol.Wire
 type pending =
   { update : unit Bonsai.Effect.t R.update
   ; revision : int64
+  ; lifecycles : Bonsai_driver.Lifecycle_snapshot.t
   ; mutable submitted : bool
   }
 
@@ -33,7 +34,7 @@ let create ?asset_owner window ~start ~theme component =
   in
   let clock = Bonsai.Time_source.create ~start in
   { guard = Domain_guard.create ()
-  ; driver = Bonsai_driver.create ~clock computation
+  ; driver = Bonsai_driver.create ~clock ~action_history:Release_after_flush computation
   ; active
   ; clock
   ; reconciler = R.create ?asset_owner window
@@ -56,7 +57,13 @@ let capture t =
     R.accept t.reconciler update |> Or_error.ok_exn;
     false
   | Some (Wire.Message.Apply tx) ->
-    t.pending <- Some { update; revision = tx.revision; submitted = false };
+    t.pending
+    <- Some
+         { update
+         ; revision = tx.revision
+         ; lifecycles = Bonsai_driver.Expert.snapshot_lifecycles t.driver
+         ; submitted = false
+         };
     true
   | Some _ -> assert false
 ;;
@@ -77,10 +84,13 @@ let cycle t ~now =
   else (
     t.cycles <- t.cycles + 1;
     advance_clock t ~now;
-    Bonsai_driver.flush t.driver;
     match t.pending with
     | Some _ -> Ok ()
     | None ->
+      (* The lifecycle snapshot must describe the submitted native candidate.
+         Buffer model actions while a commit is pending; accepting it must not
+         activate/deactivate a newer graph that native code has never applied. *)
+      Bonsai_driver.flush t.driver;
       let open Or_error.Let_syntax in
       let%bind has_message = capture t in
       if has_message
@@ -117,13 +127,24 @@ let acknowledge t ~revision =
     let open Or_error.Let_syntax in
     let%map () = R.accept t.reconciler pending.update in
     t.pending <- None;
-    Bonsai_driver.trigger_lifecycles t.driver
+    Bonsai_driver.Lifecycle_snapshot.trigger pending.lifecycles
   | Some _ | None -> Or_error.error_string "unexpected native acceptance"
 ;;
 
 let schedule t action =
   check t;
   if not t.closed then Bonsai_driver.schedule_event t.driver action
+;;
+
+let retry_list_rows t ~revision notices =
+  check t;
+  match t.pending with
+  | Some pending when pending.submitted && Int64.equal revision pending.revision ->
+    let open Or_error.Let_syntax in
+    let%map actions = R.retain_list_rows t.reconciler notices in
+    t.pending <- None;
+    List.iter actions ~f:(schedule t)
+  | Some _ | None -> Or_error.error_string "unexpected native list retention response"
 ;;
 
 let dispatch t event =

@@ -568,6 +568,64 @@ impl Decoder<'_> {
         Ok(config)
     }
 
+    fn list_config(&mut self) -> Result<crate::list::Config, DecodeError> {
+        let config = crate::list::Config {
+            estimated_height: self.float()?,
+            overscan: self.float()?,
+            max_active: self.int()?,
+            scroll_policy: match self.tag()? {
+                0 => crate::list::ScrollPolicy::KeepPosition,
+                1 => crate::list::ScrollPolicy::FollowTailWhenAtEnd,
+                _ => return Err(DecodeError::Malformed),
+            },
+            scrollbar: self.boolean()?,
+            managed: self.boolean()?,
+        };
+        if !config.is_valid() {
+            return Err(DecodeError::Malformed);
+        }
+        Ok(config)
+    }
+
+    fn list_order(&mut self) -> Result<crate::list::Order, DecodeError> {
+        let order = crate::list::Order {
+            revision: self.int()?,
+            runs: self.list(crate::list::MAX_ID_RUNS, |decoder| {
+                Ok(crate::list::IdRun {
+                    first: decoder.int()?,
+                    count: decoder.int()?,
+                })
+            })?,
+        };
+        if !order.is_valid() {
+            return Err(DecodeError::Malformed);
+        }
+        Ok(order)
+    }
+
+    fn list_scroll(&mut self) -> Result<crate::list::ScrollRequest, DecodeError> {
+        let request = crate::list::ScrollRequest {
+            serial: self.int()?,
+            target: match self.tag()? {
+                0 => crate::list::ScrollTarget::Offset(self.int()?, self.float()?),
+                1 => crate::list::ScrollTarget::Reveal(self.int()?),
+                2 => crate::list::ScrollTarget::End,
+                _ => return Err(DecodeError::Malformed),
+            },
+        };
+        let valid_target = match request.target {
+            crate::list::ScrollTarget::Offset(row, offset) => {
+                row > 0 && (0.0..=1_000_000.0).contains(&offset)
+            }
+            crate::list::ScrollTarget::Reveal(row) => row > 0,
+            crate::list::ScrollTarget::End => true,
+        };
+        if request.serial < 1 || !valid_target {
+            return Err(DecodeError::Malformed);
+        }
+        Ok(request)
+    }
+
     fn command_config(&mut self) -> Result<CommandConfig, DecodeError> {
         Ok(CommandConfig {
             id: self.text()?,
@@ -653,6 +711,7 @@ impl Decoder<'_> {
                     22 => Kind::Image,
                     23 => Kind::Icon,
                     24 => Kind::Animated,
+                    25 => Kind::VirtualList,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -721,6 +780,22 @@ impl Decoder<'_> {
             ),
             26 => Op::SetImage(self.node()?, self.image_config()?),
             27 => Op::SetAnimation(self.node()?, self.animation_config()?),
+            28 => Op::SetListConfig(self.node()?, self.list_config()?),
+            29 => Op::SetListOrder(self.node()?, self.list_order()?),
+            30 => Op::SetListRows(
+                self.node()?,
+                self.list(MAX_NODES, |decoder| {
+                    Ok(crate::list::Row {
+                        id: decoder.int()?,
+                        node: decoder.node()?,
+                    })
+                })?,
+            ),
+            31 => Op::InvalidateListRows(
+                self.node()?,
+                self.list(crate::list::MAX_LOGICAL_ROWS, Self::int)?,
+            ),
+            32 => Op::ScrollList(self.node()?, self.list_scroll()?),
             20 => Op::SetProgress(
                 self.node()?,
                 ProgressConfig {

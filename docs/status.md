@@ -1,9 +1,16 @@
 # Implementation status
 
-Updated 2026-09-24. Milestone 01's reproducible foundation is merged. Milestone 02
-implements native text editing, controls/interactions and declarative animations.
-The remaining delivery is tracked by [PR #10](https://github.com/dakotamurphyucf/gpuio/pull/10)
-and Linear OCH-11/OCH-12; use their live check and merge status for completion.
+Updated 2026-09-24. Milestones 01 and 02 are merged, including native text editing,
+controls/interactions and declarative animations. [PR #10](https://github.com/dakotamurphyucf/gpuio/pull/10)
+merged at `17e863279bff25253edf47f449c04cd9aee5e867` after the required macOS and
+Linux checks passed. Milestone 03 / OCH-13 implements keyed collections, paging and managed virtual
+lists in [PR #11](https://github.com/dakotamurphyucf/gpuio/pull/11). See the [managed-list design](design/managed-lists.md)
+and [local acceptance evidence](evidence/managed-lists-och13.md). The managed
+component, paging, native interactions and full-history retention tests pass
+locally and in hosted validation at `2c2063b`. See PR #11 for the final checked
+head and merge. CI run 36056171245 also passes X11 list checks; Wayland stops
+at the existing combobox clipboard failure before reaching them. Final review
+adds a second complete OCaml 100,000-row traversal, also passing locally.
 
 The [milestone acceptance ledger](evidence/milestones-01-02.md) maps every ticket
 to its implementation and evidence. The first consolidated hosted run passed all

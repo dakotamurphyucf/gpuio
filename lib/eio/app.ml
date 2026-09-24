@@ -377,6 +377,13 @@ let process t = function
   | Closed (request, id) ->
     t.closes <- Map.remove t.closes request;
     Option.iter (find_window t id) ~f:release_window
+  | List_retained (id, revision, notices) ->
+    Option.iter (find_window t id) ~f:(fun window ->
+      if not (Window.is_closed window)
+      then
+        Option.iter window.driver ~f:(fun driver ->
+          Driver.retry_list_rows driver ~revision notices |> Or_error.ok_exn));
+    Inbox.wake t.inbox
   | Accepted (id, revision) ->
     Option.iter (find_window t id) ~f:(fun window ->
       if not (Window.is_closed window)
@@ -393,6 +400,7 @@ let process t = function
     | Drag_source_event (id, _, _, _, _)
     | Image_state (id, _, _, _, _)
     | Animation_endpoint (id, _, _, _, _)
+    | List_viewport (id, _, _, _, _)
     | Drop_target_event (id, _, _, _, _)
     | Pointer_event (id, _, _, _, _)
     | Overlay_dismissed (id, _, _, _, _)

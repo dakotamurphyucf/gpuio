@@ -1,0 +1,6 @@
+(library
+ (name gpuio_virtual_list_tests)
+ (libraries core gpuio gpuio.bonsai bonsai bonsai.driver)
+ (inline_tests)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

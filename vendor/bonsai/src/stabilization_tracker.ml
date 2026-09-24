@@ -510,6 +510,14 @@ let prune_trie t =
     t.last_generation_pruned <- t.current_generation)
 ;;
 
+(* GPUIO: safe only after a completed stabilization, when no earlier action has
+   unpropagated dependencies. Preserve counters and Incremental observations. *)
+let release_action_history t =
+  t.trie.inner <- Action_trie.Unexplored;
+  t.trie.generation <- -1;
+  t.last_generation_pruned <- t.current_generation
+;;
+
 let check_incremental_stats_and_mark_dirty t =
   if not (Incremental_stats.equal (Incremental_stats.current ()) t.last_incremental_stats)
   then mark_incremental_dirty ()

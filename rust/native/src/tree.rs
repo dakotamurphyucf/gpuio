@@ -8,6 +8,7 @@ fn allows_children(kind: Kind) -> bool {
     matches!(
         kind,
         Kind::Container
+            | Kind::VirtualList
             | Kind::Animated
             | Kind::Button
             | Kind::CommandButton
@@ -41,6 +42,10 @@ pub struct Node {
     pub progress: Option<Arc<ProgressConfig>>,
     pub image: Option<Arc<ImageConfig>>,
     pub animation: Option<Arc<gpuio_protocol::animation::Config>>,
+    pub list_config: Option<Arc<gpuio_protocol::list::Config>>,
+    pub list_order: Option<Arc<gpuio_protocol::list::Order>>,
+    pub list_index: Option<Arc<crate::list_index::Index>>,
+    pub list_rows: Arc<[gpuio_protocol::list::Row]>,
     pub toast: Option<Arc<ToastConfig>>,
     pub toast_stack: Option<Arc<ToastStackConfig>>,
     pub drag_source: Option<Arc<gpuio_protocol::drag_drop::Source>>,
@@ -58,6 +63,19 @@ pub struct Node {
 impl Node {
     fn payload_bytes(&self) -> usize {
         self.text.len()
+            + self.list_order.as_ref().map_or(0, |order| {
+                // Admission units include expanded indexing and GPUI measurement
+                // metadata, not merely the compact serialized runs. This is a
+                // conservative quota, not a measurement of allocator RSS.
+                order
+                    .runs
+                    .iter()
+                    .map(|run| run.count as usize)
+                    .sum::<usize>()
+                    * 192
+                    + std::mem::size_of_val(order.runs.as_slice())
+            })
+            + std::mem::size_of_val(self.list_rows.as_ref())
             + self
                 .drag_source
                 .as_ref()
@@ -158,12 +176,19 @@ pub struct Tree {
     retained_bytes: usize,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub struct Applied {
     pub revision: i64,
     pub touched_records: usize,
     pub validated_nodes: usize,
     pub dirty: Vec<NodeId>,
+    pub lists: Vec<ListAction>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ListAction {
+    Invalidate(NodeId, Vec<i64>),
+    Scroll(NodeId, gpuio_protocol::list::ScrollRequest),
 }
 
 impl Tree {
@@ -253,14 +278,24 @@ impl Tree {
         tx: &Transaction,
         budget: usize,
     ) -> Result<Applied, ErrorCode> {
+        self.apply_guarded(tx, budget, &[])
+            .map_err(ApplyFailure::rejection)
+    }
+
+    pub fn apply_guarded(
+        &mut self,
+        tx: &Transaction,
+        budget: usize,
+        pins: &[gpuio_protocol::list::Retained],
+    ) -> Result<Applied, ApplyFailure> {
         if tx.window != self.window {
-            return Err(ErrorCode::StaleHandle);
+            return Err(ErrorCode::StaleHandle.into());
         }
         if tx.base != self.revision || self.revision.checked_add(1) != Some(tx.revision) {
-            return Err(ErrorCode::InvalidRevision);
+            return Err(ErrorCode::InvalidRevision.into());
         }
         if tx.operations.len() > MAX_OPERATIONS {
-            return Err(ErrorCode::LimitExceeded);
+            return Err(ErrorCode::LimitExceeded.into());
         }
         let mut plan = Plan {
             original: self,
@@ -271,30 +306,32 @@ impl Tree {
             retained_bytes: self.retained_bytes,
             budget: budget.min(MAX_RETAINED_BYTES),
             structural: false,
+            lists: Vec::new(),
         };
         for op in &tx.operations {
             plan.operation(op)?;
         }
         for slot in plan.changes.values() {
             if let Some(node) = &slot.node {
+                plan.validate_list(node)?;
                 if node.choice_appearance.is_some()
                     && !matches!(
                         node.kind,
                         Kind::Select | Kind::Combobox | Kind::Menu | Kind::CommandPalette
                     )
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if node.choice.is_some()
                     && !matches!(node.kind, Kind::RadioGroup | Kind::Select | Kind::Combobox)
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if node
                     .control
                     .is_some_and(|control| control.kind() != node.kind)
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if node.kind == Kind::Combobox {
                     let choices = node.choice.as_ref().ok_or(ErrorCode::InvalidTree)?;
@@ -306,10 +343,10 @@ impl Tree {
                         || editor.read_only
                         || editor.submit_on_enter
                     {
-                        return Err(ErrorCode::InvalidTree);
+                        return Err(ErrorCode::InvalidTree.into());
                     }
                 } else if node.combobox_filter.is_some() {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::DragSource) != node.drag_source.is_some()
                     || (node.kind == Kind::DropTarget) != node.drop_target.is_some()
@@ -319,7 +356,7 @@ impl Tree {
                             || node.control.is_some()
                             || node.choice.is_some()))
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::PointerArea) != node.pointer.is_some()
                     || node.pointer.as_ref().is_some_and(|config| {
@@ -330,7 +367,7 @@ impl Tree {
                             || node.choice.is_some()
                     })
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::Toast) != node.toast.is_some()
                     || node.toast.as_ref().is_some_and(|config| {
@@ -341,7 +378,7 @@ impl Tree {
                             || node.choice.is_some()
                     })
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::ToastStack) != node.toast_stack.is_some()
                     || node.toast_stack.as_ref().is_some_and(|config| {
@@ -353,7 +390,7 @@ impl Tree {
                             || node.choice.is_some()
                     })
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::Animated) != node.animation.is_some()
                     || node.animation.as_ref().is_some_and(|config| {
@@ -363,7 +400,7 @@ impl Tree {
                             || node.choice.is_some()
                     })
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if matches!(node.kind, Kind::Image | Kind::Icon) != node.image.is_some()
                     || node.image.as_ref().is_some_and(|config| {
@@ -374,7 +411,7 @@ impl Tree {
                             || node.choice.is_some()
                     })
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::Progress) != node.progress.is_some()
                     || node.progress.as_ref().is_some_and(|config| {
@@ -386,7 +423,7 @@ impl Tree {
                             || node.choice.is_some()
                     })
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::CommandPalette) != node.palette.is_some()
                     || node.palette.as_ref().is_some_and(|config| {
@@ -398,7 +435,7 @@ impl Tree {
                             || node.choice.is_some()
                     })
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::Menu) != node.menu.is_some()
                     || node.menu.as_ref().is_some_and(|menu| {
@@ -410,7 +447,7 @@ impl Tree {
                                 != usize::from(menu.presentation == MenuPresentation::Context)
                     })
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::CommandScope) != node.commands.is_some()
                     || (node.kind == Kind::CommandButton) != node.command_ref.is_some()
@@ -421,10 +458,10 @@ impl Tree {
                     || (node.kind == Kind::CommandButton
                         && (node.handler.is_some() || node.control.is_some()))
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::FocusScope) != node.focus_scope.is_some() {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::Tooltip) != node.tooltip.is_some()
                     || node
@@ -433,10 +470,10 @@ impl Tree {
                         .is_some_and(|config| !config.is_valid())
                     || (node.kind == Kind::Tooltip && node.children.len() != 2)
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if node.placement.is_some() && node.overlay.is_none() && node.tooltip.is_none() {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if let Some(config) = &node.overlay
                     && (node.kind != Kind::FocusScope
@@ -446,7 +483,7 @@ impl Tree {
                             && !node.focus_scope.is_some_and(|scope| scope.trap))
                         || (config.kind == OverlayKind::Popover && Some(node.id) == plan.root))
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 match node.kind {
                     Kind::Input | Kind::Textarea | Kind::Combobox => {
@@ -459,7 +496,7 @@ impl Tree {
                                     || config.max_rows != 1
                                     || node.text.contains(['\r', '\n'])))
                         {
-                            return Err(ErrorCode::InvalidTree);
+                            return Err(ErrorCode::InvalidTree.into());
                         }
                     }
                     Kind::Container
@@ -478,10 +515,11 @@ impl Tree {
                     | Kind::Image
                     | Kind::Icon
                     | Kind::Animated
+                    | Kind::VirtualList
                     | Kind::Text
                     | Kind::Button => {
                         if node.editor.is_some() {
-                            return Err(ErrorCode::InvalidTree);
+                            return Err(ErrorCode::InvalidTree.into());
                         }
                     }
                     Kind::Checkbox | Kind::Switch => {
@@ -490,7 +528,7 @@ impl Tree {
                             || (!control.disabled() && node.handler.is_none())
                             || node.text.contains('\0')
                         {
-                            return Err(ErrorCode::InvalidTree);
+                            return Err(ErrorCode::InvalidTree.into());
                         }
                     }
                     Kind::RadioGroup | Kind::Select => {
@@ -499,7 +537,7 @@ impl Tree {
                             || node.editor.is_some()
                             || (!config.disabled && node.handler.is_none())
                         {
-                            return Err(ErrorCode::InvalidTree);
+                            return Err(ErrorCode::InvalidTree.into());
                         }
                     }
                 }
@@ -527,12 +565,45 @@ impl Tree {
             dirty.insert(root);
         }
         let touched_records = plan.changes.len();
+        for action in &plan.lists {
+            plan.validate_list_action(action)?;
+        }
+        let retained: Vec<_> = pins
+            .iter()
+            .filter_map(|pin| {
+                let node = plan.node(pin.node).ok()?;
+                let index = node.list_index.as_ref()?;
+                let mounted: BTreeSet<_> = node.list_rows.iter().map(|row| row.id).collect();
+                let rows: Vec<_> = pin
+                    .rows
+                    .iter()
+                    .copied()
+                    .filter(|id| index.position(*id).is_some() && !mounted.contains(id))
+                    .collect();
+                (!rows.is_empty()).then_some(gpuio_protocol::list::Retained {
+                    node: pin.node,
+                    rows,
+                })
+            })
+            .collect();
+        if retained
+            .iter()
+            .map(|notice| notice.rows.len())
+            .sum::<usize>()
+            > gpuio_protocol::list::MAX_ACTIVE_ROWS
+        {
+            return Err(ErrorCode::LimitExceeded.into());
+        }
+        if !retained.is_empty() {
+            return Err(ApplyFailure::Retained(retained));
+        }
         let Plan {
             changes,
             root,
             slot_count,
             node_count,
             retained_bytes,
+            lists,
             ..
         } = plan;
         // All validation has succeeded. Reserve before mutating semantic state.
@@ -552,7 +623,29 @@ impl Tree {
             touched_records,
             validated_nodes,
             dirty: dirty.into_iter().collect(),
+            lists,
         })
+    }
+}
+
+/// Invalid transactions and stale row-eviction attempts have different retry semantics.
+#[derive(Debug, PartialEq, Eq)]
+pub enum ApplyFailure {
+    Rejected(ErrorCode),
+    Retained(Vec<gpuio_protocol::list::Retained>),
+}
+impl From<ErrorCode> for ApplyFailure {
+    fn from(error: ErrorCode) -> Self {
+        Self::Rejected(error)
+    }
+}
+impl ApplyFailure {
+    // Existing unguarded callers pass no pins, so Retained is unreachable there.
+    pub(crate) fn rejection(self) -> ErrorCode {
+        match self {
+            Self::Rejected(error) => error,
+            Self::Retained(_) => ErrorCode::InvalidTree,
+        }
     }
 }
 
@@ -565,9 +658,92 @@ struct Plan<'a> {
     retained_bytes: usize,
     budget: usize,
     structural: bool,
+    lists: Vec<ListAction>,
 }
 
 impl Plan<'_> {
+    fn list_contains(index: &crate::list_index::Index, mut ids: impl Iterator<Item = i64>) -> bool {
+        ids.all(|id| index.position(id).is_some())
+    }
+
+    fn validate_list(&self, node: &Node) -> Result<(), ErrorCode> {
+        if node.kind != Kind::VirtualList {
+            return if node.list_config.is_none()
+                && node.list_order.is_none()
+                && node.list_index.is_none()
+                && node.list_rows.is_empty()
+            {
+                Ok(())
+            } else {
+                Err(ErrorCode::InvalidTree)
+            };
+        }
+        let config = node.list_config.as_ref().ok_or(ErrorCode::InvalidTree)?;
+        let order = node.list_order.as_ref().ok_or(ErrorCode::InvalidTree)?;
+        let index = node.list_index.as_ref().ok_or(ErrorCode::InvalidTree)?;
+        if !config.is_valid()
+            || !order.is_valid()
+            || !node.text.is_empty()
+            || (config.managed && node.list_rows.len() > config.max_active as usize)
+            || (!config.managed && node.list_rows.len() != index.len())
+            || node.list_rows.len() != node.children.len()
+            || !Self::list_contains(index, node.list_rows.iter().map(|row| row.id))
+        {
+            return Err(ErrorCode::InvalidTree);
+        }
+        let mut ids = BTreeSet::new();
+        let mut children = BTreeSet::new();
+        for row in node.list_rows.iter() {
+            if !ids.insert(row.id) || !children.insert(row.node) {
+                return Err(ErrorCode::InvalidTree);
+            }
+        }
+        if children != node.children.iter().copied().collect() {
+            return Err(ErrorCode::InvalidTree);
+        }
+        Ok(())
+    }
+
+    fn validate_list_action(&self, action: &ListAction) -> Result<(), ErrorCode> {
+        let id = match action {
+            ListAction::Invalidate(id, _) | ListAction::Scroll(id, _) => *id,
+        };
+        let node = self.node(id)?;
+        if node.kind != Kind::VirtualList {
+            return Err(ErrorCode::InvalidTree);
+        }
+        let index = node.list_index.as_ref().ok_or(ErrorCode::InvalidTree)?;
+        match action {
+            ListAction::Invalidate(_, ids) => {
+                if ids.len() > gpuio_protocol::list::MAX_LOGICAL_ROWS
+                    || !Self::list_contains(index, ids.iter().copied())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+            }
+            ListAction::Scroll(_, request) => {
+                use gpuio_protocol::list::ScrollTarget;
+                if request.serial < 1 {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let row = match request.target {
+                    ScrollTarget::Offset(row, offset) => {
+                        if !offset.is_finite() || !(0.0..=1_000_000.0).contains(&offset) {
+                            return Err(ErrorCode::InvalidTree);
+                        }
+                        Some(row)
+                    }
+                    ScrollTarget::Reveal(row) => Some(row),
+                    ScrollTarget::End => None,
+                };
+                if !Self::list_contains(index, row.into_iter()) {
+                    return Err(ErrorCode::InvalidTree);
+                }
+            }
+        }
+        Ok(())
+    }
+
     // Buttons retain one action/focus target. Their optional children represent
     // two fixed decorative icon slots, never nested controls or callbacks.
     // Run for dirty ancestors too: Bind/SetImage can invalidate a slot without
@@ -630,6 +806,9 @@ impl Plan<'_> {
     }
 
     fn operation(&mut self, op: &Op) -> Result<(), ErrorCode> {
+        if matches!(op, Op::InvalidateListRows(..) | Op::ScrollList(..)) {
+            return self.operation_inner(op);
+        }
         let target = match op {
             Op::Create(id, ..)
             | Op::Remove(id)
@@ -647,6 +826,11 @@ impl Plan<'_> {
             | Op::SetMenu(id, ..)
             | Op::SetPalette(id, ..)
             | Op::SetAnimation(id, ..)
+            | Op::SetListConfig(id, ..)
+            | Op::SetListOrder(id, ..)
+            | Op::SetListRows(id, ..)
+            | Op::InvalidateListRows(id, ..)
+            | Op::ScrollList(id, ..)
             | Op::SetImage(id, ..)
             | Op::SetProgress(id, ..)
             | Op::SetToast(id, ..)
@@ -723,6 +907,10 @@ impl Plan<'_> {
                             progress: None,
                             image: None,
                             animation: None,
+                            list_config: None,
+                            list_order: None,
+                            list_index: None,
+                            list_rows: Arc::from([]),
                             toast: None,
                             toast_stack: None,
                             drag_source: None,
@@ -813,6 +1001,58 @@ impl Plan<'_> {
                 }
                 self.node_mut(*id)?.animation = Some(Arc::new(config.clone()));
                 self.structural = true;
+            }
+            Op::SetListConfig(id, config) => {
+                if self.node(*id)?.kind != Kind::VirtualList || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.list_config = Some(Arc::new(config.clone()));
+            }
+            Op::SetListOrder(id, order) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::VirtualList
+                    || !order.is_valid()
+                    || node
+                        .list_order
+                        .as_ref()
+                        .is_some_and(|old| order != old.as_ref() && order.revision <= old.revision)
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                if node.list_order.as_deref() == Some(order) {
+                    return Ok(());
+                }
+                let old_bytes = node.list_order.as_ref().map_or(0, |old| {
+                    old.runs.iter().map(|run| run.count as usize).sum::<usize>() * 192
+                        + std::mem::size_of_val(old.runs.as_slice())
+                });
+                let new_bytes = order
+                    .runs
+                    .iter()
+                    .map(|run| run.count as usize)
+                    .sum::<usize>()
+                    * 192
+                    + std::mem::size_of_val(order.runs.as_slice());
+                if self.retained_bytes - old_bytes + new_bytes > self.budget {
+                    return Err(ErrorCode::LimitExceeded);
+                }
+                let index =
+                    crate::list_index::Index::new(order).map_err(|_| ErrorCode::InvalidTree)?;
+                let node = self.node_mut(*id)?;
+                node.list_order = Some(Arc::new(order.clone()));
+                node.list_index = Some(Arc::new(index));
+            }
+            Op::SetListRows(id, rows) => {
+                if self.node(*id)?.kind != Kind::VirtualList || rows.len() > MAX_NODES {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.list_rows = Arc::from(rows.clone());
+            }
+            Op::InvalidateListRows(id, rows) => {
+                self.lists.push(ListAction::Invalidate(*id, rows.clone()));
+            }
+            Op::ScrollList(id, request) => {
+                self.lists.push(ListAction::Scroll(*id, *request));
             }
             Op::SetImage(id, config) => {
                 if !matches!(self.node(*id)?.kind, Kind::Image | Kind::Icon) || !config.is_valid() {

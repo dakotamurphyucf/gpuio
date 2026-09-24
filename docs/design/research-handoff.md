@@ -45,7 +45,7 @@ The [research index](<https://linear.app/ochat/document/gpuio-research-and-desig
 ## Decisions already made
 
 * Stock OCaml 5.3, Bonsai v0.17 and the v0.17 Jane Street dependency family; defer OxCaml.
-* The experimental native library subset builds with Dune 3.24.2. Small identifier/native-packaging fork changes are acceptable; no Bonsai lifecycle/Incremental runtime patch is needed in the selected baseline.
+* The experimental native library subset builds with Dune 3.24.2. Small identifier/native-packaging fork changes are acceptable; the baseline requires no lifecycle bug workaround. OCH-13 later adds a typed lifecycle-snapshot driver API for asynchronous native acceptance; see `runtime.md`. Incremental and model-reset semantics remain unchanged.
 * macOS and Linux together for v1; no Windows target. Validate both Wayland and X11, not just Linux compilation.
 * GPUIX parity means components and application-building functionality. Hot reload, React Refresh and native-code reload are not requirements.
 * Typed OCaml layout/content/control APIs and styles with useful accessible defaults; native hover/focus/pressed behavior and animations.
