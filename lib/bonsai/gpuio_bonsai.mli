@@ -17,6 +17,14 @@ module View : sig
     -> t list
     -> t
 
+  (** Revisioned native documents; register source with [Gpuio_eio.Document]. *)
+  val document
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?on_navigate:(Gpuio.Document.Navigation.t -> unit Bonsai.Effect.t)
+    -> Gpuio.Document.Config.t
+    -> t
+
   (** Pure image placement; register encoded bytes with [Gpuio_eio.Asset]. *)
   val image
     :  ?key:Gpuio.Key.t

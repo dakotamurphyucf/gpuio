@@ -58,6 +58,20 @@ module Window : sig
 end
 
 module Expert : sig
+  (** Internal correlated document-resource lane. Bounded to 64 requests.
+      Public applications use the scoped document adapter. *)
+  val document
+    :  t
+    -> Gpuio_protocol.Wire.Document.Request.t
+    -> Gpuio_protocol.Wire.Document.Response.t Bonsai.Effect.t
+
+  val register_document
+    :  t
+    -> scope:Scope.t
+    -> Gpuio.Text_source.t
+    -> (Document_registry.Registration.t, Gpuio_protocol.Wire.Document.Error.t) Result.t
+         Bonsai.Effect.t
+
   (** Correlated raw registration protocol, bounded to 63 pending requests;
       a separate lane is reserved for scoped upload/cleanup.
       This is not the scoped public asset API: callers own release/late-reply

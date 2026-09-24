@@ -29,6 +29,7 @@ module Kind = struct
     | Icon
     | Animated
     | Virtual_list
+    | Document_view
   [@@deriving equal, sexp_of]
 end
 
@@ -126,6 +127,11 @@ type 'action animation =
   ; on_event : (Animation.Event.t -> 'action) option
   }
 
+type 'action document =
+  { config : Document.Config.t
+  ; on_navigate : (Document.Navigation.t -> 'action) option
+  }
+
 type 'action image =
   { config : Image.Config.t
   ; on_change : (Image.State.t -> 'action) option
@@ -164,6 +170,7 @@ type 'action t =
   ; progress : Progress.Config.t option
   ; animation : 'action animation option
   ; image : 'action image option
+  ; document : 'action document option
   ; palette : 'action palette option
   ; menu : menu option
   ; focus_scope : Focus_scope.t option
@@ -194,6 +201,7 @@ let text ?key ?(style = Style.empty) text =
   ; progress = None
   ; animation = None
   ; image = None
+  ; document = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -213,6 +221,13 @@ let animate ?key ?(style = Style.empty) ?on_event config children =
 
 let image ?key ?(style = Style.empty) ?on_change config =
   { (text ?key ~style "") with kind = Image; image = Some { config; on_change } }
+;;
+
+let document ?key ?(style = Style.empty) ?on_navigate config =
+  { (text ?key ~style "") with
+    kind = Document_view
+  ; document = Some { config; on_navigate }
+  }
 ;;
 
 let icon ?key ?style ?on_change config =
@@ -240,6 +255,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; progress = None
   ; animation = None
   ; image = None
+  ; document = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -330,6 +346,7 @@ let button
   ; progress = None
   ; animation = None
   ; image = None
+  ; document = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -392,6 +409,7 @@ let toggle
   ; progress = None
   ; animation = None
   ; image = None
+  ; document = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -438,6 +456,7 @@ let focus_scope ?key ?style ~config children =
   ; progress = None
   ; animation = None
   ; image = None
+  ; document = None
   ; palette = None
   ; menu = None
   ; focus_scope = Some config
@@ -676,6 +695,7 @@ let text_input
   ; progress = None
   ; animation = None
   ; image = None
+  ; document = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -707,6 +727,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; progress = None
   ; animation = None
   ; image = None
+  ; document = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -760,6 +781,7 @@ let combobox
   ; progress = None
   ; animation = None
   ; image = None
+  ; document = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -876,6 +898,11 @@ module Expert = struct
     ; on_event : (Animation.Event.t -> 'action) option
     }
 
+  type nonrec 'action document = 'action document =
+    { config : Document.Config.t
+    ; on_navigate : (Document.Navigation.t -> 'action) option
+    }
+
   type nonrec 'action image = 'action image =
     { config : Image.Config.t
     ; on_change : (Image.State.t -> 'action) option
@@ -968,6 +995,7 @@ module Expert = struct
     ; progress : Progress.Config.t option
     ; animation : 'action animation option
     ; image : 'action image option
+    ; document : 'action document option
     ; palette : 'action palette option
     ; menu : menu option
     ; focus_scope : Focus_scope.t option

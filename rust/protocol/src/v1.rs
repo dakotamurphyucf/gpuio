@@ -37,7 +37,9 @@ pub const CAP_SVG: i64 = 8388608;
 pub const CAP_BUTTON_ICONS: i64 = 16777216;
 pub const CAP_ANIMATIONS: i64 = 33554432;
 pub const CAP_VIRTUAL_LISTS: i64 = 67108864;
-pub const CAPABILITIES: i64 = CAP_VIRTUAL_LISTS
+pub const CAP_DOCUMENTS: i64 = 134217728;
+pub const CAPABILITIES: i64 = CAP_DOCUMENTS
+    | CAP_VIRTUAL_LISTS
     | CAP_ANIMATIONS
     | CAP_BUTTON_ICONS
     | CAP_SVG
@@ -104,6 +106,7 @@ pub enum Kind {
     Icon,
     Animated,
     VirtualList,
+    DocumentView,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -565,6 +568,7 @@ pub enum Op {
     SetListRows(NodeId, Vec<crate::list::Row>),
     InvalidateListRows(NodeId, Vec<i64>),
     ScrollList(NodeId, crate::list::ScrollRequest),
+    SetDocument(NodeId, crate::document::Config),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -587,6 +591,7 @@ pub enum Message {
     FileDialog(i64, WindowId, FileDialogConfig),
     Asset(i64, crate::asset::Request),
     SetMotion(crate::animation::Preference),
+    Document(i64, crate::document::Request),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -655,4 +660,14 @@ pub enum Event {
     AnimationEndpoint(WindowId, NodeId, HandlerId, i64, crate::animation::Endpoint),
     ListViewport(WindowId, NodeId, HandlerId, i64, crate::list::Viewport),
     ListRetained(WindowId, i64, Vec<crate::list::Retained>),
+    DocumentResponse(i64, crate::document::Response),
+    DocumentNavigation(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::ResourceId,
+        i64,
+        crate::document::Navigation,
+    ),
 }

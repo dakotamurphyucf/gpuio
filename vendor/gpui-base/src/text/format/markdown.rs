@@ -20,6 +20,68 @@ pub(crate) fn parse(source: &str, cx: &mut NodeContext) -> Result<ParsedDocument
         .map_err(|e| e.to_string().into())
 }
 
+/// Bounded full-document entry for externally scheduled native display jobs.
+/// Unlike the streaming tail parser, definitions can affect earlier blocks.
+pub(crate) fn parse_bounded(
+    source: &str,
+    cx: &mut NodeContext,
+) -> Result<ParsedDocument, SharedString> {
+    if source.len() > 64 * 1024 || source.lines().any(|line| line.len() > 16 * 1024) {
+        return Err("rich document input limit exceeded".into());
+    }
+    let mut ast = markdown::to_mdast(source, &cx.markdown_extensions.parse_options())
+        .map_err(|error| SharedString::from(error.to_string()))?;
+    let mut pending = vec![(&ast, 0usize)];
+    let mut nodes = 0;
+    while let Some((node, depth)) = pending.pop() {
+        nodes += 1;
+        if nodes > 4096 || depth > 32 {
+            return Err("rich document structural limit exceeded".into());
+        }
+        if let Some(children) = node.children() {
+            pending.extend(children.iter().map(|child| (child, depth + 1)));
+        }
+    }
+    if ast.children().is_some_and(|children| children.len() > 256) {
+        return Err("rich document block limit exceeded".into());
+    }
+    let mut definitions = std::collections::HashMap::new();
+    let mut pending = vec![&ast];
+    while let Some(node) = pending.pop() {
+        if let Node::Definition(definition) = node {
+            definitions
+                .entry(definition.identifier.clone())
+                .or_insert_with(|| (definition.url.clone(), definition.title.clone()));
+        }
+        if let Some(children) = node.children() {
+            pending.extend(children.iter().rev());
+        }
+    }
+    resolve_image_references(&mut ast, &definitions);
+    Ok(ast_to_document(source, ast, cx))
+}
+
+fn resolve_image_references(
+    node: &mut Node,
+    definitions: &std::collections::HashMap<String, (String, Option<String>)>,
+) {
+    if let Node::ImageReference(reference) = node
+        && let Some((url, title)) = definitions.get(&reference.identifier)
+    {
+        *node = Node::Image(mdast::Image {
+            position: reference.position.clone(),
+            alt: reference.alt.clone(),
+            url: url.clone(),
+            title: title.clone(),
+        });
+    }
+    if let Some(children) = node.children_mut() {
+        for child in children {
+            resolve_image_references(child, definitions);
+        }
+    }
+}
+
 fn parse_table_row(source: &str, table: &mut Table, node: &mdast::TableRow, cx: &mut NodeContext) {
     let mut row = TableRow::default();
     node.children.iter().for_each(|c| {

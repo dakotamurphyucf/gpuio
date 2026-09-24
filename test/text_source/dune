@@ -1,0 +1,6 @@
+(library
+ (name gpuio_text_source_tests)
+ (libraries core gpuio)
+ (inline_tests)
+ (preprocess
+  (pps ppx_jane)))

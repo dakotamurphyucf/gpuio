@@ -19,7 +19,7 @@ use crate::{GlobalState, TextSelection, text::TextViewStyle};
 pub(crate) type CodeBlockActionsFn =
     dyn Fn(&CodeBlock, &mut Window, &mut App) -> AnyElement + Send + Sync;
 
-pub(crate) type CodeBlockHighlighterFn =
+pub type CodeBlockHighlighterFn =
     dyn Fn(&CodeBlock) -> Vec<(Range<usize>, gpui::HighlightStyle)> + Send + Sync;
 
 /// Application-wide defaults for TextViews that do not provide explicit
@@ -303,6 +303,16 @@ impl TextView {
         F: Fn(&CodeBlock) -> Vec<(Range<usize>, gpui::HighlightStyle)> + Send + Sync + 'static,
     {
         self.code_block_highlighter = Some(Arc::new(highlighter));
+        self
+    }
+
+    /// Reuse a prepared highlighter identity across frames so fenced-code
+    /// style caches remain valid until the source or theme actually changes.
+    pub fn code_block_highlighter_shared(
+        mut self,
+        highlighter: Arc<CodeBlockHighlighterFn>,
+    ) -> Self {
+        self.code_block_highlighter = Some(highlighter);
         self
     }
 

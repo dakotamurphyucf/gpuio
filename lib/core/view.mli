@@ -5,6 +5,15 @@ type 'action t
 
 val text : ?key:Key.t -> ?style:Style.t -> string -> 'action t
 
+(** Native Markdown/code/unified-diff display, backed by a scoped document
+    resource. Parsing, selection and copy are native; navigation is asynchronous. *)
+val document
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?on_navigate:(Document.Navigation.t -> 'action)
+  -> Document.Config.t
+  -> 'action t
+
 (** An explicit accessible name must be nonempty and at most 1024 bytes;
     invalid names raise, as with literal styles built with [Style.create_exn]. *)
 val button
@@ -359,6 +368,11 @@ module Expert : sig
     ; on_event : (Animation.Event.t -> 'action) option
     }
 
+  type 'action document =
+    { config : Document.Config.t
+    ; on_navigate : (Document.Navigation.t -> 'action) option
+    }
+
   type 'action image =
     { config : Image.Config.t
     ; on_change : (Image.State.t -> 'action) option
@@ -412,6 +426,7 @@ module Expert : sig
       | Icon
       | Animated
       | Virtual_list
+      | Document_view
     [@@deriving equal, sexp_of]
   end
 
@@ -495,6 +510,7 @@ module Expert : sig
     ; progress : Progress.Config.t option
     ; animation : 'action animation option
     ; image : 'action image option
+    ; document : 'action document option
     ; palette : 'action palette option
     ; menu : menu option
     ; focus_scope : Focus_scope.t option

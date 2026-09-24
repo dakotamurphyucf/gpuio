@@ -2,9 +2,10 @@ open Core
 module Asset = Asset_wire
 module Image = Image_wire
 module Animation = Animation_wire
+module Document = Document_wire
 
 let version = 1L
-let capabilities = 134217727L
+let capabilities = 268435455L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -35,6 +36,7 @@ module Kind = struct
     | Icon
     | Animated
     | Virtual_list
+    | Document_view
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -682,6 +684,7 @@ module Op = struct
     | Set_list_rows of Node_id.t * List_wire.Row.t list
     | Invalidate_list_rows of Node_id.t * int64 list
     | Scroll_list of Node_id.t * List_wire.Scroll_request.t
+    | Set_document of Node_id.t * Document.Config.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -818,11 +821,18 @@ module Message = struct
     | File_dialog of int64 * Window_id.t * File_dialog.Config.t
     | Asset of int64 * Asset.Request.t
     | Set_motion of Animation.Preference.t
+    | Document of int64 * Document.Request.t
   [@@deriving bin_io, equal, sexp_of]
 
   let encode t =
     let invalid_asset =
       match t with
+      | Document (correlation, request) ->
+        Int64.(correlation <= 0L)
+        ||
+          (match request with
+          | Chunk (_, _, _, data) -> String.length data > Document.max_chunk_bytes
+          | Create | Begin _ | Publish _ | Abort _ | Release _ -> false)
       | Asset (correlation, request) ->
         Int64.(correlation <= 0L)
         ||
@@ -909,6 +919,15 @@ module Event = struct
     | List_viewport of
         Window_id.t * Node_id.t * Handler_id.t * int64 * List_wire.Viewport.t
     | List_retained of Window_id.t * int64 * List_wire.Retained.t list
+    | Document_response of int64 * Document.Response.t
+    | Document_navigation of
+        Window_id.t
+        * Node_id.t
+        * Handler_id.t
+        * int64
+        * Resource_id.t
+        * int64
+        * Document.Navigation.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -928,6 +947,18 @@ module Event = struct
   ;;
 
   let rec valid_event = function
+    | Document_navigation (_, _, _, revision, _, generation, navigation) ->
+      let valid text =
+        String.length text <= 4096
+        && Stdlib.String.is_valid_utf_8 text
+        && not (String.contains text '\000')
+      in
+      Int64.(revision >= 0L && generation > 0L)
+      &&
+        (match navigation with
+        | Link url -> (not (String.is_empty url)) && valid url
+        | Line (path, _, line) ->
+          Int64.(line > 0L && line <= 2_147_483_647L) && Option.for_all path ~f:valid)
     | List_retained (_, revision, notices) ->
       Int64.(revision > 0L) && Or_error.is_ok (List_wire.Retained.validate_all notices)
     | List_viewport (_, _, _, revision, viewport) ->
@@ -948,7 +979,8 @@ module Event = struct
             && frames > 0L
             && frames <= 120L
             && width_px * height_px * 4L * frames <= 67108864L))
-    | Asset_response (correlation, _) -> Int64.(correlation > 0L)
+    | Asset_response (correlation, _) | Document_response (correlation, _) ->
+      Int64.(correlation > 0L)
     | File_dialog_result (request, _, Selected paths) ->
       Int64.(request > 0L)
       && (not (List.is_empty paths))

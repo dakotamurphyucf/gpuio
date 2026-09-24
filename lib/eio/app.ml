@@ -53,7 +53,9 @@ type t =
   ; mutable editors : editor_request Int64.Map.t
   ; mutable dialogs : dialog_request Int64.Map.t
   ; asset_registry : Asset_registry.t
+  ; document_registry : Document_registry.t
   ; mutable assets : (Wire.Asset.Response.t -> unit) Int64.Map.t
+  ; mutable documents : (Wire.Document.Response.t -> unit) Int64.Map.t
   ; mutable correlation : int64
   ; mutable motion : Gpuio.Animation.Preference.t option
   ; mutable welcomed : bool
@@ -102,6 +104,42 @@ let set_motion t preference =
 ;;
 
 module Expert = struct
+  let document_request t ~limit request =
+    Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+      check t;
+      let fail error = callback (Wire.Document.Response.Failed error) in
+      if t.stopping
+      then fail Closed
+      else if not t.welcomed
+      then fail Not_ready
+      else if Map.length t.documents >= limit
+      then fail Resource_limit
+      else (
+        let oversized =
+          match request with
+          | Wire.Document.Request.Chunk (_, _, _, data) ->
+            String.length data > Wire.Document.max_chunk_bytes
+          | Create | Begin _ | Publish _ | Abort _ | Release _ -> false
+        in
+        if oversized
+        then fail Invalid_range
+        else (
+          let id = correlation t in
+          t.documents <- Map.set t.documents ~key:id ~data:callback;
+          queue t (Document (id, request)))))
+  ;;
+
+  let document t request = document_request t ~limit:63 request
+
+  let register_document t ~scope source =
+    Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+      check t;
+      if t.stopping
+      then callback (Error Wire.Document.Error.Closed)
+      else
+        Document_registry.register t.document_registry ~scope source ~on_result:callback)
+  ;;
+
   let asset_request t ~limit request =
     Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
       check t;
@@ -173,6 +211,7 @@ let shutdown t =
   then (
     t.stopping <- true;
     Asset_registry.close t.asset_registry;
+    Document_registry.close t.document_registry;
     Scope.cancel t.scope;
     queue t Shutdown)
 ;;
@@ -337,6 +376,7 @@ let open_window t ?(theme = Gpuio.Theme.default) ~title ~width ~height component
         try
           Driver.create
             ~asset_owner:(Asset_registry.Expert.owner t.asset_registry)
+            ~document_owner:(Document_registry.Expert.owner t.document_registry)
             id
             ~start:(t.now ())
             ~theme
@@ -391,6 +431,12 @@ let process t = function
         Option.iter window.driver ~f:(fun driver ->
           Driver.acknowledge driver ~revision |> Or_error.ok_exn));
     Inbox.wake t.inbox
+  | Document_navigation (id, _, _, _, source, generation, _) as event ->
+    if Document_registry.accepts_navigation t.document_registry source ~generation
+    then
+      Option.iter (find_window t id) ~f:(fun window ->
+        if not (Window.is_closed window)
+        then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))
   | ( Press (id, _, _, _)
     | Editor_event (id, _, _, _, _, _)
     | Choice (id, _, _, _, _)
@@ -409,6 +455,12 @@ let process t = function
     Option.iter (find_window t id) ~f:(fun window ->
       if not (Window.is_closed window)
       then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))
+  | Document_response (request, response) ->
+    (match Map.find t.documents request with
+     | None -> ()
+     | Some complete ->
+       t.documents <- Map.remove t.documents request;
+       complete (if t.stopping then Wire.Document.Response.Failed Closed else response))
   | Asset_response (request, response) ->
     (match Map.find t.assets request with
      | None -> ()
@@ -516,15 +568,24 @@ let process t = function
        if Map.mem t.frames request
        then t.frames <- Map.remove t.frames request
        else Error.raise (native_error code))
+  | Failed (request, _) when Map.mem t.documents request ->
+    let complete = Map.find_exn t.documents request in
+    t.documents <- Map.remove t.documents request;
+    complete (Wire.Document.Response.Failed Native_failure)
   | Failed (_, code) | Rejected (_, _, code) -> Error.raise (native_error code)
   | Overloaded _ -> failwith "native input mailbox overloaded"
   | Stopped ->
     t.stopped <- true;
     t.stopping <- true;
     Asset_registry.close t.asset_registry;
+    Document_registry.close t.document_registry;
     let assets = t.assets in
     t.assets <- Int64.Map.empty;
-    Map.iter assets ~f:(fun complete -> complete (Wire.Asset.Response.Failed Closed))
+    Map.iter assets ~f:(fun complete -> complete (Wire.Asset.Response.Failed Closed));
+    let documents = t.documents in
+    t.documents <- Int64.Map.empty;
+    Map.iter documents ~f:(fun complete ->
+      complete (Wire.Document.Response.Failed Closed))
 ;;
 
 let submit_commands t =
@@ -596,6 +657,13 @@ let step t =
           (Bonsai.Effect.map
              (Expert.asset_request t ~limit:64 request)
              ~f:(Asset_registry.complete t.asset_registry)));
+    if t.welcomed && not t.stopping
+    then
+      Option.iter (Document_registry.next_request t.document_registry) ~f:(fun request ->
+        Bonsai.Effect.Expert.handle
+          (Bonsai.Effect.map
+             (Expert.document_request t ~limit:64 request)
+             ~f:(Document_registry.complete t.document_registry)));
     submit_commands t;
     if not t.stopping
     then (
@@ -640,7 +708,10 @@ let worker native read ~tick_hz ~max_tasks ~motion initialize =
         ; editors = Int64.Map.empty
         ; dialogs = Int64.Map.empty
         ; asset_registry = Asset_registry.create ~scope ~wake:(fun () -> Inbox.wake inbox)
+        ; document_registry =
+            Document_registry.create ~scope ~wake:(fun () -> Inbox.wake inbox)
         ; assets = Int64.Map.empty
+        ; documents = Int64.Map.empty
         ; correlation = 0L
         ; motion = Some motion
         ; welcomed = false
@@ -653,9 +724,11 @@ let worker native read ~tick_hz ~max_tasks ~motion initialize =
       Exn.protect
         ~finally:(fun () ->
           Asset_registry.close app.asset_registry;
+          Document_registry.close app.document_registry;
           Scope.cancel scope;
           Map.iter app.windows ~f:release_window;
           app.assets <- Int64.Map.empty;
+          app.documents <- Int64.Map.empty;
           app.frames <- Int64.Map.empty;
           app.closes <- Int64.Map.empty;
           app.opens <- Int64.Map.empty;

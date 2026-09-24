@@ -3656,3 +3656,123 @@ mod tests {
         assert_ne!(first, second);
     }
 }
+
+// Transfer logical selection ranges into a fully reparsed immutable snapshot.
+// Rendering/layout state is never shared between different mounted views.
+fn transfer_inline_selection(
+    old: &Arc<Mutex<InlineState>>,
+    new: &Arc<Mutex<InlineState>>,
+    old_text: &str,
+    new_text: &str,
+    all: bool,
+) -> bool {
+    let selected = old.lock().ok().and_then(|state| state.selection);
+    let selected = if all {
+        (!old_text.is_empty()).then(|| crate::input::Selection::new(0, old_text.len()))
+    } else {
+        selected
+    };
+    let Some(selected) = selected else {
+        return true;
+    };
+    if old_text
+        .get(..selected.end)
+        .is_none_or(|prefix| Some(prefix) != new_text.get(..selected.end))
+    {
+        return false;
+    }
+    if let Ok(mut state) = new.lock() {
+        state.text = new_text.to_string().into();
+        state.selection = Some(selected);
+    }
+    true
+}
+impl Paragraph {
+    /// Match the renderer's text runs: atomic objects flush the preceding
+    /// text into their node state; the trailing run uses paragraph state.
+    fn selection_runs(&self) -> Vec<(Arc<Mutex<InlineState>>, String)> {
+        let mut runs = Vec::new();
+        let mut text = String::new();
+        for node in &self.children {
+            if node.custom.is_none() {
+                text.push_str(&node.text);
+            }
+            if node.custom.is_some() || node.image.is_some() {
+                runs.push((node.state.clone(), std::mem::take(&mut text)));
+            }
+        }
+        runs.push((self.state.clone(), text));
+        runs
+    }
+    fn transfer_selection(&self, old: &Self, all: bool) -> bool {
+        let new_runs = self.selection_runs();
+        let mut valid = true;
+        for (index, (state, text)) in old.selection_runs().iter().enumerate() {
+            if let Some((new, new_text)) = new_runs.get(index) {
+                valid &= transfer_inline_selection(state, new, text, new_text, all);
+            } else if all && !text.is_empty()
+                || state.lock().is_ok_and(|state| state.selection.is_some())
+            {
+                valid = false;
+            }
+        }
+        for (index, old_node) in old
+            .children
+            .iter()
+            .enumerate()
+            .filter(|(_, node)| node.custom.is_some())
+        {
+            let selected = all || old_node.custom_selection.lock().is_ok_and(|value| *value);
+            if selected {
+                if let Some(new_node) = self
+                    .children
+                    .get(index)
+                    .filter(|new| new.custom == old_node.custom)
+                {
+                    if let Ok(mut value) = new_node.custom_selection.lock() {
+                        *value = true;
+                    }
+                } else {
+                    valid = false;
+                }
+            }
+        }
+        valid
+    }
+}
+
+impl BlockNode {
+    pub(super) fn transfer_selection(&self, old: &Self, all: bool) -> bool {
+        match (self, old) {
+            (Self::Paragraph(new), Self::Paragraph(old))
+            | (Self::Heading { children: new, .. }, Self::Heading { children: old, .. }) => {
+                new.transfer_selection(old, all)
+            }
+            (Self::Custom(new), Self::Custom(old)) => new.as_text().starts_with(old.as_text()),
+            (Self::CodeBlock(new), Self::CodeBlock(old)) => {
+                transfer_inline_selection(&old.state, &new.state, &old.code(), &new.code(), all)
+            }
+            (Self::Table(new), Self::Table(old)) => {
+                old.children.iter().enumerate().all(|(r, old)| {
+                    new.children.get(r).is_some_and(|new| {
+                        old.children.iter().enumerate().all(|(c, old)| {
+                            new.children.get(c).is_some_and(|new| {
+                                new.children.transfer_selection(&old.children, all)
+                            })
+                        })
+                    })
+                })
+            }
+            (Self::Root { children: new, .. }, Self::Root { children: old, .. })
+            | (Self::Blockquote { children: new, .. }, Self::Blockquote { children: old, .. })
+            | (Self::List { children: new, .. }, Self::List { children: old, .. })
+            | (Self::ListItem { children: new, .. }, Self::ListItem { children: old, .. }) => {
+                old.iter().enumerate().all(|(i, old)| {
+                    new.get(i)
+                        .is_some_and(|new| new.transfer_selection(old, all))
+                })
+            }
+            _ => self == old || (!all && !old.has_selection()),
+        }
+    }
+}

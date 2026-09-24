@@ -151,6 +151,11 @@ impl View {
                 (editor.is_composing(cx) || editor.focus_handle(cx).is_focused(window))
                     .then_some(*id)
             })
+            .chain(
+                self.documents
+                    .iter()
+                    .filter_map(|(id, state)| state.retained(window, cx).then_some(*id)),
+            )
             .chain(self.selections.iter().filter_map(|(id, selection)| {
                 let selection = selection.borrow();
                 (selection.is_dragging() || selection.focus.is_focused(window)).then_some(*id)

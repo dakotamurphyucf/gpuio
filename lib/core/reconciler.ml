@@ -64,6 +64,7 @@ module Identity = struct
 end
 
 type 'a callback =
+  | Document of Text_source.Handle.t * (Document.Navigation.t -> 'a)
   | Virtual_list of List_identity.t * 'a View.Expert.virtual_list
   | Animation of int64 * int64 ref * (Animation.Event.t -> 'a)
   | Image of (Image.State.t -> 'a)
@@ -117,6 +118,7 @@ type 'a state =
 type 'a t =
   { owner : unit ref
   ; asset_owner : Asset.Expert.Owner.t option
+  ; document_owner : Text_source.Expert.Owner.t option
   ; window : Window_id.t
   ; mutable state : 'a state
   ; mutable closed : bool
@@ -139,11 +141,13 @@ type 'a builder =
   ; theme : Theme.t
   ; theme_unchanged : bool
   ; asset_owner : Asset.Expert.Owner.t option
+  ; document_owner : Text_source.Expert.Owner.t option
   }
 
-let create ?asset_owner window =
+let create ?asset_owner ?document_owner window =
   { owner = ref ()
   ; asset_owner
+  ; document_owner
   ; window
   ; closed = false
   ; state =
@@ -218,6 +222,7 @@ let kind = function
   | Icon -> Icon
   | Animated -> Animated
   | Virtual_list -> Virtual_list
+  | Document_view -> Document_view
 ;;
 
 let compatible mounted view =
@@ -397,6 +402,14 @@ let rec mount builder ~depth previous view =
       | Some _, Some _ -> fail "drop_target cannot combine another handler"
     in
     let callback =
+      match description.document, callback with
+      | Some item, None ->
+        Option.map item.on_navigate ~f:(fun callback ->
+          Document (Document.Config.source item.config, callback))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "document cannot combine another handler"
+    in
+    let callback =
       match description.image, callback with
       | Some image, None -> Option.map image.on_change ~f:(fun callback -> Image callback)
       | None, callback -> callback
@@ -428,14 +441,22 @@ let rec mount builder ~depth previous view =
       | _ -> fail "incompatible virtual list callback"
     in
     let rotate_handler =
-      (match description.image, previous with
-       | Some image, Some mounted ->
-         Option.exists (View.Expert.describe mounted.view).image ~f:(fun old ->
+      (match description.document, previous with
+       | Some document, Some mounted ->
+         Option.exists (View.Expert.describe mounted.view).document ~f:(fun old ->
            not
-             (Asset.Handle.equal
-                (Image.Config.asset old.config)
-                (Image.Config.asset image.config)))
+             (Text_source.Handle.equal
+                (Document.Config.source old.config)
+                (Document.Config.source document.config)))
        | None, _ | Some _, None -> false)
+      || (match description.image, previous with
+          | Some image, Some mounted ->
+            Option.exists (View.Expert.describe mounted.view).image ~f:(fun old ->
+              not
+                (Asset.Handle.equal
+                   (Image.Config.asset old.config)
+                   (Image.Config.asset image.config)))
+          | None, _ | Some _, None -> false)
       || (match description.combobox, previous with
           | Some combo, Some mounted ->
             Option.exists (View.Expert.describe mounted.view).combobox ~f:(fun old ->
@@ -570,6 +591,22 @@ let rec mount builder ~depth previous view =
     if not (Option.equal Wire.Animation.Config.equal animation old_animation)
     then
       Option.iter animation ~f:(fun config -> emit builder (Set_animation (id, config)));
+    Option.iter description.document ~f:(fun document ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).document ~f:(fun old ->
+            old.config))
+      in
+      if not (Option.equal Document.Config.equal old (Some document.config))
+      then
+        emit
+          builder
+          (Set_document
+             ( id
+             , Document.Expert.to_wire
+                 document.config
+                 ~owner:builder.document_owner
+                 ~asset_owner:builder.asset_owner )));
     Option.iter description.image ~f:(fun image ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -890,6 +927,7 @@ let prepare t ~theme view =
         ; theme
         ; theme_unchanged = Theme.equal theme t.state.theme
         ; asset_owner = t.asset_owner
+        ; document_owner = t.document_owner
         }
       in
       let root =
@@ -995,6 +1033,23 @@ let retain_list_rows t notices =
 ;;
 
 let dispatch t = function
+  | Wire.Event.Document_navigation (window, node, handler, revision, source, _, navigation)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Document (expected_source, callback)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Gpuio_protocol.Resource_id.equal
+                 source
+                 (Text_source.Expert.native_id expected_source) ->
+       Document.Expert.navigation navigation |> Result.ok |> Option.map ~f:callback
+     | Some _ | None -> None)
   | Wire.Event.List_viewport (window, node, handler, revision, viewport)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -1069,7 +1124,8 @@ let dispatch t = function
         | Drop_target _
         | Animation _
         | Image _
-        | Virtual_list _ -> None)
+        | Virtual_list _
+        | Document _ -> None)
      | Some _ | None -> None)
   | Choice (window, node, handler, revision, selected)
     when (not t.closed)
@@ -1268,6 +1324,8 @@ let dispatch t = function
   | List_retained _
   | List_viewport _
   | Asset_response _
+  | Document_response _
+  | Document_navigation _
   | Editor_result _
   | Failed _
   | Stopped

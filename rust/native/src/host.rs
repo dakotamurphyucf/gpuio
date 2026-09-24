@@ -29,6 +29,8 @@ mod choice_popup;
 mod combobox;
 #[path = "command.rs"]
 mod command;
+#[path = "document_view.rs"]
+pub(crate) mod document_view;
 #[path = "drag_drop.rs"]
 mod drag_drop;
 #[path = "editor.rs"]
@@ -102,6 +104,7 @@ struct View {
     session: SharedSession,
     transport: Arc<Transport>,
     images: BTreeMap<NodeId, image_view::State>,
+    documents: BTreeMap<NodeId, document_view::State>,
     buttons: BTreeMap<NodeId, Rc<ButtonState>>,
     selections: BTreeMap<NodeId, Rc<RefCell<crate::selection::State>>>,
     editors: BTreeMap<NodeId, editor::Instance>,
@@ -291,6 +294,7 @@ impl View {
             session,
             transport,
             images: BTreeMap::new(),
+            documents: BTreeMap::new(),
             buttons: BTreeMap::new(),
             selections: BTreeMap::new(),
             editors: BTreeMap::new(),
@@ -325,6 +329,7 @@ impl View {
         self.install_menu_observers(window, cx);
         self.sync_lists(dirty, cx);
         self.sync_images(dirty, window, cx);
+        self.sync_documents(dirty, window, cx);
         self.sync_animations(dirty, cx);
         self.sync_palettes(window, cx);
         self.sync_toasts(cx);
@@ -374,6 +379,9 @@ impl View {
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let node = tree.get(id).expect("validated retained node");
+        if node.kind == Kind::DocumentView {
+            return self.document_element(tree, node, interaction, window, cx);
+        }
         if node.kind == Kind::VirtualList {
             return self.list_element(tree, node, interaction, window, cx);
         }
@@ -1153,6 +1161,11 @@ impl Render for View {
         } else {
             0
         };
+        for (id, state) in &mut self.documents {
+            if !self.visited.contains(id) && !state.retained(window, cx) {
+                state.presentation = None;
+            }
+        }
         self.buttons.retain(|id, _| self.visited.contains(id));
         self.radios.retain(|id, _| self.visited.contains(id));
         self.selects.retain(|id, _| self.visited.contains(id));
@@ -1181,6 +1194,10 @@ impl Render for View {
                     .values()
                     .any(|state| state.close_focus.is_focused(window))
                 || self.focus.borrow().contains_focus(window)
+                || self
+                    .documents
+                    .values()
+                    .any(|state| state.focused(window, cx))
                 || root_focus.is_focused(window)
                 || self
                     .buttons
@@ -1269,6 +1286,7 @@ pub fn run(transport: Arc<Transport>) {
                     motion.borrow_mut().take();
                     dialogs.clear().wait().await;
                     crate::image_host::shutdown(cx).await;
+                            crate::document_host::shutdown(cx).await;
                     if !stopping.replace(true) {
                         cx.update(stop_application);
                     }
@@ -1480,6 +1498,16 @@ pub fn run(transport: Arc<Transport>) {
                             let response = session.borrow_mut().asset_request(request);
                             transport.respond(Event::AssetResponse(correlation, response));
                         }
+                        Message::Document(correlation, request) => {
+                            let published = match &request { gpuio_protocol::document::Request::Publish(id,_) => Some(*id), _ => None };
+                            let response = session.borrow_mut().document_request(request);
+                            if matches!(response, gpuio_protocol::document::Response::Ack) && let Some(source) = published {
+                                for handle in windows.values() {
+                                    let _ = handle.update(cx,|view,_,cx| view.document_changed(source,cx));
+                                }
+                            }
+                            transport.respond(Event::DocumentResponse(correlation, response));
+                        }
                         Message::SetMotion(preference) => {
                             match session.borrow().check_ready() {
                                 Ok(()) => cx.update(|cx| crate::motion_preference::set(preference, cx)),
@@ -1490,6 +1518,7 @@ pub fn run(transport: Arc<Transport>) {
                             motion.borrow_mut().take();
                             dialogs.clear().wait().await;
                             crate::image_host::shutdown(cx).await;
+                            crate::document_host::shutdown(cx).await;
                             for event in session.borrow_mut().shutdown() {
                                 transport.respond(event);
                             }
@@ -1522,6 +1551,7 @@ pub(crate) fn stop_application(cx: &mut App) {
     };
     drag_drop::shutdown(cx);
     crate::image_host::finish_before_quit(cx);
+    crate::document_host::finish_before_quit(cx);
     cx.shutdown();
     // Embedded runtime must regain control instead of NSApplication.terminate.
     unsafe {
@@ -1535,6 +1565,7 @@ pub(crate) fn stop_application(cx: &mut App) {
 pub(crate) fn stop_application(cx: &mut App) {
     drag_drop::shutdown(cx);
     crate::image_host::finish_before_quit(cx);
+    crate::document_host::finish_before_quit(cx);
     cx.quit();
 }
 

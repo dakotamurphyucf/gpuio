@@ -41,6 +41,7 @@ pub struct Node {
     pub palette: Option<Arc<PaletteConfig>>,
     pub progress: Option<Arc<ProgressConfig>>,
     pub image: Option<Arc<ImageConfig>>,
+    pub document: Option<Arc<gpuio_protocol::document::Config>>,
     pub animation: Option<Arc<gpuio_protocol::animation::Config>>,
     pub list_config: Option<Arc<gpuio_protocol::list::Config>>,
     pub list_order: Option<Arc<gpuio_protocol::list::Order>>,
@@ -95,6 +96,10 @@ impl Node {
             + self.toast_stack.as_ref().map_or(0, |config| {
                 std::mem::size_of::<ToastStackConfig>() + config.label.len()
             })
+            + self
+                .document
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
             + self.image.as_ref().map_or(0, |config| {
                 std::mem::size_of::<ImageConfig>() + config.label.as_ref().map_or(0, String::len)
             })
@@ -413,6 +418,13 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
+                if (node.kind == Kind::DocumentView) != node.document.is_some()
+                    || node.document.as_ref().is_some_and(|config| {
+                        !config.is_valid() || !node.text.is_empty() || !node.children.is_empty()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 if (node.kind == Kind::Progress) != node.progress.is_some()
                     || node.progress.as_ref().is_some_and(|config| {
                         !config.is_valid()
@@ -513,6 +525,7 @@ impl Tree {
                     | Kind::CommandPalette
                     | Kind::Progress
                     | Kind::Image
+                    | Kind::DocumentView
                     | Kind::Icon
                     | Kind::Animated
                     | Kind::VirtualList
@@ -832,6 +845,7 @@ impl Plan<'_> {
             | Op::InvalidateListRows(id, ..)
             | Op::ScrollList(id, ..)
             | Op::SetImage(id, ..)
+            | Op::SetDocument(id, ..)
             | Op::SetProgress(id, ..)
             | Op::SetToast(id, ..)
             | Op::SetToastStack(id, ..)
@@ -906,6 +920,7 @@ impl Plan<'_> {
                             palette: None,
                             progress: None,
                             image: None,
+                            document: None,
                             animation: None,
                             list_config: None,
                             list_order: None,
@@ -1059,6 +1074,12 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.image = Some(Arc::new(config.clone()));
+            }
+            Op::SetDocument(id, config) => {
+                if self.node(*id)?.kind != Kind::DocumentView || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.document = Some(Arc::new(config.clone()));
             }
             Op::SetProgress(id, config) => {
                 if self.node(*id)?.kind != Kind::Progress || !config.is_valid() {

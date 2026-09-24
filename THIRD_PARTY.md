@@ -35,3 +35,16 @@ with GPUIO's pinned Zed source; patches are recorded in
 `third_party/patches/gpui-base.patch`. Source/patch hashes and the reconstruction
 script preserve provenance. This imports native behavior without the JavaScript
 shell or the styled component facade. See `docs/design/native-editor.md`.
+
+Display-document highlighting uses Syntect5.3.0 and Two Face0.5.2+bat-0.26.1,
+locked in Cargo.lock with registry checksums. Their licenses are retained in
+[Syntect](third_party/licenses/syntect.txt) and
+[Two Face](third_party/licenses/two-face.txt). The bundled syntax definitions and
+themes include additional upstream notices; preserve
+[two-face-assets.md](third_party/licenses/two-face-assets.md) with distributions
+that contain those assets. It is the pinned tag's generated acknowledgements.
+
+GPUIO's Base adaptations also expose externally prepared bounded Markdown,
+selection transfer across compatible snapshots, safe reference-image resolution,
+and a source line origin for read-only document pages. They are recorded in the
+same source patch; GPUIO's worker/transport code remains outside the vendor tree.

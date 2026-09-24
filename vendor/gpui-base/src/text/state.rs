@@ -111,6 +111,7 @@ pub struct TextViewState {
     pub(super) preserve_inline_selection: bool,
     multi_click_selection: Option<TextViewMultiClickSelection>,
     selected_text_override: Option<String>,
+    prepared_source_selection: Option<String>,
     select_all: bool,
     pub(super) auto_scroll: AutoScroll,
     pub(super) selection_adapter: TextViewSelectionAdapter,
@@ -126,72 +127,140 @@ pub struct TextViewState {
     layout_text_style: Option<(gpui::TextStyle, Pixels)>,
     parsed_error: Option<SharedString>,
     tx: Sender<UpdateOptions>,
-    _parse_task: Task<()>,
-    _receive_task: Task<()>,
+    _parse_task: Option<Task<()>>,
+    _receive_task: Option<Task<()>>,
 }
 
 impl TextViewState {
+    /// Install a single-use snapshot from an externally bounded worker. No
+    /// parser work or source queue is started by this operation. The caller
+    /// rejects stale document generations/revisions before calling it.
+    /// Unchanged selected blocks can retain their logical inline ranges.
+    pub fn set_prepared(
+        &mut self,
+        mut prepared: PreparedMarkdown,
+        unchanged_prefix: Option<usize>,
+        cx: &mut Context<Self>,
+    ) {
+        let all = self.select_all;
+        let selected_plain = all.then(|| self.parsed_content.document.text());
+        let selected_source = all.then(|| self.parsed_content.document.source.to_string());
+        let mut preserve = unchanged_prefix.is_some();
+        let append_only = prepared
+            .content
+            .document
+            .source
+            .starts_with(self.parsed_content.document.source.as_ref());
+        let new_blocks = Arc::make_mut(&mut prepared.content.document.blocks);
+        for (index, old) in self.parsed_content.document.blocks.iter().enumerate() {
+            if !append_only && (all || old.has_selection()) {
+                preserve &= old
+                    .span()
+                    .is_some_and(|span| unchanged_prefix.is_some_and(|prefix| span.end <= prefix));
+            }
+            if let Some(new) = new_blocks.get(index) {
+                preserve &= new.transfer_selection(old, all);
+            } else if all || old.has_selection() {
+                preserve = false;
+            }
+        }
+        if !preserve {
+            self.reset_selection_and_adapter(cx);
+            for block in new_blocks.iter() {
+                block.clear_selection();
+            }
+        } else if all {
+            self.select_all = false;
+            self.selected_text_override = selected_plain;
+            self.prepared_source_selection = selected_source;
+        }
+        self.revision = self
+            .revision
+            .checked_add(1)
+            .expect("text view revision exhausted");
+        if !preserve {
+            self.selection_revision = self.selection_revision.wrapping_add(1);
+        }
+        self.text = prepared.content.document.source.to_string();
+        self.markdown_extensions = prepared.content.node_cx.markdown_extensions.clone();
+        self.parsed_content = prepared.content;
+        self.parsed_error = None;
+        self.preserve_inline_selection = preserve;
+        self.compatible_layout_update = preserve;
+        self.invalidate_measured_heights();
+        cx.notify();
+    }
+
     /// Create a Markdown TextViewState.
     pub fn markdown(text: &str, cx: &mut Context<Self>) -> Self {
-        Self::new(TextViewFormat::Markdown, text, cx)
+        Self::new(TextViewFormat::Markdown, text, false, cx)
     }
 
     /// Create a HTML TextViewState.
     pub fn html(text: &str, cx: &mut Context<Self>) -> Self {
-        Self::new(TextViewFormat::Html, text, cx)
+        Self::new(TextViewFormat::Html, text, false, cx)
     }
 
     /// Create a new TextViewState.
-    fn new(format: TextViewFormat, text: &str, cx: &mut Context<Self>) -> Self {
+    pub fn externally_prepared(cx: &mut Context<Self>) -> Self {
+        Self::new(TextViewFormat::Markdown, "", true, cx)
+    }
+
+    fn new(format: TextViewFormat, text: &str, external: bool, cx: &mut Context<Self>) -> Self {
         let focus_handle = cx.focus_handle();
         let selection_adapter = TextViewSelectionAdapter::new(cx.entity().downgrade(), cx);
 
         let (tx, rx) = unbounded::<UpdateOptions>();
         let (tx_result, rx_result) = unbounded::<ParsedUpdate>();
-        let _receive_task = cx.spawn({
-            async move |weak_self, cx| {
-                while let Ok(parsed_update) = rx_result.recv().await {
-                    _ = weak_self.update(cx, |state, cx| {
-                        if parsed_update.revision != state.revision {
-                            return;
-                        }
-                        if parsed_update.baseline_ack {
-                            debug_assert!(parsed_update.full_parse);
-                            return;
-                        }
+        let _receive_task = (!external).then(|| {
+            cx.spawn({
+                async move |weak_self, cx| {
+                    while let Ok(parsed_update) = rx_result.recv().await {
+                        _ = weak_self.update(cx, |state, cx| {
+                            if parsed_update.revision != state.revision {
+                                return;
+                            }
+                            if parsed_update.baseline_ack {
+                                debug_assert!(parsed_update.full_parse);
+                                return;
+                            }
 
-                        match parsed_update.result {
-                            Ok(content) => {
-                                state.parsed_content = content;
-                                state.parsed_error = None;
-                                state.compatible_layout_update = parsed_update.selection_compatible;
-                                if parsed_update.full_parse {
-                                    state.invalidate_measured_heights();
+                            match parsed_update.result {
+                                Ok(content) => {
+                                    state.parsed_content = content;
+                                    state.parsed_error = None;
+                                    state.compatible_layout_update =
+                                        parsed_update.selection_compatible;
+                                    if parsed_update.full_parse {
+                                        state.invalidate_measured_heights();
+                                    }
+                                }
+                                Err(err) => {
+                                    state.parsed_error = Some(err);
                                 }
                             }
-                            Err(err) => {
-                                state.parsed_error = Some(err);
+                            // Don't interrupt an active drag-selection; the stored
+                            // positions remain valid for append-only updates and will
+                            // self-correct on the next mouse-move event.
+                            if !parsed_update.selection_compatible && !state.is_selecting {
+                                state.reset_selection_and_adapter(cx);
                             }
-                        }
-                        // Don't interrupt an active drag-selection; the stored
-                        // positions remain valid for append-only updates and will
-                        // self-correct on the next mouse-move event.
-                        if !parsed_update.selection_compatible && !state.is_selecting {
-                            state.reset_selection_and_adapter(cx);
-                        }
-                        cx.notify();
-                    });
+                            cx.notify();
+                        });
+                    }
                 }
-            }
+            })
         });
 
-        let _parse_task = cx.background_spawn(UpdateFuture::new(format, rx, tx_result));
+        let _parse_task =
+            (!external).then(|| cx.background_spawn(UpdateFuture::new(format, rx, tx_result)));
 
         let mut this = Self {
             focus_handle,
             bounds: Bounds::default(),
             multi_click_selection: None,
             selected_text_override: None,
+            prepared_source_selection: None,
             select_all: false,
             selectable: false,
             selection_format: SelectionFormat::default(),
@@ -226,7 +295,9 @@ impl TextViewState {
             _parse_task,
             _receive_task,
         };
-        this.increment_update(&text, false, cx);
+        if !external {
+            this.increment_update(&text, false, cx);
+        }
         this
     }
 
@@ -325,6 +396,17 @@ impl TextViewState {
     }
 
     /// Return the selected text, in the view's [`SelectionFormat`].
+    pub fn has_local_selection(&self) -> bool {
+        self.select_all
+            || self.selected_text_override.is_some()
+            || self
+                .parsed_content
+                .document
+                .blocks
+                .iter()
+                .any(|block| block.has_selection())
+    }
+
     pub fn selected_text(&self) -> String {
         self.selected_text_in(None)
     }
@@ -353,6 +435,11 @@ impl TextViewState {
     /// [`ParsedDocument::selected_text`](crate::text::document::ParsedDocument).
     pub(super) fn selected_text_in(&self, blocks: Option<RangeInclusive<usize>>) -> String {
         let format = self.effective_format();
+        if format == SelectionFormat::Source
+            && let Some(source) = &self.prepared_source_selection
+        {
+            return source.clone();
+        }
 
         if self.select_all {
             if format == SelectionFormat::Source {
@@ -524,6 +611,7 @@ impl TextViewState {
         self.preserve_inline_selection = false;
         self.multi_click_selection = None;
         self.selected_text_override = None;
+        self.prepared_source_selection = None;
         self.select_all = false;
         self.is_selecting = false;
         self.auto_scroll.stop();
@@ -556,6 +644,7 @@ impl TextViewState {
     pub fn select_all(&mut self, cx: &mut Context<Self>) {
         self.multi_click_selection = None;
         self.selected_text_override = None;
+        self.prepared_source_selection = None;
         self.select_all = true;
         self.is_selecting = false;
         self.auto_scroll.stop();
@@ -579,6 +668,7 @@ impl TextViewState {
             line_bounds: None,
         });
         self.selected_text_override = Some(selected_text);
+        self.prepared_source_selection = None;
         self.select_all = false;
         self.is_selecting = false;
         self.auto_scroll.stop();
@@ -593,6 +683,7 @@ impl TextViewState {
             cx,
         );
         self.selected_text_override = None;
+        self.prepared_source_selection = None;
         let offset = self.bounds.origin + self.scroll_offset();
         if let Some(selection) = self.multi_click_selection.as_mut() {
             selection.line_bounds = Some(Bounds::new(bounds.origin - offset, bounds.size));
@@ -767,6 +858,57 @@ impl Render for TextViewState {
 pub(crate) struct ParsedContent {
     pub(crate) document: ParsedDocument,
     pub(crate) node_cx: node::NodeContext,
+}
+
+/// A single-use full Markdown parse prepared outside the native UI thread.
+/// This deliberately does not implement Clone: parsed inline nodes contain
+/// mutable selection/layout state and must not be shared between mounted views.
+pub struct PreparedMarkdown {
+    content: ParsedContent,
+}
+
+impl PreparedMarkdown {
+    /// Admission bounds: 64 KiB source, 16 KiB per line, 4096 AST nodes, depth32
+    /// and 256 top-level blocks. Call from a bounded background scheduler.
+    /// Failure means the caller should offer its source/large-document view.
+    pub fn parse(source: &str, extensions: MarkdownExtensions) -> Result<Self, SharedString> {
+        let mut node_cx = NodeContext {
+            markdown_extensions: Arc::new(extensions),
+            ..NodeContext::default()
+        };
+        let document = format::markdown::parse_bounded(source, &mut node_cx)?;
+        Ok(Self {
+            content: ParsedContent { document, node_cx },
+        })
+    }
+
+    pub fn source(&self) -> SharedString {
+        self.content.document.source.clone()
+    }
+    pub fn plain_text(&self) -> String {
+        self.content.document.text()
+    }
+    pub fn block_count(&self) -> usize {
+        self.content.document.blocks.len()
+    }
+
+    /// Read code blocks during the same background job, before installing this
+    /// single-use document. The clones are not independent mounted views.
+    pub fn code_blocks(&self) -> Vec<node::CodeBlock> {
+        let mut blocks = Vec::new();
+        let mut pending: Vec<_> = self.content.document.blocks.iter().collect();
+        while let Some(block) = pending.pop() {
+            match block {
+                node::BlockNode::CodeBlock(code) => blocks.push(code.clone()),
+                node::BlockNode::Root { children, .. }
+                | node::BlockNode::Blockquote { children, .. }
+                | node::BlockNode::List { children, .. }
+                | node::BlockNode::ListItem { children, .. } => pending.extend(children),
+                _ => (),
+            }
+        }
+        blocks
+    }
 }
 
 struct UpdateFuture {
