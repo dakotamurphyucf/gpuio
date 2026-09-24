@@ -3,4 +3,4 @@
  (public_name gpuio.bonsai)
  (libraries core gpuio bonsai)
  (preprocess
-  (pps ppx_jane)))
+  (pps ppx_jane bonsai.ppx_bonsai)))

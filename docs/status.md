@@ -1,9 +1,11 @@
 # Implementation status
 
-Updated 2026-09-24. Milestone 01's reproducible foundation is merged. Milestone 02
-implements native text editing, controls/interactions and declarative animations.
-The remaining delivery is tracked by [PR #10](https://github.com/dakotamurphyucf/gpuio/pull/10)
-and Linear OCH-11/OCH-12; use their live check and merge status for completion.
+Updated 2026-09-24. Milestones 01 and 02 are merged, including native text editing,
+controls/interactions and declarative animations. [PR #10](https://github.com/dakotamurphyucf/gpuio/pull/10)
+merged at `17e863279bff25253edf47f449c04cd9aee5e867` after the required macOS and
+Linux checks passed. Milestone 03 / OCH-13 is now in progress: keyed collections,
+paging and managed virtual lists. See the [managed-list design](design/managed-lists.md)
+for its current implementation boundaries; native list acceptance is pending.
 
 The [milestone acceptance ledger](evidence/milestones-01-02.md) maps every ticket
 to its implementation and evidence. The first consolidated hosted run passed all

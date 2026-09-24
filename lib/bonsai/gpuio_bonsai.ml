@@ -1,3 +1,5 @@
+module Managed_rows = Managed_rows
+
 module View = struct
   type t = unit Bonsai.Effect.t Gpuio.View.t
   type toast = unit Bonsai.Effect.t Gpuio.View.toast
