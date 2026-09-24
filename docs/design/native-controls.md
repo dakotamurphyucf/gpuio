@@ -824,7 +824,7 @@ Icon leaf. Slots and icons cannot have callbacks or separate labels. Other contr
 cannot be nested here. Validation runs for changed ancestors, including nonstructural
 Bind/SetImage updates, and rejects invalid transactions atomically. Removing one icon
 preserves the other slot's identity and the button's existing handler/focus target.
-`CAP_BUTTON_ICONS` is 16777216; the aggregate bridge mask is 33554431. The existing
+`CAP_BUTTON_ICONS` is 16777216; the aggregate bridge mask including animations is 67108863. The existing
 Create/Splice/image encodings are reused, without a new action/config message family.
 
 See [button icon evidence](../evidence/button-icons-och11.md).

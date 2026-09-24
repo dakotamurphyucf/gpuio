@@ -1,6 +1,14 @@
 # Implementation status
 
-Updated 2026-09-13. Milestone 01: reproducible foundation, complete. Milestone 02: native interaction, in progress.
+Updated 2026-09-24. Milestone 01: reproducible foundation, complete. Milestone 02: native interaction, in progress.
+
+Current milestone 02 checkpoint: OCH-10 is complete. OCH-11 controls/interactions
+and OCH-12 animations now have local implementation and acceptance evidence,
+including shared motion preferences and controlled scale changes. Both tickets
+remain In Progress pending final consolidated checks, hosted macOS/Linux gates
+and merge. See [theme/scale review](evidence/theme-scale-och11.md) and
+[animation contracts](design/animations.md). Historical checkpoints below describe
+their state at the time; this paragraph is the current delivery status.
 
 Repository: `dakotamurphyucf/gpuio`, public, Apache-2.0, default branch `main`.
 These settings were selected by the owner on 2026-09-11.
@@ -498,3 +506,12 @@ the public example passes immediate settling of a long animation under Reduce.
 Portal protocol tests pass using a private mock connection on macOS. Final
 capability/acceptance, hosted macOS/Linux gates and merge remain pending; see
 [animation policy](design/animations.md#application-motion-preferences).
+
+Consolidated local milestone 02 acceptance (2026-09-24): full Rust workspace,
+Dune `@all @runtest @fmt`, and all-target feature-enabled Clippy pass. Native
+animation, controls, progress, image/scale, drag/drop and AppKit file-dialog suites
+pass. Public animation, drag/drop and file-dialog lifecycle examples pass with the
+final capability mask. The animation test now activates its window: controlled
+activation proved that a fully occluded background window was waiting for its
+first frame. This change affects test reliability, not production window policy.
+Hosted macOS/Linux validation and merge remain pending.

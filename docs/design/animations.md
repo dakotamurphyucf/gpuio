@@ -2,8 +2,9 @@
 
 Status: typed configuration, view/reconciler/transport and GPUI rendering now pass
 local macOS tests, including the public Bonsai/Eio example. Shared application motion
-policy and live platform preference adapters are implemented. The final animation
-capability is not advertised yet; consolidated hosted acceptance and merge remain.
+policy and live platform preference adapters are implemented. `CAP_ANIMATIONS`
+(33554432) is advertised in aggregate mask 67108863; consolidated hosted acceptance
+and merge remain.
 
 ## Configuration
 
@@ -142,8 +143,7 @@ Both declarative transitions and native progress use the same resolved GPUI flag
 Reduced indeterminate progress displays a centered, static 25%-width bar with no
 fabricated numeric accessibility value. Full motion resumes its native cycle.
 
-Still required before OCH-12 completion: final capability negotiation and remaining
-native target/window/scale review, then consolidated required macOS functionality
+Still required before OCH-12 completion: consolidated required macOS functionality
 and Linux build/tests and merge. Linux GUI checks remain informational for OCH-17.
 
 Springs, sequences and synchronized repetition belong to OCH-25. This does not
@@ -166,7 +166,9 @@ once-only native endpoints with a controlled clock. A real-clock repeat schedule
 its own frames without tree revisions. Whole-window render counts stay unchanged
 after completion, while an ancestor is hidden and under reduced motion. A finite
 run settles immediately under reduced motion; removal releases a pending deadline
-and weak state owner. This is a background GPUI window, not physical input testing.
+and weak state owner. This validates GPUI frames rather than physical keyboard/IME input. The test now
+activates its window because a completely occluded background window can wait
+indefinitely for its first frame. Local foreground tests are explicitly authorized.
 
 The public `examples/animation --self-test` passes Bonsai/Eio target updates,
 endpoint decoding/delivery, theme change and shutdown. A slow first frame may finish
@@ -194,3 +196,11 @@ policy changes: reduced indeterminate progress remains visibly centered, leaves
 the whole window idle, and resumes native frames under Full. Resumed feature-enabled
 all-target Clippy passes. An earlier full-controls run failed an existing tooltip
 hover check during severe host memory pressure; the resumed full suite passes.
+
+Additional native acceptance covers zero-width/zero-height/zero-opacity first
+placement, width/height plus top/left interpolation, right/bottom anchoring and
+closing the window with a 60-second delayed start pending. The weak native owner
+is released and no late endpoint is delivered. Startup markers help distinguish
+launch problems from a frame wait. The background stall was diagnosed by activating
+the exact running process, after which every assertion completed; the test now
+activates itself, as the existing control tests do.

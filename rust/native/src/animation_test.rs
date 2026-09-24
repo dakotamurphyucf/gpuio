@@ -57,7 +57,11 @@ async fn frame(cx: &mut gpui::AsyncApp, window: WindowHandle<View>) {
 async fn at(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, time: u64) {
     window
         .update(cx, |view, window, _| {
-            view.animations[&node(1)]
+            assert_eq!(view.animations.len(), 1);
+            view.animations
+                .values()
+                .next()
+                .unwrap()
                 .borrow_mut()
                 .set_test_time(Some(Duration::from_millis(time)));
             window.refresh();
@@ -305,6 +309,170 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, transport
         "GPUIO_NATIVE_ANIMATION_OK: reveal geometry, fixed inner width, interruption, once-only endpoints, native repeat frames, hidden/reduced idle, delayed-start disposal"
     );
 }
+async fn geometry_and_close(
+    cx: &mut gpui::AsyncApp,
+    window: WindowHandle<View>,
+    transport: &Transport,
+) {
+    fn node(slot: i64) -> NodeId {
+        NodeId::from_parts(slot, 2).unwrap()
+    }
+    let mut geometry = config(1, 120.);
+    geometry.targets.extend([
+        Target {
+            property: Property::Height,
+            value: 80.,
+        },
+        Target {
+            property: Property::Top,
+            value: 20.,
+        },
+        Target {
+            property: Property::Left,
+            value: 30.,
+        },
+        Target {
+            property: Property::Opacity,
+            value: 0.5,
+        },
+        Target {
+            property: Property::TopLeftRadius,
+            value: 4.,
+        },
+        Target {
+            property: Property::TopRightRadius,
+            value: 8.,
+        },
+        Target {
+            property: Property::BottomLeftRadius,
+            value: 12.,
+        },
+        Target {
+            property: Property::BottomRightRadius,
+            value: 16.,
+        },
+    ]);
+    geometry.initial = Some(
+        geometry
+            .targets
+            .iter()
+            .map(|target| Target {
+                property: target.property,
+                value: 0.,
+            })
+            .collect(),
+    );
+    apply(
+        cx,
+        window,
+        vec![
+            Op::Create(node(0), Kind::Container, "".into(), None),
+            Op::SetStyle(
+                node(0),
+                vec![Style::Fields(vec![
+                    Field::Width(Length::Px(400.)),
+                    Field::Height(Length::Px(200.)),
+                ])],
+            ),
+            Op::Create(node(1), Kind::Animated, "".into(), Some(handler())),
+            Op::SetAnimation(node(1), geometry.clone()),
+            Op::SetStyle(node(1), vec![Style::Fields(vec![Field::Position(1)])]),
+            Op::Splice(node(0), 0, 0, vec![node(1)]),
+            Op::SetRoot(Some(node(0))),
+        ],
+    );
+    at(cx, window, 0).await;
+    assert!(
+        window
+            .update(cx, |view, _, _| view.animations[&node(1)]
+                .borrow()
+                .paint_count)
+            .unwrap()
+            > 0,
+        "zero-area and zero-opacity placement can schedule its next native frame"
+    );
+    at(cx, window, 500).await;
+    window
+        .update(cx, |view, _, _| {
+            let probes = view.probes.borrow();
+            let root = probes[&node(0)].bounds;
+            let animated = probes[&node(1)].bounds;
+            assert_eq!(animated.size, size(px(60.), px(40.)));
+            assert_eq!(animated.origin - root.origin, gpui::point(px(15.), px(10.)));
+        })
+        .unwrap();
+    at(cx, window, 1000).await;
+    assert_eq!(events(transport).len(), 1);
+    // Exercise bottom/right without over-constraining the absolute rectangle.
+    geometry.generation = 2;
+    geometry
+        .targets
+        .retain(|target| !matches!(target.property, Property::Top | Property::Left));
+    geometry.targets.extend([
+        Target {
+            property: Property::Right,
+            value: 40.,
+        },
+        Target {
+            property: Property::Bottom,
+            value: 30.,
+        },
+    ]);
+    geometry.targets.sort_by_key(|target| target.property);
+    geometry.initial = None;
+    geometry.duration_ms = 0;
+    apply(
+        cx,
+        window,
+        vec![Op::SetAnimation(node(1), geometry.clone())],
+    );
+    at(cx, window, 1000).await;
+    window
+        .update(cx, |view, _, _| {
+            let probes = view.probes.borrow();
+            let root = probes[&node(0)].bounds;
+            let animated = probes[&node(1)].bounds;
+            assert_eq!(animated.size, size(px(120.), px(80.)));
+            assert_eq!(
+                animated.origin - root.origin,
+                gpui::point(px(240.), px(90.))
+            );
+        })
+        .unwrap();
+    assert_eq!(events(transport).len(), 1);
+    geometry.generation = 3;
+    geometry.targets[0].value = 100.;
+    geometry.duration_ms = 1000;
+    geometry.delay_ms = 60_000;
+    apply(cx, window, vec![Op::SetAnimation(node(1), geometry)]);
+    at(cx, window, 1000).await;
+    let owner = window
+        .update(cx, |view, _, _| {
+            assert!(view.animations[&node(1)].borrow().has_deadline());
+            Rc::downgrade(&view.animations[&node(1)])
+        })
+        .unwrap();
+    window
+        .update(cx, |view, window, _| {
+            view.session.borrow_mut().close(view.id).unwrap();
+            window.remove_window();
+        })
+        .unwrap();
+    cx.background_executor()
+        .timer(Duration::from_millis(80))
+        .await;
+    assert!(
+        owner.upgrade().is_none(),
+        "closing a window releases its delayed animation and timer"
+    );
+    assert!(
+        events(transport).is_empty(),
+        "closed windows discard animation endpoints"
+    );
+    eprintln!(
+        "GPUIO_ANIMATION_GEOMETRY_CLOSE_OK: zero-area scheduling, two-axis geometry, anchored offsets and delayed close cleanup"
+    );
+}
 pub(crate) fn run() {
     let failure = Rc::new(RefCell::new(None));
     let task_failure = failure.clone();
@@ -313,7 +481,9 @@ pub(crate) fn run() {
     let _read = unsafe { OwnedFd::from_raw_fd(fds[0]) };
     let write = unsafe { OwnedFd::from_raw_fd(fds[1]) };
     let transport = Arc::new(Transport::new(write.as_raw_fd()).unwrap());
+    eprintln!("GPUIO_ANIMATION_START: entering AppKit/GPUI event loop");
     gpui_platform::application().run(move |cx| {
+        eprintln!("GPUIO_ANIMATION_LAUNCHED: native application callback");
         cx.set_quit_mode(gpui::QuitMode::Explicit);
         gpui_base::init(cx);
         let motion_watch = crate::motion_preference::init(cx);
@@ -332,19 +502,20 @@ pub(crate) fn run() {
                         size(px(480.), px(240.)),
                         cx,
                     ))),
-                    focus: false,
+                    focus: true,
                     ..Default::default()
                 },
                 |_, cx| cx.new(|_| View::new(wid(), session.clone(), transport.clone())),
             )
             .unwrap();
+        // A fully occluded background window may never receive its first frame.
+        // Frame scheduling/idle assertions require a visible, active window.
+        cx.activate(true);
         cx.spawn(async move |cx| {
             let result = super::native_test::protect(async {
                 exercise(cx, window, &transport).await;
                 crate::motion_preference::test(cx, &motion_watch).await;
-                window
-                    .update(cx, |_, window, _| window.remove_window())
-                    .unwrap();
+                geometry_and_close(cx, window, &transport).await;
             })
             .await;
             *task_failure.borrow_mut() = result.err();

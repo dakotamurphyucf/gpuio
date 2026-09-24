@@ -4,7 +4,7 @@ module Image = Image_wire
 module Animation = Animation_wire
 
 let version = 1L
-let capabilities = 33554431L
+let capabilities = 67108863L
 let max_message_bytes = 1_048_576
 
 module Kind = struct

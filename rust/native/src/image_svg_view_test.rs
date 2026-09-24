@@ -144,6 +144,31 @@ pub(super) async fn exercise(
             .is_err(),
         "resampling used the mounted lease after retirement"
     );
+    // GPUI's test override exercises host resampling without pretending that this
+    // moved a physical window between monitors. Restore before pixel readback.
+    let original_scale = window
+        .update(cx, |_, window, _| window.scale_factor())
+        .unwrap();
+    for scale in [1., 1.5, 2., original_scale] {
+        window
+            .update(cx, |_, window, _| window.set_scale_factor(scale))
+            .unwrap();
+        rasterized(cx, window, id, None).await;
+        window
+            .update(cx, |view, window, _| {
+                assert_eq!(window.viewport_size(), size(px(144.), px(96.)));
+                let binding = view.images[&id].binding.borrow();
+                assert_eq!(
+                    binding.rendered.density,
+                    asset_svg::Density::new(scale).unwrap()
+                );
+                assert_eq!(
+                    view.session.borrow().tree(view.id).unwrap().revision(),
+                    revision
+                );
+            })
+            .unwrap();
+    }
     let icon = NodeId::from_parts(2, 1).unwrap();
     let source = vector_source(session);
     crate::host::native_test::move_mouse(cx, window, gpui::point(px(-10.), px(-10.)), false);

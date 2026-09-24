@@ -4,7 +4,8 @@ OCH-11 implementation in progress. Encoded registration, scoped public ownership
 bounded image scheduling, raster/SVG views and foreground-tinted icons are connected.
 `CAP_ASSETS` (2097152) means encoded registration; `CAP_IMAGES` (4194304) adds image
 views and state events; `CAP_SVG` (8388608) adds SVG and icon rendering. The aggregate
-mask including `CAP_BUTTON_ICONS` (16777216) is 33554431. Decorative button and
+mask including `CAP_BUTTON_ICONS` (16777216) and `CAP_ANIMATIONS` (33554432)
+is 67108863. Decorative button and
 command-button icon slots reuse this pipeline; see [native controls](native-controls.md#decorative-button-icons).
 This is not completion of OCH-11.
 
