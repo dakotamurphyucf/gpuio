@@ -138,3 +138,19 @@ let%expect_test "retention responses are bounded correlated replies" =
     ~f:(fun invalid -> assert (Or_error.is_error (Wire.Event.decode (encode invalid))));
   [%expect {| 011c000102010001020109 |}]
 ;;
+
+let%expect_test "100k fragmented identities fit the bounded order transport" =
+  let count = 100_000 in
+  let order : L.Order.t =
+    { revision = 2L
+    ; runs =
+        List.init count ~f:(fun i ->
+          { L.Id_run.first = Int64.of_int ((i * 7919 % count) + 1); count = 1L })
+    }
+  in
+  L.Order.validate order |> Or_error.ok_exn;
+  let bytes = Bin_prot.Utils.bin_dump L.Order.bin_writer_t order in
+  assert (Bigstring.length bytes < 1_000_000);
+  print_endline "100k arbitrary-order rows fit below 1 MiB";
+  [%expect {| 100k arbitrary-order rows fit below 1 MiB |}]
+;;

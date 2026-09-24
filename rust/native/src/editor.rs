@@ -289,6 +289,19 @@ pub(super) struct Instance {
     combobox: Option<Rc<RefCell<super::combobox::State>>>,
 }
 impl Instance {
+    #[cfg(feature = "native-tests")]
+    pub(super) fn liveness_probe(&self) -> Box<dyn Fn() -> bool> {
+        match &self.state {
+            State::Input(state) => {
+                let weak = state.downgrade();
+                Box::new(move || weak.upgrade().is_some())
+            }
+            State::Textarea(state) => {
+                let weak = state.downgrade();
+                Box::new(move || weak.upgrade().is_some())
+            }
+        }
+    }
     pub(super) fn new<T: 'static>(
         id: WindowId,
         node: &crate::tree::Node,

@@ -3,8 +3,9 @@
 `gpuio.eio` provides `Gpuio_eio.App`, `Scope` and `Stream`. Pure views, styles and
 Bonsai components remain independent of Eio. Use `Gpuio_bonsai.View` with
 `Bonsai.Cont`, and pass a component factory to `App.open_window`; see the complete
-[two-window example](../../examples/runtime/main.ml). No Async runtime or new
-Bonsai fork patch is introduced.
+[two-window example](../../examples/runtime/main.ml). No Async runtime is required.
+The native scheduling policy uses the original clock interface; the additive
+lifecycle and action-history driver extensions below support managed lists.
 
 ## Ownership and scheduling
 

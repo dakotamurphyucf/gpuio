@@ -1,8 +1,9 @@
 # Managed lists (OCH-13)
 
-Implementation in progress, 2026-09-24. This document refines the accepted
-[managed-list contract](accepted-contracts.md#managed-list-contract); it is not
-an assertion that native virtualization has shipped.
+Implemented and validated locally, 2026-09-24; hosted acceptance/merge pending.
+This document refines the accepted
+[managed-list contract](accepted-contracts.md#managed-list-contract). See the
+[acceptance evidence](../evidence/managed-lists-och13.md) for exact coverage.
 
 ## Ownership and data
 
@@ -74,9 +75,9 @@ following while away from the tail, and explicitly resume it on jump-to-end.
 They also reject obsolete order revisions and repeated scroll commands. The state checks run without a window. A separate `native_list` graphical test
 uses the production host: 100,000 logical rows, sparse descriptions, measured
 row heights, exact key/pixel anchors through prepend/reorder/height changes and
-resize, tail jump, focused-row retention and disposal. Wheel/scrollbar gestures,
-IME/selection and full-history resource bounds still need expanded acceptance
-coverage.
+resize, tail jump, focused-row retention and disposal. The extended test also checks wheel pause, scrollbar drag, focused editor
+composition through the macOS text client, held selection, intentional source
+deletion and full-history resource bounds. These are local macOS checks.
 
 The first native metadata layer uses positive logical row IDs independent of
 native node handles. Consecutive IDs are encoded as runs: an initial 100,000-row
@@ -87,13 +88,17 @@ memory. A removed anchor falls forward to its next surviving neighbor, then
 backward, then to the new first row, at offset zero. A surviving anchor keeps
 its exact offset through prepend/reorder.
 
-The metadata validator caps logical rows at 1,000,000 and runs at 32,768, rejects
+The metadata validator caps logical rows at 1,000,000 and runs at 100,000, rejects
 overlapping IDs and checks overflow before expansion. Active descriptions have
 a separate configurable budget capped at 16,384. These are per-value admission
 limits: native tree/session accounting must also charge expanded metadata and
 GPUI measurement storage. The existing 1-MiB message and 64-MiB tree budgets still
-apply. Highly fragmented large reorders may need staged metadata transport;
-that integration and precise supported limits remain to settle before release.
+apply. A fragmented 100,000-row permutation fits in one message, verified in both
+languages. Larger compact histories can fit within aggregate admission limits,
+but arbitrary reorders beyond 100,000 runs are rejected. There is no staged
+metadata transport in this version. The 1,000,000-row validator ceiling is not
+a promise that a million-row tree fits the aggregate budget; application data
+and description sizes also constrain admission.
 
 ## Bridge and stale eviction
 
@@ -157,7 +162,7 @@ the wrapper resets their model. Tests verify this ordering in optimized and
 unoptimized graphs, and inspect the actual Bonsai model after 1,001 visits.
 The model returns to the empty keyed map, including after old guarded callbacks
 are executed. The component memory test now visits and revisits 100,000 rows;
-native full-history resource validation remains.
+native full-history resource checks also pass locally.
 
 Creating a separate Bonsai driver for every newly visited row is not the chosen
 shortcut: in this pin, driver construction registers a `Ui_effect.Define`
@@ -216,13 +221,36 @@ references retain at most the active payloads, and none after eviction. Immediat
 retained heap growth is below 150,000 words above an already-loaded metadata
 baseline. This is a heap bound, not a native RSS measurement. Application records
 remain present. A separate test compares dependent static/dynamic action batches
-under both policies. Native cache traversal still requires its own evidence.
+under both policies. The native traversal evidence is recorded separately below.
 
 ## Validation status
 
-The collection/paging expect tests cover 100,000 logical records, point updates,
-range traversal, atomic invalid changes, concurrent boundaries, retry/end and
-obsolete responses. These checks complement the bounded Bonsai-row
-heap test above; they do not establish bounded native-view memory. Scoped producer tests cover queued delivery,
-cancellation and conversation isolation. Native anchoring, real focus/IME,
-scrollbars, full-history active-resource budgets and platform gates remain.
+Local macOS checks cover 100,000 logical records, point updates, atomic collection
+changes, concurrent boundaries, retry/end, obsolete responses, managed model
+reset/heap bounds and production-driver coalescing. The public
+[conversation example](../../examples/virtual_list/README.md) verifies paging,
+offscreen streaming, stable prepend anchors and tail resumption through the full
+OCaml/Rust bridge. Its composer uses the existing native editor contract.
+
+The native interaction test uses actual platform frames and native input routing.
+Its separate full-history stress section explicitly drives GPUI layout/paint,
+visiting and revisiting all 100,000 rows with 256 descriptions, row focus handles
+and selection objects at a time. Weak probes verify old row selections are
+released. Retired text payloads held by native rendering caches are separately
+bounded at 512; the observed peak during traversal was 101. After list unmount,
+261 tracked payloads remained; window disposal released them all. This is native
+resource/cache evidence, not a claim that all caches vanish at row eviction.
+Logical order/index/measurement metadata remains O(100,000).
+
+The bulk test does not measure physical display cadence or frame latency. Direct
+layout/paint avoids relying on thousands of display-link callbacks while the
+owner uses the desktop. Its interaction section still waits for platform frames,
+and all paths close the window on failure. The foreground macOS text-client test
+covers marked/committed text, not a human-operated IME candidate panel.
+
+Lists expose List/ListItem accessibility roles for rendered content and accept
+an accessible name through style. This does not synthesize an accessibility node
+for every unloaded row or claim comprehensive screen-reader traversal.
+`CAP_VIRTUAL_LISTS` is 67108864; the aggregate bridge mask is 134217727.
+Hosted macOS/Linux gates and merge remain pending. Linux GUI is informational
+under OCH-17, per the accepted platform priority.

@@ -4,7 +4,7 @@ use crate::NodeId;
 use binprot::macros::BinProtWrite;
 
 pub const MAX_LOGICAL_ROWS: usize = 1_000_000;
-pub const MAX_ID_RUNS: usize = 32_768;
+pub const MAX_ID_RUNS: usize = 100_000;
 pub const MAX_ACTIVE_ROWS: usize = 16_384;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]

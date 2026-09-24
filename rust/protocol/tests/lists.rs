@@ -185,3 +185,22 @@ fn retention_response_matches_ocaml_fixture() {
         .collect();
     assert_eq!(hex, "011c000102010001020109");
 }
+
+#[test]
+fn fragmented_100k_order_fits_and_decodes_in_one_bounded_message() {
+    let count = 100_000;
+    let order = Order {
+        revision: 2,
+        runs: (0..count)
+            .map(|i| IdRun {
+                first: ((i * 7919) % count) + 1,
+                count: 1,
+            })
+            .collect(),
+    };
+    assert!(order.is_valid());
+    let request = message(vec![Op::SetListOrder(node(0), order)]);
+    let bytes = encode(&request);
+    assert!(bytes.len() < 1_000_000);
+    assert_eq!(decode(&bytes).unwrap(), request);
+}

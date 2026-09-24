@@ -1,7 +1,7 @@
 open Core
 
 let max_logical_rows = 1_000_000
-let max_id_runs = 32_768
+let max_id_runs = 100_000
 let max_active_rows = 16_384
 
 module Id_run = struct

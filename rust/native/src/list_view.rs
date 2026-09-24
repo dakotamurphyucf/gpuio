@@ -37,6 +37,10 @@ pub(super) struct State {
     observed_revision: Option<i64>,
 }
 impl State {
+    #[cfg(feature = "native-tests")]
+    pub(super) fn resource_counts(&self) -> (usize, usize) {
+        (self.mapping.len(), self.handles.len())
+    }
     fn new(node: &Node) -> Self {
         let config = node.list_config.clone().expect("validated list config");
         Self {
@@ -245,6 +249,7 @@ impl View {
                 Rc::new(RefCell::new(state))
             })
             .clone();
+        let mut accessible_name = gpui::SharedString::default();
         for style in node.style.iter() {
             if let Style::Fields(fields) = style {
                 for field in fields {
@@ -252,6 +257,7 @@ impl View {
                         Field::PointerEvents(value) => interaction.pointer = *value,
                         Field::UserSelect(value) => interaction.selectable = *value,
                         Field::SelectionColor(value) => interaction.selection_color = color(value),
+                        Field::AccessibleName(value) => accessible_name = value.clone().into(),
                         _ => (),
                     }
                 }
@@ -328,6 +334,7 @@ impl View {
                 let child = view.element(tree, node, interaction, window, cx);
                 div()
                     .id(("list-row", id as u64))
+                    .role(gpui::Role::ListItem)
                     .w_full()
                     .min_h(px(1.))
                     .track_focus(&handles[&id])
@@ -355,6 +362,11 @@ impl View {
         let (mut root, states) = apply_styles(
             div()
                 .id(("virtual-list", identity))
+                .role(gpui::Role::List)
+                .aria_label(accessible_name)
+                .size_full()
+                .min_w_0()
+                .min_h_0()
                 .relative()
                 .overflow_hidden(),
             &node.style,

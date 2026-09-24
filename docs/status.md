@@ -5,7 +5,9 @@ controls/interactions and declarative animations. [PR #10](https://github.com/da
 merged at `17e863279bff25253edf47f449c04cd9aee5e867` after the required macOS and
 Linux checks passed. Milestone 03 / OCH-13 is now in progress: keyed collections,
 paging and managed virtual lists. See the [managed-list design](design/managed-lists.md)
-for its current implementation boundaries; native list acceptance is pending.
+and [local acceptance evidence](evidence/managed-lists-och13.md). The managed
+component, paging, native interactions and full-history retention tests pass
+locally; hosted macOS/Linux gates and merge are pending.
 
 The [milestone acceptance ledger](evidence/milestones-01-02.md) maps every ticket
 to its implementation and evidence. The first consolidated hosted run passed all
