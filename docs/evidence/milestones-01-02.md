@@ -54,7 +54,26 @@ behavior and limitations; ignored scratch logs retain detailed local output.
 
 [Run 36031501378](https://github.com/dakotamurphyucf/gpuio/actions/runs/36031501378)
 is the first consolidated hosted run, submitted for implementation head
-`732ae6bc66cf3bfdcfee7894b3d0755a2b595892`. At this audit checkpoint both jobs are
-still bootstrapping. OCH-11/OCH-12 must remain In Progress until required checks
-pass on the final PR head and the change is merged. Linux GUI results must be
-recorded separately, even when the required Linux job succeeds.
+`732ae6bc66cf3bfdcfee7894b3d0755a2b595892`:
+
+- macOS passed formatting, source build, OCaml/Rust tests, no-Async verification,
+  ordinary and native-feature lint, and every runtime/native/public GUI stage.
+  Retained logs include the animation geometry/close, reduced motion, controls,
+  scroll routing, GPU pixels, drag/drop and native editor/marked-text markers.
+- Linux passed formatting, source build, OCaml/Rust tests, no-Async verification
+  and ordinary lint. This includes three system-libwayland tests, nine deterministic
+  animation tests and seventeen portal tests. Native-feature lint rejected an
+  unused focus-test argument whose assertions are macOS-only. The correction
+  explicitly acknowledges the unused argument on other platforms without disabling
+  lint or removing assertions; local feature-enabled Clippy and formatting pass.
+- Informational Wayland smoke passed foundation, two-window, bridge, typed views,
+  runtime and public editor scenarios, then native radio/Select checks. Combobox
+  clipboard insertion produced an empty query instead of `De`, stopping the
+  remaining GUI cases. X11 was skipped after the required lint failure. OCH-17
+  records this exact limitation; this run does not establish Linux GUI acceptance.
+
+The macOS and Linux artifacts are named `foundation-logs-macOS-ARM64` and
+`foundation-logs-Linux-X64`. This first run is regression evidence, **not** a passing
+final merge gate: both required jobs must pass on the final PR head. The live
+[PR checks and merge record](https://github.com/dakotamurphyucf/gpuio/pull/10/checks)
+and OCH-11/OCH-12 completion comments provide that final delivery evidence.

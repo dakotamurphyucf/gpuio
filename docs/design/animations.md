@@ -3,8 +3,9 @@
 Status: typed configuration, view/reconciler/transport and GPUI rendering now pass
 local macOS tests, including the public Bonsai/Eio example. Shared application motion
 policy and live platform preference adapters are implemented. `CAP_ANIMATIONS`
-(33554432) is advertised in aggregate mask 67108863; consolidated hosted acceptance
-and merge remain.
+(33554432) is advertised in aggregate mask 67108863. The
+[milestone ledger](../evidence/milestones-01-02.md) records hosted acceptance and
+links the final PR checks/merge status.
 
 ## Configuration
 
@@ -143,8 +144,8 @@ Both declarative transitions and native progress use the same resolved GPUI flag
 Reduced indeterminate progress displays a centered, static 25%-width bar with no
 fabricated numeric accessibility value. Full motion resumes its native cycle.
 
-Still required before OCH-12 completion: consolidated required macOS functionality
-and Linux build/tests and merge. Linux GUI checks remain informational for OCH-17.
+OCH-12 completion requires the final-head macOS functionality and Linux build/test
+gates and merge. Linux GUI checks remain informational for OCH-17.
 
 Springs, sequences and synchronized repetition belong to OCH-25. This does not
 remove any OCH-12 baseline requirement or OCH-11's shared basic-transition scope.
@@ -180,7 +181,7 @@ tests cover rollback, list limits and invalid values.
 
 Local logs are `motion-*.log` and `animation-*.log` in the implementing agent's ignored
 scratch directory. The checked-in CI adds native/public macOS runs and informational
-Linux runs; hosted execution remains deferred to the consolidated delivery.
+Linux runs; the milestone ledger records consolidated hosted execution.
 
 Motion policy tests pass the precedence/unknown-value matrix. The actual macOS
 animation window passes live application policy and a real workspace-notification

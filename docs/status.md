@@ -1,14 +1,17 @@
 # Implementation status
 
-Updated 2026-09-24. Milestone 01: reproducible foundation, complete. Milestone 02: native interaction, in progress.
+Updated 2026-09-24. Milestone 01's reproducible foundation is merged. Milestone 02
+implements native text editing, controls/interactions and declarative animations.
+The remaining delivery is tracked by [PR #10](https://github.com/dakotamurphyucf/gpuio/pull/10)
+and Linear OCH-11/OCH-12; use their live check and merge status for completion.
 
-Current milestone 02 checkpoint: OCH-10 is complete. OCH-11 controls/interactions
-and OCH-12 animations now have local implementation and acceptance evidence,
-including shared motion preferences and controlled scale changes. Both tickets
-remain In Progress pending final consolidated checks, hosted macOS/Linux gates
-and merge. See [theme/scale review](evidence/theme-scale-och11.md) and
-[animation contracts](design/animations.md). Historical checkpoints below describe
-their state at the time; this paragraph is the current delivery status.
+The [milestone acceptance ledger](evidence/milestones-01-02.md) maps every ticket
+to its implementation and evidence. The first consolidated hosted run passed all
+macOS checks and Linux build/unit tests; one Linux-only native-test lint issue was
+corrected for final-head verification. Linux GUI remains informational. See
+[theme/scale review](evidence/theme-scale-och11.md) and
+[animation contracts](design/animations.md). Checkpoints below describe the state
+at the time and preserve earlier validation findings.
 
 Repository: `dakotamurphyucf/gpuio`, public, Apache-2.0, default branch `main`.
 These settings were selected by the owner on 2026-09-11.
