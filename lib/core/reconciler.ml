@@ -1324,6 +1324,12 @@ let dispatch t = function
   | List_retained _
   | List_viewport _
   | Asset_response _
+  | Close_requested _
+  | Quit_requested
+  | Reopen_requested
+  | Window_changed _
+  | Window_response _
+  | Window_capabilities _
   | Document_response _
   | Document_navigation _
   | Editor_result _

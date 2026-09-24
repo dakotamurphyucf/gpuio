@@ -15,6 +15,10 @@ pub const MAX_INPUT_BYTES: usize = 4 * MAX_MESSAGE_BYTES;
 // Drain includes those prefixes when fitting a response batch into 1 MiB.
 fn event_bytes(event: &Event) -> usize {
     256 + match event {
+        Event::WindowChanged(_, snapshot)
+        | Event::WindowResponse(_, _, gpuio_protocol::window::Response::Observed(snapshot)) => {
+            snapshot.title.len()
+        }
         Event::DragSourceEvent(_, _, _, _, sample) => sample.payload_bytes(),
         Event::DropTargetEvent(_, _, _, _, sample) => sample.payload_bytes(),
         Event::FileDialogResult(_, _, FileDialogResult::Selected(paths)) => {
@@ -60,7 +64,6 @@ pub struct Mailbox {
     in_flight: BTreeSet<WindowId>,
     closed: bool,
     stopped_emitted: bool,
-    close_requests: BTreeSet<WindowId>,
     controls: usize,
 }
 
@@ -91,22 +94,39 @@ impl Mailbox {
         Ok(())
     }
 
-    pub fn request_close(&mut self, id: WindowId) {
-        if !self.closed {
-            self.close_requests.insert(id);
+    /// Reliable latest-state lifecycle lane, bounded by native window slots.
+    /// It does not consume user-input capacity or command response reservations.
+    pub fn control(&mut self, event: Event) {
+        if self.closed {
+            return;
         }
-    }
-    pub fn pop_close(&mut self) -> Option<WindowId> {
-        self.close_requests.pop_first()
-    }
-    pub fn native_closed(&mut self, id: WindowId) {
+        let same = |old: &Event| match (old, &event) {
+            (Event::CloseRequested(a), Event::CloseRequested(b)) => a == b,
+            (Event::WindowChanged(a, _), Event::WindowChanged(b, _)) => a == b,
+            (Event::QuitRequested, Event::QuitRequested)
+            | (Event::ReopenRequested, Event::ReopenRequested)
+            | (Event::WindowCapabilities(_), Event::WindowCapabilities(_)) => true,
+            _ => false,
+        };
+        if let Some(output) = self.events.iter_mut().find(|output| same(&output.event)) {
+            output.event = event;
+            return;
+        }
+        assert!(matches!(
+            event,
+            Event::CloseRequested(_)
+                | Event::WindowChanged(..)
+                | Event::QuitRequested
+                | Event::ReopenRequested
+                | Event::WindowCapabilities(_)
+        ));
         assert!(
-            self.controls < MAX_WINDOWS,
-            "undrained closed window generations"
+            self.controls < MAX_WINDOWS * 2 + 3,
+            "undrained lifecycle generations"
         );
         self.controls += 1;
         self.events.push_back(Output {
-            event: Event::Closed(0, id),
+            event,
             class: Class::Control,
         });
     }
@@ -225,7 +245,10 @@ impl Mailbox {
 
     pub fn has_window_output(&self, window_slot: usize) -> bool {
         self.events.iter().any(|output| match output.event {
-            Event::Opened(_, id)
+            Event::CloseRequested(id)
+            | Event::WindowChanged(id, _)
+            | Event::WindowResponse(_, id, _)
+            | Event::Opened(_, id)
             | Event::Closed(_, id)
             | Event::Accepted(id, _)
             | Event::Rejected(id, ..)
@@ -251,7 +274,10 @@ impl Mailbox {
             | Event::EditorResult(_, id, ..)
             | Event::FileDialogResult(_, id, ..)
             | Event::Overloaded(id) => id.slot() == window_slot,
-            Event::Welcome(..)
+            Event::QuitRequested
+            | Event::ReopenRequested
+            | Event::WindowCapabilities(_)
+            | Event::Welcome(..)
             | Event::Failed(..)
             | Event::AssetResponse(..)
             | Event::DocumentResponse(..)
@@ -304,7 +330,6 @@ impl Mailbox {
     pub fn close(&mut self) {
         self.closed = true;
         self.commands.clear();
-        self.close_requests.clear();
         self.command_bytes = 0;
         self.reserved = 0;
         self.in_flight.clear();

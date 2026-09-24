@@ -3,9 +3,10 @@ module Asset = Asset_wire
 module Image = Image_wire
 module Animation = Animation_wire
 module Document = Document_wire
+module Window = Window_wire
 
 let version = 1L
-let capabilities = 268435455L
+let capabilities = 536870911L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -822,11 +823,20 @@ module Message = struct
     | Asset of int64 * Asset.Request.t
     | Set_motion of Animation.Preference.t
     | Document of int64 * Document.Request.t
+    | Window_command of int64 * Window_id.t * Window.Command.t
+    | Open_configured of int64 * Window_id.t * Window.Config.t
   [@@deriving bin_io, equal, sexp_of]
 
   let encode t =
     let invalid_asset =
       match t with
+      | Window_command (correlation, _, command) ->
+        Int64.(correlation <= 0L) || Result.is_error (Window.Command.validate command)
+      | Open_configured (correlation, _, config) ->
+        Int64.(correlation <= 0L)
+        || not
+             (Window.valid_title config.title
+              && Window.valid_size config.width config.height)
       | Document (correlation, request) ->
         Int64.(correlation <= 0L)
         ||
@@ -928,6 +938,12 @@ module Event = struct
         * Resource_id.t
         * int64
         * Document.Navigation.t
+    | Close_requested of Window_id.t
+    | Quit_requested
+    | Reopen_requested
+    | Window_changed of Window_id.t * Window.Snapshot.t
+    | Window_response of int64 * Window_id.t * Window.Response.t
+    | Window_capabilities of Window.Capabilities.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -947,6 +963,11 @@ module Event = struct
   ;;
 
   let rec valid_event = function
+    | Window_changed (_, snapshot) | Window_response (_, _, Observed snapshot) ->
+      Window.Snapshot.valid snapshot
+    | Window_response (_, _, Failed _)
+    | Window_capabilities _ | Close_requested _ | Quit_requested | Reopen_requested ->
+      true
     | Document_navigation (_, _, _, revision, _, generation, navigation) ->
       let valid text =
         String.length text <= 4096

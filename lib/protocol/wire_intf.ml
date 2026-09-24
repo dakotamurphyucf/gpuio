@@ -5,6 +5,7 @@ module type S = sig
   module Image = Image_wire
   module Animation = Animation_wire
   module Document = Document_wire
+  module Window = Window_wire
   module Drag_and_drop = Drag_and_drop_wire
 
   val version : int64
@@ -791,6 +792,8 @@ module type S = sig
       | Asset of int64 * Asset.Request.t
       | Set_motion of Animation.Preference.t
       | Document of int64 * Document.Request.t
+      | Window_command of int64 * Window_id.t * Window.Command.t
+      | Open_configured of int64 * Window_id.t * Window.Config.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Bounded outgoing encoding. Native decoding additionally validates all
@@ -875,6 +878,12 @@ module type S = sig
           * Resource_id.t
           * int64
           * Document.Navigation.t
+      | Close_requested of Window_id.t
+      | Quit_requested
+      | Reopen_requested
+      | Window_changed of Window_id.t * Window.Snapshot.t
+      | Window_response of int64 * Window_id.t * Window.Response.t
+      | Window_capabilities of Window.Capabilities.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

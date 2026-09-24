@@ -20,6 +20,12 @@ use std::{
     sync::Arc,
 };
 
+#[path = "window_host.rs"]
+mod window_host;
+#[cfg(target_os = "macos")]
+#[path = "window_macos.rs"]
+mod window_macos;
+
 type SharedSession = Rc<RefCell<Session>>;
 #[path = "choice.rs"]
 mod choice;
@@ -1249,7 +1255,16 @@ pub fn run(transport: Arc<Transport>) {
         assert_eq!(gpui::guess_compositor(), expected);
     }
     let stopping = Rc::new(Cell::new(false));
-    gpui_platform::application().run(move |cx: &mut App| {
+    let platform = gpui_platform::current_platform(false);
+    let application = gpui::Application::with_platform(platform.clone());
+    let reopen_transport = transport.clone();
+    application.on_reopen(move |_| window_host::control(&reopen_transport, Event::ReopenRequested));
+    application.run(move |cx: &mut App| {
+        // GPUI on_quit is cleanup-only on both platforms. AppKit's separate
+        // applicationShouldTerminate hook supplies the asynchronous decision.
+        #[cfg(target_os="macos")]
+        window_macos::install(cx,transport.clone());
+        window_host::control(&transport,Event::WindowCapabilities(window_host::capabilities()));
         gpui_base::init(cx);
         crate::image_host::init(cx);
         let motion = crate::motion_preference::init(cx);
@@ -1292,51 +1307,23 @@ pub fn run(transport: Arc<Transport>) {
                     }
                     return;
                 }
-                loop {
-                    let id = transport
-                        .mailbox
-                        .lock()
-                        .expect("mailbox poisoned")
-                        .pop_close();
-                    let Some(id) = id else {
-                        break;
-                    };
-                    dialogs.close(id).wait().await;
-                    let closed = session.borrow_mut().close(id);
-                    if let Ok(pending) = closed {
-                        if let Some(correlation) = pending {
-                            transport.respond(Event::Failed(correlation, ErrorCode::Closed));
-                        }
-                        transport
-                            .mailbox
-                            .lock()
-                            .expect("mailbox poisoned")
-                            .native_closed(id);
-                        transport.wake_ocaml();
-                        if let Some(window) = windows.remove(&id) {
-                            let _ = window.update(cx, |view, window, cx| {
-                                drag_drop::cancel(
-                                    view.id,
-                                    gpuio_protocol::drag_drop::CancelReason::WindowClosed,
-                                    window,
-                                    cx,
-                                );
-                                window.remove_window();
-                            });
-                        }
-                    }
-                }
                 // Bound work per wake; yield to native input/paint between batches.
                 for _ in 0..crate::mailbox::MAX_COMMANDS {
                     let message = transport.mailbox.lock().expect("mailbox poisoned").pop();
                     let Some(message) = message else {
                         break;
                     };
+                    let message = match message {
+                        Message::Open(correlation,id,title,width,height) => Message::OpenConfigured(correlation,id,gpuio_protocol::window::Config{title,width,height,focus:true,chrome:gpuio_protocol::window::Chrome::Standard,resizable:true}),
+                        message=>message,
+                    };
                     match message {
                         Message::Hello(version, caps) => {
                             failed(&transport, 0, session.borrow_mut().hello(version, caps))
                         }
-                        Message::Open(correlation, id, title, width, height) => {
+                        Message::Open(..)=>unreachable!("normalized above"),
+                        Message::OpenConfigured(correlation,id,config)=> {
+                            let gpuio_protocol::window::Config {title,width,height,focus,chrome,resizable}=config;
                             let validation = if transport
                                 .mailbox
                                 .lock()
@@ -1360,25 +1347,20 @@ pub fn run(transport: Arc<Transport>) {
                                 cx.open_window(
                                     WindowOptions {
                                         window_bounds: Some(WindowBounds::Windowed(bounds)),
-                                        titlebar: Some(gpui::TitlebarOptions {
+                                        focus,
+                                        is_resizable:resizable,
+                                        titlebar: (chrome==gpuio_protocol::window::Chrome::Standard).then(|| gpui::TitlebarOptions {
                                             title: Some(title.clone().into()),
                                             ..Default::default()
                                         }),
                                         ..Default::default()
                                     },
                                     |window, cx| {
-                                        let close_transport = transport.clone();
-                                        window.on_window_should_close(cx, move |_, _| {
-                                            close_transport
-                                                .mailbox
-                                                .lock()
-                                                .expect("mailbox poisoned")
-                                                .request_close(id);
-                                            let _ = close_transport.tx.try_send(());
-                                            false
-                                        });
-                                        cx.new(|_| {
-                                            View::new(id, session.clone(), transport.clone())
+                                        window.set_window_title(&title);
+                                        cx.new(|cx| {
+                                            let view=View::new(id, session.clone(), transport.clone());
+                                            window_host::watch(&view,window,cx);
+                                            view
                                         })
                                     },
                                 )
@@ -1397,7 +1379,7 @@ pub fn run(transport: Arc<Transport>) {
                                             height,
                                         ),
                                     );
-                                    cx.update(|cx| cx.activate(true));
+                                    if focus {cx.update(|cx| cx.activate(true));}
                                 }
                                 Err(_) => transport
                                     .respond(Event::Failed(correlation, ErrorCode::NativeFailure)),
@@ -1494,6 +1476,13 @@ pub fn run(transport: Arc<Transport>) {
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),
                             }
                         }
+                        Message::WindowCommand(correlation,id,command)=>{
+                            let result=match windows.get(&id) {
+                                Some(handle)=>handle.update(cx,|view,window,cx| {let result=window_host::command(&command,window);window_host::observe(view,window);cx.notify();result}).unwrap_or(gpuio_protocol::window::Response::Failed(gpuio_protocol::window::Error::Closed)),
+                                None=>gpuio_protocol::window::Response::Failed(gpuio_protocol::window::Error::Closed),
+                            };
+                            transport.respond(Event::WindowResponse(correlation,id,result));
+                        }
                         Message::Asset(correlation, request) => {
                             let response = session.borrow_mut().asset_request(request);
                             transport.respond(Event::AssetResponse(correlation, response));
@@ -1576,3 +1565,7 @@ pub(crate) mod native_test;
 #[cfg(feature = "native-tests")]
 #[path = "control_test.rs"]
 pub(crate) mod control_test;
+
+#[cfg(all(feature = "native-tests", target_os = "macos"))]
+#[path = "window_test.rs"]
+pub(super) mod window_test;

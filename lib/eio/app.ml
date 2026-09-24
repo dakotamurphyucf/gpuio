@@ -4,6 +4,7 @@ module Guard = Gpuio_runtime_core.Domain_guard
 module Driver = Gpuio_runtime_core.Window_driver
 module Input = Gpuio.Text_input
 module Dialog = Gpuio.File_dialog
+module Native_window = Gpuio.Window
 
 type editor_result = (Input.Snapshot.t, Input.Command_error.t) Result.t
 
@@ -11,6 +12,13 @@ type editor_request =
   { window : Window_id.t
   ; node : Node_id.t
   ; complete : editor_result -> unit
+  }
+
+type window_result = (Native_window.Snapshot.t, Native_window.Error.t) Result.t
+
+type window_request =
+  { window : Window_id.t
+  ; complete : window_result -> unit
   }
 
 type dialog_result = Wire.File_dialog.Result.t
@@ -52,6 +60,10 @@ type t =
   ; mutable frames : (Window_id.t * (revision:int64 -> unit Bonsai.Effect.t)) Int64.Map.t
   ; mutable editors : editor_request Int64.Map.t
   ; mutable dialogs : dialog_request Int64.Map.t
+  ; mutable window_requests : window_request Int64.Map.t
+  ; mutable window_capabilities : Native_window.Capabilities.t option
+  ; mutable quit_pending : int64 option
+  ; mutable on_reopen : unit -> unit Bonsai.Effect.t
   ; asset_registry : Asset_registry.t
   ; document_registry : Document_registry.t
   ; mutable assets : (Wire.Asset.Response.t -> unit) Int64.Map.t
@@ -70,6 +82,14 @@ and window =
   ; scope : Scope.t
   ; mutable phase : phase
   ; mutable driver : Driver.t option
+  ; mutable snapshot : Native_window.Snapshot.t option
+  ; mutable on_change : Native_window.Snapshot.t -> unit Bonsai.Effect.t
+  ; mutable on_close :
+      Native_window.Close_reason.t -> Native_window.Close_decision.t Bonsai.Effect.t
+  ; mutable close_pending : int64 option
+  ; mutable close_requested : bool
+  ; mutable close_waiters :
+      (Native_window.Close_reason.t * (Native_window.Close_decision.t -> unit)) list
   }
 
 let check t = Guard.check t.guard
@@ -178,11 +198,48 @@ module Expert = struct
   ;;
 end
 
+let complete_close window decision =
+  let waiters = window.close_waiters in
+  window.close_waiters <- [];
+  window.close_pending <- None;
+  window.close_requested <- false;
+  List.iter waiters ~f:(fun (_, complete) -> complete decision)
+;;
+
+let enqueue t f = Scope.Expert.enqueue t.scope f
+
+let decide_close window reason complete =
+  window.close_waiters
+  <- List.filter window.close_waiters ~f:(fun (existing, _) ->
+       not (Native_window.Close_reason.equal existing reason))
+     @ [ reason, complete ];
+  if Option.is_none window.close_pending
+  then (
+    let token = correlation window.app in
+    window.close_pending <- Some token;
+    enqueue window.app (fun () ->
+      if Option.equal Int64.equal window.close_pending (Some token)
+      then
+        Bonsai.Effect.Expert.handle
+          (Bonsai.Effect.map (window.on_close reason) ~f:(fun decision ->
+             enqueue window.app (fun () ->
+               if Option.equal Int64.equal window.close_pending (Some token)
+               then complete_close window decision)))))
+;;
+
 let release_window window =
   match window.phase with
   | Closed -> ()
   | Opening | Open | Closing_before_open | Closing ->
     window.phase <- Closed;
+    complete_close window Allow;
+    let cancelled_windows, remaining_windows =
+      Map.partition_tf window.app.window_requests ~f:(fun request ->
+        Window_id.equal request.window window.id)
+    in
+    window.app.window_requests <- remaining_windows;
+    Map.iter cancelled_windows ~f:(fun request ->
+      request.complete (Error Native_window.Error.Closed));
     let cancelled, remaining =
       Map.partition_tf window.app.editors ~f:(fun request ->
         Window_id.equal request.window window.id)
@@ -199,6 +256,8 @@ let release_window window =
     Scope.cancel window.scope;
     Option.iter window.driver ~f:Driver.close;
     window.driver <- None;
+    window.on_change <- (fun _ -> Bonsai.Effect.Ignore);
+    window.on_close <- (fun _ -> Bonsai.Effect.return Native_window.Close_decision.Allow);
     window.app.frames
     <- Map.filter window.app.frames ~f:(fun (id, _) -> not (Window_id.equal id window.id));
     window.app.windows
@@ -237,14 +296,66 @@ module Window = struct
     | Closing_before_open | Closing | Closed -> ()
     | Opening ->
       t.phase <- Closing_before_open;
+      complete_close t Allow;
       Scope.cancel t.scope;
       Inbox.wake t.app.inbox
     | Open ->
       t.phase <- Closing;
+      complete_close t Allow;
       Scope.cancel t.scope;
       let request = correlation t.app in
       t.app.closes <- Map.set t.app.closes ~key:request ~data:t.id;
       queue t.app (Close (request, t.id))
+  ;;
+
+  let request_close t =
+    check t.app;
+    if not (is_closed t || t.app.stopping || t.close_requested)
+    then (
+      t.close_requested <- true;
+      decide_close t Window_close (function
+        | Allow -> close t
+        | Keep_open -> ()))
+  ;;
+
+  let set_close_handler t f =
+    check t.app;
+    t.on_close <- f
+  ;;
+
+  let snapshot t =
+    check t.app;
+    t.snapshot
+  ;;
+
+  let on_change t f =
+    check t.app;
+    t.on_change <- f
+  ;;
+
+  let command t command =
+    Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+      check t.app;
+      let fail error = callback (Error error) in
+      if is_closed t || t.app.stopping
+      then fail Native_window.Error.Closed
+      else if Result.is_error (Native_window.Command.validate command)
+      then fail Invalid_request
+      else if
+        match t.phase with
+        | Open -> false
+        | Opening | Closing_before_open | Closing | Closed -> true
+      then fail Not_ready
+      else if Map.length t.app.window_requests >= 64
+      then fail Busy
+      else (
+        let request = correlation t.app in
+        t.app.window_requests
+        <- Map.set
+             t.app.window_requests
+             ~key:request
+             ~data:{ window = t.id; complete = callback };
+        queue t.app (Window_command (request, t.id, command))))
   ;;
 
   let set_theme t theme =
@@ -343,10 +454,54 @@ module Window = struct
   end
 end
 
-let open_window t ?(theme = Gpuio.Theme.default) ~title ~width ~height component =
+let window_capabilities t =
   check t;
-  if t.stopping
-  then Or_error.error_string "application stopping"
+  t.window_capabilities
+;;
+
+let on_reopen t f =
+  check t;
+  t.on_reopen <- f
+;;
+
+let request_quit t =
+  check t;
+  if (not t.stopping) && Option.is_none t.quit_pending
+  then (
+    let token = correlation t in
+    let windows =
+      Map.data t.windows |> List.filter ~f:(fun window -> not (Window.is_closed window))
+    in
+    t.quit_pending <- Some token;
+    let remaining = ref (List.length windows) in
+    let complete decision =
+      if Option.equal Int64.equal t.quit_pending (Some token)
+      then (
+        match decision with
+        | Native_window.Close_decision.Keep_open -> t.quit_pending <- None
+        | Allow ->
+          decr remaining;
+          if !remaining = 0
+          then (
+            t.quit_pending <- None;
+            shutdown t))
+    in
+    if List.is_empty windows
+    then (
+      t.quit_pending <- None;
+      shutdown t)
+    else
+      List.iter windows ~f:(fun window -> decide_close window Application_quit complete))
+;;
+
+let open_window_config t ?(theme = Gpuio.Theme.default) config component =
+  let config = Native_window.Config.Expert.to_wire config in
+  let { Wire.Window.Config.title; width; height; focus = _; chrome = _; resizable = _ } =
+    config
+  in
+  check t;
+  if t.stopping || Option.is_some t.quit_pending
+  then Or_error.error_string "application stopping or quit decision pending"
   else if
     String.is_empty title
     || (not (Stdlib.String.is_valid_utf_8 title))
@@ -371,7 +526,20 @@ let open_window t ?(theme = Gpuio.Theme.default) ~title ~width ~height component
       in
       let%bind id = Window_id.create ~slot:(Int64.of_int slot) ~generation in
       let%bind scope = Scope.child t.scope ~name:"window" in
-      let window = { app = t; id; scope; phase = Opening; driver = None } in
+      let window =
+        { app = t
+        ; id
+        ; scope
+        ; phase = Opening
+        ; driver = None
+        ; snapshot = None
+        ; on_change = (fun _ -> Bonsai.Effect.Ignore)
+        ; on_close = (fun _ -> Bonsai.Effect.return Native_window.Close_decision.Allow)
+        ; close_pending = None
+        ; close_requested = false
+        ; close_waiters = []
+        }
+      in
       let driver =
         try
           Driver.create
@@ -390,10 +558,26 @@ let open_window t ?(theme = Gpuio.Theme.default) ~title ~width ~height component
       t.generations <- Map.set t.generations ~key:slot ~data:generation;
       t.windows <- Map.set t.windows ~key:slot ~data:window;
       let request = correlation t in
-      let message = Wire.Message.Open (request, id, title, width, height) in
+      let message = Wire.Message.Open_configured (request, id, config) in
       t.opens <- Map.set t.opens ~key:request ~data:message;
       queue t message;
       Ok window)
+;;
+
+let open_window
+      t
+      ?theme
+      ?(focus = true)
+      ?(chrome = Native_window.Chrome.Standard)
+      ?(resizable = true)
+      ~title
+      ~width
+      ~height
+      component
+  =
+  Result.bind
+    (Native_window.Config.create ~focus ~chrome ~resizable ~title ~width ~height ())
+    ~f:(fun config -> open_window_config t ?theme config component)
 ;;
 
 let find_window t id =
@@ -404,6 +588,33 @@ let find_window t id =
 let native_error code = Error.create_s (Wire.Error_code.sexp_of_t code)
 
 let process t = function
+  | Wire.Event.Close_requested id ->
+    Option.iter (find_window t id) ~f:Window.request_close
+  | Quit_requested -> request_quit t
+  | Reopen_requested ->
+    if not t.stopping
+    then enqueue t (fun () -> Bonsai.Effect.Expert.handle (t.on_reopen ()))
+  | Window_capabilities capabilities -> t.window_capabilities <- Some capabilities
+  | Window_changed (id, snapshot) ->
+    Option.iter (find_window t id) ~f:(fun window ->
+      if not (Window.is_closed window)
+      then (
+        let changed =
+          not (Option.equal Native_window.Snapshot.equal window.snapshot (Some snapshot))
+        in
+        window.snapshot <- Some snapshot;
+        if changed then Bonsai.Effect.Expert.handle (window.on_change snapshot)))
+  | Window_response (request, id, response) ->
+    (match Map.find t.window_requests request with
+     | Some pending when Window_id.equal pending.window id ->
+       t.window_requests <- Map.remove t.window_requests request;
+       let result =
+         match response with
+         | Wire.Window.Response.Observed snapshot -> Ok snapshot
+         | Failed error -> Error error
+       in
+       pending.complete result
+     | Some _ | None -> ())
   | Wire.Event.Welcome _ -> t.welcomed <- true
   | Opened (request, id) ->
     t.opens <- Map.remove t.opens request;
@@ -501,6 +712,10 @@ let process t = function
          if not (Window.is_closed window)
          then Bonsai.Effect.Expert.handle (callback ~revision))
      | Some _ | None -> ())
+  | Failed (request, _) when Map.mem t.window_requests request ->
+    let pending = Map.find_exn t.window_requests request in
+    t.window_requests <- Map.remove t.window_requests request;
+    pending.complete (Error Native_window.Error.Native_failure)
   | Failed (request, code) when Map.mem t.assets request ->
     let complete = Map.find_exn t.assets request in
     t.assets <- Map.remove t.assets request;
@@ -707,6 +922,10 @@ let worker native read ~tick_hz ~max_tasks ~motion initialize =
         ; frames = Int64.Map.empty
         ; editors = Int64.Map.empty
         ; dialogs = Int64.Map.empty
+        ; window_requests = Int64.Map.empty
+        ; window_capabilities = None
+        ; quit_pending = None
+        ; on_reopen = (fun () -> Bonsai.Effect.Ignore)
         ; asset_registry = Asset_registry.create ~scope ~wake:(fun () -> Inbox.wake inbox)
         ; document_registry =
             Document_registry.create ~scope ~wake:(fun () -> Inbox.wake inbox)

@@ -1086,6 +1086,45 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
             }
             Message::Document(correlation, d.document()?)
         }
+        11 => {
+            use crate::window::Command;
+            let correlation = d.int()?;
+            let id = d.window()?;
+            let command = match d.tag()? {
+                0 => Command::Observe,
+                1 => Command::SetTitle(d.text()?),
+                2 => Command::Resize(d.float()?, d.float()?),
+                3 => Command::Activate,
+                4 => Command::Zoom,
+                5 => Command::ToggleFullscreen,
+                6 => Command::SetEdited(d.boolean()?),
+                _ => return Err(DecodeError::Malformed),
+            };
+            if correlation <= 0 || !command.is_valid() {
+                return Err(DecodeError::Malformed);
+            }
+            Message::WindowCommand(correlation, id, command)
+        }
+        12 => {
+            let correlation = d.int()?;
+            let id = d.window()?;
+            let config = crate::window::Config {
+                title: d.text()?,
+                width: d.float()?,
+                height: d.float()?,
+                focus: d.boolean()?,
+                chrome: match d.tag()? {
+                    0 => crate::window::Chrome::Standard,
+                    1 => crate::window::Chrome::Hidden,
+                    _ => return Err(DecodeError::Malformed),
+                },
+                resizable: d.boolean()?,
+            };
+            if correlation <= 0 || !config.is_valid() {
+                return Err(DecodeError::Malformed);
+            }
+            Message::OpenConfigured(correlation, id, config)
+        }
         _ => return Err(DecodeError::Malformed),
     };
     if d.remaining() != 0 {

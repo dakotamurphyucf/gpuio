@@ -145,3 +145,8 @@ name = "native_document"
 path = "tests/native_document.rs"
 harness = false
 required-features = ["native-tests"]
+
+[[test]]
+name = "native_window"
+harness = false
+required-features = ["native-tests"]

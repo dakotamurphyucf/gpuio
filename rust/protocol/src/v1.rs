@@ -38,7 +38,9 @@ pub const CAP_BUTTON_ICONS: i64 = 16777216;
 pub const CAP_ANIMATIONS: i64 = 33554432;
 pub const CAP_VIRTUAL_LISTS: i64 = 67108864;
 pub const CAP_DOCUMENTS: i64 = 134217728;
-pub const CAPABILITIES: i64 = CAP_DOCUMENTS
+pub const CAP_WINDOWS: i64 = 268435456;
+pub const CAPABILITIES: i64 = CAP_WINDOWS
+    | CAP_DOCUMENTS
     | CAP_VIRTUAL_LISTS
     | CAP_ANIMATIONS
     | CAP_BUTTON_ICONS
@@ -592,6 +594,8 @@ pub enum Message {
     Asset(i64, crate::asset::Request),
     SetMotion(crate::animation::Preference),
     Document(i64, crate::document::Request),
+    WindowCommand(i64, WindowId, crate::window::Command),
+    OpenConfigured(i64, WindowId, crate::window::Config),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -670,4 +674,10 @@ pub enum Event {
         i64,
         crate::document::Navigation,
     ),
+    CloseRequested(WindowId),
+    QuitRequested,
+    ReopenRequested,
+    WindowChanged(WindowId, crate::window::Snapshot),
+    WindowResponse(i64, WindowId, crate::window::Response),
+    WindowCapabilities(crate::window::Capabilities),
 }
