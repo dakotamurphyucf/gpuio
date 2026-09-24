@@ -34,6 +34,7 @@ pub(super) struct State {
     extra_pins: BTreeSet<i64>,
     width: Option<Pixels>,
     pub(super) observed: Option<Viewport>,
+    observed_revision: Option<i64>,
 }
 impl State {
     fn new(node: &Node) -> Self {
@@ -52,6 +53,7 @@ impl State {
             extra_pins: BTreeSet::new(),
             width: None,
             observed: None,
+            observed_revision: None,
         }
     }
     fn bind(&mut self, row: Option<i64>) {
@@ -484,8 +486,11 @@ impl Element for Frame {
             at_end,
             budget_exhausted,
         };
-        if state.observed.as_ref() != Some(&viewport) {
+        if state.observed.as_ref() != Some(&viewport)
+            || state.observed_revision != Some(self.route.revision)
+        {
             state.observed = Some(viewport.clone());
+            state.observed_revision = Some(self.route.revision);
             if let Some(handler) = self.route.handler {
                 let event = self.route.session.borrow().list_viewport(
                     self.route.window,

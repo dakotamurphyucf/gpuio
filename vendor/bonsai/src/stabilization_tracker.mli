@@ -20,6 +20,10 @@ val mark_incremental_dirty : unit -> unit
     occurred. *)
 val mark_stabilization : _ t -> unit
 
+(** GPUIO: drop cached action paths immediately after [mark_stabilization].
+    Do not call while a batch still contains unpropagated model changes. *)
+val release_action_history : _ t -> unit
+
 module For_testing : sig
   module Stats : sig
     type t =

@@ -146,7 +146,13 @@ let%expect_test "viewport translation rejects an obsolete order and removed hand
   assert (
     Option.is_none
       (R.dispatch r (event { viewport with order_revision = 2L; requested = [ 99L ] })));
-  assert (Option.is_some (R.dispatch r (event { viewport with order_revision = 2L })));
+  assert (Option.is_none (R.dispatch r (event { viewport with order_revision = 2L })));
+  assert (
+    Option.is_some
+      (R.dispatch
+         r
+         (W.Event.List_viewport
+            (window, node, handler, R.revision r, { viewport with order_revision = 2L }))));
   R.close r;
   assert (Option.is_none (R.dispatch r (event { viewport with order_revision = 2L })));
   [%expect {| |}]

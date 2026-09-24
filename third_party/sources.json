@@ -12,7 +12,7 @@
       "tag": "v0.17.0",
       "commit": "e929674585a67818734b06e12ea328872d185970",
       "url": "https://github.com/janestreet/bonsai.git",
-      "patch_sha256": "5f3276d65b4accfb0c570837182ce04af1a336c3bb16b5b6f1a0966266443de1",
+      "patch_sha256": "4121a7e06578b9747e42eefb37cb3a363b69d1c34b98080dd90ef0da9b76e98b",
       "archive_sha256": "11de33880bb22cff4c95966b21c108773255ba8ccb1c46fb1f071eb337a59ab4"
     },
     "virtual_dom": {

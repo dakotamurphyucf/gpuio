@@ -33,6 +33,15 @@ module Status : sig
   [@@deriving sexp_of]
 end
 
+module Snapshot : sig
+  type ('key, 'data, 'cmp) t =
+    { items : ('key, 'data, 'cmp) List_collection.t
+    ; before : Status.t
+    ; after : Status.t
+    ; generation : int64
+    }
+end
+
 module Completion : sig
   type t =
     | Applied
@@ -56,6 +65,8 @@ val create
   -> ('key, 'data, 'cmp) t
 
 val items : ('key, 'data, 'cmp) t -> ('key, 'data, 'cmp) List_collection.t
+val snapshot : ('key, 'data, 'cmp) t -> ('key, 'data, 'cmp) Snapshot.t
+val generation : (_, _, _) t -> int64
 val status : (_, _, _) t -> Direction.t -> Status.t
 
 (** Returns [None] for an end, an in-flight request, or a failed boundary.

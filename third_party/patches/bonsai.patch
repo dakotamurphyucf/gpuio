@@ -313,3 +313,66 @@ index 9820333..2d0fd07 100644
 +  val snapshot_lifecycles : _ t -> Lifecycle_snapshot.t
 +
 +
+diff --git a/src/driver/bonsai_driver.ml b/src/driver/bonsai_driver.ml
+index e466398..6481511 100644
+--- a/src/driver/bonsai_driver.ml
++++ b/src/driver/bonsai_driver.ml
+@@ -5,0 +6,4 @@ module Action = Bonsai.Private.Action
++module Action_history = struct
++  type t = Keep_recent | Release_after_flush
++end
++
+@@ -28,0 +33 @@ type ('m, 'action, 'action_input, 'r) unpacked =
++  ; action_history : Action_history.t
+@@ -44,0 +50 @@ let create_direct
++  ~action_history
+@@ -133,0 +140 @@ let create_direct
++      ; action_history
+@@ -139,2 +146,2 @@ let create_direct
+-let create (type r) ?(optimize = true) ~clock (computation : r Bonsai.Computation.t) =
+-  create_direct ~optimize ~clock (Bonsai.Private.top_level_handle computation)
++let create (type r) ?(optimize = true) ?(action_history = Action_history.Keep_recent) ~clock (computation : r Bonsai.Computation.t) =
++  create_direct ~action_history ~optimize ~clock (Bonsai.Private.top_level_handle computation)
+@@ -194 +201,4 @@ let flush
+-  apply_actions (Incr.Var.latest_value model_var)
++  apply_actions (Incr.Var.latest_value model_var);
++  (match t.action_history with
++   | Keep_recent -> ()
++   | Release_after_flush -> Stabilization_tracker.release_action_history stabilization_tracker)
+diff --git a/src/driver/bonsai_driver.mli b/src/driver/bonsai_driver.mli
+index 2d0fd07..86e7191 100644
+--- a/src/driver/bonsai_driver.mli
++++ b/src/driver/bonsai_driver.mli
+@@ -5,0 +6,8 @@ type 'r t
++(** GPUIO: [Keep_recent] is the upstream policy. [Release_after_flush] discards
++    action-path bookkeeping only after all queued actions are propagated. It
++    preserves within-batch stabilization optimization while bounding retained
++    history for high-churn native virtual lists. *)
++module Action_history : sig
++  type t = Keep_recent | Release_after_flush
++end
++
+@@ -8,0 +17 @@ val create
++  -> ?action_history:Action_history.t
+diff --git a/src/stabilization_tracker.ml b/src/stabilization_tracker.ml
+index 3b2fa2c..db3b1ed 100644
+--- a/src/stabilization_tracker.ml
++++ b/src/stabilization_tracker.ml
+@@ -512,0 +513,8 @@ let prune_trie t =
++(* GPUIO: safe only after a completed stabilization, when no earlier action has
++   unpropagated dependencies. Preserve counters and Incremental observations. *)
++let release_action_history t =
++  t.trie.inner <- Action_trie.Unexplored;
++  t.trie.generation <- -1;
++  t.last_generation_pruned <- t.current_generation
++;;
++
+diff --git a/src/stabilization_tracker.mli b/src/stabilization_tracker.mli
+index fafe957..f435189 100644
+--- a/src/stabilization_tracker.mli
++++ b/src/stabilization_tracker.mli
+@@ -22,0 +23,4 @@ val mark_stabilization : _ t -> unit
++(** GPUIO: drop cached action paths immediately after [mark_stabilization].
++    Do not call while a batch still contains unpropagated model changes. *)
++val release_action_history : _ t -> unit
++

@@ -3,6 +3,10 @@ module Incr = Ui_incr
 module Stabilization_tracker = Bonsai.Private.Stabilization_tracker
 module Action = Bonsai.Private.Action
 
+module Action_history = struct
+  type t = Keep_recent | Release_after_flush
+end
+
 type ('m, 'action, 'action_input, 'r) unpacked =
   { model_var : 'm Incr.Var.t
   ; default_model : 'm
@@ -26,6 +30,7 @@ type ('m, 'action, 'action_input, 'r) unpacked =
   ; mutable last_lifecycle : Bonsai.Private.Lifecycle.Collection.t
   ; mutable print_actions : bool
   ; stabilization_tracker : 'action Stabilization_tracker.t
+  ; action_history : Action_history.t
   }
 
 type 'r t = T : (_, _, _, 'r) unpacked -> 'r t
@@ -42,6 +47,7 @@ let assert_type_equalities
 ;;
 
 let create_direct
+  ~action_history
   (type r)
   ?(optimize = true)
   ~clock
@@ -131,13 +137,14 @@ let create_direct
       ; last_lifecycle = Bonsai.Private.Lifecycle.Collection.empty
       ; print_actions = false
       ; stabilization_tracker = Stabilization_tracker.empty ()
+      ; action_history
       }
   in
   create_polymorphic computation_info apply_action
 ;;
 
-let create (type r) ?(optimize = true) ~clock (computation : r Bonsai.Computation.t) =
-  create_direct ~optimize ~clock (Bonsai.Private.top_level_handle computation)
+let create (type r) ?(optimize = true) ?(action_history = Action_history.Keep_recent) ~clock (computation : r Bonsai.Computation.t) =
+  create_direct ~action_history ~optimize ~clock (Bonsai.Private.top_level_handle computation)
 ;;
 
 let schedule_event _ = Ui_effect.Expert.handle
@@ -191,7 +198,10 @@ let flush
      but I think it's important to be explicit about which behavior we use,
      so I chose the one that would be least surprising if a stabilization
      does happen to occur. *)
-  apply_actions (Incr.Var.latest_value model_var)
+  apply_actions (Incr.Var.latest_value model_var);
+  (match t.action_history with
+   | Keep_recent -> ()
+   | Release_after_flush -> Stabilization_tracker.release_action_history stabilization_tracker)
 ;;
 
 let result (T { result; _ }) = Incr.Observer.value_exn result

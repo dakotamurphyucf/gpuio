@@ -11,13 +11,7 @@ module Page : sig
     }
 end
 
-module Snapshot : sig
-  type ('key, 'data, 'cmp) t =
-    { items : ('key, 'data, 'cmp) Gpuio.List_collection.t
-    ; before : Status.t
-    ; after : Status.t
-    }
-end
+module Snapshot = Gpuio.List_paging.Snapshot
 
 (** A scoped, UI-domain-owned paged collection. [load] runs as an Eio producer;
     capture the explicit filesystem/network capabilities it needs. [on_change]
@@ -33,12 +27,12 @@ end
 type ('key, 'data, 'cmp) t
 
 val create
-  :  scope:Scope.t
+  :  ?on_change:(('key, 'data, 'cmp) Snapshot.t -> unit Bonsai.Effect.t)
+  -> scope:Scope.t
   -> ('key, 'data, 'cmp) Gpuio.List_collection.t
   -> before:Boundary.t
   -> after:Boundary.t
   -> load:(Request.t -> ('key, 'data) Page.t Or_error.t)
-  -> on_change:(('key, 'data, 'cmp) Snapshot.t -> unit Bonsai.Effect.t)
   -> ('key, 'data, 'cmp) t Or_error.t
 
 val items : ('key, 'data, 'cmp) t -> ('key, 'data, 'cmp) Gpuio.List_collection.t
@@ -57,3 +51,13 @@ val reset
 
 val set : ('key, 'data, _) t -> key:'key -> data:'data -> unit Or_error.t
 val close : (_, _, _) t -> unit
+
+(** Reactive snapshots published on the UI domain. The optional [on_change]
+    callback is additional notification; ordinary Bonsai lists can use [value]
+    directly, without a separate variable or a self-referential constructor. *)
+val value : ('key, 'data, 'cmp) t -> ('key, 'data, 'cmp) Snapshot.t Bonsai.Cont.t
+
+(** Pure UI effects with generation checks and the pager's scoped ownership.
+    Closed or obsolete generations ignore delayed actions. Admission failures
+    appear as [Failed] snapshots for explicit retry. *)
+val controls : (_, _, _) t -> Gpuio_bonsai.Virtual_list.Paging.t

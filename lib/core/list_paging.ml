@@ -37,6 +37,15 @@ module Status = struct
   [@@deriving sexp_of]
 end
 
+module Snapshot = struct
+  type ('key, 'data, 'cmp) t =
+    { items : ('key, 'data, 'cmp) List_collection.t
+    ; before : Status.t
+    ; after : Status.t
+    ; generation : int64
+    }
+end
+
 module Completion = struct
   type t =
     | Applied
@@ -97,6 +106,15 @@ let set_edge t direction value =
 ;;
 
 let status t direction = Edge.status (edge t direction)
+let generation t = t.generation
+
+let snapshot t =
+  { Snapshot.items = t.items
+  ; before = status t Before
+  ; after = status t After
+  ; generation = t.generation
+  }
+;;
 
 let start t direction ~retry =
   let cursor =

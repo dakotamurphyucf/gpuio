@@ -157,3 +157,25 @@ let%expect_test "streaming invalidates the changed row without rebuilding order"
   assert (not (phys_equal (C.keys updated) (C.keys deleted)));
   [%expect {| (true (50000)) |}]
 ;;
+
+let%expect_test
+    "value versions survive structural moves but explicit replacements invalidate"
+  =
+  let original = collection [ 1, "same"; 2, "same"; 3, "same" ] in
+  let changed previous next =
+    C.fold_changed_values next ~previous ~init:[] ~f:(fun keys key -> key :: keys)
+    |> List.sort ~compare:Int.compare
+  in
+  let reordered = C.reorder original [ 3; 2; 1 ] |> Or_error.ok_exn in
+  assert (List.is_empty (changed original reordered));
+  let prepended = C.splice reordered ~at:0 ~remove:0 [ 0, "new" ] |> Or_error.ok_exn in
+  assert (List.equal Int.equal (changed original prepended) [ 0 ]);
+  let replaced =
+    C.set prepended ~key:2 ~data:(C.find prepended 2 |> Option.value_exn)
+    |> Or_error.ok_exn
+  in
+  assert (List.equal Int.equal (changed prepended replaced) [ 2 ]);
+  let spliced = C.splice replaced ~at:2 ~remove:1 [ 2, "same" ] |> Or_error.ok_exn in
+  assert (List.equal Int.equal (changed replaced spliced) [ 2 ]);
+  [%expect {| |}]
+;;

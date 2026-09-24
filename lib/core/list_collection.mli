@@ -67,3 +67,14 @@ val fold_changed_keys
   -> init:'acc
   -> f:('acc -> 'key -> 'acc)
   -> 'acc
+
+(** Like [fold_changed_keys], but ignores position-only changes. Explicit [set]
+    or replacement rows in [splice] invalidate their keys even when the supplied
+    data is physically shared. Reorder/prepend preserve existing value versions,
+    avoiding full-history height invalidation. No data equality is required. *)
+val fold_changed_values
+  :  ('key, 'data, 'cmp) t
+  -> previous:('key, 'data, 'cmp) t
+  -> init:'acc
+  -> f:('acc -> 'key -> 'acc)
+  -> 'acc

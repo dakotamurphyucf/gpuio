@@ -12,13 +12,7 @@ module Page = struct
     }
 end
 
-module Snapshot = struct
-  type ('key, 'data, 'cmp) t =
-    { items : ('key, 'data, 'cmp) Gpuio.List_collection.t
-    ; before : Status.t
-    ; after : Status.t
-    }
-end
+module Snapshot = P.Snapshot
 
 type pending =
   { request : Request.t
@@ -30,6 +24,7 @@ type ('key, 'data, 'cmp) t =
   ; state : ('key, 'data, 'cmp) P.t
   ; load : Request.t -> ('key, 'data) Page.t Or_error.t
   ; on_change : ('key, 'data, 'cmp) Snapshot.t -> unit Bonsai.Effect.t
+  ; value : ('key, 'data, 'cmp) Snapshot.t Bonsai.Cont.Expert.Var.t
   ; mutable before : pending option
   ; mutable after : pending option
   ; mutable closed : bool
@@ -70,16 +65,19 @@ let close t =
     t.unregister <- Fn.id)
 ;;
 
-let create ~scope items ~before ~after ~load ~on_change =
+let create ?(on_change = fun _ -> Bonsai.Effect.Ignore) ~scope items ~before ~after ~load =
   Scope.Expert.check scope;
   if not (Scope.is_active scope)
   then Or_error.error_string "list paging scope closed"
   else (
+    let state = P.create items ~before ~after in
+    let value = Bonsai.Cont.Expert.Var.create (P.snapshot state) in
     let t =
       { scope
-      ; state = P.create items ~before ~after
+      ; state
       ; load
       ; on_change
+      ; value
       ; before = None
       ; after = None
       ; closed = false
@@ -104,15 +102,15 @@ let status t direction =
 
 let snapshot t =
   check t;
-  { Snapshot.items = P.items t.state
-  ; before = P.status t.state Before
-  ; after = P.status t.state After
-  }
+  P.snapshot t.state
 ;;
 
 let notify t =
   if (not t.closed) && Scope.is_active t.scope
-  then Bonsai.Effect.Expert.handle (t.on_change (snapshot t))
+  then (
+    let snapshot = snapshot t in
+    Bonsai.Cont.Expert.Var.set t.value snapshot;
+    Bonsai.Effect.Expert.handle (t.on_change snapshot))
 ;;
 
 let start t direction ~retry =
@@ -185,4 +183,39 @@ let set t ~key ~data =
     let open Or_error.Let_syntax in
     let%map () = P.set t.state ~key ~data in
     notify t
+;;
+
+let value t =
+  check t;
+  Bonsai.Cont.Expert.Var.value t.value
+;;
+
+let controls t =
+  check t;
+  let current ~generation =
+    (not t.closed)
+    && Scope.is_active t.scope
+    && Int64.equal generation (P.generation t.state)
+  in
+  let run operation ~generation direction =
+    Bonsai.Effect.of_thunk (fun () ->
+      check t;
+      if current ~generation
+      then (
+        match operation t direction with
+        | Ok () -> ()
+        | Error error ->
+          (* Producer admission failures are already published as Failed. Other
+           errors (e.g. exhausted request IDs) cannot be silently recovered. *)
+          (match P.status t.state direction with
+           | Failed _ -> ()
+           | Ready | Loading | End -> Error.raise error)))
+  in
+  Gpuio_bonsai.Virtual_list.Paging.create
+    ~request:(run request)
+    ~retry:(run retry)
+    ~cancel:(fun ~generation direction ->
+      Bonsai.Effect.of_thunk (fun () ->
+        check t;
+        if current ~generation then cancel t direction))
 ;;

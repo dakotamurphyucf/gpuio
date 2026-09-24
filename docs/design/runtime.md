@@ -121,3 +121,12 @@ runs the new closure. The pre-extension implementation failed this test. The
 managed-row retry test also verifies that discarding a candidate causes no row
 reset/deactivation. Patch bytes and digest are recorded with the existing Bonsai
 vendor provenance; this is an adapter extension, not a claim of an upstream bug.
+
+## Native action-history lifetime (OCH-13)
+
+Window drivers select `Bonsai_driver.Action_history.Release_after_flush`. Bonsai
+tracks action paths through the entire batch, then the driver drops that cache
+after stabilization. This avoids retaining paths for every recently visited
+virtual row while leaving within-batch dependency decisions intact. The additive
+option defaults to upstream `Keep_recent`; it changes cache lifetime, not row
+reset semantics. See the [managed-list memory evidence](managed-lists.md).

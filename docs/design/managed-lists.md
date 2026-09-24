@@ -14,9 +14,11 @@ loaded application data are O(n); this cost must be reported separately from
 active row graphs, native views, measured heights and rendering caches.
 
 Point updates share an immutable `keys` snapshot, so order processing can be
-cut off by snapshot identity. `fold_changed_keys` uses persistent-map sharing
-to invalidate changed rows without scanning the unchanged history. It reports
-conservative invalidations, not semantic equality of arbitrary application data.
+cut off by snapshot identity. `fold_changed_values` uses persistent-map sharing and private value versions
+to invalidate replaced values without scanning unchanged history. Prepend and
+reorder preserve value versions; explicit replacement changes the version even
+when the supplied data is physically identical. `fold_changed_keys` additionally
+reports positional changes. Neither operation compares arbitrary application data.
 
 `Gpuio.List_paging` owns two explicit boundaries: ready, loading, failed or end.
 At most one request per boundary is active. Before/after pages can complete in
@@ -35,7 +37,9 @@ cancels producer fibers on reset/cancel/close and suppresses queued completions.
 Its parent scope should be the conversation or application if loading must
 survive virtual-row deactivation. No viewport operation implicitly cancels
 conversation work. Applications pass I/O capabilities to the loader closure and
-publish the immutable snapshot supplied to `on_change` directly to Bonsai.
+use its reactive `value` directly with `Gpuio_bonsai.Virtual_list.paged`, passing
+`controls` for generation-checked request/retry/cancel effects. The optional
+`on_change` is an additional UI-domain notification.
 
 These modules retain loaded data intentionally. An unbounded conversation needs
 an application persistence/windowing policy, rather than a claim that UI
@@ -61,7 +65,8 @@ the same accepted transaction. Scrollbar support belongs to this ticket.
 The pinned native implementation provides `splice_focusable`,
 `logical_scroll_top`, `scroll_to`, `remeasure_items`, `FollowMode::Tail` and
 scrollbar geometry. It can retain an offscreen focused item. These primitives are now connected to GPUIO's retained native host. The managed
-Bonsai component and full-history resource acceptance tests remain in progress.
+Bonsai component is implemented; full-history native resource acceptance remains
+in progress.
 
 The native state adapter now wraps the actual GPUI `ListState`. State-level
 tests preserve key/offset through prepend/reorder, invalidate row heights, pause
@@ -104,7 +109,7 @@ Native transactions validate list mappings, command targets and metadata before
 publication. Logical metadata is charged at 192 admission bytes per row before
 expansion; this conservative quota is not a measurement of RSS. The tree and
 native list share one immutable index. Viewport events include order revision and
-are rejected after that source order changes. Requests prioritize pinned rows,
+are rejected after that source order changes or their tree revision becomes stale. Requests prioritize pinned rows,
 then visible rows, then overscan, with an explicit budget-exhaustion diagnostic.
 
 Native focus can change after OCaml receives a viewport event. The host therefore
@@ -151,7 +156,8 @@ Activation hooks can use the guard immediately; deactivation hooks run before
 the wrapper resets their model. Tests verify this ordering in optimized and
 unoptimized graphs, and inspect the actual Bonsai model after 1,001 visits.
 The model returns to the empty keyed map, including after old guarded callbacks
-are executed. Full-history heap/native-resource validation remains.
+are executed. The component memory test now visits and revisits 100,000 rows;
+native full-history resource validation remains.
 
 Creating a separate Bonsai driver for every newly visited row is not the chosen
 shortcut: in this pin, driver construction registers a `Ui_effect.Define`
@@ -160,11 +166,63 @@ Independent drivers also cannot implicitly capture parent graph values. Keep
 the managed rows inside the existing window graph and validate the explicit
 retention contract without changing the Bonsai fork unless evidence requires it.
 
+## Application API and paging
+
+`Gpuio_bonsai.Virtual_list.component` accepts a typed `List_collection`, a stable
+injective `row_key`, a validated config, and `render_row ~key ~data ~lifetime`.
+It returns an `Output` with the view, scroll controller, current native viewport,
+active row count and budget-exhaustion flag. Give the view a bounded height;
+by default it fills its parent's assigned area. Ordinary applications do not
+implement viewport membership. Native pins plus optional application pins take
+priority within `max_active`; excess application pins return an error.
+
+`Controller.scroll_to`, `reveal` and `jump_to_latest` produce effects. A controller
+belongs to its mounted conversation generation; delayed commands from an inactive
+generation are ignored. Missing targets are harmless. Change `generation` when
+replacing a conversation that could reuse keys. Persistent message/preferences
+and conversation-scoped tasks live outside `render_row`.
+
+The `paged` variant consumes the Eio pager's shared snapshot and controls. It
+requests Ready boundaries near the visible edges, including short/empty lists.
+Failed boundaries need explicit retry; End never loads. `auto_load=false` suspends
+new automatic loads, and explicit cancellation stops current work. Merely moving
+a row offscreen never cancels a conversation request or stream.
+
+Height invalidations compare against the last *accepted* immutable collection,
+not an intermediate observed result. This preserves all streamed changes while a
+native transaction is pending. Acceptance advances the baseline. The component
+retains one accepted collection snapshot, separately from its bounded row models.
+`Output.viewport` is `None` until native layout confirms the current geometry
+revision. Nonempty pages wait for that layout before requesting again; empty
+cursor-advancing pages can continue without an unnecessary layout barrier.
+
+## Bounded action-history policy
+
+Bonsai v0.17 also keeps a recent action-path trie for stabilization decisions.
+Resetting row models does not immediately prune that independent cache. A
+20,000-key experiment retained about 771,523 additional words until the normal
+age-based pruning ran; afterward it retained about 1,523. This is intended cache
+behavior, not an upstream model-retention defect.
+
+The native window driver selects the additive
+`Bonsai_driver.Action_history.Release_after_flush` policy. It releases the trie
+only after the complete action batch and stabilization. Within-batch dependency
+tracking remains intact. The upstream-compatible default is `Keep_recent`.
+The fork patch and hash are recorded and reconstructed against the pinned source.
+
+The production-policy expect test visits all 100,000 rows, then revisits them,
+with at most 100 active models and a 2-KiB payload per visited model. Weak
+references retain at most the active payloads, and none after eviction. Immediate
+retained heap growth is below 150,000 words above an already-loaded metadata
+baseline. This is a heap bound, not a native RSS measurement. Application records
+remain present. A separate test compares dependent static/dynamic action batches
+under both policies. Native cache traversal still requires its own evidence.
+
 ## Validation status
 
 The collection/paging expect tests cover 100,000 logical records, point updates,
 range traversal, atomic invalid changes, concurrent boundaries, retry/end and
-obsolete responses. That is data-layer evidence, not bounded native-view or
-Bonsai-row memory evidence. Scoped producer tests cover queued delivery,
+obsolete responses. These checks complement the bounded Bonsai-row
+heap test above; they do not establish bounded native-view memory. Scoped producer tests cover queued delivery,
 cancellation and conversation isolation. Native anchoring, real focus/IME,
 scrollbars, full-history active-resource budgets and platform gates remain.

@@ -777,6 +777,7 @@ let rec mount builder ~depth previous view =
       then fail "virtual list invalidation revision went backwards";
       if
         Int64.equal list.invalidation_revision old_invalidation
+        && (not (List.is_empty list.invalidated))
         && Option.exists old_list ~f:(fun old ->
           not (List.equal Key.equal old.invalidated list.invalidated))
       then fail "virtual list invalidation batch changed without a new revision";
@@ -997,7 +998,7 @@ let dispatch t = function
   | Wire.Event.List_viewport (window, node, handler, revision, viewport)
     when (not t.closed)
          && Window_id.equal window t.window
-         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+         && Int64.equal revision t.state.revision ->
     (match Map.find t.state.bindings (node_slot node) with
      | Some
          { node = expected

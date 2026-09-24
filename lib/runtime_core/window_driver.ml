@@ -34,7 +34,7 @@ let create ?asset_owner window ~start ~theme component =
   in
   let clock = Bonsai.Time_source.create ~start in
   { guard = Domain_guard.create ()
-  ; driver = Bonsai_driver.create ~clock computation
+  ; driver = Bonsai_driver.create ~clock ~action_history:Release_after_flush computation
   ; active
   ; clock
   ; reconciler = R.create ?asset_owner window

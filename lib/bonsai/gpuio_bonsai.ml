@@ -1,4 +1,5 @@
 module Managed_rows = Managed_rows
+module Virtual_list = Virtual_list
 
 module View = struct
   type t = unit Bonsai.Effect.t Gpuio.View.t
@@ -82,6 +83,7 @@ module View = struct
   let radio_group = Gpuio.View.radio_group
   let select = Gpuio.View.select
   let combobox = Gpuio.View.combobox
+  let virtual_list = Gpuio.View.virtual_list
   let column = Gpuio.View.column
   let grid = Gpuio.View.grid
 end

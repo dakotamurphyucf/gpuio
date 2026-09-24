@@ -165,3 +165,128 @@ let%expect_test "scope shutdown disposes both outstanding loads" =
     assert (Or_error.is_error (P.request t After)));
   [%expect {| (2 2) |}]
 ;;
+
+let%expect_test
+    "managed paging fills empty pages, waits for fresh layout and guards generations"
+  =
+  let module B = Bonsai.Cont in
+  let module V = Gpuio_bonsai.Virtual_list in
+  with_scope (fun scope inbox ->
+    let calls = ref [] in
+    let fail = ref false in
+    let pager =
+      P.create ~scope (empty ()) ~before:End ~after:(More None) ~load:(fun request ->
+        calls := P.Request.cursor request :: !calls;
+        if !fail
+        then Or_error.error_string "offline"
+        else (
+          match P.Request.cursor request with
+          | None -> Ok { P.Page.rows = []; next = More (Some "next") }
+          | Some "next" -> Ok { P.Page.rows = [ 1, "first" ]; next = More (Some "last") }
+          | Some _ -> Ok { P.Page.rows = [ 2, "last" ]; next = End }))
+      |> Or_error.ok_exn
+    in
+    let controls = P.controls pager in
+    let config =
+      V.Config.create ~max_active:8 ~height:(Estimated 80.) () |> Or_error.ok_exn
+    in
+    let driver =
+      Bonsai_driver.create
+        ~action_history:Release_after_flush
+        ~clock:(Bonsai.Time_source.create ~start:Time_ns.epoch)
+        (fun graph ->
+           V.paged
+             (module Int)
+             (P.value pager)
+             ~paging:(B.return controls)
+             ~row_key:Gpuio.Key.of_int
+             ~config
+             ~render_row:(fun ~key:_ ~data ~lifetime:_ _ -> B.map data ~f:Gpuio.View.text)
+             graph)
+    in
+    let result () =
+      Bonsai_driver.flush driver;
+      Bonsai_driver.result driver |> Or_error.ok_exn
+    in
+    let display () =
+      ignore (result () : int V.Output.t);
+      Bonsai_driver.trigger_lifecycles driver;
+      ignore (result () : int V.Output.t)
+    in
+    let report ~at_end =
+      let output = result () in
+      let list =
+        (Gpuio.View.Expert.describe (V.Output.view output)).children
+        |> List.hd_exn
+        |> Gpuio.View.Expert.describe
+      in
+      let list = Option.value_exn list.virtual_list in
+      let rows = C.keys (P.items pager) |> List.map ~f:Gpuio.Key.of_int in
+      let viewport : Gpuio.Virtual_list.Viewport.t =
+        { visible_first = 0
+        ; visible_last = List.length rows
+        ; requested = rows
+        ; pinned = []
+        ; anchor = None
+        ; following_tail = false
+        ; at_start = true
+        ; at_end
+        ; budget_exhausted = false
+        }
+      in
+      Bonsai_driver.schedule_event driver (Option.value_exn list.on_viewport viewport)
+    in
+    display ();
+    assert (List.is_empty !calls);
+    report ~at_end:true;
+    display ();
+    Eio.Fiber.yield ();
+    drain inbox;
+    display ();
+    (* The empty cursor-advancing page needs no new geometry; it can continue. *)
+    Eio.Fiber.yield ();
+    drain inbox;
+    display ();
+    assert (List.length !calls = 2 && C.length (P.items pager) = 1);
+    assert (Option.is_none (V.Output.viewport (result ())));
+    Eio.Fiber.yield ();
+    drain inbox;
+    display ();
+    assert (List.length !calls = 2);
+    (* A nonempty page waits for native layout; an old at-end flag must not
+       greedily load the entire history before a new frame is painted. *)
+    report ~at_end:false;
+    display ();
+    assert (List.length !calls = 2);
+    fail := true;
+    report ~at_end:true;
+    display ();
+    Eio.Fiber.yield ();
+    drain inbox;
+    display ();
+    assert (List.length !calls = 3);
+    for _ = 1 to 4 do
+      report ~at_end:true;
+      display ()
+    done;
+    Eio.Fiber.yield ();
+    assert (List.length !calls = 3);
+    fail := false;
+    Bonsai_driver.schedule_event driver (V.Paging.retry controls ~generation:0L After);
+    Eio.Fiber.yield ();
+    drain inbox;
+    display ();
+    assert (C.length (P.items pager) = 2);
+    assert (
+      match P.status pager After with
+      | End -> true
+      | Ready | Loading | Failed _ -> false);
+    P.reset pager (empty ()) ~before:End ~after:(More None) |> Or_error.ok_exn;
+    display ();
+    Bonsai_driver.schedule_event driver (V.Paging.request controls ~generation:0L After);
+    Eio.Fiber.yield ();
+    assert (List.length !calls = 4);
+    P.close pager;
+    Bonsai_driver.Expert.invalidate_observers driver);
+  [%expect {| |}]
+;;

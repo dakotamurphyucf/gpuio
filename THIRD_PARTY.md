@@ -17,7 +17,10 @@ reviewed native-library selection and reserved-identifier changes. A small Bonsa
 driver extension captures a typed, single-use lifecycle snapshot for asynchronous
 native acceptance, including when another window stabilizes the shared Incremental
 universe. It preserves normal Bonsai lifecycle diff/reset behavior and does not
-change Incremental or the clock interface. See `docs/design/runtime.md`. Unbuilt browser source remains
+change Incremental or the clock interface. An optional action-history policy
+releases the stabilization tracker cache after a completed batch; native windows
+select it to bound retained keyed action paths. The existing default stays intact.
+See `docs/design/runtime.md` and `docs/design/managed-lists.md`. Unbuilt browser source remains
 in the snapshot for provenance; the Dune subset excludes it from compilation.
 
 GPUI/GPUI platform dependencies are Apache-2.0; ocaml-interop and binprot-rs retain

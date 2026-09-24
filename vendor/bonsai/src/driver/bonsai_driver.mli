@@ -3,9 +3,18 @@ module Incr = Ui_incr
 
 type 'r t
 
+(** GPUIO: [Keep_recent] is the upstream policy. [Release_after_flush] discards
+    action-path bookkeeping only after all queued actions are propagated. It
+    preserves within-batch stabilization optimization while bounding retained
+    history for high-churn native virtual lists. *)
+module Action_history : sig
+  type t = Keep_recent | Release_after_flush
+end
+
 (** Builds a new driver for a bonsai component. *)
 val create
   :  ?optimize:bool
+  -> ?action_history:Action_history.t
   -> clock:Bonsai.Time_source.t
   -> 'r Bonsai.Computation.t
   -> 'r t
