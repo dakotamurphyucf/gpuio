@@ -257,3 +257,59 @@
          -> ('r * unit Effect.t) Computation.t
      end
    end
+diff --git a/src/driver/bonsai_driver.ml b/src/driver/bonsai_driver.ml
+index 27eea62..e466398 100644
+--- a/src/driver/bonsai_driver.ml
++++ b/src/driver/bonsai_driver.ml
+@@ -205,2 +205,13 @@ let has_after_display_events (T t) =
+-let trigger_lifecycles (T t) =
+-  let old = t.last_lifecycle in
++(* GPUIO extension: asynchronous native acceptance needs the lifecycle collection
++   belonging to the submitted result, even if another driver stabilizes Incr. *)
++module Lifecycle_snapshot = struct
++  type t = { run : unit -> unit; mutable triggered : bool }
++
++  let trigger t =
++    if t.triggered then invalid_arg "lifecycle snapshot already triggered";
++    t.triggered <- true;
++    t.run ()
++  ;;
++end
++
++let snapshot_lifecycles (T t) =
+@@ -208,3 +219,10 @@ let trigger_lifecycles (T t) =
+-  t.last_lifecycle <- new_;
+-  schedule_event () (Bonsai.Private.Lifecycle.Collection.diff old new_);
+-  Bonsai.Time_source.Private.trigger_after_display t.clock
++  { Lifecycle_snapshot.triggered = false
++  ; run = (fun () ->
++      let old = t.last_lifecycle in
++      t.last_lifecycle <- new_;
++      schedule_event () (Bonsai.Private.Lifecycle.Collection.diff old new_);
++      Bonsai.Time_source.Private.trigger_after_display t.clock)
++  }
++;;
++
++let trigger_lifecycles t = Lifecycle_snapshot.trigger (snapshot_lifecycles t)
+@@ -213,0 +232,2 @@ module Expert = struct
++  let snapshot_lifecycles = snapshot_lifecycles
++
+diff --git a/src/driver/bonsai_driver.mli b/src/driver/bonsai_driver.mli
+index 9820333..2d0fd07 100644
+--- a/src/driver/bonsai_driver.mli
++++ b/src/driver/bonsai_driver.mli
+@@ -37,0 +38,8 @@ val has_after_display_events : _ t -> bool
++(** GPUIO extension for an asynchronous display acknowledgment. A snapshot
++    retains its originating driver and can be triggered at most once. Dropping
++    it has no lifecycle effect. Trigger snapshots in accepted display order. *)
++module Lifecycle_snapshot : sig
++  type t
++  val trigger : t -> unit
++end
++
+@@ -38,0 +47,5 @@ module Expert : sig
++  (** Capture after [flush] alongside [result]. Other drivers may stabilize the
++      shared Incremental universe before this collection is displayed. *)
++  val snapshot_lifecycles : _ t -> Lifecycle_snapshot.t
++
++

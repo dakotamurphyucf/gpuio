@@ -341,3 +341,36 @@ let%expect_test
   Driver.close driver;
   [%expect {| |}]
 ;;
+
+let%expect_test
+    "an in-flight native commit freezes the lifecycle snapshot until acceptance"
+  =
+  let source = B.Expert.Var.create 0 in
+  let events = ref [] in
+  let component graph =
+    let open B.Let_syntax in
+    let source = B.Expert.Var.value source in
+    let after_display =
+      let%arr value = source in
+      E.of_thunk (fun () -> events := value :: !events)
+    in
+    B.Edge.after_display after_display graph;
+    let%arr value = source in
+    Gpuio.View.text (Int.to_string value)
+  in
+  let driver = create component in
+  cycle driver 0.;
+  Driver.submitted driver;
+  B.Expert.Var.set source 1;
+  cycle driver 1.;
+  let other = create (fun _ -> B.return (Gpuio.View.text "another window")) in
+  cycle other 1.;
+  Driver.close other;
+  Driver.acknowledge driver ~revision:1L |> Or_error.ok_exn;
+  assert (List.equal Int.equal !events [ 0 ]);
+  cycle driver 0.;
+  ignore (accept driver : Wire.Transaction.t option);
+  assert (List.equal Int.equal !events [ 1; 0 ]);
+  Driver.close driver;
+  [%expect {| |}]
+;;

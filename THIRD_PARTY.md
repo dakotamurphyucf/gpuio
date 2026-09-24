@@ -13,8 +13,11 @@ notice and license text are preserved in [third_party/licenses/zed-gpui.txt](thi
 `vendor/` retains the upstream source and MIT licenses for eight Jane Street
 v0.17 repositories. `third_party/sources.json` pins upstream commits, downloaded
 archive hashes and compatibility patch hashes; `third_party/patches` contains the
-reviewed native-library selection and reserved-identifier changes. No lifecycle
-or Incremental runtime workaround is included. Unbuilt browser source remains
+reviewed native-library selection and reserved-identifier changes. A small Bonsai
+driver extension captures a typed, single-use lifecycle snapshot for asynchronous
+native acceptance, including when another window stabilizes the shared Incremental
+universe. It preserves normal Bonsai lifecycle diff/reset behavior and does not
+change Incremental or the clock interface. See `docs/design/runtime.md`. Unbuilt browser source remains
 in the snapshot for provenance; the Dune subset excludes it from compilation.
 
 GPUI/GPUI platform dependencies are Apache-2.0; ocaml-interop and binprot-rs retain

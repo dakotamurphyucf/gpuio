@@ -202,15 +202,35 @@ let has_after_display_events (T t) =
   || Bonsai.Time_source.Private.has_after_display_events t.clock
 ;;
 
-let trigger_lifecycles (T t) =
-  let old = t.last_lifecycle in
+(* GPUIO extension: asynchronous native acceptance needs the lifecycle collection
+   belonging to the submitted result, even if another driver stabilizes Incr. *)
+module Lifecycle_snapshot = struct
+  type t = { run : unit -> unit; mutable triggered : bool }
+
+  let trigger t =
+    if t.triggered then invalid_arg "lifecycle snapshot already triggered";
+    t.triggered <- true;
+    t.run ()
+  ;;
+end
+
+let snapshot_lifecycles (T t) =
   let new_ = t.lifecycle |> Incr.Observer.value_exn in
-  t.last_lifecycle <- new_;
-  schedule_event () (Bonsai.Private.Lifecycle.Collection.diff old new_);
-  Bonsai.Time_source.Private.trigger_after_display t.clock
+  { Lifecycle_snapshot.triggered = false
+  ; run = (fun () ->
+      let old = t.last_lifecycle in
+      t.last_lifecycle <- new_;
+      schedule_event () (Bonsai.Private.Lifecycle.Collection.diff old new_);
+      Bonsai.Time_source.Private.trigger_after_display t.clock)
+  }
+;;
+
+let trigger_lifecycles t = Lifecycle_snapshot.trigger (snapshot_lifecycles t)
 ;;
 
 module Expert = struct
+  let snapshot_lifecycles = snapshot_lifecycles
+
   let sexp_of_model (T { sexp_of_model; model_var; _ }) =
     sexp_of_model (Incr.Var.value model_var)
   ;;

@@ -96,3 +96,28 @@ streams and an idle completion wake with no periodic timer. The native runtime
 example's `--self-test`, `--shutdown-test` and `--last-window-test` exercise real
 windows and the public runner. CI requires those on macOS; Linux builds/tests
 remain required and Linux GUI results are informational under OCH-17.
+
+
+## Lifecycle snapshots for asynchronous acceptance (OCH-13)
+
+Native acceptance is asynchronous. The submitted view and its lifecycle collection
+must come from the same stabilization. Buffering a window's actions while its
+transaction is pending avoids unnecessary work, but does not freeze its observers:
+flushing another Bonsai driver stabilizes the shared Incremental universe.
+
+The pinned Bonsai driver therefore has a small GPUIO extension:
+`Bonsai_driver.Expert.snapshot_lifecycles` captures a typed, single-use
+`Lifecycle_snapshot.t` alongside the prepared result. Only acceptance triggers
+that snapshot; rejection/retention retry drops it. Triggering diffs it against the
+last displayed collection using Bonsai's ordinary lifecycle implementation. No
+model-reset, Incremental or clock semantics change. Immediate display paths keep
+the existing `trigger_lifecycles` API. A snapshot retains its originating driver,
+so it cannot accidentally target another window, and a second trigger is rejected.
+
+The regression test changes an external source while a native commit is pending,
+then flushes a second driver before acknowledging the first. The first accepted
+snapshot runs the original after-display closure; the later accepted transaction
+runs the new closure. The pre-extension implementation failed this test. The
+managed-row retry test also verifies that discarding a candidate causes no row
+reset/deactivation. Patch bytes and digest are recorded with the existing Bonsai
+vendor provenance; this is an adapter extension, not a claim of an upstream bug.
