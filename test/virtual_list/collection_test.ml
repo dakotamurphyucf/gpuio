@@ -142,3 +142,18 @@ let%expect_test "large history point updates and ranges preserve persistent data
     , (C.find updated 99_999 : string option)];
   [%expect {| (100000 (0) (updated) (99999)) |}]
 ;;
+
+let%expect_test "streaming invalidates the changed row without rebuilding order" =
+  let original = collection (List.init 100_000 ~f:(fun key -> key, "data")) in
+  let updated = C.set original ~key:50_000 ~data:"streamed" |> Or_error.ok_exn in
+  let keys =
+    C.fold_changed_keys updated ~previous:original ~init:[] ~f:(fun keys key ->
+      key :: keys)
+  in
+  print_s
+    [%sexp (phys_equal (C.keys original) (C.keys updated) : bool), (keys : int list)];
+  let deleted = C.splice updated ~at:50_000 ~remove:1 [] |> Or_error.ok_exn in
+  assert (Option.is_none (C.find deleted 50_000));
+  assert (not (phys_equal (C.keys updated) (C.keys deleted)));
+  [%expect {| (true (50000)) |}]
+;;

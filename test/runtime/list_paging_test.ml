@@ -31,7 +31,7 @@ let%expect_test "paging producer results and failures publish on the UI turn" =
           if !fail
           then Or_error.error_string "network unavailable"
           else Ok { P.Page.rows = [ 1, "loaded" ]; next = End })
-        ~on_change:(fun () -> Bonsai.Effect.of_thunk (fun () -> Int.incr changes))
+        ~on_change:(fun _ -> Bonsai.Effect.of_thunk (fun () -> Int.incr changes))
       |> Or_error.ok_exn
     in
     P.request t After |> Or_error.ok_exn;
@@ -76,7 +76,7 @@ let%expect_test "conversation reset suppresses already queued results" =
             | After -> 2
           in
           Ok { P.Page.rows = [ key, "old conversation" ]; next = End })
-        ~on_change:(fun () -> Bonsai.Effect.of_thunk (fun () -> Int.incr changes))
+        ~on_change:(fun _ -> Bonsai.Effect.of_thunk (fun () -> Int.incr changes))
       |> Or_error.ok_exn
     in
     P.request t Before |> Or_error.ok_exn;
@@ -112,7 +112,7 @@ let%expect_test "cancellation stops producers without cancelling conversation wo
         ~after:(More None)
         ~load:(fun _ ->
           Exn.protect ~f:Eio.Fiber.await_cancel ~finally:(fun () -> Int.incr cancelled))
-        ~on_change:(fun () -> Bonsai.Effect.Ignore)
+        ~on_change:(fun _ -> Bonsai.Effect.Ignore)
       |> Or_error.ok_exn
     in
     P.request t Before |> Or_error.ok_exn;
@@ -152,7 +152,7 @@ let%expect_test "scope shutdown disposes both outstanding loads" =
         ~after:(More None)
         ~load:(fun _ ->
           Exn.protect ~f:Eio.Fiber.await_cancel ~finally:(fun () -> Int.incr cancelled))
-        ~on_change:(fun () -> Bonsai.Effect.of_thunk (fun () -> Int.incr changes))
+        ~on_change:(fun _ -> Bonsai.Effect.of_thunk (fun () -> Int.incr changes))
       |> Or_error.ok_exn
     in
     P.request t Before |> Or_error.ok_exn;

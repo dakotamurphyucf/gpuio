@@ -11,10 +11,19 @@ module Page : sig
     }
 end
 
+module Snapshot : sig
+  type ('key, 'data, 'cmp) t =
+    { items : ('key, 'data, 'cmp) Gpuio.List_collection.t
+    ; before : Status.t
+    ; after : Status.t
+    }
+end
+
 (** A scoped, UI-domain-owned paged collection. [load] runs as an Eio producer;
     capture the explicit filesystem/network capabilities it needs. [on_change]
-    executes on the UI loop for status or data changes. It should publish a
-    snapshot to the application's Bonsai state, not perform blocking I/O.
+    receives an immutable snapshot on the UI loop for status or data changes.
+    It can publish that snapshot directly to Bonsai without capturing the
+    controller in its own constructor. It must not perform blocking I/O.
 
     Give this controller a conversation/application scope when loads should
     survive row deactivation. Viewport changes do not cancel tasks. [reset],
@@ -29,10 +38,11 @@ val create
   -> before:Boundary.t
   -> after:Boundary.t
   -> load:(Request.t -> ('key, 'data) Page.t Or_error.t)
-  -> on_change:(unit -> unit Bonsai.Effect.t)
+  -> on_change:(('key, 'data, 'cmp) Snapshot.t -> unit Bonsai.Effect.t)
   -> ('key, 'data, 'cmp) t Or_error.t
 
 val items : ('key, 'data, 'cmp) t -> ('key, 'data, 'cmp) Gpuio.List_collection.t
+val snapshot : ('key, 'data, 'cmp) t -> ('key, 'data, 'cmp) Snapshot.t
 val status : (_, _, _) t -> Direction.t -> Status.t
 val request : (_, _, _) t -> Direction.t -> unit Or_error.t
 val retry : (_, _, _) t -> Direction.t -> unit Or_error.t

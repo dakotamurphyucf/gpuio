@@ -11,6 +11,8 @@ pub fn run_native_animation_test() {
     host::animation_test::run();
 }
 pub mod image_host;
+pub mod list_index;
+pub mod list_state;
 pub mod mailbox;
 pub mod motion;
 mod motion_preference;

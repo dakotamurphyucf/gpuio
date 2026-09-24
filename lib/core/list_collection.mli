@@ -20,6 +20,12 @@ val of_alist
 
 val length : (_, _, _) t -> int
 val is_empty : (_, _, _) t -> bool
+
+(** Immutable order snapshot, shared by point updates. Native adapters can cut
+    off order processing by snapshot identity without walking every record for
+    each streamed fragment. Structural operations create a new snapshot. *)
+val keys : ('key, _, _) t -> 'key list
+
 val find : ('key, 'data, _) t -> 'key -> 'data option
 val index : ('key, _, _) t -> 'key -> int option
 val nth : ('key, 'data, _) t -> int -> ('key * 'data) option
@@ -49,3 +55,15 @@ val splice
 val reorder : ('key, 'data, 'cmp) t -> 'key list -> ('key, 'data, 'cmp) t Or_error.t
 
 val to_alist : ('key, 'data, _) t -> ('key * 'data) list
+
+(** Conservative change notification using persistent-map sharing. Visits keys
+    added, removed, or whose entry was rebuilt, including position changes.
+    No application-data equality is assumed: setting the same value may report
+    a change. This is an invalidation query, not a semantic collection diff.
+    A point update visits only its key without scanning the unchanged tree. *)
+val fold_changed_keys
+  :  ('key, 'data, 'cmp) t
+  -> previous:('key, 'data, 'cmp) t
+  -> init:'acc
+  -> f:('acc -> 'key -> 'acc)
+  -> 'acc

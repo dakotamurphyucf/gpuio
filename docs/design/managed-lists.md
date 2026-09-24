@@ -13,6 +13,11 @@ Structural splices and reorder rebuild O(n) positional metadata. Metadata and
 loaded application data are O(n); this cost must be reported separately from
 active row graphs, native views, measured heights and rendering caches.
 
+Point updates share an immutable `keys` snapshot, so order processing can be
+cut off by snapshot identity. `fold_changed_keys` uses persistent-map sharing
+to invalidate changed rows without scanning the unchanged history. It reports
+conservative invalidations, not semantic equality of arbitrary application data.
+
 `Gpuio.List_paging` owns two explicit boundaries: ready, loading, failed or end.
 At most one request per boundary is active. Before/after pages can complete in
 either order; before pages arrive in normal display order. Both splice into the
@@ -30,7 +35,7 @@ cancels producer fibers on reset/cancel/close and suppresses queued completions.
 Its parent scope should be the conversation or application if loading must
 survive virtual-row deactivation. No viewport operation implicitly cancels
 conversation work. Applications pass I/O capabilities to the loader closure and
-publish controller snapshots to Bonsai through `on_change`.
+publish the immutable snapshot supplied to `on_change` directly to Bonsai.
 
 These modules retain loaded data intentionally. An unbounded conversation needs
 an application persistence/windowing policy, rather than a claim that UI
@@ -57,6 +62,30 @@ The pinned native implementation provides `splice_focusable`,
 `logical_scroll_top`, `scroll_to`, `remeasure_items`, `FollowMode::Tail` and
 scrollbar geometry. It can retain an offscreen focused item. These primitives
 still need integration with GPUIO's transaction, event and resource lifetimes.
+
+The native state adapter now wraps the actual GPUI `ListState`. State-level
+tests preserve key/offset through prepend/reorder, invalidate row heights, pause
+following while away from the tail, and explicitly resume it on jump-to-end.
+They also reject obsolete order revisions and repeated scroll commands. These
+checks execute GPUI state methods without a window; pixel layout, wheel input
+and focus/IME still require the host integration and graphical tests.
+
+The first native metadata layer uses positive logical row IDs independent of
+native node handles. Consecutive IDs are encoded as runs: an initial 100,000-row
+order occupies eight bin_prot bytes, verified independently in OCaml and Rust.
+An uncompressed native index supports key lookup and anchor relocation. That
+index is O(n) metadata; compact wire size is not a claim of constant native
+memory. A removed anchor falls forward to its next surviving neighbor, then
+backward, then to the new first row, at offset zero. A surviving anchor keeps
+its exact offset through prepend/reorder.
+
+The metadata validator caps logical rows at 1,000,000 and runs at 32,768, rejects
+overlapping IDs and checks overflow before expansion. Active descriptions have
+a separate configurable budget capped at 16,384. These are per-value admission
+limits: native tree/session accounting must also charge expanded metadata and
+GPUI measurement storage. The existing 1-MiB message and 64-MiB tree budgets still
+apply. Highly fragmented large reorders may need staged metadata transport;
+that integration and precise supported limits remain to settle before release.
 
 ## Bonsai v0.17 retention findings
 

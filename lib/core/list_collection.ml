@@ -2,19 +2,23 @@ open Core
 
 type ('key, 'data, 'cmp) t =
   { order : 'key array
+  ; keys : 'key list
   ; entries : ('key, int * 'data, 'cmp) Map.t
   }
 
-let empty comparator = { order = [||]; entries = Map.empty comparator }
+let empty comparator = { order = [||]; keys = []; entries = Map.empty comparator }
 
 let of_alist comparator rows =
   let entries = List.mapi rows ~f:(fun index (key, data) -> key, (index, data)) in
   match Map.of_alist comparator entries with
   | `Duplicate_key _ -> Or_error.error_string "list collection keys must be unique"
-  | `Ok entries -> Ok { order = Array.of_list (List.map rows ~f:fst); entries }
+  | `Ok entries ->
+    let keys = List.map rows ~f:fst in
+    Ok { order = Array.of_list keys; keys; entries }
 ;;
 
 let length t = Array.length t.order
+let keys t = t.keys
 let is_empty t = length t = 0
 let find t key = Map.find t.entries key |> Option.map ~f:snd
 let index t key = Map.find t.entries key |> Option.map ~f:fst
@@ -44,6 +48,15 @@ let set t ~key ~data =
 ;;
 
 let to_alist t = range t ~first:0 ~last:(length t) |> Or_error.ok_exn
+
+let fold_changed_keys t ~previous ~init ~f =
+  Map.fold_symmetric_diff
+    previous.entries
+    t.entries
+    ~data_equal:phys_equal
+    ~init
+    ~f:(fun acc (key, _) -> f acc key)
+;;
 
 let splice t ~at ~remove rows =
   if at < 0 || at > length t || remove < 0 || remove > length t - at

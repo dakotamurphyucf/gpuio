@@ -12,6 +12,14 @@ module Page = struct
     }
 end
 
+module Snapshot = struct
+  type ('key, 'data, 'cmp) t =
+    { items : ('key, 'data, 'cmp) Gpuio.List_collection.t
+    ; before : Status.t
+    ; after : Status.t
+    }
+end
+
 type pending =
   { request : Request.t
   ; task : Scope.Task.t
@@ -21,7 +29,7 @@ type ('key, 'data, 'cmp) t =
   { scope : Scope.t
   ; state : ('key, 'data, 'cmp) P.t
   ; load : Request.t -> ('key, 'data) Page.t Or_error.t
-  ; on_change : unit -> unit Bonsai.Effect.t
+  ; on_change : ('key, 'data, 'cmp) Snapshot.t -> unit Bonsai.Effect.t
   ; mutable before : pending option
   ; mutable after : pending option
   ; mutable closed : bool
@@ -94,9 +102,17 @@ let status t direction =
   P.status t.state direction
 ;;
 
+let snapshot t =
+  check t;
+  { Snapshot.items = P.items t.state
+  ; before = P.status t.state Before
+  ; after = P.status t.state After
+  }
+;;
+
 let notify t =
   if (not t.closed) && Scope.is_active t.scope
-  then Bonsai.Effect.Expert.handle (t.on_change ())
+  then Bonsai.Effect.Expert.handle (t.on_change (snapshot t))
 ;;
 
 let start t direction ~retry =
