@@ -1,6 +1,7 @@
 # Managed lists (OCH-13)
 
-Implemented and validated locally, 2026-09-24; hosted acceptance/merge pending.
+Implemented and validated locally and in CI, 2026-09-24.
+[PR #11](https://github.com/dakotamurphyucf/gpuio/pull/11) tracks final review and merge.
 This document refines the accepted
 [managed-list contract](accepted-contracts.md#managed-list-contract). See the
 [acceptance evidence](../evidence/managed-lists-och13.md) for exact coverage.
@@ -46,7 +47,7 @@ These modules retain loaded data intentionally. An unbounded conversation needs
 an application persistence/windowing policy, rather than a claim that UI
 virtualization makes retained application data constant-space.
 
-## Native rendering plan
+## Native rendering
 
 The simple list retains every supplied description but builds GPUI elements only
 for the native requested range. The managed list retains descriptions and row
@@ -168,8 +169,8 @@ Creating a separate Bonsai driver for every newly visited row is not the chosen
 shortcut: in this pin, driver construction registers a `Ui_effect.Define`
 handler in a global table and observer invalidation does not unregister it.
 Independent drivers also cannot implicitly capture parent graph values. Keep
-the managed rows inside the existing window graph and validate the explicit
-retention contract without changing the Bonsai fork unless evidence requires it.
+the managed rows inside the existing window graph with the explicit
+retention contract and the bounded action-history policy below.
 
 ## Application API and paging
 
@@ -252,5 +253,7 @@ Lists expose List/ListItem accessibility roles for rendered content and accept
 an accessible name through style. This does not synthesize an accessibility node
 for every unloaded row or claim comprehensive screen-reader traversal.
 `CAP_VIRTUAL_LISTS` is 67108864; the aggregate bridge mask is 134217727.
-Hosted macOS/Linux gates and merge remain pending. Linux GUI is informational
-under OCH-17, per the accepted platform priority.
+Hosted macOS functionality and Linux build/unit checks pass for the implementation;
+the linked PR records the final head and merge. X11 also passes the automated list
+checks. Wayland stops at an existing combobox clipboard failure before reaching
+them. Linux GUI remains informational under OCH-17, per the accepted priority.

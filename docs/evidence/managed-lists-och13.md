@@ -1,7 +1,8 @@
 # Managed-list acceptance evidence (OCH-13)
 
 2026-09-24, local macOS arm64, stock OCaml 5.3/Core+Bonsai v0.17, Dune 3.24.2,
-Rust 1.97.1. Branch `och-13-managed-lists`; hosted checks/merge pending.
+Rust 1.97.1. [PR #11](https://github.com/dakotamurphyucf/gpuio/pull/11) records final checks
+and merge. The implementation and local/hosted evidence are described below.
 
 ## Public application behavior
 
@@ -39,8 +40,8 @@ macOS-specific composition assertions are explicitly conditional.
 
 ## Whole-history retention
 
-The OCaml expect test visits and revisits 100,000 application records with 100
-active rows and non-default 2-KiB row model payloads. Weak references retain no
+The OCaml expect test makes two complete passes through 100,000 application
+records, then revisits three sample keys (200,003 activations), with 100 active rows and non-default 2-KiB row model payloads. Weak references retain no
 more than the active payloads, then none after eviction. Immediate retained heap
 growth is below 150,000 words above an already-loaded O(N) source/metadata
 baseline. Application data survives. The production driver selects the explicit
@@ -85,7 +86,29 @@ barriers after nonempty pages, failures/retry/end, reset/cancellation, queued
 obsolete results and old-generation controls. See `test/runtime`,
 `test/virtual_list` and `test/protocol/list_test.ml`.
 
-## Reproduction and remaining gates
+## Hosted validation
+
+[Run 36056171245](https://github.com/dakotamurphyucf/gpuio/actions/runs/36056171245)
+at `2c2063b157801eca671a2a2482ccd10ba2e44d43` passed the required validation
+steps on macOS ARM64 and Ubuntu 24.04 x86-64. The macOS artifacts contain both
+native-list markers and `MANAGED_LIST_PASS`, including the 200,000 native visits,
+peak 101 retired text payloads, 261 after unmount and zero after window disposal.
+
+The informational X11 run also passed those scenarios and the complete graphical
+smoke script. Wayland reached the pre-existing combobox clipboard assertion
+(`control_test.rs:690`, expected `De`, observed empty text) before the list tests,
+so no Wayland list execution is claimed. `linux-gui-status.json` records X11
+success and Wayland failure. GitHub's normalized conclusion for an optional
+continue-on-error step is not the actual graphical outcome. OCH-17 retains full
+Linux GUI/IME acceptance responsibility.
+
+The initial OCaml retention test visited the entire history once and revisited
+three keys. Final review strengthened it to the two complete passes described
+above; the stronger test and formatting pass locally. This test-only follow-up
+and the final required-check/merge result are recorded on PR #11. Production
+list code is unchanged by that follow-up.
+
+## Reproduction
 
 ```sh
 ./scripts/gpuio exec dune build @all @runtest @fmt -j 2
@@ -97,5 +120,5 @@ obsolete results and old-generation controls. See `test/runtime`,
 
 CI requires macOS functional checks and Linux builds/unit tests. The Linux GUI
 runs are informational under OCH-17; compilation alone does not count as GUI
-acceptance. Final consolidated checks, hosted run and merged revision will be
-recorded here before closing OCH-13.
+acceptance. The linked PR and OCH-13 completion record identify the final checked head and
+merged revision.

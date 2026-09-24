@@ -307,20 +307,22 @@ let%expect_test "full-history visit and revisit release non-default row payloads
   Gc.full_major ();
   let baseline = (Gc.stat ()).live_words in
   let live () = List.count (List.init count ~f:Fn.id) ~f:(Stdlib.Weak.check weak) in
-  for visit = 0 to (count / page_size) - 1 do
-    let keys = List.init page_size ~f:(fun offset -> (visit * page_size) + offset) in
-    observe driver keys;
-    assert (V.Output.active_rows (result driver) = page_size);
-    display driver;
-    if visit mod 20 = 19
-    then (
-      Gc.full_major ();
-      assert (live () <= page_size))
+  for _pass = 1 to 2 do
+    for visit = 0 to (count / page_size) - 1 do
+      let keys = List.init page_size ~f:(fun offset -> (visit * page_size) + offset) in
+      observe driver keys;
+      assert (V.Output.active_rows (result driver) = page_size);
+      display driver;
+      if visit mod 20 = 19
+      then (
+        Gc.full_major ();
+        assert (live () <= page_size))
+    done
   done;
   observe driver [ 0; 1; 2 ];
   ignore (result driver : int V.Output.t);
   display driver;
-  assert (!allocations = count + 3);
+  assert (!allocations = (2 * count) + 3);
   observe driver [];
   ignore (result driver : int V.Output.t);
   display driver;
@@ -331,10 +333,10 @@ let%expect_test "full-history visit and revisit release non-default row payloads
   assert (C.length data = count && String.equal (C.find data 0 |> Option.value_exn) "0");
   Bonsai_driver.Expert.invalidate_observers driver;
   print_endline
-    "100k rows visited and revisited; zero retained row payloads; retained heap growth \
-     below 150k words";
+    "100k rows visited twice; zero retained row payloads; retained heap growth below \
+     150k words";
   [%expect
-    {| 100k rows visited and revisited; zero retained row payloads; retained heap growth below 150k words |}]
+    {| 100k rows visited twice; zero retained row payloads; retained heap growth below 150k words |}]
 ;;
 
 let%expect_test
