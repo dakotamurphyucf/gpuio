@@ -809,6 +809,9 @@ async fn combobox_control(
 }
 
 async fn focus_scopes(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport: &Transport) {
+    // Transport assertions below exercise AppKit accessibility actions only.
+    #[cfg(not(target_os = "macos"))]
+    let _ = transport;
     let scope = FocusScopeConfig {
         trap: true,
         auto_focus: true,
