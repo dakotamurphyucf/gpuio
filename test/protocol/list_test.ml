@@ -110,3 +110,31 @@ let%expect_test "list viewport events validate the data generation and bounded i
     ~f:(fun bad -> assert (Or_error.is_error (Wire.Event.decode (encode bad))));
   [%expect {| 011b000100010001010100030301020301010101000000000000104000000000 |}]
 ;;
+
+let%expect_test "retention responses are bounded correlated replies" =
+  let open Gpuio_protocol in
+  let window = Window_id.create ~slot:0L ~generation:1L |> Or_error.ok_exn in
+  let node = Node_id.create ~slot:0L ~generation:1L |> Or_error.ok_exn in
+  let encode notices =
+    Bin_prot.Utils.bin_dump
+      [%bin_writer: Wire.Event.t list]
+      [ List_retained (window, 2L, notices) ]
+    |> Bigstring.to_string
+  in
+  let valid = [ { L.Retained.node; rows = [ 1L; 9L ] } ] in
+  let bytes = encode valid in
+  ignore (Wire.Event.decode bytes |> Or_error.ok_exn : Wire.Event.t list);
+  print_endline
+    (String.to_list bytes
+     |> List.map ~f:(fun c -> sprintf "%02x" (Char.to_int c))
+     |> String.concat);
+  List.iter
+    [ []
+    ; [ { L.Retained.node; rows = [] } ]
+    ; valid @ valid
+    ; [ { L.Retained.node; rows = [ 1L; 1L ] } ]
+    ; [ { L.Retained.node; rows = [ 0L ] } ]
+    ]
+    ~f:(fun invalid -> assert (Or_error.is_error (Wire.Event.decode (encode invalid))));
+  [%expect {| 011c000102010001020109 |}]
+;;

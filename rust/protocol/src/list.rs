@@ -175,3 +175,10 @@ mod tests {
         );
     }
 }
+
+/// A native retention veto of an otherwise valid, unapplied transaction.
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct Retained {
+    pub node: crate::NodeId,
+    pub rows: Vec<i64>,
+}

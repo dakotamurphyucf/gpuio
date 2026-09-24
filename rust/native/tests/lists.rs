@@ -305,3 +305,74 @@ fn viewport_observations_validate_order_membership_and_coalesce() {
             .is_none()
     );
 }
+
+#[test]
+fn native_pins_veto_stale_eviction_but_not_explicit_data_deletion() {
+    use gpuio_native::tree::ApplyFailure;
+    let mut tree = Tree::new(window());
+    tree.apply(&tx(&tree, initial(10))).unwrap();
+    let pins = vec![Retained {
+        node: node(0),
+        rows: vec![1],
+    }];
+    let eviction = vec![
+        Op::Remove(node(1)),
+        Op::Splice(node(0), 0, 1, vec![]),
+        Op::SetListRows(node(0), vec![]),
+    ];
+    let revision = tree.revision();
+    let bytes = tree.retained_bytes();
+    assert_eq!(
+        tree.apply_guarded(&tx(&tree, eviction.clone()), usize::MAX, &pins),
+        Err(ApplyFailure::Retained(pins.clone()))
+    );
+    assert_eq!(tree.revision(), revision);
+    assert_eq!(tree.retained_bytes(), bytes);
+    assert!(tree.get(node(1)).is_some());
+    let mut deletion = eviction;
+    deletion.push(Op::SetListOrder(
+        node(0),
+        Order {
+            revision: 2,
+            runs: vec![IdRun { first: 2, count: 9 }],
+        },
+    ));
+    tree.apply_guarded(&tx(&tree, deletion), usize::MAX, &pins)
+        .unwrap();
+    assert!(tree.get(node(1)).is_none());
+    let mut other = Tree::new(window());
+    other.apply(&tx(&other, initial(10))).unwrap();
+    other
+        .apply_guarded(
+            &tx(
+                &other,
+                vec![Op::SetRoot(None), Op::Remove(node(1)), Op::Remove(node(0))],
+            ),
+            usize::MAX,
+            &pins,
+        )
+        .unwrap();
+    assert!(other.is_empty());
+}
+
+#[test]
+fn retention_response_releases_the_single_inflight_reservation() {
+    use gpuio_native::mailbox::Mailbox;
+    let mut queue = Mailbox::default();
+    let tree = Tree::new(window());
+    let message = Message::Apply(tx(&tree, initial(10)));
+    queue.submit(message.clone(), 100).unwrap();
+    queue.pop().unwrap();
+    let reply = Event::ListRetained(
+        window(),
+        1,
+        vec![Retained {
+            node: node(0),
+            rows: vec![1],
+        }],
+    );
+    queue.respond(reply.clone());
+    assert_eq!(queue.submit(message.clone(), 100), Err(ErrorCode::Busy));
+    assert_eq!(queue.drain(10), vec![reply]);
+    queue.submit(message, 100).unwrap();
+}

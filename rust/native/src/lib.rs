@@ -98,3 +98,8 @@ pub fn run_native_image_test() {
 pub fn run_native_image_view_test() {
     host::image_view::test::run();
 }
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_list_test() {
+    host::list_test::run();
+}

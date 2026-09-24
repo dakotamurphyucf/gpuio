@@ -130,3 +130,9 @@ name = "native_image_views"
 path = "tests/native_image_views.rs"
 harness = false
 required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_list"
+path = "tests/native_list.rs"
+harness = false
+required-features = ["native-tests"]

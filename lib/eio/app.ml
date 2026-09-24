@@ -377,6 +377,13 @@ let process t = function
   | Closed (request, id) ->
     t.closes <- Map.remove t.closes request;
     Option.iter (find_window t id) ~f:release_window
+  | List_retained (id, revision, notices) ->
+    Option.iter (find_window t id) ~f:(fun window ->
+      if not (Window.is_closed window)
+      then
+        Option.iter window.driver ~f:(fun driver ->
+          Driver.retry_list_rows driver ~revision notices |> Or_error.ok_exn));
+    Inbox.wake t.inbox
   | Accepted (id, revision) ->
     Option.iter (find_window t id) ~f:(fun window ->
       if not (Window.is_closed window)

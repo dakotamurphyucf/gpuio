@@ -959,6 +959,40 @@ let accept t update =
     Ok ())
 ;;
 
+let retain_list_rows t notices =
+  if t.closed
+  then Or_error.error_string "window reconciler is closed"
+  else
+    let open Or_error.Let_syntax in
+    let%bind () = Gpuio_protocol.List_wire.Retained.validate_all notices in
+    List.map notices ~f:(fun notice ->
+      match
+        Map.find
+          t.state.bindings
+          (node_slot notice.Gpuio_protocol.List_wire.Retained.node)
+      with
+      | Some { node; callback = Virtual_list (identity, list); _ }
+        when Node_id.equal node notice.node ->
+        let%bind callback =
+          Option.value_map
+            list.on_retain
+            ~default:(Or_error.error_string "list has no retention callback")
+            ~f:Or_error.return
+        in
+        let%map keys =
+          List.map notice.rows ~f:(fun id ->
+            Option.value_map
+              (List_identity.key identity id)
+              ~default:
+                (Or_error.error_string "retention references an absent logical row")
+              ~f:Or_error.return)
+          |> Or_error.all
+        in
+        callback keys
+      | Some _ | None -> Or_error.error_string "retention references an absent list")
+    |> Or_error.all
+;;
+
 let dispatch t = function
   | Wire.Event.List_viewport (window, node, handler, revision, viewport)
     when (not t.closed)
@@ -1230,6 +1264,7 @@ let dispatch t = function
   | File_dialog_result _
   | Image_state _
   | Animation_endpoint _
+  | List_retained _
   | List_viewport _
   | Asset_response _
   | Editor_result _

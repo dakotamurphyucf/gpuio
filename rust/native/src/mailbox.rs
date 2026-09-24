@@ -229,6 +229,7 @@ impl Mailbox {
             | Event::Closed(_, id)
             | Event::Accepted(id, _)
             | Event::Rejected(id, ..)
+            | Event::ListRetained(id, ..)
             | Event::Rendered(id, _)
             | Event::FrameRequested(_, id, _)
             | Event::Press(id, ..)
@@ -283,7 +284,9 @@ impl Mailbox {
                 Class::Terminal => (),
                 Class::Control => self.controls -= 1,
             }
-            if let Event::Accepted(id, _) | Event::Rejected(id, ..) = output.event {
+            if let Event::Accepted(id, _) | Event::Rejected(id, ..) | Event::ListRetained(id, ..) =
+                output.event
+            {
                 self.in_flight.remove(&id);
             }
             result.push(output.event);

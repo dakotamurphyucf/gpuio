@@ -60,15 +60,18 @@ the same accepted transaction. Scrollbar support belongs to this ticket.
 
 The pinned native implementation provides `splice_focusable`,
 `logical_scroll_top`, `scroll_to`, `remeasure_items`, `FollowMode::Tail` and
-scrollbar geometry. It can retain an offscreen focused item. These primitives
-still need integration with GPUIO's transaction, event and resource lifetimes.
+scrollbar geometry. It can retain an offscreen focused item. These primitives are now connected to GPUIO's retained native host. The managed
+Bonsai component and full-history resource acceptance tests remain in progress.
 
 The native state adapter now wraps the actual GPUI `ListState`. State-level
 tests preserve key/offset through prepend/reorder, invalidate row heights, pause
 following while away from the tail, and explicitly resume it on jump-to-end.
-They also reject obsolete order revisions and repeated scroll commands. These
-checks execute GPUI state methods without a window; pixel layout, wheel input
-and focus/IME still require the host integration and graphical tests.
+They also reject obsolete order revisions and repeated scroll commands. The state checks run without a window. A separate `native_list` graphical test
+uses the production host: 100,000 logical rows, sparse descriptions, measured
+row heights, exact key/pixel anchors through prepend/reorder/height changes and
+resize, tail jump, focused-row retention and disposal. Wheel/scrollbar gestures,
+IME/selection and full-history resource bounds still need expanded acceptance
+coverage.
 
 The first native metadata layer uses positive logical row IDs independent of
 native node handles. Consecutive IDs are encoded as runs: an initial 100,000-row
@@ -86,6 +89,38 @@ limits: native tree/session accounting must also charge expanded metadata and
 GPUI measurement storage. The existing 1-MiB message and 64-MiB tree budgets still
 apply. Highly fragmented large reorders may need staged metadata transport;
 that integration and precise supported limits remain to settle before release.
+
+## Bridge and stale eviction
+
+`Gpuio.Virtual_list.Config` chooses fixed or estimated row height, overscan,
+maximum active rows, tail policy and a native scrollbar. Fixed rows clip at the
+specified height; estimated rows are measured by GPUI. `View.virtual_list`
+retains all supplied keyed descriptions. The expert managed description supplies
+an independent `Order` plus a sparse active set. Orders should be shared across
+value-only changes. The reconciler preserves surviving logical IDs across reorder;
+a streamed row update sends text and a height invalidation, without the full order.
+
+Native transactions validate list mappings, command targets and metadata before
+publication. Logical metadata is charged at 192 admission bytes per row before
+expansion; this conservative quota is not a measurement of RSS. The tree and
+native list share one immutable index. Viewport events include order revision and
+are rejected after that source order changes. Requests prioritize pinned rows,
+then visible rows, then overscan, with an explicit budget-exhaustion diagnostic.
+
+Native focus can change after OCaml receives a viewport event. The host therefore
+snapshots actual row focus, editor focus/composition and active text-selection
+gestures immediately before applying a transaction. If a candidate evicts a pinned
+row whose logical ID still exists, the entire transaction remains unapplied.
+A single reserved `List_retained` reply identifies the submitted revision and
+required rows. The OCaml driver discards only that pending candidate, schedules
+retention callbacks from the last accepted view, and retries without running
+Bonsai deactivation/reset hooks. Explicit source deletion or list removal still
+disposes the row. A historical unfocused selection alone does not pin it forever.
+
+Tests cover atomic rollback, explicit deletion, response-reservation release,
+source-generation validation, independent OCaml/Rust bin_prot fixtures, and an
+actual Bonsai row model that survives a retry without activation/deactivation or
+reset. Ordinary accepted removal still runs deactivation exactly once.
 
 ## Bonsai v0.17 retention findings
 

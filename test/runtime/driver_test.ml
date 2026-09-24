@@ -242,3 +242,102 @@ let%expect_test "activation sleep starts from acknowledgment-time clock sample" 
   print_endline "ACK_CLOCK_PASS";
   [%expect {| ACK_CLOCK_PASS |}]
 ;;
+
+let%expect_test
+    "native row retention retries without committing deactivation or resetting a model"
+  =
+  let module Rows = Gpuio_bonsai.Managed_rows in
+  let desired = B.Expert.Var.create true in
+  let activations = ref 0 in
+  let deactivations = ref 0 in
+  let key = Gpuio.Key.of_string_exn "row" in
+  let order = Gpuio.Virtual_list.Order.create [ key ] |> Or_error.ok_exn in
+  let config =
+    Gpuio.Virtual_list.Config.create ~height:(Estimated 80.) () |> Or_error.ok_exn
+  in
+  let component graph =
+    let open B.Let_syntax in
+    let active =
+      let%arr active = B.Expert.Var.value desired in
+      if active then Int.Map.singleton 1 () else Int.Map.empty
+    in
+    let rows =
+      Rows.assoc
+        (module Int)
+        active
+        ~f:(fun _ _ _ graph ->
+          let count, bump =
+            B.state_machine0
+              ~default_model:0
+              ~apply_action:(fun _ count () -> count + 1)
+              graph
+          in
+          B.Edge.lifecycle
+            ~on_activate:(B.return (E.of_thunk (fun () -> Int.incr activations)))
+            ~on_deactivate:(B.return (E.of_thunk (fun () -> Int.incr deactivations)))
+            graph;
+          let%arr count = count
+          and bump = bump in
+          Gpuio.View.button ~on_click:bump (Int.to_string count))
+        graph
+    in
+    let%arr rows = rows in
+    Gpuio.View.Expert.managed_virtual_list
+      ~config
+      ~order
+      ~on_viewport:(fun _ -> E.Ignore)
+      ~on_retain:(fun keys ->
+        E.of_thunk (fun () ->
+          assert (List.equal Gpuio.Key.equal keys [ key ]);
+          B.Expert.Var.set desired true))
+      (Map.data rows |> List.map ~f:(fun row -> key, row))
+    |> Or_error.ok_exn
+  in
+  let driver = create component in
+  cycle driver 0.;
+  let first = accept driver |> Option.value_exn in
+  let list_node =
+    List.find_map_exn first.operations ~f:(function
+      | Create (node, Virtual_list, _, _) -> Some node
+      | _ -> None)
+  in
+  let button, handler =
+    List.find_map_exn first.operations ~f:(function
+      | Create (node, Button, _, Some handler) -> Some (node, handler)
+      | _ -> None)
+  in
+  Driver.dispatch driver (Press (window, button, handler, first.revision));
+  cycle driver 0.;
+  ignore (accept driver : Wire.Transaction.t option);
+  assert (!activations = 1 && !deactivations = 0);
+  B.Expert.Var.set desired false;
+  cycle driver 0.;
+  let eviction =
+    match Driver.next_message driver with
+    | Some (Apply tx) -> tx
+    | _ -> assert false
+  in
+  Driver.submitted driver;
+  let pins = [ { Gpuio_protocol.List_wire.Retained.node = list_node; rows = [ 1L ] } ] in
+  assert (
+    Or_error.is_error
+      (Driver.retry_list_rows driver ~revision:Int64.(eviction.revision + 1L) pins));
+  Driver.retry_list_rows driver ~revision:eviction.revision pins |> Or_error.ok_exn;
+  assert (!deactivations = 0);
+  cycle driver 0.;
+  assert (Option.is_none (Driver.next_message driver));
+  assert (!activations = 1 && !deactivations = 0);
+  Driver.dispatch driver (Press (window, button, handler, first.revision));
+  cycle driver 0.;
+  let updated = accept driver |> Option.value_exn in
+  assert (
+    List.exists updated.operations ~f:(function
+      | Set_text (_, "2") -> true
+      | _ -> false));
+  B.Expert.Var.set desired false;
+  cycle driver 0.;
+  ignore (accept driver : Wire.Transaction.t option);
+  assert (!deactivations = 1);
+  Driver.close driver;
+  [%expect {| |}]
+;;

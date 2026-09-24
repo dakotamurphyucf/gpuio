@@ -278,14 +278,24 @@ impl Tree {
         tx: &Transaction,
         budget: usize,
     ) -> Result<Applied, ErrorCode> {
+        self.apply_guarded(tx, budget, &[])
+            .map_err(ApplyFailure::rejection)
+    }
+
+    pub fn apply_guarded(
+        &mut self,
+        tx: &Transaction,
+        budget: usize,
+        pins: &[gpuio_protocol::list::Retained],
+    ) -> Result<Applied, ApplyFailure> {
         if tx.window != self.window {
-            return Err(ErrorCode::StaleHandle);
+            return Err(ErrorCode::StaleHandle.into());
         }
         if tx.base != self.revision || self.revision.checked_add(1) != Some(tx.revision) {
-            return Err(ErrorCode::InvalidRevision);
+            return Err(ErrorCode::InvalidRevision.into());
         }
         if tx.operations.len() > MAX_OPERATIONS {
-            return Err(ErrorCode::LimitExceeded);
+            return Err(ErrorCode::LimitExceeded.into());
         }
         let mut plan = Plan {
             original: self,
@@ -310,18 +320,18 @@ impl Tree {
                         Kind::Select | Kind::Combobox | Kind::Menu | Kind::CommandPalette
                     )
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if node.choice.is_some()
                     && !matches!(node.kind, Kind::RadioGroup | Kind::Select | Kind::Combobox)
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if node
                     .control
                     .is_some_and(|control| control.kind() != node.kind)
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if node.kind == Kind::Combobox {
                     let choices = node.choice.as_ref().ok_or(ErrorCode::InvalidTree)?;
@@ -333,10 +343,10 @@ impl Tree {
                         || editor.read_only
                         || editor.submit_on_enter
                     {
-                        return Err(ErrorCode::InvalidTree);
+                        return Err(ErrorCode::InvalidTree.into());
                     }
                 } else if node.combobox_filter.is_some() {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::DragSource) != node.drag_source.is_some()
                     || (node.kind == Kind::DropTarget) != node.drop_target.is_some()
@@ -346,7 +356,7 @@ impl Tree {
                             || node.control.is_some()
                             || node.choice.is_some()))
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::PointerArea) != node.pointer.is_some()
                     || node.pointer.as_ref().is_some_and(|config| {
@@ -357,7 +367,7 @@ impl Tree {
                             || node.choice.is_some()
                     })
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::Toast) != node.toast.is_some()
                     || node.toast.as_ref().is_some_and(|config| {
@@ -368,7 +378,7 @@ impl Tree {
                             || node.choice.is_some()
                     })
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::ToastStack) != node.toast_stack.is_some()
                     || node.toast_stack.as_ref().is_some_and(|config| {
@@ -380,7 +390,7 @@ impl Tree {
                             || node.choice.is_some()
                     })
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::Animated) != node.animation.is_some()
                     || node.animation.as_ref().is_some_and(|config| {
@@ -390,7 +400,7 @@ impl Tree {
                             || node.choice.is_some()
                     })
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if matches!(node.kind, Kind::Image | Kind::Icon) != node.image.is_some()
                     || node.image.as_ref().is_some_and(|config| {
@@ -401,7 +411,7 @@ impl Tree {
                             || node.choice.is_some()
                     })
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::Progress) != node.progress.is_some()
                     || node.progress.as_ref().is_some_and(|config| {
@@ -413,7 +423,7 @@ impl Tree {
                             || node.choice.is_some()
                     })
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::CommandPalette) != node.palette.is_some()
                     || node.palette.as_ref().is_some_and(|config| {
@@ -425,7 +435,7 @@ impl Tree {
                             || node.choice.is_some()
                     })
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::Menu) != node.menu.is_some()
                     || node.menu.as_ref().is_some_and(|menu| {
@@ -437,7 +447,7 @@ impl Tree {
                                 != usize::from(menu.presentation == MenuPresentation::Context)
                     })
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::CommandScope) != node.commands.is_some()
                     || (node.kind == Kind::CommandButton) != node.command_ref.is_some()
@@ -448,10 +458,10 @@ impl Tree {
                     || (node.kind == Kind::CommandButton
                         && (node.handler.is_some() || node.control.is_some()))
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::FocusScope) != node.focus_scope.is_some() {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::Tooltip) != node.tooltip.is_some()
                     || node
@@ -460,10 +470,10 @@ impl Tree {
                         .is_some_and(|config| !config.is_valid())
                     || (node.kind == Kind::Tooltip && node.children.len() != 2)
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if node.placement.is_some() && node.overlay.is_none() && node.tooltip.is_none() {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 if let Some(config) = &node.overlay
                     && (node.kind != Kind::FocusScope
@@ -473,7 +483,7 @@ impl Tree {
                             && !node.focus_scope.is_some_and(|scope| scope.trap))
                         || (config.kind == OverlayKind::Popover && Some(node.id) == plan.root))
                 {
-                    return Err(ErrorCode::InvalidTree);
+                    return Err(ErrorCode::InvalidTree.into());
                 }
                 match node.kind {
                     Kind::Input | Kind::Textarea | Kind::Combobox => {
@@ -486,7 +496,7 @@ impl Tree {
                                     || config.max_rows != 1
                                     || node.text.contains(['\r', '\n'])))
                         {
-                            return Err(ErrorCode::InvalidTree);
+                            return Err(ErrorCode::InvalidTree.into());
                         }
                     }
                     Kind::Container
@@ -509,7 +519,7 @@ impl Tree {
                     | Kind::Text
                     | Kind::Button => {
                         if node.editor.is_some() {
-                            return Err(ErrorCode::InvalidTree);
+                            return Err(ErrorCode::InvalidTree.into());
                         }
                     }
                     Kind::Checkbox | Kind::Switch => {
@@ -518,7 +528,7 @@ impl Tree {
                             || (!control.disabled() && node.handler.is_none())
                             || node.text.contains('\0')
                         {
-                            return Err(ErrorCode::InvalidTree);
+                            return Err(ErrorCode::InvalidTree.into());
                         }
                     }
                     Kind::RadioGroup | Kind::Select => {
@@ -527,7 +537,7 @@ impl Tree {
                             || node.editor.is_some()
                             || (!config.disabled && node.handler.is_none())
                         {
-                            return Err(ErrorCode::InvalidTree);
+                            return Err(ErrorCode::InvalidTree.into());
                         }
                     }
                 }
@@ -558,6 +568,35 @@ impl Tree {
         for action in &plan.lists {
             plan.validate_list_action(action)?;
         }
+        let retained: Vec<_> = pins
+            .iter()
+            .filter_map(|pin| {
+                let node = plan.node(pin.node).ok()?;
+                let index = node.list_index.as_ref()?;
+                let mounted: BTreeSet<_> = node.list_rows.iter().map(|row| row.id).collect();
+                let rows: Vec<_> = pin
+                    .rows
+                    .iter()
+                    .copied()
+                    .filter(|id| index.position(*id).is_some() && !mounted.contains(id))
+                    .collect();
+                (!rows.is_empty()).then_some(gpuio_protocol::list::Retained {
+                    node: pin.node,
+                    rows,
+                })
+            })
+            .collect();
+        if retained
+            .iter()
+            .map(|notice| notice.rows.len())
+            .sum::<usize>()
+            > gpuio_protocol::list::MAX_ACTIVE_ROWS
+        {
+            return Err(ErrorCode::LimitExceeded.into());
+        }
+        if !retained.is_empty() {
+            return Err(ApplyFailure::Retained(retained));
+        }
         let Plan {
             changes,
             root,
@@ -586,6 +625,27 @@ impl Tree {
             dirty: dirty.into_iter().collect(),
             lists,
         })
+    }
+}
+
+/// Invalid transactions and stale row-eviction attempts have different retry semantics.
+#[derive(Debug, PartialEq, Eq)]
+pub enum ApplyFailure {
+    Rejected(ErrorCode),
+    Retained(Vec<gpuio_protocol::list::Retained>),
+}
+impl From<ErrorCode> for ApplyFailure {
+    fn from(error: ErrorCode) -> Self {
+        Self::Rejected(error)
+    }
+}
+impl ApplyFailure {
+    // Existing unguarded callers pass no pins, so Retained is unreachable there.
+    pub(crate) fn rejection(self) -> ErrorCode {
+        match self {
+            Self::Rejected(error) => error,
+            Self::Retained(_) => ErrorCode::InvalidTree,
+        }
     }
 }
 

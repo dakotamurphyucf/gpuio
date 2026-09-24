@@ -141,3 +141,26 @@ module Viewport = struct
     else Or_error.error_string "invalid list viewport observation"
   ;;
 end
+
+module Retained = struct
+  type t =
+    { node : Node_id.t
+    ; rows : int64 list
+    }
+  [@@deriving bin_io, equal, sexp_of]
+
+  let validate_all notices =
+    let nodes = List.map notices ~f:(fun t -> t.node) in
+    let count = List.sum (module Int) notices ~f:(fun t -> List.length t.rows) in
+    if
+      List.is_empty notices
+      || count > max_active_rows
+      || List.contains_dup nodes ~compare:Node_id.compare
+      || List.exists notices ~f:(fun t ->
+        List.is_empty t.rows
+        || List.exists t.rows ~f:(fun id -> Int64.(id <= 0L))
+        || List.contains_dup t.rows ~compare:Int64.compare)
+    then Or_error.error_string "invalid list retention response"
+    else Ok ()
+  ;;
+end

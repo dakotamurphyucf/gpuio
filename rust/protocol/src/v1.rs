@@ -652,4 +652,5 @@ pub enum Event {
     ImageState(WindowId, NodeId, HandlerId, i64, ImageState),
     AnimationEndpoint(WindowId, NodeId, HandlerId, i64, crate::animation::Endpoint),
     ListViewport(WindowId, NodeId, HandlerId, i64, crate::list::Viewport),
+    ListRetained(WindowId, i64, Vec<crate::list::Retained>),
 }

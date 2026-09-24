@@ -126,6 +126,17 @@ let schedule t action =
   if not t.closed then Bonsai_driver.schedule_event t.driver action
 ;;
 
+let retry_list_rows t ~revision notices =
+  check t;
+  match t.pending with
+  | Some pending when pending.submitted && Int64.equal revision pending.revision ->
+    let open Or_error.Let_syntax in
+    let%map actions = R.retain_list_rows t.reconciler notices in
+    t.pending <- None;
+    List.iter actions ~f:(schedule t)
+  | Some _ | None -> Or_error.error_string "unexpected native list retention response"
+;;
+
 let dispatch t event =
   check t;
   if not t.closed then Option.iter (R.dispatch t.reconciler event) ~f:(schedule t)

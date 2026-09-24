@@ -3,10 +3,10 @@
 use crate::list_index::{Anchor, Index};
 use gpui::{FollowMode, ListAlignment, ListOffset, ListState, px};
 use gpuio_protocol::list::{Config, Order, ScrollPolicy, ScrollRequest, ScrollTarget};
+use std::sync::Arc;
 
 pub struct State {
-    index: Index,
-    order: Order,
+    index: Arc<Index>,
     config: Config,
     handle: ListState,
     last_scroll: i64,
@@ -14,10 +14,13 @@ pub struct State {
 
 impl State {
     pub fn new(config: Config, order: Order) -> Result<Self, &'static str> {
+        Self::from_index(config, Arc::new(Index::new(&order)?))
+    }
+
+    pub fn from_index(config: Config, index: Arc<Index>) -> Result<Self, &'static str> {
         if !config.is_valid() {
             return Err("invalid list configuration");
         }
-        let index = Index::new(&order)?;
         let handle = ListState::new(index.len(), ListAlignment::Top, px(config.overscan as f32))
             .with_uniform_item_height(px(config.estimated_height as f32));
         if config.scroll_policy == ScrollPolicy::FollowTailWhenAtEnd {
@@ -25,7 +28,6 @@ impl State {
         }
         Ok(Self {
             index,
-            order,
             config,
             handle,
             last_scroll: 0,
@@ -61,13 +63,17 @@ impl State {
     }
 
     pub fn replace_order(&mut self, order: Order) -> Result<bool, &'static str> {
-        if order == self.order {
+        let next = Arc::new(Index::new(&order)?);
+        self.replace_index(next)
+    }
+
+    pub fn replace_index(&mut self, next: Arc<Index>) -> Result<bool, &'static str> {
+        if Arc::ptr_eq(&next, &self.index) || next == self.index {
             return Ok(false);
         }
-        if order.revision <= self.order.revision {
+        if next.revision() <= self.index.revision() {
             return Err("list order revision must advance");
         }
-        let next = Index::new(&order)?;
         let anchor = self
             .anchor()
             .and_then(|anchor| self.index.remap_anchor(&next, anchor));
@@ -79,8 +85,31 @@ impl State {
             .clone()
             .with_uniform_item_height(px(self.config.estimated_height as f32));
         self.index = next;
-        self.order = order;
         self.restore(anchor);
+        Ok(true)
+    }
+
+    pub fn shared_index(&self) -> Arc<Index> {
+        self.index.clone()
+    }
+
+    /// Configuration changes are uncommon. Rebuild native measurement policy,
+    /// preserving the logical anchor and whether tail following was paused.
+    pub fn configure(&mut self, config: Config) -> Result<bool, &'static str> {
+        if self.config == config {
+            return Ok(false);
+        }
+        let anchor = self.anchor();
+        let following = self.handle.is_following_tail();
+        let old_policy = self.config.scroll_policy;
+        let last_scroll = self.last_scroll;
+        let mut next = Self::from_index(config, self.index.clone())?;
+        if old_policy == next.config.scroll_policy && !following {
+            next.handle.pause_following_tail();
+        }
+        next.restore(anchor);
+        next.last_scroll = last_scroll;
+        *self = next;
         Ok(true)
     }
 

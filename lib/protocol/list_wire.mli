@@ -87,3 +87,15 @@ module Viewport : sig
 
   val validate : t -> unit Or_error.t
 end
+
+module Retained : sig
+  (** Native row resources that a stale desired active set tried to evict.
+      Delivered only as a response to a submitted, unapplied transaction. *)
+  type t =
+    { node : Node_id.t
+    ; rows : int64 list
+    }
+  [@@deriving bin_io, equal, sexp_of]
+
+  val validate_all : t list -> unit Or_error.t
+end

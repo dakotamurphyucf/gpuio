@@ -4,6 +4,7 @@
  (libraries
   core
   gpuio
+  gpuio.bonsai
   gpuio.protocol
   gpuio.runtime_core
   gpuio.eio

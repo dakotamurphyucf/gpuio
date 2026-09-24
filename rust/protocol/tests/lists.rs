@@ -168,3 +168,20 @@ fn independent_ocaml_viewport_event_matches() {
         "011b000100010001010100030301020301010101000000000000104000000000"
     );
 }
+
+#[test]
+fn retention_response_matches_ocaml_fixture() {
+    let event = vec![Event::ListRetained(
+        WindowId::from_parts(0, 1).unwrap(),
+        2,
+        vec![Retained {
+            node: node(0),
+            rows: vec![1, 9],
+        }],
+    )];
+    let hex: String = encode(&event)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
+    assert_eq!(hex, "011c000102010001020109");
+}

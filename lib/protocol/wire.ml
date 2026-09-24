@@ -908,6 +908,7 @@ module Event = struct
         Window_id.t * Node_id.t * Handler_id.t * int64 * Animation.Endpoint.t
     | List_viewport of
         Window_id.t * Node_id.t * Handler_id.t * int64 * List_wire.Viewport.t
+    | List_retained of Window_id.t * int64 * List_wire.Retained.t list
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -927,6 +928,8 @@ module Event = struct
   ;;
 
   let rec valid_event = function
+    | List_retained (_, revision, notices) ->
+      Int64.(revision > 0L) && Or_error.is_ok (List_wire.Retained.validate_all notices)
     | List_viewport (_, _, _, revision, viewport) ->
       Int64.(revision >= 0L) && Or_error.is_ok (List_wire.Viewport.validate viewport)
     | Animation_endpoint (_, _, _, revision, endpoint) ->
