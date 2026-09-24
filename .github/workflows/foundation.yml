@@ -98,7 +98,11 @@ jobs:
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_ui --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_editor --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_controls --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_scroll --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_animation --test native_drag_drop --test native_file_dialog --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-tests --all-targets -- -D warnings
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_images --test native_image_views --no-run
+          ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-image-tests --all-targets -- -D warnings
       - name: macOS public runtime checks
         if: runner.os == 'macOS'
         run: |
@@ -114,6 +118,29 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_controls"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-controls-native.log
+      - name: macOS native drag-drop and public lifecycle checks
+        if: runner.os == 'macOS'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_drag_drop"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-drag-drop-native.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/drag_drop/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-drag-drop-public.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/file_dialogs/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-file-dialogs-public.log
+      - name: macOS native and public animations
+        if: runner.os == 'macOS'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_animation"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-animation-native.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/animation/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-animation-public.log
+      - name: macOS native nested scrolling
+        if: runner.os == 'macOS'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_scroll"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-scroll-native.log
+      - name: macOS native image pixels and cleanup
+        if: runner.os == 'macOS'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_images"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-images-native.log
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_image_views"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-image-views-native.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/images/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-images-public.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/images/main.exe", "--self-test", "--svg"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-svg-public.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/images/main.exe", "--self-test", "--icon"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-icons-public.log
       - name: macOS native editor checks
         if: runner.os == 'macOS'
         run: |

@@ -18,6 +18,12 @@ do not wait for CI alone to debug native behavior or ask permission for each run
 Avoid unnecessary activation and repeated runs. Background rendering/layout
 checks must not be reported as real foreground keyboard/IME validation.
 
+OCH-11 delivery workflow (owner, 2026-09-13): complete the remaining ticket scope
+locally, validating incrementally with local builds/tests. Do not wait on hosted
+CI between component families. Submit the complete remaining change for CI and
+resolve hosted failures together before merging. An open PR must not pause useful
+local implementation. Required merge gates remain in force.
+
 Draft coherent types/interfaces before implementation. Use typed comparison,
 receiver-first APIs, validated invariants, Jane Street formatting/PPX and expect
 tests. Keep Rust native ownership and asynchronous event delivery explicit.

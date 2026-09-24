@@ -26,3 +26,8 @@ radio-group/Select creation, choice appearance and the selected-ID event, includ
 selected value. Both languages construct the values independently. Regenerate
 using `emit_choice_fixture` (request) and `emit_choice_fixture -- --events`
 (events), and review both language checks.
+
+`combobox-v1-request.hex` and `combobox-v1-events.hex` cover the editable choice
+kind, both filter tags, and an exact selection snapshot with multibyte UTF-8 and
+reversed byte selection. Literal fixture bytes and independent OCaml/Rust value
+constructors agree; the request is a codec fixture, not a complete valid UI tree.

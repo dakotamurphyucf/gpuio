@@ -52,13 +52,265 @@ impl Decoder<'_> {
     }
 
     fn text(&mut self) -> Result<String, DecodeError> {
-        let count = self.count(MAX_TEXT_BYTES)?;
+        self.bounded_text(MAX_TEXT_BYTES)
+    }
+
+    fn bounded_text(&mut self, maximum: usize) -> Result<String, DecodeError> {
+        let count = self.count(maximum)?;
         let start = self.0.position() as usize;
         let value = std::str::from_utf8(&self.0.get_ref()[start..start + count])
             .map_err(|_| DecodeError::Malformed)?
             .to_owned();
         self.0.set_position((start + count) as u64);
         Ok(value)
+    }
+
+    fn file_path(&mut self) -> Result<crate::file_path::FilePath, DecodeError> {
+        let count = self.count(crate::file_path::MAX_PATH_BYTES)?;
+        let start = self.0.position() as usize;
+        let bytes = self.0.get_ref()[start..start + count].to_vec();
+        self.0.set_position((start + count) as u64);
+        crate::file_path::FilePath::new(bytes).map_err(|_| DecodeError::Malformed)
+    }
+
+    fn resource(&mut self) -> Result<crate::ResourceId, DecodeError> {
+        crate::ResourceId::from_parts(self.int()?, self.int()?).ok_or(DecodeError::Malformed)
+    }
+    fn animation_targets(&mut self) -> Result<Vec<crate::animation::Target>, DecodeError> {
+        use crate::animation::{PROPERTY_COUNT, Property, Target};
+        let count = self.count(PROPERTY_COUNT)?;
+        (0..count)
+            .map(|_| {
+                let property = match self.tag()? {
+                    0 => Property::Width,
+                    1 => Property::Height,
+                    2 => Property::Top,
+                    3 => Property::Right,
+                    4 => Property::Bottom,
+                    5 => Property::Left,
+                    6 => Property::Opacity,
+                    7 => Property::TopLeftRadius,
+                    8 => Property::TopRightRadius,
+                    9 => Property::BottomLeftRadius,
+                    10 => Property::BottomRightRadius,
+                    _ => return Err(DecodeError::Malformed),
+                };
+                Ok(Target {
+                    property,
+                    value: self.float()?,
+                })
+            })
+            .collect()
+    }
+    fn animation_config(&mut self) -> Result<crate::animation::Config, DecodeError> {
+        use crate::animation::{Config, Easing, Repeat};
+        let generation = self.int()?;
+        let targets = self.animation_targets()?;
+        let initial = match self.tag()? {
+            0 => None,
+            1 => Some(self.animation_targets()?),
+            _ => return Err(DecodeError::Malformed),
+        };
+        let duration_ms = self.int()?;
+        let delay_ms = self.int()?;
+        let easing = match self.tag()? {
+            0 => Easing::Linear,
+            1 => Easing::Ease,
+            2 => Easing::EaseIn,
+            3 => Easing::EaseOut,
+            4 => Easing::EaseInOut,
+            5 => Easing::CubicBezier(self.float()?, self.float()?, self.float()?, self.float()?),
+            _ => return Err(DecodeError::Malformed),
+        };
+        let repeat = match self.tag()? {
+            0 => Repeat::Once,
+            1 => Repeat::Loop,
+            2 => Repeat::Alternate,
+            _ => return Err(DecodeError::Malformed),
+        };
+        let config = Config {
+            generation,
+            targets,
+            initial,
+            duration_ms,
+            delay_ms,
+            easing,
+            repeat,
+        };
+        if config.is_valid() {
+            Ok(config)
+        } else {
+            Err(DecodeError::Malformed)
+        }
+    }
+    fn image_error(&mut self) -> Result<ImageError, DecodeError> {
+        Ok(match self.tag()? {
+            0 => ImageError::WrongApplication,
+            1 => ImageError::Released,
+            2 => ImageError::InvalidData,
+            3 => ImageError::Unsupported,
+            4 => ImageError::ResourceLimit,
+            5 => ImageError::NativeFailure,
+            _ => return Err(DecodeError::Malformed),
+        })
+    }
+    fn image_config(&mut self) -> Result<ImageConfig, DecodeError> {
+        let source = match self.tag()? {
+            0 => ImageSource::Reference(self.resource()?),
+            1 => ImageSource::Unavailable(self.image_error()?),
+            _ => return Err(DecodeError::Malformed),
+        };
+        let fit = match self.tag()? {
+            0 => ImageFit::Fill,
+            1 => ImageFit::Contain,
+            2 => ImageFit::Cover,
+            3 => ImageFit::ScaleDown,
+            4 => ImageFit::None,
+            _ => return Err(DecodeError::Malformed),
+        };
+        let label = self.option(|decoder| decoder.bounded_text(4096))?;
+        let config = ImageConfig { source, fit, label };
+        if !config.is_valid() {
+            return Err(DecodeError::Malformed);
+        }
+        Ok(config)
+    }
+    fn asset(&mut self) -> Result<crate::asset::Request, DecodeError> {
+        use crate::asset::{Chunk, Format, MAX_CHUNK_BYTES, Request};
+        Ok(match self.tag()? {
+            0 => {
+                let format = match self.tag()? {
+                    0 => Format::Png,
+                    1 => Format::Jpeg,
+                    2 => Format::Webp,
+                    3 => Format::Gif,
+                    4 => Format::Svg,
+                    5 => Format::Bmp,
+                    6 => Format::Tiff,
+                    7 => Format::Ico,
+                    8 => Format::Pnm,
+                    _ => return Err(DecodeError::Malformed),
+                };
+                Request::Begin(format, self.int()?)
+            }
+            1 => {
+                let id = self.resource()?;
+                let offset = self.int()?;
+                let length = self.count(MAX_CHUNK_BYTES)?;
+                let start = self.0.position() as usize;
+                let data = self.0.get_ref()[start..start + length].to_vec();
+                self.0.set_position((start + length) as u64);
+                Request::Append(
+                    id,
+                    offset,
+                    Chunk::new(data).map_err(|_| DecodeError::LimitExceeded)?,
+                )
+            }
+            2 => Request::Finish(self.resource()?),
+            3 => Request::Release(self.resource()?),
+            _ => return Err(DecodeError::Malformed),
+        })
+    }
+
+    fn file_dialog(&mut self) -> Result<FileDialogConfig, DecodeError> {
+        let config = match self.tag()? {
+            0 => FileDialogConfig::Open(OpenFileConfig {
+                selection: match self.tag()? {
+                    0 => FileSelection::Files,
+                    1 => FileSelection::Directories,
+                    2 => FileSelection::FilesAndDirectories,
+                    _ => return Err(DecodeError::Malformed),
+                },
+                multiple: self.boolean()?,
+                title: self.bounded_text(4096)?,
+                accept_label: self.bounded_text(4096)?,
+                directory: self.option(Self::file_path)?,
+            }),
+            1 => FileDialogConfig::Save(SaveFileConfig {
+                directory: self.file_path()?,
+                suggested_name: self.bounded_text(255)?,
+                title: self.bounded_text(4096)?,
+                accept_label: self.bounded_text(4096)?,
+            }),
+            2 => FileDialogConfig::Capabilities,
+            _ => return Err(DecodeError::Malformed),
+        };
+        if config.is_valid() {
+            Ok(config)
+        } else {
+            Err(DecodeError::Malformed)
+        }
+    }
+
+    fn drag_kind(&mut self) -> Result<crate::drag_drop::CustomKind, DecodeError> {
+        crate::drag_drop::CustomKind::new(self.bounded_text(128)?)
+            .map_err(|_| DecodeError::Malformed)
+    }
+
+    fn drag_payload(&mut self) -> Result<crate::drag_drop::Payload, DecodeError> {
+        use crate::drag_drop::{File, MAX_DATA_BYTES, MAX_FILES, Payload};
+        let payload = match self.tag()? {
+            0 => Payload::text(self.bounded_text(MAX_DATA_BYTES)?),
+            1 => {
+                let count = self.count(MAX_FILES)?;
+                if count == 0 {
+                    return Err(DecodeError::Malformed);
+                }
+                let mut files = Vec::with_capacity(count);
+                let mut remaining_bytes = MAX_DATA_BYTES;
+                for _ in 0..count {
+                    let length =
+                        self.count(remaining_bytes.min(crate::file_path::MAX_PATH_BYTES))?;
+                    let start = self.0.position() as usize;
+                    let bytes = self.0.get_ref()[start..start + length].to_vec();
+                    self.0.set_position((start + length) as u64);
+                    let path = crate::file_path::FilePath::new(bytes)
+                        .map_err(|_| DecodeError::Malformed)?;
+                    files.push(File {
+                        path,
+                        is_directory: self.option(Self::boolean)?,
+                    });
+                    remaining_bytes -= length;
+                }
+                Payload::files(files)
+            }
+            2 => {
+                let kind = self.drag_kind()?;
+                let length = self.count(MAX_DATA_BYTES)?;
+                let start = self.0.position() as usize;
+                let data = self.0.get_ref()[start..start + length].to_vec();
+                self.0.set_position((start + length) as u64);
+                Payload::custom(kind, data)
+            }
+            _ => return Err(DecodeError::Malformed),
+        };
+        payload.map_err(|_| DecodeError::Malformed)
+    }
+
+    fn drag_source(&mut self) -> Result<crate::drag_drop::Source, DecodeError> {
+        crate::drag_drop::Source::new(
+            self.bounded_text(4096)?,
+            self.drag_payload()?,
+            self.boolean()?,
+            self.boolean()?,
+        )
+        .map_err(|_| DecodeError::Malformed)
+    }
+
+    fn drag_target(&mut self) -> Result<crate::drag_drop::Target, DecodeError> {
+        use crate::drag_drop::{Format, MAX_FORMATS, Target};
+        let label = self.bounded_text(4096)?;
+        let count = self.count(MAX_FORMATS)?;
+        let mut formats = Vec::with_capacity(count);
+        for _ in 0..count {
+            formats.push(match self.tag()? {
+                0 => Format::Text,
+                1 => Format::Files,
+                2 => Format::Custom(self.drag_kind()?),
+                _ => return Err(DecodeError::Malformed),
+            });
+        }
+        Target::new(label, formats, self.boolean()?).map_err(|_| DecodeError::Malformed)
     }
 
     fn window(&mut self) -> Result<WindowId, DecodeError> {
@@ -238,6 +490,139 @@ impl Decoder<'_> {
         (0..count).map(|_| f(self)).collect()
     }
 
+    fn shortcut(&mut self) -> Result<Shortcut, DecodeError> {
+        Ok(Shortcut {
+            key: self.text()?,
+            modifiers: self.list(5, |this| {
+                Ok(match this.tag()? {
+                    0 => ShortcutModifier::Primary,
+                    1 => ShortcutModifier::Control,
+                    2 => ShortcutModifier::Alt,
+                    3 => ShortcutModifier::Shift,
+                    4 => ShortcutModifier::Super,
+                    _ => return Err(DecodeError::Malformed),
+                })
+            })?,
+            priority: match self.tag()? {
+                0 => ShortcutPriority::NativeFirst,
+                1 => ShortcutPriority::Override,
+                _ => return Err(DecodeError::Malformed),
+            },
+            text_input: match self.tag()? {
+                0 => ShortcutTextInput::ModifiedOnly,
+                1 => ShortcutTextInput::Always,
+                2 => ShortcutTextInput::Never,
+                _ => return Err(DecodeError::Malformed),
+            },
+            during_composition: self.boolean()?,
+        })
+    }
+    fn menu_definition(
+        &mut self,
+        depth: usize,
+        count: &mut usize,
+    ) -> Result<MenuDefinition, DecodeError> {
+        if depth > 8 {
+            return Err(DecodeError::LimitExceeded);
+        }
+        let label = self.text()?;
+        let disabled = self.boolean()?;
+        let size = self.count(1024usize.saturating_sub(*count))?;
+        *count += size;
+        let mut items = Vec::with_capacity(size);
+        for _ in 0..size {
+            items.push(match self.tag()? {
+                0 => MenuItem::Command(self.text()?),
+                1 => MenuItem::Separator,
+                2 => MenuItem::Submenu(self.menu_definition(depth + 1, count)?),
+                _ => return Err(DecodeError::Malformed),
+            });
+        }
+        Ok(MenuDefinition {
+            label,
+            disabled,
+            items,
+        })
+    }
+    fn menu_config(&mut self) -> Result<MenuConfig, DecodeError> {
+        let presentation = match self.tag()? {
+            0 => MenuPresentation::Button,
+            1 => MenuPresentation::Context,
+            2 => MenuPresentation::Bar,
+            3 => MenuPresentation::PlatformBar,
+            _ => return Err(DecodeError::Malformed),
+        };
+        let size = self.count(32)?;
+        let mut count = 0;
+        let mut menus = Vec::with_capacity(size);
+        for _ in 0..size {
+            menus.push(self.menu_definition(1, &mut count)?);
+        }
+        let config = MenuConfig {
+            presentation,
+            menus,
+        };
+        if !config.is_valid() {
+            return Err(DecodeError::Malformed);
+        }
+        Ok(config)
+    }
+
+    fn command_config(&mut self) -> Result<CommandConfig, DecodeError> {
+        Ok(CommandConfig {
+            id: self.text()?,
+            generation: self.int()?,
+            label: self.text()?,
+            enabled: self.boolean()?,
+            checked: self.option(Self::boolean)?,
+            shortcuts: self.list(4, Self::shortcut)?,
+            target: match self.tag()? {
+                0 => CommandTarget::Callback,
+                1 => CommandTarget::Native(match self.tag()? {
+                    0 => NativeCommand::Copy,
+                    1 => NativeCommand::Cut,
+                    2 => NativeCommand::Paste,
+                    3 => NativeCommand::SelectAll,
+                    4 => NativeCommand::Undo,
+                    5 => NativeCommand::Redo,
+                    _ => return Err(DecodeError::Malformed),
+                }),
+                _ => return Err(DecodeError::Malformed),
+            },
+        })
+    }
+
+    fn placement(&mut self) -> Result<Placement, DecodeError> {
+        Ok(Placement {
+            side: match self.tag()? {
+                0 => Side::Top,
+                1 => Side::Right,
+                2 => Side::Bottom,
+                3 => Side::Left,
+                _ => return Err(DecodeError::Malformed),
+            },
+            align: match self.tag()? {
+                0 => Align::Start,
+                1 => Align::Center,
+                2 => Align::End,
+                _ => return Err(DecodeError::Malformed),
+            },
+            offset: self.float()?,
+        })
+    }
+    fn overlay_config(&mut self) -> Result<OverlayConfig, DecodeError> {
+        Ok(OverlayConfig {
+            kind: match self.tag()? {
+                0 => OverlayKind::Dialog,
+                1 => OverlayKind::Popover,
+                _ => return Err(DecodeError::Malformed),
+            },
+            label: self.text()?,
+            width: self.float()?,
+            dismiss_on_escape: self.boolean()?,
+            dismiss_on_outside_pointer: self.boolean()?,
+        })
+    }
     fn op(&mut self) -> Result<Op, DecodeError> {
         Ok(match self.tag()? {
             0 => {
@@ -252,6 +637,22 @@ impl Decoder<'_> {
                     6 => Kind::Switch,
                     7 => Kind::RadioGroup,
                     8 => Kind::Select,
+                    9 => Kind::Combobox,
+                    10 => Kind::FocusScope,
+                    11 => Kind::Tooltip,
+                    12 => Kind::CommandScope,
+                    13 => Kind::CommandButton,
+                    14 => Kind::Menu,
+                    15 => Kind::CommandPalette,
+                    16 => Kind::Progress,
+                    17 => Kind::Toast,
+                    18 => Kind::ToastStack,
+                    19 => Kind::PointerArea,
+                    20 => Kind::DragSource,
+                    21 => Kind::DropTarget,
+                    22 => Kind::Image,
+                    23 => Kind::Icon,
+                    24 => Kind::Animated,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -270,6 +671,109 @@ impl Decoder<'_> {
             7 => Op::SetEditor(self.node()?, self.editor_config()?),
             8 => Op::SetControl(self.node()?, self.control()?),
             9 => Op::SetChoice(self.node()?, self.choice_config()?),
+            18 => Op::SetMenu(self.node()?, self.menu_config()?),
+            24 => Op::SetDragSource(self.node()?, self.drag_source()?),
+            25 => Op::SetDropTarget(self.node()?, self.drag_target()?),
+            23 => Op::SetPointer(
+                self.node()?,
+                PointerConfig {
+                    label: self.text()?,
+                    button: match self.tag()? {
+                        0 => PointerButton::Left,
+                        1 => PointerButton::Right,
+                        2 => PointerButton::Middle,
+                        3 => PointerButton::Back,
+                        4 => PointerButton::Forward,
+                        _ => return Err(DecodeError::Malformed),
+                    },
+                    disabled: self.boolean()?,
+                    prevent_default: self.boolean()?,
+                    stop_propagation: self.boolean()?,
+                },
+            ),
+            21 => Op::SetToast(
+                self.node()?,
+                ToastConfig {
+                    label: self.text()?,
+                    close_label: self.text()?,
+                    timeout_ns: self.option(Self::int)?,
+                    politeness: match self.tag()? {
+                        0 => ToastPoliteness::Polite,
+                        1 => ToastPoliteness::Assertive,
+                        _ => return Err(DecodeError::Malformed),
+                    },
+                },
+            ),
+            22 => Op::SetToastStack(
+                self.node()?,
+                ToastStackConfig {
+                    label: self.text()?,
+                    corner: match self.tag()? {
+                        0 => ToastCorner::TopLeft,
+                        1 => ToastCorner::TopRight,
+                        2 => ToastCorner::BottomLeft,
+                        3 => ToastCorner::BottomRight,
+                        _ => return Err(DecodeError::Malformed),
+                    },
+                    width: self.float()?,
+                    max_visible: self.int()?,
+                },
+            ),
+            26 => Op::SetImage(self.node()?, self.image_config()?),
+            27 => Op::SetAnimation(self.node()?, self.animation_config()?),
+            20 => Op::SetProgress(
+                self.node()?,
+                ProgressConfig {
+                    label: self.text()?,
+                    fraction: self.option(Self::float)?,
+                },
+            ),
+            19 => Op::SetPalette(
+                self.node()?,
+                PaletteConfig {
+                    label: self.text()?,
+                    placeholder: self.text()?,
+                    commands: self.list(1024, Self::text)?,
+                    dismiss_on_outside_pointer: self.boolean()?,
+                },
+            ),
+            17 => Op::SetCommandRef(self.node()?, self.text()?),
+            16 => Op::SetCommands(self.node()?, self.list(1024, Self::command_config)?),
+            15 => Op::SetTooltip(
+                self.node()?,
+                TooltipConfig {
+                    label: self.text()?,
+                    width: self.float()?,
+                    open_state: match self.tag()? {
+                        0 => TooltipOpenState::Managed(self.boolean()?),
+                        1 => TooltipOpenState::Controlled(self.boolean()?),
+                        _ => return Err(DecodeError::Malformed),
+                    },
+                    disabled: self.boolean()?,
+                    hoverable: self.boolean()?,
+                    show_delay_ns: self.int()?,
+                    hide_delay_ns: self.int()?,
+                    skip_delay_ns: self.int()?,
+                },
+            ),
+            14 => Op::SetPlacement(self.node()?, self.option(Self::placement)?),
+            13 => Op::SetOverlay(self.node()?, self.option(Self::overlay_config)?),
+            12 => Op::SetFocusScope(
+                self.node()?,
+                FocusScopeConfig {
+                    trap: self.boolean()?,
+                    auto_focus: self.boolean()?,
+                    restore_focus: self.boolean()?,
+                },
+            ),
+            11 => Op::SetComboboxFilter(
+                self.node()?,
+                match self.tag()? {
+                    0 => ComboboxFilter::Substring,
+                    1 => ComboboxFilter::Unfiltered,
+                    _ => return Err(DecodeError::Malformed),
+                },
+            ),
             10 => Op::SetChoiceAppearance(
                 self.node()?,
                 ChoiceAppearance {
@@ -384,7 +888,7 @@ impl Decoder<'_> {
 }
 
 /// Decode one message, rejecting trailing data, non-finite numbers and oversized
-/// containers before allocating their declared capacity. UTF-8 text is required.
+/// containers before allocating their declared capacity. UTF-8 text is required except for validated native path bytes.
 pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
     if bytes.len() > MAX_MESSAGE_BYTES {
         return Err(DecodeError::LimitExceeded);
@@ -403,10 +907,53 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
         4 => Message::RequestFrame(d.int()?, d.window()?),
         5 => Message::Shutdown,
         6 => Message::EditorCommand(d.int()?, d.window()?, d.node()?, d.editor_command()?),
+        7 => {
+            let correlation = d.int()?;
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::FileDialog(correlation, d.window()?, d.file_dialog()?)
+        }
+        8 => {
+            let correlation = d.int()?;
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::Asset(correlation, d.asset()?)
+        }
+        9 => Message::SetMotion(match d.tag()? {
+            0 => crate::animation::Preference::System,
+            1 => crate::animation::Preference::Reduce,
+            2 => crate::animation::Preference::Full,
+            _ => return Err(DecodeError::Malformed),
+        }),
         _ => return Err(DecodeError::Malformed),
     };
     if d.remaining() != 0 {
         return Err(DecodeError::Malformed);
     }
     Ok(value)
+}
+
+fn decode_drag_data<T>(
+    bytes: &[u8],
+    read: impl FnOnce(&mut Decoder<'_>) -> Result<T, DecodeError>,
+) -> Result<T, DecodeError> {
+    if bytes.len() > MAX_MESSAGE_BYTES {
+        return Err(DecodeError::LimitExceeded);
+    }
+    let mut decoder = Decoder(Cursor::new(bytes));
+    let value = read(&mut decoder)?;
+    if decoder.remaining() != 0 {
+        return Err(DecodeError::Malformed);
+    }
+    Ok(value)
+}
+
+pub(crate) fn decode_drag_source(bytes: &[u8]) -> Result<crate::drag_drop::Source, DecodeError> {
+    decode_drag_data(bytes, |decoder| decoder.drag_source())
+}
+
+pub(crate) fn decode_drag_target(bytes: &[u8]) -> Result<crate::drag_drop::Target, DecodeError> {
+    decode_drag_data(bytes, |decoder| decoder.drag_target())
 }

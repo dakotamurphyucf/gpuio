@@ -8,6 +8,8 @@ pub struct State<E> {
     pub element: E,
     pub disabled: bool,
     pub read_only: bool,
+    pub modal: bool,
+    pub live: Option<accesskit::Live>,
 }
 impl<E: Element> IntoElement for State<E> {
     type Element = Self;
@@ -63,6 +65,12 @@ impl<E: Element> Element for State<E> {
     }
     fn write_a11y_info(&self, node: &mut accesskit::Node) {
         self.element.write_a11y_info(node);
+        if let Some(live) = self.live {
+            node.set_live(live);
+        }
+        if self.modal {
+            node.set_modal();
+        }
         if self.disabled {
             node.set_disabled();
         }
@@ -87,5 +95,35 @@ impl<E: Element> Element for State<E> {
         builder: &mut A11ySubtreeBuilder,
     ) {
         self.element.a11y_synthetic_children(prepaint, builder);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use gpui::prelude::*;
+    #[test]
+    fn notifications_preserve_polite_and_assertive_live_semantics() {
+        for (role, live) in [
+            (accesskit::Role::Status, accesskit::Live::Polite),
+            (accesskit::Role::Alert, accesskit::Live::Assertive),
+        ] {
+            let element = State {
+                element: gpui::div()
+                    .id("notification")
+                    .role(role)
+                    .aria_label("Draft saved"),
+                disabled: false,
+                read_only: false,
+                modal: false,
+                live: Some(live),
+            };
+            assert_eq!(element.a11y_role(), Some(role));
+            let mut node = accesskit::Node::new(role);
+            element.write_a11y_info(&mut node);
+            assert_eq!(node.live(), Some(live));
+            assert_eq!(node.label(), Some("Draft saved"));
+            assert!(!node.is_modal());
+        }
     }
 }

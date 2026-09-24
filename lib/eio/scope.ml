@@ -187,6 +187,12 @@ module Expert = struct
     }
   ;;
 
+  let same_tree a b =
+    check a;
+    check b;
+    phys_equal a.shared b.shared
+  ;;
+
   let on_cancel = on_cancel
 
   let try_enqueue t job =

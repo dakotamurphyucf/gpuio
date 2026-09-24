@@ -2,6 +2,16 @@
 use crate::tree::{Applied, Tree};
 use gpuio_protocol::{HandlerId, NodeId, WindowId, v1::*};
 
+#[derive(Clone, Copy, Debug)]
+pub struct CommandInvocation<'a> {
+    pub scope: NodeId,
+    pub handler: HandlerId,
+    pub revision: i64,
+    pub command: &'a str,
+    pub generation: i64,
+    pub source: CommandSource,
+}
+
 #[derive(Default)]
 struct Slot {
     generation: u32,
@@ -21,6 +31,7 @@ pub struct Session {
     stopped: bool,
     slots: Vec<Slot>,
     retained_bytes: usize,
+    assets: crate::asset_store::Store,
 }
 
 impl Session {
@@ -41,13 +52,113 @@ impl Session {
         Ok(Event::Welcome(VERSION, CAPABILITIES))
     }
 
-    fn check_ready(&self) -> Result<(), ErrorCode> {
+    pub(crate) fn check_ready(&self) -> Result<(), ErrorCode> {
         if self.stopped {
             Err(ErrorCode::Closed)
         } else if !self.ready {
             Err(ErrorCode::NotReady)
         } else {
             Ok(())
+        }
+    }
+
+    /// Application-owned encoded assets. The bridge must negotiate before
+    /// registration, and shutdown permanently closes this acquisition surface.
+    pub fn assets(&mut self) -> Result<&mut crate::asset_store::Store, ErrorCode> {
+        self.check_ready()?;
+        Ok(&mut self.assets)
+    }
+
+    pub fn acquire_image(
+        &self,
+        id: gpuio_protocol::ResourceId,
+    ) -> Result<crate::asset_store::Lease, ImageError> {
+        self.check_ready().map_err(|_| ImageError::Released)?;
+        self.assets.acquire(id).map_err(|_| ImageError::Released)
+    }
+
+    pub fn animation_endpoint(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: gpuio_protocol::HandlerId,
+        revision: i64,
+        endpoint: gpuio_protocol::animation::Endpoint,
+    ) -> Option<Event> {
+        let tree = self.tree(window)?;
+        let current = tree.get(node)?;
+        (current.handler == Some(handler)
+            && revision >= 0
+            && revision <= tree.revision()
+            && endpoint.generation > 0
+            && endpoint.generation <= current.animation.as_ref()?.generation)
+            .then_some(Event::AnimationEndpoint(
+                window, node, handler, revision, endpoint,
+            ))
+    }
+    pub fn image_state(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: gpuio_protocol::HandlerId,
+        revision: i64,
+        source: ImageSource,
+        image_state: ImageState,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.image.as_ref()?;
+        (!state.overloaded
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision()
+            && config.source == source
+            && image_state.is_valid())
+        .then_some(Event::ImageState(
+            window,
+            node,
+            handler,
+            revision,
+            image_state,
+        ))
+    }
+
+    pub fn asset_request(
+        &mut self,
+        request: gpuio_protocol::asset::Request,
+    ) -> gpuio_protocol::asset::Response {
+        use gpuio_protocol::asset::{Error, Request, Response};
+        if let Err(error) = self.check_ready() {
+            return Response::Failed(match error {
+                ErrorCode::Closed => Error::Closed,
+                ErrorCode::NotReady => Error::NotReady,
+                _ => Error::NativeFailure,
+            });
+        }
+        match request {
+            Request::Begin(format, length) => {
+                match usize::try_from(length)
+                    .map_err(|_| Error::InvalidSize)
+                    .and_then(|length| self.assets.begin(format, length))
+                {
+                    Ok(id) => Response::Begun(id),
+                    Err(error) => Response::Failed(error),
+                }
+            }
+            request => {
+                let result = match request {
+                    Request::Append(id, offset, data) => match usize::try_from(offset) {
+                        Ok(offset) => self.assets.append(id, offset, data.as_bytes()),
+                        Err(_) => self.assets.release(id).and(Err(Error::InvalidChunk)),
+                    },
+                    Request::Finish(id) => self.assets.finish(id),
+                    Request::Release(id) => self.assets.release(id),
+                    Request::Begin(..) => unreachable!(),
+                };
+                match result {
+                    Ok(()) => Response::Ack,
+                    Err(error) => Response::Failed(error),
+                }
+            }
         }
     }
 
@@ -182,10 +293,9 @@ impl Session {
         (!window.overloaded
             && revision <= window.tree.revision()
             && revision >= 0
-            && window
-                .tree
-                .get(node)
-                .is_some_and(|node| !node.control.is_some_and(Control::disabled))
+            && window.tree.get(node).is_some_and(|node| {
+                node.image.is_none() && !node.control.is_some_and(Control::disabled)
+            })
             && window.tree.accepts_handler(node, handler))
         .then_some(Event::Press(id, node, handler, revision))
     }
@@ -207,6 +317,228 @@ impl Session {
         .then(|| Event::Choice(id, node, handler, revision, selected.to_owned()))
     }
 
+    pub fn dismiss(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        reason: Dismissal,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        (!window.overloaded
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && window.tree.accepts_handler(node, handler)
+            && window.tree.get(node)?.overlay.as_ref()?.allows(reason))
+        .then_some(Event::OverlayDismissed(id, node, handler, revision, reason))
+    }
+
+    pub fn drag_source_event(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        sample: gpuio_protocol::drag_drop::SourceSample,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.drag_source.as_ref()?;
+        (!state.overloaded
+            && sample.is_valid()
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision()
+            && (matches!(
+                sample.phase,
+                gpuio_protocol::drag_drop::SourcePhase::Ended(_)
+            ) || !config.disabled()))
+        .then_some(Event::DragSourceEvent(
+            window, node, handler, revision, sample,
+        ))
+    }
+    pub fn drop_target_event(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        sample: gpuio_protocol::drag_drop::TargetSample,
+    ) -> Option<Event> {
+        use gpuio_protocol::drag_drop::TargetPhase;
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.drop_target.as_ref()?;
+        let allowed = match &sample.phase {
+            TargetPhase::Dropped(payload) => config.accepts(payload),
+            TargetPhase::Left => true,
+            _ => !config.disabled(),
+        };
+        (!state.overloaded
+            && sample.is_valid()
+            && allowed
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision())
+        .then_some(Event::DropTargetEvent(
+            window, node, handler, revision, sample,
+        ))
+    }
+
+    pub fn pointer_event(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        sample: PointerSample,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.pointer.as_ref()?;
+        (!state.overloaded
+            && sample.is_valid()
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision()
+            && (matches!(sample.phase, PointerPhase::Cancelled(_))
+                || (!config.disabled && config.button == sample.button)))
+            .then_some(Event::PointerEvent(window, node, handler, revision, sample))
+    }
+
+    pub fn toast_dismissed(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        reason: ToastDismissal,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.toast.as_ref()?;
+        (!state.overloaded
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision()
+            && config.allows(reason))
+        .then_some(Event::ToastDismissed(
+            window, node, handler, revision, reason,
+        ))
+    }
+
+    pub fn palette_dismissed(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        reason: PaletteDismissal,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.palette.as_ref()?;
+        (!state.overloaded
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision()
+            && config.allows(&reason))
+        .then_some(Event::PaletteDismissed(
+            window, node, handler, revision, reason,
+        ))
+    }
+
+    pub fn tooltip_open_changed(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        open: bool,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        (!window.overloaded
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && window.tree.accepts_handler(node, handler)
+            && (!open || !window.tree.get(node)?.tooltip.as_ref()?.disabled)
+            && window.tree.get(node)?.tooltip.is_some())
+        .then_some(Event::TooltipOpenChanged(id, node, handler, revision, open))
+    }
+
+    pub fn command_target(
+        &self,
+        id: WindowId,
+        request: CommandInvocation<'_>,
+    ) -> Option<CommandTarget> {
+        let window = self.window(id).ok()?;
+        let config = window
+            .tree
+            .get(request.scope)?
+            .commands
+            .as_ref()?
+            .iter()
+            .find(|entry| entry.id == request.command)?;
+        let valid_source = match request.source {
+            CommandSource::Button(button) => {
+                window
+                    .tree
+                    .get(button)
+                    .is_some_and(|node| node.command_ref.as_deref() == Some(request.command))
+                    && window
+                        .tree
+                        .command(button, request.command)
+                        .is_some_and(|(scope, _)| scope == request.scope)
+            }
+            CommandSource::Menu(menu) => {
+                window
+                    .tree
+                    .get(menu)
+                    .and_then(|node| node.menu.as_ref())
+                    .is_some_and(|config| config.permits(request.command))
+                    && (window
+                        .tree
+                        .get(menu)
+                        .and_then(|node| node.menu.as_ref())
+                        .is_some_and(|config| config.presentation == MenuPresentation::PlatformBar)
+                        || window
+                            .tree
+                            .command(menu, request.command)
+                            .is_some_and(|(scope, _)| scope == request.scope))
+            }
+            CommandSource::Shortcut => true,
+            CommandSource::Palette(palette) => {
+                window
+                    .tree
+                    .get(palette)
+                    .and_then(|node| node.palette.as_ref())
+                    .is_some_and(|config| config.permits(request.command))
+                    && window
+                        .tree
+                        .command(palette, request.command)
+                        .is_some_and(|(scope, _)| scope == request.scope)
+            }
+        };
+        (!window.overloaded
+            && request.revision >= 0
+            && request.revision <= window.tree.revision()
+            && window.tree.accepts_handler(request.scope, request.handler)
+            && config.enabled
+            && config.generation == request.generation
+            && valid_source)
+            .then_some(config.target)
+    }
+
+    pub fn invoke_command(&self, id: WindowId, request: CommandInvocation<'_>) -> Option<Event> {
+        (self.command_target(id, request)? == CommandTarget::Callback).then(|| {
+            Event::CommandInvoked(
+                id,
+                request.scope,
+                request.handler,
+                request.revision,
+                request.command.to_owned(),
+                request.generation,
+                request.source,
+            )
+        })
+    }
+
     pub fn overload(&mut self, id: WindowId) -> bool {
         let Ok(window) = self.window_mut(id) else {
             return false;
@@ -226,6 +558,7 @@ impl Session {
     }
 
     pub fn shutdown(&mut self) -> Vec<Event> {
+        self.assets.close();
         let mut events = Vec::new();
         for slot in &mut self.slots {
             if let Some(window) = slot.window.take()

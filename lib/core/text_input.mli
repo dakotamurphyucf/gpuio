@@ -107,6 +107,7 @@ module Command_error : sig
     | Busy
     | Native_failure
     | Invalid_text
+    | Focus_blocked
   [@@deriving equal, sexp_of]
 end
 

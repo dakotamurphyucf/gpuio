@@ -7,7 +7,8 @@ their upstream sources. Dependency licenses remain with their respective authors
 Zed contributors, Apache-2.0, at revision
 `a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b`. Changes add bridge events, edit revisions,
 composition-selection correction, construction helpers, an input probe and an
-internal text accessor for the two-window smoke scenario.
+internal text accessor for the two-window smoke scenario. The original Zed copyright
+notice and license text are preserved in [third_party/licenses/zed-gpui.txt](third_party/licenses/zed-gpui.txt).
 
 `vendor/` retains the upstream source and MIT licenses for eight Jane Street
 v0.17 repositories. `third_party/sources.json` pins upstream commits, downloaded

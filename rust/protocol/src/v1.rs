@@ -1,3 +1,11 @@
+pub use crate::command::*;
+pub use crate::file_dialog::*;
+pub use crate::image::*;
+pub use crate::menu::{MenuConfig, MenuDefinition, MenuItem, MenuPresentation};
+pub use crate::palette::*;
+pub use crate::pointer::*;
+pub use crate::progress::*;
+pub use crate::toast::*;
 use crate::{HandlerId, NodeId, WindowId};
 use binprot::macros::BinProtWrite;
 
@@ -10,14 +18,50 @@ pub const CAP_CONTROLS: i64 = 16;
 pub const CAP_CHOICES: i64 = 32;
 pub const CAP_SELECT: i64 = 64;
 pub const CAP_CHOICE_APPEARANCE: i64 = 128;
-pub const CAPABILITIES: i64 = CAP_TREE
+pub const CAP_COMBOBOX: i64 = 256;
+pub const CAP_FOCUS_SCOPES: i64 = 512;
+pub const CAP_OVERLAYS: i64 = 1024;
+pub const CAP_PLACEMENT: i64 = 2048;
+pub const CAP_TOOLTIPS: i64 = 4096;
+pub const CAP_COMMANDS: i64 = 8192;
+pub const CAP_MENUS: i64 = 16384;
+pub const CAP_TOASTS: i64 = 131072;
+pub const CAP_PROGRESS: i64 = 65536;
+pub const CAP_PALETTE: i64 = 32768;
+pub const CAP_POINTER: i64 = 262144;
+pub const CAP_FILE_DIALOGS: i64 = 524288;
+pub const CAP_DRAG_DROP: i64 = 1048576;
+pub const CAP_ASSETS: i64 = 2097152;
+pub const CAP_IMAGES: i64 = 4194304;
+pub const CAP_SVG: i64 = 8388608;
+pub const CAP_BUTTON_ICONS: i64 = 16777216;
+pub const CAP_ANIMATIONS: i64 = 33554432;
+pub const CAPABILITIES: i64 = CAP_ANIMATIONS
+    | CAP_BUTTON_ICONS
+    | CAP_SVG
+    | CAP_IMAGES
+    | CAP_ASSETS
+    | CAP_TREE
     | CAP_NATIVE_STYLES
     | CAP_FRAME_EVENTS
     | CAP_EDITOR
     | CAP_CONTROLS
     | CAP_CHOICES
     | CAP_SELECT
-    | CAP_CHOICE_APPEARANCE;
+    | CAP_CHOICE_APPEARANCE
+    | CAP_COMBOBOX
+    | CAP_FOCUS_SCOPES
+    | CAP_OVERLAYS
+    | CAP_PLACEMENT
+    | CAP_TOOLTIPS
+    | CAP_COMMANDS
+    | CAP_MENUS
+    | CAP_PALETTE
+    | CAP_PROGRESS
+    | CAP_TOASTS
+    | CAP_POINTER
+    | CAP_FILE_DIALOGS
+    | CAP_DRAG_DROP;
 pub const EDITOR_HISTORY_BYTES: usize = 2 * 1024 * 1024;
 pub const EDITOR_RESERVED_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_MESSAGE_BYTES: usize = 1_048_576;
@@ -41,6 +85,35 @@ pub enum Kind {
     Switch,
     RadioGroup,
     Select,
+    Combobox,
+    FocusScope,
+    Tooltip,
+    CommandScope,
+    CommandButton,
+    Menu,
+    CommandPalette,
+    Progress,
+    Toast,
+    ToastStack,
+    PointerArea,
+    DragSource,
+    DropTarget,
+    Image,
+    Icon,
+    Animated,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct FocusScopeConfig {
+    pub trap: bool,
+    pub auto_focus: bool,
+    pub restore_focus: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum ComboboxFilter {
+    Substring,
+    Unfiltered,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
@@ -320,6 +393,7 @@ pub enum EditorError {
     Busy,
     NativeFailure,
     InvalidText,
+    FocusBlocked,
 }
 #[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum EditorResult {
@@ -356,6 +430,103 @@ impl Default for ChoiceAppearance {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum Side {
+    Top,
+    Right,
+    Bottom,
+    Left,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum Align {
+    Start,
+    Center,
+    End,
+}
+#[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
+pub struct Placement {
+    pub side: Side,
+    pub align: Align,
+    pub offset: f64,
+}
+impl Default for Placement {
+    fn default() -> Self {
+        Self {
+            side: Side::Bottom,
+            align: Align::Start,
+            offset: 0.,
+        }
+    }
+}
+impl Placement {
+    pub fn is_valid(&self) -> bool {
+        self.offset.is_finite() && (-16384.0..=16384.0).contains(&self.offset)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum TooltipOpenState {
+    Managed(bool),
+    Controlled(bool),
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct TooltipConfig {
+    pub label: String,
+    pub width: f64,
+    pub open_state: TooltipOpenState,
+    pub disabled: bool,
+    pub hoverable: bool,
+    pub show_delay_ns: i64,
+    pub hide_delay_ns: i64,
+    pub skip_delay_ns: i64,
+}
+impl TooltipConfig {
+    pub fn is_valid(&self) -> bool {
+        !self.label.trim().is_empty()
+            && self.label.len() <= 4096
+            && !self.label.contains('\0')
+            && self.width.is_finite()
+            && (1.0..=16384.0).contains(&self.width)
+            && [self.show_delay_ns, self.hide_delay_ns, self.skip_delay_ns]
+                .into_iter()
+                .all(|delay| (0..=60_000_000_000).contains(&delay))
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum OverlayKind {
+    Dialog,
+    Popover,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum Dismissal {
+    Escape,
+    OutsidePointer,
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct OverlayConfig {
+    pub kind: OverlayKind,
+    pub label: String,
+    pub width: f64,
+    pub dismiss_on_escape: bool,
+    pub dismiss_on_outside_pointer: bool,
+}
+impl OverlayConfig {
+    pub fn is_valid(&self) -> bool {
+        !self.label.trim().is_empty()
+            && self.label.len() <= 4096
+            && !self.label.contains('\0')
+            && self.width.is_finite()
+            && (1.0..=16384.0).contains(&self.width)
+    }
+    pub fn allows(&self, reason: Dismissal) -> bool {
+        match reason {
+            Dismissal::Escape => self.dismiss_on_escape,
+            Dismissal::OutsidePointer => self.dismiss_on_outside_pointer,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub enum Op {
     Create(NodeId, Kind, String, Option<HandlerId>),
@@ -369,6 +540,23 @@ pub enum Op {
     SetControl(NodeId, Control),
     SetChoice(NodeId, ChoiceConfig),
     SetChoiceAppearance(NodeId, ChoiceAppearance),
+    SetComboboxFilter(NodeId, ComboboxFilter),
+    SetFocusScope(NodeId, FocusScopeConfig),
+    SetOverlay(NodeId, Option<OverlayConfig>),
+    SetPlacement(NodeId, Option<Placement>),
+    SetTooltip(NodeId, TooltipConfig),
+    SetCommands(NodeId, Vec<CommandConfig>),
+    SetCommandRef(NodeId, String),
+    SetMenu(NodeId, MenuConfig),
+    SetPalette(NodeId, PaletteConfig),
+    SetProgress(NodeId, ProgressConfig),
+    SetToast(NodeId, ToastConfig),
+    SetToastStack(NodeId, ToastStackConfig),
+    SetPointer(NodeId, PointerConfig),
+    SetDragSource(NodeId, crate::drag_drop::Source),
+    SetDropTarget(NodeId, crate::drag_drop::Target),
+    SetImage(NodeId, ImageConfig),
+    SetAnimation(NodeId, crate::animation::Config),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -388,6 +576,9 @@ pub enum Message {
     RequestFrame(i64, WindowId),
     Shutdown,
     EditorCommand(i64, WindowId, NodeId, EditorCommand),
+    FileDialog(i64, WindowId, FileDialogConfig),
+    Asset(i64, crate::asset::Request),
+    SetMotion(crate::animation::Preference),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -429,4 +620,29 @@ pub enum Event {
     ),
     EditorResult(i64, WindowId, NodeId, EditorResult),
     Choice(WindowId, NodeId, HandlerId, i64, String),
+    ComboboxSelected(WindowId, NodeId, HandlerId, i64, String, EditorSnapshot),
+    OverlayDismissed(WindowId, NodeId, HandlerId, i64, Dismissal),
+    TooltipOpenChanged(WindowId, NodeId, HandlerId, i64, bool),
+    CommandInvoked(WindowId, NodeId, HandlerId, i64, String, i64, CommandSource),
+    PaletteDismissed(WindowId, NodeId, HandlerId, i64, PaletteDismissal),
+    ToastDismissed(WindowId, NodeId, HandlerId, i64, ToastDismissal),
+    PointerEvent(WindowId, NodeId, HandlerId, i64, PointerSample),
+    FileDialogResult(i64, WindowId, FileDialogResult),
+    DragSourceEvent(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::drag_drop::SourceSample,
+    ),
+    DropTargetEvent(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::drag_drop::TargetSample,
+    ),
+    AssetResponse(i64, crate::asset::Response),
+    ImageState(WindowId, NodeId, HandlerId, i64, ImageState),
+    AnimationEndpoint(WindowId, NodeId, HandlerId, i64, crate::animation::Endpoint),
 }

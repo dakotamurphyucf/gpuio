@@ -3,8 +3,8 @@
 use super::SharedSession;
 use crate::transport::Transport;
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement,
-    StatefulInteractiveElement, Subscription, Window,
+    App, AppContext, Context, Entity, EntityInputHandler, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, StatefulInteractiveElement, Subscription, Window,
 };
 use gpui_base::input::{
     BridgeSubmission, InputBaseState, InputModeKind, InputState, TextareaState,
@@ -16,6 +16,7 @@ struct Route {
     window: WindowId,
     node: NodeId,
     session: SharedSession,
+    gate: super::focus::Shared,
     transport: Arc<Transport>,
     last: RefCell<Option<EditorSnapshot>>,
 }
@@ -53,7 +54,7 @@ impl Route {
     }
 }
 
-fn snapshot<M: InputModeKind>(
+pub(super) fn snapshot<M: InputModeKind>(
     state: &InputBaseState<M>,
     window: &Window,
     cx: &App,
@@ -114,6 +115,8 @@ fn subscribe<T: 'static, M: InputModeKind>(
 fn configure<M: InputModeKind>(
     state: &mut InputBaseState<M>,
     config: &EditorConfig,
+    combobox: Option<Rc<RefCell<super::combobox::State>>>,
+    route: Rc<Route>,
     window: &mut Window,
     cx: &mut Context<InputBaseState<M>>,
 ) {
@@ -127,7 +130,9 @@ fn configure<M: InputModeKind>(
     let config = config.clone();
     state.set_bridge_decorator(Rc::new(move |element, state, _, cx| {
         let mut element = element
-            .role(if state.is_single_line() {
+            .role(if combobox.is_some() {
+                gpui::Role::EditableComboBox
+            } else if state.is_single_line() {
                 gpui::Role::TextInput
             } else {
                 gpui::Role::MultilineTextInput
@@ -135,17 +140,47 @@ fn configure<M: InputModeKind>(
             .aria_label(config.label.clone())
             .aria_placeholder(config.placeholder.clone())
             .aria_value(state.value());
+        if let Some(description) = route
+            .session
+            .borrow()
+            .tree(route.window)
+            .and_then(|tree| tree.tooltip_description(route.node))
+        {
+            element = element.aria_description(description.to_owned());
+        }
+        let composing_editor = cx.entity();
+        element = element.capture_action(move |_: &gpui_base::input::Escape, window, cx| {
+            if composing_editor.read(cx).bridge_composition().is_some() {
+                composing_editor.update(cx, |state, cx| {
+                    state.unmark_text(window, cx);
+                    cx.notify();
+                });
+                cx.stop_propagation();
+            }
+        });
+        if let Some(combo) = &combobox {
+            element = element.aria_expanded(combo.borrow().popup.borrow().open);
+        }
         if !config.disabled {
             let focus = state.focus_handle(cx);
+            let gate = route.gate.clone();
+            let node = route.node;
             element =
                 element.on_a11y_action(gpui::AccessibleAction::Focus, move |_, window, cx| {
-                    window.focus(&focus, cx);
+                    if gate.borrow().allows(node) {
+                        window.focus(&focus, cx);
+                    }
                 });
             if !config.read_only {
                 let entity = cx.weak_entity();
+                let gate = route.gate.clone();
+                let node = route.node;
                 element = element.on_a11y_action(
                     gpui::AccessibleAction::SetValue,
                     move |data, window, cx| {
+                        if !gate.borrow().allows(node) {
+                            return;
+                        }
                         if let Some(gpui::accesskit::ActionData::Value(value)) = data {
                             let _ = entity.update(cx, |state, cx| {
                                 let command = EditorCommand::Replace(
@@ -162,9 +197,11 @@ fn configure<M: InputModeKind>(
             }
         }
         crate::semantics::State {
+            live: None,
             element,
             disabled: config.disabled,
             read_only: config.read_only,
+            modal: false,
         }
         .into_any_element()
     }));
@@ -249,12 +286,14 @@ pub(super) struct Instance {
     config: EditorConfig,
     route: Rc<Route>,
     _subscriptions: Vec<Subscription>,
+    combobox: Option<Rc<RefCell<super::combobox::State>>>,
 }
 impl Instance {
     pub(super) fn new<T: 'static>(
         id: WindowId,
         node: &crate::tree::Node,
         session: SharedSession,
+        gate: super::focus::Shared,
         transport: Arc<Transport>,
         window: &mut Window,
         cx: &mut Context<T>,
@@ -269,10 +308,13 @@ impl Instance {
             window: id,
             node: node.id,
             session,
+            gate,
             transport,
             last: RefCell::new(None),
         });
-        let (state, subscriptions) = if node.kind == Kind::Input {
+        let combobox = (node.kind == Kind::Combobox)
+            .then(|| Rc::new(RefCell::new(super::combobox::State::default())));
+        let (state, subscriptions) = if matches!(node.kind, Kind::Input | Kind::Combobox) {
             let entity = cx.new(|cx| {
                 InputState::new(window, cx)
                     .default_value(node.text.to_string())
@@ -280,7 +322,9 @@ impl Instance {
                     .bridge_history_budget(EDITOR_HISTORY_BYTES)
             });
             let subscriptions = subscribe(&entity, route.clone(), window, cx);
-            entity.update(cx, |state, cx| configure(state, &config, window, cx));
+            entity.update(cx, |state, cx| {
+                configure(state, &config, combobox.clone(), route.clone(), window, cx)
+            });
             (State::Input(entity), subscriptions)
         } else {
             let entity = cx.new(|cx| {
@@ -291,7 +335,9 @@ impl Instance {
                     .auto_grow(config.min_rows as usize, config.max_rows as usize)
             });
             let subscriptions = subscribe(&entity, route.clone(), window, cx);
-            entity.update(cx, |state, cx| configure(state, &config, window, cx));
+            entity.update(cx, |state, cx| {
+                configure(state, &config, combobox.clone(), route.clone(), window, cx)
+            });
             (State::Textarea(entity), subscriptions)
         };
         let instance = Self {
@@ -299,8 +345,12 @@ impl Instance {
             config,
             route,
             _subscriptions: subscriptions,
+            combobox,
         };
-        if instance.config.auto_focus && !instance.config.disabled {
+        if instance.config.auto_focus
+            && !instance.config.disabled
+            && instance.route.gate.borrow().allows(node.id)
+        {
             window.focus(&instance.focus_handle(cx), cx);
         }
         instance
@@ -313,11 +363,25 @@ impl Instance {
             return;
         }
         match &self.state {
-            State::Input(entity) => {
-                entity.update(cx, |state, cx| configure(state, config, window, cx))
-            }
+            State::Input(entity) => entity.update(cx, |state, cx| {
+                configure(
+                    state,
+                    config,
+                    self.combobox.clone(),
+                    self.route.clone(),
+                    window,
+                    cx,
+                )
+            }),
             State::Textarea(entity) => entity.update(cx, |state, cx| {
-                configure(state, config, window, cx);
+                configure(
+                    state,
+                    config,
+                    self.combobox.clone(),
+                    self.route.clone(),
+                    window,
+                    cx,
+                );
                 state.set_auto_grow(config.min_rows as usize, config.max_rows as usize, cx);
             }),
         }
@@ -329,10 +393,52 @@ impl Instance {
             State::Textarea(entity) => snapshot(entity.read(cx), window, cx),
         }
     }
+    pub(super) fn is_composing(&self, cx: &App) -> bool {
+        match &self.state {
+            State::Input(entity) => entity.read(cx).bridge_composition().is_some(),
+            State::Textarea(entity) => entity.read(cx).bridge_composition().is_some(),
+        }
+    }
+    #[cfg(feature = "native-tests")]
+    pub(super) fn scroll_offset(&self, cx: &App) -> gpui::Point<gpui::Pixels> {
+        match &self.state {
+            State::Input(entity) => entity.read(cx).scroll_offset(),
+            State::Textarea(entity) => entity.read(cx).scroll_offset(),
+        }
+    }
+    pub(super) fn command_available(&self, action: NativeCommand, cx: &App) -> bool {
+        if self.config.disabled {
+            return false;
+        }
+        fn available<M: InputModeKind>(
+            state: &InputBaseState<M>,
+            action: NativeCommand,
+            read_only: bool,
+        ) -> bool {
+            match action {
+                NativeCommand::Copy => state.is_copyable(),
+                NativeCommand::Cut => state.is_copyable() && !read_only,
+                NativeCommand::Paste | NativeCommand::Undo | NativeCommand::Redo => !read_only,
+                NativeCommand::SelectAll => state.text().len() > 0,
+            }
+        }
+        match &self.state {
+            State::Input(entity) => available(entity.read(cx), action, self.config.read_only),
+            State::Textarea(entity) => available(entity.read(cx), action, self.config.read_only),
+        }
+    }
     pub(super) fn focus_handle(&self, cx: &App) -> FocusHandle {
         match &self.state {
             State::Input(entity) => entity.read(cx).focus_handle(cx),
             State::Textarea(entity) => entity.read(cx).focus_handle(cx),
+        }
+    }
+    pub(super) fn combobox(
+        &self,
+    ) -> Option<(Entity<InputState>, Rc<RefCell<super::combobox::State>>)> {
+        match (&self.state, &self.combobox) {
+            (State::Input(entity), Some(state)) => Some((entity.clone(), state.clone())),
+            _ => None,
         }
     }
     pub(super) fn element(&self) -> gpui::AnyElement {
@@ -357,6 +463,11 @@ impl Instance {
         {
             return EditorResult::Failed(EditorError::StaleEditor);
         }
+        if matches!(command, EditorCommand::Focus)
+            && !self.route.gate.borrow().allows(self.route.node)
+        {
+            return EditorResult::Failed(EditorError::FocusBlocked);
+        }
         let result = match &self.state {
             State::Input(entity) => {
                 entity.update(cx, |state, cx| apply(state, command, true, window, cx))
@@ -367,6 +478,11 @@ impl Instance {
         };
         match result {
             Ok(snapshot) => {
+                if matches!(command, EditorCommand::Replace(..))
+                    && let Some(combo) = &self.combobox
+                {
+                    combo.borrow_mut().replaced(&snapshot.text);
+                }
                 self.route
                     .publish(snapshot.clone(), EditorEventKind::Changed);
                 EditorResult::Applied(snapshot)

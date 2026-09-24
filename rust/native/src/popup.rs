@@ -4,10 +4,12 @@ use gpui::{
     AnyElement, App, Bounds, Element, GlobalElementId, InspectorElementId, IntoElement, LayoutId,
     Pixels, Point, Size, Window, px,
 };
+use gpuio_protocol::v1::{Align, Placement, Side};
 use std::{cell::Cell, rc::Rc};
 
 pub(super) struct Surface {
     pub trigger: Rc<Cell<Bounds<Pixels>>>,
+    pub placement: Placement,
     pub content: AnyElement,
 }
 
@@ -16,22 +18,64 @@ fn origin(
     size: Size<Pixels>,
     viewport: Size<Pixels>,
     margin: Pixels,
+    placement: Placement,
 ) -> Point<Pixels> {
-    let below = trigger.bottom();
-    let above = trigger.top() - size.height;
-    let y = if below + size.height <= viewport.height - margin {
-        below
-    } else if above >= margin || trigger.top() > viewport.height - trigger.bottom() {
-        above
+    let vertical = matches!(placement.side, Side::Top | Side::Bottom);
+    let (near, far, extent, viewport_extent, cross_near, cross_far, cross_extent) = if vertical {
+        (
+            trigger.top(),
+            trigger.bottom(),
+            size.height,
+            viewport.height,
+            trigger.left(),
+            trigger.right(),
+            size.width,
+        )
     } else {
-        below
+        (
+            trigger.left(),
+            trigger.right(),
+            size.width,
+            viewport.width,
+            trigger.top(),
+            trigger.bottom(),
+            size.height,
+        )
+    };
+    let gap = px(placement.offset as f32);
+    let before = near - extent - gap;
+    let after = far + gap;
+    let prefer_before = matches!(placement.side, Side::Top | Side::Left);
+    let (preferred, alternate, available, alternate_available) = if prefer_before {
+        (before, after, near - margin, viewport_extent - margin - far)
+    } else {
+        (after, before, viewport_extent - margin - far, near - margin)
+    };
+    let fits = |origin| origin >= margin && origin + extent <= viewport_extent - margin;
+    let primary = if !fits(preferred) && (fits(alternate) || alternate_available > available) {
+        alternate
+    } else {
+        preferred
+    };
+    let cross = match placement.align {
+        Align::Start => cross_near,
+        Align::Center => cross_near + (cross_far - cross_near - cross_extent) / 2.,
+        Align::End => cross_far - cross_extent,
+    };
+    let desired = if vertical {
+        Point::new(cross, primary)
+    } else {
+        Point::new(primary, cross)
     };
     Point::new(
-        trigger
-            .left()
+        desired
+            .x
             .min(viewport.width - margin - size.width)
             .max(margin),
-        y.min(viewport.height - margin - size.height).max(margin),
+        desired
+            .y
+            .min(viewport.height - margin - size.height)
+            .max(margin),
     )
 }
 
@@ -85,6 +129,7 @@ impl Element for Surface {
             child.size,
             window.viewport_size(),
             margin,
+            self.placement,
         );
         let offset = desired - child.origin;
         window.with_element_offset(offset, |window| {
@@ -115,16 +160,121 @@ mod tests {
         let popup = size(px(200.), px(100.));
         let trigger = |x, y| Bounds::new(point(px(x), px(y)), size(px(120.), px(40.)));
         assert_eq!(
-            origin(trigger(20., 20.), popup, viewport, px(8.)),
+            origin(
+                trigger(20., 20.),
+                popup,
+                viewport,
+                px(8.),
+                Placement::default()
+            ),
             point(px(20.), px(60.))
         );
         assert_eq!(
-            origin(trigger(300., 220.), popup, viewport, px(8.)),
+            origin(
+                trigger(300., 220.),
+                popup,
+                viewport,
+                px(8.),
+                Placement::default()
+            ),
             point(px(192.), px(120.))
         );
         assert_eq!(
-            origin(trigger(-10., -100.), popup, viewport, px(8.)),
+            origin(
+                trigger(-10., -100.),
+                popup,
+                viewport,
+                px(8.),
+                Placement::default()
+            ),
             point(px(8.), px(8.))
+        );
+    }
+    #[test]
+    fn preferred_side_alignment_offset_and_flip_are_consistent() {
+        let trigger = Bounds::new(point(px(200.), px(150.)), size(px(100.), px(40.)));
+        let popup = size(px(80.), px(60.));
+        let viewport = size(px(500.), px(400.));
+        for (side, align, x, y) in [
+            (Side::Top, Align::Start, 200., 90.),
+            (Side::Top, Align::Center, 210., 90.),
+            (Side::Top, Align::End, 220., 90.),
+            (Side::Bottom, Align::Center, 210., 190.),
+            (Side::Left, Align::Start, 120., 150.),
+            (Side::Left, Align::Center, 120., 140.),
+            (Side::Right, Align::End, 300., 130.),
+        ] {
+            assert_eq!(
+                origin(
+                    trigger,
+                    popup,
+                    viewport,
+                    px(8.),
+                    Placement {
+                        side,
+                        align,
+                        offset: 0.
+                    }
+                ),
+                point(px(x), px(y))
+            );
+        }
+        assert_eq!(
+            origin(
+                trigger,
+                popup,
+                viewport,
+                px(8.),
+                Placement {
+                    side: Side::Top,
+                    align: Align::Center,
+                    offset: 10.
+                }
+            ),
+            point(px(210.), px(80.))
+        );
+        assert_eq!(
+            origin(
+                trigger,
+                popup,
+                viewport,
+                px(8.),
+                Placement {
+                    side: Side::Top,
+                    align: Align::Center,
+                    offset: -5.
+                }
+            ),
+            point(px(210.), px(95.))
+        );
+        let edge = Bounds::new(point(px(5.), px(10.)), trigger.size);
+        assert_eq!(
+            origin(
+                edge,
+                popup,
+                viewport,
+                px(8.),
+                Placement {
+                    side: Side::Top,
+                    align: Align::Start,
+                    offset: 10.
+                }
+            ),
+            point(px(8.), px(60.))
+        );
+        assert_eq!(
+            origin(
+                edge,
+                popup,
+                viewport,
+                px(8.),
+                Placement {
+                    side: Side::Left,
+                    align: Align::End,
+                    offset: 0.
+                }
+            ),
+            point(px(105.), px(8.))
         );
     }
 }

@@ -4,16 +4,51 @@
  (inline_tests
   (deps
    (sandbox preserve_file_kind)
+   animation-v1-config.hex
+   icons-v1-request.hex
+   images-v1-request.hex
+   images-v1-events.hex
+   assets-v1-requests.hex
+   assets-v1-events.hex
    style-v1.hex
    controls-v1.hex
    choice-v1-request.hex
    choice-v1-events.hex
+   combobox-v1-request.hex
+   combobox-v1-events.hex
+   focus-v1-request.hex
+   focus-v1-events.hex
+   overlay-v1-request.hex
+   overlay-v1-events.hex
+   file-dialog-v1-requests.hex
+   file-dialog-v1-events.hex
+   file-dialog-capabilities-v1-request.hex
+   file-dialog-capabilities-v1-events.hex
+   pointer-v1-request.hex
+   pointer-v1-events.hex
+   drag-drop-v1-sources.hex
+   drag-drop-v1-target.hex
+   drag-drop-v1-request.hex
+   drag-drop-v1-events.hex
+   toast-v1-request.hex
+   toast-v1-events.hex
+   progress-v1-request.hex
+   palette-v1-request.hex
+   palette-v1-events.hex
+   menus-v1-request.hex
+   commands-v1-request.hex
+   commands-v1-events.hex
+   tooltip-v1-request.hex
+   tooltip-v1-events.hex
+   placement-v1-request.hex
    editor-v1-requests.hex
    editor-v1-events.hex))
  (preprocess
   (pps ppx_jane)))
 
 (copy_files ../fixtures/style-v1.hex)
+
+(copy_files ../fixtures/animation-v1-config.hex)
 
 (copy_files ../fixtures/controls-v1.hex)
 
@@ -24,3 +59,63 @@
 (copy_files ../fixtures/editor-v1-requests.hex)
 
 (copy_files ../fixtures/editor-v1-events.hex)
+
+(copy_files ../fixtures/combobox-v1-request.hex)
+
+(copy_files ../fixtures/combobox-v1-events.hex)
+
+(copy_files ../fixtures/focus-v1-request.hex)
+
+(copy_files ../fixtures/focus-v1-events.hex)
+
+(copy_files ../fixtures/overlay-v1-request.hex)
+
+(copy_files ../fixtures/overlay-v1-events.hex)
+
+(copy_files ../fixtures/placement-v1-request.hex)
+
+(copy_files ../fixtures/tooltip-v1-request.hex)
+
+(copy_files ../fixtures/tooltip-v1-events.hex)
+
+(copy_files ../fixtures/commands-v1-request.hex)
+
+(copy_files ../fixtures/commands-v1-events.hex)
+
+(copy_files ../fixtures/menus-v1-request.hex)
+
+(copy_files ../fixtures/palette-v1-request.hex)
+
+(copy_files ../fixtures/palette-v1-events.hex)
+
+(copy_files ../fixtures/progress-v1-request.hex)
+
+(copy_files ../fixtures/toast-v1-request.hex)
+
+(copy_files ../fixtures/toast-v1-events.hex)
+
+(copy_files ../fixtures/pointer-v1-request.hex)
+
+(copy_files ../fixtures/pointer-v1-events.hex)
+
+(copy_files ../fixtures/file-dialog-v1-requests.hex)
+
+(copy_files ../fixtures/file-dialog-v1-events.hex)
+
+(copy_files ../fixtures/file-dialog-capabilities-v1-request.hex)
+
+(copy_files ../fixtures/file-dialog-capabilities-v1-events.hex)
+
+(copy_files ../fixtures/drag-drop-v1-sources.hex)
+
+(copy_files ../fixtures/drag-drop-v1-target.hex)
+
+(copy_files ../fixtures/drag-drop-v1-request.hex)
+
+(copy_files ../fixtures/drag-drop-v1-events.hex)
+
+(copy_files ../fixtures/assets-v1-*.hex)
+
+(copy_files ../fixtures/images-v1-*.hex)
+
+(copy_files ../fixtures/icons-v1-*.hex)

@@ -5,7 +5,8 @@ open Core
 type t
 
 val create
-  :  Gpuio_protocol.Window_id.t
+  :  ?asset_owner:Gpuio.Asset.Expert.Owner.t
+  -> Gpuio_protocol.Window_id.t
   -> start:Time_ns.t
   -> theme:Gpuio.Theme.t
   -> unit Bonsai.Effect.t Gpuio.View.t Bonsai.Computation.t

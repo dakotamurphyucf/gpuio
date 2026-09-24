@@ -10,11 +10,20 @@ pub const MAX_INPUT_EVENTS: usize = 128;
 pub const MAX_INPUT_BYTES: usize = 4 * MAX_MESSAGE_BYTES;
 
 // Conservative encoded-size bound (all non-text fields fit within 256 bytes).
-// Responses have their existing count reservation; editor payloads are bounded
-// by MAX_TEXT_BYTES, hence at most MAX_RESPONSES * (MAX_TEXT_BYTES + 256).
+// Responses retain their count reservation. Editor text and selected path bytes
+// have per-result bounds; each path also needs its bin_prot length prefix.
+// Drain includes those prefixes when fitting a response batch into 1 MiB.
 fn event_bytes(event: &Event) -> usize {
     256 + match event {
-        Event::Choice(_, _, _, _, id) => id.len(),
+        Event::DragSourceEvent(_, _, _, _, sample) => sample.payload_bytes(),
+        Event::DropTargetEvent(_, _, _, _, sample) => sample.payload_bytes(),
+        Event::FileDialogResult(_, _, FileDialogResult::Selected(paths)) => {
+            paths.iter().map(|path| path.as_bytes().len() + 9).sum()
+        }
+        Event::Choice(_, _, _, _, id)
+        | Event::CommandInvoked(_, _, _, _, id, _, _)
+        | Event::PaletteDismissed(_, _, _, _, PaletteDismissal::Selected(id)) => id.len(),
+        Event::ComboboxSelected(_, _, _, _, id, snapshot) => id.len() + snapshot.text.len(),
         Event::EditorEvent(_, _, _, _, _, snapshot)
         | Event::EditorResult(_, _, _, EditorResult::Applied(snapshot)) => snapshot.text.len(),
         _ => 0,
@@ -136,6 +145,26 @@ impl Mailbox {
             *revision = next;
             return Ok(());
         }
+        if let Event::PointerEvent(window, node, handler, revision, sample) = &event
+            && sample.phase == PointerPhase::Moved
+            && let Some(last) = self.events.back_mut()
+            && let Event::PointerEvent(w, n, h, r, previous) = &last.event
+            && previous.phase == PointerPhase::Moved
+            && (window, node, handler, revision, sample.gesture) == (w, n, h, r, previous.gesture)
+        {
+            last.event = event;
+            return Ok(());
+        }
+        if let Event::DropTargetEvent(window, node, handler, revision, sample) = &event
+            && sample.phase == gpuio_protocol::drag_drop::TargetPhase::Moved
+            && let Some(last) = self.events.back_mut()
+            && let Event::DropTargetEvent(w, n, h, r, previous) = &last.event
+            && previous.phase == gpuio_protocol::drag_drop::TargetPhase::Moved
+            && (window, node, handler, revision, sample.gesture) == (w, n, h, r, previous.gesture)
+        {
+            last.event = event;
+            return Ok(());
+        }
         let bytes = event_bytes(&event);
         if let Event::EditorEvent(window, node, handler, revision, EditorEventKind::Changed, _) =
             &event
@@ -191,9 +220,23 @@ impl Mailbox {
             | Event::Press(id, ..)
             | Event::EditorEvent(id, ..)
             | Event::Choice(id, ..)
+            | Event::OverlayDismissed(id, ..)
+            | Event::TooltipOpenChanged(id, ..)
+            | Event::CommandInvoked(id, ..)
+            | Event::ToastDismissed(id, ..)
+            | Event::DragSourceEvent(id, ..)
+            | Event::ImageState(id, ..)
+            | Event::AnimationEndpoint(id, ..)
+            | Event::DropTargetEvent(id, ..)
+            | Event::PointerEvent(id, ..)
+            | Event::PaletteDismissed(id, ..)
+            | Event::ComboboxSelected(id, ..)
             | Event::EditorResult(_, id, ..)
+            | Event::FileDialogResult(_, id, ..)
             | Event::Overloaded(id) => id.slot() == window_slot,
-            Event::Welcome(..) | Event::Failed(..) | Event::Stopped => false,
+            Event::Welcome(..) | Event::Failed(..) | Event::AssetResponse(..) | Event::Stopped => {
+                false
+            }
         })
     }
 

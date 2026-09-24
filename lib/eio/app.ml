@@ -3,6 +3,7 @@ open Gpuio_protocol
 module Guard = Gpuio_runtime_core.Domain_guard
 module Driver = Gpuio_runtime_core.Window_driver
 module Input = Gpuio.Text_input
+module Dialog = Gpuio.File_dialog
 
 type editor_result = (Input.Snapshot.t, Input.Command_error.t) Result.t
 
@@ -10,6 +11,13 @@ type editor_request =
   { window : Window_id.t
   ; node : Node_id.t
   ; complete : editor_result -> unit
+  }
+
+type dialog_result = Wire.File_dialog.Result.t
+
+type dialog_request =
+  { window : Window_id.t
+  ; complete : dialog_result -> unit
   }
 
 module Stats = struct
@@ -43,7 +51,11 @@ type t =
   ; mutable closes : Window_id.t Int64.Map.t
   ; mutable frames : (Window_id.t * (revision:int64 -> unit Bonsai.Effect.t)) Int64.Map.t
   ; mutable editors : editor_request Int64.Map.t
+  ; mutable dialogs : dialog_request Int64.Map.t
+  ; asset_registry : Asset_registry.t
+  ; mutable assets : (Wire.Asset.Response.t -> unit) Int64.Map.t
   ; mutable correlation : int64
+  ; mutable motion : Gpuio.Animation.Preference.t option
   ; mutable welcomed : bool
   ; mutable stopping : bool
   ; mutable stopped : bool
@@ -81,6 +93,53 @@ let queue t message =
   Inbox.wake t.inbox
 ;;
 
+let set_motion t preference =
+  check t;
+  if not t.stopping
+  then (
+    t.motion <- Some preference;
+    Inbox.wake t.inbox)
+;;
+
+module Expert = struct
+  let asset_request t ~limit request =
+    Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+      check t;
+      let fail error = callback (Wire.Asset.Response.Failed error) in
+      if t.stopping
+      then fail Closed
+      else if not t.welcomed
+      then fail Not_ready
+      else if Map.length t.assets >= limit
+      then fail Resource_limit
+      else (
+        let id = correlation t in
+        let oversized =
+          match request with
+          | Wire.Asset.Request.Append (_, _, data) ->
+            String.length data > Wire.Asset.max_chunk_bytes
+          | Begin _ | Finish _ | Release _ -> false
+        in
+        if oversized
+        then fail Invalid_chunk
+        else (
+          t.assets <- Map.set t.assets ~key:id ~data:callback;
+          queue t (Asset (id, request)))))
+  ;;
+
+  let asset t request = asset_request t ~limit:63 request
+
+  let register_asset t ~scope source =
+    Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+      check t;
+      if t.stopping
+      then callback (Error Asset_registry.Error.Closed)
+      else if not t.welcomed
+      then callback (Error Asset_registry.Error.Not_ready)
+      else Asset_registry.register t.asset_registry ~scope source ~on_result:callback)
+  ;;
+end
+
 let release_window window =
   match window.phase with
   | Closed -> ()
@@ -92,6 +151,13 @@ let release_window window =
     in
     window.app.editors <- remaining;
     Map.iter cancelled ~f:(fun request -> request.complete (Error Closed));
+    let cancelled_dialogs, remaining_dialogs =
+      Map.partition_tf window.app.dialogs ~f:(fun request ->
+        Window_id.equal request.window window.id)
+    in
+    window.app.dialogs <- remaining_dialogs;
+    Map.iter cancelled_dialogs ~f:(fun request ->
+      request.complete (Wire.File_dialog.Result.Failed Closed));
     Scope.cancel window.scope;
     Option.iter window.driver ~f:Driver.close;
     window.driver <- None;
@@ -106,6 +172,7 @@ let shutdown t =
   if not t.stopping
   then (
     t.stopping <- true;
+    Asset_registry.close t.asset_registry;
     Scope.cancel t.scope;
     queue t Shutdown)
 ;;
@@ -167,6 +234,42 @@ module Window = struct
   ;;
 
   module Expert = struct
+    let file_dialog_raw t config =
+      Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+        check t.app;
+        let fail error = callback (Wire.File_dialog.Result.Failed error) in
+        if is_closed t || t.app.stopping
+        then fail Closed
+        else if
+          match t.phase with
+          | Open -> false
+          | Opening | Closing_before_open | Closing | Closed -> true
+        then fail Not_ready
+        else if
+          Map.exists t.app.dialogs ~f:(fun request -> Window_id.equal request.window t.id)
+        then fail Busy
+        else (
+          let request = correlation t.app in
+          t.app.dialogs
+          <- Map.set
+               t.app.dialogs
+               ~key:request
+               ~data:{ window = t.id; complete = callback };
+          queue t.app (File_dialog (request, t.id, config))))
+    ;;
+
+    let file_dialog t config =
+      Bonsai.Effect.map
+        (file_dialog_raw t (Dialog.Expert.to_wire config))
+        ~f:(Dialog.Expert.result_of_wire config)
+    ;;
+
+    let file_dialog_capabilities t =
+      Bonsai.Effect.map
+        (file_dialog_raw t Capabilities)
+        ~f:Dialog.Expert.capabilities_of_wire
+    ;;
+
     let editor_command t snapshot command =
       Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
         check t.app;
@@ -231,7 +334,14 @@ let open_window t ?(theme = Gpuio.Theme.default) ~title ~width ~height component
       let%bind scope = Scope.child t.scope ~name:"window" in
       let window = { app = t; id; scope; phase = Opening; driver = None } in
       let driver =
-        try Driver.create id ~start:(t.now ()) ~theme (component window) with
+        try
+          Driver.create
+            ~asset_owner:(Asset_registry.Expert.owner t.asset_registry)
+            id
+            ~start:(t.now ())
+            ~theme
+            (component window)
+        with
         | exn ->
           Scope.cancel scope;
           raise exn
@@ -274,11 +384,40 @@ let process t = function
         Option.iter window.driver ~f:(fun driver ->
           Driver.acknowledge driver ~revision |> Or_error.ok_exn));
     Inbox.wake t.inbox
-  | (Press (id, _, _, _) | Editor_event (id, _, _, _, _, _) | Choice (id, _, _, _, _)) as
-    event ->
+  | ( Press (id, _, _, _)
+    | Editor_event (id, _, _, _, _, _)
+    | Choice (id, _, _, _, _)
+    | Combobox_selected (id, _, _, _, _, _)
+    | Palette_dismissed (id, _, _, _, _)
+    | Toast_dismissed (id, _, _, _, _)
+    | Drag_source_event (id, _, _, _, _)
+    | Image_state (id, _, _, _, _)
+    | Animation_endpoint (id, _, _, _, _)
+    | Drop_target_event (id, _, _, _, _)
+    | Pointer_event (id, _, _, _, _)
+    | Overlay_dismissed (id, _, _, _, _)
+    | Tooltip_open_changed (id, _, _, _, _)
+    | Command_invoked (id, _, _, _, _, _, _) ) as event ->
     Option.iter (find_window t id) ~f:(fun window ->
       if not (Window.is_closed window)
       then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))
+  | Asset_response (request, response) ->
+    (match Map.find t.assets request with
+     | None -> ()
+     | Some complete ->
+       t.assets <- Map.remove t.assets request;
+       complete (if t.stopping then Wire.Asset.Response.Failed Closed else response))
+  | File_dialog_result (request, id, result) ->
+    (match Map.find t.dialogs request with
+     | Some pending when Window_id.equal pending.window id ->
+       t.dialogs <- Map.remove t.dialogs request;
+       let result =
+         match find_window t id with
+         | Some window when (not (Window.is_closed window)) && not t.stopping -> result
+         | Some _ | None -> Wire.File_dialog.Result.Failed Closed
+       in
+       pending.complete result
+     | Some _ | None -> ())
   | Editor_result (request, id, node, result) ->
     (match Map.find t.editors request with
      | Some pending
@@ -302,6 +441,38 @@ let process t = function
          if not (Window.is_closed window)
          then Bonsai.Effect.Expert.handle (callback ~revision))
      | Some _ | None -> ())
+  | Failed (request, code) when Map.mem t.assets request ->
+    let complete = Map.find_exn t.assets request in
+    t.assets <- Map.remove t.assets request;
+    let error : Wire.Asset.Error.t =
+      match code with
+      | Closed -> Closed
+      | Not_ready -> Not_ready
+      | Stale_handle -> Stale_handle
+      | Busy | Limit_exceeded -> Resource_limit
+      | Malformed
+      | Unsupported_version
+      | Unsupported_capability
+      | Invalid_revision
+      | Invalid_tree
+      | Overloaded
+      | Native_failure -> Native_failure
+    in
+    complete (Wire.Asset.Response.Failed error)
+  | Failed (request, code) when Map.mem t.dialogs request ->
+    let pending = Map.find_exn t.dialogs request in
+    t.dialogs <- Map.remove t.dialogs request;
+    let error : Wire.File_dialog.Error.t =
+      match code with
+      | Closed | Stale_handle -> Closed
+      | Busy -> Busy
+      | Limit_exceeded -> Limit_exceeded
+      | Unsupported_version | Unsupported_capability -> Unsupported
+      | Not_ready -> Not_ready
+      | Malformed | Invalid_revision | Invalid_tree | Overloaded | Native_failure ->
+        Native_failure
+    in
+    pending.complete (Wire.File_dialog.Result.Failed error)
   | Failed (request, code) when Map.mem t.editors request ->
     let pending = Map.find_exn t.editors request in
     t.editors <- Map.remove t.editors request;
@@ -341,7 +512,11 @@ let process t = function
   | Overloaded _ -> failwith "native input mailbox overloaded"
   | Stopped ->
     t.stopped <- true;
-    t.stopping <- true
+    t.stopping <- true;
+    Asset_registry.close t.asset_registry;
+    let assets = t.assets in
+    t.assets <- Int64.Map.empty;
+    Map.iter assets ~f:(fun complete -> complete (Wire.Asset.Response.Failed Closed))
 ;;
 
 let submit_commands t =
@@ -358,7 +533,26 @@ let submit_commands t =
          | Error Busy -> ()
          | Error code -> Error.raise (native_error code)))
   in
-  if t.welcomed then loop 64
+  if t.welcomed
+  then (
+    let ready =
+      match t.motion with
+      | None -> true
+      | Some preference ->
+        let preference =
+          match preference with
+          | System -> Wire.Animation.Preference.System
+          | Reduce -> Reduce
+          | Full -> Full
+        in
+        (match Gpuio_native.submit t.native (Set_motion preference) with
+         | Ok () ->
+           t.motion <- None;
+           true
+         | Error Busy -> false
+         | Error code -> Error.raise (native_error code))
+    in
+    if ready then loop 64)
 ;;
 
 let step t =
@@ -387,6 +581,13 @@ let step t =
         window.driver <- None;
         Option.iter driver ~f:Driver.close
       | Opening | Open | Closed -> ());
+    if t.welcomed && not t.stopping
+    then
+      Option.iter (Asset_registry.next_request t.asset_registry) ~f:(fun request ->
+        Bonsai.Effect.Expert.handle
+          (Bonsai.Effect.map
+             (Expert.asset_request t ~limit:64 request)
+             ~f:(Asset_registry.complete t.asset_registry)));
     submit_commands t;
     if not t.stopping
     then (
@@ -407,7 +608,7 @@ let step t =
         | (Opening | Closing_before_open | Closing | Closed), _ | Open, _ -> ())))
 ;;
 
-let worker native read ~tick_hz ~max_tasks initialize =
+let worker native read ~tick_hz ~max_tasks ~motion initialize =
   Eio_main.run (fun env ->
     Eio.Switch.run (fun sw ->
       let inbox = Inbox.create ~capacity:1024 () in
@@ -429,7 +630,11 @@ let worker native read ~tick_hz ~max_tasks initialize =
         ; closes = Int64.Map.empty
         ; frames = Int64.Map.empty
         ; editors = Int64.Map.empty
+        ; dialogs = Int64.Map.empty
+        ; asset_registry = Asset_registry.create ~scope ~wake:(fun () -> Inbox.wake inbox)
+        ; assets = Int64.Map.empty
         ; correlation = 0L
+        ; motion = Some motion
         ; welcomed = false
         ; stopping = false
         ; stopped = false
@@ -439,8 +644,10 @@ let worker native read ~tick_hz ~max_tasks initialize =
       in
       Exn.protect
         ~finally:(fun () ->
+          Asset_registry.close app.asset_registry;
           Scope.cancel scope;
           Map.iter app.windows ~f:release_window;
+          app.assets <- Int64.Map.empty;
           app.frames <- Int64.Map.empty;
           app.closes <- Int64.Map.empty;
           app.opens <- Int64.Map.empty;
@@ -490,7 +697,13 @@ let reraise_result = function
   | Error (exn, bt) -> Stdlib.Printexc.raise_with_backtrace exn bt
 ;;
 
-let run ?(tick_hz = 60.) ?(max_tasks = 1024) ?(exit_on_last_window = true) initialize =
+let run
+      ?(tick_hz = 60.)
+      ?(max_tasks = 1024)
+      ?(exit_on_last_window = true)
+      ?(motion = Gpuio.Animation.Preference.System)
+      initialize
+  =
   if (not (Float.is_finite tick_hz)) || Float.(tick_hz < 0.01 || tick_hz > 240.)
   then invalid_arg "tick_hz must be in [0.01,240]";
   if max_tasks < 1 || max_tasks > 65536 then invalid_arg "max_tasks must be in 1..65536";
@@ -508,7 +721,7 @@ let run ?(tick_hz = 60.) ?(max_tasks = 1024) ?(exit_on_last_window = true) initi
       Eio.Flow.close write;
       let domain =
         Domain.spawn (fun () ->
-          try worker native read ~tick_hz ~max_tasks initialize with
+          try worker native read ~tick_hz ~max_tasks ~motion initialize with
           | exn ->
             let bt = Stdlib.Printexc.get_raw_backtrace () in
             Gpuio_native.abort native;

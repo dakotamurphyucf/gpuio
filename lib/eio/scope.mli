@@ -38,4 +38,7 @@ module Expert : sig
   val try_enqueue : t -> (unit -> unit) -> bool
   val enqueue : t -> (unit -> unit) -> unit
   val check : t -> unit
+
+  (** Whether scopes share the same application scheduler and cancellation root. *)
+  val same_tree : t -> t -> bool
 end

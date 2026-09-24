@@ -9,9 +9,10 @@ repository.workspace = true
 crate-type = ["staticlib", "rlib"]
 
 [features]
-native-tests = ["dep:raw-window-handle", "dep:objc2", "dep:objc2-foundation"]
+native-tests = []
+native-image-tests = ["native-tests", "gpui_platform/test-support"]
 default = ["wayland", "x11"]
-wayland = ["gpui/wayland", "gpui_platform/wayland"]
+wayland = ["gpui/wayland", "gpui_platform/wayland", "dep:gpuio-wayland"]
 x11 = ["gpui/x11", "gpui_platform/x11"]
 
 [dependencies]
@@ -24,12 +25,27 @@ binprot = { git = "https://github.com/LaurentMazare/binprot-rs.git", rev = "165b
 async-channel = "2"
 unicode-segmentation = "1"
 libc = "0.2"
+raw-window-handle = "0.6.2"
+futures-lite = "2"
+image = { version = "=0.25.10", default-features = false, features = ["bmp", "gif", "ico", "jpeg", "png", "pnm", "tiff", "webp"] }
+resvg = "=0.46.0"
+roxmltree = "=0.21.1"
+flate2 = "=1.1.10"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "=0.26.0"
-raw-window-handle = { version = "0.6.2", optional = true }
-objc2 = { version = "0.6.4", optional = true }
-objc2-foundation = { version = "0.3.2", optional = true, default-features = false, features = ["std", "NSString", "NSRange"] }
+objc2 = "0.6.4"
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSString", "NSRange", "NSURL", "NSArray", "NSNotification", "NSOperation"] }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSApplication", "NSOpenPanel", "NSSavePanel", "NSPanel", "NSResponder", "NSWindow", "NSView", "NSWorkspace", "NSAccessibility", "block2"] }
+block2 = "0.6.2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gpuio-portal = { path = "../portal" }
+gpuio-wayland = { path = "../wayland", optional = true }
+
+[dev-dependencies]
+gpuio-portal = { path = "../portal" }
+gpuio-wayland = { path = "../wayland" }
 
 [[test]]
 name = "native_ui"
@@ -44,7 +60,73 @@ harness = false
 required-features = ["native-tests"]
 
 [[test]]
+name = "native_scroll"
+path = "tests/native_scroll.rs"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
 name = "native_controls"
 path = "tests/native_controls.rs"
 harness = false
 required-features = ["native-tests"]
+
+[[test]]
+name = "native_menus"
+path = "tests/native_menus.rs"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_palette"
+path = "tests/native_palette.rs"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_progress"
+path = "tests/native_progress.rs"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_toast"
+path = "tests/native_toast.rs"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_pointer"
+path = "tests/native_pointer.rs"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_file_dialog"
+path = "tests/native_file_dialog.rs"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_drag_drop"
+path = "tests/native_drag_drop.rs"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_images"
+path = "tests/native_images.rs"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_animation"
+path = "tests/native_animation.rs"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_image_views"
+path = "tests/native_image_views.rs"
+harness = false
+required-features = ["native-image-tests"]

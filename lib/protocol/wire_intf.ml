@@ -1,6 +1,11 @@
 open Core
 
 module type S = sig
+  module Asset = Asset_wire
+  module Image = Image_wire
+  module Animation = Animation_wire
+  module Drag_and_drop = Drag_and_drop_wire
+
   val version : int64
   val capabilities : int64
   val max_message_bytes : int
@@ -16,6 +21,186 @@ module type S = sig
       | Switch
       | Radio_group
       | Select
+      | Combobox
+      | Focus_scope
+      | Tooltip
+      | Command_scope
+      | Command_button
+      | Menu
+      | Command_palette
+      | Progress
+      | Toast
+      | Toast_stack
+      | Pointer_area
+      | Drag_source
+      | Drop_target
+      | Image
+      | Icon
+      | Animated
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Shortcut_modifier : sig
+    type t =
+      | Primary
+      | Control
+      | Alt
+      | Shift
+      | Super
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Shortcut_priority : sig
+    type t =
+      | Native_first
+      | Override
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Shortcut_text_input : sig
+    type t =
+      | Modified_only
+      | Always
+      | Never
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Shortcut : sig
+    type t =
+      { key : string
+      ; modifiers : Shortcut_modifier.t list
+      ; priority : Shortcut_priority.t
+      ; text_input : Shortcut_text_input.t
+      ; during_composition : bool
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Native_command : sig
+    type t =
+      | Copy
+      | Cut
+      | Paste
+      | Select_all
+      | Undo
+      | Redo
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Command_target : sig
+    type t =
+      | Callback
+      | Native of Native_command.t
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Command : sig
+    type t =
+      { id : string
+      ; generation : int64
+      ; label : string
+      ; enabled : bool
+      ; checked : bool option
+      ; shortcuts : Shortcut.t list
+      ; target : Command_target.t
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Command_source : sig
+    type t =
+      | Button of Node_id.t
+      | Shortcut
+      | Menu of Node_id.t
+      | Palette of Node_id.t
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Tooltip_open_state : sig
+    type t =
+      | Managed of bool
+      | Controlled of bool
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Tooltip : sig
+    type t =
+      { label : string
+      ; width : float
+      ; open_state : Tooltip_open_state.t
+      ; disabled : bool
+      ; hoverable : bool
+      ; show_delay_ns : int64
+      ; hide_delay_ns : int64
+      ; skip_delay_ns : int64
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Side : sig
+    type t =
+      | Top
+      | Right
+      | Bottom
+      | Left
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Align : sig
+    type t =
+      | Start
+      | Center
+      | End
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Placement : sig
+    type t =
+      { side : Side.t
+      ; align : Align.t
+      ; offset : float
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Overlay_kind : sig
+    type t =
+      | Dialog
+      | Popover
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Dismissal : sig
+    type t =
+      | Escape
+      | Outside_pointer
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Overlay : sig
+    type t =
+      { kind : Overlay_kind.t
+      ; label : string
+      ; width : float
+      ; dismiss_on_escape : bool
+      ; dismiss_on_outside_pointer : bool
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Focus_scope : sig
+    type t =
+      { trap : bool
+      ; auto_focus : bool
+      ; restore_focus : bool
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Combobox_filter : sig
+    type t =
+      | Substring
+      | Unfiltered
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -272,6 +457,7 @@ module type S = sig
         | Busy
         | Native_failure
         | Invalid_text
+        | Focus_blocked
       [@@deriving bin_io, equal, sexp_of]
     end
 
@@ -290,6 +476,178 @@ module type S = sig
     end
   end
 
+  module Menu_definition : sig
+    type t =
+      { label : string
+      ; disabled : bool
+      ; items : item list
+      }
+
+    and item =
+      | Command of string
+      | Separator
+      | Submenu of t
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Menu_presentation : sig
+    type t =
+      | Button
+      | Context
+      | Bar
+      | Platform_bar
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Menu : sig
+    type t =
+      { presentation : Menu_presentation.t
+      ; menus : Menu_definition.t list
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Palette : sig
+    type t =
+      { label : string
+      ; placeholder : string
+      ; commands : string list
+      ; dismiss_on_outside_pointer : bool
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Palette_dismissal : sig
+    type t =
+      | Escape
+      | Outside_pointer
+      | Selected of string
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Progress : sig
+    type t =
+      { label : string
+      ; fraction : float option
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Toast_politeness : sig
+    type t =
+      | Polite
+      | Assertive
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Toast_corner : sig
+    type t =
+      | Top_left
+      | Top_right
+      | Bottom_left
+      | Bottom_right
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Toast : sig
+    type t =
+      { label : string
+      ; close_label : string
+      ; timeout_ns : int64 option
+      ; politeness : Toast_politeness.t
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Toast_stack : sig
+    type t =
+      { label : string
+      ; corner : Toast_corner.t
+      ; width : float
+      ; max_visible : int64
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Toast_dismissal : sig
+    type t =
+      | Timeout
+      | Close_button
+      | Escape
+      | Overflow
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Pointer : sig
+    module Button : sig
+      type t =
+        | Left
+        | Right
+        | Middle
+        | Back
+        | Forward
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Cancel_reason : sig
+      type t =
+        | Escape
+        | Hidden
+        | Blocked
+        | Disabled
+        | Reconfigured
+        | Capture_lost
+        | Window_inactive
+        | Removed
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Phase : sig
+      type t =
+        | Started
+        | Moved
+        | Released
+        | Cancelled of Cancel_reason.t
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Modifiers : sig
+      type t =
+        { shift : bool
+        ; control : bool
+        ; alt : bool
+        ; command : bool
+        ; function_ : bool
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Config : sig
+      type t =
+        { label : string
+        ; button : Button.t
+        ; disabled : bool
+        ; prevent_default : bool
+        ; stop_propagation : bool
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Sample : sig
+      type t =
+        { gesture : int64
+        ; phase : Phase.t
+        ; button : Button.t
+        ; window_x : float
+        ; window_y : float
+        ; local_x : float
+        ; local_y : float
+        ; modifiers : Modifiers.t
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+  end
+
   module Op : sig
     type t =
       | Create of Node_id.t * Kind.t * string * Handler_id.t option
@@ -303,7 +661,102 @@ module type S = sig
       | Set_control of Node_id.t * Control.t
       | Set_choice of Node_id.t * Choice.Config.t
       | Set_choice_appearance of Node_id.t * Choice_appearance.t
+      | Set_combobox_filter of Node_id.t * Combobox_filter.t
+      | Set_focus_scope of Node_id.t * Focus_scope.t
+      | Set_overlay of Node_id.t * Overlay.t option
+      | Set_placement of Node_id.t * Placement.t option
+      | Set_tooltip of Node_id.t * Tooltip.t
+      | Set_commands of Node_id.t * Command.t list
+      | Set_command_ref of Node_id.t * string
+      | Set_menu of Node_id.t * Menu.t
+      | Set_palette of Node_id.t * Palette.t
+      | Set_progress of Node_id.t * Progress.t
+      | Set_toast of Node_id.t * Toast.t
+      | Set_toast_stack of Node_id.t * Toast_stack.t
+      | Set_pointer of Node_id.t * Pointer.Config.t
+      | Set_drag_source of Node_id.t * Drag_and_drop.Source.t
+      | Set_drop_target of Node_id.t * Drag_and_drop.Target.t
+      | Set_image of Node_id.t * Image.Config.t
+      | Set_animation of Node_id.t * Animation.Config.t
     [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module File_dialog : sig
+    module Selection : sig
+      type t =
+        | Files
+        | Directories
+        | Files_and_directories
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Open : sig
+      type t =
+        { selection : Selection.t
+        ; multiple : bool
+        ; title : string
+        ; accept_label : string
+        ; directory : string option
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Save : sig
+      type t =
+        { directory : string
+        ; suggested_name : string
+        ; title : string
+        ; accept_label : string
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Selection_support : sig
+      type t =
+        | Unsupported
+        | Single
+        | Multiple
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Capabilities : sig
+      type t =
+        { files : Selection_support.t
+        ; directories : Selection_support.t
+        ; files_and_directories : Selection_support.t
+        ; save : bool
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Config : sig
+      type t =
+        | Open of Open.t
+        | Save of Save.t
+        | Capabilities
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Error : sig
+      type t =
+        | Invalid_request
+        | Unsupported
+        | Busy
+        | Closed
+        | Not_ready
+        | Native_failure
+        | Limit_exceeded
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Result : sig
+      type t =
+        | Selected of string list
+        | Cancelled
+        | Failed of Error.t
+        | Capabilities of Capabilities.t
+      [@@deriving bin_io, equal, sexp_of]
+    end
   end
 
   module Transaction : sig
@@ -325,6 +778,9 @@ module type S = sig
       | Request_frame of int64 * Window_id.t
       | Shutdown
       | Editor_command of int64 * Window_id.t * Node_id.t * Editor.Command.t
+      | File_dialog of int64 * Window_id.t * File_dialog.Config.t
+      | Asset of int64 * Asset.Request.t
+      | Set_motion of Animation.Preference.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Bounded outgoing encoding. Native decoding additionally validates all
@@ -371,6 +827,32 @@ module type S = sig
           * Editor.Snapshot.t
       | Editor_result of int64 * Window_id.t * Node_id.t * Editor.Result.t
       | Choice of Window_id.t * Node_id.t * Handler_id.t * int64 * string
+      | Combobox_selected of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * string * Editor.Snapshot.t
+      | Overlay_dismissed of Window_id.t * Node_id.t * Handler_id.t * int64 * Dismissal.t
+      | Tooltip_open_changed of Window_id.t * Node_id.t * Handler_id.t * int64 * bool
+      | Command_invoked of
+          Window_id.t
+          * Node_id.t
+          * Handler_id.t
+          * int64
+          * string
+          * int64
+          * Command_source.t
+      | Palette_dismissed of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Palette_dismissal.t
+      | Toast_dismissed of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Toast_dismissal.t
+      | Pointer_event of Window_id.t * Node_id.t * Handler_id.t * int64 * Pointer.Sample.t
+      | File_dialog_result of int64 * Window_id.t * File_dialog.Result.t
+      | Drag_source_event of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Drag_and_drop.Source_sample.t
+      | Drop_target_event of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Drag_and_drop.Target_sample.t
+      | Asset_response of int64 * Asset.Response.t
+      | Image_state of Window_id.t * Node_id.t * Handler_id.t * int64 * Image.State.t
+      | Animation_endpoint of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Animation.Endpoint.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

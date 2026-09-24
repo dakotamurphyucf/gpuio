@@ -1,4 +1,22 @@
 //! Real-window control activation, focus traversal and native accessibility.
+#[path = "command_test.rs"]
+mod command_test;
+#[path = "drag_drop_test.rs"]
+mod drag_drop_test;
+#[path = "menu_test.rs"]
+mod menu_test;
+#[path = "overlay_test.rs"]
+mod overlay_test;
+#[path = "palette_test.rs"]
+mod palette_test;
+#[path = "pointer_test.rs"]
+mod pointer_test;
+#[path = "progress_test.rs"]
+mod progress_test;
+#[path = "toast_test.rs"]
+mod toast_test;
+#[path = "tooltip_test.rs"]
+mod tooltip_test;
 use super::editor_test::{frame, key};
 use super::*;
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
@@ -273,7 +291,12 @@ async fn select_control(
         .update(cx, |view, window, _| {
             (
                 view.probes.borrow()[&node(6)].bounds,
-                view.selects[&node(6)].borrow().popup_bounds.get(),
+                view.selects[&node(6)]
+                    .borrow()
+                    .popup
+                    .borrow()
+                    .popup_bounds
+                    .get(),
                 window.viewport_size(),
             )
         })
@@ -323,7 +346,8 @@ async fn select_control(
     handle
         .update(cx, |view, _, _| {
             assert!(Rc::ptr_eq(&retained_state, &view.selects[&node(6)]));
-            let state = view.selects[&node(6)].borrow();
+            let popup = view.selects[&node(6)].borrow().popup.clone();
+            let state = popup.borrow();
             let bounds = state.popup_bounds.get();
             assert!(bounds.size.width >= px(236.) && bounds.size.width <= px(240.));
             let probes = state.option_probes.borrow();
@@ -376,7 +400,13 @@ async fn select_control(
     frame(cx, handle).await;
     let position = handle
         .update(cx, |view, _, _| {
-            view.selects[&node(6)].borrow().popup_bounds.get().origin
+            view.selects[&node(6)]
+                .borrow()
+                .popup
+                .borrow()
+                .popup_bounds
+                .get()
+                .origin
                 + gpui::point(px(15.), px(16.))
         })
         .unwrap();
@@ -460,7 +490,15 @@ async fn select_control(
     frame(cx, handle).await;
     handle
         .update(cx, |view, _, _| {
-            assert!(view.selects[&node(6)].borrow().rendered_options.get() < 16)
+            assert!(
+                view.selects[&node(6)]
+                    .borrow()
+                    .popup
+                    .borrow()
+                    .rendered_options
+                    .get()
+                    < 16
+            )
         })
         .unwrap();
     #[cfg(target_os = "macos")]
@@ -476,7 +514,8 @@ async fn select_control(
     frame(cx, handle).await;
     handle
         .update(cx, |view, _, _| {
-            let state = view.selects[&node(6)].borrow();
+            let popup = view.selects[&node(6)].borrow().popup.clone();
+            let state = popup.borrow();
             let probes = state.option_probes.borrow();
             assert!(
                 probes["item-4095"].bounds.bottom() <= state.popup_bounds.get().bottom() + px(1.),
@@ -561,9 +600,512 @@ async fn select_control(
         "GPUIO_SELECT_MACOS_AX_OK: popup role, disabled options, semantic selection and offscreen navigation"
     );
 }
+async fn combobox_control(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    transport: &Transport,
+) {
+    let config = ChoiceConfig {
+        label: "Search model".into(),
+        selected: Some("fast".into()),
+        disabled: false,
+        items: [
+            ("fast", "Fast choice", false),
+            ("disabled", "Deep disabled", true),
+            ("deep", "Deep model", false),
+        ]
+        .into_iter()
+        .map(|(id, label, disabled)| ChoiceItem {
+            id: id.into(),
+            label: label.into(),
+            disabled,
+        })
+        .collect(),
+    };
+    let editor = EditorConfig {
+        label: config.label.clone(),
+        placeholder: "Find a model".into(),
+        disabled: false,
+        read_only: false,
+        submit_on_enter: false,
+        auto_focus: true,
+        min_rows: 1,
+        max_rows: 1,
+    };
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Create(
+                node(7),
+                Kind::Combobox,
+                "".into(),
+                Some(gpuio_protocol::HandlerId::from_parts(7, 1).unwrap()),
+            ),
+            Op::SetEditor(node(7), editor.clone()),
+            Op::SetChoice(node(7), config.clone()),
+            Op::SetComboboxFilter(node(7), ComboboxFilter::Substring),
+            Op::SetStyle(
+                node(7),
+                vec![Style::Fields(vec![
+                    Field::Width(Length::Px(300.)),
+                    Field::Height(Length::Px(36.)),
+                ])],
+            ),
+            Op::Splice(node(0), 4, 0, vec![node(7)]),
+        ],
+    );
+    frame(cx, handle).await;
+    assert!(focused(cx, handle, node(7)));
+    let get = |cx: &mut gpui::AsyncApp| {
+        handle
+            .update(cx, |view, window, cx| {
+                view.editors[&node(7)].snapshot(window, cx)
+            })
+            .unwrap()
+    };
+    let open = |cx: &mut gpui::AsyncApp| {
+        handle
+            .update(cx, |view, _, _| {
+                view.editors[&node(7)]
+                    .combobox()
+                    .unwrap()
+                    .1
+                    .borrow()
+                    .popup
+                    .borrow()
+                    .open
+            })
+            .unwrap()
+    };
+    assert!(!open(cx));
+    key(cx, handle, "down");
+    frame(cx, handle).await;
+    assert!(open(cx));
+    key(cx, handle, "escape");
+    frame(cx, handle).await;
+    assert!(!open(cx));
+    super::editor_test::native_text(cx, handle, "De", false);
+    frame(cx, handle).await;
+    assert_eq!(get(cx).text, "De");
+    assert!(open(cx));
+    handle
+        .update(cx, |view, _, _| {
+            let state = view.editors[&node(7)].combobox().unwrap().1;
+            let popup = state.borrow().popup.clone();
+            let popup = popup.borrow();
+            let probes = popup.option_probes.borrow();
+            assert!(!probes.contains_key("fast"));
+            assert!(probes.contains_key("disabled") && probes.contains_key("deep"));
+            assert_eq!(popup.navigation.active.as_deref(), Some("deep"));
+        })
+        .unwrap();
+    #[cfg(target_os = "macos")]
+    {
+        let input = accessible(cx, handle, "Search model", false).unwrap();
+        assert_eq!(input.role, "AXComboBox");
+        assert!(input.enabled);
+    }
+    choices(transport);
+    let before = get(cx);
+    key(cx, handle, "enter");
+    frame(cx, handle).await;
+    assert!(!open(cx));
+    assert!(focused(cx, handle, node(7)));
+    let selections = transport
+        .mailbox
+        .lock()
+        .unwrap()
+        .drain(128)
+        .into_iter()
+        .filter_map(|event| match event {
+            Event::ComboboxSelected(_, _, _, _, id, snapshot) => Some((id, snapshot)),
+            Event::EditorEvent(_, _, _, _, EditorEventKind::Submitted, _) => {
+                panic!("combobox submitted free text")
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(selections, vec![("deep".into(), before.clone())]);
+    assert_eq!(
+        get(cx).text,
+        "De",
+        "choosing does not implicitly replace query"
+    );
+    assert_eq!(
+        handle
+            .update(cx, |view, _, _| {
+                view.session
+                    .borrow()
+                    .tree(view.id)
+                    .unwrap()
+                    .get(node(7))
+                    .unwrap()
+                    .choice
+                    .as_ref()
+                    .unwrap()
+                    .selected
+                    .clone()
+            })
+            .unwrap(),
+        Some("fast".into()),
+        "application selection remains controlled"
+    );
+    super::editor_test::native_text(cx, handle, "x", false);
+    frame(cx, handle).await;
+    let result = handle
+        .update(cx, |view, window, cx| {
+            view.editors.get_mut(&node(7)).unwrap().command(
+                &EditorCommand::Replace(
+                    "Deep model".into(),
+                    EditorSelectionPolicy::End,
+                    EditorUndoPolicy::Record,
+                    Some(before.revision),
+                ),
+                window,
+                cx,
+            )
+        })
+        .unwrap();
+    assert_eq!(result, EditorResult::Failed(EditorError::StaleRevision));
+    assert_eq!(get(cx).text, "Dex");
+    #[cfg(target_os = "macos")]
+    {
+        key(cx, handle, "cmd-a");
+        super::editor_test::native_text(cx, handle, "に", true);
+        frame(cx, handle).await;
+        assert!(get(cx).composition.is_some());
+        assert!(!open(cx), "composition closes suggestions");
+        key(cx, handle, "down");
+        frame(cx, handle).await;
+        assert!(!open(cx), "composing arrow cannot open suggestions");
+        super::editor_test::native_text(cx, handle, "日本", false);
+        frame(cx, handle).await;
+        assert!(get(cx).composition.is_none());
+        assert_eq!(get(cx).text, "日本");
+    }
+    key(cx, handle, "tab");
+    frame(cx, handle).await;
+    assert!(!open(cx));
+    assert!(!focused(cx, handle, node(7)));
+    apply(
+        cx,
+        handle,
+        vec![Op::Splice(node(0), 4, 1, vec![]), Op::Remove(node(7))],
+    );
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, _, _| {
+            assert!(!view.editors.contains_key(&node(7)))
+        })
+        .unwrap();
+    println!(
+        "GPUIO_COMBOBOX_NATIVE_OK: native query/filtering, keyboard/cancel, exact intent snapshot, controlled value, stale replacement, Tab and cleanup"
+    );
+    #[cfg(target_os = "macos")]
+    println!(
+        "GPUIO_COMBOBOX_MACOS_OK: editable combo role and native marked/committed text without popup interference"
+    );
+}
+
+async fn focus_scopes(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport: &Transport) {
+    // Transport assertions below exercise AppKit accessibility actions only.
+    #[cfg(not(target_os = "macos"))]
+    let _ = transport;
+    let scope = FocusScopeConfig {
+        trap: true,
+        auto_focus: true,
+        restore_focus: true,
+    };
+    let outside_config = handle
+        .update(cx, |view, window, cx| {
+            window.focus(&view.editors[&node(4)].focus_handle(cx), cx);
+            view.session
+                .borrow()
+                .tree(view.id)
+                .unwrap()
+                .get(node(4))
+                .unwrap()
+                .editor
+                .as_ref()
+                .unwrap()
+                .as_ref()
+                .clone()
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    let button = |slot, label: &str, disabled| {
+        vec![
+            Op::Create(
+                node(slot),
+                Kind::Button,
+                label.into(),
+                Some(gpuio_protocol::HandlerId::from_parts(slot, 1).unwrap()),
+            ),
+            Op::SetControl(node(slot), Control::Button(disabled)),
+            Op::SetStyle(
+                node(slot),
+                vec![Style::Fields(vec![
+                    Field::Width(Length::Px(200.)),
+                    Field::Height(Length::Px(28.)),
+                ])],
+            ),
+        ]
+    };
+    let mut operations = vec![
+        Op::SetControl(node(1), Control::Checkbox(CheckState::Unchecked, false)),
+        Op::Create(node(8), Kind::FocusScope, "".into(), None),
+        Op::SetFocusScope(node(8), scope),
+        Op::SetStyle(
+            node(8),
+            vec![Style::Fields(vec![
+                Field::Position(1),
+                Field::Top(Length::Px(0.)),
+                Field::Left(Length::Px(0.)),
+                Field::Width(Length::Px(240.)),
+                Field::Height(Length::Px(140.)),
+            ])],
+        ),
+    ];
+    operations.extend(button(9, "Scope first", false));
+    operations.extend([
+        Op::Create(
+            node(10),
+            Kind::Input,
+            "inside".into(),
+            Some(gpuio_protocol::HandlerId::from_parts(10, 1).unwrap()),
+        ),
+        Op::SetEditor(
+            node(10),
+            EditorConfig {
+                label: "Scope editor".into(),
+                placeholder: "".into(),
+                disabled: false,
+                read_only: false,
+                submit_on_enter: false,
+                auto_focus: false,
+                min_rows: 1,
+                max_rows: 1,
+            },
+        ),
+        Op::SetStyle(
+            node(10),
+            vec![Style::Fields(vec![
+                Field::Width(Length::Px(200.)),
+                Field::Height(Length::Px(28.)),
+            ])],
+        ),
+    ]);
+    operations.extend(button(11, "Scope hidden", false));
+    operations.push(Op::SetStyle(
+        node(11),
+        vec![Style::Fields(vec![Field::Visibility(1)])],
+    ));
+    operations.extend(button(12, "Scope disabled", true));
+    operations.extend([
+        Op::Splice(node(8), 0, 0, vec![node(9), node(10), node(11), node(12)]),
+        Op::Splice(node(0), 4, 0, vec![node(8)]),
+    ]);
+    apply(cx, handle, operations);
+    frame(cx, handle).await;
+    assert!(
+        focused(cx, handle, node(9)),
+        "scope enters first visible enabled control"
+    );
+    key(cx, handle, "tab");
+    frame(cx, handle).await;
+    assert!(focused(cx, handle, node(10)));
+    key(cx, handle, "tab");
+    frame(cx, handle).await;
+    assert!(
+        focused(cx, handle, node(9)),
+        "Tab skips hidden/disabled and wraps inside"
+    );
+    key(cx, handle, "shift-tab");
+    frame(cx, handle).await;
+    assert!(focused(cx, handle, node(10)));
+    let result = handle
+        .update(cx, |view, window, cx| {
+            view.editors
+                .get_mut(&node(4))
+                .unwrap()
+                .command(&EditorCommand::Focus, window, cx)
+        })
+        .unwrap();
+    assert_eq!(result, EditorResult::Failed(EditorError::FocusBlocked));
+    assert!(
+        focused(cx, handle, node(10)),
+        "blocked command never moves focus outside"
+    );
+    #[cfg(target_os = "macos")]
+    {
+        presses(transport);
+        assert!(accessible(cx, handle, "Check", true).unwrap().enabled);
+        frame(cx, handle).await;
+        assert!(
+            focused(cx, handle, node(10)),
+            "outside accessibility focus is blocked"
+        );
+        assert!(
+            presses(transport).is_empty(),
+            "outside accessibility activation is blocked"
+        );
+    }
+    apply(
+        cx,
+        handle,
+        vec![Op::SetStyle(
+            node(9),
+            vec![Style::Fields(vec![Field::Visibility(1)])],
+        )],
+    );
+    frame(cx, handle).await;
+    key(cx, handle, "tab");
+    frame(cx, handle).await;
+    assert!(
+        focused(cx, handle, node(10)),
+        "one eligible control wraps to itself"
+    );
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::SetStyle(
+                node(9),
+                vec![Style::Fields(vec![
+                    Field::Width(Length::Px(200.)),
+                    Field::Height(Length::Px(28.)),
+                ])],
+            ),
+            Op::Splice(node(8), 0, 2, vec![node(10), node(9)]),
+        ],
+    );
+    frame(cx, handle).await;
+    key(cx, handle, "tab");
+    frame(cx, handle).await;
+    assert!(
+        focused(cx, handle, node(9)),
+        "native order follows keyed reorder"
+    );
+    key(cx, handle, "shift-tab");
+    frame(cx, handle).await;
+    let mut nested = vec![
+        Op::Create(node(13), Kind::FocusScope, "".into(), None),
+        Op::SetFocusScope(node(13), scope),
+    ];
+    nested.extend(button(14, "Nested", false));
+    nested.extend([
+        Op::Splice(node(13), 0, 0, vec![node(14)]),
+        Op::Splice(node(8), 4, 0, vec![node(13)]),
+    ]);
+    apply(cx, handle, nested);
+    frame(cx, handle).await;
+    assert!(focused(cx, handle, node(14)));
+    key(cx, handle, "shift-tab");
+    frame(cx, handle).await;
+    assert!(focused(cx, handle, node(14)), "nested trap is exclusive");
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Splice(node(8), 4, 1, vec![]),
+            Op::Remove(node(14)),
+            Op::Remove(node(13)),
+        ],
+    );
+    frame(cx, handle).await;
+    assert!(
+        focused(cx, handle, node(10)),
+        "closing nested scope restores parent focus"
+    );
+    let mut disabled = outside_config.clone();
+    disabled.disabled = true;
+    apply(cx, handle, vec![Op::SetEditor(node(4), disabled)]);
+    frame(cx, handle).await;
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Splice(node(0), 4, 1, vec![]),
+            Op::Remove(node(9)),
+            Op::Remove(node(10)),
+            Op::Remove(node(11)),
+            Op::Remove(node(12)),
+            Op::Remove(node(8)),
+        ],
+    );
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, window, _| {
+            assert!(
+                view.root_focus.as_ref().unwrap().is_focused(window),
+                "disabled restoration target falls back without focus probe"
+            )
+        })
+        .unwrap();
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::SetEditor(node(4), outside_config),
+            Op::Create(node(15), Kind::FocusScope, "".into(), None),
+            Op::SetFocusScope(node(15), scope),
+            Op::Splice(node(0), 4, 0, vec![node(15)]),
+        ],
+    );
+    frame(cx, handle).await;
+    key(cx, handle, "tab");
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, window, _| {
+            assert!(
+                view.focus
+                    .borrow()
+                    .handle(node(15))
+                    .unwrap()
+                    .is_focused(window),
+                "empty trap retains its root"
+            )
+        })
+        .unwrap();
+    let mut populated = button(16, "Late child", false);
+    populated.push(Op::Splice(node(15), 0, 0, vec![node(16)]));
+    apply(cx, handle, populated);
+    frame(cx, handle).await;
+    key(cx, handle, "tab");
+    frame(cx, handle).await;
+    assert!(focused(cx, handle, node(16)));
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Splice(node(0), 4, 1, vec![]),
+            Op::Remove(node(16)),
+            Op::Remove(node(15)),
+        ],
+    );
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, _, _| {
+            for id in [8, 13, 15] {
+                assert!(view.focus.borrow().handle(node(id)).is_none());
+            }
+            assert!(
+                !view.focus.borrow_mut().take_pending(),
+                "focus repair does not permanently poll"
+            );
+        })
+        .unwrap();
+    println!(
+        "GPUIO_FOCUS_SCOPES_OK: painted traversal, hidden/disabled/reorder, nested traps/restoration, blocked commands/AX, empty fallback and cleanup"
+    );
+}
+
 fn select_is_open(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> bool {
     handle
-        .update(cx, |view, _, _| view.selects[&node(6)].borrow().open)
+        .update(cx, |view, _, _| {
+            view.selects[&node(6)].borrow().popup.borrow().open
+        })
         .unwrap()
 }
 
@@ -571,16 +1113,19 @@ fn apply(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, operations: Vec<Op
     handle
         .update(cx, |view, window, cx| {
             let base = view.session.borrow().tree(view.id).unwrap().revision();
+            let transaction = Transaction {
+                window: view.id,
+                base,
+                revision: base + 1,
+                operations,
+            };
             let applied = view
                 .session
                 .borrow_mut()
-                .apply(&Transaction {
-                    window: view.id,
-                    base,
-                    revision: base + 1,
-                    operations,
-                })
-                .unwrap();
+                .apply(&transaction)
+                .unwrap_or_else(|error| {
+                    panic!("native test transaction rejected: {error:?}: {transaction:?}")
+                });
             view.update_editors(&applied.dirty, window, cx);
             cx.notify();
         })
@@ -623,6 +1168,52 @@ fn accessible(
     label: &str,
     press: bool,
 ) -> Option<Accessible> {
+    accessible_with_role(cx, handle, label, None, press)
+}
+#[cfg(all(target_os = "macos", feature = "native-image-tests"))]
+pub(super) fn accessible_role(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    label: &str,
+) -> Option<String> {
+    accessible(cx, handle, label, false).map(|node| node.role)
+}
+#[cfg(target_os = "macos")]
+#[derive(Clone, Copy)]
+enum AccessibilityRequest<'a> {
+    Inspect,
+    Press,
+    Focus,
+    SetValue(&'a str),
+}
+#[cfg(target_os = "macos")]
+fn accessible_with_role(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    label: &str,
+    expected_role: Option<&str>,
+    press: bool,
+) -> Option<Accessible> {
+    accessible_request(
+        cx,
+        handle,
+        label,
+        expected_role,
+        if press {
+            AccessibilityRequest::Press
+        } else {
+            AccessibilityRequest::Inspect
+        },
+    )
+}
+#[cfg(target_os = "macos")]
+fn accessible_request(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    label: &str,
+    expected_role: Option<&str>,
+    request: AccessibilityRequest<'_>,
+) -> Option<Accessible> {
     use objc2::{
         msg_send,
         runtime::{AnyObject, Bool},
@@ -631,7 +1222,8 @@ fn accessible(
     unsafe fn visit(
         object: *mut AnyObject,
         label: &str,
-        press: bool,
+        expected_role: Option<&str>,
+        request: AccessibilityRequest<'_>,
         depth: usize,
     ) -> Option<Accessible> {
         if object.is_null() || depth > 16 {
@@ -639,8 +1231,12 @@ fn accessible(
         }
         unsafe {
             let title: *mut NSString = msg_send![object, accessibilityTitle];
-            if !title.is_null() && (*title).to_string() == label {
-                let role: *mut NSString = msg_send![object, accessibilityRole];
+            let role: *mut NSString = msg_send![object, accessibilityRole];
+            if !title.is_null()
+                && (*title).to_string() == label
+                && !role.is_null()
+                && expected_role.is_none_or(|expected| (*role).to_string() == expected)
+            {
                 let value: *mut AnyObject = msg_send![object, accessibilityValue];
                 let value: isize = if value.is_null() {
                     -1
@@ -648,10 +1244,20 @@ fn accessible(
                     msg_send![value, integerValue]
                 };
                 let enabled: Bool = msg_send![object, isAccessibilityEnabled];
-                if press {
-                    let _: () = msg_send![object, setAccessibilityFocused: true];
-                    let accepted: Bool = msg_send![object, accessibilityPerformPress];
-                    assert!(accepted.as_bool());
+                match request {
+                    AccessibilityRequest::Inspect => (),
+                    AccessibilityRequest::Press => {
+                        let _: () = msg_send![object, setAccessibilityFocused: true];
+                        let accepted: Bool = msg_send![object, accessibilityPerformPress];
+                        assert!(accepted.as_bool());
+                    }
+                    AccessibilityRequest::Focus => {
+                        let _: () = msg_send![object, setAccessibilityFocused: true];
+                    }
+                    AccessibilityRequest::SetValue(value) => {
+                        let value = NSString::from_str(value);
+                        let _: () = msg_send![object, setAccessibilityValue: &*value];
+                    }
                 }
                 return Some(Accessible {
                     role: (*role).to_string(),
@@ -667,7 +1273,7 @@ fn accessible(
             assert!(count < 128);
             for index in 0..count {
                 let child: *mut AnyObject = msg_send![children, objectAtIndex: index];
-                if let Some(found) = visit(child, label, press, depth + 1) {
+                if let Some(found) = visit(child, label, expected_role, request, depth + 1) {
                     return Some(found);
                 }
             }
@@ -678,7 +1284,7 @@ fn accessible(
     unsafe {
         let window: *mut AnyObject = msg_send![view, window];
         let content: *mut AnyObject = msg_send![window, contentView];
-        visit(content, label, press, 0)
+        visit(content, label, expected_role, request, 0)
     }
 }
 
@@ -800,6 +1406,16 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
     }
     radio(cx, handle, &transport).await;
     select_control(cx, handle, &transport).await;
+    combobox_control(cx, handle, &transport).await;
+    focus_scopes(cx, handle, &transport).await;
+    overlay_test::exercise(cx, handle, &transport).await;
+    tooltip_test::exercise(cx, handle, &transport).await;
+    command_test::exercise(cx, handle, &transport).await;
+    menu_test::exercise(cx, handle, &transport).await;
+    palette_test::exercise(cx, handle, &transport).await;
+    progress_test::exercise(cx, handle, &transport).await;
+    toast_test::exercise(cx, handle, &transport).await;
+    pointer_test::exercise(cx, handle, &transport).await;
     // Remove a focused native node and enter the surviving Tab order again.
     handle
         .update(cx, |view, window, cx| {
@@ -852,7 +1468,38 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
         .unwrap();
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Suite {
+    Controls,
+    Menus,
+    Palette,
+    Progress,
+    Toast,
+    Pointer,
+    DragDrop,
+}
 pub fn run() {
+    run_suite(Suite::Controls);
+}
+pub fn run_menus() {
+    run_suite(Suite::Menus);
+}
+pub fn run_drag_drop() {
+    run_suite(Suite::DragDrop);
+}
+pub fn run_pointer() {
+    run_suite(Suite::Pointer);
+}
+pub fn run_toast() {
+    run_suite(Suite::Toast);
+}
+pub fn run_progress() {
+    run_suite(Suite::Progress);
+}
+pub fn run_palette() {
+    run_suite(Suite::Palette);
+}
+fn run_suite(suite: Suite) {
     let failure = Rc::new(RefCell::new(None));
     let task_failure = failure.clone();
     let mut fds = [0; 2];
@@ -931,6 +1578,23 @@ pub fn run() {
             Op::Splice(node(0), 0, 0, vec![node(1), node(2), node(3), node(4)]),
             Op::SetRoot(Some(node(0))),
         ]);
+        if suite != Suite::Controls {
+            // Reserve the same generational slots used by preceding component
+            // fixtures, without exercising those unrelated windows/interactions.
+            let end = match suite {
+                Suite::Menus => 38,
+                Suite::Palette => 47,
+                Suite::Progress => 60,
+                Suite::Toast => 61,
+                Suite::Pointer => 82,
+                Suite::DragDrop => 90,
+                Suite::Controls => unreachable!(),
+            };
+            for slot in 5..end {
+                operations.push(Op::Create(node(slot), Kind::Text, String::new(), None));
+                operations.push(Op::Remove(node(slot)));
+            }
+        }
         let applied = session
             .borrow_mut()
             .apply(&Transaction {
@@ -963,7 +1627,26 @@ pub fn run() {
             .unwrap();
         cx.activate(true);
         cx.spawn(async move |cx| {
-            let result = super::native_test::protect(exercise(cx, handle, transport)).await;
+            let result = super::native_test::protect(async {
+                if suite != Suite::Controls {
+                    frame(cx, handle).await;
+                    match suite {
+                        Suite::Menus => menu_test::exercise(cx, handle, &transport).await,
+                        Suite::Palette => palette_test::exercise(cx, handle, &transport).await,
+                        Suite::Progress => progress_test::exercise(cx, handle, &transport).await,
+                        Suite::Toast => toast_test::exercise(cx, handle, &transport).await,
+                        Suite::DragDrop => drag_drop_test::exercise(cx, handle, &transport).await,
+                        Suite::Pointer => pointer_test::exercise(cx, handle, &transport).await,
+                        Suite::Controls => unreachable!(),
+                    }
+                    handle
+                        .update(cx, |_, window, _| window.remove_window())
+                        .unwrap();
+                } else {
+                    exercise(cx, handle, transport).await;
+                }
+            })
+            .await;
             *task_failure.borrow_mut() = result.err();
             cx.update(stop_application);
         })
@@ -971,6 +1654,9 @@ pub fn run() {
     });
     if let Some(error) = failure.borrow_mut().take() {
         std::panic::resume_unwind(error);
+    }
+    if suite != Suite::Controls {
+        return;
     }
     println!(
         "GPUIO_CONTROLS_NATIVE_OK: activation, keyboard, Tab/Shift-Tab, pointer policy, native state styling, disable/re-enable and disposal"

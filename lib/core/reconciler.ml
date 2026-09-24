@@ -1,3 +1,4 @@
+module Ui_command = Command
 open Core
 open Gpuio_protocol
 module Wire = Wire
@@ -63,9 +64,20 @@ module Identity = struct
 end
 
 type 'a callback =
+  | Animation of int64 * int64 ref * (Animation.Event.t -> 'a)
+  | Image of (Image.State.t -> 'a)
+  | Pointer of (Pointer.Event.t -> 'a)
+  | Drag_source of (Drag_and_drop.Source_event.t -> 'a)
+  | Drop_target of (Drag_and_drop.Target_event.t -> 'a)
+  | Toast of (Toast.Dismissal.t -> 'a)
+  | Palette of Command_palette.Config.t * (Command_palette.Dismissal.t -> 'a)
   | Click of (unit -> 'a)
+  | Commands of 'a Ui_command.Registry.t * Wire.Command.t list
+  | Dismiss of Overlay.Config.t * (Overlay.Dismissal.t -> 'a)
+  | Tooltip of Tooltip.Config.t * (bool -> 'a)
   | Editor of (Text_input.Event.t -> 'a)
   | Choice of Choice.Config.t * (Choice.Id.t -> 'a)
+  | Combobox of Combobox.Config.t * (Combobox.Event.t -> 'a)
 
 type 'a binding =
   { node : Node_id.t
@@ -78,9 +90,15 @@ type 'a mounted =
   ; id : Node_id.t
   ; handler : Handler_id.t option
   ; style : Wire.Style.t list
+  ; animation : Wire.Animation.Config.t option
+  ; animation_seen : int64 ref
   ; choice_appearance : Wire.Choice_appearance.t option
   ; children : 'a mounted list
   ; controllers : String.Set.t
+  ; commands : Wire.Command.t list
+  ; free_commands : String.Set.t
+  ; menu : Wire.Menu.t option
+  ; platform_menus : int
   }
 
 type 'a state =
@@ -91,10 +109,12 @@ type 'a state =
   ; theme : Theme.t
   ; revision : int64
   ; epoch : int
+  ; command_generation : int64
   }
 
 type 'a t =
   { owner : unit ref
+  ; asset_owner : Asset.Expert.Owner.t option
   ; window : Window_id.t
   ; mutable state : 'a state
   ; mutable closed : bool
@@ -113,12 +133,15 @@ type 'a builder =
   ; mutable bindings : 'a binding Int.Map.t
   ; mutable operations : Wire.Op.t list
   ; mutable operation_count : int
+  ; mutable command_generation : int64
   ; theme : Theme.t
   ; theme_unchanged : bool
+  ; asset_owner : Asset.Expert.Owner.t option
   }
 
-let create window =
+let create ?asset_owner window =
   { owner = ref ()
+  ; asset_owner
   ; window
   ; closed = false
   ; state =
@@ -129,6 +152,7 @@ let create window =
       ; theme = Theme.default
       ; revision = 0L
       ; epoch = 0
+      ; command_generation = 0L
       }
   }
 ;;
@@ -175,6 +199,22 @@ let kind = function
   | Switch -> Switch
   | Radio_group -> Radio_group
   | Select -> Select
+  | Combobox -> Combobox
+  | Focus_scope -> Focus_scope
+  | Tooltip -> Tooltip
+  | Command_scope -> Command_scope
+  | Command_button -> Command_button
+  | Menu -> Menu
+  | Command_palette -> Command_palette
+  | Progress -> Progress
+  | Toast -> Toast
+  | Toast_stack -> Toast_stack
+  | Pointer_area -> Pointer_area
+  | Drag_source -> Drag_source
+  | Drop_target -> Drop_target
+  | Image -> Image
+  | Icon -> Icon
+  | Animated -> Animated
 ;;
 
 let compatible mounted view =
@@ -244,19 +284,162 @@ let rec mount builder ~depth previous view =
       | None -> new_node builder
     in
     let old_handler = Option.bind previous ~f:(fun mounted -> mounted.handler) in
+    let old_commands =
+      Option.value_map previous ~default:[] ~f:(fun mounted -> mounted.commands)
+    in
+    let old_commands_by_id =
+      String.Map.of_alist_exn
+        (List.map old_commands ~f:(fun command -> command.Wire.Command.id, command))
+    in
+    let commands =
+      Option.value_map description.commands ~default:[] ~f:(fun registry ->
+        List.map (Ui_command.Registry.to_list registry) ~f:(fun command ->
+          let id = Ui_command.Id.to_string (Ui_command.id command) in
+          let old = Map.find old_commands_by_id id in
+          let candidate = Ui_command.Expert.to_wire command ~generation:0L in
+          let generation =
+            match old with
+            | Some old
+              when Bool.equal old.enabled candidate.enabled
+                   && Wire.Command_target.equal old.target candidate.target ->
+              old.generation
+            | Some _ | None ->
+              if Int64.equal builder.command_generation Int64.max_value
+              then fail "command generation exhausted";
+              builder.command_generation <- Int64.succ builder.command_generation;
+              builder.command_generation
+          in
+          { candidate with generation }))
+    in
+    let animation_seen =
+      Option.value_map previous ~default:(ref 0L) ~f:(fun old -> old.animation_seen)
+    in
+    let animation =
+      Option.map description.animation ~f:(fun item ->
+        let old = Option.bind previous ~f:(fun mounted -> mounted.animation) in
+        let old_config =
+          Option.bind previous ~f:(fun mounted ->
+            Option.map (View.Expert.describe mounted.view).animation ~f:(fun old ->
+              old.config))
+        in
+        let generation =
+          match old with
+          | None -> 1L
+          | Some old
+            when Option.equal Animation.Config.equal old_config (Some item.config) ->
+            old.generation
+          | Some old ->
+            if Int64.equal old.generation Int64.max_value
+            then fail "animation generation exhausted";
+            Int64.succ old.generation
+        in
+        Animation.Expert.to_wire item.config ~generation |> value)
+    in
     let callback =
-      match description.on_click, description.editor, description.choice with
-      | Some callback, None, None -> Some (Click callback)
-      | None, Some editor, None -> Some (Editor editor.on_event)
-      | None, None, Some choice ->
+      match
+        ( description.on_click
+        , description.editor
+        , description.choice
+        , description.combobox
+        , description.overlay
+        , description.tooltip
+        , description.commands )
+      with
+      | Some callback, None, None, None, None, None, None -> Some (Click callback)
+      | None, Some editor, None, None, None, None, None -> Some (Editor editor.on_event)
+      | None, None, Some choice, None, None, None, None ->
         if Choice.Config.is_disabled choice.config
         then None
         else Some (Choice (choice.config, choice.on_select))
-      | None, None, None -> None
+      | None, None, None, Some combo, None, None, None ->
+        Some (Combobox (combo.config, combo.on_event))
+      | None, None, None, None, Some overlay, None, None ->
+        Some (Dismiss (overlay.config, overlay.on_dismiss))
+      | None, None, None, None, None, Some tooltip, None ->
+        Option.map tooltip.on_open_change ~f:(fun callback ->
+          Tooltip (tooltip.config, callback))
+      | None, None, None, None, None, None, Some registry ->
+        Some (Commands (registry, commands))
+      | None, None, None, None, None, None, None -> None
       | _ -> fail "a view cannot combine incompatible handler kinds"
+    in
+    let callback =
+      match description.palette, callback with
+      | Some palette, None -> Some (Palette (palette.config, palette.on_dismiss))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "palette cannot combine another handler"
+    in
+    let callback =
+      match description.notification, callback with
+      | Some item, None -> Some (Toast item.on_dismiss)
+      | None, callback -> callback
+      | Some _, Some _ -> fail "toast cannot combine another handler"
+    in
+    let callback =
+      match description.pointer, callback with
+      | Some item, None -> Some (Pointer item.on_event)
+      | None, callback -> callback
+      | Some _, Some _ -> fail "pointer region cannot combine another handler"
+    in
+    let callback =
+      match description.drag_source, callback with
+      | Some item, None -> Some (Drag_source item.on_event)
+      | None, callback -> callback
+      | Some _, Some _ -> fail "drag_source cannot combine another handler"
+    in
+    let callback =
+      match description.drop_target, callback with
+      | Some item, None -> Some (Drop_target item.on_event)
+      | None, callback -> callback
+      | Some _, Some _ -> fail "drop_target cannot combine another handler"
+    in
+    let callback =
+      match description.image, callback with
+      | Some image, None -> Option.map image.on_change ~f:(fun callback -> Image callback)
+      | None, callback -> callback
+      | Some _, Some _ -> fail "image cannot combine another handler"
+    in
+    let callback =
+      match description.animation, animation, callback with
+      | Some item, Some config, None ->
+        Option.map item.on_event ~f:(fun callback ->
+          Animation (config.generation, animation_seen, callback))
+      | None, None, callback -> callback
+      | Some _, _, Some _ -> fail "animation cannot combine another handler"
+      | Some _, None, None | None, Some _, _ -> fail "missing animation configuration"
+    in
+    let rotate_handler =
+      (match description.image, previous with
+       | Some image, Some mounted ->
+         Option.exists (View.Expert.describe mounted.view).image ~f:(fun old ->
+           not
+             (Asset.Handle.equal
+                (Image.Config.asset old.config)
+                (Image.Config.asset image.config)))
+       | None, _ | Some _, None -> false)
+      || (match description.combobox, previous with
+          | Some combo, Some mounted ->
+            Option.exists (View.Expert.describe mounted.view).combobox ~f:(fun old ->
+              not
+                (Bool.equal
+                   (Choice.Config.is_disabled (Combobox.Config.choices old.config))
+                   (Choice.Config.is_disabled (Combobox.Config.choices combo.config))))
+          | None, _ | Some _, None -> false)
+      ||
+      match description.tooltip, previous with
+      | Some tooltip, Some mounted ->
+        Option.exists (View.Expert.describe mounted.view).tooltip ~f:(fun old ->
+          not
+            (Bool.equal
+               (Tooltip.Expert.is_disabled old.config)
+               (Tooltip.Expert.is_disabled tooltip.config)))
+      | None, _ | Some _, None -> false
     in
     let handler =
       match old_handler, callback with
+      | Some handler, Some _ when rotate_handler ->
+        builder.handlers <- Allocator.release builder.handlers (handler_slot handler);
+        Some (new_handler builder)
       | Some handler, Some _ -> Some handler
       | None, Some _ -> Some (new_handler builder)
       | Some handler, None ->
@@ -279,20 +462,194 @@ let rec mount builder ~depth previous view =
      | Some mounted ->
        if
          Option.is_none description.editor
+         && Option.is_none description.combobox
          && not (String.equal (View.Expert.describe mounted.view).text description.text)
        then emit builder (Set_text (id, description.text));
        if not (Option.equal Handler_id.equal old_handler handler)
        then emit builder (Bind (id, handler)));
-    Option.iter description.editor ~f:(fun editor ->
+    if
+      Option.is_some description.commands
+      && not (List.equal Wire.Command.equal old_commands commands)
+    then emit builder (Set_commands (id, commands));
+    (* An empty registry still needs its metadata on first mount. *)
+    if
+      Option.is_some description.commands
+      && Option.is_none previous
+      && List.is_empty commands
+    then emit builder (Set_commands (id, []));
+    Option.iter description.command_ref ~f:(fun command ->
       let old =
         Option.bind previous ~f:(fun mounted ->
-          (View.Expert.describe mounted.view).editor)
+          (View.Expert.describe mounted.view).command_ref)
       in
-      if
-        not
-          (Option.value_map old ~default:false ~f:(fun old ->
-             Text_input.Config.equal old.config editor.config))
-      then emit builder (Set_editor (id, Text_input.Expert.config_to_wire editor.config)));
+      if not (Option.equal Ui_command.Id.equal old (Some command))
+      then emit builder (Set_command_ref (id, Ui_command.Id.to_string command)));
+    let menu =
+      Option.map description.menu ~f:(fun menu ->
+        { Wire.Menu.presentation =
+            (match menu.presentation with
+             | Menu.Expert.Button -> Button
+             | Context -> Context
+             | Bar -> Bar
+             | Platform_bar -> Platform_bar)
+        ; menus = List.map menu.menus ~f:Menu.Expert.to_wire
+        })
+    in
+    if
+      not
+        (Option.equal
+           Wire.Menu.equal
+           menu
+           (Option.bind previous ~f:(fun mounted -> mounted.menu)))
+    then Option.iter menu ~f:(fun config -> emit builder (Set_menu (id, config)));
+    Option.iter description.drag_source ~f:(fun item ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).drag_source ~f:(fun item ->
+            item.config))
+      in
+      if not (Option.equal Drag_and_drop.Source.equal old (Some item.config))
+      then
+        emit
+          builder
+          (Set_drag_source (id, Drag_and_drop.Expert.source_to_wire item.config)));
+    Option.iter description.drop_target ~f:(fun item ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).drop_target ~f:(fun item ->
+            item.config))
+      in
+      if not (Option.equal Drag_and_drop.Target.equal old (Some item.config))
+      then
+        emit
+          builder
+          (Set_drop_target (id, Drag_and_drop.Expert.target_to_wire item.config)));
+    Option.iter description.pointer ~f:(fun item ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).pointer ~f:(fun item ->
+            item.config))
+      in
+      if not (Option.equal Pointer.Config.equal old (Some item.config))
+      then emit builder (Set_pointer (id, Pointer.Expert.to_wire item.config)));
+    Option.iter description.notification ~f:(fun item ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).notification ~f:(fun item ->
+            item.config))
+      in
+      if not (Option.equal Toast.Config.equal old (Some item.config))
+      then emit builder (Set_toast (id, Toast.Expert.to_wire item.config)));
+    Option.iter description.toast_stack ~f:(fun config ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          (View.Expert.describe mounted.view).toast_stack)
+      in
+      if not (Option.equal Toast.Stack.equal old (Some config))
+      then emit builder (Set_toast_stack (id, Toast.Expert.stack_to_wire config)));
+    let old_animation = Option.bind previous ~f:(fun mounted -> mounted.animation) in
+    if not (Option.equal Wire.Animation.Config.equal animation old_animation)
+    then
+      Option.iter animation ~f:(fun config -> emit builder (Set_animation (id, config)));
+    Option.iter description.image ~f:(fun image ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).image ~f:(fun image ->
+            image.config))
+      in
+      if not (Option.equal Image.Config.equal old (Some image.config))
+      then
+        emit
+          builder
+          (Set_image (id, Image.Expert.to_wire image.config ~owner:builder.asset_owner)));
+    Option.iter description.progress ~f:(fun progress ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          (View.Expert.describe mounted.view).progress)
+      in
+      if not (Option.equal Progress.Config.equal old (Some progress))
+      then emit builder (Set_progress (id, Progress.Expert.to_wire progress)));
+    Option.iter description.palette ~f:(fun palette ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).palette ~f:(fun palette ->
+            palette.config))
+      in
+      if not (Option.equal Command_palette.Config.equal old (Some palette.config))
+      then emit builder (Set_palette (id, Command_palette.Expert.to_wire palette.config)));
+    let editor_config (description : _ View.Expert.description) =
+      match description.editor, description.combobox with
+      | Some editor, None -> Some editor.config
+      | None, Some combo -> Some (Combobox.Expert.editor_config combo.config)
+      | None, None -> None
+      | Some _, Some _ -> fail "incompatible editor descriptions"
+    in
+    Option.iter (editor_config description) ~f:(fun config ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          editor_config (View.Expert.describe mounted.view))
+      in
+      if not (Option.equal Text_input.Config.equal old (Some config))
+      then emit builder (Set_editor (id, Text_input.Expert.config_to_wire config)));
+    Option.iter description.combobox ~f:(fun combo ->
+      let filter = Combobox.Config.filter combo.config in
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).combobox ~f:(fun combo ->
+            Combobox.Config.filter combo.config))
+      in
+      if not (Option.equal Combobox.Filter.equal old (Some filter))
+      then
+        emit
+          builder
+          (Set_combobox_filter
+             ( id
+             , match filter with
+               | Substring -> Substring
+               | Unfiltered -> Unfiltered )));
+    Option.iter description.focus_scope ~f:(fun config ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          (View.Expert.describe mounted.view).focus_scope)
+      in
+      if not (Option.equal Focus_scope.equal old (Some config))
+      then emit builder (Set_focus_scope (id, Focus_scope.Expert.to_wire config)));
+    Option.iter description.tooltip ~f:(fun tooltip ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).tooltip ~f:(fun old ->
+            Tooltip.Expert.to_wire old.config))
+      in
+      let next = Tooltip.Expert.to_wire tooltip.config in
+      if not (Option.equal Wire.Tooltip.equal old (Some next))
+      then emit builder (Set_tooltip (id, next)));
+    let overlay =
+      Option.map description.overlay ~f:(fun overlay ->
+        Overlay.Expert.to_wire overlay.config ~kind:overlay.kind)
+    in
+    let old_overlay =
+      Option.bind previous ~f:(fun mounted ->
+        Option.map (View.Expert.describe mounted.view).overlay ~f:(fun overlay ->
+          Overlay.Expert.to_wire overlay.config ~kind:overlay.kind))
+    in
+    if not (Option.equal Wire.Overlay.equal old_overlay overlay)
+    then emit builder (Set_overlay (id, overlay));
+    let placement description =
+      match description.View.Expert.overlay, description.tooltip with
+      | Some overlay, None ->
+        Some (Overlay.Expert.placement overlay.config |> Placement.Expert.to_wire)
+      | None, Some tooltip ->
+        Some (Tooltip.Expert.placement tooltip.config |> Placement.Expert.to_wire)
+      | None, None -> None
+      | Some _, Some _ -> fail "incompatible overlay descriptions"
+    in
+    let next_placement = placement description in
+    let old_placement =
+      Option.bind previous ~f:(fun mounted ->
+        placement (View.Expert.describe mounted.view))
+    in
+    if not (Option.equal Wire.Placement.equal old_placement next_placement)
+    then emit builder (Set_placement (id, next_placement));
     Option.iter description.control ~f:(fun control ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -300,16 +657,27 @@ let rec mount builder ~depth previous view =
       in
       if not (Option.equal View.Expert.Control.equal old (Some control))
       then emit builder (Set_control (id, View.Expert.Control.to_wire control)));
-    Option.iter description.choice ~f:(fun choice ->
+    let choice_config (description : _ View.Expert.description) =
+      match description.choice, description.combobox with
+      | Some choice, None -> Some choice.config
+      | None, Some combo -> Some (Combobox.Config.choices combo.config)
+      | None, None -> None
+      | Some _, Some _ -> fail "incompatible choice descriptions"
+    in
+    Option.iter (choice_config description) ~f:(fun config ->
       let old =
         Option.bind previous ~f:(fun mounted ->
-          Option.map (View.Expert.describe mounted.view).choice ~f:(fun choice ->
-            choice.config))
+          choice_config (View.Expert.describe mounted.view))
       in
-      if not (Option.equal Choice.Config.equal old (Some choice.config))
-      then emit builder (Set_choice (id, Choice.Expert.config_to_wire choice.config)));
+      if not (Option.equal Choice.Config.equal old (Some config))
+      then emit builder (Set_choice (id, Choice.Expert.config_to_wire config)));
     let choice_appearance =
-      Option.bind description.choice ~f:(fun choice -> choice.appearance)
+      (match description.palette, description.menu, description.combobox with
+       | Some palette, _, _ -> Some palette.appearance
+       | None, Some menu, _ -> Some menu.appearance
+       | None, None, Some combo -> Some combo.appearance
+       | None, None, None ->
+         Option.bind description.choice ~f:(fun choice -> choice.appearance))
       |> Option.map ~f:(fun appearance ->
         Choice.Expert.appearance_to_wire appearance ~theme:builder.theme |> value)
     in
@@ -352,15 +720,71 @@ let rec mount builder ~depth previous view =
     splice builder id old_children children;
     let controllers =
       let own =
-        Option.value_map description.editor ~default:String.Set.empty ~f:(fun editor ->
-          String.Set.singleton (Key.to_string editor.controller))
+        let controller =
+          match description.editor, description.combobox with
+          | Some editor, None -> Some editor.controller
+          | None, Some combo -> Some combo.controller
+          | None, None -> None
+          | Some _, Some _ -> fail "incompatible controller descriptions"
+        in
+        Option.value_map controller ~default:String.Set.empty ~f:(fun key ->
+          String.Set.singleton (Key.to_string key))
       in
       List.fold children ~init:own ~f:(fun keys child ->
         if not (Set.is_empty (Set.inter keys child.controllers))
         then fail "text input controller appears more than once in a window";
         Set.union keys child.controllers)
     in
-    { view; id; handler; style; choice_appearance; children; controllers }
+    let menu_commands =
+      Option.value_map description.menu ~default:String.Set.empty ~f:(fun menu ->
+        List.concat_map menu.menus ~f:Menu.Expert.command_ids
+        |> List.map ~f:Ui_command.Id.to_string
+        |> String.Set.of_list)
+    in
+    let menu_commands =
+      Option.value_map description.palette ~default:menu_commands ~f:(fun palette ->
+        List.fold
+          (Command_palette.Config.commands palette.config)
+          ~init:menu_commands
+          ~f:(fun refs id -> Set.add refs (Ui_command.Id.to_string id)))
+    in
+    let free_commands =
+      List.fold
+        children
+        ~init:
+          (Option.value_map description.command_ref ~default:menu_commands ~f:(fun id ->
+             Set.add menu_commands (Ui_command.Id.to_string id)))
+        ~f:(fun refs child -> Set.union refs child.free_commands)
+    in
+    let free_commands =
+      List.fold commands ~init:free_commands ~f:(fun refs command ->
+        Set.remove refs command.id)
+    in
+    let platform_menus =
+      (if
+         Option.exists menu ~f:(fun menu ->
+           match menu.presentation with
+           | Platform_bar -> true
+           | Button | Context | Bar -> false)
+       then 1
+       else 0)
+      + List.sum (module Int) children ~f:(fun child -> child.platform_menus)
+    in
+    if platform_menus > 1 then fail "only one platform menu bar may be mounted per window";
+    { view
+    ; id
+    ; handler
+    ; style
+    ; animation
+    ; animation_seen
+    ; choice_appearance
+    ; children
+    ; controllers
+    ; commands
+    ; free_commands
+    ; menu
+    ; platform_menus
+    }
 ;;
 
 let prepare t ~theme view =
@@ -376,8 +800,10 @@ let prepare t ~theme view =
         ; bindings = t.state.bindings
         ; operations = []
         ; operation_count = 0
+        ; command_generation = t.state.command_generation
         ; theme
         ; theme_unchanged = Theme.equal theme t.state.theme
+        ; asset_owner = t.asset_owner
         }
       in
       let root =
@@ -387,6 +813,12 @@ let prepare t ~theme view =
           None
         | Some view -> Some (mount builder ~depth:0 t.state.root view)
       in
+      Option.iter root ~f:(fun root ->
+        if not (Set.is_empty root.free_commands)
+        then
+          fail
+            ("command references have no registry definition: "
+             ^ String.concat ~sep:", " (Set.to_list root.free_commands)));
       let root_id = Option.map root ~f:(fun node -> node.id) in
       if
         not
@@ -422,6 +854,7 @@ let prepare t ~theme view =
             ; theme
             ; revision
             ; epoch = t.state.epoch + 1
+            ; command_generation = builder.command_generation
             }
         ; message
         }
@@ -442,6 +875,37 @@ let accept t update =
 ;;
 
 let dispatch t = function
+  | Wire.Event.Animation_endpoint (window, node, handler, revision, endpoint)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match
+       Map.find t.state.bindings (node_slot node), Animation.Expert.event_of_wire endpoint
+     with
+     | ( Some
+           { node = expected
+           ; handler = expected_handler
+           ; callback = Animation (generation, seen, callback)
+           }
+       , Ok event )
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Int64.(endpoint.generation > !seen && endpoint.generation <= generation) ->
+       seen := endpoint.generation;
+       Some (callback event)
+     | _ -> None)
+  | Wire.Event.Image_state (window, node, handler, revision, state)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match
+       Map.find t.state.bindings (node_slot node), Image.Expert.state_of_wire state
+     with
+     | ( Some { node = expected; handler = expected_handler; callback = Image callback }
+       , Ok state )
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       Some (callback state)
+     | _ -> None)
   | Wire.Event.Press (window, node, handler, revision)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -451,7 +915,19 @@ let dispatch t = function
        when Node_id.equal node binding.node && Handler_id.equal handler binding.handler ->
        (match binding.callback with
         | Click callback -> Some (callback ())
-        | Editor _ | Choice _ -> None)
+        | Editor _
+        | Choice _
+        | Combobox _
+        | Dismiss _
+        | Tooltip _
+        | Commands _
+        | Palette _
+        | Toast _
+        | Pointer _
+        | Drag_source _
+        | Drop_target _
+        | Animation _
+        | Image _ -> None)
      | Some _ | None -> None)
   | Choice (window, node, handler, revision, selected)
     when (not t.closed)
@@ -473,6 +949,18 @@ let dispatch t = function
          && Window_id.equal window t.window
          && Int64.(revision >= 0L && revision <= t.state.revision) ->
     (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Combobox (_, callback)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       (match event with
+        | Submitted -> None
+        | Changed ->
+          Text_input.Expert.snapshot_of_wire ~window ~node snapshot
+          |> Result.ok
+          |> Option.map ~f:(fun snapshot -> callback (Changed snapshot)))
      | Some { node = expected; handler = expected_handler; callback = Editor callback }
        when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
        let snapshot = Text_input.Expert.snapshot_of_wire ~window ~node snapshot in
@@ -486,6 +974,141 @@ let dispatch t = function
              |> Result.ok
              |> Option.map ~f:(fun submission -> callback (Submitted submission))))
      | Some _ | None -> None)
+  | Combobox_selected (window, node, handler, revision, selected, snapshot)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Combobox (config, callback)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       let selection =
+         let open Or_error.Let_syntax in
+         let%bind id = Choice.Id.of_string selected in
+         let%bind snapshot = Text_input.Expert.snapshot_of_wire ~window ~node snapshot in
+         Combobox.Expert.selection config ~id ~snapshot
+       in
+       Result.ok selection |> Option.map ~f:(fun selected -> callback (Selected selected))
+     | Some _ | None -> None)
+  | Overlay_dismissed (window, node, handler, revision, reason)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Dismiss (config, callback)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       let reason =
+         match reason with
+         | Wire.Dismissal.Escape -> Overlay.Dismissal.Escape
+         | Outside_pointer -> Outside_pointer
+       in
+       if Overlay.Expert.allows config reason then Some (callback reason) else None
+     | Some _ | None -> None)
+  | Tooltip_open_changed (window, node, handler, revision, open_)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Tooltip (config, callback)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && ((not open_) || not (Tooltip.Expert.is_disabled config)) ->
+       Some (callback open_)
+     | Some _ | None -> None)
+  | Drag_source_event (window, node, handler, revision, sample)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected; handler = expected_handler; callback = Drag_source callback }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       Drag_and_drop.Expert.source_event_of_wire sample
+       |> Result.ok
+       |> Option.map ~f:callback
+     | Some _ | None -> None)
+  | Drop_target_event (window, node, handler, revision, sample)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected; handler = expected_handler; callback = Drop_target callback }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       Drag_and_drop.Expert.target_event_of_wire sample
+       |> Result.ok
+       |> Option.map ~f:callback
+     | Some _ | None -> None)
+  | Pointer_event (window, node, handler, revision, sample)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some { node = expected; handler = expected_handler; callback = Pointer callback }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       Pointer.Expert.event_of_wire sample |> Result.ok |> Option.map ~f:callback
+     | Some _ | None -> None)
+  | Toast_dismissed (window, node, handler, revision, reason)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some { node = expected; handler = expected_handler; callback = Toast callback }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       Some (callback (Toast.Expert.dismissal reason))
+     | Some _ | None -> None)
+  | Palette_dismissed (window, node, handler, revision, reason)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Palette (config, callback)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       Command_palette.Expert.dismissal config reason |> Option.map ~f:callback
+     | Some _ | None -> None)
+  | Command_invoked (window, node, handler, revision, id, generation, _)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Commands (registry, commands)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       if
+         List.exists commands ~f:(fun command ->
+           String.equal command.id id && Int64.equal command.generation generation)
+       then
+         Result.ok (Ui_command.Id.of_string id)
+         |> Option.bind ~f:(Ui_command.Registry.find registry)
+         |> Option.bind ~f:Ui_command.Expert.invoke
+       else None
+     | Some _ | None -> None)
+  | Drag_source_event _
+  | Drop_target_event _
+  | Pointer_event _
+  | Toast_dismissed _
+  | Palette_dismissed _
+  | Command_invoked _
+  | Tooltip_open_changed _
+  | Overlay_dismissed _
   | Welcome _
   | Opened _
   | Closed _
@@ -495,7 +1118,12 @@ let dispatch t = function
   | Frame_requested _
   | Press _
   | Choice _
+  | Combobox_selected _
   | Editor_event _
+  | File_dialog_result _
+  | Image_state _
+  | Animation_endpoint _
+  | Asset_response _
   | Editor_result _
   | Failed _
   | Stopped

@@ -1,4 +1,10 @@
+#[path = "animation_view.rs"]
+mod animation;
+#[cfg(feature = "native-tests")]
+#[path = "animation_test.rs"]
+pub(super) mod animation_test;
 use crate::{session::Session, transport::Transport};
+use gpui::Focusable;
 use gpui::{
     App, Bounds, Context, Window, WindowBounds, WindowHandle, WindowOptions, canvas, div,
     prelude::*, px, rgba, size,
@@ -17,17 +23,54 @@ use std::{
 type SharedSession = Rc<RefCell<Session>>;
 #[path = "choice.rs"]
 mod choice;
+#[path = "choice_popup.rs"]
+mod choice_popup;
+#[path = "combobox.rs"]
+mod combobox;
+#[path = "command.rs"]
+mod command;
+#[path = "drag_drop.rs"]
+mod drag_drop;
 #[path = "editor.rs"]
 mod editor;
 #[cfg(feature = "native-tests")]
 #[path = "editor_test.rs"]
 pub(super) mod editor_test;
+#[path = "focus.rs"]
+mod focus;
+#[path = "image_corners.rs"]
+mod image_corners;
+#[path = "image_view.rs"]
+pub(crate) mod image_view;
+#[path = "menu.rs"]
+mod menu;
+#[path = "menu_platform.rs"]
+mod menu_platform;
+#[path = "overlay.rs"]
+mod overlay;
+#[path = "palette.rs"]
+mod palette;
+#[path = "pointer.rs"]
+mod pointer;
 #[path = "popup.rs"]
 mod popup;
+#[path = "progress.rs"]
+mod progress;
 #[path = "radio.rs"]
 mod radio;
+#[path = "scroll.rs"]
+mod scroll;
+#[cfg(feature = "native-tests")]
+#[path = "scroll_test.rs"]
+pub(super) mod scroll_test;
 #[path = "select.rs"]
 mod select;
+#[path = "toast.rs"]
+mod toast;
+#[path = "toast_clock.rs"]
+mod toast_clock;
+#[path = "tooltip.rs"]
+mod tooltip;
 #[path = "typeahead.rs"]
 mod typeahead;
 struct ButtonState {
@@ -53,24 +96,46 @@ struct View {
     id: WindowId,
     session: SharedSession,
     transport: Arc<Transport>,
+    images: BTreeMap<NodeId, image_view::State>,
     buttons: BTreeMap<NodeId, Rc<ButtonState>>,
     selections: BTreeMap<NodeId, Rc<RefCell<crate::selection::State>>>,
     editors: BTreeMap<NodeId, editor::Instance>,
     root_focus: Option<gpui::FocusHandle>,
+    focus: focus::Shared,
     selects: BTreeMap<NodeId, Rc<RefCell<select::State>>>,
     radios: BTreeMap<NodeId, Rc<RefCell<choice::State>>>,
+    tooltips: BTreeMap<NodeId, tooltip::State>,
+    tooltip_last_closed: Option<std::time::Instant>,
+    command_subscription: Option<gpui::Subscription>,
+    menus: BTreeMap<NodeId, Rc<RefCell<menu::State>>>,
+    menu_activation: Option<gpui::Subscription>,
+    palettes: BTreeMap<NodeId, palette::State>,
+    pointer_capture: pointer::Shared,
+    pointer_activation: Option<gpui::Subscription>,
+    toasts: BTreeMap<NodeId, toast::State>,
+    toast_stacks: BTreeMap<NodeId, toast::Stack>,
     visited: std::collections::BTreeSet<NodeId>,
     #[cfg(feature = "native-tests")]
     probes: Rc<RefCell<BTreeMap<NodeId, native_test::Probe>>>,
+    #[cfg(feature = "native-tests")]
+    progress_probes: BTreeMap<NodeId, progress::Probe>,
+    scrolls: BTreeMap<NodeId, Rc<scroll::State>>,
+    animations: BTreeMap<NodeId, Rc<RefCell<animation::State>>>,
+    #[cfg(feature = "native-tests")]
+    render_count: u64,
 }
 fn emit_press(
     session: &SharedSession,
+    gate: &focus::Shared,
     transport: &Transport,
     window: WindowId,
     node: NodeId,
     handler: gpuio_protocol::HandlerId,
     revision: i64,
 ) {
+    if !gate.borrow().allows(node) {
+        return;
+    }
     let event = session.borrow().press(window, node, handler, revision);
     if let Some(event) = event
         && !transport.input(event)
@@ -147,31 +212,127 @@ fn control_indicator(kind: Kind, checked: bool, indeterminate: bool) -> gpui::An
     .into_any_element()
 }
 
+fn apply_styles(
+    mut element: gpui::Stateful<gpui::Div>,
+    styles: &[Style],
+    interaction: Interaction,
+    disabled: bool,
+) -> (
+    gpui::Stateful<gpui::Div>,
+    [Option<gpui::StyleRefinement>; 7],
+) {
+    let mut states: [Option<gpui::StyleRefinement>; 7] = Default::default();
+    for style in styles {
+        match style {
+            Style::Fields(fields) => {
+                crate::style::refine(element.style(), fields);
+            }
+            Style::State(state, fields) => {
+                if matches!(*state, 2 | 3) && (!interaction.pointer || disabled) {
+                    continue;
+                }
+                let refinement = states[(*state - 1) as usize].get_or_insert_with(Default::default);
+                crate::style::refine(refinement, fields);
+            }
+            Style::Width(v) => element.style().size.width = Some(length(v)),
+            Style::Height(v) => element.style().size.height = Some(length(v)),
+            Style::MinWidth(v) => element.style().min_size.width = Some(length(v)),
+            Style::MinHeight(v) => element.style().min_size.height = Some(length(v)),
+            Style::MaxWidth(v) => element.style().max_size.width = Some(length(v)),
+            Style::MaxHeight(v) => element.style().max_size.height = Some(length(v)),
+            Style::Padding(v) => element = element.p(px(*v as f32)),
+            Style::Gap(v) => element = element.gap(px(*v as f32)),
+            Style::Grow(v) => element.style().flex_grow = Some(*v as f32),
+            Style::Shrink(v) => element.style().flex_shrink = Some(*v as f32),
+            Style::Direction(v) => {
+                element.style().flex_direction = Some(match v {
+                    0 => gpui::FlexDirection::Row,
+                    1 => gpui::FlexDirection::Column,
+                    2 => gpui::FlexDirection::RowReverse,
+                    _ => gpui::FlexDirection::ColumnReverse,
+                })
+            }
+            Style::Background(v) => element = element.bg(color(v)),
+            Style::Foreground(v) => element = element.text_color(color(v)),
+            Style::FontSize(v) => element = element.text_size(px(*v as f32)),
+            Style::Radius(v) => element = element.rounded(px(*v as f32)),
+            Style::Opacity(v) => element = element.opacity(*v as f32),
+            Style::HoverBackground(v) => {
+                if interaction.pointer && !disabled {
+                    states[1].get_or_insert_with(Default::default).background =
+                        Some(color(v).into());
+                }
+            }
+            Style::PressedBackground(v) => {
+                if interaction.pointer && !disabled {
+                    states[2].get_or_insert_with(Default::default).background =
+                        Some(color(v).into());
+                }
+            }
+            Style::FocusBackground(v) => {
+                states[0].get_or_insert_with(Default::default).background = Some(color(v).into());
+            }
+        }
+    }
+    (element, states)
+}
+
 impl View {
     fn new(id: WindowId, session: SharedSession, transport: Arc<Transport>) -> Self {
         Self {
             id,
+            focus: focus::Manager::new(id, session.clone()),
             session,
             transport,
+            images: BTreeMap::new(),
             buttons: BTreeMap::new(),
             selections: BTreeMap::new(),
             editors: BTreeMap::new(),
             root_focus: None,
             radios: BTreeMap::new(),
+            tooltips: BTreeMap::new(),
+            tooltip_last_closed: None,
+            command_subscription: None,
+            menus: BTreeMap::new(),
+            menu_activation: None,
+            palettes: BTreeMap::new(),
+            pointer_capture: Default::default(),
+            pointer_activation: None,
+            toasts: BTreeMap::new(),
+            toast_stacks: BTreeMap::new(),
             selects: BTreeMap::new(),
             visited: Default::default(),
             #[cfg(feature = "native-tests")]
             probes: Default::default(),
+            #[cfg(feature = "native-tests")]
+            progress_probes: Default::default(),
+            scrolls: Default::default(),
+            animations: Default::default(),
+            #[cfg(feature = "native-tests")]
+            render_count: 0,
         }
     }
     fn update_editors(&mut self, dirty: &[NodeId], window: &mut Window, cx: &mut Context<Self>) {
+        self.install_command_interceptor(window, cx);
+        self.install_pointer_observer(window, cx);
+        self.install_menu_observers(window, cx);
+        self.sync_images(dirty, window, cx);
+        self.sync_animations(dirty, cx);
+        self.sync_palettes(window, cx);
+        self.sync_toasts(cx);
+        self.sync_tooltips(window, cx);
         let nodes = {
             let session = self.session.borrow();
             let Some(tree) = session.tree(self.id) else {
                 self.editors.clear();
+                self.scrolls.clear();
                 return;
             };
             self.editors.retain(|id, _| tree.get(*id).is_some());
+            self.scrolls.retain(|id, _| {
+                tree.get(*id)
+                    .is_some_and(|node| node.overlay.is_some() || scroll::declared(&node.style))
+            });
             dirty
                 .iter()
                 .filter_map(|id| tree.get(*id))
@@ -187,6 +348,7 @@ impl View {
                     self.id,
                     &node,
                     self.session.clone(),
+                    self.focus.clone(),
                     self.transport.clone(),
                     window,
                     cx,
@@ -204,8 +366,35 @@ impl View {
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let node = tree.get(id).expect("validated retained node");
+        if node.kind == Kind::ToastStack {
+            return self.toast_stack_element(tree, node, interaction, window, cx);
+        }
+        if node.kind == Kind::Toast {
+            return self.toast_element(tree, node, interaction, window, cx);
+        }
+        if node.kind == Kind::CommandPalette {
+            return self.palette_element(node, interaction, window, cx);
+        }
+        if node.kind == Kind::Menu {
+            return self.menu_element(tree, node, interaction, window, cx);
+        }
+        if node.kind == Kind::Tooltip {
+            return self.tooltip_element(tree, node, interaction, window, cx);
+        }
+        let popup_priority = self.focus.borrow().layer(id) + 2;
         let identity = ((id.generation() as u64) << 32) | id.slot() as u64;
-        let mut accessible_name = gpui::SharedString::from(node.text.clone());
+        let command = node
+            .command_ref
+            .as_ref()
+            .and_then(|id| tree.command(node.id, id))
+            .map(|(scope, config)| {
+                command::Route::new(tree, scope, config, CommandSource::Button(id))
+            });
+        let label = command.as_ref().map_or_else(
+            || node.text.clone(),
+            |route| Arc::from(route.config.label.as_str()),
+        );
+        let mut accessible_name = gpui::SharedString::from(label.clone());
         for style in node.style.iter() {
             if let Style::Fields(fields) = style {
                 for field in fields {
@@ -220,7 +409,20 @@ impl View {
             }
         }
         let mut element = div().id(("gpuio-node", identity));
-        if matches!(node.kind, Kind::Container | Kind::RadioGroup) {
+        if let Some(description) = tree.tooltip_description(id) {
+            element = element.aria_description(description.to_owned());
+        }
+        if matches!(
+            node.kind,
+            Kind::Container
+                | Kind::Animated
+                | Kind::FocusScope
+                | Kind::CommandScope
+                | Kind::RadioGroup
+                | Kind::PointerArea
+                | Kind::DragSource
+                | Kind::DropTarget
+        ) {
             element = element.flex().flex_col();
         } else if node.kind == Kind::Select {
             element = element
@@ -233,20 +435,109 @@ impl View {
                 .border_color(rgba(0x80808080))
                 .rounded(px(4.));
         }
-        let disabled = node.choice.as_ref().is_some_and(|config| config.disabled)
+        if let Some(config) = &node.drag_source {
+            element = element
+                .role(gpui::Role::Group)
+                .aria_label(config.label().to_owned());
+        }
+        if let Some(config) = &node.drop_target {
+            element = element
+                .role(gpui::Role::Group)
+                .aria_label(config.label().to_owned());
+        }
+        if let Some(config) = &node.pointer {
+            element = element
+                .role(gpui::Role::Group)
+                .aria_label(config.label.clone());
+        }
+        let mut image_corners = None;
+        if let Some(config) = &node.image {
+            let (image, corners) = self.image_element(tree, node, config, element, window, cx);
+            element = image;
+            image_corners = Some(corners);
+        }
+        if let Some(config) = &node.progress {
+            element = element
+                .w(px(200.))
+                .h(px(8.))
+                .rounded(px(4.))
+                .overflow_hidden()
+                .bg(rgba(0x80808040))
+                .text_color(rgba(0x4d8cffff))
+                .role(gpui::Role::ProgressIndicator)
+                .aria_label(config.label.clone())
+                .aria_min_numeric_value(0.)
+                .aria_max_numeric_value(100.)
+                .on_mouse_down(gpui::MouseButton::Left, |_, window, _| {
+                    window.prevent_default();
+                });
+            if let Some(fraction) = config.fraction {
+                element = element.aria_numeric_value(fraction * 100.);
+            }
+            if self.focus.borrow().visible(id) {
+                element = element.child(progress::indicator(
+                    config.fraction,
+                    identity,
+                    cx.reduce_motion(),
+                    #[cfg(feature = "native-tests")]
+                    self.progress_probes.entry(id).or_default().clone(),
+                ));
+            }
+        }
+        if let Some(config) = &node.overlay {
+            let available = window.viewport_size();
+            element = element
+                .w(px(config.width as f32).min((available.width - px(32.)).max(px(1.))))
+                .max_h((available.height - px(32.)).max(px(1.)))
+                .overflow_y_scroll()
+                .p(px(16.))
+                .gap(px(8.))
+                .rounded(px(8.))
+                .bg(rgba(0x25272aff))
+                .border_1()
+                .border_color(rgba(0x80808080));
+        }
+        let disabled = command
+            .as_ref()
+            .is_some_and(|route| !self.command_available(&route.config, window, cx))
+            || node
+                .drag_source
+                .as_ref()
+                .is_some_and(|config| config.disabled())
+            || node
+                .drop_target
+                .as_ref()
+                .is_some_and(|config| config.disabled())
+            || node.pointer.as_ref().is_some_and(|config| config.disabled)
+            || node.choice.as_ref().is_some_and(|config| config.disabled)
             || node.control.is_some_and(Control::disabled)
             || node.editor.as_ref().is_some_and(|config| config.disabled);
-        let checked = matches!(
-            node.control,
-            Some(Control::Checkbox(CheckState::Checked, _) | Control::Switch(true, _))
-        );
-        let indeterminate = matches!(
-            node.control,
-            Some(Control::Checkbox(CheckState::Indeterminate, _))
-        );
+        let checked = command
+            .as_ref()
+            .is_some_and(|route| route.config.checked == Some(true))
+            || matches!(
+                node.control,
+                Some(Control::Checkbox(CheckState::Checked, _) | Control::Switch(true, _))
+            );
+        let indeterminate = node
+            .progress
+            .as_ref()
+            .is_some_and(|config| config.fraction.is_none())
+            || matches!(
+                node.control,
+                Some(Control::Checkbox(CheckState::Indeterminate, _))
+            );
+        if let Some(handle) = self.focus.borrow().handle(id) {
+            element = element.track_focus(&handle);
+        }
         if matches!(
             node.kind,
-            Kind::Button | Kind::Checkbox | Kind::Switch | Kind::RadioGroup | Kind::Select
+            Kind::Button
+                | Kind::CommandButton
+                | Kind::Checkbox
+                | Kind::Switch
+                | Kind::RadioGroup
+                | Kind::Select
         ) {
             self.visited.insert(id);
             let state = self
@@ -268,9 +559,12 @@ impl View {
                     .track_focus(&state.focus.clone().tab_stop(true))
                     .tab_index(0);
                 let focus = state.focus.clone();
-                element = element
-                    .on_a11y_action(gpui::AccessibleAction::Focus, move |_, window, cx| {
-                        window.focus(&focus, cx)
+                let gate = self.focus.clone();
+                element =
+                    element.on_a11y_action(gpui::AccessibleAction::Focus, move |_, window, cx| {
+                        if gate.borrow().allows(id) {
+                            window.focus(&focus, cx);
+                        }
                     });
             }
             element = element
@@ -282,7 +576,11 @@ impl View {
                     _ => gpui::Role::Button,
                 })
                 .aria_label(accessible_name);
-            if matches!(node.kind, Kind::Checkbox | Kind::Switch) {
+            if command
+                .as_ref()
+                .is_some_and(|route| route.config.checked.is_some())
+                || matches!(node.kind, Kind::Checkbox | Kind::Switch)
+            {
                 element = element.aria_toggled(if indeterminate {
                     gpui::accesskit::Toggled::Mixed
                 } else if checked {
@@ -295,61 +593,13 @@ impl View {
                 element = element.cursor_pointer();
             }
         }
-        let mut states: [Option<gpui::StyleRefinement>; 7] = Default::default();
-        for style in node.style.iter() {
-            match style {
-                Style::Fields(fields) => {
-                    crate::style::refine(element.style(), fields);
-                }
-                Style::State(state, fields) => {
-                    if matches!(*state, 2 | 3) && (!interaction.pointer || disabled) {
-                        continue;
-                    }
-                    let refinement =
-                        states[(*state - 1) as usize].get_or_insert_with(Default::default);
-                    crate::style::refine(refinement, fields);
-                }
-                Style::Width(v) => element.style().size.width = Some(length(v)),
-                Style::Height(v) => element.style().size.height = Some(length(v)),
-                Style::MinWidth(v) => element.style().min_size.width = Some(length(v)),
-                Style::MinHeight(v) => element.style().min_size.height = Some(length(v)),
-                Style::MaxWidth(v) => element.style().max_size.width = Some(length(v)),
-                Style::MaxHeight(v) => element.style().max_size.height = Some(length(v)),
-                Style::Padding(v) => element = element.p(px(*v as f32)),
-                Style::Gap(v) => element = element.gap(px(*v as f32)),
-                Style::Grow(v) => element.style().flex_grow = Some(*v as f32),
-                Style::Shrink(v) => element.style().flex_shrink = Some(*v as f32),
-                Style::Direction(v) => {
-                    element.style().flex_direction = Some(match v {
-                        0 => gpui::FlexDirection::Row,
-                        1 => gpui::FlexDirection::Column,
-                        2 => gpui::FlexDirection::RowReverse,
-                        _ => gpui::FlexDirection::ColumnReverse,
-                    })
-                }
-                Style::Background(v) => element = element.bg(color(v)),
-                Style::Foreground(v) => element = element.text_color(color(v)),
-                Style::FontSize(v) => element = element.text_size(px(*v as f32)),
-                Style::Radius(v) => element = element.rounded(px(*v as f32)),
-                Style::Opacity(v) => element = element.opacity(*v as f32),
-                Style::HoverBackground(v) => {
-                    if interaction.pointer && !disabled {
-                        states[1].get_or_insert_with(Default::default).background =
-                            Some(color(v).into());
-                    }
-                }
-                Style::PressedBackground(v) => {
-                    if interaction.pointer && !disabled {
-                        states[2].get_or_insert_with(Default::default).background =
-                            Some(color(v).into());
-                    }
-                }
-                Style::FocusBackground(v) => {
-                    states[0].get_or_insert_with(Default::default).background =
-                        Some(color(v).into());
-                }
-            }
-        }
+        let animation = self.animation_frame(node, window, cx);
+        let styles = animation
+            .as_ref()
+            .map(|(state, _)| state.borrow().styles.clone())
+            .unwrap_or_else(|| node.style.clone());
+        let (styled, states) = apply_styles(element, &styles, interaction, disabled);
+        element = styled;
         let [
             focused,
             hovered,
@@ -382,7 +632,13 @@ impl View {
             element = element.hover(move |_| style);
         }
         if let Some(style) = pressed {
-            element = element.active(move |_| style);
+            if node.pointer.is_some() {
+                if self.pointer_capture.borrow().is_active(id) {
+                    element.style().refine(&style);
+                }
+            } else {
+                element = element.active(move |_| style);
+            }
         }
         if disabled {
             element.style().mouse_cursor = None;
@@ -394,7 +650,55 @@ impl View {
         if !interaction.pointer {
             element.style().mouse_cursor = None;
         }
-        if let Some(config) = &node.choice {
+        if let Some((_, sample)) = &animation {
+            animation::apply(element.style(), &sample.values);
+        }
+        let scrolling = if scroll::declared(&node.style)
+            || element.style().overflow.x == Some(gpui::Overflow::Scroll)
+            || element.style().overflow.y == Some(gpui::Overflow::Scroll)
+        {
+            let state = self.scrolls.entry(id).or_default().clone();
+            element = scroll::attach(element, &state);
+            Some(state)
+        } else {
+            None
+        };
+        if node.kind == Kind::Combobox {
+            let (editor, state) = self.editors[&id]
+                .combobox()
+                .expect("validated combobox editor");
+            let route = node
+                .handler
+                .filter(|_| !disabled)
+                .map(|handler| choice::Route {
+                    window: self.id,
+                    node: id,
+                    handler,
+                    revision: tree.revision(),
+                    session: self.session.clone(),
+                    gate: self.focus.clone(),
+                    transport: self.transport.clone(),
+                });
+            element = combobox::element(
+                element,
+                combobox::Render {
+                    priority: popup_priority,
+                    editor,
+                    state,
+                    config: node.choice.as_ref().expect("validated combobox choices"),
+                    appearance: node
+                        .choice_appearance
+                        .clone()
+                        .unwrap_or_else(crate::appearance::default),
+                    filter: node.combobox_filter.expect("validated combobox filter"),
+                    route,
+                    pointer: interaction.pointer,
+                    selected_style,
+                },
+                window,
+                cx,
+            );
+        } else if let Some(config) = &node.choice {
             element = element.aria_label(config.label.clone());
             let focus = self.buttons[&id].focus.clone();
             let route = node
@@ -406,6 +710,7 @@ impl View {
                     handler,
                     revision: tree.revision(),
                     session: self.session.clone(),
+                    gate: self.focus.clone(),
                     transport: self.transport.clone(),
                 });
             if node.kind == Kind::Select {
@@ -413,6 +718,7 @@ impl View {
                 element = select::element(
                     element,
                     select::Render {
+                        priority: popup_priority,
                         config,
                         appearance: node
                             .choice_appearance
@@ -444,13 +750,15 @@ impl View {
                 );
             }
         } else if let Some(editor) = self.editors.get(&id) {
+            let next = self.focus.clone();
+            let previous = self.focus.clone();
             element = element
-                .capture_action(|_: &gpui_base::input::IndentInline, window, cx| {
-                    window.focus_next(cx);
+                .capture_action(move |_: &gpui_base::input::IndentInline, window, cx| {
+                    next.borrow().traverse(false, window, cx);
                     cx.stop_propagation();
                 })
-                .capture_action(|_: &gpui_base::input::OutdentInline, window, cx| {
-                    window.focus_prev(cx);
+                .capture_action(move |_: &gpui_base::input::OutdentInline, window, cx| {
+                    previous.borrow().traverse(true, window, cx);
                     cx.stop_propagation();
                 })
                 .child(editor.element());
@@ -478,24 +786,90 @@ impl View {
             if !node.text.is_empty() {
                 element = element.child(gpui::SharedString::from(node.text.clone()));
             }
-        } else if !node.text.is_empty() {
-            element = element.child(gpui::SharedString::from(node.text.clone()));
+        } else if matches!(node.kind, Kind::Button | Kind::CommandButton)
+            && !node.children.is_empty()
+        {
+            let [leading, trailing] = node.children.as_ref() else {
+                unreachable!("validated button icon slots")
+            };
+            if tree
+                .get(*leading)
+                .is_some_and(|slot| !slot.children.is_empty())
+            {
+                element = element.child(self.element(tree, *leading, interaction, window, cx));
+            }
+            if !label.is_empty() {
+                element = element.child(gpui::SharedString::from(label));
+            }
+            if tree
+                .get(*trailing)
+                .is_some_and(|slot| !slot.children.is_empty())
+            {
+                element = element.child(self.element(tree, *trailing, interaction, window, cx));
+            }
+        } else if !label.is_empty() {
+            element = element.child(gpui::SharedString::from(label));
+        }
+        for child in node.children.iter() {
+            if tree
+                .get(*child)
+                .and_then(|node| node.overlay.as_ref())
+                .is_some_and(|config| config.kind == OverlayKind::Popover)
+            {
+                let anchor = self.focus.borrow().anchor(*child).expect("mounted scope");
+                element = element.child(
+                    canvas(move |bounds, _, _| anchor.set(bounds), |_, _, _, _| {})
+                        .absolute()
+                        .top_0()
+                        .left_0()
+                        .size_full(),
+                );
+            }
         }
         element = element.children(
             node.children
                 .iter()
+                .filter(|_| !matches!(node.kind, Kind::Button | Kind::CommandButton))
                 .map(|id| self.element(tree, *id, interaction, window, cx))
                 .collect::<Vec<_>>(),
         );
+        if let Some(route) = command.filter(|_| !disabled) {
+            let accessible = route.clone();
+            let owner = cx.weak_entity();
+            element =
+                element.on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
+                    let _ =
+                        owner.update(cx, |view, cx| view.invoke_command(&accessible, window, cx));
+                    cx.stop_propagation();
+                });
+            if !interaction.pointer {
+                element = element.on_mouse_down(gpui::MouseButton::Left, |_, window, _| {
+                    window.prevent_default()
+                });
+            }
+            element = element.on_click(cx.listener(move |view, event, window, cx| {
+                if interaction.pointer || matches!(event, gpui::ClickEvent::Keyboard(_)) {
+                    view.invoke_command(&route, window, cx);
+                    cx.stop_propagation();
+                }
+            }));
+        }
         if let Some(handler) = node.handler
+            && node.commands.is_none()
             && node.editor.is_none()
             && node.choice.is_none()
+            && node.overlay.is_none()
+            && node.pointer.is_none()
+            && node.image.is_none()
+            && node.animation.is_none()
             && !disabled
         {
             let window = self.id;
             let revision = tree.revision();
             let session = self.session.clone();
             let transport = self.transport.clone();
+            let gate = self.focus.clone();
+            let accessible_gate = gate.clone();
             let accessible_session = session.clone();
             let accessible_transport = transport.clone();
             // GPUI's fallback accessibility Click synthesizes pointer input.
@@ -504,6 +878,7 @@ impl View {
             element = element.on_a11y_action(gpui::AccessibleAction::Click, move |_, _, cx| {
                 emit_press(
                     &accessible_session,
+                    &accessible_gate,
                     &accessible_transport,
                     window,
                     id,
@@ -523,14 +898,54 @@ impl View {
                 if !interaction.pointer && !matches!(event, gpui::ClickEvent::Keyboard(_)) {
                     return;
                 }
-                emit_press(&session, &transport, window, id, handler, revision);
+                emit_press(&session, &gate, &transport, window, id, handler, revision);
                 cx.stop_propagation();
             });
+        }
+        let gate = self.focus.clone();
+        element = element.capture_any_mouse_down(move |_, window, cx| {
+            if gate.borrow().blocks_pointer(id) {
+                window.prevent_default();
+                cx.stop_propagation();
+            }
+        });
+        let handle = self
+            .editors
+            .get(&id)
+            .map(|editor| editor.focus_handle(cx))
+            .or_else(|| self.buttons.get(&id).map(|button| button.focus.clone()))
+            .or_else(|| {
+                self.selections
+                    .get(&id)
+                    .map(|state| state.borrow().focus.clone())
+            })
+            .or_else(|| self.focus.borrow().handle(id));
+        if let Some(handle) = handle.filter(|_| !disabled) {
+            let tab_stop = node.kind != Kind::FocusScope;
+            let manager = self.focus.clone();
+            element = element.child(
+                canvas(
+                    |_, _, _| (),
+                    move |bounds, _, window, _| {
+                        if bounds.size.width > px(0.)
+                            && bounds.size.height > px(0.)
+                            && bounds.intersects(&window.content_mask().bounds)
+                        {
+                            let focused = handle.is_focused(window);
+                            manager.borrow_mut().record(id, handle, tab_stop, focused);
+                        }
+                    },
+                )
+                .absolute()
+                .top_0()
+                .left_0()
+                .size_full(),
+            );
         }
         #[cfg(feature = "native-tests")]
         {
             let probes = self.probes.clone();
-            element = element.relative().child(
+            element = element.child(
                 canvas(
                     |bounds, _, _| bounds,
                     move |_, bounds, window, _| {
@@ -549,37 +964,175 @@ impl View {
                 .size_full(),
             );
         }
-        crate::semantics::State {
+        if let Some(config) = &node.overlay {
+            return overlay::element(
+                element,
+                config.clone(),
+                node.placement.unwrap_or_default(),
+                choice::Route {
+                    window: self.id,
+                    node: id,
+                    handler: node.handler.expect("validated overlay"),
+                    revision: tree.revision(),
+                    session: self.session.clone(),
+                    gate: self.focus.clone(),
+                    transport: self.transport.clone(),
+                },
+                scrolling.as_ref(),
+                window,
+            );
+        }
+        if let Some(config) = &node.drag_source
+            && interaction.pointer
+            && !disabled
+        {
+            element = drag_drop::source(
+                element,
+                choice::Route {
+                    window: self.id,
+                    node: id,
+                    handler: node.handler.expect("validated drag/drop"),
+                    revision: tree.revision(),
+                    session: self.session.clone(),
+                    gate: self.focus.clone(),
+                    transport: self.transport.clone(),
+                },
+                config.clone(),
+                cx,
+            );
+        }
+        if let Some((state, sample)) = animation {
+            element = element.child(animation::paint(&state, sample));
+        }
+        if let Some(corners) = image_corners {
+            let image = image_corners::Rounded::capture(element, corners);
+            return match &scrolling {
+                Some(state) => self.finish_element(
+                    scroll::Frame::new(image, state),
+                    node,
+                    tree.revision(),
+                    disabled,
+                ),
+                None => self.finish_element(image, node, tree.revision(), disabled),
+            };
+        }
+        match scrolling {
+            Some(state) => self.finish_element(
+                scroll::Frame::new(element, &state),
+                node,
+                tree.revision(),
+                disabled,
+            ),
+            None => self.finish_element(element, node, tree.revision(), disabled),
+        }
+    }
+    fn finish_element<E: gpui::Element>(
+        &self,
+        element: E,
+        node: &crate::tree::Node,
+        revision: i64,
+        disabled: bool,
+    ) -> gpui::AnyElement {
+        let id = node.id;
+        let element = crate::semantics::State {
+            live: None,
             element,
             disabled,
             read_only: false,
+            modal: false,
+        };
+        if node.drop_target.is_some() {
+            return drag_drop::Region {
+                element,
+                route: choice::Route {
+                    window: self.id,
+                    node: id,
+                    handler: node.handler.expect("validated drag/drop"),
+                    revision,
+                    session: self.session.clone(),
+                    gate: self.focus.clone(),
+                    transport: self.transport.clone(),
+                },
+            }
+            .into_any_element();
         }
-        .into_any_element()
+        if let Some(config) = &node.pointer {
+            pointer::Region {
+                element,
+                capture: self.pointer_capture.clone(),
+                config: config.clone(),
+                route: choice::Route {
+                    window: self.id,
+                    node: id,
+                    handler: node.handler.expect("validated pointer region"),
+                    revision,
+                    session: self.session.clone(),
+                    gate: self.focus.clone(),
+                    transport: self.transport.clone(),
+                },
+            }
+            .into_any_element()
+        } else {
+            element.into_any_element()
+        }
     }
 }
 impl Render for View {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        #[cfg(feature = "native-tests")]
+        {
+            self.render_count += 1;
+        }
         self.visited.clear();
+        self.focus.borrow_mut().clear_surfaces();
         let shared = self.session.clone();
         let session = shared.borrow();
         let root_focus = self
             .root_focus
             .get_or_insert_with(|| cx.focus_handle())
             .clone();
-        let mut root =
-            div()
-                .track_focus(&root_focus)
-                .size_full()
-                .on_key_down(|event, window, cx| {
-                    if event.keystroke.key == "tab" {
-                        if event.keystroke.modifiers.shift {
-                            window.focus_prev(cx);
-                        } else {
-                            window.focus_next(cx);
-                        }
-                        cx.stop_propagation();
-                    }
-                });
+        let tab_focus = self.focus.clone();
+        let begin_focus = self.focus.clone();
+        let drag_window = self.id;
+        let mut root = drag_drop::root(div(), self.id, cx)
+            .on_action(
+                cx.listener(|view, action: &menu_platform::Invoke, window, cx| {
+                    view.platform_menu_action(action, window, cx)
+                }),
+            )
+            .track_focus(&root_focus)
+            .size_full()
+            .on_key_down(cx.listener(|view, event: &gpui::KeyDownEvent, window, cx| {
+                view.command_shortcut(&event.keystroke, ShortcutPriority::NativeFirst, window, cx);
+            }))
+            .on_key_down(move |event, window, cx| {
+                if event.keystroke.key == "tab" {
+                    tab_focus
+                        .borrow()
+                        .traverse(event.keystroke.modifiers.shift, window, cx);
+                    cx.stop_propagation();
+                }
+            })
+            .child(
+                canvas(
+                    |_, _, _| (),
+                    move |_, _, window, cx| {
+                        begin_focus.borrow_mut().begin_frame();
+                        drag_drop::install_cleanup(drag_window, window, cx);
+                    },
+                )
+                .absolute()
+                .top_0()
+                .left_0()
+                .size_full(),
+            );
+        if self.focus.borrow_mut().take_pending() {
+            let focus = self.focus.clone();
+            let fallback = root_focus.clone();
+            window.on_next_frame(move |window, cx| {
+                focus.borrow_mut().finish_frame(&fallback, window, cx)
+            });
+        }
         let revision = if let Some(tree) = session.tree(self.id) {
             if let Some(id) = tree.root() {
                 root = root.child(self.element(tree, id, Interaction::default(), window, cx));
@@ -591,23 +1144,44 @@ impl Render for View {
         self.buttons.retain(|id, _| self.visited.contains(id));
         self.radios.retain(|id, _| self.visited.contains(id));
         self.selects.retain(|id, _| self.visited.contains(id));
+        self.menus.retain(|id, _| self.visited.contains(id));
+        self.sync_platform_menus(window, cx);
+        #[cfg(feature = "native-tests")]
+        self.progress_probes.retain(|id, _| {
+            session
+                .tree(self.id)
+                .and_then(|tree| tree.get(*id))
+                .is_some_and(|node| node.progress.is_some())
+        });
         self.selections.retain(|id, _| self.visited.contains(id));
         // GPUI routes key events along the focused element's ancestry. Keep a
         // non-tab-stop fallback so Tab also works before the first click and
         // after a focused control is disabled or removed.
-        let has_focus = root_focus.is_focused(window)
-            || self
-                .buttons
-                .values()
-                .any(|state| state.focus.is_focused(window))
-            || self
-                .selections
+        let has_focus =
+            self.palettes.values().any(|state| {
+                !state.closed && state.query.read(cx).focus_handle(cx).is_focused(window)
+            }) || self
+                .menus
                 .values()
                 .any(|state| state.borrow().focus.is_focused(window))
-            || self
-                .editors
-                .values()
-                .any(|editor| editor.focus_handle(cx).is_focused(window));
+                || self
+                    .toasts
+                    .values()
+                    .any(|state| state.close_focus.is_focused(window))
+                || self.focus.borrow().contains_focus(window)
+                || root_focus.is_focused(window)
+                || self
+                    .buttons
+                    .values()
+                    .any(|state| state.focus.is_focused(window))
+                || self
+                    .selections
+                    .values()
+                    .any(|state| state.borrow().focus.is_focused(window))
+                || self
+                    .editors
+                    .values()
+                    .any(|editor| editor.focus_handle(cx).is_focused(window));
         if !has_focus {
             window.focus(&root_focus, cx);
         }
@@ -648,11 +1222,23 @@ pub fn run(transport: Arc<Transport>) {
     let stopping = Rc::new(Cell::new(false));
     gpui_platform::application().run(move |cx: &mut App| {
         gpui_base::init(cx);
+        crate::image_host::init(cx);
+        let motion = crate::motion_preference::init(cx);
         // GPUI defaults to last-window exit on Linux. Our explicit lifecycle
         // policy must control background applications consistently on both OSes.
         cx.set_quit_mode(gpui::QuitMode::Explicit);
         let session = Rc::new(RefCell::new(Session::default()));
         let mut windows: BTreeMap<WindowId, WindowHandle<View>> = BTreeMap::new();
+        let dialogs = crate::file_dialog::Dialogs::default();
+        let quit_dialogs = dialogs.clone();
+        let quit_motion = motion.clone();
+        cx.on_app_quit(move |cx| {
+            quit_motion.borrow_mut().take();
+            drag_drop::shutdown(cx);
+            quit_dialogs.finish_before_quit();
+            std::future::ready(())
+        })
+        .detach();
         let closing = stopping.clone();
         let exit_on_last_window = transport.exit_on_last_window;
         cx.on_window_closed(move |cx, _| {
@@ -668,6 +1254,9 @@ pub fn run(transport: Arc<Transport>) {
                     .aborting
                     .load(std::sync::atomic::Ordering::Acquire)
                 {
+                    motion.borrow_mut().take();
+                    dialogs.clear().wait().await;
+                    crate::image_host::shutdown(cx).await;
                     if !stopping.replace(true) {
                         cx.update(stop_application);
                     }
@@ -682,7 +1271,9 @@ pub fn run(transport: Arc<Transport>) {
                     let Some(id) = id else {
                         break;
                     };
-                    if let Ok(pending) = session.borrow_mut().close(id) {
+                    dialogs.close(id).wait().await;
+                    let closed = session.borrow_mut().close(id);
+                    if let Ok(pending) = closed {
                         if let Some(correlation) = pending {
                             transport.respond(Event::Failed(correlation, ErrorCode::Closed));
                         }
@@ -693,7 +1284,15 @@ pub fn run(transport: Arc<Transport>) {
                             .native_closed(id);
                         transport.wake_ocaml();
                         if let Some(window) = windows.remove(&id) {
-                            let _ = window.update(cx, |_, window, _| window.remove_window());
+                            let _ = window.update(cx, |view, window, cx| {
+                                drag_drop::cancel(
+                                    view.id,
+                                    gpuio_protocol::drag_drop::CancelReason::WindowClosed,
+                                    window,
+                                    cx,
+                                );
+                                window.remove_window();
+                            });
                         }
                     }
                 }
@@ -820,7 +1419,32 @@ pub fn run(transport: Arc<Transport>) {
                             };
                             transport.respond(Event::EditorResult(correlation, id, node, result));
                         }
+                        Message::FileDialog(correlation, id, config) => {
+                            let presented = match windows.get(&id) {
+                                Some(handle) => cx
+                                    .update_window((*handle).into(), |_, window, cx| {
+                                        dialogs.show(
+                                            correlation,
+                                            id,
+                                            config,
+                                            window,
+                                            cx,
+                                            transport.clone(),
+                                        );
+                                    })
+                                    .is_ok(),
+                                None => false,
+                            };
+                            if !presented {
+                                transport.respond(Event::FileDialogResult(
+                                    correlation,
+                                    id,
+                                    FileDialogResult::Failed(FileDialogError::Closed),
+                                ));
+                            }
+                        }
                         Message::Close(correlation, id) => {
+                            dialogs.close(id).wait().await;
                             let result = session.borrow_mut().close(id);
                             match result {
                                 Ok(pending) => {
@@ -831,13 +1455,26 @@ pub fn run(transport: Arc<Transport>) {
                                     transport.respond(Event::Closed(correlation, id));
                                     if let Some(window) = windows.remove(&id) {
                                         let _ = window
-                                            .update(cx, |_, window, _| window.remove_window());
+                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); window.remove_window(); });
                                     }
                                 }
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),
                             }
                         }
+                        Message::Asset(correlation, request) => {
+                            let response = session.borrow_mut().asset_request(request);
+                            transport.respond(Event::AssetResponse(correlation, response));
+                        }
+                        Message::SetMotion(preference) => {
+                            match session.borrow().check_ready() {
+                                Ok(()) => cx.update(|cx| crate::motion_preference::set(preference, cx)),
+                                Err(error) => transport.respond(Event::Failed(0, error)),
+                            }
+                        }
                         Message::Shutdown => {
+                            motion.borrow_mut().take();
+                            dialogs.clear().wait().await;
+                            crate::image_host::shutdown(cx).await;
                             for event in session.borrow_mut().shutdown() {
                                 transport.respond(event);
                             }
@@ -862,12 +1499,14 @@ pub fn run(transport: Arc<Transport>) {
 
 #[allow(deprecated)]
 #[cfg(target_os = "macos")]
-fn stop_application(cx: &mut App) {
+pub(crate) fn stop_application(cx: &mut App) {
     use cocoa::{
         appkit::{NSApplication, NSEvent, NSEventModifierFlags, NSEventSubtype, NSEventType},
         base::{YES, nil},
         foundation::NSPoint,
     };
+    drag_drop::shutdown(cx);
+    crate::image_host::finish_before_quit(cx);
     cx.shutdown();
     // Embedded runtime must regain control instead of NSApplication.terminate.
     unsafe {
@@ -878,7 +1517,9 @@ fn stop_application(cx: &mut App) {
     }
 }
 #[cfg(not(target_os = "macos"))]
-fn stop_application(cx: &mut App) {
+pub(crate) fn stop_application(cx: &mut App) {
+    drag_drop::shutdown(cx);
+    crate::image_host::finish_before_quit(cx);
     cx.quit();
 }
 

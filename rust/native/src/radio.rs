@@ -75,10 +75,15 @@ pub(super) fn element<T: 'static>(
             let state = state.clone();
             let focus = focus.clone();
             // Focus and selection are distinct semantic actions.
+            let gate = route.gate.clone();
+            let node = route.node;
             let focus_state = state.clone();
             let focus_id = selected.clone();
             let action_focus = focus.clone();
             option = option.on_a11y_action(gpui::AccessibleAction::Focus, move |_, window, cx| {
+                if !gate.borrow().allows(node) {
+                    return;
+                }
                 focus_state.borrow_mut().active = Some(focus_id.clone());
                 window.focus(&action_focus, cx);
                 cx.notify(owner);
@@ -88,6 +93,9 @@ pub(super) fn element<T: 'static>(
             let action_state = state.clone();
             let action_focus = focus.clone();
             option = option.on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
+                if !action_route.gate.borrow().allows(action_route.node) {
+                    return;
+                }
                 action_state.borrow_mut().active = Some(action_id.clone());
                 window.focus(&action_focus, cx);
                 action_route.select(&action_id);
@@ -95,6 +103,9 @@ pub(super) fn element<T: 'static>(
             });
             if pointer {
                 option = option.cursor_pointer().on_click(move |_, window, cx| {
+                    if !route.gate.borrow().allows(route.node) {
+                        return;
+                    }
                     state.borrow_mut().active = Some(selected.clone());
                     window.focus(&focus, cx);
                     route.select(&selected);
@@ -104,9 +115,11 @@ pub(super) fn element<T: 'static>(
             }
         }
         base = base.child(crate::semantics::State {
+            live: None,
             element: option,
             disabled,
             read_only: false,
+            modal: false,
         });
     }
     if let Some(route) = route {

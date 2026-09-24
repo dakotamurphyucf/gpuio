@@ -64,7 +64,17 @@ let worker native notification_read ~self_test =
         Reconciler.accept reconciler update |> Or_error.ok_exn;
         pending := None;
         if self_test then send (Request_frame (revision, window))
-      | (Press _ | Choice _) as event ->
+      | ( Press _
+        | Choice _
+        | Combobox_selected _
+        | Overlay_dismissed _
+        | Tooltip_open_changed _
+        | Drag_source_event _
+        | Drop_target_event _
+        | Pointer_event _
+        | Toast_dismissed _
+        | Palette_dismissed _
+        | Command_invoked _ ) as event ->
         (match Reconciler.dispatch reconciler event with
          | Some Action.Increment ->
            incr value;
@@ -86,7 +96,14 @@ let worker native notification_read ~self_test =
       | Closed _ -> Reconciler.close reconciler
       | Rejected _ | Failed _ | Overloaded _ ->
         failwith "native view example rejected an update"
-      | Rendered _ | Frame_requested _ | Editor_event _ | Editor_result _ -> ()
+      | Rendered _
+      | Frame_requested _
+      | Editor_event _
+      | Editor_result _
+      | Image_state _
+      | Asset_response _
+      | Animation_endpoint _
+      | File_dialog_result _ -> ()
     in
     send (Hello (Wire.version, Wire.capabilities));
     let loop () =
