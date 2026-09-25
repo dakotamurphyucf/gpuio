@@ -26,8 +26,10 @@ module Command : sig
   type t [@@deriving equal, sexp_of]
 
   (** Positive, monotonically increasing sequence per mounted node/source.
-      Repeating the same command never replays it; changing an existing sequence
-      is invalid. Scene publication/reset does not replay commands. Selecting a
+      Repeating the same command never replays it; older sequences are ignored.
+      Changing the action at the latest sequence is invalid. A failed command
+      consumes its sequence; retry with a larger one. Scene publication/reset
+      does not replay commands. Selecting a
       missing/noninteractive item fails natively. Explicit viewport commands are
       allowed when pointer pan/zoom is disabled, within configured zoom limits. *)
   val create : sequence:int64 -> Action.t -> t Or_error.t
@@ -74,7 +76,9 @@ module Config : sig
 
   (** Borrows an application-owned registration. The containing view's style
       determines size. Initial viewport applies on mount/source-generation reset;
-      ordinary configuration updates preserve native viewport/selection.
+      ordinary configuration updates preserve native viewport/selection, with
+      zoom clamped if its configured limits narrow. Explicit commands also work
+      while user input is disabled.
 
       All input policies default to true; disabled defaults to false. Dragging
       additionally requires the item's [draggable] policy. Native position
@@ -82,6 +86,9 @@ module Config : sig
       transforms; changing the source transform, removing the item, resetting the
       scene or [Reset_positions] clears the corresponding override. OCaml can
       accept [Moved]'s transform in a new scene without double-applying movement.
+      A new publication cancels an unfinished gesture. If updated drawing/hit
+      geometry makes an old override exceed the coordinate bounds, the override
+      is dropped. Removing interaction also drops that item's native override.
 
       Zoom limits are finite, ordered and within [0.05,64], and contain the initial
       viewport. Selection color resolves against [theme] during construction. *)

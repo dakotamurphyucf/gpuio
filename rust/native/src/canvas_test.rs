@@ -5,6 +5,7 @@ use crate::{
     canvas_jobs::{Ready, Request},
     canvas_paint::{self, FrameBudget, Placement},
     canvas_plan::Quality,
+    canvas_state::{PointerMode, State},
     canvas_store,
 };
 use binprot::BinProtWrite;
@@ -12,7 +13,12 @@ use gpui::{
     App, AsyncApp, Bounds, Context, Render, Window, WindowHandle, WindowOptions, div, prelude::*,
     px, size,
 };
-use gpuio_protocol::{canvas::*, canvas_resource::Update, canvas_scene::*, canvas_view::Viewport};
+use gpuio_protocol::{
+    canvas::*,
+    canvas_resource::Update,
+    canvas_scene::*,
+    canvas_view::{Action, Command, Config, Observation, Viewport},
+};
 use std::{
     cell::{Cell, RefCell},
     rc::Rc,
@@ -23,17 +29,35 @@ use std::{
 struct View {
     job: Option<canvas_host::Handle>,
     ready: Option<Rc<Ready>>,
-    viewport: Viewport,
+    state: Option<State>,
     bounds: Rc<Cell<Bounds<gpui::Pixels>>>,
     vertices: Rc<Cell<usize>>,
 }
 impl Render for View {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         if let Some(ready) = self.job.as_ref().and_then(|job| job.take_ready()) {
-            self.ready = Some(Rc::new(ready.expect("canvas preparation")));
+            let ready = ready.expect("canvas preparation");
+            self.state
+                .as_mut()
+                .unwrap()
+                .publish(ready.snapshot.clone())
+                .unwrap();
+            self.ready = Some(Rc::new(ready));
         }
         let ready = self.ready.clone();
-        let viewport = self.viewport;
+        let viewport = self
+            .state
+            .as_ref()
+            .map_or(Viewport::default(), State::viewport);
+        let transforms: Vec<_> = ready.as_ref().map_or_else(Vec::new, |ready| {
+            ready
+                .snapshot
+                .scene
+                .items
+                .iter()
+                .map(|item| self.state.as_ref().unwrap().transform(item))
+                .collect()
+        });
         let bounds_cell = self.bounds.clone();
         let vertices = self.vertices.clone();
         div().size_full().bg(gpui::rgb(0x101010)).child(
@@ -43,8 +67,13 @@ impl Render for View {
                     bounds_cell.set(bounds);
                     let mut budget = FrameBudget::default();
                     if let Some(ready) = ready {
-                        for (item, meshes) in
-                            ready.snapshot.scene.items.iter().zip(&ready.plan.shapes)
+                        for ((item, meshes), transform) in ready
+                            .snapshot
+                            .scene
+                            .items
+                            .iter()
+                            .zip(&ready.plan.shapes)
+                            .zip(transforms)
                         {
                             let Drawing::Shape(_, paint) = item.drawing else {
                                 panic!("shape-only native fixture");
@@ -52,7 +81,7 @@ impl Render for View {
                             let meshes = meshes.as_ref().unwrap();
                             let placement = Placement {
                                 origin: meshes.origin,
-                                transform: item.transform,
+                                transform,
                                 viewport,
                                 bounds,
                                 clips: &item.clips,
@@ -137,7 +166,17 @@ fn scene(color: i64) -> Scene {
             id: 3,
             transform: Transform::IDENTITY,
             clips: vec![],
-            interaction: None,
+            interaction: Some(Interaction {
+                label: "Green ellipse".into(),
+                hit_region: HitRegion::Ellipse(Rect {
+                    x: 110.,
+                    y: 20.,
+                    width: 60.,
+                    height: 60.,
+                }),
+                draggable: true,
+                activatable: true,
+            }),
             drawing: Drawing::Shape(
                 Shape::Ellipse(Rect {
                     x: 110.,
@@ -251,12 +290,13 @@ fn pixels(cx: &mut AsyncApp, handle: WindowHandle<View>, samples: &[(f64, f64, [
                 .expect("native canvas GPU readback");
             let bounds = view.bounds.get();
             let scale = f64::from(window.scale_factor());
+            let viewport = view.state.as_ref().unwrap().viewport();
             for &(world_x, world_y, expected) in samples {
                 let x = ((f64::from(f32::from(bounds.origin.x))
-                    + (world_x - view.viewport.origin.x) * view.viewport.zoom)
+                    + (world_x - viewport.origin.x) * viewport.zoom)
                     * scale) as u32;
                 let y = ((f64::from(f32::from(bounds.origin.y))
-                    + (world_y - view.viewport.origin.y) * view.viewport.zoom)
+                    + (world_y - viewport.origin.y) * viewport.zoom)
                     * scale) as u32;
                 assert_eq!(
                     image.get_pixel(x, y).0,
@@ -292,6 +332,62 @@ async fn exercise(
             (105., 117.5, [255, 255, 0, 255]),
         ],
     );
+    // Drive the native state directly, not OS pointer dispatch. Pixel readback
+    // verifies that painting and hit testing use the same preview/override.
+    handle
+        .update(cx, |view, _, cx| {
+            let state = view.state.as_mut().unwrap();
+            assert_eq!(
+                state.begin_pointer(Point { x: 140., y: 50. }, PointerMode::Select),
+                vec![Observation::SelectionChanged(Some(3))]
+            );
+            assert!(state.move_pointer(Point { x: 200., y: 50. }));
+            assert_eq!(state.hit_test(Point { x: 200., y: 50. }), Some(3));
+            cx.notify();
+        })
+        .unwrap();
+    pixels(
+        cx,
+        handle,
+        &[(140., 50., [0, 0, 255, 255]), (200., 50., [0, 255, 0, 255])],
+    );
+    handle
+        .update(cx, |view, _, cx| {
+            assert!(view.state.as_mut().unwrap().cancel());
+            cx.notify();
+        })
+        .unwrap();
+    pixels(
+        cx,
+        handle,
+        &[
+            (140., 50., [0, 255, 0, 255]),
+            (200., 50., [16, 16, 16, 255]),
+        ],
+    );
+    handle
+        .update(cx, |view, _, cx| {
+            let state = view.state.as_mut().unwrap();
+            state.begin_pointer(Point { x: 140., y: 50. }, PointerMode::Select);
+            state.move_pointer(Point { x: 160., y: 50. });
+            assert_eq!(
+                state.finish_pointer(),
+                vec![Observation::Moved(
+                    3,
+                    Transform {
+                        tx: 20.,
+                        ..Transform::IDENTITY
+                    }
+                )]
+            );
+            cx.notify();
+        })
+        .unwrap();
+    pixels(
+        cx,
+        handle,
+        &[(120., 50., [0, 0, 255, 255]), (160., 50., [0, 255, 0, 255])],
+    );
     let snapshot = publish(&mut store, id, 1, 0x00ffffff);
     let viewport = Viewport {
         origin: Point { x: 20., y: 20. },
@@ -299,7 +395,10 @@ async fn exercise(
     };
     let quality = handle
         .update(cx, |view, window, cx| {
-            view.viewport = viewport;
+            view.state.as_mut().unwrap().command(&Command {
+                sequence: 1,
+                action: Action::SetViewport(viewport),
+            });
             let request = request(snapshot.clone(), viewport, window);
             let quality = request.quality;
             view.job.as_ref().unwrap().update(request, cx).unwrap();
@@ -315,6 +414,8 @@ async fn exercise(
             (80., 80., [255, 0, 0, 255]),
             (50., 50., [0, 255, 255, 255]),
             (140., 50., [0, 255, 0, 255]),
+            (120., 50., [0, 255, 255, 255]),
+            (160., 50., [0, 255, 0, 255]),
         ],
     );
     handle
@@ -350,6 +451,7 @@ async fn exercise(
         .update(cx, |view, window, cx| {
             view.ready = None;
             view.job = None;
+            view.state = None;
             let pending: Vec<_> = (0..32)
                 .map(|_| {
                     canvas_host::request(request(snapshot.clone(), viewport, window), window, cx)
@@ -376,7 +478,7 @@ async fn exercise(
     drop(snapshot);
     assert_eq!(store.reserved_bytes(), 0, "all scene readers released");
     eprintln!(
-        "GPUIO_NATIVE_CANVAS_OK: hidden-window GPU shape/curve pixels, world clipping, pan/zoom, resize, native publication, worker/scene disposal; no input/AX acceptance claim"
+        "GPUIO_NATIVE_CANVAS_OK: hidden-window GPU shape/curve pixels, world clipping, pan/zoom, resize, drag preview/cancel/retention through direct state calls, native publication, worker/scene disposal; no OS input/AX acceptance claim"
     );
 }
 pub(crate) fn run() {
@@ -401,12 +503,30 @@ pub(crate) fn run() {
                 },
                 |window, cx| {
                     let viewport = Viewport::default();
+                    let (mut state, _) = State::new(
+                        Config {
+                            source: Some(id),
+                            label: "GPU canvas".into(),
+                            initial_viewport: viewport,
+                            minimum_zoom: 0.05,
+                            maximum_zoom: 64.,
+                            selectable: true,
+                            draggable: true,
+                            pan_zoom: true,
+                            disabled: false,
+                            selection_color: 0xffffffff,
+                            command: None,
+                        },
+                        snapshot.clone(),
+                    )
+                    .unwrap();
+                    state.set_input_enabled(true);
                     let job = canvas_host::request(request(snapshot, viewport, window), window, cx)
                         .unwrap();
                     cx.new(|_| View {
                         job: Some(job),
                         ready: None,
-                        viewport,
+                        state: Some(state),
                         bounds: Rc::new(Cell::new(Bounds::default())),
                         vertices: Rc::new(Cell::new(0)),
                     })
@@ -418,6 +538,7 @@ pub(crate) fn run() {
             let _ = handle.update(cx, |view, window, _| {
                 view.ready = None;
                 view.job = None;
+                view.state = None;
                 window.remove_window();
             });
             canvas_host::shutdown(cx).await;

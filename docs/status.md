@@ -27,8 +27,11 @@ components pass local acceptance; OCH-24 has validated geometry, a bounded scene
 codec, native resource ownership and a tested OCaml/Rust upload bridge. The
 pure typed scene API, scoped Eio registration, bounded native geometry/job
 preparation and GPUI worker/mesh painting are implemented. Hidden-window macOS
-GPU tests pass for shapes, curves, clipping, pan/zoom, resizing and cleanup;
-the public canvas widget remains in progress. See the
+GPU tests pass for shapes, curves, clipping, pan/zoom, resizing and cleanup.
+Native interaction state now covers selection, drag previews/cancellation,
+position ownership, viewport policies and commands; GPU checks validate its
+effective transforms through direct state calls. OS input/AX, text/images and
+the public canvas widget remain in progress. See the
 [extension](evidence/extensions-och23.md) and [canvas](evidence/canvas-och24.md)
 evidence for exact completed scope. Its scope includes OCH-23–26 and OCH-33–39, followed by
 [OCH-46](https://linear.app/ochat/issue/OCH-46/showcase-milestone-05-features-in-the-polished-agent-chat-reference):

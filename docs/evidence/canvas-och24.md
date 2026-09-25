@@ -280,3 +280,38 @@ The CI definition builds/lints this feature on both required platforms and runs
 the hidden-window GPU check on macOS. Hosted execution and Linux graphical
 validation remain pending. This test does not claim public OCaml rendering,
 keyboard/pointer interaction, accessibility or complete OCH-24 acceptance.
+
+## Native interaction state and rendered position ownership
+
+`canvas_state` now implements native selection, reverse-order transformed hit
+regions, drag preview/completion/cancellation, pan/anchored zoom, scene-order
+navigation, activation, keyboard-style movement and monotone commands. It keeps
+completed positions separate from previews and reconciles them against immutable
+scene publications. The mounted public view still needs to drive these operations
+from actual input/lifecycle events and provide accessibility nodes.
+
+Ten state tests pass, including source-transform acknowledgement without double
+movement, same-generation publication retention, generation reset, item removal,
+disabled/hidden/policy cancellation, world clips, affine translation bounds,
+path control hulls beyond a hit region, zoom anchors/limits, input policy and
+command failures/retries/deduplication. The 20,000-item workload retains at most
+2,048 interactive entries/position overrides. Thirty-two state creation/disposal
+cycles took approximately 47 ms in a recorded local debug run (47.460459 ms);
+all scene accounting returns to zero after the final readers are dropped. This
+measures native state construction/disposal, not a painted frame or process RSS.
+
+The hidden-window GPU test now paints effective transforms from this state model
+and switches its state snapshot when prepared geometry becomes ready. Direct state
+calls move an ellipse, restore its original pixels on cancellation, complete a
+drag, and preserve its moved pixels through a new scene publication and viewport
+change. Scene/mesh accounting still returns to zero and the test closes its window.
+These are actual GPU pixels driven by state calls, **not OS pointer/keyboard or
+accessibility validation**. The same `native_canvas` command above passes under
+the external deadline.
+
+The full local native library suite passes 94 tests. Feature-enabled all-target
+Clippy with warnings denied, full isolated Dune build (including the independent
+consumer backend) and repository formatting also pass. OCH-24 remains in progress:
+text/image painting, the mounted view/bridge/event pipeline, actual focus/input/AX
+and the interactive public OCaml example are still required. Hosted platform gates
+remain deferred until consolidated local milestone acceptance.

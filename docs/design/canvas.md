@@ -309,6 +309,44 @@ label to 1 KiB, validates nested values and rejects trailing or truncated data.
 
 ## Native interaction and accessibility
 
+`canvas_state` implements the native interaction model independently of GPUI
+event dispatch. It retains an admitted snapshot, an index of at most 2,048
+interactive items and at most one completed transform override per interactive
+item. One gesture holds either an object preview or a pan preview. It has no
+event queue and emits no observations for intermediate pointer movement.
+
+Hit testing follows reverse scene order, using the effective native transform
+and unchanged world clips. Pointer dragging starts after three logical pixels of
+movement. Keyboard/accessibility movement can use the same translation operation.
+Cached source drawing/hit hulls constrain movement to the admitted coordinate
+domain while preserving the affine linear coefficients. Selection navigation
+follows scene order (first/last/next/previous), stopping at the endpoints;
+activation and movement respect item policies.
+
+New publications cancel unfinished gestures. Same-generation publications retain
+completed overrides only while their source transform and interaction remain and
+the new geometry still admits the override. Accepting a completed transform in
+OCaml replaces its native override without applying it twice. Generation resets
+clear selection/overrides and restore the configured initial viewport. Ordinary
+configuration changes preserve viewport state, clamping zoom if limits narrow.
+
+Explicit commands work even when user input is disabled. Each new sequence is
+consumed once, including failed commands; callers retry with a larger sequence.
+Older sequences are ignored, and changing the latest sequence's action reports
+one invalid-command observation. Scene resets do not reset this high watermark.
+Zoom preserves the world point under its logical-pixel anchor unless the world
+origin must clamp to the coordinate-domain edge. A completed pan emits a viewport
+observation; cancelling a preview restores the prior viewport. The mounted host
+must coalesce wheel/zoom observations and stamp them with the displayed snapshot's
+revision/generation.
+
+Input starts disabled until the host enables it. The host must immediately
+disable/cancel it for hiding, modal exclusion and window deactivation, even when
+no render occurs between disable and enable. Changing input policy or replacing
+the scene also cancels previews. Real pointer/keyboard dispatch, focus handling,
+AX nodes and this lifecycle integration are still required; pure state tests and
+direct state calls in the GPU test do not establish native input acceptance.
+
 The component has one primary focus entry. Keyboard navigation selects labeled
 interactive items; accessible item nodes expose equivalent selection/activation
 and movement actions. Decorative marks require a meaningful scene-level text

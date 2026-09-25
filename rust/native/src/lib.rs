@@ -10,6 +10,7 @@ pub mod canvas_jobs;
 pub mod canvas_mesh;
 pub mod canvas_paint;
 pub mod canvas_plan;
+pub mod canvas_state;
 pub mod canvas_store;
 mod document_highlight;
 pub mod document_host;
