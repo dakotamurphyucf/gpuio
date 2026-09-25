@@ -696,3 +696,39 @@ validation or milestone/ticket completion is claimed.
 
 All-target Clippy (`--features native-image-tests -- -D warnings`), Rustfmt and
 diff whitespace checks also passed for this checkpoint.
+
+## Public numeric editor example and bridge integration
+
+`examples/numeric/number.ml` now demonstrates Sides, Stacked and Hidden numeric
+editors through public Core/Bonsai/Eio APIs. It renders draft and committed value
+separately, with explicit commit/restore/reset/read and policy/lifetime controls.
+The existing slider example remains a separate executable in the same directory.
+No private bridge path or synchronous native-to-OCaml callback is used.
+
+The local macOS `--self-test` passes actual correlated commands and asynchronous
+observations/events for all three layouts. It checks initial values, guarded
+replacement/stale revision, transient rejection/cancel, out-of-range clamping,
+stepping, undo/redo, directional UTF-8 selection, invalid selection/text/length,
+required-empty rejection and zero-seeding step. It also verifies an unplaced
+controller returns Not_mounted, disabled/read-only policy changes, permitted
+explicit replacement while disabled, stale leases after removal and remount,
+initial-value restoration on remount, old-snapshot fencing, and Closed after
+window closure. Rejected, Cancelled and Committed semantic events reach the
+application callback through the real runtime.
+
+The first test expected Disabled for a focus command. Inspection confirmed that
+the accepted numeric model/gate returns Focus_blocked for focus denial, while
+stepping returns Disabled. The test and API documentation now state that existing
+contract; production behavior was not altered to accommodate the test. Failure
+diagnostics include actual results and expected values.
+
+Commands: `GPUIO_JOBS=2 ./scripts/gpuio build examples/numeric/number.exe`, then
+`_build/default/examples/numeric/number.exe --self-test` under a 45-second
+process-group timeout. The final run passed normally with `GPUIO_NUMBER_PUBLIC_OK`
+and closed/reaped its window/process. Formatting passed. The foundation workflow
+now runs the public numeric self-test on macOS; hosted execution remains pending.
+This is bridge/lifecycle evidence, not external OS keyboard/AX automation or pixel
+acceptance. Broader numeric visual/workload/policy acceptance and OTP remain open.
+
+The final `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @fmt` passed,
+as did workflow YAML parsing and diff whitespace checks.

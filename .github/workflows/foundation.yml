@@ -166,6 +166,7 @@ jobs:
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_number_input"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-number-input-native.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/presentation/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-presentation-public.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/numeric/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-numeric-public.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/numeric/number.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-number-public.log
           python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_numeric.py"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-numeric-ax.log
           python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_presentation.py"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-presentation-ax.log
           python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_presentation_content.py"], check=True, timeout=240)' 2>&1 | tee .cache/ci/macos-presentation-content.log

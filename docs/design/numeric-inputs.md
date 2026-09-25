@@ -473,8 +473,10 @@ focus, select, commit, cancel, step, undo/redo, explicit draft/value replacement
 and a value replacement helper that binds the expected lease and revision.
 Bonsai state ignores older revisions and replies for a replaced lease. Native
 observations are never treated as text replacement commands. The public API
-builds; its full application-level integration scenario is the next validation
-step. No new capability is advertised until OCH-34 acceptance is complete.
+now has a runnable three-layout example in `examples/numeric/number.ml`. Its
+self-test validates real correlated requests, asynchronous semantic events,
+revision/lifetime fences, policy updates and remount/close behavior. No new
+capability is advertised until OCH-34 acceptance is complete.
 
 ### Native step-button hold lifetime
 

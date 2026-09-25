@@ -32,6 +32,8 @@ val read_snapshot
   -> (Gpuio.Number_input.Snapshot.t, Gpuio.Number_input.Command_error.t) Result.t
        Bonsai.Effect.t
 
+(** Returns [Focus_blocked] when the native field cannot receive focus, including
+    disabled, hidden or modal-blocked placement. Read-only fields can be focused. *)
 val focus
   :  t
   -> (Gpuio.Number_input.Snapshot.t, Gpuio.Number_input.Command_error.t) Result.t
