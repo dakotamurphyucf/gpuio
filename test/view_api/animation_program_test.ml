@@ -326,3 +326,14 @@ let%expect_test "program operation and bounded observations match independent fi
       ((Stage_completed 0 Played) (Stage_completed 1 Reduced_motion) Finished)))
     |}]
 ;;
+
+let%expect_test "advanced programs negotiate a capability above 32 bits" =
+  let module Wire = Gpuio_protocol.Wire in
+  assert (Int64.equal (Int64.bit_and Wire.capabilities 4294967296L) 4294967296L);
+  let bytes = Wire.Message.encode (Hello (Wire.version, Wire.capabilities)) |> ok in
+  String.to_list bytes
+  |> List.map ~f:(fun char -> sprintf "%02x" (Char.to_int char))
+  |> String.concat
+  |> print_endline;
+  [%expect {| 0001fcffffffff01000000 |}]
+;;

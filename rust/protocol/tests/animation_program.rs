@@ -328,3 +328,15 @@ fn program_operation_and_batched_events_match_independent_wire_fixtures() {
         include_str!("../../../test/fixtures/animation-program-events.hex").trim()
     );
 }
+
+#[test]
+fn advanced_capability_handshake_matches_ocaml_above_32_bits() {
+    use gpuio_protocol::{decode, v1::*};
+    assert_eq!(CAPABILITIES & CAP_ANIMATION_PROGRAMS, 1_i64 << 32);
+    let message = Message::Hello(VERSION, CAPABILITIES);
+    let mut bytes = Vec::new();
+    message.binprot_write(&mut bytes).unwrap();
+    let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
+    assert_eq!(hex, "0001fcffffffff01000000");
+    assert_eq!(decode(&bytes), Ok(message));
+}

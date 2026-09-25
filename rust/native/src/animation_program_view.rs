@@ -9,6 +9,7 @@ use std::time::Duration;
 
 pub(super) struct State {
     motion: Motion,
+    painted_in_frame: bool,
     config: Arc<Config>,
     source_style: Arc<[Style]>,
     pub(super) styles: Arc<[Style]>,
@@ -97,6 +98,10 @@ pub(super) fn paint(state: &Rc<RefCell<State>>, sample: Sample) -> gpui::AnyElem
                 state.hide();
                 return;
             }
+            // Presence is independent of sample acceptance: a finished or
+            // cancelled owner still paints its retained final geometry. Marking
+            // it hidden would incorrectly pause a later explicit restart.
+            state.painted_in_frame = true;
             if !state.motion.accepts_sample(&sample) {
                 return;
             }
@@ -131,6 +136,7 @@ impl View {
                 let clock = self.session.borrow().motion();
                 let now = clock.borrow().now();
                 Rc::new(RefCell::new(State {
+                    painted_in_frame: false,
                     motion: Motion::new(config.clone(), now, cx.reduce_motion())
                         .expect("admitted program"),
                     styles: animation::filtered_targets(
@@ -186,10 +192,18 @@ impl View {
             }
         }
     }
-    pub(super) fn hide_unvisited_programs(&self) {
-        for (id, state) in &self.animation_programs {
-            if !self.visited.contains(id) {
-                state.borrow_mut().hide();
+    pub(super) fn begin_program_paint(&self) {
+        for state in self.animation_programs.values() {
+            state.borrow_mut().painted_in_frame = false;
+        }
+    }
+    /// Deferred until the effect cycle ends, after GPUI paints popup surfaces.
+    /// List retention and speculative row measurement do not establish visibility.
+    pub(super) fn finish_program_paint(&self) {
+        for state in self.animation_programs.values() {
+            let mut state = state.borrow_mut();
+            if !state.painted_in_frame {
+                state.hide();
             }
         }
     }

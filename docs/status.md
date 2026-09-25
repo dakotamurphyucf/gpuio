@@ -59,8 +59,10 @@ a bounded codec and compiled finite sequence timelines also pass local tests.
 The retained owner and bounded shared-clock registry now pass deterministic
 lifetime, playback, phase and stale-paint tests. Atomic session admission and
 compiled-storage quotas, GPUI rendering, and `View.animate_program` with bounded
-stage-event batches are wired. Initial mounted macOS checks pass; public-example
-and broader lifecycle acceptance remain in progress. See
+stage-event batches are wired. Public Bonsai/Eio and expanded native macOS checks pass, including retained-list
+and hidden-panel timing, deferred overlays, two-window clock lifetimes, spring
+retarget controls and a 1,024-visible-owner workload with input and complete disposal.
+The advanced-program capability is now advertised; hosted gates remain pending. See
 [advanced animation evidence](evidence/animation-programs-och25.md) and
 [design](design/animation-programs.md).
 No milestone-05 completion or hosted acceptance is claimed yet.

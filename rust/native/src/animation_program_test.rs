@@ -1,5 +1,11 @@
 //! Mounted GPUI programs: real geometry, event batches, shared phase and cleanup.
 use super::*;
+#[path = "animation_program_controls_test.rs"]
+mod controls;
+#[path = "animation_program_lifecycle_test.rs"]
+mod lifecycle;
+#[path = "animation_program_workload_test.rs"]
+mod workload;
 use gpuio_protocol::{
     animation::{Easing, Property, Repeat, Spring, Target},
     animation_program::*,
@@ -62,13 +68,14 @@ fn apply(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, operations: Vec<Op
                 .session
                 .borrow_mut()
                 .apply(&Transaction {
-                    window: wid(),
+                    window: view.id,
                     base,
                     revision: base + 1,
                     operations,
                 })
                 .unwrap();
             view.update_editors(&result.dirty, window, cx);
+            view.list_actions(&result.lists);
             cx.notify();
         })
         .unwrap();
@@ -388,7 +395,15 @@ pub(crate) fn run() {
             .unwrap();
         cx.activate(true);
         cx.spawn(async move |cx| {
-            let result = super::native_test::protect(exercise(cx, window, &transport)).await;
+            let result = super::native_test::protect(async {
+                exercise(cx, window, &transport).await;
+                lifecycle::rows(cx, &transport).await;
+                lifecycle::panels(cx, &transport).await;
+                lifecycle::windows(cx, &transport).await;
+                controls::exercise(cx, &transport).await;
+                workload::exercise(cx, &transport).await;
+            })
+            .await;
             *task_failure.borrow_mut() = result.err();
             drop(motion_watch);
             cx.update(super::stop_application);

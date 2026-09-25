@@ -1,5 +1,9 @@
 # Advanced animation implementation evidence (OCH-25)
 
+The sections below are chronological checkpoints. Local native/public acceptance
+is now implemented; the final section records expanded lifecycle/workload evidence.
+Consolidated hosted macOS/Linux gates and merge remain pending.
+
 ## Spring parameter and trajectory foundation
 
 Local macOS arm64 checkpoint, 2026-09-25. This is partial implementation, not
@@ -222,3 +226,87 @@ the mounted public path, review runtime bounds under realistic simultaneous
 workloads, and advertise the completed capability only after acceptance. The
 polished chat integration remains OCH-46. Full milestone hosted gates and merge
 remain pending.
+
+
+## Retained visibility, actual windows, controls and maximum-owner workload
+
+Local macOS arm64, 2026-09-25. The expanded `native_animation_program` executable
+passes all seven scenario markers. Actual native windows test:
+
+- A retained virtual row pauses when it stops painting, resumes from the same
+  width when returned, cancels an outstanding delay offscreen, and resumes the
+  remaining delay. Retaining/materializing a row alone does not establish visibility.
+- Display-hidden and visibility-hidden panels preserve their owner and stop
+  idle redraw. A deferred dialog paints its animation and advances normally.
+- Two actual windows join a named group's current phase. Individually pausing one
+  member does not stop the other; resume rejoins the phase. Closing one window
+  preserves the group, closing its final member invalidates old snapshots, and
+  reopening the same name creates a new lifetime. Application phase survives a
+  no-window interval. Final owner/group/reservation counts are zero.
+- Physical retargeting uses the last painted position and velocity. Cancel holds
+  the painted value, emits one terminal signal and stays idle; Running alone does
+  not revive it. Explicit restart, reverse and observer removal/reattachment work.
+  A late observer receives no replay; a subsequent run uses the new handler.
+- A visible grid paints all 1,024 admitted owners, accepts native pointer/button
+  dispatch, retargets all owners and releases their state on removal. Unobserved
+  animation work produces no bridge events. Weak-owner release and zero store
+  accounting accompany an unchanged idle render count after platform-frame drain.
+
+The retained-row scenario first reproduced elapsed offscreen time being counted:
+render-time traversal had marked materialized rows visited although GPUI did not
+paint them. Actual paint presence now determines the sweep, deferred until GPUI
+finishes popup surfaces. The controls scenario then caught a related distinction:
+finished/cancelled owners still paint their final geometry although their samples
+no longer commit. Recording their paint presence before sample acceptance prevents
+incorrect hidden-time accumulation on a subsequent restart. Both regressions are
+covered by the native scenarios. No arbitrary pixel-occlusion guarantee is claimed.
+
+One new physical-geometry assertion initially compared unrounded logical samples
+with device-pixel-rounded layout. Its tolerance is now half a physical pixel plus
+1e-4 logical units; physical trajectory tests retain their stricter tolerances.
+No production numeric behavior was relaxed.
+
+One debug workload run recorded:
+
+| Measurement | Result |
+| --- | ---: |
+| Admitted / actually painted owners | 1,024 / 1,024 |
+| Conservative reserved bytes | 7,856,128 |
+| Mount, admission and compilation wall time | 27.746 ms |
+| Retarget-all wall time | 13.075 ms |
+| Native input dispatch wall time | 0.115 ms |
+| Disposal wall time | 3.262 ms |
+| Frame-barrier median / maximum | 50.915 / 56.334 ms |
+
+These are local debug observations, not release performance guarantees. The frame
+barrier includes display pacing and multiple next-frame callbacks; it is not
+frame CPU time. Native input dispatch is not end-to-end OS input latency, and
+conservative reservations are not process RSS. The workload is 1,024 two-property
+single-stage springs; the earlier deterministic admission/compilation tests cover
+maximum stage/property reservations separately.
+
+Advanced capability bit `4294967296` is enabled, with aggregate `8589934591`.
+Independent OCaml/Rust Hello checks pin `0001fcffffffff01000000`; historical
+canvas evidence remains unchanged. The baseline animation wire fixtures remain
+unchanged. Required hosted gates/merge and the integrated OCH-46 chat showcase
+remain pending.
+
+
+Final local validation of this checkpoint passes:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --workspace --locked -j 2
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @runtest @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --all-targets --features native-tests,native-image-tests,native-canvas-tests -j 2 -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-tests --test native_animation --test native_animation_program
+_build/default/examples/animation_program/main.exe --self-test
+GPUIO_JOBS=2 ./scripts/gpuio check-fmt
+```
+
+The final native run also passed the baseline OCH-12 scenarios and public Bonsai
+example. Its workload again painted all 1,024 owners and returned to zero retained
+accounting (mount 18.072 ms, retarget 13.809 ms, input dispatch 0.123 ms, disposal
+3.308 ms). All validation processes exited and owned windows closed. A new Rust
+handshake test initially used the wrong local encoder signature; the test now
+writes the Hello message directly with bin_prot, and the full suite passes.
+No hosted or Linux execution is claimed by these local commands.

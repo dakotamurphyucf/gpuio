@@ -1213,6 +1213,7 @@ impl Render for View {
             .clone();
         let tab_focus = self.focus.clone();
         let begin_focus = self.focus.clone();
+        let program_begin = cx.entity().downgrade();
         let canvas_budget = self.canvas_budget.clone();
         let canvases: Vec<_> = self.canvases.values().map(Rc::downgrade).collect();
         let drag_window = self.id;
@@ -1245,6 +1246,7 @@ impl Render for View {
                     |_, _, _| (),
                     move |_, _, window, cx| {
                         begin_focus.borrow_mut().begin_frame();
+                        let _ = program_begin.update(cx, |view, _| view.begin_program_paint());
                         *canvas_budget.borrow_mut() = Default::default();
                         for state in &canvases {
                             if let Some(state) = state.upgrade() {
@@ -1279,7 +1281,6 @@ impl Render for View {
                 state.presentation = None;
             }
         }
-        self.hide_unvisited_programs();
         self.hide_unvisited_extensions();
         self.hide_unvisited_canvases(window);
         self.buttons.retain(|id, _| self.visited.contains(id));
@@ -1345,10 +1346,22 @@ impl Render for View {
         let id = self.id;
         let session = self.session.clone();
         let transport = self.transport.clone();
+        let program_finish = cx.entity().downgrade();
         root.child(
             canvas(
                 |_, _, _| (),
-                move |_, _, _, _| {
+                move |_, _, _, cx| {
+                    // Deferred popups paint after the root tree. Sweep only once
+                    // the complete effect cycle has painted; never request a frame.
+                    if program_finish
+                        .update(cx, |view, _| !view.animation_programs.is_empty())
+                        .unwrap_or(false)
+                    {
+                        cx.defer(move |cx| {
+                            let _ =
+                                program_finish.update(cx, |view, _| view.finish_program_paint());
+                        });
+                    }
                     let events = session.borrow_mut().painted(id, revision);
                     for event in events {
                         if matches!(event, Event::FrameRequested(..)) {

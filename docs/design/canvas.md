@@ -146,7 +146,7 @@ limits and their workloads are specified below.
 Bridge message tag 13 carries a positive correlation and canvas resource request;
 event tag 39 carries its reserved response. Capability `1073741824` advertises
 scene registration. Capability `2147483648` additionally advertises the native
-canvas widget, with aggregate capabilities `4294967295`. `App.Expert.canvas`
+canvas widget. `App.Expert.canvas`
 admits at most 63 pending raw requests, leaving
 one lane for the scoped adapter. Chunk length is checked before native allocation;
 responses survive input mailbox pressure. Raw callers own release and late-reply

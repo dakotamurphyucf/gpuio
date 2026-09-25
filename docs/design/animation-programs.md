@@ -1,12 +1,12 @@
 # Spring, sequence and shared-repeat motion (OCH-25)
 
-Status: implementation design. The OCH-12 duration-based API remains supported.
-Spring parameters, typed programs, bounded decoding, compiled timelines and the
-retained motion/clock primitives are implemented and pass deterministic tests.
-Atomic session admission, GPUI rendering and the public `View.animate_program`
-API are now wired. Initial mounted macOS geometry/lifecycle tests pass; broader
-public-example and lifecycle acceptance remains in progress. The advanced
-capability is not advertised until that acceptance is complete.
+Status: locally implemented and validated on macOS; consolidated hosted gates
+and merge remain pending. The OCH-12 duration-based API remains supported.
+Spring parameters, typed programs, bounded decoding, compiled timelines, atomic
+session admission, retained clocks and the public `View.animate_program` API are
+implemented. Actual mounted/public checks cover geometry, controls, retained-list
+and panel visibility, deferred overlays, cross-window clocks and bounded workloads.
+Capability `4294967296` advertises advanced programs; the aggregate is `8589934591`.
 Acceptance remains the complete live OCH-25 ticket, followed by integrated chat
 showcase OCH-46. Linux GUI follows the existing OCH-17 platform policy.
 
@@ -79,8 +79,8 @@ clears velocity/timers and emits one terminal cancellation. An explicit new run
 restarts from declared initial values; ordinary retargeting preserves the visible
 position and spring velocity. Reversing a standalone spring means retargeting it
 back to the previous target. Reversing a sequence is an explicit reversed program,
-not an implicit reversal of already-delivered stage history. Define these control
-operations in the public interface before wiring their transport.
+not an implicit reversal of already-delivered stage history. Public controls are
+`Program.with_playback`, `restart` and `reverse`.
 
 Hidden content pauses independent runs. Reduced motion settles finite programs at
 the final stage target without playing intermediate stages; skipped stages must be
@@ -100,7 +100,9 @@ atomically. Names are application-scoped, bounded UTF-8 values, not Rust pointer
 Use one native monotonic application clock and retained group phase state. A late
 member joins the current phase. A hidden or individually paused member requests no
 frames and rejoins the group phase on resume; it does not shift other members.
-A group pause freezes the shared phase; resuming advances all members together.
+The internal clock registry also supports group/application pause, which freezes
+shared phase. The public declarative controls pause individual programs; an
+application-wide or named-group imperative control API is not exposed.
 Reduced-motion intervals freeze shared phase. Last-member removal drops named
 group state; a later new group begins a new lifetime. The application clock itself
 has no timer and cannot keep an empty application redrawing.
@@ -134,28 +136,26 @@ color, arbitrary object and percentage/auto interpolation are not introduced.
 `Animation.Program.create` accepts initial values, stages, repetition, initial
 delay and `Animation.Clock` selection. `with_playback` changes playback without
 changing program data. `restart` increments its token and selects Running;
-`reverse` reverses declared intervals and requires initial values. These pure
-constructors do not yet provide a renderable advanced view.
+`reverse` reverses declared intervals and requires initial values. Mount these values through `View.animate_program` (or its Bonsai counterpart).
 
 The matching `Animation_program_wire`/Rust `animation_program` schema has distinct
 Program and Config records. Config adds the admission generation, playback and
-restart token. `same_run` ignores admission generation and playback, so a future
-retained owner can distinguish pause/resume from a program replacement. The run ID
-must remain its start generation while playback-only configurations advance the
-admission generation; this is required when wiring callback fences.
+restart token. `same_run` ignores admission generation and playback, so the
+retained owner distinguishes pause/resume from a program replacement. The run ID
+remains its start generation while playback-only configurations advance the
+admission generation; callback fences preserve that distinction.
 
 The standalone native decoder caps configuration bytes at 16,384, stages at 32,
 properties at 11 and group names at 128 UTF-8 bytes before allocation. It validates
 property sets, positive shared repeat periods and timed-only shared stages. Heap
-accounting includes vector/string capacities. No new transaction operation or
-runtime capability has been introduced at this checkpoint. `Program::from_legacy`
+accounting includes vector/string capacities. Operation 37 mounts the configuration
+under the advanced-program capability. `Program::from_legacy`
 provides a validated common representation without changing the old wire bytes.
 
 A finite stage observation carries a zero-based stage index and Played or
 Reduced_motion result. Its delivery index is stage index + 1; terminal signals use
-33. Signals carry the run generation. The retained bridge still needs to implement
-monotone (run generation, delivery index) dispatch and paint-confirmed delivery;
-these schema limits alone do not implement delivery.
+33. Signals carry the run generation. The retained bridge implements
+monotone (run generation, delivery index) dispatch and paint-confirmed delivery.
 
 `motion_timeline::Timeline` compiles numeric stages and spring trajectories once.
 It samples active elapsed time without mutating state or emitting callbacks. A
@@ -164,8 +164,8 @@ Frame or a relative Wait deadline. It visits at most 32 admitted stages even whe
 a slow frame passes multiple boundaries. Constant timed intervals wait for their
 boundary without frame polling. Timed stages clear inherited spring velocity;
 new properties use declared initial values. It accounts for retained segment and
-spring-array storage. The owner still needs to enforce aggregate admission,
-paint epochs, cancellation, hidden/reduced policy and repeating clocks.
+spring-array storage. Session admission and the retained owner enforce aggregate
+quotas, paint epochs, cancellation, hidden/reduced policy and repeating clocks.
 
 ## Retained owner and clock primitives
 
@@ -257,3 +257,24 @@ does not cancel a still-valid delayed start. Samples and timer closures do not o
 obsolete timelines or keep removed widgets alive. Only a live paint requests a
 subsequent animation frame. Pause, reduced motion, hidden content and disposal
 clear pending work according to the retained owner contract.
+
+
+## Visibility and acceptance boundaries
+
+Visibility follows actual paint participation, not retained-tree membership or
+speculative virtual-list measurement. The root paint resets owner presence; each
+painted owner marks itself present even when a completed/cancelled sample no longer
+commits new state. A sweep deferred until the effect cycle ends runs after GPUI's
+deferred popup paint. Owners not painted pause independent time and cancel their
+pending deadlines. Returning rows resume their remaining active delay; shared
+members rejoin their current phase. The sweep itself never requests a frame.
+
+This policy covers display/visibility-hidden content and nonpainted virtual rows.
+It does not promise pixel-level occlusion detection for partly clipped/overscan
+content or animations intentionally entering from outside their bounds. Completion
+is distinct from visibility: a finished visible owner can restart immediately.
+
+Native macOS checks additionally paint 1,024 concurrent owners, exercise an input
+control, retarget the owners, then dispose them and verify zero reservations and
+idle rendering. The evidence reports debug wall times separately from frame CPU,
+end-to-end OS input latency and process RSS, which that test does not measure.
