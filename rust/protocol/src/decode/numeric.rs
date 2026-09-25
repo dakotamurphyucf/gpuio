@@ -3,7 +3,7 @@ use crate::numeric::Domain;
 use std::io::Cursor;
 
 impl Decoder<'_> {
-    fn numeric_domain(&mut self) -> Result<Domain, DecodeError> {
+    pub(super) fn numeric_domain(&mut self) -> Result<Domain, DecodeError> {
         Domain::new(self.float()?, self.float()?, self.float()?).ok_or(DecodeError::Malformed)
     }
 }

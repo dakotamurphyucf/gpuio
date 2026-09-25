@@ -30,6 +30,7 @@ pub mod v1;
 pub use decode::{
     DecodeError, decode, decode_accessibility, decode_animation_program, decode_canvas_scene,
     decode_canvas_view_config, decode_container_query, decode_numeric_domain,
+    decode_slider_command, decode_slider_config, decode_slider_event,
 };
 pub use id::{HandlerId, NodeId, ResourceId, WindowId};
 
@@ -44,3 +45,5 @@ pub mod window;
 pub mod split;
 
 pub mod numeric;
+
+pub mod slider;

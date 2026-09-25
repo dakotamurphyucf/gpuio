@@ -99,3 +99,39 @@ programmatic validation, selection/paste, read-only, hidden idle and disposal.
    evidence; full local checks. Advertise capability only after this acceptance.
 6. Consolidated required macOS/Linux CI and merge. The polished chat integration
    remains OCH-46; Linux desktop GUI acceptance remains OCH-17.
+
+## Slider ownership and event contract
+
+The Core `Slider` contract distinguishes configuration, initial value, immutable
+snapshots and explicit commands. A native owner mounts in single or range mode;
+ordinary configuration or initial-value rerenders cannot change that mode or
+reset its values. Remount to change mode. Initial/replacement values normalize
+under the configured numeric domain. Range thumbs retain lower/upper identity
+and stop at each other; they never cross or swap.
+
+Snapshots carry a monotonically increasing native revision, current preview,
+last committed value and optional dragging thumb. Outside a drag, current and
+committed values match. Start/Preview/Committed/Cancelled distinguish a gesture
+from ordinary Observed state. Labels can change during a drag; axis/scale/domain
+or disabling/read-only transitions cancel first. Cancellation restores the prior
+committed value. A domain change then normalizes that committed value and emits
+Observed under the new domain. The cancellation snapshot therefore describes the
+old domain, followed immediately by the new-domain observation.
+
+Keyboard/AX mutation interrupts a pointer gesture with Cancelled before applying
+the discrete mutation. Rejected/nonfinite/wrong-thumb input does not interrupt it.
+Replace optionally checks the observed revision, preserves mode, cancels an active
+drag and emits Observed; it is allowed programmatically under disabled/read-only.
+Focus remains subject to native focus/visibility/modal gates. Read_snapshot is
+non-mutating. Revisions fence native state changes, including configuration and
+drag lifecycle; stale guarded commands fail atomically. Overflow also fails
+before mutation. Intermediate previews may coalesce only inside their gesture;
+start/final/cancel boundaries and command responses remain ordered. The mounted
+bridge must apply node-generation and current-handler fences in addition to the
+model's revision checks.
+
+Two range thumbs expose separate native accessible values/bounds/actions and Tab
+stops. Arrows step, Page Up/Down step ten times, Home/End go to the available bound,
+and Escape cancels an active drag. Vertical values increase upward. Mapping is
+computed in f64 and converted to bounded fractions before native pixel geometry;
+logarithmic mapping must avoid ratio overflow and loss of narrow positive spans.

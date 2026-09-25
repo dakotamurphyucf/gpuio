@@ -185,3 +185,5 @@ pub fn run_native_container_query_test() {
 pub fn run_native_presentation_test() {
     host::presentation_test::run();
 }
+
+pub mod slider_state;
