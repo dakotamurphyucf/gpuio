@@ -5,7 +5,9 @@ admission limits to validate with the implementation and workload evidence, not
 claims of completed functionality.
 
 The current implementation provides validated `Canvas_geometry` and
-`Canvas_path` OCaml values and matching Rust protocol geometry. Scene resource
+`Canvas_path` OCaml values and matching Rust protocol geometry. The immutable
+scene wire schema, bounded Rust decoder, reference/geometry admission and pure
+topmost hit testing are implemented. The ergonomic public scene API, resource
 registration, native rendering and canvas interaction are still in progress;
 these pure modules do not yet expose a rendered canvas widget.
 
@@ -73,9 +75,11 @@ Per-item transforms map local geometry into world space. Nested clip rectangles
 are explicitly in world coordinates and intersect; an empty intersection draws
 and hits nothing. Viewport clipping also applies. This avoids claiming that an
 axis-aligned GPUI content mask implements a rotated or arbitrary-path clip. Native
-text/image transform support must be checked against the pinned renderer before
-the public interface is finalized; unsupported combinations must be rejected,
-never silently approximated.
+text items currently admit translation and positive uniform scale only; image
+items admit translation and positive independent axis scales. The pinned
+`ShapedLine::paint`/`paint_image` APIs do not provide arbitrary affine transforms
+for those draws. Rotation, shear and reflection of text/images are rejected,
+never silently approximated. Paths and shape geometry retain affine support.
 
 Interactive items declare labels and explicit local hit regions (rectangle,
 ellipse or polygon). Transform inversion applies before containment tests, and
@@ -107,6 +111,24 @@ Start with a 4 MiB encoded scene limit, 20,000 items, 4,096 drawing resources,
 within the bridge envelope. Bound concurrent staging, total live scene bytes,
 tessellation vertices, decoded/shaped caches and accessibility nodes separately;
 serialized byte bounds do not bound those expanded resources by themselves.
+
+The version-1 immutable scene schema now enforces those wire limits, a maximum
+of eight world clip rectangles per item and 2,048 interactive items per scene.
+The 1 MiB text budget includes scene description, native text, font-family names
+and interactive labels. Text resources contain at most 16 KiB of single-line
+UTF-8, a bounded font-family name, size 4..256 logical pixels and weight 100..900.
+Resources have positive 64-bit IDs/generations; item IDs are positive and distinct
+within the snapshot. Path, text and image references require matching resource
+kind and exact generation. Images reference an existing native asset handle;
+application/liveness checks belong to the still-pending registry publication.
+Cross-publication resource generation history remains part of that registry work.
+
+The decoder checks nested and aggregate counts before allocating lists/strings,
+checks the complete 4 MiB envelope, validates UTF-8/finiteness and requires exact
+consumption. Domain validation follows decoding. Reused paths cache their
+control-point hull and closure status during admission so 20,000 references do
+not trigger 20,000 path traversals. Domain validation is distinct from native
+tessellation and font/image allocation budgets, which remain required.
 
 Validation covers finite geometry, nonsingular transforms, positive dimensions,
 valid path topology, valid UTF-8, unique identities, exact resource generations,
