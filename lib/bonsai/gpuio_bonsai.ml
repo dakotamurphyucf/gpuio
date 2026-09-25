@@ -78,6 +78,7 @@ module View = struct
   let dialog = Gpuio.View.dialog
   let popover = Gpuio.View.popover
   let command_scope = Gpuio.View.command_scope
+  let avatar = Gpuio.View.avatar
   let loading = Gpuio.View.loading
   let progress = Gpuio.View.progress
   let command_palette = Gpuio.View.command_palette

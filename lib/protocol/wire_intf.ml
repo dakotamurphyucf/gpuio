@@ -6,6 +6,7 @@ module type S = sig
   module Animation = Animation_wire
   module Accessibility = Accessibility_wire
   module Loading = Loading_wire
+  module Avatar = Avatar_wire
   module Container_query = Container_query_wire
   module Animation_program = Animation_program_wire
   module Document = Document_wire
@@ -57,6 +58,7 @@ module type S = sig
       | Animation_program
       | Container_query
       | Loading
+      | Avatar
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -713,6 +715,7 @@ module type S = sig
       | Set_container_query of Node_id.t * Container_query.Config.t
       | Set_accessibility of Node_id.t * Accessibility.Config.t option
       | Set_loading of Node_id.t * Loading.Config.t
+      | Set_avatar of Node_id.t * Avatar.Config.t
     [@@deriving bin_io, equal, sexp_of]
   end
 

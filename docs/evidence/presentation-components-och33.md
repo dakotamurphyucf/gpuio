@@ -152,3 +152,72 @@ closed/reaped; no hosted or Linux GUI result is claimed.
 Avatar fallback, rating and the complete OCH-33 family acceptance remain pending.
 The existing presentation CI step automatically includes the extended native/public
 tests; consolidated hosted gates and milestone-05 merge still follow local scope.
+
+## Native avatar and fallback
+
+The avatar checkpoint adds `Avatar.Fallback`/`Config`, `View.avatar` and its Bonsai
+specialization. Wire kind 35 and operation 41 are appended without changing old
+tags or the capability mask. Explicit fallback text is nonblank UTF-8, bounded to
+128 bytes and rejects ASCII controls. Descriptions reuse `Image.Description`.
+Absent sources own no image reader and generate no artificial failure. Supplied
+sources use the existing scoped asset/image leases, budgets and observations.
+
+Independent OCaml/Rust fixtures cover absent, unavailable and registered sources.
+Core tests cover bounds, source ownership, no-op/config-only updates, stable node
+identity, latest callback selection, source-replacement handler generations,
+unbinding and stale callbacks. The strict Rust decoder checks truncated/trailing
+bytes, UTF-8 and declared string bounds. Native transaction tests prove malformed
+updates roll back configuration, derived image metadata, revision and accounting;
+source removal must unbind its observer in the same transaction. Removal returns
+retained-tree accounting to zero.
+
+Actual macOS `native_image_views` checks paint centered fallback glyphs and a
+ready raster's interior with circular corner clipping. They verify default 32x32
+logical dimensions and caller styling, one AXImage label in fallback/image modes,
+no separate semantic initials child, and decorative label removal. A retired
+registered source remains usable by its mounted lease; replacement drops the
+old binding. Invalid encoded data paints the fallback and reports InvalidData.
+A valid SVG, invalid measured size, and return to the exact previous valid size
+exercise ResourceLimit failure/recovery, actual pixels and deferred status events.
+Synthetic GPUI density changes at 1, 1.5 and 2 preserve logical size and tree
+revision while requesting the appropriate native raster. Returning to no source
+releases the binding, rejects obsolete observations and becomes render-idle.
+Disposal returns retained-tree accounting to zero. This does not claim zero
+process RSS, physical monitor transitions or a full assistive-technology audit.
+
+That native regression found two shared SVG issues: a layout-size error survived
+returning to the last successful request, and paint-discovered failure could
+leave the view's observer reporting Ready. Layout errors are now independent of
+real decode/upload failures. Paint defers weak-owner invalidation until after the
+frame; normal source/handler-checked delivery then reports failure and recovery.
+The existing image, SVG density/foreground and button-icon scenarios also pass.
+
+Component Studio's embedded SVG and deliberately invalid image bytes use public
+Eio registration. Use image / Simulate failure / Use initials exercise native
+fallback selection with a stable accessible label. Its public self-test waits for
+Ready and Failed Invalid_data while checking exact editor retention. External
+macOS AX/keyboard validation exercises these controls, existing field/error and
+loading behavior, themes and native close. The dark/light screenshots above were
+updated and visually inspected. All launched test windows/processes are reaped.
+
+The avatar native marker is `GPUIO_AVATAR_NATIVE_OK`; it runs within the existing
+`native_image_views` CI target. Required consolidated hosted macOS/Linux gates and
+merge remain pending. Rating and the remaining OCH-33 family acceptance are still
+outstanding; this checkpoint does not complete the ticket or milestone.
+
+Final avatar checkpoint validation (local macOS arm64, isolated `GPUIO_JOBS=2`):
+
+```sh
+./scripts/gpuio exec dune build -j 2 @all @runtest @fmt
+./scripts/gpuio exec cargo test --workspace --locked -j 2
+./scripts/gpuio exec cargo clippy --locked --workspace --all-targets -j 2 -- -D warnings
+./scripts/gpuio exec cargo clippy --locked --workspace --all-targets --features gpuio-native/native-image-tests,gpuio-native/native-canvas-tests -j 2 -- -D warnings
+./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-image-tests --test native_image_views --no-run
+```
+
+All pass. The freshly built `native_image_views` executable then passes under a
+90-second timeout, including deferred mailbox failure→Ready ordering. The freshly
+built public Component Studio `--self-test` passes under a 45-second timeout.
+`scripts/test_presentation.py --images scratch/agents/root-20260924-m5/avatar-images`
+passed the actual macOS interaction/screenshot walkthrough. No hosted result is
+claimed for these local commands.

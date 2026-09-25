@@ -38,6 +38,7 @@ module Kind = struct
     | Animation_program
     | Container_query
     | Loading
+    | Avatar
   [@@deriving equal, sexp_of]
 end
 
@@ -202,6 +203,7 @@ type 'action t =
   ; toast_stack : Toast.Stack.t option
   ; progress : Progress.Config.t option
   ; loading : Loading.Config.t option
+  ; avatar : Avatar.Config.t option
   ; animation : 'action animation option
   ; animation_program : 'action animation_program option
   ; container_query : 'action container_query option
@@ -240,6 +242,7 @@ let text ?key ?(style = Style.empty) text =
   ; toast_stack = None
   ; progress = None
   ; loading = None
+  ; avatar = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -354,6 +357,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; toast_stack = None
   ; progress = None
   ; loading = None
+  ; avatar = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -452,6 +456,7 @@ let button
   ; toast_stack = None
   ; progress = None
   ; loading = None
+  ; avatar = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -522,6 +527,7 @@ let toggle
   ; toast_stack = None
   ; progress = None
   ; loading = None
+  ; avatar = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -576,6 +582,7 @@ let focus_scope ?key ?style ~config children =
   ; toast_stack = None
   ; progress = None
   ; loading = None
+  ; avatar = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -885,6 +892,7 @@ let text_input
   ; toast_stack = None
   ; progress = None
   ; loading = None
+  ; avatar = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -924,6 +932,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; toast_stack = None
   ; progress = None
   ; loading = None
+  ; avatar = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -989,6 +998,7 @@ let combobox
   ; toast_stack = None
   ; progress = None
   ; loading = None
+  ; avatar = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -1023,6 +1033,15 @@ let command_palette
   { (text ?key ~style "") with
     kind = Command_palette
   ; palette = Some { config; appearance; on_dismiss }
+  }
+;;
+
+let avatar ?key ?(style = Style.empty) ?on_change config =
+  { (text ?key ~style "") with
+    kind = Avatar
+  ; avatar = Some config
+  ; image =
+      Option.map (Avatar.Expert.image config) ~f:(fun config -> { config; on_change })
   }
 ;;
 
@@ -1239,6 +1258,7 @@ module Expert = struct
     ; toast_stack : Toast.Stack.t option
     ; progress : Progress.Config.t option
     ; loading : Loading.Config.t option
+    ; avatar : Avatar.Config.t option
     ; animation : 'action animation option
     ; animation_program : 'action animation_program option
     ; container_query : 'action container_query option

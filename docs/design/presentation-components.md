@@ -86,6 +86,35 @@ merely infer it from the underlying animation helper.
   image shows an explicit fallback; stale results cannot replace a newer asset.
   Native selection of image/fallback must not require application boilerplate or
   expose duplicate meaningful images. Keep the existing load error observation.
+
+Avatar implementation contract: `Avatar.Fallback.create` accepts explicit initials
+or a symbol (nonblank single-line UTF-8, <=128 bytes, no ASCII controls).
+`Avatar.Config.create ?asset ?fit ~fallback ~description ()` uses the existing
+Image.Description and defaults to Cover. `View.avatar ?on_change config` is one
+native leaf with a stable accessible image label, whether pixels or fallback are
+shown. Decorative fallback text is painted without creating a semantic text child.
+No asset means no reader and no synthetic image error; supplied assets reuse the
+existing generation-checked Image.State observations and mounted leases.
+
+Native SetAvatar atomically updates avatar configuration and the derived optional
+image binding used by the existing image host. Source replacement drops the old
+binding before acquiring the new one; removal/no-source clears it. Raster and SVG
+continue using the current cache/worker/rasterization budgets. SVG fallback must
+still allow a subsequent size/fit change to request a new raster variant after a
+resize failure. A failed variant must not silently show stale pixels as a success.
+The default box is 32x32 with circular corners; caller styles override it. Fallback
+text is centered and only shrunk to fit, with bounded shaping work and no OCaml
+layout callback. Actual GPU/AX tests cover fallback glyphs, circular image clipping,
+replacement, retired-source leases, failure/recovery, synthetic density changes
+and disposal. See the presentation evidence ledger for the tested platform scope.
+
+Invalid measured SVG sizes are tracked separately from decode/upload errors. A
+later valid size clears only the layout error, including when it returns to the
+previous successful request. Paint-discovered status changes defer native view
+invalidation until after drawing; the usual source/handler-checked event bridge
+then reports them. Notification during drawing alone does not reliably invalidate
+GPUI's current render. This preserves asynchronous delivery and avoids an idle
+polling loop; the native test checks failure/recovery events and static idle.
 - Skeleton/shimmer/spinner use existing native motion and reduced-motion policy.
   Hidden/unmounted owners stop frame/deadline work. Static reduced-motion output
   remains recognizable and semantically reports loading. No Bonsai polling timer.

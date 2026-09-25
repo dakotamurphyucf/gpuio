@@ -32,8 +32,8 @@ checks action geometry, captures both themes and closes the native window.
 It requires macOS accessibility access. No Linux desktop behavior is inferred.
 
 This example is the current OCH-33 foundation, not full component acceptance:
-avatar asset fallback, rating and wider scale/content checks
-remain to be implemented and added here. OCH-46 separately integrates the finished
+rating and wider family scale/content checks remain to be implemented and added
+here. OCH-46 separately integrates the finished
 milestone into the polished agent-chat showcase.
 
 The Background work group uses `View.loading` with Skeleton, Shimmer and Spinner.
@@ -41,3 +41,11 @@ Hide/show preserves their leaf identities; Static/Animate changes only the nativ
 configuration. Application reduced-motion policy also settles them. The native
 suite verifies whole-window idle behavior, and the external AX test verifies that
 hidden indicators disappear and that indeterminate loading has no numeric value.
+
+The assistant's `View.avatar` uses the existing Eio scoped asset registration.
+Use image selects an embedded SVG, Simulate failure selects deliberately invalid
+image bytes, and Use initials removes the source. The native leaf chooses its
+fallback automatically and preserves the accessible label. Registration success
+does not imply successful decoding. Both assets remain scoped to the application;
+the example performs no external image fetch. The public self-test and external
+AX test cover all three states while keeping the editor intact.

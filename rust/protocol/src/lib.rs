@@ -5,6 +5,7 @@ pub mod accessibility;
 pub mod animation;
 pub mod animation_program;
 pub mod asset;
+pub mod avatar;
 pub mod canvas;
 pub mod canvas_resource;
 pub mod canvas_scene;

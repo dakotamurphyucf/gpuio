@@ -127,6 +127,7 @@ pub enum Kind {
     AnimationProgram,
     ContainerQuery,
     Loading,
+    Avatar,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -598,6 +599,7 @@ pub enum Op {
     SetContainerQuery(NodeId, crate::container_query::Config),
     SetAccessibility(NodeId, Option<crate::accessibility::Config>),
     SetLoading(NodeId, crate::loading::Config),
+    SetAvatar(NodeId, crate::avatar::Config),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]

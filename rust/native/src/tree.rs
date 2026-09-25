@@ -46,6 +46,7 @@ pub struct Node {
     pub progress: Option<Arc<ProgressConfig>>,
     pub loading: Option<Arc<gpuio_protocol::loading::Config>>,
     pub image: Option<Arc<ImageConfig>>,
+    pub avatar: Option<Arc<gpuio_protocol::avatar::Config>>,
     pub extension: Option<Arc<gpuio_protocol::extension::Config>>,
     pub extension_command: Option<Arc<gpuio_protocol::extension::Command>>,
     pub split: Option<Arc<gpuio_protocol::split::Config>>,
@@ -75,7 +76,8 @@ pub struct Node {
 
 impl Node {
     fn payload_bytes(&self) -> usize {
-        self.loading.as_ref().map_or(0, |c| c.retained_bytes())
+        self.avatar.as_ref().map_or(0, |c| c.retained_bytes())
+            + self.loading.as_ref().map_or(0, |c| c.retained_bytes())
             + self.text.len()
             + self
                 .accessibility
@@ -520,13 +522,28 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
-                if matches!(node.kind, Kind::Image | Kind::Icon) != node.image.is_some()
+                if (matches!(node.kind, Kind::Image | Kind::Icon)
+                    || node.avatar.as_ref().is_some_and(|c| c.source.is_some()))
+                    != node.image.is_some()
                     || node.image.as_ref().is_some_and(|config| {
                         !config.is_valid()
                             || !node.text.is_empty()
                             || !node.children.is_empty()
                             || node.control.is_some()
                             || node.choice.is_some()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::Avatar) != node.avatar.is_some()
+                    || node.avatar.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || !config.matches_image(node.image.as_deref())
+                            || !node.text.is_empty()
+                            || !node.children.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                            || (config.source.is_none() && node.handler.is_some())
                     })
                 {
                     return Err(ErrorCode::InvalidTree.into());
@@ -676,6 +693,7 @@ impl Tree {
                     | Kind::Progress
                     | Kind::Loading
                     | Kind::Image
+                    | Kind::Avatar
                     | Kind::TabPanel
                     | Kind::SplitPane
                     | Kind::Extension
@@ -1031,6 +1049,7 @@ impl Plan<'_> {
             | Op::SetContainerQuery(id, ..)
             | Op::SetAccessibility(id, ..)
             | Op::SetLoading(id, ..)
+            | Op::SetAvatar(id, ..)
             | Op::SetListConfig(id, ..)
             | Op::SetListOrder(id, ..)
             | Op::SetListRows(id, ..)
@@ -1128,6 +1147,7 @@ impl Plan<'_> {
                             progress: None,
                             loading: None,
                             image: None,
+                            avatar: None,
                             extension: None,
                             extension_command: None,
                             split: None,
@@ -1323,6 +1343,14 @@ impl Plan<'_> {
             }
             Op::ScrollList(id, request) => {
                 self.lists.push(ListAction::Scroll(*id, *request));
+            }
+            Op::SetAvatar(id, config) => {
+                if self.node(*id)?.kind != Kind::Avatar || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let node = self.node_mut(*id)?;
+                node.image = config.image().map(Arc::new);
+                node.avatar = Some(Arc::new(config.clone()));
             }
             Op::SetImage(id, config) => {
                 if !matches!(self.node(*id)?.kind, Kind::Image | Kind::Icon) || !config.is_valid() {

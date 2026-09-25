@@ -73,6 +73,18 @@ def exercise(mac, images):
     mac.press(TITLE, 'Clear error')
     node = mac.wait_find(TITLE, 'Show validation', 'AXButton')
     mac.release(node)
+    avatar = mac.wait_find(TITLE, 'Aster avatar', 'AXImage')
+    mac.release(avatar)
+    mac.press(TITLE, 'Use image')
+    mac.wait_text(TITLE, 'Avatar image ready')
+    mac.press(TITLE, 'Simulate failure')
+    mac.wait_text(TITLE, 'Image unavailable — showing initials')
+    avatar = mac.wait_find(TITLE, 'Aster avatar', 'AXImage')
+    mac.release(avatar)
+    mac.press(TITLE, 'Use initials')
+    mac.wait_text(TITLE, 'Initials only')
+    mac.press(TITLE, 'Use image')
+    mac.wait_text(TITLE, 'Avatar image ready')
     assert_loading_semantics(mac)
     mac.press(TITLE, 'Static indicators')
     node = mac.wait_find(TITLE, 'Animate indicators', 'AXButton')
@@ -88,7 +100,7 @@ def exercise(mac, images):
             raise RuntimeError(f'Hidden indicator remains in native accessibility: {label}')
     mac.press(TITLE, 'Show indicators')
     assert_loading_semantics(mac)
-    for label in ['Details', 'Preview']:
+    for label in ['Details', 'Preview', 'Use image', 'Simulate failure', 'Use initials']:
         assert_action_layout(mac, label)
     if images:
         screenshot(mac, images / 'presentation-dark.png')

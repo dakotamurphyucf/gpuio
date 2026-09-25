@@ -44,6 +44,8 @@ mod window_host;
 mod window_macos;
 
 type SharedSession = Rc<RefCell<Session>>;
+#[path = "avatar.rs"]
+mod avatar;
 #[path = "choice.rs"]
 mod choice;
 #[path = "choice_popup.rs"]
@@ -574,6 +576,22 @@ impl View {
             let (image, corners) = self.image_element(tree, node, config, element, window, cx);
             element = image;
             image_corners = Some(corners);
+        }
+        if let Some(config) = &node.avatar {
+            element = element
+                .w(px(32.))
+                .h(px(32.))
+                .rounded(px(999.))
+                .overflow_hidden()
+                .bg(rgba(0x71809630))
+                .text_color(rgba(0x718096ff))
+                .text_size(px(12.));
+            if let Some(label) = &config.label {
+                element = element.role(gpui::Role::Image).aria_label(label.clone());
+            }
+            if config.source.is_none() {
+                element = element.child(avatar::fallback(config.fallback.clone().into()));
+            }
         }
         if let Some(config) = &node.loading {
             let corners = image_corners::Shared::default();

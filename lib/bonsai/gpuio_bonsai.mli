@@ -147,6 +147,13 @@ module View : sig
     -> string
     -> t
 
+  val avatar
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?on_change:(Gpuio.Image.State.t -> unit Bonsai.Effect.t)
+    -> Gpuio.Avatar.Config.t
+    -> t
+
   val loading
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

@@ -362,6 +362,15 @@ val icon
   -> Icon.Config.t
   -> 'action t
 
+(** Stable native avatar with image/fallback selection. Image observations use the
+    existing source-generation fences; no asset means no observation. *)
+val avatar
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?on_change:(Image.State.t -> 'action)
+  -> Avatar.Config.t
+  -> 'action t
+
 (** Noninteractive skeleton/shimmer/spinner. Styles set size, color and placeholder
     corners; motion and hidden/reduced/static behavior remain native. No events or
     progress value are produced. See [Loading.Config]. *)
@@ -553,6 +562,7 @@ module Expert : sig
       | Animation_program
       | Container_query
       | Loading
+      | Avatar
     [@@deriving equal, sexp_of]
   end
 
@@ -635,6 +645,7 @@ module Expert : sig
     ; toast_stack : Toast.Stack.t option
     ; progress : Progress.Config.t option
     ; loading : Loading.Config.t option
+    ; avatar : Avatar.Config.t option
     ; animation : 'action animation option
     ; animation_program : 'action animation_program option
     ; container_query : 'action container_query option

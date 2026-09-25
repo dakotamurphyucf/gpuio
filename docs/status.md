@@ -79,7 +79,9 @@ OCH-33 now implements bounded semantic metadata, native form associations and
 stateless presentation/card helpers with public Core/Bonsai/Eio usage. Local
 OCaml/Rust tests and macOS editor/AX/keyboard checks pass, including metadata
 updates during IME composition and corrected light/dark card layouts. Avatar
-fallback, rating and complete family acceptance remain. Native skeleton/shimmer/
+image/fallback now passes actual GPU/AX, source lifetime, SVG resize recovery,
+synthetic density and idle checks, with a public example covering ready/failure/
+initials. Rating and complete family acceptance remain. Native skeleton/shimmer/
 spinner leaves now pass local reduced/static/ancestor-hidden idle, resume,
 accessibility and disposal checks; the public example exercises all three.
 See [presentation evidence](evidence/presentation-components-och33.md) and

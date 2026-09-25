@@ -237,6 +237,7 @@ let kind = function
   | Animation_program -> Animation_program
   | Container_query -> Container_query
   | Loading -> Loading
+  | Avatar -> Avatar
   | Virtual_list -> Virtual_list
   | Canvas_view -> Canvas_view
   | Document_view -> Document_view
@@ -794,17 +795,29 @@ let rec mount builder ~depth previous view =
                  document.config
                  ~owner:builder.document_owner
                  ~asset_owner:builder.asset_owner )));
-    Option.iter description.image ~f:(fun image ->
+    if Option.is_none description.avatar
+    then
+      Option.iter description.image ~f:(fun image ->
+        let old =
+          Option.bind previous ~f:(fun mounted ->
+            Option.map (View.Expert.describe mounted.view).image ~f:(fun image ->
+              image.config))
+        in
+        if not (Option.equal Image.Config.equal old (Some image.config))
+        then
+          emit
+            builder
+            (Set_image (id, Image.Expert.to_wire image.config ~owner:builder.asset_owner)));
+    Option.iter description.avatar ~f:(fun config ->
       let old =
         Option.bind previous ~f:(fun mounted ->
-          Option.map (View.Expert.describe mounted.view).image ~f:(fun image ->
-            image.config))
+          (View.Expert.describe mounted.view).avatar)
       in
-      if not (Option.equal Image.Config.equal old (Some image.config))
+      if not (Option.equal Avatar.Config.equal old (Some config))
       then
         emit
           builder
-          (Set_image (id, Image.Expert.to_wire image.config ~owner:builder.asset_owner)));
+          (Set_avatar (id, Avatar.Expert.to_wire config ~owner:builder.asset_owner)));
     Option.iter description.loading ~f:(fun config ->
       let old =
         Option.bind previous ~f:(fun mounted ->

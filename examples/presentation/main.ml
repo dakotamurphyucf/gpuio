@@ -12,12 +12,14 @@ let px = Length.px_exn
 let style = Style.create_exn
 let full = Length.percent_exn 100.
 
-let component ~phase ~observed ~editor_ref window graph =
+let component ~assets ~avatar_status ~phase ~observed ~editor_ref window graph =
   let dark, set_dark = B.state true graph in
   let invalid, set_invalid = B.state false graph in
   let checked, toggle = B.toggle ~default_model:true graph in
   let show_loading, toggle_loading = B.toggle ~default_model:true graph in
   let animate_loading, toggle_animation = B.toggle ~default_model:true graph in
+  let avatar_mode, set_avatar_mode = B.state Avatar_mode.Initials graph in
+  let avatar_state, set_avatar_state = B.state "Initials only" graph in
   let notice, set_notice = B.state "All changes stay in this local demo." graph in
   let phase = B.Expert.Var.value phase in
   let editor =
@@ -47,6 +49,11 @@ let component ~phase ~observed ~editor_ref window graph =
   and toggle_loading = toggle_loading
   and animate_loading = animate_loading
   and toggle_animation = toggle_animation
+  and assets = B.Expert.Var.value assets
+  and avatar_mode = avatar_mode
+  and set_avatar_mode = set_avatar_mode
+  and avatar_state = avatar_state
+  and set_avatar_state = set_avatar_state
   and notice = notice
   and set_notice = set_notice
   and editor = editor
@@ -55,6 +62,15 @@ let component ~phase ~observed ~editor_ref window graph =
   let invalid = if phase < 0 then invalid else phase = 1 in
   let show_loading = if phase < 0 then show_loading else phase < 2 in
   let animate_loading = if phase < 0 then animate_loading else phase = 0 in
+  let avatar_mode =
+    if phase < 0
+    then avatar_mode
+    else (
+      match phase % 3 with
+      | 1 -> Avatar_mode.Picture
+      | 2 -> Invalid_picture
+      | _ -> Initials)
+  in
   let p = if dark then P.Appearance.dark else P.Appearance.light in
   let canvas = Color.rgb_exn (if dark then 0x131821 else 0xf5f6fa) in
   let ink = Color.rgb_exn (if dark then 0xe5eaf2 else 0x202735) in
@@ -208,18 +224,66 @@ let component ~phase ~observed ~editor_ref window graph =
           ]
       ]
   in
+  let avatar_config =
+    let asset =
+      Option.bind assets ~f:(fun assets ->
+        match avatar_mode with
+        | Picture -> Some assets.Avatar_assets.image
+        | Invalid_picture -> Some assets.invalid
+        | Initials -> None)
+    in
+    Avatar.Config.create
+      ?asset
+      ~fallback:(Avatar.Fallback.create "A" |> ok)
+      ~description:(Image.Description.label "Aster avatar" |> ok)
+      ()
+  in
+  let on_avatar_change (state : Image.State.t) =
+    E.Many
+      [ E.of_thunk (fun () -> avatar_status := Some state)
+      ; set_avatar_state
+          (match state with
+           | Loading -> "Loading avatar"
+           | Ready _ -> "Avatar image ready"
+           | Failed _ -> "Image unavailable — showing initials")
+      ]
+  in
   let assistant =
     P.message
       p
       ~author:"Aster"
       ~detail:"Local assistant"
-      ~avatar:(P.badge p ~tone:Accent "A")
+      ~avatar:
+        (View.avatar
+           ~on_change:on_avatar_change
+           ~style:
+             (style
+                [ Width (px 36.)
+                ; Height (px 36.)
+                ; Foreground canvas
+                ; Background (Background.solid accent)
+                ])
+           avatar_config)
       ~footer:(P.marker p ~tone:Success "Ready for your review")
       (P.bubble
          p
-         (View.text
-            "I organized your workspace. The summary is below; your draft and selections \
-             stay intact while you change the appearance."))
+         (View.column
+            ~style:(style [ Gap (px 10.) ])
+            [ View.text
+                "I organized your workspace. Your draft stays intact as you explore the \
+                 components."
+            ; View.row
+                ~style:(style [ Gap (px 6.); Wrap Wrap ])
+                [ button (set_avatar_mode Picture) "Use image"
+                ; button (set_avatar_mode Invalid_picture) "Simulate failure"
+                ; button (set_avatar_mode Initials) "Use initials"
+                ]
+            ; View.text
+                ~style:(style [ Foreground muted; Font_size 12. ])
+                (match avatar_mode with
+                 | Initials -> "Initials only"
+                 | Picture | Invalid_picture -> avatar_state)
+            ]))
   in
   let result =
     P.tool_result
@@ -301,7 +365,9 @@ let () =
   App.run (fun env app ->
     let phase = B.Expert.Var.create (-1)
     and observed = ref (-2)
-    and editor_ref = ref None in
+    and editor_ref = ref None
+    and assets = B.Expert.Var.create None
+    and avatar_status = ref None in
     let window =
       App.open_window
         app
@@ -309,9 +375,10 @@ let () =
         ~title:"GPUIO Component Studio"
         ~width:1040.
         ~height:860.
-        (component ~phase ~observed ~editor_ref)
+        (component ~assets ~avatar_status ~phase ~observed ~editor_ref)
       |> ok
     in
+    Avatar_assets.load env app assets;
     if self_test
     then
       Scope.start
@@ -319,6 +386,14 @@ let () =
         ~f:(fun () ->
           let clock = Eio.Stdenv.clock env in
           Eio.Time.with_timeout_exn clock 20. (fun () ->
+            while Option.is_none (B.Expert.Var.get assets) do
+              Eio.Time.sleep clock 0.005
+            done;
+            let await_avatar predicate =
+              while not (Option.exists !avatar_status ~f:predicate) do
+                Eio.Time.sleep clock 0.005
+              done
+            in
             let frame value =
               B.Expert.Var.set phase value;
               while !observed <> value do
@@ -344,9 +419,16 @@ let () =
             let first = frame 0 in
             let initial = read () in
             let error = frame 1 in
+            await_avatar (function
+              | Ready _ -> true
+              | Loading | Failed _ -> false);
             let during_error = read () in
             let cleared = frame 2 in
+            await_avatar (function
+              | Failed Invalid_data -> true
+              | Loading | Ready _ | Failed _ -> false);
             let after = read () in
+            let (_ : int64) = frame 3 in
             assert (Int64.(first < error && error < cleared));
             assert (Text_input.Snapshot.equal initial during_error);
             assert (Text_input.Snapshot.equal initial after)))
@@ -361,5 +443,6 @@ let () =
   then (
     assert !completed;
     print_endline
-      "GPUIO_PRESENTATION_PUBLIC_OK: theme, form validation, stable editor and shutdown")
+      "GPUIO_PRESENTATION_PUBLIC_OK: theme, form validation, avatar \
+       ready/failure/fallback, stable editor and shutdown")
 ;;
