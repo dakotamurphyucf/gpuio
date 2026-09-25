@@ -503,6 +503,7 @@ impl Session {
                     && node.slider.is_none()
                     && node.number_input.is_none()
                     && node.otp_input.is_none()
+                    && node.calendar.is_none()
                     && !node.control.is_some_and(Control::disabled)
             })
             && window.tree.accepts_handler(node, handler))
@@ -526,6 +527,25 @@ impl Session {
             && event.is_valid()
             && slider.initial.same_mode(event.snapshot().value))
         .then_some(Event::SliderEvent(id, node, handler, revision, event))
+    }
+
+    pub fn calendar_event(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        event: gpuio_protocol::calendar_input::Event,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        let mount = window.tree.get(node)?.calendar.as_ref()?;
+        (!window.overloaded
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && window.tree.accepts_handler(node, handler)
+            && event.is_valid()
+            && event.snapshot().mode == mount.config.mode)
+            .then_some(Event::CalendarEvent(id, node, handler, revision, event))
     }
 
     pub fn otp_input_event(

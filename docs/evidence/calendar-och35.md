@@ -1,8 +1,9 @@
 # OCH-35 calendar/date-picker evidence
 
 Status: **in progress**. This records model evidence, not native widget acceptance.
-The milestone retains the full calendar and popup-picker scope. No capability
-bit, `View.calendar`, mounted native owner or public Eio controller is claimed.
+The milestone retains the full calendar and popup-picker scope. A retained
+`View.calendar` description and bridge admission/routing now exist. No capability
+bit, rendered native calendar or public Eio controller is claimed.
 
 ## Civil model checkpoint
 
@@ -51,8 +52,8 @@ uses Core's uppercase weekday sexps. No failing behavior was promoted away.
 
 ## Still required for this ticket
 
-- Retained message/op/event envelopes and admission using the now-tested bounded
-  codecs; native tree/lifetime ownership and public Core/Bonsai/Eio controllers.
+- Mounted GPUI ownership, transport publication and correlated command envelopes;
+  public Core/Bonsai/Eio controllers and actual widget lifetimes.
 - Native inline calendar with day/month/year navigation, focus and selection;
   strict locale/format policy, disabled/read-only/hidden/modal behavior.
 - Popup date-picker integration with the existing overlay system and explicit
@@ -101,3 +102,47 @@ but this checkpoint adds no top-level retained protocol tags and advertises no
 calendar capability. Native-image all-target Clippy also passes with warnings
 denied. Native rendering, transport/window ownership, public mounted
 controllers and picker acceptance remain required.
+
+
+## Retained admission and event-routing checkpoint
+
+Source: `View.calendar`, `Reconciler`, `rust/native/src/tree.rs`, `session.rs`,
+`mailbox.rs`, `rust/native/tests/calendar.rs`,
+`test/view_api/calendar_retained_test.ml` and the retained-envelope test in
+`rust/protocol/tests/calendar_codec.rs`.
+
+- Four native integration tests cover atomic tree rejection/rollback, required
+  configuration/handler and leaf shape, immutable mode, seed retention, historical
+  constraint invalidation, byte accounting and disposal. Routing tests reject old
+  window/node/handler generations, future/negative tree revisions, invalid snapshot
+  shapes/modes, overload and closed windows; disabled cleanup observations remain
+  deliverable and generic button presses cannot target calendars.
+- Mailbox tests exercise completion count limits, a byte budget leaving only 511
+  bytes for a 512-byte charged pair, malformed pairs, consecutive revisions,
+  unchanged queued predecessors, closed mailboxes and window-output draining.
+  Partial selections and completion boundaries remain discrete and ordered.
+- Two Core expect tests cover independent retained envelope bytes, every truncated
+  event prefix, trailing bytes and malformed observations; stable identity and
+  seed-only recomputation; updated callbacks and events arriving between prepare/
+  accept; immutable mode, duplicate controllers, historical invalidation, invalid
+  initial selections, stale revisions/leases, remount and close.
+- The sixth Rust calendar codec test checks independently assembled kind 40,
+  operation 46 and event 50 fixtures, every truncated request prefix, trailing
+  data and invalid nested dates/months/configuration. Boxing the Rust configuration
+  preserves those exact bytes while avoiding growth of every operation variant.
+
+Commands (isolated macOS arm64 toolchain):
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @test/view_api/runtest @fmt lib/eio/gpuio_eio.cmxa
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --test calendar --test otp_input -p gpuio-protocol --test calendar_codec
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native --all-targets --features native-image-tests -- -D warnings
+```
+
+The Cargo selection also runs the protocol calendar-model and OTP-codec suites;
+native OTP mailbox regressions remain included because completion infrastructure
+is shared. Test-development corrections were use of the public checked ordinal
+converter and draining the mailbox across its bounded output batches. No failed
+expectation was promoted. No calendar GUI windows have been run. Native renderer,
+actual publication/focus/cleanup, controller/commands, picker integration and full
+OCH-35 acceptance remain outstanding; no calendar capability is advertised.

@@ -139,9 +139,11 @@ OCH-35 now has tested civil-date/month/selection/constraint models, typed locale
 configuration, commands/observations, bounded paired codecs and a native calendar
 policy owner. Partial ranges, historical selection validity, focus callback
 failure and revision exhaustion have model coverage. Gregorian-cycle, daily
-reference, malformed-wire and maximum-config checks pass locally. GPUI rendering,
-retained transport integration, public controllers and popup-picker acceptance
-remain in progress; no calendar capability is advertised.
+reference, malformed-wire and maximum-config checks pass locally. Retained calendar
+views, bounded tree admission, seed/history semantics, revision-checked event routes
+and atomic completion mailbox admission now pass paired-codec/Core/native tests.
+GPUI rendering, actual transport publication, correlated controllers and popup-picker
+acceptance remain in progress; no calendar capability is advertised.
 See [calendar design](design/calendar.md) and [model evidence](evidence/calendar-och35.md).
 No milestone-05 completion or hosted acceptance is claimed yet.
 

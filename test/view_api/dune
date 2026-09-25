@@ -4,6 +4,8 @@
  (inline_tests
   (deps
    (sandbox preserve_file_kind)
+   calendar-request.hex
+   calendar-events.hex
    calendar-config.hex
    calendar-constraints.hex
    calendar-selection.hex

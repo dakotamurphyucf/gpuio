@@ -9,6 +9,7 @@ module Rating = Rating_wire
 module Slider = Slider_wire
 module Number_input = Number_input_wire
 module Otp_input = Otp_wire
+module Calendar = Calendar_wire
 module Container_query = Container_query_wire
 module Animation_program = Animation_program_wire
 module Document = Document_wire
@@ -64,6 +65,7 @@ module Kind = struct
     | Slider
     | Number_input
     | Otp_input
+    | Calendar
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -726,6 +728,7 @@ module Op = struct
     | Set_slider of Node_id.t * Slider.Config.t * Slider.Value.t
     | Set_number_input of Node_id.t * Number_input.Config.t * Number_input.Value.t
     | Set_otp_input of Node_id.t * Otp_input.Config.t * string
+    | Set_calendar of Node_id.t * Calendar.Config.t * Calendar.Selection.t * int64
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -1028,6 +1031,7 @@ module Event = struct
     | Otp_input_event of
         Window_id.t * Node_id.t * Handler_id.t * int64 * Otp_input.Event.t
     | Otp_input_result of int64 * Window_id.t * Node_id.t * Otp_input.Response.t
+    | Calendar_event of Window_id.t * Node_id.t * Handler_id.t * int64 * Calendar.Event.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1092,6 +1096,8 @@ module Event = struct
       Int64.(request > 0L) && Otp_input.Response.valid result
     | Number_input_result (request, _, _, result) ->
       Int64.(request > 0L) && Number_input.Response.valid result
+    | Calendar_event (_, _, _, revision, event) ->
+      Int64.(revision >= 0L) && Calendar.Event.valid event
     | Otp_input_event (_, _, _, revision, event) ->
       Int64.(revision >= 0L) && Otp_input.Event.valid event
     | Number_input_event (_, _, _, revision, event) ->

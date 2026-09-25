@@ -863,6 +863,7 @@ impl Decoder<'_> {
                     37 => Kind::Slider,
                     38 => Kind::NumberInput,
                     39 => Kind::OtpInput,
+                    40 => Kind::Calendar,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -950,6 +951,12 @@ impl Decoder<'_> {
                 }
                 Op::SetOtpInput(node, config, initial)
             }
+            46 => Op::SetCalendar(
+                self.node()?,
+                Box::new(self.calendar_config()?),
+                self.calendar_selection()?,
+                self.calendar_month()?,
+            ),
             34 => {
                 let id = self.node()?;
                 let config = crate::split::Config {

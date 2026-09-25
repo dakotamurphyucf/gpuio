@@ -43,6 +43,7 @@ module Kind = struct
     | Slider
     | Number_input
     | Otp_input
+    | Calendar
   [@@deriving equal, sexp_of]
 end
 
@@ -98,6 +99,14 @@ type 'action otp_input =
   ; config : Otp_input.Config.t
   ; initial : Otp_input.Value.t
   ; on_event : Otp_input.Event.t -> 'action
+  }
+
+type 'action calendar =
+  { controller : Key.t
+  ; config : Calendar.Config.t
+  ; initial : Calendar.Selection.t
+  ; initial_month : Calendar.Month.t
+  ; on_event : Calendar.Event.t -> 'action
   }
 
 type 'action rating =
@@ -238,6 +247,7 @@ type 'action t =
   ; slider : 'action slider option
   ; number_input : 'action number_input option
   ; otp_input : 'action otp_input option
+  ; calendar : 'action calendar option
   ; animation : 'action animation option
   ; animation_program : 'action animation_program option
   ; container_query : 'action container_query option
@@ -281,6 +291,7 @@ let text ?key ?(style = Style.empty) text =
   ; slider = None
   ; number_input = None
   ; otp_input = None
+  ; calendar = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -323,7 +334,8 @@ let with_accessibility t accessibility =
         | Rating
         | Slider
         | Number_input
-        | Otp_input ) ) -> true
+        | Otp_input
+        | Calendar ) ) -> true
     | None, Some Link, (Button | Command_button) -> true
     | ( None
       , Some
@@ -354,7 +366,8 @@ let with_accessibility t accessibility =
         | Rating
         | Slider
         | Number_input
-        | Otp_input ) ) -> true
+        | Otp_input
+        | Calendar ) ) -> true
     | _ -> false
   in
   if supported
@@ -414,6 +427,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; slider = None
   ; number_input = None
   ; otp_input = None
+  ; calendar = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -517,6 +531,7 @@ let button
   ; slider = None
   ; number_input = None
   ; otp_input = None
+  ; calendar = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -592,6 +607,7 @@ let toggle
   ; slider = None
   ; number_input = None
   ; otp_input = None
+  ; calendar = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -651,6 +667,7 @@ let focus_scope ?key ?style ~config children =
   ; slider = None
   ; number_input = None
   ; otp_input = None
+  ; calendar = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -965,6 +982,7 @@ let text_input
   ; slider = None
   ; number_input = None
   ; otp_input = None
+  ; calendar = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -1009,6 +1027,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; slider = None
   ; number_input = None
   ; otp_input = None
+  ; calendar = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -1079,6 +1098,7 @@ let combobox
   ; slider = None
   ; number_input = None
   ; otp_input = None
+  ; calendar = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -1134,6 +1154,21 @@ let otp_input ?(style = Style.empty) ~controller ~config ~initial ~on_event () =
   { (text ~key:controller ~style "") with
     kind = Otp_input
   ; otp_input = Some { controller; config; initial; on_event }
+  }
+;;
+
+let calendar
+      ?(style = Style.empty)
+      ~controller
+      ~config
+      ~initial
+      ~initial_month
+      ~on_event
+      ()
+  =
+  { (text ~key:controller ~style "") with
+    kind = Calendar
+  ; calendar = Some { controller; config; initial; initial_month; on_event }
   }
 ;;
 
@@ -1293,6 +1328,14 @@ module Expert = struct
     ; on_event : Otp_input.Event.t -> 'action
     }
 
+  type nonrec 'action calendar = 'action calendar =
+    { controller : Key.t
+    ; config : Calendar.Config.t
+    ; initial : Calendar.Selection.t
+    ; initial_month : Calendar.Month.t
+    ; on_event : Calendar.Event.t -> 'action
+    }
+
   type nonrec 'action rating = 'action rating =
     { config : Rating.Config.t
     ; on_request : Rating.Request.t -> 'action
@@ -1394,6 +1437,7 @@ module Expert = struct
     ; slider : 'action slider option
     ; number_input : 'action number_input option
     ; otp_input : 'action otp_input option
+    ; calendar : 'action calendar option
     ; animation : 'action animation option
     ; animation_program : 'action animation_program option
     ; container_query : 'action container_query option

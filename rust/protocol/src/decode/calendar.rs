@@ -3,7 +3,7 @@ use crate::calendar_input::*;
 use std::io::Cursor;
 
 impl Decoder<'_> {
-    fn calendar_month(&mut self) -> Result<Month, DecodeError> {
+    pub(super) fn calendar_month(&mut self) -> Result<Month, DecodeError> {
         Month::from_index(self.int()?).ok_or(DecodeError::Malformed)
     }
     fn calendar_mode(&mut self) -> Result<Mode, DecodeError> {
@@ -27,7 +27,7 @@ impl Decoder<'_> {
     fn calendar_range(&mut self) -> Result<Range, DecodeError> {
         Range::new(self.calendar_date()?, self.calendar_date()?).ok_or(DecodeError::Malformed)
     }
-    fn calendar_selection(&mut self) -> Result<Selection, DecodeError> {
+    pub(super) fn calendar_selection(&mut self) -> Result<Selection, DecodeError> {
         Ok(match self.tag()? {
             0 => Selection::Empty,
             1 => Selection::Single(self.calendar_date()?),

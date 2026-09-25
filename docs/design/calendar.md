@@ -2,9 +2,10 @@
 
 Status: implementation contract in progress. Civil-date models, bounded standalone
 codecs, typed locale/configuration/command/observation contracts and a native
-calendar policy owner pass local tests. The OCaml model also provides strict date
-formatting/parsing. Retained-tree/transport integration, GPUI rendering, public
-controllers, popup composition and native acceptance remain required.
+calendar policy owner pass local tests. Retained view descriptions, tree admission,
+revision-checked event routing and atomic completion mailbox admission are connected.
+The OCaml model also provides strict date formatting/parsing. GPUI rendering,
+public controllers, popup composition and native acceptance remain required.
 No calendar capability is advertised yet. See the
 [foundation evidence](../evidence/calendar-och35.md).
 
@@ -127,7 +128,28 @@ bytes and commands at 64 bytes. Collection counts are checked before allocation;
 domain conversion validates every date, interval, weekday, label and mode.
 Valid raw duplicate constraints canonicalize on either side. Five independently
 assembled fixtures cover configuration, constraints, selection, completion and
-guarded replacement. Retained message/op/event envelopes remain to be connected.
+guarded replacement. Retained envelopes append kind 40, operation 46 and event 50;
+two independent envelope fixtures preserve the same byte layout in both languages.
+The Rust operation boxes the configuration so its locale payload does not enlarge
+every unrelated operation in a transaction.
+
+`View.calendar` uses its controller key as stable placement identity. Seed changes
+alone emit no operation. Configuration changes retain the original seed selection
+and displayed month in the native tree; mode changes require remounting. Initial
+selection must satisfy constraints at first admission. Later constraints may make
+a historical selection invalid without rejecting the configuration update.
+Reconciliation rejects duplicate controllers, refreshes callbacks on acceptance and
+shares the observed revision fence across pending preparations. Invalid events do
+not advance that fence. Window/node/handler generations, tree revisions, snapshot
+shape, mode and increasing native revisions all constrain delivery.
+
+Calendar input events are currently discrete; no navigation or partial-selection
+coalescing is claimed. The mailbox admits a complete `Changed`/`Selected` pair
+atomically after validating matching routes, identical snapshots except for
+consecutive revisions, and the entire pair's count/byte budget. Failed admission
+preserves the old queue. Window-output accounting includes calendar observations.
+The forthcoming GPUI adapter must use this pair admission and fault the window
+on required-output loss; the mailbox helper alone does not establish that behavior.
 
 ## Pinned upstream evaluation
 

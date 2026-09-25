@@ -365,3 +365,96 @@ fn maximum_valid_configuration_fits_envelope_and_raw_duplicates_canonicalize() {
     );
     assert_eq!(decoded.disabled_weekdays(), &[0, 6]);
 }
+
+#[test]
+fn retained_calendar_envelopes_match_independent_fixtures_and_bound_decoding() {
+    use gpuio_protocol::{HandlerId, NodeId, WindowId, decode, v1};
+    let window = WindowId::from_parts(0, 1).unwrap();
+    let node = NodeId::from_parts(0, 1).unwrap();
+    let handler = HandlerId::from_parts(0, 1).unwrap();
+    let request = v1::Message::Apply(v1::Transaction {
+        window,
+        base: 0,
+        revision: 1,
+        operations: vec![
+            v1::Op::Create(node, v1::Kind::Calendar, "".into(), Some(handler)),
+            v1::Op::SetCalendar(
+                node,
+                Box::new(config()),
+                Selection::Empty,
+                Month::new(2024, 2).unwrap(),
+            ),
+            v1::Op::SetRoot(Some(node)),
+        ],
+    });
+    // Envelopes assembled with explicit bin_prot tags/integers in Python, using
+    // independently assembled civil-date/configuration payload fixtures.
+    let encoded = fixture(
+        &request,
+        include_str!("../../../test/fixtures/calendar-request.hex"),
+    );
+    assert_eq!(decode(&encoded), Ok(request));
+    for end in 0..encoded.len() {
+        assert!(decode(&encoded[..end]).is_err());
+    }
+    let mut trailing = encoded;
+    trailing.push(0);
+    assert!(decode(&trailing).is_err());
+    let selected = Snapshot {
+        revision: 8,
+        mode: Mode::Range,
+        selection: Selection::Range(Range::new(date(2024, 3, 4), date(2024, 3, 5)).unwrap()),
+        selection_allowed: true,
+        month: Month::new(2024, 3).unwrap(),
+        focused_date: date(2024, 3, 5),
+        presentation: Presentation::Days,
+        focused: true,
+    };
+    fixture(
+        &vec![v1::Event::CalendarEvent(
+            window,
+            node,
+            handler,
+            1,
+            Event::Selected(selected),
+        )],
+        include_str!("../../../test/fixtures/calendar-events.hex"),
+    );
+    let single_op = |config, selection, month| {
+        v1::Message::Apply(v1::Transaction {
+            window,
+            base: 0,
+            revision: 1,
+            operations: vec![v1::Op::SetCalendar(
+                node,
+                Box::new(config),
+                selection,
+                month,
+            )],
+        })
+    };
+    let valid = single_op(config(), Selection::Empty, Month::new(2024, 2).unwrap());
+    let mut invalid_month = bytes(&valid);
+    invalid_month.truncate(invalid_month.len() - 3);
+    (-1_i64).binprot_write(&mut invalid_month).unwrap();
+    assert_eq!(decode(&invalid_month), Err(DecodeError::Malformed));
+    let invalid_config = single_op(
+        Config {
+            label: "".into(),
+            ..config()
+        },
+        Selection::Empty,
+        Month::new(2024, 2).unwrap(),
+    );
+    assert_eq!(decode(&bytes(&invalid_config)), Err(DecodeError::Malformed));
+    // The operation's nested date remains checked by the bounded selection reader.
+    let mut invalid_selection = bytes(&valid);
+    invalid_selection.truncate(invalid_selection.len() - 4);
+    invalid_selection.push(1); // Single
+    (-1_i64).binprot_write(&mut invalid_selection).unwrap();
+    Month::new(2024, 2)
+        .unwrap()
+        .binprot_write(&mut invalid_selection)
+        .unwrap();
+    assert_eq!(decode(&invalid_selection), Err(DecodeError::Malformed));
+}

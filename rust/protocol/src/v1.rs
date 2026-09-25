@@ -136,6 +136,7 @@ pub enum Kind {
     Slider,
     NumberInput,
     OtpInput,
+    Calendar,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -616,6 +617,12 @@ pub enum Op {
         crate::number_input::Value,
     ),
     SetOtpInput(NodeId, crate::otp_input::Config, String),
+    SetCalendar(
+        NodeId,
+        Box<crate::calendar_input::Config>,
+        crate::calendar::Selection,
+        crate::calendar::Month,
+    ),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -777,4 +784,11 @@ pub enum Event {
     NumberInputResult(i64, WindowId, NodeId, crate::number_input::Response),
     OtpInputEvent(WindowId, NodeId, HandlerId, i64, crate::otp_input::Event),
     OtpInputResult(i64, WindowId, NodeId, crate::otp_input::Response),
+    CalendarEvent(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::calendar_input::Event,
+    ),
 }

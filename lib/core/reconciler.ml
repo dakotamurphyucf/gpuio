@@ -89,6 +89,7 @@ type 'a callback =
   | Slider of Slider.Value.t * int64 ref * (Slider.Event.t -> 'a)
   | Number_input of int64 ref * (Number_input.Event.t -> 'a)
   | Otp_input of Otp_input.Policy.t * int64 ref * (Otp_input.Event.t -> 'a)
+  | Calendar of Calendar.Mode.t * int64 ref * (Calendar.Event.t -> 'a)
   | Combobox of Combobox.Config.t * (Combobox.Event.t -> 'a)
 
 type 'a binding =
@@ -111,6 +112,7 @@ type 'a mounted =
   ; slider_seen : int64 ref
   ; number_input_seen : int64 ref
   ; otp_input_seen : int64 ref
+  ; calendar_seen : int64 ref
   ; list_identity : List_identity.t option
   ; choice_appearance : Wire.Choice_appearance.t option
   ; children : 'a mounted list
@@ -249,6 +251,7 @@ let kind = function
   | Slider -> Slider
   | Number_input -> Number_input
   | Otp_input -> Otp_input
+  | Calendar -> Calendar
   | Virtual_list -> Virtual_list
   | Canvas_view -> Canvas_view
   | Document_view -> Document_view
@@ -328,6 +331,9 @@ let rec mount builder ~depth previous view =
       match previous with
       | Some mounted -> mounted.id
       | None -> new_node builder
+    in
+    let calendar_seen =
+      Option.value_map previous ~default:(ref (-1L)) ~f:(fun old -> old.calendar_seen)
     in
     let otp_input_seen =
       Option.value_map previous ~default:(ref (-1L)) ~f:(fun old -> old.otp_input_seen)
@@ -495,6 +501,15 @@ let rec mount builder ~depth previous view =
           (Otp_input (Otp_input.Config.policy input.config, otp_input_seen, input.on_event))
       | None, callback -> callback
       | Some _, Some _ -> fail "OTP input cannot combine another handler"
+    in
+    let callback =
+      match description.calendar, callback with
+      | Some calendar, None ->
+        Some
+          (Calendar
+             (Calendar.Config.mode calendar.config, calendar_seen, calendar.on_event))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "calendar cannot combine another handler"
     in
     let callback =
       match description.rating, callback with
@@ -924,6 +939,38 @@ let rec mount builder ~depth previous view =
              ( id
              , Otp_input.Expert.config_to_wire input.config
              , Otp_input.Expert.value_to_wire input.initial )));
+    Option.iter description.calendar ~f:(fun calendar ->
+      let mode = Calendar.Config.mode calendar.config in
+      if not (Calendar.Selection.fits calendar.initial ~mode)
+      then fail "calendar seed does not fit mode";
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          (View.Expert.describe mounted.view).calendar)
+      in
+      (match old with
+       | None ->
+         if
+           not
+             (Calendar.Constraints.allows_selection
+                (Calendar.Config.constraints calendar.config)
+                calendar.initial
+                ~mode)
+         then fail "calendar seed is disabled by its constraints"
+       | Some old ->
+         if not (Calendar.Mode.equal (Calendar.Config.mode old.config) mode)
+         then fail "calendar mode is immutable; remount with a new controller identity");
+      if
+        not
+          (Option.exists old ~f:(fun old ->
+             Calendar.Config.equal old.config calendar.config))
+      then
+        emit
+          builder
+          (Set_calendar
+             ( id
+             , Calendar.Expert.config_to_wire calendar.config
+             , Calendar.Expert.selection_to_wire calendar.initial
+             , Calendar.Expert.month_to_wire calendar.initial_month )));
     Option.iter description.rating ~f:(fun rating ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -1179,14 +1226,16 @@ let rec mount builder ~depth previous view =
             , description.combobox
             , description.slider
             , description.number_input
-            , description.otp_input )
+            , description.otp_input
+            , description.calendar )
           with
-          | Some editor, None, None, None, None -> Some editor.controller
-          | None, Some combo, None, None, None -> Some combo.controller
-          | None, None, Some slider, None, None -> Some slider.controller
-          | None, None, None, Some input, None -> Some input.controller
-          | None, None, None, None, Some input -> Some input.controller
-          | None, None, None, None, None -> None
+          | Some editor, None, None, None, None, None -> Some editor.controller
+          | None, Some combo, None, None, None, None -> Some combo.controller
+          | None, None, Some slider, None, None, None -> Some slider.controller
+          | None, None, None, Some input, None, None -> Some input.controller
+          | None, None, None, None, Some input, None -> Some input.controller
+          | None, None, None, None, None, Some calendar -> Some calendar.controller
+          | None, None, None, None, None, None -> None
           | _ -> fail "incompatible controller descriptions"
         in
         Option.value_map controller ~default:String.Set.empty ~f:(fun key ->
@@ -1246,6 +1295,7 @@ let rec mount builder ~depth previous view =
     ; slider_seen
     ; number_input_seen
     ; otp_input_seen
+    ; calendar_seen
     ; list_identity
     ; choice_appearance
     ; children
@@ -1570,6 +1620,7 @@ let dispatch t = function
         | Slider _
         | Number_input _
         | Otp_input _
+        | Calendar _
         | Choice _
         | Combobox _
         | Dismiss _
@@ -1658,6 +1709,32 @@ let dispatch t = function
        then None
        else (
          match Otp_input.Expert.event_of_wire ~window ~node event with
+         | Error _ -> None
+         | Ok event ->
+           seen := snapshot.revision;
+           Some (callback event))
+     | Some _ | None -> None)
+  | Calendar_event (window, node, handler, revision, event)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Calendar (mode, seen, callback)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       let snapshot = Wire.Calendar.Event.snapshot event in
+       let event_mode =
+         match snapshot.mode with
+         | Single -> Calendar.Mode.Single
+         | Range -> Calendar.Mode.Range
+       in
+       if Int64.(snapshot.revision <= !seen) || not (Calendar.Mode.equal event_mode mode)
+       then None
+       else (
+         match Calendar.Expert.event_of_wire ~window ~node event with
          | Error _ -> None
          | Ok event ->
            seen := snapshot.revision;
@@ -1882,6 +1959,7 @@ let dispatch t = function
   | Number_input_result _
   | Number_input_event _
   | Otp_input_event _
+  | Calendar_event _
   | Container_selected _
   | List_retained _
   | List_viewport _

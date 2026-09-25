@@ -1174,6 +1174,7 @@ impl View {
             && node.slider.is_none()
             && node.number_input.is_none()
             && node.otp_input.is_none()
+            && node.calendar.is_none()
             && node.overlay.is_none()
             && node.pointer.is_none()
             && node.image.is_none()
@@ -1362,6 +1363,7 @@ impl View {
             metadata: if node.editor.is_none()
                 && node.number_input.is_none()
                 && node.otp_input.is_none()
+                && node.calendar.is_none()
             {
                 node.accessibility.clone()
             } else {

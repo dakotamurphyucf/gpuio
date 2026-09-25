@@ -47,6 +47,13 @@ pub struct OtpInputMount {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct CalendarMount {
+    pub config: Arc<gpuio_protocol::calendar_input::Config>,
+    pub initial: gpuio_protocol::calendar::Selection,
+    pub initial_month: gpuio_protocol::calendar::Month,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct Node {
     pub id: NodeId,
     pub kind: Kind,
@@ -69,6 +76,7 @@ pub struct Node {
     pub slider: Option<SliderMount>,
     pub number_input: Option<NumberInputMount>,
     pub otp_input: Option<OtpInputMount>,
+    pub calendar: Option<CalendarMount>,
     pub extension: Option<Arc<gpuio_protocol::extension::Config>>,
     pub extension_command: Option<Arc<gpuio_protocol::extension::Command>>,
     pub split: Option<Arc<gpuio_protocol::split::Config>>,
@@ -98,9 +106,13 @@ pub struct Node {
 
 impl Node {
     fn payload_bytes(&self) -> usize {
-        self.otp_input
+        self.calendar
             .as_ref()
-            .map_or(0, |s| s.config.retained_bytes() + s.initial.len())
+            .map_or(0, |calendar| 32 + calendar.config.retained_bytes())
+            + self
+                .otp_input
+                .as_ref()
+                .map_or(0, |s| s.config.retained_bytes() + s.initial.len())
             + self
                 .number_input
                 .as_ref()
@@ -582,6 +594,19 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
+                if (node.kind == Kind::Calendar) != node.calendar.is_some()
+                    || node.calendar.as_ref().is_some_and(|calendar| {
+                        !calendar.config.is_valid()
+                            || !calendar.initial.fits(calendar.config.mode)
+                            || !node.text.is_empty()
+                            || !node.children.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                            || node.handler.is_none()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 if (node.kind == Kind::OtpInput) != node.otp_input.is_some()
                     || node.otp_input.as_ref().is_some_and(|input| {
                         !input.config.is_valid()
@@ -783,6 +808,7 @@ impl Tree {
                     | Kind::Slider
                     | Kind::NumberInput
                     | Kind::OtpInput
+                    | Kind::Calendar
                     | Kind::TabPanel
                     | Kind::SplitPane
                     | Kind::Extension
@@ -1143,6 +1169,7 @@ impl Plan<'_> {
             | Op::SetSlider(id, ..)
             | Op::SetNumberInput(id, ..)
             | Op::SetOtpInput(id, ..)
+            | Op::SetCalendar(id, ..)
             | Op::SetListConfig(id, ..)
             | Op::SetListOrder(id, ..)
             | Op::SetListRows(id, ..)
@@ -1245,6 +1272,7 @@ impl Plan<'_> {
                             slider: None,
                             number_input: None,
                             otp_input: None,
+                            calendar: None,
                             extension: None,
                             extension_command: None,
                             split: None,
@@ -1456,6 +1484,32 @@ impl Plan<'_> {
                 self.node_mut(*id)?.slider = Some(SliderMount {
                     config: Arc::new(config.clone()),
                     initial: *initial,
+                });
+            }
+            Op::SetCalendar(id, config, initial, initial_month) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::Calendar
+                    || !config.is_valid()
+                    || !initial.fits(config.mode)
+                    || node
+                        .calendar
+                        .as_ref()
+                        .is_some_and(|old| old.config.mode != config.mode)
+                    || (node.calendar.is_none()
+                        && !config.constraints.allows_selection(*initial, config.mode))
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let (initial, initial_month) = node
+                    .calendar
+                    .as_ref()
+                    .map_or((*initial, *initial_month), |old| {
+                        (old.initial, old.initial_month)
+                    });
+                self.node_mut(*id)?.calendar = Some(CalendarMount {
+                    config: Arc::new(config.as_ref().clone()),
+                    initial,
+                    initial_month,
                 });
             }
             Op::SetOtpInput(id, config, initial) => {

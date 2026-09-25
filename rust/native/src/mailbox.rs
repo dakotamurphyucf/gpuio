@@ -384,6 +384,52 @@ impl Mailbox {
         Ok(())
     }
 
+    /// Calendar completion is a discrete, atomic Changed/Selected boundary.
+    pub fn calendar_completion(&mut self, events: [Event; 2]) -> Result<(), Box<[Event; 2]>> {
+        let valid = match (&events[0], &events[1]) {
+            (
+                Event::CalendarEvent(w, n, h, r, gpuio_protocol::calendar_input::Event::Changed(a)),
+                Event::CalendarEvent(
+                    w2,
+                    n2,
+                    h2,
+                    r2,
+                    gpuio_protocol::calendar_input::Event::Selected(b),
+                ),
+            ) => {
+                let mut expected = a.clone();
+                expected.revision = b.revision;
+                (w, n, h, r) == (w2, n2, h2, r2)
+                    && *r >= 0
+                    && a.revision > 0
+                    && a.is_valid()
+                    && b.is_valid()
+                    && b.selection_allowed
+                    && b.selection.is_complete()
+                    && a.revision.checked_add(1) == Some(b.revision)
+                    && expected == *b
+            }
+            _ => false,
+        };
+        let bytes = event_bytes(&events[0]) + event_bytes(&events[1]);
+        if self.closed
+            || !valid
+            || self.inputs + 2 > MAX_INPUT_EVENTS
+            || self.input_bytes + bytes > MAX_INPUT_BYTES
+        {
+            return Err(Box::new(events));
+        }
+        self.inputs += 2;
+        self.input_bytes += bytes;
+        for event in events {
+            self.events.push_back(Output {
+                event,
+                class: Class::Input,
+            });
+        }
+        Ok(())
+    }
+
     /// One terminal overload notification per window generation. Reopening is
     /// refused by the host until the old window's output is drained.
     pub fn fault(&mut self, window: WindowId) {
@@ -419,6 +465,7 @@ impl Mailbox {
             | Event::SliderEvent(id, ..)
             | Event::NumberInputEvent(id, ..)
             | Event::OtpInputEvent(id, ..)
+            | Event::CalendarEvent(id, ..)
             | Event::Choice(id, ..)
             | Event::OverlayDismissed(id, ..)
             | Event::TooltipOpenChanged(id, ..)
