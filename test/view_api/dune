@@ -24,6 +24,8 @@
    number-input-failed.hex
    otp-input-request.hex
    otp-input-events.hex
+   otp-input-command-request.hex
+   otp-input-command-events.hex
    numeric-domain.hex
    slider-request.hex
    slider-events.hex

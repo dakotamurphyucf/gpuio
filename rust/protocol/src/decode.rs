@@ -1237,6 +1237,13 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
             }
             Message::OpenConfigured(correlation, id, config)
         }
+        16 => {
+            let correlation = d.int()?;
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::OtpInputCommand(correlation, d.window()?, d.node()?, d.otp_command()?)
+        }
         15 => {
             let correlation = d.int()?;
             if correlation <= 0 {

@@ -420,3 +420,72 @@ fn retained_envelopes_pin_appended_tags_and_validate_initial_values() {
     let request = request(alphabet, "Ab12");
     assert_eq!(decode(&bytes(&request)), Ok(request));
 }
+
+#[test]
+fn correlated_command_envelopes_append_tags_and_enforce_payload_bounds() {
+    use gpuio_protocol::{NodeId, WindowId, decode, v1};
+    let window = WindowId::from_parts(0, 1).unwrap();
+    let node = NodeId::from_parts(0, 1).unwrap();
+    let command = Command::Replace {
+        value: "12".into(),
+        selection: SelectionPolicy::End,
+        undo: UndoPolicy::Record,
+        if_revision: Some(7),
+    };
+    check(
+        v1::Message::OtpInputCommand(9, window, node, command.clone()),
+        include_str!("../../../test/fixtures/otp-input-command-request.hex").trim(),
+        decode,
+    );
+    assert_eq!(
+        bytes(&vec![v1::Event::OtpInputResult(
+            9,
+            window,
+            node,
+            Response::Applied(composing())
+        )]),
+        hex(include_str!("../../../test/fixtures/otp-input-command-events.hex").trim())
+    );
+    for correlation in [0, -1] {
+        assert!(
+            decode(&bytes(&v1::Message::OtpInputCommand(
+                correlation,
+                window,
+                node,
+                command.clone()
+            )))
+            .is_err()
+        );
+    }
+    for command in [
+        Command::Replace {
+            value: "1".repeat(33),
+            selection: SelectionPolicy::End,
+            undo: UndoPolicy::Record,
+            if_revision: None,
+        },
+        Command::Replace {
+            value: "１２".into(),
+            selection: SelectionPolicy::End,
+            undo: UndoPolicy::Record,
+            if_revision: None,
+        },
+        Command::Replace {
+            value: "12".into(),
+            selection: SelectionPolicy::Select(Selection { anchor: 3, head: 0 }),
+            undo: UndoPolicy::Record,
+            if_revision: None,
+        },
+        Command::Clear {
+            undo: UndoPolicy::Record,
+            if_revision: Some(-1),
+        },
+    ] {
+        assert!(
+            decode(&bytes(&v1::Message::OtpInputCommand(
+                9, window, node, command
+            )))
+            .is_err()
+        );
+    }
+}

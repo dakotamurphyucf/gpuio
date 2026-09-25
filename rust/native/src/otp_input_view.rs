@@ -45,14 +45,14 @@ impl Route {
                             .is_some_and(|mount| mount.config.as_ref() == config)
                 })
     }
-    fn emit(&self, events: Vec<o::Event>) {
+    fn emit(&self, events: Vec<o::Event>) -> bool {
         if events.is_empty() {
-            return;
+            return true;
         }
         let routed = {
             let session = self.session.borrow();
             let Some(tree) = session.tree(self.window) else {
-                return;
+                return false;
             };
             events
                 .into_iter()
@@ -68,7 +68,7 @@ impl Route {
                 .collect::<Option<Vec<_>>>()
         };
         let Some(mut events) = routed else {
-            return;
+            return false;
         };
         let success = match events.len() {
             1 => self.transport.input(events.pop().unwrap()),
@@ -80,6 +80,7 @@ impl Route {
         if !success {
             self.fault();
         }
+        success
     }
 }
 
@@ -583,6 +584,61 @@ impl Instance {
     }
     pub(super) fn is_composing(&self, cx: &App) -> bool {
         self.state.read(cx).model.editor().is_composing()
+    }
+    pub(super) fn command(
+        &self,
+        command: &o::Command,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> o::Response {
+        self.state.update(cx, |state, cx| {
+            if !state
+                .route
+                .session
+                .borrow()
+                .accepts_input(state.route.window)
+            {
+                return o::Response::Failed(o::Error::NativeFailure);
+            }
+            if !state.route.current(state.model.config()) {
+                return o::Response::Failed(o::Error::StaleInput);
+            }
+            let focus = state.focus.clone();
+            let gate = state.route.gate.clone();
+            let node = state.route.node;
+            let outcome = state.model.execute(command, || {
+                if !gate.borrow().allows(node) {
+                    return Err(o::Error::FocusBlocked);
+                }
+                window.focus(&focus, cx);
+                if focus.is_focused(window) {
+                    Ok(())
+                } else {
+                    Err(o::Error::NativeFailure)
+                }
+            });
+            if matches!(
+                outcome.response,
+                o::Response::Failed(o::Error::LimitExceeded)
+            ) {
+                state.route.fault();
+            }
+            let changed = !outcome.events.is_empty();
+            if state
+                .layout
+                .as_ref()
+                .is_some_and(|layout| !layout.matches(&state.model))
+            {
+                state.layout = None;
+            }
+            if !state.route.emit(outcome.events) {
+                return o::Response::Failed(o::Error::NativeFailure);
+            }
+            if changed {
+                cx.notify();
+            }
+            outcome.response
+        })
     }
     pub(super) fn command_available(&self, action: NativeCommand, cx: &App) -> bool {
         let state = self.state.read(cx);

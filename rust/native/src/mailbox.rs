@@ -36,6 +36,9 @@ fn event_bytes(event: &Event) -> usize {
         Event::OtpInputEvent(_, _, _, _, event) => {
             event.snapshot().value.len() + event.snapshot().draft.len()
         }
+        Event::OtpInputResult(_, _, _, gpuio_protocol::otp_input::Response::Applied(snapshot)) => {
+            snapshot.value.len() + snapshot.draft.len()
+        }
         Event::NumberInputResult(
             _,
             _,
@@ -437,6 +440,7 @@ impl Mailbox {
             | Event::ComboboxSelected(id, ..)
             | Event::SliderResult(_, id, ..)
             | Event::NumberInputResult(_, id, ..)
+            | Event::OtpInputResult(_, id, ..)
             | Event::EditorResult(_, id, ..)
             | Event::FileDialogResult(_, id, ..)
             | Event::Overloaded(id) => id.slot() == window_slot,

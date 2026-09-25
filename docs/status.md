@@ -140,8 +140,10 @@ have atomic count/byte admission with semantic coalescing boundaries. The GPUI
 segmented adapter now publishes native observations and passes local native
 key/clipboard/NSTextInputClient, pointer capture, clipped preedit geometry, real
 AppKit accessibility/value actions, masking, disposal and terminal overload checks.
-Command/result correlation, public controllers/examples and expanded OTP visual/
-application/workload acceptance still remain. See
+Correlated command/result envelopes, the public Bonsai/Eio controller and both
+alphabet examples now pass local bridge acceptance. Native composition guards,
+explicit cancellation and command observation-pressure failure also pass. Expanded
+OTP visual/lifecycle/workload acceptance still remains. See
 [OTP contract and integration requirements](design/otp-inputs.md).
 See [numeric design](design/numeric-inputs.md) and
 [foundation evidence](evidence/numeric-inputs-och34.md).

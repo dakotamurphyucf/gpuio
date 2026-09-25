@@ -642,6 +642,7 @@ pub enum Message {
     Canvas(i64, crate::canvas_resource::Request),
     SliderCommand(i64, WindowId, NodeId, crate::slider::Command),
     NumberInputCommand(i64, WindowId, NodeId, crate::number_input::Command),
+    OtpInputCommand(i64, WindowId, NodeId, crate::otp_input::Command),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -773,4 +774,5 @@ pub enum Event {
     NumberInputEvent(WindowId, NodeId, HandlerId, i64, crate::number_input::Event),
     NumberInputResult(i64, WindowId, NodeId, crate::number_input::Response),
     OtpInputEvent(WindowId, NodeId, HandlerId, i64, crate::otp_input::Event),
+    OtpInputResult(i64, WindowId, NodeId, crate::otp_input::Response),
 }

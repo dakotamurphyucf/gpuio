@@ -395,9 +395,9 @@ val number_input
 (** One native segmented OTP editor. [initial] seeds a mount once and must fit
     [config] policy. Changing a retained length/alphabet rejects; use a new
     controller identity to remount deliberately. Observations never replace text.
-    The retained view and native renderer are implemented; the mounted command
-    controller and expanded acceptance remain pending. No OTP capability is
-    advertised yet. *)
+    The mounted command controller is [Gpuio_eio.Otp_input]. Expanded visual and
+    lifecycle/workload acceptance remains pending; no OTP capability is advertised
+    yet. *)
 val otp_input
   :  ?style:Style.t
   -> controller:Key.t

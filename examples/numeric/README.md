@@ -7,8 +7,8 @@ The example demonstrates single and range sliders, horizontal and vertical axes,
 and linear and logarithmic scales through the public Bonsai/Eio controller. The
 horizontal range includes lifecycle and command controls: drag or keyboard-step either thumb, reset values, read
 native state, disable it, and unmount/remount it. Observations never feed an
-implicit replacement back to Rust. Numeric editors/steppers have a separate executable described below. OTP remains
-under implementation in OCH-34.
+implicit replacement back to Rust. Numeric editors/steppers and segmented OTP fields have separate executables
+described below.
 
 `--self-test` opens a local window, uses real correlated bridge commands, checks
 stale revisions and leases, wrong-mode/thumb errors, disabled replacement,
@@ -53,3 +53,33 @@ and OS keyboard events. It verifies transient draft feedback, Enter/Escape and
 arrow stepping, accessible step buttons, asynchronous observations rendered by
 OCaml, read-only/disabled behavior and remounting. It uses the same local macOS
 accessibility access as the other desktop test scripts.
+
+
+## Segmented verification inputs
+
+Build with `GPUIO_JOBS=2 ./scripts/gpuio build examples/numeric/otp.exe`, then run
+`_build/default/examples/numeric/otp.exe`. The `Gpuio_eio.Otp_input` controller
+manages a six-digit verification field and an eight-character case-sensitive
+alphanumeric recovery field, each backed by one native editing session.
+Full-width digits/Latin letters normalize to ASCII; paste also removes ASCII
+whitespace and hyphens. Invalid input rejects atomically. Selection, clipboard,
+undo/redo and IME composition remain native. A filled code is not authenticated.
+
+The main field supports explicit fill/clear/history, masking, disabled/read-only
+policy and unmount/remount controls. Masking conceals the painted and accessible
+value and disables copying/cutting; application snapshots still contain text.
+Seeds are applied once per mount. Observations never overwrite native text.
+
+`_build/default/examples/numeric/otp.exe --self-test` exercises both modes through
+the actual bridge: focus, canonical replacement, selection/history, revision and
+lease guards, invalid policy/value/selection, disabled/read-only behavior, remount,
+the 64-pending-request limit and ordered close behavior. It verifies programmatic commands never emit user Complete events.
+The test closes its own window. Native platform composition and queue overload
+are separately covered by the Rust `native_otp_input` harness.
+
+On macOS, `python3 scripts/test_otp_input.py` launches and closes its own example.
+It exercises real accessibility values/actions and OS selection, deletion and
+history shortcuts, asynchronous completion/rejection feedback, secure masking,
+policy changes and remounting. It needs the same accessibility access as the
+other native test scripts. Broader OTP visual/workload acceptance remains part
+of OCH-34; this example does not claim that all milestone gates are complete.

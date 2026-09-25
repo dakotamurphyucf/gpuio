@@ -514,3 +514,71 @@ fn completion_byte_admission_cannot_overwrite_a_tail_before_failing() {
     mailbox.otp_completion(pair(3)).unwrap();
     assert_eq!(mailbox.drain(128), pair(3));
 }
+
+#[test]
+fn correlated_responses_keep_observation_barriers_and_bound_drain_bytes() {
+    use binprot::BinProtWrite;
+    let mut mailbox = Mailbox::default();
+    mailbox
+        .submit(
+            Message::OtpInputCommand(1, window(), node(), o::Command::ReadSnapshot),
+            16,
+        )
+        .unwrap();
+    mailbox.pop().unwrap();
+    mailbox.input(changed(1, "1")).unwrap();
+    let response =
+        Event::OtpInputResult(1, window(), node(), o::Response::Applied(snapshot(1, "1")));
+    mailbox.respond(response.clone());
+    mailbox.input(changed(2, "12")).unwrap();
+    mailbox.input(changed(3, "123")).unwrap();
+    assert!(mailbox.has_window_output(window().slot()));
+    assert_eq!(
+        mailbox.drain(128),
+        vec![changed(1, "1"), response, changed(3, "123")]
+    );
+    assert!(!mailbox.has_window_output(window().slot()));
+    let mut large = snapshot(4, "12");
+    large.draft = "9".repeat(4096);
+    large.selection = o::Selection {
+        anchor: 4096,
+        head: 4096,
+    };
+    large.composition = Some(o::Selection {
+        anchor: 0,
+        head: 4096,
+    });
+    assert!(large.is_valid());
+    for request in 1..=128 {
+        mailbox
+            .submit(
+                Message::OtpInputCommand(request, window(), node(), o::Command::ReadSnapshot),
+                16,
+            )
+            .unwrap();
+        mailbox.pop().unwrap();
+        mailbox.respond(Event::OtpInputResult(
+            request,
+            window(),
+            node(),
+            o::Response::Applied(large.clone()),
+        ));
+        mailbox
+            .input(event(o::Event::Observed(large.clone())))
+            .unwrap();
+    }
+    let mut count = 0;
+    let mut batches = 0;
+    while mailbox.has_output() {
+        let batch = mailbox.drain(256);
+        assert!(!batch.is_empty());
+        let mut encoded = Vec::new();
+        batch.binprot_write(&mut encoded).unwrap();
+        assert!(encoded.len() <= MAX_MESSAGE_BYTES);
+        count += batch.len();
+        batches += 1;
+    }
+    assert_eq!(count, 256);
+    assert!(batches > 1);
+    assert!(!mailbox.has_window_output(window().slot()));
+}

@@ -1115,3 +1115,74 @@ milestone completion is claimed.
 
 The full isolated `dune build -j 2 @all @fmt` also passes at this checkpoint,
 and Ruby successfully parses the updated workflow YAML.
+
+## OTP correlated commands and public application
+
+The retained OTP instance now executes explicit native commands through appended
+Message 16 / Event 49 envelopes. A command's Observed event precedes its response;
+programmatic edits never produce Complete. The Eio request lane bounds pending
+OTP requests to 64 across the application and validates reply lease, policy and
+minimum revision. The public `Gpuio_eio.Otp_input` controller rejects late replies
+from another placement or an older observed revision. Masked snapshots still
+contain application text, as specified by the public contract.
+
+Local macOS acceptance now includes:
+
+- Independent OCaml/Rust request/result fixtures, invalid correlations and
+  malformed value/selection/revision checks, complete consumption and truncation.
+- Mailbox response boundaries and window-output fencing. A workload of 128 maximum
+  composition snapshots interleaved with 128 responses drains into multiple
+  encoded batches, each within the 1-MiB envelope; all 256 items are delivered.
+- `examples/numeric/otp.exe --self-test`: both alphabet modes, native focus,
+  revision-guarded replacement, directional/preserved selection, undo/redo/reset,
+  invalid policy/length/selection, disabled/read-only rules, initial seeds,
+  unplaced/stale/remounted controllers, and closure. A concurrent batch verifies
+  exactly 64 accepted requests plus one Busy result, followed by a successful new
+  request after draining. A read queued before close returns normally, while a
+  command issued after the local close request returns Closed. Programmatic
+  commands do not trigger Complete callbacks.
+- Expanded `native_otp_input`: actual macOS preedit remains intact under rejected
+  replace/clear/select/undo/redo commands and ReadSnapshot. CancelComposition
+  restores the exact accepted selection and emits only Observed. Native IME
+  commit still works after explicit cancellation and renewed composition.
+- An independent native window tests command observation admission failure. The
+  mutation occurs, but lost observation delivery returns NativeFailure, faults
+  the window and prevents further mutation. Existing native Changed/Complete
+  atomic-overload coverage remains intact. Both native windows close normally.
+- `python3 scripts/test_otp_input.py` passes against the public example using
+  actual macOS AX values/actions and OS keyboard events. It covers full-width
+  normalization, both alphabets, directional deletion and history, atomic invalid
+  input rejection, completion/rejection/count feedback rendered back through
+  OCaml, secure value masking, disabled/read-only controls, remount and closure.
+  It reports `GPUIO_OTP_APP_AX_OK` and reaps its owned application process group.
+
+The native command harness reports `GPUIO_OTP_NATIVE_OK` and
+`GPUIO_OTP_COMMAND_PRESSURE_OK`. The public bridge example reports
+`GPUIO_OTP_PUBLIC_OK`. These are real local native/application checks; they do not
+claim external IME candidate-menu selection, physical display-density changes or
+Linux desktop acceptance.
+
+All 271 native unit/non-graphical integration tests and native all-target
+Clippy with `native-tests` / `-D warnings` pass through the isolated wrapper.
+The first added mailbox test used a window ID where the existing API required
+its slot; fixing that test call resolved compilation. Clippy identified a redundant
+return binding in the native fixture helper, which was simplified. Neither issue
+required changing the production contract. CI now includes both public OTP checks,
+but consolidated hosted execution and merge remain pending.
+
+Remaining OTP scope: inspected visual/theme/scale/masking coverage, expanded
+hidden/modal/managed-list/window lifetimes and a retained-owner workload. OCH-34
+capability advertisement and completion await that acceptance and the required
+consolidated gates. Other milestone-05 components and final OCH-46 chat integration
+remain in the milestone; this checkpoint does not redefine its completion.
+
+
+The full local `dune build -j 2 @all @runtest @fmt` and all 127 Rust protocol tests
+also pass; the final public example is rebuilt and exercised separately after
+expanding its concurrency checks. The request-limit fixture originally used
+Bonsai `Effect.all`, which is sequential in the pinned implementation; it now
+starts requests explicitly through the effect evaluator in a single UI turn.
+The close fixture originally expected all in-flight reads to be cancelled, but
+native FIFO ordering allows an earlier read to complete before close. The test
+and documentation now distinguish admission cutoff from actual native closure.
+No production behavior was changed to accommodate these fixture corrections.

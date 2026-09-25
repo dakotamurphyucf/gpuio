@@ -85,6 +85,18 @@ module Window : sig
       -> Gpuio.Slider.Command.t
       -> (Gpuio.Slider.Snapshot.t, Gpuio.Slider.Command_error.t) Result.t Bonsai.Effect.t
 
+    (** Correlated OTP commands for the exact observed window/node lease. At most
+        64 requests may be pending across the app. Closing rejects new requests;
+        already-admitted commands can reply before native closure. Actual closure
+        completes remaining requests with [Closed].
+        Applied replies must preserve policy and not precede the observed revision. *)
+    val otp_input_command
+      :  t
+      -> Gpuio.Otp_input.Snapshot.t
+      -> Gpuio.Otp_input.Command.t
+      -> (Gpuio.Otp_input.Snapshot.t, Gpuio.Otp_input.Command_error.t) Result.t
+           Bonsai.Effect.t
+
     (** Correlated numeric commands bound to the observed window/node lease;
         at most 64 requests pending. Closing completes them with [Closed]. *)
     val number_input_command

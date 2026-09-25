@@ -56,6 +56,11 @@ fn snapshot(cx: &mut AsyncApp, handle: WindowHandle<View>) -> o::Snapshot {
         })
         .unwrap()
 }
+fn command(cx: &mut AsyncApp, handle: WindowHandle<View>, command: o::Command) -> o::Response {
+    handle
+        .update(cx, |v, w, cx| v.otps[&node()].command(&command, w, cx))
+        .unwrap()
+}
 fn events(transport: &Transport) -> Vec<o::Event> {
     transport
         .mailbox
@@ -176,6 +181,34 @@ async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Tra
         assert_eq!(s.value, "987654");
         assert_eq!(s.draft, "１２");
         assert!(s.composition.is_some());
+        // The native command adapter must not overwrite or finalize an OS preedit.
+        events(transport);
+        assert_eq!(
+            command(cx, handle, o::Command::ReadSnapshot),
+            o::Response::Applied(s.clone())
+        );
+        for blocked in [
+            o::Command::Replace {
+                value: "34".into(),
+                selection: o::SelectionPolicy::End,
+                undo: o::UndoPolicy::Record,
+                if_revision: None,
+            },
+            o::Command::Clear {
+                undo: o::UndoPolicy::Reset,
+                if_revision: None,
+            },
+            o::Command::Select(o::Selection { anchor: 0, head: 0 }),
+            o::Command::Undo,
+            o::Command::Redo,
+        ] {
+            assert_eq!(
+                command(cx, handle, blocked),
+                o::Response::Failed(o::Error::Composing)
+            );
+            assert_eq!(snapshot(cx, handle), s);
+        }
+        assert!(events(transport).is_empty());
         // The actual painted geometry answers candidate/point queries at exact boundaries.
         handle
             .update(cx, |v, w, cx| {
@@ -200,6 +233,18 @@ async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Tra
             vec![Op::SetOtpInput(node(), updated, "000000".into())],
         );
         assert_eq!(snapshot(cx, handle).draft, "１２");
+        events(transport);
+        let o::Response::Applied(cancelled) = command(cx, handle, o::Command::CancelComposition)
+        else {
+            panic!("cancel must succeed")
+        };
+        assert_eq!(cancelled.value, "987654");
+        assert_eq!(cancelled.draft, cancelled.value);
+        assert_eq!(cancelled.selection, o::Selection { anchor: 0, head: 6 });
+        assert!(cancelled.composition.is_none());
+        assert_eq!(events(transport), vec![o::Event::Observed(cancelled)]);
+        frame(cx, handle).await;
+        native_text(cx, handle, "１２", true);
         native_text(cx, handle, "１２３４５６", false);
         assert_eq!(snapshot(cx, handle).value, "123456");
         assert!(snapshot(cx, handle).composition.is_none());
@@ -459,6 +504,21 @@ async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Tra
             );
         })
         .unwrap();
+    handle
+        .update(cx, |v, w, cx| {
+            assert_eq!(
+                v.otps[&new_node].command(
+                    &o::Command::Clear {
+                        undo: o::UndoPolicy::Reset,
+                        if_revision: None
+                    },
+                    w,
+                    cx
+                ),
+                o::Response::Failed(o::Error::NativeFailure)
+            );
+        })
+        .unwrap();
     native_text(cx, handle, "3", false);
     handle
         .update(cx, |v, _, cx| {
@@ -484,6 +544,103 @@ async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Tra
         "GPUIO_OTP_NATIVE_OK: retained owner, native key map/clipboard, ordered completion, NSTextInputClient composition/normalization/rollback, candidate/clipped geometry, pointer capture, read-only, AppKit AX values/actions, mask, disable, disposal and terminal overload"
     );
 }
+fn open_test_window(cx: &mut App, transport: &Arc<Transport>) -> WindowHandle<View> {
+    let id = WindowId::from_parts(0, 1).unwrap();
+    let session = Rc::new(RefCell::new(Session::default()));
+    session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
+    session
+        .borrow_mut()
+        .open(1, id, "GPUIO OTP input test", 350., 130.)
+        .unwrap();
+    cx.open_window(
+        WindowOptions {
+            inactive_frame_interval: None,
+            window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
+                None,
+                size(px(350.), px(130.)),
+                cx,
+            ))),
+            ..Default::default()
+        },
+        |_, cx| cx.new(|_| View::new(id, session.clone(), transport.clone())),
+    )
+    .unwrap()
+}
+async fn command_pressure(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Transport) {
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Create(node(), Kind::OtpInput, "".into(), Some(handler())),
+            Op::SetOtpInput(node(), config(), "12".into()),
+            Op::SetRoot(Some(node())),
+        ],
+    );
+    frame(cx, handle).await;
+    frame(cx, handle).await;
+    events(transport);
+    handle
+        .update(cx, |v, _, cx| {
+            let snapshot = v.otps[&node()].state.read(cx).model.snapshot();
+            let revision = v.session.borrow().tree(v.id).unwrap().revision();
+            for _ in 0..crate::mailbox::MAX_INPUT_EVENTS {
+                assert!(transport.input(Event::OtpInputEvent(
+                    v.id,
+                    node(),
+                    handler(),
+                    revision,
+                    o::Event::Observed(snapshot.clone())
+                )));
+            }
+        })
+        .unwrap();
+    // A successful mutation whose observation cannot be admitted must not return Applied.
+    assert_eq!(
+        command(
+            cx,
+            handle,
+            o::Command::Replace {
+                value: "654321".into(),
+                selection: o::SelectionPolicy::End,
+                undo: o::UndoPolicy::Record,
+                if_revision: None,
+            }
+        ),
+        o::Response::Failed(o::Error::NativeFailure)
+    );
+    assert_eq!(snapshot(cx, handle).value, "654321");
+    assert_eq!(
+        command(
+            cx,
+            handle,
+            o::Command::Clear {
+                undo: o::UndoPolicy::Reset,
+                if_revision: None
+            }
+        ),
+        o::Response::Failed(o::Error::NativeFailure)
+    );
+    assert_eq!(snapshot(cx, handle).value, "654321");
+    let drained = transport.mailbox.lock().unwrap().drain(256);
+    assert!(
+        drained
+            .iter()
+            .any(|event| matches!(event, Event::Overloaded(_)))
+    );
+    assert!(!drained.iter().any(|event| matches!(event,
+        Event::OtpInputEvent(_,_,_,_,o::Event::Observed(snapshot)) if snapshot.value == "654321")));
+    handle
+        .update(cx, |v, w, cx| {
+            assert!(!v.session.borrow().accepts_input(v.id));
+            v.session.borrow_mut().close(v.id).unwrap();
+            w.remove_window();
+            cx.notify();
+        })
+        .unwrap();
+    eprintln!(
+        "GPUIO_OTP_COMMAND_PRESSURE_OK: lost observation reports failure and blocks later mutation"
+    );
+}
 pub(crate) fn run() {
     let failure = Rc::new(RefCell::new(None));
     let task_failure = failure.clone();
@@ -492,34 +649,19 @@ pub(crate) fn run() {
     let _reader = unsafe { OwnedFd::from_raw_fd(fds[0]) };
     let writer = unsafe { OwnedFd::from_raw_fd(fds[1]) };
     let transport = Arc::new(Transport::new(writer.as_raw_fd()).unwrap());
-    let id = WindowId::from_parts(0, 1).unwrap();
     gpui_platform::application().run(move |cx| {
         gpui_base::init(cx);
         cx.set_quit_mode(QuitMode::Explicit);
         let clipboard = cx.read_from_clipboard();
-        let session = Rc::new(RefCell::new(Session::default()));
-        session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
-        session
-            .borrow_mut()
-            .open(1, id, "GPUIO OTP input test", 350., 130.)
-            .unwrap();
-        let handle = cx
-            .open_window(
-                WindowOptions {
-                    inactive_frame_interval: None,
-                    window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
-                        None,
-                        size(px(350.), px(130.)),
-                        cx,
-                    ))),
-                    ..Default::default()
-                },
-                |_, cx| cx.new(|_| View::new(id, session.clone(), transport.clone())),
-            )
-            .unwrap();
+        let handle = open_test_window(cx, &transport);
         cx.activate(true);
         cx.spawn(async move |cx| {
-            let result = super::super::native_test::protect(exercise(cx, handle, &transport)).await;
+            let result = super::super::native_test::protect(async {
+                exercise(cx, handle, &transport).await;
+                let next = cx.update(|cx| open_test_window(cx, &transport));
+                command_pressure(cx, next, &transport).await;
+            })
+            .await;
             *task_failure.borrow_mut() = result.err();
             cx.update(|cx| {
                 if let Some(clipboard) = clipboard {

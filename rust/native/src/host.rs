@@ -1827,6 +1827,13 @@ pub fn run(transport: Arc<Transport>) {
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),
                             }
                         }
+                        Message::OtpInputCommand(correlation, id, node, command) => {
+                            use gpuio_protocol::otp_input::{Error, Response};
+                            let result = windows.get(&id).and_then(|handle| handle.update(cx, |view, window, cx| {
+                                view.otps.get(&node).map(|input| input.command(&command, window, cx)).unwrap_or(Response::Failed(Error::StaleInput))
+                            }).ok()).unwrap_or(Response::Failed(Error::Closed));
+                            transport.respond(Event::OtpInputResult(correlation, id, node, result));
+                        }
                         Message::NumberInputCommand(correlation, id, node, command) => {
                             use gpuio_protocol::number_input::{Error, Response};
                             let result = windows.get(&id).and_then(|handle| handle.update(cx, |view, window, cx| {

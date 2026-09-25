@@ -868,6 +868,7 @@ module Message = struct
     | Canvas of int64 * Canvas.Request.t
     | Slider_command of int64 * Window_id.t * Node_id.t * Slider.Command.t
     | Number_input_command of int64 * Window_id.t * Node_id.t * Number_input.Command.t
+    | Otp_input_command of int64 * Window_id.t * Node_id.t * Otp_input.Command.t
   [@@deriving bin_io, equal, sexp_of]
 
   let encode t =
@@ -880,6 +881,8 @@ module Message = struct
         || not
              (Window.valid_title config.title
               && Window.valid_size config.width config.height)
+      | Otp_input_command (correlation, _, _, command) ->
+        Int64.(correlation <= 0L) || not (Otp_input.Command.valid command)
       | Number_input_command (correlation, _, _, command) ->
         Int64.(correlation <= 0L) || not (Number_input.Command.valid command)
       | Slider_command (correlation, _, _, command) ->
@@ -1024,6 +1027,7 @@ module Event = struct
     | Number_input_result of int64 * Window_id.t * Node_id.t * Number_input.Response.t
     | Otp_input_event of
         Window_id.t * Node_id.t * Handler_id.t * int64 * Otp_input.Event.t
+    | Otp_input_result of int64 * Window_id.t * Node_id.t * Otp_input.Response.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1084,6 +1088,8 @@ module Event = struct
       Int64.(revision >= 0L) && Or_error.is_ok (List_wire.Viewport.validate viewport)
     | Slider_result (request, _, _, result) ->
       Int64.(request > 0L) && Slider.Response.valid result
+    | Otp_input_result (request, _, _, result) ->
+      Int64.(request > 0L) && Otp_input.Response.valid result
     | Number_input_result (request, _, _, result) ->
       Int64.(request > 0L) && Number_input.Response.valid result
     | Otp_input_event (_, _, _, revision, event) ->

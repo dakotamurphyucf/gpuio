@@ -4,8 +4,9 @@ Status: bounded text policy, atomic edit helpers, a platform-independent native
 editing model and native state owner, public Core contracts, retained view/event
 envelopes, OCaml/Rust codecs and a GPUI segmented text-input adapter are implemented.
 Local native keyboard/clipboard/IME, geometry, AppKit accessibility and overload
-checks pass. Command/result envelopes, public Bonsai/Eio controllers and expanded
-application/visual/workload acceptance remain pending. No OTP capability is advertised. This
+checks pass. Correlated commands and the public Bonsai/Eio controller/example now
+pass local bridge and native composition/overload checks. Expanded visual and
+lifecycle/workload acceptance remains pending. No OTP capability is advertised. This
 document supplements [numeric inputs](numeric-inputs.md).
 
 ## Implemented text contract
@@ -47,8 +48,7 @@ The policy encoding is length followed by alphabet (Digits=0,
 Ascii_alphanumeric=1). Independent tests pin six digits to `0600` and length-32
 alphanumeric to `2001`. The standalone contract codecs below add configuration,
 observations and commands. The retained bridge below registers a node kind,
-configuration operation and observation envelope; command/result envelopes remain
-pending.
+configuration operation, observations and correlated command/result envelopes.
 
 ## Public Core and standalone wire contracts
 
@@ -101,11 +101,11 @@ codecs. Rust decoding bounds every string before allocation, rejects invalid
 variant/Boolean tags, malformed UTF-8, negative guards, impossible snapshot/event
 states, truncation and trailing bytes. Standalone encoded limits are 4,200 bytes
 for configuration, 4,352 for event/response and 128 for commands. These are
-payload bounds, separate from future transport-envelope accounting.
+payload bounds, separate from the transport-envelope accounting below.
 
 These interfaces define the native owner contract. The state owner below now
 implements sequencing and commands; the mounted adapter below connects native
-rendering, AX and observation delivery. Public command correlation remains pending.
+rendering, AX, observation delivery and public command correlation.
 
 ## Native integration requirements
 
@@ -271,7 +271,7 @@ library's export surface. Native platform paste uses the same normalization path
 as keyboard paste. Platform selection/range queries use exact UTF-16 boundaries;
 read-only fields allow selection/copy but reject edits. AppKit SetValue uses the
 same atomic normalization/validation as ordinary user insertion. Programmatic
-command/result envelopes are still separate pending work.
+commands use the correlated lane described below.
 
 The host retains entities across rerenders, includes them in native command focus
 routing and pins focused/composing managed-list rows. Pointer capture survives
@@ -293,12 +293,46 @@ configuration retention, disable/unmount cleanup and terminal overload. These
 checks establish the initial native adapter; they do not establish final visual
 quality, external OS shortcut delivery or the full public-application contract.
 
+### Correlated commands and public controller
+
+Message tag 16 (`Otp_input_command`) carries a positive correlation ID, window,
+node and bounded command. Event tag 49 (`Otp_input_result`) returns the same
+identity and Applied/Failed result. Prior tags are unchanged. Independent OCaml
+and Rust fixtures cover both envelopes, invalid bounds and truncation. Response
+accounting includes both accepted value and preedit draft; drain batches remain
+within the 1-MiB protocol envelope and responses fence observation coalescing.
+
+The native host resolves the exact window/node generation, then the retained
+instance validates its current route/configuration. Commands run on the GPUI
+thread. Focus checks the actual visibility/modal gate and confirms native focus.
+The owner publishes any Observed event before the correlated response; commands
+never emit Complete. A full observation queue faults the window and reports
+Native_failure rather than Applied. That failure may follow a native mutation;
+subsequent commands and user edits cannot mutate the terminal owner. Callers must
+not interpret a transport/native failure as proof that no mutation occurred.
+
+`Gpuio_eio.App.Window.Expert.otp_input_command` bounds pending OTP requests to 64
+across the application and rejects wrong-window snapshots. A close request
+rejects new commands immediately; admitted commands may reply before native close.
+Actual closure completes any remaining requests with Closed. Applied replies must match the request's
+window/node, immutable policy and minimum observed revision. Unknown or mismatched
+correlations cannot complete a different request. The ordinary application API is
+`Gpuio_eio.Otp_input`: `create`, `view`, `snapshot`, explicit `replace`/`clear`,
+`select`, `focus`, `undo`/`redo`, `cancel_composition` and `read_snapshot` effects.
+`replace_if_unchanged` fences both lease and revision. Results are typed; no callback
+object crosses FFI.
+
+The controller's Bonsai state accepts only nonregressive observations within a
+lease. A command reply cannot overwrite a newer revision or another mounted
+lease. An unplaced controller returns Not_mounted; a retained controller that was
+unmounted may still hold a snapshot, but native commands return Stale_input.
+Rerendering never writes snapshot text back into the native editor. Both alphabets
+have a public example in `examples/numeric/otp.ml`; its self-test exercises the
+real bridge and closes its window. `scripts/test_otp_input.py` additionally targets
+the example through macOS accessibility and OS keyboard delivery.
+
 ### Remaining integration and acceptance
 
-- Add command/result envelopes and public mounted Bonsai/Eio controllers, including
-  current lease checks, cancellation and correlated response ordering.
-- Provide public examples for both alphabets and validate the complete OCaml-to-
-  native command/event path using the public API.
 - Expand OTP-specific hidden/modal/list/window lifecycle and retained-load checks;
   validate layout/theme/scale/masking visually and external OS input as appropriate.
 - Complete local macOS acceptance and consolidated required macOS/Linux checks

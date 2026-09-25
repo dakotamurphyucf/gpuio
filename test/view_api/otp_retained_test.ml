@@ -242,3 +242,62 @@ let%expect_test "OTP reconciliation retains identity, immutable policy and event
   [%expect
     {| stable seed/owner, latest callbacks, policy and revision fences, atomic failures, disabled delivery and remount |}]
 ;;
+
+let%expect_test "OTP command envelopes preserve tags and reject malformed payloads" =
+  let command =
+    W.Command.Replace
+      { value = "12"; selection = End; undo = Record; if_revision = Some 7L }
+  in
+  let request = Wire.Message.Otp_input_command (9L, window, node, command) in
+  let event = Wire.Event.Otp_input_result (9L, window, node, Applied snapshot) in
+  Eio_main.run (fun env ->
+    let fs = Eio.Stdenv.fs env in
+    assert (
+      String.equal
+        (Wire.Message.encode request |> ok |> hex)
+        (Eio.Path.load Eio.Path.(fs / "otp-input-command-request.hex") |> String.strip));
+    assert (
+      String.equal
+        (event_bytes [ event ] |> hex)
+        (Eio.Path.load Eio.Path.(fs / "otp-input-command-events.hex") |> String.strip)));
+  let bytes = event_bytes [ event ] in
+  assert (List.equal Wire.Event.equal (Wire.Event.decode bytes |> ok) [ event ]);
+  for length = 0 to String.length bytes - 1 do
+    assert (Result.is_error (Wire.Event.decode (String.prefix bytes length)))
+  done;
+  assert (Result.is_error (Wire.Event.decode (bytes ^ "\000")));
+  List.iter [ 0L; -1L ] ~f:(fun correlation ->
+    assert (
+      Result.is_error
+        (Wire.Message.encode (Otp_input_command (correlation, window, node, command))));
+    assert (
+      Result.is_error
+        (Wire.Event.decode
+           (event_bytes
+              [ Otp_input_result (correlation, window, node, Applied snapshot) ]))));
+  List.iter
+    [ W.Command.Replace
+        { value = "Ａ"; selection = End; undo = Record; if_revision = None }
+    ; Replace
+        { value = "12"
+        ; selection = Select { anchor = 3L; head = 0L }
+        ; undo = Reset
+        ; if_revision = None
+        }
+    ; Clear { undo = Record; if_revision = Some (-1L) }
+    ]
+    ~f:(fun command ->
+      assert (
+        Result.is_error
+          (Wire.Message.encode (Otp_input_command (9L, window, node, command)))));
+  assert (
+    Result.is_error
+      (Wire.Event.decode
+         (event_bytes
+            [ Otp_input_result (9L, window, node, Applied { snapshot with revision = -1L })
+            ])));
+  print_endline
+    "message 16, response 49; paired bytes, bounded payloads and positive correlation";
+  [%expect
+    {| message 16, response 49; paired bytes, bounded payloads and positive correlation |}]
+;;

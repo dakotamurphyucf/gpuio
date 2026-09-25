@@ -118,6 +118,7 @@ let worker native notification_read ~self_test =
       | List_viewport _
       | Slider_result _
       | Slider_event _
+      | Otp_input_result _
       | Number_input_result _
       | Number_input_event _
       | Otp_input_event _
