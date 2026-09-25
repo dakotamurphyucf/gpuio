@@ -503,6 +503,7 @@ impl View {
                     let active = Some(&row.route.config.id) == selected.as_ref();
                     let mut item = div()
                         .id(gpui::SharedString::from(row.route.config.id.clone()))
+                        .w_full()
                         .h(px(style.row_height as f32))
                         .px(px(8.))
                         .flex()

@@ -214,7 +214,9 @@ fn apply<M: InputModeKind>(
     window: &mut Window,
     cx: &mut Context<InputBaseState<M>>,
 ) -> Result<EditorSnapshot, EditorError> {
-    if state.bridge_composition().is_some() && !matches!(command, EditorCommand::Focus) {
+    if state.bridge_composition().is_some()
+        && !matches!(command, EditorCommand::Focus | EditorCommand::ReadSnapshot)
+    {
         return Err(EditorError::Composing);
     }
     let valid_selection = |selection: &EditorSelection, text: &str| {
@@ -273,7 +275,7 @@ fn apply<M: InputModeKind>(
         EditorCommand::Focus => state.focus(window, cx),
         EditorCommand::Undo => state.bridge_undo(window, cx),
         EditorCommand::Redo => state.bridge_redo(window, cx),
-        EditorCommand::Submit => (),
+        EditorCommand::Submit | EditorCommand::ReadSnapshot => (),
     }
     Ok(snapshot(state, window, cx))
 }

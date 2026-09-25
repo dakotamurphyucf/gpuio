@@ -1,0 +1,15 @@
+(executable
+ (name main)
+ (libraries
+  core
+  gpuio_agent_chat_runtime
+  gpuio_agent_chat_model
+  gpuio
+  gpuio.bonsai
+  gpuio.eio
+  bonsai
+  eio_main)
+ (link_flags
+  (:include ../../lib/native/link_flags.sexp))
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

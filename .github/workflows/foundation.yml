@@ -156,6 +156,11 @@ jobs:
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_document"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-documents-native.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/documents/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-documents-public.log
+      - name: macOS agent workspace
+        if: runner.os == 'macOS'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/agent_chat/main.exe", "--self-test"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-agent-chat-public.log
+          python3 scripts/test_agent_chat.py 2>&1 | tee .cache/ci/macos-agent-chat-native.log
       - name: macOS native image pixels and cleanup
         if: runner.os == 'macOS'
         run: |

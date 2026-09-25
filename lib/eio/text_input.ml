@@ -72,3 +72,5 @@ let submit t =
        let%map () = t.on_submit submission in
        Ok ())
 ;;
+
+let read_snapshot t = command t Read_snapshot

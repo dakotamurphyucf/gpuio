@@ -1,0 +1,12 @@
+(library
+ (name gpuio_agent_chat_runtime)
+ (libraries
+  core
+  gpuio_agent_chat_model
+  gpuio
+  gpuio.bonsai
+  gpuio.eio
+  bonsai
+  eio)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

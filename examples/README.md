@@ -8,7 +8,7 @@ handlers; they do not prove real OS IME or accessibility behavior.
 
 The bootstrap protocol and single-window application host are private to this
 example. The production per-window Bonsai/Eio API is demonstrated in `runtime/`.
-Agent chat and graphics examples grow with subsequent milestones.
+The integrated `agent_chat/` workspace is documented in its [README](agent_chat/README.md). Graphics examples follow in later milestones.
 
 `view_api/` demonstrates the public typed view/style/theme vocabulary, reusable
 components, a compiled Bonsai.Cont component and an explicit Eio bridge runner.

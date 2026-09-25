@@ -61,3 +61,12 @@ val clear_if_unchanged
     Success means the handler completed; it does not imply an external send
     was accepted. Use [clear_if_unchanged] after application acceptance. *)
 val submit : t -> (unit, Gpuio.Text_input.Command_error.t) Result.t Bonsai.Effect.t
+
+(** Read current native text, selection and composition without editing, focusing
+    or submitting. Unlike the last observed [snapshot], this is asynchronous and
+    works for hidden/disabled editors, including active IME composition. Useful
+    for close decisions and saving drafts. Native lease checks still apply. *)
+val read_snapshot
+  :  t
+  -> (Gpuio.Text_input.Snapshot.t, Gpuio.Text_input.Command_error.t) Result.t
+       Bonsai.Effect.t

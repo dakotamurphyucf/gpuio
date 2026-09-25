@@ -4,6 +4,10 @@
 Read [current status](status.md) first: imported research status and absolute paths
 describe earlier experiments and are not current source dependencies.
 
+- [Agent workspace composition](design/agent-workspace.md)
+- [Streaming documents](design/documents.md)
+- [Windows, tabs and split panes](design/windows.md)
+- [Milestone 4 acceptance evidence](evidence/agent-workspace-m4.md)
 - [Standards](design/engineering-standards.md)
 - [Accepted contracts](design/accepted-contracts.md)
 - [Architecture](design/architecture.md)

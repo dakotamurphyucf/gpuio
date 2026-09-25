@@ -84,6 +84,7 @@ pub(super) struct Presentation {
     installed_page_start: usize,
     page_start: usize,
     page_end: usize,
+    source_lines: usize,
     installed: Option<Arc<Snapshot>>,
     images: document_markdown::Images,
 }
@@ -141,6 +142,7 @@ impl Presentation {
             installed_page_start: 0,
             page_start: 0,
             page_end: 0,
+            source_lines: 1,
             installed: None,
             images: Default::default(),
         }
@@ -261,6 +263,7 @@ impl Presentation {
                 })
                 .collect()
         });
+        self.source_lines = page.text.bytes().filter(|byte| *byte == b'\n').count() + 1;
         let old = self.installed.as_ref();
         self.editor.update(cx, |state, cx| {
             let mut selection = state.bridge_selection();
@@ -519,10 +522,17 @@ impl Render for Presentation {
         let mut toolbar = div()
             .flex()
             .items_center()
-            .gap(px(12.))
-            .child(self.config.label.clone())
+            .gap(px(10.))
+            .text_size(px(11.))
+            .text_color(gpui::rgb(if self.config.dark {
+                0x969dad
+            } else {
+                0x656a76
+            }))
+            .child(div().flex_1().child(self.config.label.clone()))
             .child(
                 gpui_base::Button::new("document-collapse")
+                    .aria_label(if self.collapsed { "Expand" } else { "Collapse" })
                     .track_focus(&self.buttons["document-collapse"])
                     .cursor_pointer()
                     .child(if self.collapsed { "Expand" } else { "Collapse" })
@@ -534,6 +544,7 @@ impl Render for Presentation {
             )
             .child(
                 gpui_base::Button::new("document-copy")
+                    .aria_label("Copy source")
                     .track_focus(&self.buttons["document-copy"])
                     .cursor_pointer()
                     .child("Copy source")
@@ -546,6 +557,7 @@ impl Render for Presentation {
         if self.source_mode && self.markdown.is_some() {
             toolbar = toolbar.child(
                 gpui_base::Button::new("document-rendered")
+                    .aria_label("Rendered view")
                     .track_focus(&self.buttons["document-rendered"])
                     .child("Rendered view")
                     .on_click(cx.listener(|this, _, _, cx| {
@@ -568,6 +580,7 @@ impl Render for Presentation {
                 ))
                 .child(
                     gpui_base::Button::new("document-search-previous")
+                        .aria_label("Previous match")
                         .track_focus(&self.buttons["document-search-previous"])
                         .cursor_pointer()
                         .child("Previous match")
@@ -577,6 +590,7 @@ impl Render for Presentation {
                 )
                 .child(
                     gpui_base::Button::new("document-search-next")
+                        .aria_label("Next match")
                         .track_focus(&self.buttons["document-search-next"])
                         .cursor_pointer()
                         .child("Next match")
@@ -588,6 +602,7 @@ impl Render for Presentation {
         if self.page_start > 0 {
             toolbar = toolbar.child(
                 gpui_base::Button::new("document-previous")
+                    .aria_label("Previous source page")
                     .track_focus(&self.buttons["document-previous"])
                     .cursor_pointer()
                     .child("Previous source page")
@@ -604,6 +619,7 @@ impl Render for Presentation {
         {
             toolbar = toolbar.child(
                 gpui_base::Button::new("document-next")
+                    .aria_label("Next source page")
                     .track_focus(&self.buttons["document-next"])
                     .cursor_pointer()
                     .child("Next source page")
@@ -619,6 +635,7 @@ impl Render for Presentation {
         if let Some(navigation) = navigation.clone() {
             toolbar = toolbar.child(
                 gpui_base::Button::new("document-location")
+                    .aria_label("Go to line")
                     .track_focus(&self.buttons["document-location"])
                     .child("Open line")
                     .on_click(
@@ -704,7 +721,8 @@ impl Render for Presentation {
         }
         let height = match self.config.layout {
             Layout::Viewport(height) => height as f32,
-            Layout::Flow => 360.,
+            Layout::Flow => ((self.source_lines + 1) as f32 * window.line_height().as_f32() + 16.)
+                .clamp(60., 360.),
         };
         if let Some(state) = self.markdown.as_ref().filter(|_| !self.source_mode) {
             let highlighter = self
@@ -721,6 +739,7 @@ impl Render for Presentation {
                 .table_actions(|table, _, _| {
                     let markdown = table.markdown.clone();
                     gpui_base::Button::new("copy-table")
+                        .aria_label("Copy table")
                         .child("Copy table")
                         .on_click(move |_, _, cx| {
                             cx.write_to_clipboard(gpui::ClipboardItem::new_string(markdown.clone()))
@@ -729,6 +748,7 @@ impl Render for Presentation {
                 .code_block_actions(|block, _, _| {
                     let code = block.code();
                     gpui_base::Button::new("copy-code")
+                        .aria_label("Copy code")
                         .child("Copy code")
                         .on_click(move |_, _, cx| {
                             cx.write_to_clipboard(gpui::ClipboardItem::new_string(code.to_string()))
@@ -747,7 +767,7 @@ impl Render for Presentation {
                 content
             });
         } else {
-            if self.ready {
+            if self.ready && (self.page_start > 0 || self.page_end < self.snapshot.text.len()) {
                 root = root.child(format!(
                     "Source bytes {}–{} of {}",
                     self.page_start,
@@ -759,6 +779,11 @@ impl Render for Presentation {
                 div()
                     .w_full()
                     .h(px(height))
+                    .font_family(if cfg!(target_os = "macos") {
+                        "Menlo"
+                    } else {
+                        "DejaVu Sans Mono"
+                    })
                     .child(Editor::new(&self.editor)),
             );
         }
@@ -961,9 +986,9 @@ pub(crate) mod test;
 
 fn markdown_style(dark: bool) -> gpui_base::TextViewStyle {
     let (foreground, background, border) = if dark {
-        (0xd8dee9, 0x2b303b, 0x4f5b66)
+        (0xe6e7ed, 0x1b1e26, 0x2b2f39)
     } else {
-        (0x323232, 0xf7f7f7, 0xd8dee9)
+        (0x262832, 0xf3f3f1, 0xe0e1df)
     };
     gpui_base::TextViewStyle::default()
         .with_dark(dark)

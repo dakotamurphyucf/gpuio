@@ -1,4 +1,4 @@
-# Revisioned display documents (OCH-14, implementation in progress)
+# Revisioned display documents (OCH-14)
 
 OCaml owns canonical content; Rust owns display copies, parsing, layout and
 selection. A document outlives its mounted views and belongs to an application
@@ -20,17 +20,16 @@ published atomically after validation. Staging never exposes half a Unicode
 scalar or partial replacement to a widget. Stale acknowledgements and parser
 results cannot overwrite newer generations. Multiple views share a registration.
 
-Initial explicit budgets: 8 MiB UTF-8 source per document, 16 KiB canonical
-chunks, 256 KiB maximum update message payload. Additional native aggregate,
-parser concurrency, rich-render expansion and cache budgets will be fixed and
-measured before acceptance. Huge source retention and bounded rendering are
+Source budgets: 8 MiB UTF-8 source per document, 16 KiB canonical
+chunks, 256 KiB maximum update message payload. The native store also bounds aggregate charged snapshots/staging to64MiB,
+with at most8 staged uploads. Parser/view limits are specified below. Huge source retention and bounded rendering are
 separate contracts; transcript row virtualization alone is insufficient.
 
 Markdown must be parsed as complete snapshots for semantic correctness: later
 reference definitions and incomplete fences can change earlier interpretation.
-The pinned Base renderer is a reuse candidate, but its unbounded queues,
-tail-only append parsing and measure-all list are not GPUIO contracts. Parser
-work must be bounded and stale results rejected. No synchronous OCaml callback
+The adapted Base renderer accepts externally prepared snapshots. GPUIO replaces
+its original parser task/queue path with the bounded worker service below; the
+original tail-only append parser is not used. Stale work is discarded. No synchronous OCaml callback
 is permitted during native layout or paint. Images use explicit registered
 assets; link navigation is delivered as a typed application event.
 
@@ -40,8 +39,9 @@ clears it. Copying source ranges is independent of viewport membership; copying
 rendered Markdown selection follows the renderer's explicit plain/source mode.
 Cross-document transcript copy remains an application data operation.
 
-This document is a design checkpoint, not completion evidence. Public widget
-signatures, measurements and exact tested limits will be recorded as implemented.
+Public interfaces live in `lib/core/{text_source,document}.mli` and
+`lib/eio/document.mli`. The [M4 evidence ledger](../evidence/agent-workspace-m4.md)
+records tested behavior, measurements and platform limits.
 
 ## Syntax implementation
 
@@ -59,7 +59,7 @@ plain text, without partially coloring a misleading prefix. Grammar/theme
 bundles load once. Native scheduling, presentation and measured costs remain
 under implementation.
 
-## Current native presentation (under acceptance testing)
+## Native presentation
 
 `Gpuio.Document.Config` selects Markdown, a code language, or unified diff;
 `Appearance.Light/Dark` selects syntax colors explicitly. `View.document`
@@ -80,7 +80,9 @@ Rich Markdown is limited to64KiB, 4096 AST nodes, depth32, 256 top-level blocks
 and16KiB lines. Exceeding a parser/highlighter limit retains the full canonical
 source and shows an explicit source fallback. Source pages contain at most64KiB,
 1024 lines, with long lines split into16KiB segments on Unicode boundaries.
-The source byte interval is visible; gutter numbers retain original line origins.
+Paged source shows its byte interval; gutter numbers retain original line origins.
+Small code/diff blocks in Flow use a content-sized area capped at360 logical pixels;
+explicit Viewport height remains fixed. A complete single page omits paging metadata.
 Previous/next pages do not modify the canonical source. Copy source always
 copies the entire source. Native editor selection is page-local in this explicit
 huge-document mode; the source API remains available for application-owned ranges.
@@ -103,5 +105,8 @@ leaving conversation-owned source streaming alive.
 Local macOS native tests currently cover actual GPUI layout/paint (background
 window), Unicode code selection under append, Markdown/table/fence/image fallback,
 select-all during streaming, diff preparation, huge-source search, and source
-lease teardown. They are not yet a complete keyboard/accessibility/physical
-presentation acceptance claim; Linux acceptance and measured costs remain pending.
+lease teardown. They do not claim physical presentation or complete OS IME
+acceptance. The reference app also exercises native document expansion through
+macOS accessibility; toolbar actions have explicit accessible names. Code/source
+uses the native platform monospace family. See the [M4 evidence ledger](../evidence/agent-workspace-m4.md)
+for measurements and consolidated platform validation. Linux GUI remains deferred.

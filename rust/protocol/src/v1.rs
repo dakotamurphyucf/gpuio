@@ -392,6 +392,7 @@ pub enum EditorCommand {
     Undo,
     Redo,
     Submit,
+    ReadSnapshot,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum EditorError {

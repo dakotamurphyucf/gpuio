@@ -153,7 +153,8 @@ suites, native keyboard/macOS accessibility/hidden-panel checks, the full native
 controls regression, Clippy, and formatting. Split panes additionally passed native pointer/keyboard/macOS AX increment and
 decrement checks, cancellation on hide/Escape/reset, both axes, native child-editor
 identity preservation, disposal, and independent Rust/OCaml binary fixtures.
-The integrated agent application and final consolidated gates remain pending.
+The integrated agent application passes local controller and native macOS AX
+scenarios. Final consolidated gates are recorded in the [M4 evidence ledger](../evidence/agent-workspace-m4.md).
 
 The reference-workspace integration adds two composition APIs. `List_paging.append`
 adds live rows only at a known latest boundary (`After = End`), preserving the
@@ -164,3 +165,8 @@ older Bonsai observation. Active IME composition and hidden/disabled placements
 reject submission. `clear_if_unchanged` remains the conditional clear after
 application acceptance. Native Submit returns its snapshot without emitting a
 second Submitted event, so button and Enter paths invoke the handler once.
+
+`Text_input.read_snapshot` reads current native draft and marked-composition state
+without editing, submitting or focusing. Retained hidden/disabled editors remain
+readable. Close guards should use it when the last asynchronous Bonsai observation
+might lag native input; the agent-workspace example demonstrates this contract.

@@ -90,12 +90,21 @@ let worker native notification_read ~self_test =
           incr value;
           if !value mod 4 = 0 then alternate := not !alternate;
           dirty := true)
+      | Close_requested window -> send (Close (4L, window))
+      | Quit_requested -> send Shutdown
       | Stopped ->
         Reconciler.close reconciler;
         stopped := true
       | Closed _ -> Reconciler.close reconciler
       | Rejected _ | Failed _ | Overloaded _ ->
         failwith "native view example rejected an update"
+      | Reopen_requested
+      | Document_response _
+      | Document_navigation _
+      | Window_changed _
+      | Window_response _
+      | Window_capabilities _
+      | Split_resized _
       | Rendered _
       | Frame_requested _
       | Editor_event _

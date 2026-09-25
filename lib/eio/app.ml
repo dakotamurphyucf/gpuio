@@ -432,7 +432,7 @@ module Window = struct
             else if Result.is_error (Input.validate_text ~mode:Multiline text)
             then Some Invalid_text
             else None
-          | Select _ | Focus | Undo | Redo | Submit -> None
+          | Select _ | Focus | Undo | Redo | Submit | Read_snapshot -> None
         in
         if is_closed t || t.app.stopping
         then complete (Error Input.Command_error.Closed)

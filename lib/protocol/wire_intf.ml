@@ -451,6 +451,7 @@ module type S = sig
         | Undo
         | Redo
         | Submit
+        | Read_snapshot
       [@@deriving bin_io, equal, sexp_of]
     end
 

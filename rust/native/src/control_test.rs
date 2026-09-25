@@ -302,6 +302,14 @@ async fn retained_tab_panel(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>)
     handle
         .update(cx, |view, window, cx| {
             assert!(!view.editors[&node(7)].focus_handle(cx).is_focused(window));
+            let read = view.editors.get_mut(&node(7)).unwrap().command(
+                &EditorCommand::ReadSnapshot,
+                window,
+                cx,
+            );
+            assert!(
+                matches!(read, EditorResult::Applied(ref snapshot) if snapshot.text == before.text)
+            );
             assert!(matches!(
                 view.editors
                     .get_mut(&node(7))

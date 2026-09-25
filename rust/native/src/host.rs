@@ -441,6 +441,11 @@ impl View {
             }
         }
         let mut element = div().id(("gpuio-node", identity));
+        if node.kind == Kind::Text && !interaction.selectable && !node.text.is_empty() {
+            element = element
+                .role(gpui::Role::Label)
+                .aria_label(node.text.clone());
+        }
         if let Some(description) = tree.tooltip_description(id) {
             element = element.aria_description(description.to_owned());
         }
@@ -852,7 +857,7 @@ impl View {
             {
                 element = element.child(self.element(tree, *trailing, interaction, window, cx));
             }
-        } else if !label.is_empty() {
+        } else if !label.is_empty() && node.kind != Kind::TabPanel {
             element = element.child(gpui::SharedString::from(label));
         }
         for child in node.children.iter() {

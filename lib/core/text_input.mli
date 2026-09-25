@@ -96,6 +96,7 @@ module Command : sig
     | Undo
     | Redo
     | Submit
+    | Read_snapshot
   [@@deriving equal, sexp_of]
 end
 

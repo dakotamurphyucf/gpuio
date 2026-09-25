@@ -249,6 +249,10 @@ async fn exercise(
         assert_eq!(marked.text, "に");
         assert!(marked.composition.is_some());
         assert_eq!(
+            command(cx, handle, node(2), EditorCommand::ReadSnapshot),
+            EditorResult::Applied(marked.clone())
+        );
+        assert_eq!(
             command(cx, handle, node(2), EditorCommand::Submit),
             EditorResult::Failed(EditorError::Composing)
         );
