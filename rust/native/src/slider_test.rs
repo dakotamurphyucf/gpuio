@@ -1,5 +1,7 @@
 #[path = "slider_lifecycle_test.rs"]
 mod lifecycle;
+#[path = "slider_workload_test.rs"]
+mod workload;
 use super::super::{
     editor_test::key,
     native_test::{mouse, move_mouse},
@@ -975,6 +977,7 @@ pub(super) async fn exercise(
     );
     frame(cx, handle).await;
     assert!(handle.update(cx, |v, _, _| v.sliders.is_empty()).unwrap());
+    workload::exercise(cx, handle, transport).await;
     #[cfg(target_os = "macos")]
     eprintln!(
         "GPUIO_SLIDER_AX_OK: independent range values/actions/bounds, hidden/modal policy, single logarithmic value"

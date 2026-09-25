@@ -100,7 +100,9 @@ light/dark palettes, display densities and constrained layouts. The public examp
 shows single/range and linear/logarithmic modes, all now exercised by external
 macOS keyboard/AX automation. Decorated pointer geometry, capture loss,
 minimize/restore and independent-window/close lifetimes also pass locally.
-Many-owner workload acceptance and number/OTP integration remain pending; no capability
+A three-cycle, 1,024-owner native workload passes bounded event/coalescing, idle
+and owner-disposal checks; debug timing and batching limits are documented.
+Number/stepper/OTP integration remains pending; no capability
 is advertised.
 See [numeric design](design/numeric-inputs.md) and
 [foundation evidence](evidence/numeric-inputs-och34.md).

@@ -329,3 +329,48 @@ Validation (local macOS):
 All GUI children are terminal and reaped. Bounded many-owner workloads and the
 remaining numeric editor/stepper/OTP families are still pending. Hosted CI, merge
 and Linux desktop GUI acceptance remain outstanding; OCH-34 is still In Progress.
+
+## Mounted slider workload
+
+`slider_workload_test.rs`, included in `native_slider`, passed three cycles of
+1,024 retained range sliders / 2,048 thumb focus handles in the actual native
+window. The ordinary layout includes offscreen owners; this is not a claim that
+all 1,024 controls fit onscreen. Mounts are admitted in 64-owner batches with event
+drains between them, below the shared input lane's 128 discrete-event capacity.
+It does not promise that one arbitrarily large atomic mount can bypass overload
+policy. Fresh slots are consecutive and reused slots advance generations.
+
+Every cycle checks all mount observations, 64 sequential keyboard actions with
+native commits and no tree transactions, and a 2,000-move burst through GPUI's
+native event dispatch before a frame boundary. The burst produces exactly three
+queued observations: drag start, latest preview, final commit. Stationary owners
+produce no events or idle renders. After removal and settled frames, all 1,024
+weak owner references expire, the native owner map is empty, and session payload
+accounting returns to zero. The mounted payload accounting is 142,336 bytes in
+each cycle; that figure is not total process RSS or renderer/allocator memory.
+
+One local macOS debug run measured:
+
+| Cycle | Mount + settled frame | 64 sequential keyboard events + frame | Complete cycle |
+| --- | --- | --- | --- |
+| 1 | 509.973 ms | 2.857 s | 3.968 s |
+| 2 | 483.037 ms | 2.900 s | 3.979 s |
+| 3 | 482.791 ms | 2.900 s | 3.995 s |
+
+That is roughly 45 ms per sequential keyboard event in this deliberately large,
+unvirtualized debug tree. It is not a 60-fps or release-build latency guarantee.
+Use managed lists for large scrolling control collections; final application
+performance/release validation remains part of integrated showcase/OCH-17 work.
+The initial stress harness issued each of 2,000 synthetic moves in a separate
+outer application update. Sampling showed a full tree redraw after each one;
+it exceeded the 60-second test timeout and was killed/reaped. The final test
+separately measures sequential input cost and queue pressure from a burst, while
+retaining the full 2,000-event coalescing assertion. No performance claim is based
+on the timeout run.
+
+The complete native image-test slider suite passes with the workload included,
+covering the earlier visual/input/geometry/window-lifetime regressions as well.
+All children exited normally on the passing run. Numeric editor/stepper/OTP
+implementation remains pending, so no OCH-34 capability or ticket completion is
+claimed. The detailed Number_input target in the design document records the
+next implementation's draft/commit/IME/undo/revision/stepper contracts.

@@ -211,3 +211,110 @@ Pointer mapping uses the actual rail bounds produced by native layout, including
 asymmetric border/padding refinements. If those bounds change during capture,
 the drag cancels with `Interrupted` and restores the committed value, even when
 the outer control's size has not changed. Late release cannot commit the old drag.
+
+## Numeric editor and stepper implementation target
+
+The following refines the accepted draft/value contract for the next OCH-34
+implementation. It is an API target, not a claim that `Number_input` exists yet.
+
+### Ownership and public shape
+
+Use one native single-line `InputState` per `View.number_input` placement. The
+editor owns draft text, UTF-8 selection, composition and bounded undo history;
+a native numeric owner holds its validated configuration, committed value and
+observation revision. Step buttons share that owner and preserve editor focus.
+Do not use the candidate NumberInput's mask/parse-to-zero path.
+
+The Core module will be `Number_input`, with `Value`, `Config`, `Revision`,
+`Snapshot`, `Event`, `Command` and `Command_error` submodules. `Value` distinguishes
+`Empty` from a validated finite `Number`; constructors reject NaN/infinity.
+`Config` owns `Numeric.Domain`, labels, placeholder, empty-commit policy,
+`Hidden | Sides | Stacked` step controls, disabled/read-only and initial autofocus.
+A public `Gpuio_eio.Number_input` Bonsai controller supplies one stable placement,
+observations and correlated commands, following the slider/editor lease rules.
+Snapshots are owner-bound and opaque, exposing the draft, its current
+`Numeric.Draft` classification, last committed value, selection/composition,
+focus and a numeric observation revision. They are never fed back as replacement
+properties. `initial` seeds the native owner only once.
+
+An empty initial value means no committed number yet, including required fields.
+`allow_empty` controls whether a user/explicit Commit may accept Empty. A config
+change that makes an existing empty value required does not invent a number or
+rewrite the draft; the next empty Commit is rejected. Explicit `Replace_value`
+may reset to Empty, including a required field, just as mounting an empty field
+can. It emits an observation, not a successful user-commit event.
+
+### Editing, commit and stepping
+
+- Ordinary text edits, paste, selection and marked text stay native. Enforce a
+  4096-byte draft bound using the existing editor's edit/IME/history limits.
+  Unicode drafts may be displayed even though the numeric grammar is ASCII.
+  Classification is not an edit filter: `-`, `1e-` and invalid drafts remain
+  visible. Numeric parsing never silently substitutes zero for invalid input.
+- Enter outside composition and `Commit` validate, normalize to the current
+  domain, and format the resulting finite value as a round-tripping decimal.
+  Valid out-of-range numbers clamp through `Numeric.Domain.normalize`.
+  Empty commits succeed only when allowed. Incomplete/invalid or disallowed
+  empty commits report a typed rejection and preserve draft/selection.
+- Focus loss alone does not commit or rewrite text. Applications that want a
+  form-level submit use the explicit Commit operation and its typed result.
+- Escape first follows the existing editor/IME marked-text handling without
+  restoring the committed value in that same keystroke; outside composition it restores the committed value's text. Explicit Cancel
+  during composition rejects with `Composing` rather than discarding marked text.
+- Up/Down, step buttons and AX increment/decrement normalize a valid numeric
+  draft then advance one shared-domain point, saturating at bounds. An empty
+  draft starts at normalized zero without an extra step. Incomplete/invalid
+  drafts reject stepping and remain untouched. A successful step commits its
+  value and places the caret at the end. No stepping runs through active IME.
+- Successful normalization/stepping/cancel replacements form individual native
+  undo transactions. Undo/redo restore draft and selection, not the committed
+  application value; restored drafts are classified again and require a new
+  commit. Explicit replacement can choose Record or Reset history, as text input
+  already permits. This distinction must be demonstrated in the public example.
+- Domain changes normalize the stored committed number and reclassify the draft,
+  preserving text, caret, composition and history. They produce an observation,
+  not a user commit. Styling, labels and routine observations never reset text.
+- Disabled/read-only suppress user mutations and stop pointer repeat. Explicit
+  value/draft replacements remain possible, as in existing editor/slider APIs.
+  Programmatic Commit/Cancel are explicit edits; programmatic Step follows the
+  same disabled/read-only policy as user stepping. Read/focus retain normal
+  native gates. All mutating commands other than focus/read reject during composition.
+
+The numeric observation revision advances for every exposed state change and
+commit/rejection/cancel event, including semantic changes without an editor text
+edit. This gives repeated commit attempts distinct ordered identities. The inner
+editor's text revision remains an implementation detail. Command/step/commit
+paths must reserve revision capacity before mutating either numeric state or
+editor text. If an ordinary editor observation exhausts the numeric sequence,
+fault window input rather than publishing inconsistent state or rewinding user
+edits. Stale/foreign guards and invalid commands fail without touching either state.
+
+### Commands, native integration and validation
+
+Provide Read_snapshot, Focus, Select, Undo, Redo, Commit, Cancel, Step,
+Replace_draft and Replace_value with explicit selection/undo policies and
+optional numeric revision guards where replacement can race edits. The Eio
+`replace_if_unchanged` helpers additionally check the window/node lease. Separate
+observations from committed/rejected/cancelled events; coalesce only adjacent
+ordinary change observations, preserving semantic boundaries and command replies.
+
+Native subscription handlers must reconcile the number owner with the live editor
+before publishing or serving a command. Commit/step/replace capture their final
+editor snapshot synchronously and suppress a later duplicate ordinary-change
+notification. No synchronous OCaml call occurs from an editor action, IME delegate,
+layout or paint. Reuse narrow native editor helpers; do not expose an unrestricted
+second text-input controller for the same numeric placement.
+
+Use semantic numeric value/min/max/step and increment/decrement actions alongside
+the editable text field's native text selection/IME interface. Invalid drafts need
+accessible validation feedback without claiming a numeric value parsed from
+invalid text. Test the actual macOS role/value/action mapping; source declarations
+alone are insufficient. Pointer-repeat tasks must be weak-owner scoped, stop on
+release/cancel/policy/visibility/window loss, and never wake an idle field.
+
+Implement and validate in this order: Core/Rust contracts and independent codecs;
+reconciliation and a native numeric model; native editor/stepper integration;
+Bonsai/Eio controller; public examples and actual paste/IME/selection/undo,
+keyboard/pointer repeat, AX, stale-guard and lifetime acceptance. Reuse the
+existing shared domain/draft tests and include transient `-`, exponent prefixes,
+rounding boundaries, overflow and domain updates during marked text.
