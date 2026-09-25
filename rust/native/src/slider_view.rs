@@ -1,0 +1,719 @@
+//! Retained native slider ownership. Pointer/keyboard/AX mutations share one model;
+//! only bounded observations cross the OCaml bridge.
+use super::{View, choice::Route, pointer_enabled};
+use crate::slider_state::{Adjustment, State as Model};
+use gpui::{prelude::*, *};
+use gpuio_protocol::{
+    NodeId,
+    numeric::Direction,
+    slider::{Axis, CancelReason, Event, Source, Thumb, Value},
+};
+use std::{cell::RefCell, rc::Rc};
+
+pub(super) type Shared = Rc<RefCell<State>>;
+pub(super) struct State {
+    pub model: Model,
+    pub focus: Vec<(Thumb, FocusHandle)>,
+    route: Route,
+    bounds: Bounds<Pixels>,
+    hitbox: Option<HitboxId>,
+    capture: Option<HitboxId>,
+    drag_offset: f64,
+    closed: bool,
+}
+impl State {
+    fn emit(&self, events: impl IntoIterator<Item = Event>) {
+        for event in events {
+            let routed = self.route.session.borrow().slider_event(
+                self.route.window,
+                self.route.node,
+                self.route.handler,
+                self.route.revision,
+                event,
+            );
+            if let Some(event) = routed
+                && !self.route.transport.input(event)
+                && self.route.session.borrow_mut().overload(self.route.window)
+            {
+                self.route.transport.fault(self.route.window);
+            }
+        }
+    }
+    fn current(&self) -> bool {
+        !self.closed
+            && self
+                .route
+                .session
+                .borrow()
+                .slider_event(
+                    self.route.window,
+                    self.route.node,
+                    self.route.handler,
+                    self.route.revision,
+                    Event::Observed(self.model.snapshot()),
+                )
+                .is_some()
+    }
+    fn allowed(&self, pointer: bool) -> bool {
+        self.current()
+            && !self.model.config().disabled
+            && self.route.gate.borrow().allows(self.route.node)
+            && (!pointer
+                || self
+                    .route
+                    .session
+                    .borrow()
+                    .tree(self.route.window)
+                    .is_some_and(|tree| pointer_enabled(tree, self.route.node)))
+    }
+    fn release_capture(&mut self, window: &mut Window) {
+        if let Some(capture) = self.capture.take()
+            && window.captured_hitbox() == Some(capture)
+        {
+            window.release_pointer();
+        }
+    }
+    pub(super) fn cancel(&mut self, reason: CancelReason, window: &mut Window) -> bool {
+        self.release_capture(window);
+        if let Ok(Some(event)) = self.model.cancel(reason) {
+            self.emit([event]);
+            window.refresh();
+            true
+        } else {
+            false
+        }
+    }
+    fn close(&mut self, window: &mut Window) {
+        self.cancel(CancelReason::Unmounted, window);
+        self.closed = true;
+        for (_, focus) in &self.focus {
+            focus.clone().tab_stop(false);
+        }
+    }
+    fn fraction(&self, position: Point<Pixels>) -> f64 {
+        let (offset, length) = match self.model.config().axis {
+            Axis::Horizontal => (position.x - self.bounds.left(), self.bounds.size.width),
+            Axis::Vertical => (self.bounds.bottom() - position.y, self.bounds.size.height),
+        };
+        let inset = 10_f64.min(f64::from(f32::from(length)) / 2.);
+        let span = f64::from(f32::from(length)) - 2. * inset;
+        if span <= 0. {
+            0.
+        } else {
+            (f64::from(f32::from(offset)) - inset) / span
+        }
+    }
+    fn thumb_value(&self, thumb: Thumb) -> f64 {
+        match (self.model.snapshot().value, thumb) {
+            (Value::Single(v), Thumb::Single) => v,
+            (Value::Range { lower, .. }, Thumb::Lower) => lower,
+            (Value::Range { upper, .. }, Thumb::Upper) => upper,
+            _ => unreachable!("fixed mounted thumb mode"),
+        }
+    }
+    fn nearest(&self, fraction: f64, window: &Window) -> Thumb {
+        self.focus
+            .iter()
+            .min_by(|(a, fa), (b, fb)| {
+                let distance = |thumb| {
+                    (self
+                        .model
+                        .config()
+                        .fraction(self.thumb_value(thumb))
+                        .unwrap()
+                        - fraction)
+                        .abs()
+                };
+                distance(*a)
+                    .total_cmp(&distance(*b))
+                    .then_with(|| fb.is_focused(window).cmp(&fa.is_focused(window)))
+            })
+            .expect("one or two thumbs")
+            .0
+    }
+    fn begin(
+        &mut self,
+        thumb: Option<Thumb>,
+        position: Point<Pixels>,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        if !self.allowed(true)
+            || self.model.config().read_only
+            || window.captured_hitbox().is_some()
+            || window.default_prevented()
+        {
+            return;
+        }
+        let Some(hitbox) = self.hitbox else {
+            return;
+        };
+        let fraction = self.fraction(position);
+        let selected = thumb.unwrap_or_else(|| self.nearest(fraction, window));
+        let Ok(start) = self.model.begin(selected) else {
+            return;
+        };
+        self.drag_offset = if thumb.is_some() {
+            fraction
+                - self
+                    .model
+                    .config()
+                    .fraction(self.thumb_value(selected))
+                    .unwrap()
+        } else {
+            0.
+        };
+        window.capture_pointer(hitbox);
+        self.capture = Some(hitbox);
+        let focus = &self.focus.iter().find(|(t, _)| *t == selected).unwrap().1;
+        window.focus(focus, cx);
+        self.emit([start]);
+        self.preview(position);
+        window.refresh();
+        window.prevent_default();
+        cx.stop_propagation();
+    }
+    fn preview(&mut self, position: Point<Pixels>) {
+        if let Ok(Some(event)) = self
+            .model
+            .preview_fraction(self.fraction(position) - self.drag_offset)
+        {
+            self.emit([event]);
+        }
+    }
+    fn adjust(
+        &mut self,
+        thumb: Thumb,
+        adjustment: Adjustment,
+        source: Source,
+        window: &mut Window,
+    ) {
+        if !self.allowed(false) {
+            return;
+        }
+        if let Ok(events) = self.model.adjust(thumb, adjustment, source) {
+            self.release_capture(window);
+            if !events.is_empty() {
+                self.emit(events);
+                window.refresh();
+            }
+        }
+    }
+    fn unavailable(&self) -> Option<CancelReason> {
+        if !self.current() {
+            Some(CancelReason::Unmounted)
+        } else if !self.route.gate.borrow().visible(self.route.node) {
+            Some(CancelReason::Hidden)
+        } else if !self.route.gate.borrow().allows(self.route.node) {
+            Some(CancelReason::Modal)
+        } else if !self
+            .route
+            .session
+            .borrow()
+            .tree(self.route.window)
+            .is_some_and(|tree| pointer_enabled(tree, self.route.node))
+        {
+            Some(CancelReason::Interrupted)
+        } else {
+            None
+        }
+    }
+}
+impl View {
+    pub(super) fn sync_sliders(
+        &mut self,
+        dirty: &[NodeId],
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let nodes = self.session.borrow().tree(self.id).map(|tree| {
+            (
+                tree.revision(),
+                dirty
+                    .iter()
+                    .filter_map(|id| tree.get(*id))
+                    .filter(|node| node.slider.is_some())
+                    .cloned()
+                    .collect::<Vec<_>>(),
+                self.sliders
+                    .keys()
+                    .copied()
+                    .filter(|id| tree.get(*id).is_some_and(|node| node.slider.is_some()))
+                    .collect::<std::collections::BTreeSet<_>>(),
+            )
+        });
+        let Some((revision, nodes, present)) = nodes else {
+            for state in self.sliders.values() {
+                state.borrow_mut().close(window);
+            }
+            self.sliders.clear();
+            return;
+        };
+        self.sliders.retain(|id, state| {
+            if present.contains(id) {
+                true
+            } else {
+                state.borrow_mut().close(window);
+                false
+            }
+        });
+        for node in nodes {
+            let mount = node.slider.as_ref().expect("filtered slider");
+            let route = Route {
+                window: self.id,
+                node: node.id,
+                handler: node.handler.expect("validated slider"),
+                revision,
+                session: self.session.clone(),
+                gate: self.focus.clone(),
+                transport: self.transport.clone(),
+            };
+            if let Some(shared) = self.sliders.get(&node.id) {
+                let mut state = shared.borrow_mut();
+                if state.route.handler != route.handler {
+                    state.cancel(CancelReason::Interrupted, window);
+                }
+                state.route = route;
+                match state.model.reconfigure(mount.config.clone()) {
+                    Ok(events) => {
+                        if state.model.snapshot().dragging.is_none() {
+                            state.release_capture(window);
+                        }
+                        state.emit(events);
+                    }
+                    Err(_) => {
+                        // Exhausted revisions cannot accept the new native policy.
+                        // Stop this window's input rather than editing under an old one.
+                        state.release_capture(window);
+                        if state
+                            .route
+                            .session
+                            .borrow_mut()
+                            .overload(state.route.window)
+                        {
+                            state.route.transport.fault(state.route.window);
+                        }
+                    }
+                }
+            } else {
+                let model =
+                    Model::new(mount.config.clone(), mount.initial).expect("validated slider");
+                let thumbs = match mount.initial {
+                    Value::Single(_) => vec![Thumb::Single],
+                    Value::Range { .. } => vec![Thumb::Lower, Thumb::Upper],
+                };
+                let state = State {
+                    model,
+                    focus: thumbs
+                        .into_iter()
+                        .map(|thumb| (thumb, cx.focus_handle().tab_stop(true)))
+                        .collect(),
+                    route,
+                    bounds: Bounds::default(),
+                    hitbox: None,
+                    capture: None,
+                    drag_offset: 0.,
+                    closed: false,
+                };
+                state.emit([Event::Observed(state.model.snapshot())]);
+                self.sliders.insert(node.id, Rc::new(RefCell::new(state)));
+            }
+        }
+        for shared in self.sliders.values() {
+            let mut state = shared.borrow_mut();
+            if let Some(reason) = state.unavailable() {
+                state.cancel(reason, window);
+            }
+        }
+    }
+    pub(super) fn cancel_slider_drags(&self, reason: CancelReason, window: &mut Window) -> bool {
+        let mut cancelled = false;
+        for state in self.sliders.values() {
+            cancelled = state.borrow_mut().cancel(reason, window) || cancelled;
+        }
+        cancelled
+    }
+    pub(super) fn hide_unvisited_sliders(&self, window: &mut Window, cx: &mut App) {
+        for (id, shared) in &self.sliders {
+            if !self.visited.contains(id) && shared.borrow().model.snapshot().dragging.is_some() {
+                let weak = Rc::downgrade(shared);
+                window.defer(cx, move |window, _| {
+                    if let Some(state) = weak.upgrade() {
+                        state.borrow_mut().cancel(CancelReason::Hidden, window);
+                    }
+                });
+            }
+        }
+    }
+}
+
+pub(super) fn element(
+    mut base: Stateful<Div>,
+    shared: Shared,
+    pointer: bool,
+    window: &Window,
+) -> Stateful<Div> {
+    let state = shared.borrow();
+    let config = state.model.config();
+    let axis = config.axis;
+    let disabled = config.disabled;
+    let read_only = config.read_only;
+    let focusable = state.allowed(false);
+    base = base.role(Role::Group).aria_label(config.label.clone());
+    let mut track = div()
+        .absolute()
+        .left(px(10.))
+        .right(px(10.))
+        .top(px(10.))
+        .bottom(px(10.));
+    let bar = match axis {
+        Axis::Horizontal => div()
+            .absolute()
+            .left_0()
+            .right_0()
+            .top(relative(0.5))
+            .mt(px(-2.))
+            .h(px(4.)),
+        Axis::Vertical => div()
+            .absolute()
+            .top_0()
+            .bottom_0()
+            .left(relative(0.5))
+            .ml(px(-2.))
+            .w(px(4.)),
+    }
+    .rounded(px(2.))
+    .bg(rgba(0x71809650));
+    track = track.child(bar);
+    let (low, high) = match state.model.snapshot().value {
+        Value::Single(v) => (0., config.fraction(v).unwrap()),
+        Value::Range { lower, upper } => (
+            config.fraction(lower).unwrap(),
+            config.fraction(upper).unwrap(),
+        ),
+    };
+    let fill = match axis {
+        Axis::Horizontal => div()
+            .absolute()
+            .left(relative(low as f32))
+            .w(relative((high - low) as f32))
+            .top(relative(0.5))
+            .mt(px(-2.))
+            .h(px(4.)),
+        Axis::Vertical => div()
+            .absolute()
+            .bottom(relative(low as f32))
+            .h(relative((high - low) as f32))
+            .left(relative(0.5))
+            .ml(px(-2.))
+            .w(px(4.)),
+    }
+    .rounded(px(2.))
+    .bg(rgba(if disabled { 0x71809670 } else { 0x6688ffff }));
+    track = track.child(fill);
+    for (part, (thumb, focus)) in state.focus.iter().enumerate() {
+        let thumb = *thumb;
+        let value = state.thumb_value(thumb);
+        let fraction = config.fraction(value).unwrap() as f32;
+        let label = match thumb {
+            Thumb::Single => &config.label,
+            Thumb::Lower => &config.lower_label,
+            Thumb::Upper => &config.upper_label,
+        };
+        let (min, max) = match (state.model.snapshot().value, thumb) {
+            (Value::Range { upper, .. }, Thumb::Lower) => (config.domain.min(), upper),
+            (Value::Range { lower, .. }, Thumb::Upper) => (lower, config.domain.max()),
+            _ => (config.domain.min(), config.domain.max()),
+        };
+        focus.clone().tab_stop(focusable);
+        let mut child = div()
+            .id(part)
+            .absolute()
+            .size(px(16.))
+            .rounded(px(8.))
+            .border_2()
+            .border_color(rgba(0x6688ffff))
+            .bg(rgba(if disabled { 0x718096ff } else { 0xf4f7ffff }))
+            .role(Role::Slider)
+            .aria_label(label.clone())
+            .aria_numeric_value(value)
+            .aria_min_numeric_value(min)
+            .aria_max_numeric_value(max)
+            .aria_numeric_value_step(config.domain.step())
+            .aria_orientation(match axis {
+                Axis::Horizontal => accesskit::Orientation::Horizontal,
+                Axis::Vertical => accesskit::Orientation::Vertical,
+            });
+        child = match axis {
+            Axis::Horizontal => child
+                .left(relative(fraction))
+                .top(relative(0.5))
+                .ml(px(-8.))
+                .mt(px(-8.)),
+            Axis::Vertical => child
+                .bottom(relative(fraction))
+                .left(relative(0.5))
+                .mb(px(-8.))
+                .ml(px(-8.)),
+        };
+        if focusable {
+            child = child.track_focus(focus).tab_index(0);
+        }
+        if focus.is_focused(window) {
+            child = child.border_color(rgba(0xf0b85aff));
+        }
+        if pointer && focusable && !read_only {
+            let down = shared.clone();
+            child = child.cursor_pointer().on_mouse_down(
+                MouseButton::Left,
+                move |event, window, cx| {
+                    down.borrow_mut()
+                        .begin(Some(thumb), event.position, window, cx);
+                },
+            );
+        }
+        let key = shared.clone();
+        child = child.on_key_down(move |event, window, cx| {
+            if event.keystroke.modifiers.modified() {
+                return;
+            }
+            let adjustment = match event.keystroke.key.as_str() {
+                "right" | "up" => Adjustment::Step {
+                    direction: Direction::Increase,
+                    page: false,
+                },
+                "left" | "down" => Adjustment::Step {
+                    direction: Direction::Decrease,
+                    page: false,
+                },
+                "pageup" => Adjustment::Step {
+                    direction: Direction::Increase,
+                    page: true,
+                },
+                "pagedown" => Adjustment::Step {
+                    direction: Direction::Decrease,
+                    page: true,
+                },
+                "home" => Adjustment::First,
+                "end" => Adjustment::Last,
+                _ => return,
+            };
+            key.borrow_mut()
+                .adjust(thumb, adjustment, Source::Keyboard, window);
+            cx.stop_propagation();
+        });
+        let focus_state = shared.clone();
+        let focus_handle = focus.clone();
+        child = child.on_a11y_action(AccessibleAction::Focus, move |_, window, cx| {
+            if focus_state.borrow().allowed(false) {
+                window.focus(&focus_handle, cx);
+            }
+        });
+        if !disabled && !read_only {
+            for (action, direction) in [
+                (AccessibleAction::Increment, Direction::Increase),
+                (AccessibleAction::Decrement, Direction::Decrease),
+            ] {
+                let access = shared.clone();
+                child = child.on_a11y_action(action, move |_, window, cx| {
+                    access.borrow_mut().adjust(
+                        thumb,
+                        Adjustment::Step {
+                            direction,
+                            page: false,
+                        },
+                        Source::Accessibility,
+                        window,
+                    );
+                    cx.stop_propagation();
+                });
+            }
+            let access = shared.clone();
+            child = child.on_a11y_action(AccessibleAction::SetValue, move |data, window, cx| {
+                if let Some(accesskit::ActionData::NumericValue(value)) = data {
+                    access.borrow_mut().adjust(
+                        thumb,
+                        Adjustment::Set(*value),
+                        Source::Accessibility,
+                        window,
+                    );
+                }
+                cx.stop_propagation();
+            });
+        }
+        let gate = state.route.gate.clone();
+        let node = state.route.node;
+        let record = focus.clone();
+        child = child.child(
+            canvas(
+                |_, _, _| (),
+                move |bounds, _, window, _| {
+                    if bounds.size.width > px(0.)
+                        && bounds.size.height > px(0.)
+                        && bounds.intersects(&window.content_mask().bounds)
+                    {
+                        gate.borrow_mut().record_part(
+                            node,
+                            part as u8,
+                            record.clone(),
+                            focusable,
+                            record.is_focused(window),
+                        );
+                    }
+                },
+            )
+            .absolute()
+            .size_full(),
+        );
+        track = track.child(crate::semantics::State {
+            element: child,
+            metadata: None,
+            live: None,
+            disabled,
+            read_only,
+            hidden: !state.route.gate.borrow().visible(node),
+            modal: false,
+        });
+    }
+    base.child(track)
+}
+
+pub(super) struct Region<E> {
+    pub element: E,
+    pub state: Shared,
+}
+impl<E: Element> IntoElement for Region<E> {
+    type Element = Self;
+    fn into_element(self) -> Self {
+        self
+    }
+}
+impl<E: Element> Element for Region<E> {
+    type RequestLayoutState = E::RequestLayoutState;
+    type PrepaintState = (Hitbox, E::PrepaintState);
+    fn id(&self) -> Option<ElementId> {
+        self.element.id()
+    }
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        self.element.source_location()
+    }
+    fn request_layout(
+        &mut self,
+        id: Option<&GlobalElementId>,
+        inspector: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, Self::RequestLayoutState) {
+        self.element.request_layout(id, inspector, window, cx)
+    }
+    fn prepaint(
+        &mut self,
+        id: Option<&GlobalElementId>,
+        inspector: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        layout: &mut Self::RequestLayoutState,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Self::PrepaintState {
+        let hitbox = window.insert_hitbox(bounds, HitboxBehavior::BlockMouse);
+        let mut state = self.state.borrow_mut();
+        if let Some(capture) = state.capture {
+            if window.captured_hitbox() == Some(capture)
+                && state.allowed(true)
+                && state.bounds == bounds
+            {
+                window.capture_pointer(hitbox.id);
+                state.capture = Some(hitbox.id);
+            } else {
+                state.cancel(CancelReason::Interrupted, window);
+            }
+        }
+        state.bounds = bounds;
+        state.hitbox = Some(hitbox.id);
+        drop(state);
+        (
+            hitbox,
+            self.element
+                .prepaint(id, inspector, bounds, layout, window, cx),
+        )
+    }
+    fn paint(
+        &mut self,
+        id: Option<&GlobalElementId>,
+        inspector: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        layout: &mut Self::RequestLayoutState,
+        prepaint: &mut Self::PrepaintState,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        let down = self.state.clone();
+        let hitbox = prepaint.0.clone();
+        window.on_mouse_event(move |event: &MouseDownEvent, phase, window, cx| {
+            if phase.bubble() && event.button == MouseButton::Left && hitbox.is_hovered(window) {
+                down.borrow_mut().begin(None, event.position, window, cx);
+            }
+        });
+        let moved = self.state.clone();
+        window.on_mouse_event(move |event: &MouseMoveEvent, phase, window, cx| {
+            if !phase.capture() {
+                return;
+            }
+            let mut state = moved.borrow_mut();
+            let Some(capture) = state.capture else {
+                return;
+            };
+            if !state.allowed(true)
+                || window.captured_hitbox() != Some(capture)
+                || event.pressed_button != Some(MouseButton::Left)
+            {
+                state.cancel(CancelReason::Interrupted, window);
+                return;
+            }
+            state.preview(event.position);
+            window.refresh();
+            cx.stop_propagation();
+        });
+        self.element
+            .paint(id, inspector, bounds, layout, &mut prepaint.1, window, cx);
+        let up = self.state.clone();
+        window.on_mouse_event(move |event: &MouseUpEvent, phase, window, cx| {
+            if !phase.bubble() {
+                return;
+            }
+            let mut state = up.borrow_mut();
+            let Some(capture) = state.capture else {
+                return;
+            };
+            if !state.allowed(true)
+                || window.captured_hitbox() != Some(capture)
+                || event.button != MouseButton::Left
+            {
+                state.cancel(CancelReason::Interrupted, window);
+                return;
+            }
+            state.preview(event.position);
+            if let Ok(Some(event)) = state.model.finish() {
+                state.emit([event]);
+            }
+            state.release_capture(window);
+            window.refresh();
+            window.prevent_default();
+            cx.stop_propagation();
+        });
+    }
+    fn a11y_role(&self) -> Option<accesskit::Role> {
+        self.element.a11y_role()
+    }
+    fn write_a11y_info(&self, node: &mut accesskit::Node) {
+        self.element.write_a11y_info(node);
+    }
+    fn a11y_synthetic_children(
+        &mut self,
+        prepaint: &mut Self::PrepaintState,
+        builder: &mut A11ySubtreeBuilder,
+    ) {
+        self.element
+            .a11y_synthetic_children(&mut prepaint.1, builder);
+    }
+}

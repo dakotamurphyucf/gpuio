@@ -4,6 +4,8 @@ use super::*;
 mod loading_test;
 #[path = "rating_test.rs"]
 mod rating_test;
+#[path = "slider_test.rs"]
+mod slider_test;
 use gpuio_protocol::accessibility::{Config, Field, Live, Role};
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
 fn node(n: i64) -> NodeId {
@@ -302,6 +304,12 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
     );
 }
 pub(crate) fn run() {
+    run_suite(false);
+}
+pub(crate) fn run_sliders() {
+    run_suite(true);
+}
+fn run_suite(sliders: bool) {
     let failure = Rc::new(RefCell::new(None));
     let task_failure = failure.clone();
     let mut fds = [0; 2];
@@ -335,7 +343,20 @@ pub(crate) fn run() {
             .unwrap();
         cx.activate(true);
         cx.spawn(async move |cx| {
-            let result = super::native_test::protect(exercise(cx, window, &transport)).await;
+            let result = super::native_test::protect(async {
+                if sliders {
+                    slider_test::exercise(cx, window, &transport).await;
+                    window
+                        .update(cx, |v, w, _| {
+                            v.session.borrow_mut().close(v.id).unwrap();
+                            w.remove_window();
+                        })
+                        .unwrap();
+                } else {
+                    exercise(cx, window, &transport).await;
+                }
+            })
+            .await;
             *task_failure.borrow_mut() = result.err();
             drop(motion_watch);
             cx.update(super::stop_application);

@@ -4,7 +4,8 @@
 
 OCH-34 is In Progress. Shared numeric domain/draft rules and slider contracts/codec/native state are
 implemented, along with retained slider views, tree admission and observation routing.
-Slider command transport/rendering, numeric input/stepper and OTP integration
+Mounted slider rendering and initial native interaction tests also pass locally.
+Slider command transport/public controller, expanded acceptance, numeric input/stepper and OTP integration
 remain pending. No OCH-34
 capability is advertised and no new native GUI acceptance is claimed.
 
@@ -149,3 +150,59 @@ These commands build/link the public examples without launching GUI windows.
 The four native bridge tests and five slider protocol tests pass, alongside the
 native library and existing rating/session regressions. No hosted or Linux GUI
 result is claimed for this checkpoint.
+
+## Mounted native slider, initial macOS acceptance
+
+The native adapter now mounts the shared slider model once per node generation,
+retains native values across initial-value rerenders and owns at most two focus
+handles. Its pointer region captures and rebinds the native hitbox across frames;
+keyboard and accessibility use the same model. There is no idle timer. Dirty
+configuration updates preserve state or cancel/normalize according to the
+contract. Current-generation, policy, visibility, modal and overload gates apply
+to callbacks, including callbacks retained by an older frame. Owner removal
+releases capture and lets the old frame's references retire.
+
+Focus registration now permits distinct subcontrols of one retained node. Range
+thumbs participate separately in a trapped Tab order and retain owner-scoped
+eligibility. Native testing found and fixed the host's fallback-focus check,
+which initially failed to count slider thumb focus and returned focus to the root.
+
+`native_slider` passes in an actual macOS window using GPUI-dispatched keyboard
+and pointer events and actual AppKit accessibility reads/actions:
+
+- Horizontal range: independent thumb stepping, Home/End, ordered collision,
+  trapped Tab navigation, retained initial values, preview versus committed state,
+  drag release, Escape and bound-change cancellation/normalization.
+- Separate AppKit slider nodes with distinct labels, values, min/max and native
+  increment/decrement/set-value actions. The first AX query enables GPUI's lazy
+  tree; the test awaits a paint before reading it, as existing widget tests do.
+- Ancestor hiding cancels dragging and removes AX exposure. A nested modal scope
+  cancels the old drag and gates old-thumb AX actions. Read-only keyboard edits
+  are rejected; disabled thumbs lose focus.
+- Single vertical/logarithmic mode: arrow/Page/Home/End, a midpoint track click
+  mapped through the logarithmic scale, dragging outside bounds, and AppKit value
+  and range observations.
+- Removal releases the native owner and retained tree accounting returns to zero.
+
+The suite is wired into macOS CI and compilation on both platforms, but no hosted
+result is claimed yet. Correlated commands, the public Eio controller/example,
+expanded rendering/scale/style/idle/deactivation/multi-window workloads and
+external public-application validation remain. This is an initial mounted
+checkpoint, not full slider or OCH-34 acceptance.
+
+Local validation commands (`GPUIO_JOBS=2`) pass:
+
+```sh
+./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-tests --test native_slider --no-run
+./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-tests --test native_controls --test native_presentation --no-run
+./scripts/gpuio exec cargo clippy --locked -j 2 --workspace --all-targets --features gpuio-native/native-image-tests,gpuio-native/native-canvas-tests -- -D warnings
+./scripts/gpuio exec cargo fmt --all
+```
+
+The resulting slider, controls and presentation executables each ran directly
+under a Python subprocess timeout (45 seconds for slider, 60 seconds for each
+regression suite), exited zero, and were reaped. Slider emits
+`GPUIO_SLIDER_NATIVE_OK` and `GPUIO_SLIDER_AX_OK`; the existing control/focus and
+presentation/AppKit/IME regressions also pass. These regression binaries used
+`native-tests`, so optional `native-image-tests` pixel assertions are not claimed
+from this run. No owned test windows/processes remain.

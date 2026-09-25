@@ -29,7 +29,7 @@ pub(super) struct Manager {
     scopes: BTreeMap<NodeId, Scope>,
     entries: Vec<Entry>,
     surfaces: BTreeMap<NodeId, Vec<Rc<Cell<Bounds<Pixels>>>>>,
-    seen: BTreeSet<NodeId>,
+    seen: BTreeSet<(NodeId, u8)>,
     active: Option<NodeId>,
     hidden: BTreeSet<NodeId>,
     query_hidden: BTreeSet<NodeId>,
@@ -144,6 +144,10 @@ impl Manager {
             || item.editor.as_ref().is_some_and(|config| config.disabled)
             || item.choice.as_ref().is_some_and(|config| config.disabled)
             || item.rating.as_ref().is_some_and(|config| config.disabled)
+            || item
+                .slider
+                .as_ref()
+                .is_some_and(|slider| slider.config.disabled)
             || item
                 .menu
                 .as_ref()
@@ -371,6 +375,18 @@ impl Manager {
         tab_stop: bool,
         focused: bool,
     ) {
+        self.record_part(node, 0, handle, tab_stop, focused);
+    }
+    /// Distinct native controls can share one retained owner (e.g. range thumbs).
+    /// Part identity only deduplicates paint; all eligibility stays owner-scoped.
+    pub(super) fn record_part(
+        &mut self,
+        node: NodeId,
+        part: u8,
+        handle: FocusHandle,
+        tab_stop: bool,
+        focused: bool,
+    ) {
         if focused
             && self
                 .session
@@ -381,7 +397,7 @@ impl Manager {
         {
             self.last_editor = Some(node);
         }
-        if self.seen.insert(node) {
+        if self.seen.insert((node, part)) {
             self.entries.push(Entry {
                 node,
                 handle,

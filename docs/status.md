@@ -93,7 +93,8 @@ OCH-34 has begun with validated shared numeric domains, min-anchored stepping,
 and draft classification, with independent OCaml/Rust fixtures and boundary tests.
 Slider contracts, bounded codec and native interaction state now pass local
 checks. Retained slider views, tree admission and observation routing are implemented;
-native rendering/command transport and number/OTP integration remain pending; no capability
+native single/range rendering and initial macOS pointer/keyboard/AX checks now pass.
+Command transport, expanded slider acceptance and number/OTP integration remain pending; no capability
 is advertised.
 See [numeric design](design/numeric-inputs.md) and
 [foundation evidence](evidence/numeric-inputs-och34.md).

@@ -101,6 +101,8 @@ mod scroll;
 pub(super) mod scroll_test;
 #[path = "select.rs"]
 mod select;
+#[path = "slider_view.rs"]
+mod slider_view;
 #[path = "split_view.rs"]
 mod split_view;
 #[path = "toast.rs"]
@@ -150,6 +152,7 @@ struct View {
     selects: BTreeMap<NodeId, Rc<RefCell<select::State>>>,
     radios: BTreeMap<NodeId, Rc<RefCell<choice::State>>>,
     ratings: BTreeMap<NodeId, Rc<RefCell<rating::State>>>,
+    sliders: BTreeMap<NodeId, slider_view::Shared>,
     tooltips: BTreeMap<NodeId, tooltip::State>,
     tooltip_last_closed: Option<std::time::Instant>,
     command_subscription: Option<gpui::Subscription>,
@@ -370,6 +373,7 @@ impl View {
             root_focus: None,
             radios: BTreeMap::new(),
             ratings: BTreeMap::new(),
+            sliders: BTreeMap::new(),
             tooltips: BTreeMap::new(),
             tooltip_last_closed: None,
             command_subscription: None,
@@ -413,6 +417,7 @@ impl View {
         self.sync_tooltips(window, cx);
         self.sync_canvases(dirty, window, cx);
         self.sync_splits(window, cx);
+        self.sync_sliders(dirty, window, cx);
         // An unselected query branch is hidden even before the first layout.
         // Do not count time waiting for its first visible paint as active motion.
         self.suspend_hidden_animations();
@@ -594,6 +599,13 @@ impl View {
                 .text_color(rgba(0xe8ad36ff))
                 .focus(|style| style.border_color(rgba(0x6688ffff)));
         }
+        if let Some(slider) = &node.slider {
+            element = element.relative().min_w(px(24.)).min_h(px(24.));
+            element = match slider.config.axis {
+                gpuio_protocol::slider::Axis::Horizontal => element.w(px(180.)).h(px(24.)),
+                gpuio_protocol::slider::Axis::Vertical => element.w(px(24.)).h(px(180.)),
+            };
+        }
         if let Some(config) = &node.avatar {
             element = element
                 .w(px(32.))
@@ -691,6 +703,10 @@ impl View {
             || node.pointer.as_ref().is_some_and(|config| config.disabled)
             || node.choice.as_ref().is_some_and(|config| config.disabled)
             || node.rating.as_ref().is_some_and(|config| config.disabled)
+            || node
+                .slider
+                .as_ref()
+                .is_some_and(|slider| slider.config.disabled)
             || node.control.is_some_and(Control::disabled)
             || node.editor.as_ref().is_some_and(|config| config.disabled);
         let checked = command
@@ -904,6 +920,11 @@ impl View {
                 window,
                 cx,
             );
+        } else if node.slider.is_some() {
+            self.visited.insert(id);
+            if let Some(state) = self.sliders.get(&id) {
+                element = slider_view::element(element, state.clone(), interaction.pointer, window);
+            }
         } else if let Some(config) = &node.rating {
             let state = self.ratings.entry(id).or_default().clone();
             let route = node
@@ -1291,9 +1312,22 @@ impl View {
             live: None,
             element,
             disabled,
-            read_only: node.rating.as_ref().is_some_and(|config| config.read_only),
+            read_only: node.rating.as_ref().is_some_and(|config| config.read_only)
+                || node
+                    .slider
+                    .as_ref()
+                    .is_some_and(|slider| slider.config.read_only),
             modal: false,
         };
+        if node.slider.is_some()
+            && let Some(state) = self.sliders.get(&id)
+        {
+            return slider_view::Region {
+                element,
+                state: state.clone(),
+            }
+            .into_any_element();
+        }
         if node.drop_target.is_some() {
             return drag_drop::Region {
                 element,
@@ -1353,7 +1387,13 @@ impl Render for View {
         let drag_window = self.id;
         let mut root = drag_drop::root(div(), self.id, cx)
             .capture_key_down(cx.listener(|view, event: &gpui::KeyDownEvent, window, cx| {
-                if event.keystroke.key == "escape" && view.cancel_split_drag(window, cx) {
+                if event.keystroke.key == "escape"
+                    && (view.cancel_split_drag(window, cx)
+                        | view.cancel_slider_drags(
+                            gpuio_protocol::slider::CancelReason::Escape,
+                            window,
+                        ))
+                {
                     cx.stop_propagation();
                 }
             }))
@@ -1420,6 +1460,7 @@ impl Render for View {
         }
         self.hide_unvisited_extensions();
         self.hide_unvisited_canvases(window);
+        self.hide_unvisited_sliders(window, cx);
         self.buttons.retain(|id, _| self.visited.contains(id));
         self.radios.retain(|id, _| self.visited.contains(id));
         self.ratings.retain(|id, _| self.visited.contains(id));
@@ -1460,6 +1501,13 @@ impl Render for View {
                     .values()
                     .any(|state| state.focus.is_focused(window))
                 || self.focus.borrow().contains_focus(window)
+                || self.sliders.values().any(|state| {
+                    state
+                        .borrow()
+                        .focus
+                        .iter()
+                        .any(|(_, focus)| focus.is_focused(window))
+                })
                 || self
                     .documents
                     .values()

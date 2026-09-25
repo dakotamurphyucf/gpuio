@@ -200,3 +200,8 @@ required-features = ["native-tests"]
 name = "native_presentation"
 harness = false
 required-features = ["native-tests"]
+
+[[test]]
+name = "native_slider"
+harness = false
+required-features = ["native-tests"]

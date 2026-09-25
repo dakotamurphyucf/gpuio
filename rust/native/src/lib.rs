@@ -186,4 +186,9 @@ pub fn run_native_presentation_test() {
     host::presentation_test::run();
 }
 
+#[cfg(feature = "native-tests")]
+pub fn run_native_slider_test() {
+    host::presentation_test::run_sliders();
+}
+
 pub mod slider_state;

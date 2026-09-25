@@ -365,6 +365,10 @@ impl View {
             self.pointer_activation =
                 Some(cx.observe_window_activation(window, |view, window, cx| {
                     if !window.is_window_active() {
+                        view.cancel_slider_drags(
+                            gpuio_protocol::slider::CancelReason::WindowInactive,
+                            window,
+                        );
                         for state in view.canvases.values() {
                             state.borrow_mut().cancel_input(window);
                         }
