@@ -125,7 +125,11 @@ macOS AX/OS keyboard tests also pass through the public example. Retained IME an
 history through configuration changes, hidden/modal gates, independent-window
 close during a held repeat, and three 256-editor workload/disposal cycles now pass.
 Slider and numeric editor/stepper local acceptance is complete; OTP remains
-pending before OCH-34 capability advertisement and ticket completion.
+pending before OCH-34 capability advertisement and ticket completion. OTP now has
+validated Core policy/value types and matching OCaml/Rust normalization and atomic
+selection-edit helpers with passing expect/unit and policy-encoding tests. Its
+native widget, IME, event/command lane and controllers remain unimplemented; see
+[OTP contract and integration requirements](design/otp-inputs.md).
 See [numeric design](design/numeric-inputs.md) and
 [foundation evidence](evidence/numeric-inputs-och34.md).
 No milestone-05 completion or hosted acceptance is claimed yet.

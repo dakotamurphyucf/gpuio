@@ -94,7 +94,8 @@ programmatic validation, selection/paste, read-only, hidden idle and disposal.
 1. Shared numeric domain/draft rules and paired codec validation.
 2. Native single/range slider ownership, input, accessibility and coalescing.
 3. Native numeric editor/stepper integration and transient draft/IME behavior.
-4. Segmented OTP editing, commands and event ordering.
+4. Segmented OTP editing, commands and event ordering; see the
+   [OTP text contract and integration requirements](otp-inputs.md).
 5. Public Core/Bonsai/Eio examples, actual local macOS tests and lifecycle/budget
    evidence; full local checks. Advertise capability only after this acceptance.
 6. Consolidated required macOS/Linux CI and merge. The polished chat integration

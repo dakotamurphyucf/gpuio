@@ -24,6 +24,7 @@ pub mod list;
 pub mod loading;
 mod menu;
 pub mod number_input;
+pub mod otp;
 mod palette;
 pub mod rating;
 pub mod v1;

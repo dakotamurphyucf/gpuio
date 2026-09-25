@@ -857,3 +857,32 @@ also remain pending; no Linux GUI acceptance is claimed.
 All-target Clippy also passed with the smaller `native-tests` feature set;
 Rustfmt and diff whitespace checks passed. This checkpoint changes tests/docs,
 not the public API, wire layout or production numeric behavior.
+
+## OTP text-policy foundation
+
+The public Core Policy/Value interface now has OCaml and Rust implementations for
+1..32 cells, digit/alphanumeric policies, full-width-to-ASCII normalization,
+case preservation, paste separators, UTF-8/raw-byte bounds and atomic directional
+selection replacement. Empty/separator-only paste preserves selection and value;
+direct empty replacement deletes the selection. Values remain policy checked and
+errors contain offsets rather than code text. See [OTP design](../design/otp-inputs.md)
+for the precise implemented contract and remaining native requirements.
+
+Local Dune view API expect tests and formatting passed. Tests check invalid
+lengths, full-width values, byte offsets, unexpected Unicode, overlength/invalid
+UTF-8/oversized input, paste behavior, replacement/caret direction and capacity
+rejection, unchanged original values and independent policy encodings. The first
+compile used a nonexistent test-only Result helper; it was corrected to ordinary
+Core error mapping. No expect outputs were promoted to hide failures.
+
+`cargo test --locked -j 2 -p gpuio-protocol otp::tests` passed all three focused
+Rust tests. They also exhaust the full-width digit/Latin ranges and replacement
+positions for every supported code length. Other tests in that filtered invocation
+were not run and are not counted as passed. OCaml/Rust policy encoding fixtures
+agree on `0600` and `2001`.
+
+This is the text foundation only. No native OTP widget, event/command lane,
+segmented rendering, IME integration, controller or capability is claimed yet.
+
+Protocol all-target Clippy with `-D warnings`, Rustfmt and diff whitespace
+checks also passed. No GUI process was needed for this pure policy checkpoint.
