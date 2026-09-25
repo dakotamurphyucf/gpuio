@@ -2450,6 +2450,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpuio-extension-sdk"
+version = "0.0.0"
+dependencies = [
+ "gpui",
+]
+
+[[package]]
 name = "gpuio-foundation"
 version = "0.0.0"
 dependencies = [

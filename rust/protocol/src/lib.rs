@@ -7,6 +7,7 @@ mod command;
 mod decode;
 pub mod document;
 pub mod drag_drop;
+pub mod extension;
 pub mod file_dialog;
 pub mod file_path;
 mod id;

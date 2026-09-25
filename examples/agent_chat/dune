@@ -9,7 +9,5 @@
   gpuio.eio
   bonsai
   eio_main)
- (link_flags
-  (:include ../../lib/native/link_flags.sexp))
  (preprocess
   (pps ppx_jane bonsai.ppx_bonsai)))
