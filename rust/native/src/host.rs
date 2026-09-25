@@ -1376,8 +1376,9 @@ pub fn run(transport: Arc<Transport>) {
                 {
                     motion.borrow_mut().take();
                     dialogs.clear().wait().await;
+                    crate::canvas_host::shutdown(cx).await;
                     crate::image_host::shutdown(cx).await;
-                            crate::document_host::shutdown(cx).await;
+                    crate::document_host::shutdown(cx).await;
                     if !stopping.replace(true) {
                         cx.update(stop_application);
                     }
@@ -1591,6 +1592,7 @@ pub fn run(transport: Arc<Transport>) {
                         Message::Shutdown => {
                             motion.borrow_mut().take();
                             dialogs.clear().wait().await;
+                            crate::canvas_host::shutdown(cx).await;
                             crate::image_host::shutdown(cx).await;
                             crate::document_host::shutdown(cx).await;
                             for event in session.borrow_mut().shutdown() {
@@ -1624,6 +1626,7 @@ pub(crate) fn stop_application(cx: &mut App) {
         foundation::NSPoint,
     };
     drag_drop::shutdown(cx);
+    crate::canvas_host::finish_before_quit(cx);
     crate::image_host::finish_before_quit(cx);
     crate::document_host::finish_before_quit(cx);
     cx.shutdown();
@@ -1638,6 +1641,7 @@ pub(crate) fn stop_application(cx: &mut App) {
 #[cfg(not(target_os = "macos"))]
 pub(crate) fn stop_application(cx: &mut App) {
     drag_drop::shutdown(cx);
+    crate::canvas_host::finish_before_quit(cx);
     crate::image_host::finish_before_quit(cx);
     crate::document_host::finish_before_quit(cx);
     cx.quit();

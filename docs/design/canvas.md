@@ -160,9 +160,10 @@ synchronously. App stop completes pending raw requests with Closed.
 
 ## Native geometry preparation
 
-`canvas_mesh`, `canvas_plan` and `canvas_jobs` now implement the bounded geometry
-and work-queue foundation. Connecting these to the GPUI host, text/image painting
-and mounted view remains in progress.
+`canvas_mesh`, `canvas_plan` and `canvas_jobs` implement bounded geometry and work
+queues. `canvas_host` schedules them on GPUI background workers, and `canvas_paint`
+paints admitted meshes. Text/image painting and the mounted public view remain
+in progress.
 
 Geometry is tessellated in local coordinates before applying the item's affine
 transform. This preserves stroke width semantics under nonuniform scale, shear
@@ -206,6 +207,21 @@ paint/pan/translation does not require rebuilding the same geometry. Work is
 Send and can run entirely off the UI thread, with no OCaml callback. Closing the
 pool prevents new work and cancels pending/running work; retained external readers
 remain charged until released.
+
+The application host uses a bounded completion channel and explicit worker-exit
+fences. Accepted completions refresh their window; stale completions release their
+results without requesting a frame. There is no idle polling. Both asynchronous
+shutdown and the synchronous application quit path cancel and drain workers;
+workers never wait on a UI callback. Handles verify their originating application
+and tracked window before admitting an update.
+
+Mesh painting adds the normalized shape origin before the item transform, then
+applies viewport translation/zoom. World clips stay fixed during object movement;
+GPUI applies device scale and inherited clipping/opacity. Culling precedes triangle
+expansion. A shared `FrameBudget` admits at most 1,048,576 expanded vertices per
+window frame, checking before allocation. The mounted view integration must share
+that budget across canvases rather than allocate a separate allowance per canvas.
+The helper accepts meshes only; text and images require their own painting paths.
 
 ## Coordinates and drawing vocabulary
 

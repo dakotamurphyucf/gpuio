@@ -5,8 +5,10 @@ pub mod asset_cache;
 pub mod asset_decode;
 pub mod asset_store;
 pub mod asset_svg;
+pub mod canvas_host;
 pub mod canvas_jobs;
 pub mod canvas_mesh;
+pub mod canvas_paint;
 pub mod canvas_plan;
 pub mod canvas_store;
 mod document_highlight;
@@ -145,4 +147,11 @@ pub fn run_native_split_test() {
 #[cfg(feature = "native-tests")]
 pub fn run_native_extension_test() {
     host::control_test::run_extensions();
+}
+
+#[cfg(feature = "native-canvas-tests")]
+mod canvas_test;
+#[cfg(feature = "native-canvas-tests")]
+pub fn run_native_canvas_test() {
+    canvas_test::run();
 }

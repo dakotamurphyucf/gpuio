@@ -249,3 +249,34 @@ consumer backend) and `./scripts/gpuio check-fmt` also pass.
 No graphical window was opened for these checks. Mounted host scheduling,
 painting, font/image integration, input/accessibility and native application
 acceptance remain outstanding.
+
+## GPUI workers and mesh painting
+
+`canvas_host` now schedules preparation on GPUI's background executor, refreshes
+accepted-completion windows and drains worker-exit fences during application
+shutdown. `canvas_paint` applies local affine geometry, world clips, viewport
+mapping and shared per-frame expanded-vertex admission. These are native building
+blocks; the public canvas widget and text/image/input/AX integration are pending.
+
+The local macOS `native_canvas` executable passes actual GPU pixel readback with
+`show: false` and `focus: false`, explicitly drawing its hidden window. Samples
+verify rectangle/ellipse colors, a quadratic stroke, transformed world clipping,
+scene revision replacement, pan/zoom and an actual resize from 240x240 to 320x280.
+Device scale comes from the test window; no physical display-scale change is
+claimed. The test also drops queued handles and checks that retained mesh and
+scene charges return to zero after the final readers are released. The recorded
+host metrics are `(completed=2, discarded=0, peak_workers=1, retained_bytes=0)`;
+these are accounting values, not process RSS. Existing pure worker tests cover
+supersession and the two-worker limit. The hidden window is closed before exit.
+
+Commands through the isolated toolchain, with `GPUIO_JOBS=2`:
+
+- `./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --lib`: 84 tests pass.
+- `./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native --features native-canvas-tests --all-targets -- -D warnings`: passes.
+- `./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-canvas-tests --test native_canvas`: passes under a 90-second external deadline.
+- `./scripts/gpuio exec dune build -j 2` and `./scripts/gpuio check-fmt`: pass, including the independent consumer backend build.
+
+The CI definition builds/lints this feature on both required platforms and runs
+the hidden-window GPU check on macOS. Hosted execution and Linux graphical
+validation remain pending. This test does not claim public OCaml rendering,
+keyboard/pointer interaction, accessibility or complete OCH-24 acceptance.
