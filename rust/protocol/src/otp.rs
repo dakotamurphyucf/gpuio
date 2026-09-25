@@ -22,6 +22,34 @@ pub enum InputError {
     InvalidValue,
     InvalidSelection,
 }
+impl InputError {
+    pub fn is_valid(self) -> bool {
+        match self {
+            Self::UnexpectedCharacter { byte_offset } => byte_offset < MAX_INPUT_BYTES,
+            _ => true,
+        }
+    }
+}
+impl binprot::BinProtWrite for InputError {
+    fn binprot_write<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        let tag: u8 = match self {
+            Self::InvalidPolicy => 0,
+            Self::InputTooLarge => 1,
+            Self::InvalidUtf8 => 2,
+            Self::UnexpectedCharacter { .. } => 3,
+            Self::TooLong => 4,
+            Self::InvalidValue => 5,
+            Self::InvalidSelection => 6,
+        };
+        writer.write_all(&[tag])?;
+        if let Self::UnexpectedCharacter { byte_offset } = self {
+            let offset = i64::try_from(*byte_offset)
+                .map_err(|_| std::io::Error::other("OTP offset overflow"))?;
+            offset.binprot_write(writer)?;
+        }
+        Ok(())
+    }
+}
 impl Policy {
     pub fn new(length: i64, alphabet: Alphabet) -> Option<Self> {
         (1..=32)

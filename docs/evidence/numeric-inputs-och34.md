@@ -922,3 +922,47 @@ native IME, candidate placement, accessibility or GUI acceptance.
 
 All-target native Clippy with `native-tests` and `-D warnings` also passes. No GUI
 process was opened. OCH-34, native OTP integration and hosted gates remain open.
+
+## OTP public contracts and standalone codecs
+
+The public Core API now includes configuration, nonnegative revisions, opaque
+window/node-bound snapshots, Observed/Changed/Complete/Rejected events, explicit
+replacement/clear/selection/focus/history/composition/read commands and typed
+command errors. Snapshots distinguish accepted code from preedit and expose
+directional selection and undo/redo availability. Public interfaces specify
+immutable placement policy, user-only completion ordering, masking/clipboard
+behavior, revision guards and mutation permissions; native execution of these
+contracts is still pending. See [OTP design](../design/otp-inputs.md).
+
+Matching OCaml/Rust wire types and standalone bounded Rust decoders now cover
+configuration, events, commands and responses. Independent fixed byte fixtures
+pin a masked configuration, Unicode composing snapshot, completed snapshot,
+guarded replacement, clear, every command/error tag and a rejected event with a
+signed bin_prot byte offset of 4,095. These codecs do not yet register native
+node/operation/message/event envelope tags.
+
+Validation on local macOS:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @test/view_api/runtest @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-protocol -j 2
+```
+
+Both commands pass. The full Rust protocol suite includes four new OTP test
+groups; the OCaml suite adds three contract expect tests. Tests cover public
+construction/leases, historical policy, malformed Unicode boundaries, impossible
+completion/rejection states, noncanonical values, exact selections, negative
+guards, maximum payloads, every truncation point of the fixed fixtures, trailing
+data and bounded declared lengths. Malformed UTF-8, negative error offsets and
+invalid policy/Boolean cases include their complete remaining payload so they
+cannot pass merely because a required field was missing.
+
+An added hand-written rejection fixture initially contained one extra Boolean
+byte. Both language tests caught the mismatch; the fixture was corrected against
+the documented field layout. Codec behavior and expect output were not changed
+to accommodate the incorrect fixture. Formatting promotions affected layout only.
+
+Protocol all-target Clippy with `-D warnings`, Rustfmt and whitespace checks pass.
+No native window was launched. GPUI platform callbacks, revision/event ownership,
+retained transport envelopes, segmented rendering, public controllers/examples
+and actual local native acceptance remain necessary before completing OCH-34.

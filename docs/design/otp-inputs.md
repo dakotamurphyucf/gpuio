@@ -1,9 +1,9 @@
 # Segmented OTP inputs (OCH-34)
 
-Status: bounded text policy, atomic edit helpers and a platform-independent
-native editing model are implemented. Native segmented rendering, platform
-editing integration, snapshot/event/command contracts and
-public Bonsai/Eio controllers are not implemented yet. No OTP capability is
+Status: bounded text policy, atomic edit helpers, a platform-independent native
+editing model, public Core contracts and standalone OCaml/Rust codecs are
+implemented. Native segmented rendering, platform editing integration, retained
+bridge envelopes and public Bonsai/Eio controllers are not implemented yet. No OTP capability is
 advertised. This document supplements [numeric inputs](numeric-inputs.md).
 
 ## Implemented text contract
@@ -43,8 +43,65 @@ OCaml implementation: `lib/core/otp_input.{ml,mli}` and
 `lib/protocol/otp_wire.ml`. Rust counterpart: `rust/protocol/src/otp.rs`.
 The policy encoding is length followed by alphabet (Digits=0,
 Ascii_alphanumeric=1). Independent tests pin six digits to `0600` and length-32
-alphanumeric to `2001`. This establishes policy encoding only; no OTP message,
-node kind, command/result or observation tags are registered yet.
+alphanumeric to `2001`. The standalone contract codecs below add configuration,
+observations and commands; no OTP message, node kind, command/result envelope or
+observation envelope is registered yet.
+
+## Public Core and standalone wire contracts
+
+`Gpuio.Otp_input.Config.create` takes a validated policy and a required accessible
+label, with optional masked/disabled/read-only/auto-focus flags (all false by
+default). Labels are nonblank single-line UTF-8 without NUL, bounded to 4,096
+bytes. A policy belongs to a native placement and changing it requires remounting;
+initial code is a separate one-time seed, never a controlled text property.
+The planned masked behavior hides painted/accessibility text and disables copy
+and cut. It does not redact application snapshots or promise secure storage.
+
+Snapshots carry a nonnegative revision, immutable policy, accepted value, raw
+draft, directional selection, optional nonempty marked range, focus and undo/redo
+availability. Value must fit the policy; draft must equal value outside
+composition. Selection/mark offsets must be UTF-8 scalar boundaries in the
+bounded draft. The public snapshot also holds its originating window/node lease
+behind the abstract interface. `is_complete` requires a full accepted value and
+no active composition; it never asserts authentication.
+
+The event contract is `Observed | Changed | Complete | Rejected`:
+
+- Observed covers mount/configuration/programmatic operations. Mount may use
+  revision zero; native changes and semantic events require a positive revision.
+- Changed covers native value, selection, composition, focus and history changes.
+- A native edit that changes accepted text to a full code emits Changed followed
+  by Complete with the next revision. This includes a different full code and
+  native undo/redo; initial state, unchanged values, preedit and explicit commands
+  do not complete. The owner must reserve both revisions before mutation and the
+  queue must preserve that ordered pair across coalescing.
+- Rejected carries the post-attempt snapshot and a bounded, text-free input error.
+  Invalid final IME text has already rolled back its checkpoint and ended
+  composition. A rejection itself is a semantic boundary even when state did not
+  change. Preedit/range admission errors that leave composition active are not
+  represented as committed-input Rejected events.
+
+Commands are Replace, Clear, Select, Focus, Undo, Redo, Cancel_composition and
+Read_snapshot. Replace/Clear have optional revision guards and Record/Reset
+history policy. Replace takes a canonical value plus Start/End/Preserve/Select
+selection policy; Preserve clamps each previous endpoint to the new ASCII length,
+while Select must fit exactly. Clear places the caret at zero. Programmatic
+Replace/Clear are allowed while disabled/read-only; Undo/Redo are not. Content,
+history and Select commands reject composition; explicit Cancel_composition
+restores its checkpoint. Focus uses native visibility/modal/disabled gates.
+Responses are Applied(snapshot) or a typed command error. Native window/node
+lifetime checks remain necessary in addition to the revision guard.
+
+`lib/protocol/otp_wire.ml`, `rust/protocol/src/otp_input.rs` and
+`rust/protocol/src/decode/otp_input.rs` implement matching validators and standalone
+codecs. Rust decoding bounds every string before allocation, rejects invalid
+variant/Boolean tags, malformed UTF-8, negative guards, impossible snapshot/event
+states, truncation and trailing bytes. Standalone encoded limits are 4,200 bytes
+for configuration, 4,352 for event/response and 128 for commands. These are
+payload bounds, separate from future transport-envelope accounting.
+
+These interfaces define the native owner contract; they do not themselves
+implement event sequencing, command execution, masking or platform behavior.
 
 ## Native integration requirements
 
@@ -117,12 +174,12 @@ Changed/Complete boundaries. The model does not yet publish bridge events.
 
 ### Remaining native integration
 
-Finalize and test:
+Implement and test:
 
 - Enforce immutable policy at native placement and in the public controller API.
 - Connect the accepted/preedit/history model to actual platform IME callbacks,
   keyboard routing and lifecycle cancellation; pure tests are not platform proof.
-- Revision reservation and event ordering for Changed and Complete, including
+- Revision reservation and the specified ordering for Changed and Complete, including
   same-value edits, caret movement, undo/redo, initial state and explicit commands.
 - Segmented selection/caret/IME geometry, accessibility value/actions and masking,
   and clipboard behavior for masked fields.

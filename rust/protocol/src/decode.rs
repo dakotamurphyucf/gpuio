@@ -6,6 +6,11 @@ mod accessibility;
 mod avatar;
 mod loading;
 mod number_input;
+mod otp_input;
+pub use otp_input::{
+    decode_otp_input_command, decode_otp_input_config, decode_otp_input_event,
+    decode_otp_input_response,
+};
 mod numeric;
 pub use number_input::{
     decode_number_input_command, decode_number_input_config, decode_number_input_event,

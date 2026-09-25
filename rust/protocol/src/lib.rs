@@ -25,6 +25,7 @@ pub mod loading;
 mod menu;
 pub mod number_input;
 pub mod otp;
+pub mod otp_input;
 mod palette;
 pub mod rating;
 pub mod v1;
@@ -33,7 +34,9 @@ pub use decode::{
     DecodeError, decode, decode_accessibility, decode_animation_program, decode_canvas_scene,
     decode_canvas_view_config, decode_container_query, decode_number_input_command,
     decode_number_input_config, decode_number_input_event, decode_number_input_response,
-    decode_numeric_domain, decode_slider_command, decode_slider_config, decode_slider_event,
+    decode_numeric_domain, decode_otp_input_command, decode_otp_input_config,
+    decode_otp_input_event, decode_otp_input_response, decode_slider_command, decode_slider_config,
+    decode_slider_event,
 };
 pub use id::{HandlerId, NodeId, ResourceId, WindowId};
 
