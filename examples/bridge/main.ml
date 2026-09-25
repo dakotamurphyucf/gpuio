@@ -96,6 +96,7 @@ let worker native notification_read =
         stopped := true
       | Failed _ | Rejected _ | Overloaded _ -> failwith "unexpected bridge failure"
       | Reopen_requested
+      | Canvas_response _
       | Document_response _
       | Document_navigation _
       | Window_changed _

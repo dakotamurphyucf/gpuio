@@ -81,6 +81,15 @@ module Window : sig
 end
 
 module Expert : sig
+  (** Raw correlated scene-resource protocol; at most 63 pending requests.
+      Callers own release and late-reply cleanup. This registers scene data;
+      it does not itself create a rendered canvas. One additional request lane
+      is reserved for the scoped adapter. *)
+  val canvas
+    :  t
+    -> Gpuio_protocol.Wire.Canvas.Request.t
+    -> Gpuio_protocol.Wire.Canvas.Response.t Bonsai.Effect.t
+
   (** Internal correlated document-resource lane. Bounded to 64 requests.
       Public applications use the scoped document adapter. *)
   val document

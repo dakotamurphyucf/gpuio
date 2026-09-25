@@ -79,6 +79,50 @@ mod tests {
                 bytes.iter().map(|b| format!("{b:02x}")).collect::<String>(),
                 expected
             );
+            let message = crate::v1::Message::Canvas(7, request.clone());
+            let mut framed = Vec::new();
+            message.binprot_write(&mut framed).unwrap();
+            assert_eq!(&framed[..2], &[13, 7]);
+            assert_eq!(&framed[2..], bytes);
+            assert_eq!(crate::decode(&framed), Ok(message));
+            for end in 0..framed.len() {
+                assert!(crate::decode(&framed[..end]).is_err());
+            }
+            framed.push(0);
+            assert!(crate::decode(&framed).is_err());
         }
+    }
+
+    #[test]
+    fn canvas_response_event_tags_match_ocaml_and_bad_frames_are_rejected() {
+        use crate::v1::{Event, Message};
+        let id = ResourceId::from_parts(0, 1).unwrap();
+        for (response, expected) in [
+            (Response::Created(id), vec![1, 39, 7, 0, 0, 1]),
+            (Response::Ack, vec![1, 39, 7, 1]),
+            (
+                Response::Failed(Error::UnavailableImage),
+                vec![1, 39, 7, 2, 10],
+            ),
+        ] {
+            let mut bytes = Vec::new();
+            vec![Event::CanvasResponse(7, response)]
+                .binprot_write(&mut bytes)
+                .unwrap();
+            assert_eq!(bytes, expected);
+        }
+        let mut invalid = Vec::new();
+        Message::Canvas(0, Request::Create)
+            .binprot_write(&mut invalid)
+            .unwrap();
+        assert_eq!(crate::decode(&invalid), Err(crate::DecodeError::Malformed));
+        let mut oversized = vec![13, 7, 2, 0, 1, 1, 0];
+        binprot::Nat0((MAX_CHUNK_BYTES + 1) as u64)
+            .binprot_write(&mut oversized)
+            .unwrap();
+        assert_eq!(
+            crate::decode(&oversized),
+            Err(crate::DecodeError::LimitExceeded)
+        );
     }
 }

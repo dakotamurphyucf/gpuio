@@ -286,6 +286,7 @@ impl Mailbox {
             | Event::Failed(..)
             | Event::AssetResponse(..)
             | Event::DocumentResponse(..)
+            | Event::CanvasResponse(..)
             | Event::Stopped => false,
         })
     }

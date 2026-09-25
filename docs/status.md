@@ -22,8 +22,12 @@ The full consolidated local build, suites, native regressions, Clippy and format
 checks pass. The evidence ledger records hosted results; PR #12 records the final
 checked head and merge status. Full Linux GUI acceptance remains OCH-17.
 
-Milestone 05 is in progress on `milestone-5-ui-extensions`, beginning with OCH-23
-static native components. Its scope includes OCH-23–26 and OCH-33–39, followed by
+Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
+components pass local acceptance; OCH-24 has validated geometry, a bounded scene
+codec, native resource ownership and a tested OCaml/Rust upload bridge. The
+public canvas widget and scoped scene API remain in progress. See the
+[extension](evidence/extensions-och23.md) and [canvas](evidence/canvas-och24.md)
+evidence for exact completed scope. Its scope includes OCH-23–26 and OCH-33–39, followed by
 [OCH-46](https://linear.app/ochat/issue/OCH-46/showcase-milestone-05-features-in-the-polished-agent-chat-reference):
 showcase the completed feature families in the polished agent-chat application.
 OCH-46 is part of milestone completion and covers feature mapping, interactive

@@ -68,6 +68,7 @@ type t =
   ; document_registry : Document_registry.t
   ; mutable assets : (Wire.Asset.Response.t -> unit) Int64.Map.t
   ; mutable documents : (Wire.Document.Response.t -> unit) Int64.Map.t
+  ; mutable canvases : (Wire.Canvas.Response.t -> unit) Int64.Map.t
   ; mutable correlation : int64
   ; mutable motion : Gpuio.Animation.Preference.t option
   ; mutable welcomed : bool
@@ -124,6 +125,33 @@ let set_motion t preference =
 ;;
 
 module Expert = struct
+  let canvas_request t ~limit request =
+    Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+      check t;
+      let fail error = callback (Wire.Canvas.Response.Failed error) in
+      if t.stopping
+      then fail Closed
+      else if not t.welcomed
+      then fail Not_ready
+      else if Map.length t.canvases >= limit
+      then fail Resource_limit
+      else (
+        let oversized =
+          match request with
+          | Wire.Canvas.Request.Chunk (_, _, _, data) ->
+            String.length data > Wire.Canvas.max_chunk_bytes
+          | Create | Begin _ | Publish _ | Abort _ | Release _ -> false
+        in
+        if oversized
+        then fail Invalid_range
+        else (
+          let id = correlation t in
+          t.canvases <- Map.set t.canvases ~key:id ~data:callback;
+          queue t (Canvas (id, request)))))
+  ;;
+
+  let canvas t request = canvas_request t ~limit:63 request
+
   let document_request t ~limit request =
     Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
       check t;
@@ -668,6 +696,12 @@ let process t = function
     Option.iter (find_window t id) ~f:(fun window ->
       if not (Window.is_closed window)
       then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))
+  | Canvas_response (request, response) ->
+    (match Map.find t.canvases request with
+     | None -> ()
+     | Some complete ->
+       t.canvases <- Map.remove t.canvases request;
+       complete (if t.stopping then Wire.Canvas.Response.Failed Closed else response))
   | Document_response (request, response) ->
     (match Map.find t.documents request with
      | None -> ()
@@ -785,6 +819,10 @@ let process t = function
        if Map.mem t.frames request
        then t.frames <- Map.remove t.frames request
        else Error.raise (native_error code))
+  | Failed (request, _) when Map.mem t.canvases request ->
+    let complete = Map.find_exn t.canvases request in
+    t.canvases <- Map.remove t.canvases request;
+    complete (Wire.Canvas.Response.Failed Native_failure)
   | Failed (request, _) when Map.mem t.documents request ->
     let complete = Map.find_exn t.documents request in
     t.documents <- Map.remove t.documents request;
@@ -802,7 +840,10 @@ let process t = function
     let documents = t.documents in
     t.documents <- Int64.Map.empty;
     Map.iter documents ~f:(fun complete ->
-      complete (Wire.Document.Response.Failed Closed))
+      complete (Wire.Document.Response.Failed Closed));
+    let canvases = t.canvases in
+    t.canvases <- Int64.Map.empty;
+    Map.iter canvases ~f:(fun complete -> complete (Wire.Canvas.Response.Failed Closed))
 ;;
 
 let submit_commands t =
@@ -933,6 +974,7 @@ let worker native read ~tick_hz ~max_tasks ~motion initialize =
             Document_registry.create ~scope ~wake:(fun () -> Inbox.wake inbox)
         ; assets = Int64.Map.empty
         ; documents = Int64.Map.empty
+        ; canvases = Int64.Map.empty
         ; correlation = 0L
         ; motion = Some motion
         ; welcomed = false
@@ -950,6 +992,7 @@ let worker native read ~tick_hz ~max_tasks ~motion initialize =
           Map.iter app.windows ~f:release_window;
           app.assets <- Int64.Map.empty;
           app.documents <- Int64.Map.empty;
+          app.canvases <- Int64.Map.empty;
           app.frames <- Int64.Map.empty;
           app.closes <- Int64.Map.empty;
           app.opens <- Int64.Map.empty;

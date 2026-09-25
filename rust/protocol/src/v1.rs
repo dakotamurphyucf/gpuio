@@ -40,7 +40,9 @@ pub const CAP_VIRTUAL_LISTS: i64 = 67108864;
 pub const CAP_DOCUMENTS: i64 = 134217728;
 pub const CAP_WINDOWS: i64 = 268435456;
 pub const CAP_EXTENSIONS: i64 = 536870912;
-pub const CAPABILITIES: i64 = CAP_EXTENSIONS
+pub const CAP_CANVAS_RESOURCES: i64 = 1073741824;
+pub const CAPABILITIES: i64 = CAP_CANVAS_RESOURCES
+    | CAP_EXTENSIONS
     | CAP_WINDOWS
     | CAP_DOCUMENTS
     | CAP_VIRTUAL_LISTS
@@ -606,6 +608,7 @@ pub enum Message {
     Document(i64, crate::document::Request),
     WindowCommand(i64, WindowId, crate::window::Command),
     OpenConfigured(i64, WindowId, crate::window::Config),
+    Canvas(i64, crate::canvas_resource::Request),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -706,4 +709,5 @@ pub enum Event {
         i64,
         crate::extension::Signal,
     ),
+    CanvasResponse(i64, crate::canvas_resource::Response),
 }

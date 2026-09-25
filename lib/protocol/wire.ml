@@ -3,12 +3,13 @@ module Asset = Asset_wire
 module Image = Image_wire
 module Animation = Animation_wire
 module Document = Document_wire
+module Canvas = Canvas_resource_wire
 module Window = Window_wire
 module Split = Split_wire
 module Extension = Extension_wire
 
 let version = 1L
-let capabilities = 1073741823L
+let capabilities = 2147483647L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -835,6 +836,7 @@ module Message = struct
     | Document of int64 * Document.Request.t
     | Window_command of int64 * Window_id.t * Window.Command.t
     | Open_configured of int64 * Window_id.t * Window.Config.t
+    | Canvas of int64 * Canvas.Request.t
   [@@deriving bin_io, equal, sexp_of]
 
   let encode t =
@@ -847,6 +849,12 @@ module Message = struct
         || not
              (Window.valid_title config.title
               && Window.valid_size config.width config.height)
+      | Canvas (correlation, request) ->
+        Int64.(correlation <= 0L)
+        ||
+          (match request with
+          | Chunk (_, _, _, data) -> String.length data > Canvas.max_chunk_bytes
+          | Create | Begin _ | Publish _ | Abort _ | Release _ -> false)
       | Document (correlation, request) ->
         Int64.(correlation <= 0L)
         ||
@@ -958,6 +966,7 @@ module Event = struct
         Window_id.t * Node_id.t * Handler_id.t * int64 * int64 * Split.Snapshot.t
     | Extension_event of
         Window_id.t * Node_id.t * Handler_id.t * int64 * int64 * Extension.Signal.t
+    | Canvas_response of int64 * Canvas.Response.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1018,8 +1027,9 @@ module Event = struct
             && frames > 0L
             && frames <= 120L
             && width_px * height_px * 4L * frames <= 67108864L))
-    | Asset_response (correlation, _) | Document_response (correlation, _) ->
-      Int64.(correlation > 0L)
+    | Canvas_response (correlation, _)
+    | Asset_response (correlation, _)
+    | Document_response (correlation, _) -> Int64.(correlation > 0L)
     | File_dialog_result (request, _, Selected paths) ->
       Int64.(request > 0L)
       && (not (List.is_empty paths))

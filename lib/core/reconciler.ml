@@ -1424,6 +1424,7 @@ let dispatch t = function
   | Window_capabilities _
   | Extension_event _
   | Split_resized _
+  | Canvas_response _
   | Document_response _
   | Document_navigation _
   | Editor_result _

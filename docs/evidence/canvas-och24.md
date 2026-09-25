@@ -57,11 +57,11 @@ Source: `lib/protocol/canvas_scene_wire.ml`, `rust/protocol/src/canvas_scene.rs`
 
 ## Remaining acceptance
 
-See the registry checkpoint below for native resource ownership; the OCaml
-transport/registration adapter and widget are still pending.
+See the registry and bridge checkpoints below for native resource ownership and
+raw transport; the scoped registration adapter and widget are still pending.
 
 Ergonomic public scene/item/resource constructors, OCaml application-owner checks,
-bridge/Eio upload integration, native painting/tessellation/cache budgets,
+scoped Eio registration, native painting/tessellation/cache budgets,
 rendered images/text, accessible native selection/dragging/pan/zoom, an OCaml
 diagram/plot example, measured rendered-scene/repeated-widget-disposal workloads
 and the integrated chat showcase remain unimplemented. No native canvas
@@ -96,8 +96,34 @@ data accounting charge to zero. Separate history-count/history-byte pressure
 tests recover through explicit reset. These are logical capacity/ownership
 measurements, not RSS or GPUI rendering/cache measurements.
 
-The registry is session-owned but its requests are not yet wired into the bridge
-envelope or the Eio adapter. No canvas capability is advertised. The
+The initial registry checkpoint did not include bridge integration; the following
+checkpoint adds that transport. The
 [design](../design/canvas.md) distinguishes the 128 MiB retained/staged quota,
 bounded temporary publication work, fixed slot metadata, and native rendering
 budgets still to be implemented.
+
+## OCaml/Rust bridge
+
+Canvas requests and responses now cross the production bridge (message 13,
+event 39, registration capability 1073741824). The raw Eio request lane owns
+correlations, admission and terminal completions; scoped public registration
+remains pending. Native mailbox tests prove responses survive a full input queue
+and preserve correlations under command backpressure. Paired OCaml/Rust tests
+cover request frames, response tags, binary chunks, invalid correlation, oversized
+chunks, every request truncation and trailing data.
+
+The local windowless `examples/canvas_upload/main.exe` passes through actual GPUI
+startup and FFI: a 20,000-item scene larger than one bridge message, multi-chunk
+upload, incomplete/rejected publication, revision-preserving retry, explicit reset,
+stale slot reuse, 63 simultaneous request lanes plus local rejection, and clean
+shutdown with zero UI commits/frames. The process returns successfully and opens
+no test window. Its README gives the runnable command. The macOS CI workflow
+includes this check; hosted execution remains pending.
+
+Eight requests queued immediately before shutdown and one attempted after shutdown
+each complete with Closed. This checks terminal runtime callbacks through actual
+FFI, beyond the pure session shutdown test. Full local `dune build -j2`,
+`dune runtest -j2`, `cargo test --workspace --locked -j2`, native/protocol Clippy
+with `--features gpuio-native/native-tests --all-targets -- -D warnings`, and
+format checks pass. The runtime check uses a 45-second external deadline and
+exits normally; no GUI acceptance is inferred from its windowless execution.

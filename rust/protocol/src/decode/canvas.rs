@@ -5,6 +5,38 @@ use crate::{canvas::*, canvas_scene::*};
 use std::io::Cursor;
 
 impl Decoder<'_> {
+    pub(super) fn canvas_request(
+        &mut self,
+    ) -> Result<crate::canvas_resource::Request, DecodeError> {
+        use crate::canvas_resource::{MAX_CHUNK_BYTES, Request, Update};
+        Ok(match self.tag()? {
+            0 => Request::Create,
+            1 => Request::Begin(Update {
+                id: self.resource()?,
+                base: self.int()?,
+                revision: self.int()?,
+                generation: self.int()?,
+                bytes: self.int()?,
+            }),
+            2 => {
+                let id = self.resource()?;
+                let revision = self.int()?;
+                let offset = self.int()?;
+                let payload = self.extension_payload(MAX_CHUNK_BYTES)?;
+                Request::Chunk(
+                    id,
+                    revision,
+                    offset,
+                    crate::asset::Chunk::new(payload.0).map_err(|_| DecodeError::LimitExceeded)?,
+                )
+            }
+            3 => Request::Publish(self.resource()?, self.int()?),
+            4 => Request::Abort(self.resource()?, self.int()?),
+            5 => Request::Release(self.resource()?),
+            _ => return Err(DecodeError::Malformed),
+        })
+    }
+
     fn canvas_point(&mut self) -> Result<Point, DecodeError> {
         Ok(Point {
             x: self.float()?,

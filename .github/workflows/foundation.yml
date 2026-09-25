@@ -110,6 +110,9 @@ jobs:
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_extension"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-extension-native.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/extension_consumer/main.exe", "--smoke"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-extension-consumer.log
+      - name: macOS canvas scene uploads without windows
+        if: runner.os == 'macOS'
+        run: python3 -c 'import subprocess; subprocess.run(["_build/default/examples/canvas_upload/main.exe"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-canvas-upload.log
       - name: Document worker measurements
         run: ./scripts/gpuio exec cargo test --locked -p gpuio-native --lib document_jobs::tests::measurement_report -- --nocapture 2>&1 | tee .cache/ci/document-worker-measurements.log
       - name: macOS public runtime checks

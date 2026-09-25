@@ -1574,6 +1574,14 @@ pub fn run(transport: Arc<Transport>) {
                             }
                             transport.respond(Event::DocumentResponse(correlation, response));
                         }
+                        Message::Canvas(correlation, request) => {
+                            let published=matches!(request,gpuio_protocol::canvas_resource::Request::Publish(..));
+                            let response=session.borrow_mut().canvas_request(request);
+                            if published && matches!(response,gpuio_protocol::canvas_resource::Response::Ack) {
+                                for handle in windows.values() { let _=handle.update(cx,|_,_,cx|cx.notify()); }
+                            }
+                            transport.respond(Event::CanvasResponse(correlation,response));
+                        }
                         Message::SetMotion(preference) => {
                             match session.borrow().check_ready() {
                                 Ok(()) => cx.update(|cx| crate::motion_preference::set(preference, cx)),

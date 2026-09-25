@@ -8,8 +8,9 @@ The current implementation provides validated `Canvas_geometry` and
 `Canvas_path` OCaml values and matching Rust protocol geometry. The immutable
 scene wire schema, bounded Rust decoder, reference/geometry admission and pure
 topmost hit testing are implemented. The native session also owns a tested staged
-scene registry; it is not yet connected to the OCaml bridge. The ergonomic public
-scene API, transport adapter, native rendering and canvas interaction remain in progress;
+scene registry, connected through the bridge and the raw Eio expert request lane.
+The ergonomic public scene API, scoped registration adapter, native rendering
+and canvas interaction remain in progress;
 these pure modules do not yet expose a rendered canvas widget.
 
 ## Ownership and updates
@@ -63,6 +64,15 @@ at compile time for the target's type sizes. These are accounting limits, not
 RSS/allocator ceilings or GPUI mesh/font/image-cache budgets. The fixed 256-slot
 registry metadata also remains bounded after release. Native tessellation/cache
 limits and their actual workloads remain required.
+
+Bridge message tag 13 carries a positive correlation and canvas resource request;
+event tag 39 carries its reserved response. Capability `1073741824` advertises
+scene registration only (aggregate capabilities `2147483647`), not a rendered
+canvas widget. `App.Expert.canvas` admits at most 63 pending raw requests, leaving
+one lane for the scoped adapter. Chunk length is checked before native allocation;
+responses survive input mailbox pressure. Raw callers own release and late-reply
+cleanup. Successful publication schedules native redraw without calling OCaml
+synchronously. App stop completes pending raw requests with Closed.
 
 ## Coordinates and drawing vocabulary
 
