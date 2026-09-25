@@ -33,10 +33,14 @@ module Drawing : sig
   (** Filled paths must have every contour explicitly closed. *)
   val path : Resource.path Resource.t -> paint:Paint.t -> t Or_error.t
 
+  (** [origin] is the top-left of the native single-line layout box, whose height
+      is ascent plus descent. Text supports translation and positive uniform
+      scale; native shaping/raster admission may report [Canvas.Error.Render_limit]. *)
   val text : Resource.text Resource.t -> origin:Geometry.Point.t -> color:Color.t -> t
 
-  (** The full source is stretched into the destination rectangle. Image decode
-      failure is native; construction neither decodes nor accesses files. *)
+  (** The full source's first frame is stretched into the destination rectangle.
+      Canvas images are static; SVGs rerasterize for displayed size/device scale.
+      Image decode failure is native; construction neither decodes nor accesses files. *)
   val image : Resource.image Resource.t -> bounds:Geometry.Rect.t -> t
 end
 

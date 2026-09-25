@@ -15,15 +15,60 @@ pub enum Error {
 
 pub struct FrameBudget {
     remaining: usize,
+    glyphs: usize,
+    glyph_pixels: f64,
+    shape_bytes: usize,
+    shape_calls: usize,
+    images: usize,
+    image_requests: usize,
 }
 impl Default for FrameBudget {
     fn default() -> Self {
         Self {
             remaining: MAX_DRAW_VERTICES,
+            glyphs: 65_536,
+            glyph_pixels: 16_777_216.,
+            shape_bytes: 65_536,
+            shape_calls: 32,
+            images: 1024,
+            image_requests: 8,
         }
     }
 }
 impl FrameBudget {
+    pub(crate) fn shape(&mut self, bytes: usize) -> bool {
+        if self.shape_calls == 0 || bytes > self.shape_bytes {
+            return false;
+        }
+        self.shape_calls -= 1;
+        self.shape_bytes -= bytes;
+        true
+    }
+    pub(crate) fn glyphs(&mut self, count: usize, pixels: f64) -> Result<(), Error> {
+        if !pixels.is_finite() || pixels < 0. {
+            return Err(Error::InvalidGeometry);
+        }
+        if count > self.glyphs || pixels > self.glyph_pixels {
+            return Err(Error::LimitExceeded);
+        }
+        self.glyphs -= count;
+        self.glyph_pixels -= pixels;
+        Ok(())
+    }
+    pub(crate) fn image(&mut self) -> Result<(), Error> {
+        if self.images == 0 {
+            return Err(Error::LimitExceeded);
+        }
+        self.images -= 1;
+        Ok(())
+    }
+    pub(crate) fn image_request(&mut self) -> bool {
+        if self.image_requests == 0 {
+            return false;
+        }
+        self.image_requests -= 1;
+        true
+    }
     pub fn used_vertices(&self) -> usize {
         MAX_DRAW_VERTICES - self.remaining
     }
@@ -44,19 +89,19 @@ pub struct Placement<'a> {
     pub clips: &'a [Rect],
 }
 impl Placement<'_> {
-    fn project_world(&self, p: Point) -> gpui::Point<Pixels> {
+    pub(crate) fn project_world(&self, p: Point) -> gpui::Point<Pixels> {
         point(
             self.bounds.origin.x + px(((p.x - self.viewport.origin.x) * self.viewport.zoom) as f32),
             self.bounds.origin.y + px(((p.y - self.viewport.origin.y) * self.viewport.zoom) as f32),
         )
     }
-    fn project_local(&self, p: Point) -> gpui::Point<Pixels> {
+    pub(crate) fn project_local(&self, p: Point) -> gpui::Point<Pixels> {
         self.project_world(self.transform.apply(Point {
             x: p.x + self.origin.x,
             y: p.y + self.origin.y,
         }))
     }
-    fn clip(&self) -> Result<Option<Bounds<Pixels>>, Error> {
+    pub(crate) fn clip(&self) -> Result<Option<Bounds<Pixels>>, Error> {
         if !self.viewport.is_valid()
             || !self.transform.is_valid()
             || !self.origin.is_valid()
@@ -238,5 +283,31 @@ mod tests {
         assert_eq!(budget.used_vertices(), MAX_DRAW_VERTICES - 3);
         budget.reserve(3).unwrap();
         assert_eq!(budget.used_vertices(), MAX_DRAW_VERTICES);
+    }
+    #[test]
+    fn content_work_is_shared_across_draws_and_resets_only_with_a_new_frame() {
+        let mut budget = FrameBudget::default();
+        assert!(budget.shape(65_536));
+        assert!(!budget.shape(1));
+        let mut budget = FrameBudget::default();
+        for _ in 0..32 {
+            assert!(budget.shape(1));
+        }
+        assert!(!budget.shape(1));
+        for _ in 0..8 {
+            assert!(budget.image_request());
+        }
+        assert!(!budget.image_request());
+        for _ in 0..1024 {
+            budget.image().unwrap();
+        }
+        assert_eq!(budget.image(), Err(Error::LimitExceeded));
+        budget.glyphs(65_536, 16_777_216.).unwrap();
+        assert_eq!(budget.glyphs(1, 0.), Err(Error::LimitExceeded));
+        assert_eq!(budget.glyphs(0, 1.), Err(Error::LimitExceeded));
+        assert_eq!(budget.glyphs(0, f64::NAN), Err(Error::InvalidGeometry));
+        let mut next = FrameBudget::default();
+        assert!(next.shape(1) && next.image_request());
+        assert!(next.glyphs(1, 1.).is_ok());
     }
 }

@@ -315,3 +315,50 @@ consumer backend) and repository formatting also pass. OCH-24 remains in progres
 text/image painting, the mounted view/bridge/event pipeline, actual focus/input/AX
 and the interactive public OCaml example are still required. Hosted platform gates
 remain deferred until consolidated local milestone acceptance.
+
+## Native text, images and deferred content work
+
+`canvas_content` now shapes/caches native single-line text and paints raster/SVG
+images using the existing scoped image leases and decoder/atlas scheduler. It
+adds bounded text retention, variant counts and shared per-frame shaping,
+glyph-work and image-request/draw admission. See the design for exact limits and
+the distinction between retained accounting, native temporary work and GPUI caches.
+Known-size SVGs use a direct variant request rather than an intrinsic decode first.
+
+The local hidden-window GPU test passes white native text within a world clip,
+absence of overflowing glyph pixels, clipped magenta PNM image pixels, two-color
+SVG fill fitting, and subsequent viewport zoom/native resize. Original image
+registrations are retired after the initial frame; the same scene still paints
+and resamples its existing leases after publication and zoom. The test records
+two text shapes and three image requests (one raster and two SVG sizes) before
+extra workload, demonstrating cache reuse through ordinary frames and dragging.
+
+Forty additional text color variants exercise the 32-new-shapes-per-frame budget.
+A bounded per-frame trace observes a full 32-call frame with deferred work, later
+completion of all 40 variants, and no frame exceeding that allowance. Requesting
+513 variants reports `RenderLimit` while cache entries remain bounded. The trace
+is necessary because GPUI may run multiple frames between test observations; the
+test does not assume wall-clock scheduling determines a frame boundary. One
+recorded pressure result held 106 text variants, two image variants, 106 cumulative
+shaping calls and three image requests. That count is not a latency benchmark.
+
+The same 513 color variants placed offscreen at a new font scale succeed without
+consuming visible-line admission. They require one cold measurement, then no
+additional shaping on repeated frames. Measured bounds have their own bounded
+cache within the shared text accounting budget; full offscreen shaped lines are
+not retained merely to support culling.
+
+After disposal/shutdown the test checks zero retained text charge, zero mesh/scene
+charge and zero retired encoded-image charge, then closes its hidden window. The
+existing state/geometry pixel checks continue to pass. This is actual GPU painting
+with direct state calls, not public OCaml widget or OS input/accessibility acceptance.
+
+The native library suite passes 99 tests, including new shared text quota recovery,
+physical font/SVG size admission, per-frame content limits and a direct SVG request
+that queues only one variant, shares it, rejects raster misuse and releases pixels.
+The native GPU command uses `native-canvas-tests --test native_canvas` under a
+90-second external deadline. Hosted platform execution remains pending.
+
+Canvas-feature all-target Clippy with warnings denied, the full isolated Dune
+build including the independent consumer backend, and repository formatting pass
+at this checkpoint. The final native test and all build/check processes exited.

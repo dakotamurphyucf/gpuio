@@ -162,8 +162,8 @@ synchronously. App stop completes pending raw requests with Closed.
 
 `canvas_mesh`, `canvas_plan` and `canvas_jobs` implement bounded geometry and work
 queues. `canvas_host` schedules them on GPUI background workers, and `canvas_paint`
-paints admitted meshes. Text/image painting and the mounted public view remain
-in progress.
+paints admitted meshes. `canvas_content` paints native text and managed images.
+The mounted public view remains in progress.
 
 Geometry is tessellated in local coordinates before applying the item's affine
 transform. This preserves stroke width semantics under nonuniform scale, shear
@@ -222,6 +222,58 @@ expansion. A shared `FrameBudget` admits at most 1,048,576 expanded vertices per
 window frame, checking before allocation. The mounted view integration must share
 that budget across canvases rather than allocate a separate allowance per canvas.
 The helper accepts meshes only; text and images require their own painting paths.
+
+## Native text and images
+
+`canvas_content` retains one admitted scene snapshot and indexes its resources.
+Text uses GPUI's native single-line shaper. The origin is the top-left of a line
+box with height ascent plus descent. Its logical font size is the resource size
+times the item's positive uniform scale and viewport zoom; GPUI applies actual
+device density once. The `system` family maps to GPUI's platform UI font. Shaped
+lines are cached by canonical resource key, logical font size and color, so pan,
+dragging and ordinary redraws reuse them.
+
+Each mounted content cache retains at most 512 shaped text variants. A separate
+bounded cache keeps up to 20,000 measured ink bounds, keyed without color, so
+offscreen variants can be culled without retaining full lines or reshaping every
+frame. A cold offscreen size is measured once under the same shaping allowance.
+Offscreen variants do not consume the visible-variant allowance. All canvas caches
+in an application share a 32 MiB text accounting budget, including measurements,
+text, run/glyph vector capacities and bookkeeping allowances. Unused least-recently-used
+variants can be evicted before admission. Output is limited to 32,768 glyphs per
+line and a 512-device-pixel font size. Native shaping's temporary allocations and
+GPUI/platform font and glyph caches are separate; this is not a process RSS or
+hard shaping-time guarantee. A single shaping input is already limited to 16 KiB
+by the resource contract. Invalid native metrics become a typed failure.
+
+The shared window `FrameBudget` admits at most 32 new shaping calls and 64 KiB of
+new text per frame. Additional misses return `Deferred`; the owner requests a
+later frame. Painting admits at most 65,536 glyphs and 16,777,216 estimated glyph
+pixels, using conservative font bounding-box areas at actual density. This is
+work accounting rather than exact atlas-byte measurement. Clipping/culling uses
+the native shaped ink bounds before charging visible-line drawing work. Cache or
+draw admission failures return `Render_limit`; the owner must report the failure
+and stop deferred retries for that failed render.
+
+Images stretch their first frame into the local destination rectangle, under
+the admitted positive axis scale/translation. Canvas images are static; automatic
+animated-image playback is not part of this canvas vocabulary. Visible SVGs use
+exact displayed physical dimensions, rounded up, with fill fitting. Known-size
+SVG requests enter the existing image scheduler directly, without an unused
+intrinsic decode. Raster pixels and SVG size variants share the existing bounded
+decoder/atlas accounting and worker-exit cleanup. Sources come from the scene's
+existing image leases, so retirement prevents new acquisition but does not break
+an existing scene's painting or SVG resampling.
+
+Content caches admit 256 image variants, while the shared frame budget admits
+eight new image requests and 1,024 image draws. Image work is requested only after
+world/viewport/inherited clipping and destination culling. `Loading` waits for
+native image completion to wake the window; it does not introduce polling.
+Frame-end drops unused image variants, including obsolete SVG sizes. Publication
+prunes removed/replaced resources; scene-generation reset clears both caches.
+Hiding/disposal must clear mounted caches. A mounted source change recreates the
+content owner, just as it recreates interaction state. These painting helpers are
+validated natively; their public widget/lifecycle integration is still required.
 
 ## Coordinates and drawing vocabulary
 
@@ -367,8 +419,8 @@ Start with a 4 MiB encoded scene limit, 20,000 items, 4,096 drawing resources,
 within the bridge envelope. Bound concurrent staging, total live scene bytes,
 tessellation vertices, decoded/shaped caches and accessibility nodes separately;
 serialized byte bounds do not bound those expanded resources by themselves.
-Geometry preparation and worker bounds are now implemented as described above;
-font/image/frame integration still needs its own validation.
+Geometry, worker and native content/frame bounds are implemented as described
+above. Their integration into the public mounted widget remains in progress.
 
 The version-1 immutable scene schema now enforces those wire limits, a maximum
 of eight world clip rectangles per item and 2,048 interactive items per scene.
@@ -386,7 +438,7 @@ checks the complete 4 MiB envelope, validates UTF-8/finiteness and requires exac
 consumption. Domain validation follows decoding. Reused paths cache their
 control-point hull and closure status during admission so 20,000 references do
 not trigger 20,000 path traversals. Domain validation is distinct from native
-tessellation and font/image allocation budgets, which remain required.
+tessellation and native font/image/frame admission described above.
 
 Validation covers finite geometry, nonsingular transforms, positive dimensions,
 valid path topology, valid UTF-8, unique identities, exact resource generations,

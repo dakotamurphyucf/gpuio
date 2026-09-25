@@ -5,6 +5,7 @@ pub mod asset_cache;
 pub mod asset_decode;
 pub mod asset_store;
 pub mod asset_svg;
+pub mod canvas_content;
 pub mod canvas_host;
 pub mod canvas_jobs;
 pub mod canvas_mesh;
