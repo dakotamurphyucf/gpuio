@@ -37,6 +37,11 @@ pub struct Session {
 }
 
 impl Session {
+    #[cfg(feature = "native-canvas-tests")]
+    pub(crate) fn retained_canvas_bytes(&self) -> usize {
+        self.canvases.reserved_bytes()
+    }
+
     pub fn hello(&mut self, version: i64, capabilities: i64) -> Result<Event, ErrorCode> {
         if self.stopped {
             return Err(ErrorCode::Closed);

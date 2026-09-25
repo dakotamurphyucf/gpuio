@@ -174,3 +174,8 @@ name = "native_canvas"
 path = "tests/native_canvas.rs"
 harness = false
 required-features = ["native-canvas-tests"]
+
+[[test]]
+name = "native_canvas_view"
+harness = false
+required-features = ["native-canvas-tests"]

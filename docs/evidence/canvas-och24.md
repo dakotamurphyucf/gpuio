@@ -404,3 +404,58 @@ No GUI windows were opened by this checkpoint's checks. Native painting evidence
 above remains from the earlier hidden GPU scenario; these bridge tests do not
 extend that evidence to a public widget or keyboard/accessibility acceptance.
 Hosted M5 validation remains pending.
+
+## Mounted retained-tree renderer checkpoint
+
+`native_canvas_view` uses the actual native `View`, session, retained-tree apply
+path, canvas resource requests and event mailbox in a hidden, unfocused macOS
+window. Unlike the earlier geometry/content harness, it reaches the renderer by
+creating a `CanvasView` node and setting its typed configuration. It still does
+not exercise the OCaml application or OS input/accessibility.
+
+GPU readback verifies initial shape pixels and publication changes. A second
+canvas is mounted and removed 32 times; each pair shares exactly 12 shape vertices
+in one frame budget, including consecutive draws that verify budget reset.
+One local debug run completed those lifecycle iterations in 391.86 ms; this is
+not a frame latency, throughput or whole-process RSS guarantee.
+
+The mounted checks also verify:
+
+- Viewport commands produce scene-stamped asynchronous completion events.
+- Hiding and showing an ancestor without an intermediate paint immediately
+  discards jobs/prepared geometry/content while retaining the viewport and command
+  watermark. Reshow prepares again without replaying the command.
+- A valid scene with 4,097 unique rectangles exceeds the mesh preparation limit.
+  The prior frame remains visible, exactly one `Render_limit` observation identifies
+  the failed replacement revision, and a later valid publication recovers.
+  A directed reporting check injects a separate old-frame content error and
+  verifies that repeated draws do not make the two failure identities replay.
+- A new scene generation restores the initial viewport, prepares at that zoom and
+  actual device scale, and leaves the command watermark intact.
+- A mounted lease still paints after registration release; after unmount, a new
+  node cannot reacquire that identity and reports one pre-acquisition
+  `Unavailable_scene`. Repeated paints do not repeat that failure.
+- Unmount closes old states even if the test retains an earlier state reference;
+  all leases/presentations are dropped and tree retention returns to zero.
+
+After window removal and native worker shutdown, canvas scene, mesh and text
+accounting are zero. The recorded worker metrics were `(39, 1, 2, 0)`:
+completed jobs, discarded jobs, peak workers and remaining mesh bytes. The
+two-worker limit is preserved. Accounting does not include unrelated GPUI/OS
+resources or claim a process RSS ceiling.
+
+The combined local command passes under a 90-second external deadline:
+
+```
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native \
+  --features native-canvas-tests --test native_canvas --test native_canvas_view
+```
+
+Both windows are hidden and removed by their respective harnesses, and both
+processes exit. The full isolated Dune build also passes, including native FFI
+and the independent extension consumer, as do canvas-feature all-target Clippy
+with warnings denied, repository formatting and `git diff --check`.
+CI now builds the new test on both
+platforms and runs it beside the existing canvas GPU scenario on macOS; hosted
+execution remains pending. Pointer/keyboard interaction, selection presentation,
+accessible object semantics and the public OCaml diagram remain next work.

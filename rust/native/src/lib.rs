@@ -157,3 +157,8 @@ mod canvas_test;
 pub fn run_native_canvas_test() {
     canvas_test::run();
 }
+
+#[cfg(feature = "native-canvas-tests")]
+pub fn run_native_canvas_view_test() {
+    host::canvas_view::test::run();
+}

@@ -3,6 +3,8 @@ mod animation;
 #[cfg(feature = "native-tests")]
 #[path = "animation_test.rs"]
 pub(super) mod animation_test;
+#[path = "canvas_view.rs"]
+pub(crate) mod canvas_view;
 #[path = "extension_view.rs"]
 mod extension_view;
 use crate::{session::Session, transport::Transport};
@@ -117,6 +119,8 @@ struct View {
     images: BTreeMap<NodeId, image_view::State>,
     documents: BTreeMap<NodeId, document_view::State>,
     extensions: BTreeMap<NodeId, extension_view::State>,
+    canvases: BTreeMap<NodeId, Rc<RefCell<canvas_view::State>>>,
+    canvas_budget: Rc<RefCell<crate::canvas_paint::FrameBudget>>,
     splits: BTreeMap<NodeId, split_view::State>,
     split_activation: Option<gpui::Subscription>,
     buttons: BTreeMap<NodeId, Rc<ButtonState>>,
@@ -332,6 +336,8 @@ impl View {
             images: BTreeMap::new(),
             documents: BTreeMap::new(),
             extensions: BTreeMap::new(),
+            canvases: BTreeMap::new(),
+            canvas_budget: Default::default(),
             splits: BTreeMap::new(),
             split_activation: None,
             buttons: BTreeMap::new(),
@@ -374,6 +380,7 @@ impl View {
         self.sync_palettes(window, cx);
         self.sync_toasts(cx);
         self.sync_tooltips(window, cx);
+        self.sync_canvases(dirty, cx);
         self.sync_splits(window, cx);
         let nodes = {
             let session = self.session.borrow();
@@ -420,6 +427,9 @@ impl View {
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let node = tree.get(id).expect("validated retained node");
+        if node.kind == Kind::CanvasView {
+            return self.canvas_element(node, interaction, window, cx);
+        }
         if node.kind == Kind::Extension {
             return self.extension_element(tree, node, interaction, window, cx);
         }
@@ -1181,6 +1191,7 @@ impl Render for View {
             .clone();
         let tab_focus = self.focus.clone();
         let begin_focus = self.focus.clone();
+        let canvas_budget = self.canvas_budget.clone();
         let drag_window = self.id;
         let mut root = drag_drop::root(div(), self.id, cx)
             .capture_key_down(cx.listener(|view, event: &gpui::KeyDownEvent, window, cx| {
@@ -1211,6 +1222,7 @@ impl Render for View {
                     |_, _, _| (),
                     move |_, _, window, cx| {
                         begin_focus.borrow_mut().begin_frame();
+                        *canvas_budget.borrow_mut() = Default::default();
                         drag_drop::install_cleanup(drag_window, window, cx);
                     },
                 )
@@ -1240,6 +1252,7 @@ impl Render for View {
             }
         }
         self.hide_unvisited_extensions();
+        self.hide_unvisited_canvases();
         self.buttons.retain(|id, _| self.visited.contains(id));
         self.radios.retain(|id, _| self.visited.contains(id));
         self.selects.retain(|id, _| self.visited.contains(id));
@@ -1548,7 +1561,7 @@ pub fn run(transport: Arc<Transport>) {
                                     transport.respond(Event::Closed(correlation, id));
                                     if let Some(window) = windows.remove(&id) {
                                         let _ = window
-                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); view.cancel_split_drag(window, cx); view.extensions.clear(); window.remove_window(); });
+                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); view.cancel_split_drag(window, cx); view.extensions.clear(); for state in view.canvases.values() { state.borrow_mut().close(); } view.canvases.clear(); window.remove_window(); });
                                     }
                                 }
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),
@@ -1576,10 +1589,10 @@ pub fn run(transport: Arc<Transport>) {
                             transport.respond(Event::DocumentResponse(correlation, response));
                         }
                         Message::Canvas(correlation, request) => {
-                            let published=matches!(request,gpuio_protocol::canvas_resource::Request::Publish(..));
+                            let published=match &request { gpuio_protocol::canvas_resource::Request::Publish(id,_) => Some(*id), _ => None };
                             let response=session.borrow_mut().canvas_request(request);
-                            if published && matches!(response,gpuio_protocol::canvas_resource::Response::Ack) {
-                                for handle in windows.values() { let _=handle.update(cx,|_,_,cx|cx.notify()); }
+                            if let Some(source)=published && matches!(response,gpuio_protocol::canvas_resource::Response::Ack) {
+                                for handle in windows.values() { let _=handle.update(cx,|view,_,cx|view.canvas_changed(source,cx)); }
                             }
                             transport.respond(Event::CanvasResponse(correlation,response));
                         }

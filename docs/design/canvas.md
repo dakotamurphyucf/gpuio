@@ -11,8 +11,9 @@ topmost hit testing are implemented. The native session also owns a tested stage
 scene registry, connected through the bridge and the raw Eio expert request lane.
 `Canvas_resource` and `Canvas_scene` provide pure typed construction and owner-aware
 encoding. `Gpuio_eio.Canvas` now provides scoped publication, coalesced updates,
-explicit reset and release. Native rendering and canvas interaction remain in
-progress; registration does not yet expose a rendered canvas widget.
+explicit reset and release. Native retained-tree rendering is implemented;
+mounted pointer/keyboard/accessibility integration and public widget acceptance
+remain in progress.
 
 ## OCaml construction
 
@@ -163,9 +164,9 @@ synchronously. App stop completes pending raw requests with Closed.
 `canvas_mesh`, `canvas_plan` and `canvas_jobs` implement bounded geometry and work
 queues. `canvas_host` schedules them on GPUI background workers, and `canvas_paint`
 paints admitted meshes. `canvas_content` paints native text and managed images.
-The mounted public view remains in progress. The typed `View.canvas` and Bonsai
-alias now reconcile small configurations through the tree protocol, but native
-mounted painting/input/accessibility are not yet connected to that constructor.
+The typed `View.canvas` and Bonsai alias reconcile small configurations through
+the tree protocol. Native mounted painting is connected to that retained-tree
+kind; pointer/keyboard/accessibility and the public OCaml example remain in progress.
 
 ### View and observation bridge
 
@@ -198,6 +199,36 @@ Failed ordinary publication preserves eligibility of the earlier accepted scene.
 Release and shutdown suppress subsequent scene observations; mounted native
 leases still follow the separate resource-retention contract above. This bridge
 does not yet advertise a rendered-canvas capability.
+
+### Mounted native presentation
+
+`canvas_view` acquires each scene lease when the native tree accepts its binding,
+before a subsequent registration release can arrive. The mounted native state
+retains selection, viewport, position overrides and the command watermark;
+prepared geometry, shaping/image caches and worker handles are separate,
+disposable presentation resources. Hiding or evicting a view cancels pending
+preparation and discards presentation resources, while preserving that native
+state. A hide/show transition without an intervening paint still performs this
+cleanup. Source replacement and unmount explicitly close the old state and drop
+its lease, including when an older paint closure still references that state.
+
+Preparation uses the current viewport and actual window device scale. The last
+prepared scene remains visible while a replacement is pending or fails admission.
+An accepted ready result advances native interaction state and content caches
+together. A scene-generation reset requests geometry using the initial viewport,
+resets the viewport when installed, and does not replay an earlier command.
+Source publication cancels an unfinished gesture immediately and invalidates
+containing virtual-list rows. Rendering uses one shared budget reset by the root
+window's first paint callback each frame, rather than allocating an allowance per
+canvas or relying on render-call frequency.
+
+Deferred text shaping requests another frame; image/geometry completions wake
+their native service. An unchanged failed request is not retried by an idle timer.
+Preparation failure identifies the requested publication, since that publication
+has not become displayed state; otherwise the Eio revision fence would discard
+the error when the old frame remains visible. Failures are reported once per
+handler/preparation identity. Existing mounts can still paint their acquired
+lease after registration release; a new mount receives `Unavailable_scene`.
 
 Geometry is tessellated in local coordinates before applying the item's affine
 transform. This preserves stroke width semantics under nonuniform scale, shear

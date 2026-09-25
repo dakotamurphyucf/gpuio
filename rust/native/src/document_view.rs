@@ -181,7 +181,7 @@ impl Presentation {
         let id = self.node;
         cx.defer(move |cx| {
             let _ = root.update(cx, |root, cx| {
-                root.invalidate_document_row(id);
+                root.invalidate_resource_row(id);
                 cx.notify();
             });
         });
@@ -875,11 +875,11 @@ impl View {
             return;
         }
         for id in ids {
-            self.invalidate_document_row(id);
+            self.invalidate_resource_row(id);
         }
         cx.notify();
     }
-    fn invalidate_document_row(&self, id: NodeId) {
+    pub(super) fn invalidate_resource_row(&self, id: NodeId) {
         let session = self.session.borrow();
         let Some(tree) = session.tree(self.id) else {
             return;
