@@ -1,7 +1,11 @@
 # Numeric, range, stepper and OTP inputs (OCH-34)
 
-Status: implementation started. No OCH-34 capability is advertised. Draft the
-public contracts before native integration; acceptance remains the full ticket.
+Status: local macOS acceptance is complete for single/range sliders, numeric
+editors/steppers and segmented OTP inputs. Capability `34359738368` advertises this
+family (aggregate `68719476735`). Consolidated hosted macOS/Linux gates and merge
+remain pending; full Linux GUI release acceptance remains OCH-17. See the
+[current evidence](../evidence/numeric-inputs-och34.md). Historical checkpoints
+below describe the staged implementation, not remaining work.
 
 ## Pinned implementation review
 

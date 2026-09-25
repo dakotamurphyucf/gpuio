@@ -489,3 +489,9 @@ fn correlated_command_envelopes_append_tags_and_enforce_payload_bounds() {
         );
     }
 }
+
+#[test]
+fn accepted_numeric_input_capability() {
+    use gpuio_protocol::v1::{CAP_NUMERIC_INPUTS, CAPABILITIES};
+    assert_eq!(CAPABILITIES & CAP_NUMERIC_INPUTS, 1_i64 << 35);
+}

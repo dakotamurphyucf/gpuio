@@ -2,13 +2,14 @@
 
 ## Current scope
 
-OCH-34 is In Progress. Shared numeric domain/draft rules and slider contracts/codec/native state are
-implemented, along with retained slider views, tree admission and observation routing.
-Mounted slider rendering and initial native interaction tests also pass locally.
-Correlated slider commands and the public Bonsai/Eio controller/example also pass
-local integration. Expanded acceptance, numeric input/stepper and OTP integration
-remain pending. No OCH-34
-capability is advertised and no new native GUI acceptance is claimed.
+Local macOS acceptance is complete for the full OCH-34 scope: single/range
+sliders, numeric editor/stepper layouts and segmented OTP inputs. Public controllers,
+commands/events and examples are implemented. Capability `34359738368` advertises
+the family (aggregate `68719476735`). OCH-34 remains In Progress until consolidated
+hosted macOS/Linux gates and merge; Linux desktop release acceptance remains OCH-17.
+
+The final OTP acceptance entry below closes the local gaps described in earlier
+chronological checkpoints. Those earlier entries record their historical scope.
 
 The [design and pinned-source review](../design/numeric-inputs.md) records the
 candidate single/range support and bridge gaps. Public contracts were drafted in
@@ -1186,3 +1187,106 @@ The close fixture originally expected all in-flight reads to be cancelled, but
 native FIFO ordering allows an earlier read to complete before close. The test
 and documentation now distinguish admission cutoff from actual native closure.
 No production behavior was changed to accommodate these fixture corrections.
+
+## Final local OTP acceptance and OCH-34 capability
+
+Local macOS acceptance is complete for all OCH-34 component families. The new
+`CAP_NUMERIC_INPUTS = 1 << 35` (`34359738368`) covers single/range sliders,
+numeric editors/steppers and segmented OTP fields, including public commands and
+events. The OCaml/Rust aggregate is `68719476735`; independently reviewed Hello
+bytes are `0001fcffffffff0f000000`. Older capability bits remain present.
+Consolidated hosted macOS/Linux checks and merge are still required; no Linux
+GUI or milestone completion is implied.
+
+The expanded `native_otp_input` harness adds four focused acceptance modules:
+
+- **Appearance:** real GPU readback checks each of six occupied cells against
+  the inherited foreground, background and focus border. Five light/dark cycles
+  exercise both masks, focus states and synthetic 1x/2x scales. Different
+  same-length accepted codes and active Unicode preedits must produce identical
+  masked pixels. Toggling masking preserves the preedit and directional selection.
+  Selected cells, marked underlining, caret, 40x20/80x40/180x64 constrained geometry
+  and candidate/hit-test alignment are exercised. This is synthetic scale coverage,
+  not a physical-monitor transition test.
+- **Managed rows and visibility:** focus/composition pins the row; attempted
+  eviction fails atomically without advancing the tree revision. Hiding an
+  ancestor or entering a modal scope cancels composition back to its accepted
+  selection and releases pointer capture. Hidden reads and explicit replacements
+  remain valid; focus is denied. Late pointer release and a forced stale native
+  input delegate do not edit the blocked field. Native entity identity survives.
+- **Windows:** actual macOS activation loss cancels preedit. Another window in
+  the same session uses the same node/handler identities without confusing events.
+  Only the second window receives its completion pair. Closing it during pointer
+  capture/composition disposes the owner while the first window preserves its value.
+- **Workload:** three fresh generations of 256 mounted editors with maximum-length
+  alphanumeric policies. Each cycle performs 32 native selection actions and
+  1,024 maximum-length replacements in bounded batches. Adjacent native selection
+  changes coalesce; programmatic observations remain discrete. Undo/redo together
+  retain exactly 128 edits / at most 8,192 bytes of text, and Reset clears history.
+  No transaction revision changes during native edits. Idle observation sees no
+  redraws or events. All weak owners expire and session tree accounting returns
+  to zero after each cycle.
+
+Final workload measurements on macOS 14.5 arm64, Apple M1 Max, debug build:
+
+| Cycle | Mounted owners | Tree accounting | Mount + frame | 32 keyboard actions + frame |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | 256 | 41,216 bytes | 195.5 ms | 596.9 ms |
+| 2 | 256 | 41,216 bytes | 93.1 ms | 557.2 ms |
+| 3 | 256 | 41,216 bytes | 95.7 ms | 581.3 ms |
+
+These are diagnostic debug timings under the native harness, not frame-rate or
+input-latency guarantees. Tree accounting excludes GPUI/allocator overhead and
+process RSS. The history limit counts text payload; total resource lifetime is
+also checked through weak references and zero retained tree accounting. Mounts
+and explicit command observations drain in batches of 32 under the existing
+128-event limit; unbounded discrete output still faults rather than silently drops.
+
+Inspected exported GPU artifacts:
+[light](../images/otp-light-plain.png), [dark](../images/otp-dark-plain.png),
+[light masked](../images/otp-light-masked.png), [dark masked](../images/otp-dark-masked.png),
+[selection](../images/otp-dark-selection.png),
+[composition](../images/otp-dark-composition.png), and
+[masked composition](../images/otp-dark-composition-masked.png).
+They show the native field under explicit diagnostic colors, not the final chat
+showcase composition. All populated digits/bullets are readable in the reviewed
+final artifacts, and masked preedit retains an underline/caret without revealing
+its raw characters.
+
+The first image-capture helper tried to draw while mutably borrowing the root
+View. It was corrected to use `AsyncApp.update_window`, matching GPUI's capture
+contract. An early artifact appeared to have two missing digits; that fixture
+only checked aggregate glyph ink and did not verify its accepted value. The final
+fixture is read-only during accepted-code captures, asserts the native value and
+checks every cell across repeated transitions. The anomaly did not reproduce in
+these stricter runs; no unverified claim of a GPUI rendering bug or production
+rendering fix is made. Native test builds also fail on a glyph-paint error instead
+of silently discarding it.
+
+Validation uses the isolated environment:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-native --test native_otp_input --features native-image-tests --no-run -j 2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked --workspace -j 2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --all-targets --features native-image-tests -j 2 -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @runtest @fmt
+```
+
+The feature-enabled native executable runs separately under a 60-second owned
+process-group timeout. Its final run passes APPEARANCE, POLICY, WINDOWS, NATIVE,
+COMMAND_PRESSURE and WORKLOAD markers and closes/reaps every window/process.
+The full Rust workspace passes 425 tests. Clippy with native-image tests and
+warnings denied, the full Dune build/expect/format suite, and the public slider,
+numeric and OTP self-tests all pass with the new capability handshake.
+
+The final numeric example rerun exposed a fixture readiness race: it started on
+the first editor's observation and captured two other controllers before their
+mount observations arrived. The example now waits for all three snapshots before
+starting its retained command sequence. Render acknowledgements replace fixed
+100 ms sleeps for policy and remount checks. Rebuilding the example with `@fmt`
+and running `number.exe --self-test` passes the three-layout, command, policy and
+remount checks. `otp.exe --self-test` also passes. Each public executable runs
+under an owned timeout and exits cleanly; no test windows remain open.
+
+Required hosted macOS/Linux CI and merge remain pending under the milestone's
+consolidated delivery workflow.

@@ -47,6 +47,15 @@ let check snapshot text committed =
             (committed : N.Value.t)])
 ;;
 
+let frame window =
+  E.Expert.of_fun ~f:(fun ~callback ->
+    App.Window.request_frame window ~on_rendered:(fun ~revision:_ ->
+      E.of_thunk (fun () -> callback ()))
+    |> ok)
+;;
+
+let settle window = E.bind (frame window) ~f:(fun () -> frame window)
+
 let component ~self_test ~completed window graph =
   let open B.Let_syntax in
   let shown, set_shown = B.state true graph in
@@ -77,28 +86,39 @@ let component ~self_test ~completed window graph =
   let hidden = mode "Keyboard temperature" Hidden in
   (* Deliberately unplaced controller exercises Not_mounted without racing mount. *)
   let unplaced = mode "Unplaced test field" Hidden in
-  let observed = B.map number ~f:Controller.snapshot in
-  let sleep = B.Clock.sleep graph in
+  (* Native mount observations can arrive in separate UI turns. The test retains
+     these controller values across effects, so all three must be ready before
+     capturing them in the command sequence. *)
+  let observed =
+    let%arr number = number
+    and stacked = stacked
+    and hidden = hidden in
+    Controller.snapshot number, Controller.snapshot stacked, Controller.snapshot hidden
+  in
   let started = ref false in
   let latest = ref None in
   B.Edge.on_change
     observed
-    ~equal:(Option.equal N.Snapshot.equal)
+    ~equal:[%equal: N.Snapshot.t option * N.Snapshot.t option * N.Snapshot.t option]
     ~callback:
       (let%arr number = number
        and unplaced = unplaced
        and stacked = stacked
        and hidden = hidden
-       and sleep = sleep
        and set_shown = set_shown
        and set_disabled = set_disabled
        and set_read_only = set_read_only in
-       fun observation ->
+       fun (number_snapshot, stacked_snapshot, hidden_snapshot) ->
          let open E.Let_syntax in
          let%bind begin_test =
            E.of_thunk (fun () ->
              latest := Some number;
-             if self_test && Option.is_some observation && not !started
+             if
+               self_test
+               && Option.is_some number_snapshot
+               && Option.is_some stacked_snapshot
+               && Option.is_some hidden_snapshot
+               && not !started
              then (
                started := true;
                true)
@@ -176,7 +196,7 @@ let component ~self_test ~completed window graph =
            let%bind () = check seeded "0" (value 0.) in
            let%bind _ = replace number 1.5 >>= expect in
            let%bind () = set_disabled true in
-           let%bind () = sleep (Time_ns.Span.of_sec 0.1) in
+           let%bind () = settle window in
            let%bind denied = Controller.focus number in
            let%bind () = error denied Focus_blocked in
            let%bind denied = Controller.step number Increase in
@@ -185,7 +205,7 @@ let component ~self_test ~completed window graph =
            let%bind () = check replaced "2.5" (value 2.5) in
            let%bind () = set_disabled false in
            let%bind () = set_read_only true in
-           let%bind () = sleep (Time_ns.Span.of_sec 0.1) in
+           let%bind () = settle window in
            let%bind denied = Controller.step number Increase in
            let%bind () = error denied Read_only in
            let%bind _ = Controller.focus number >>= expect in
@@ -196,11 +216,11 @@ let component ~self_test ~completed window graph =
            let%bind hidden = Controller.step hidden Decrease >>= expect in
            let%bind () = check hidden "1.5" (value 1.5) in
            let%bind () = set_shown false in
-           let%bind () = sleep (Time_ns.Span.of_sec 0.1) in
+           let%bind () = settle window in
            let%bind stale = Controller.read_snapshot number in
            let%bind () = error stale Stale_input in
            let%bind () = set_shown true in
-           let%bind () = sleep (Time_ns.Span.of_sec 0.1) in
+           let%bind () = settle window in
            let%bind stale = Controller.read_snapshot number in
            let%bind () = error stale Stale_input in
            let%bind current = E.of_thunk (fun () -> Option.value_exn !latest) in

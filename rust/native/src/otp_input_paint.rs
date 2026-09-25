@@ -348,7 +348,7 @@ impl Element for Field {
                 window.paint_quad(fill(selection, rgba(0x6688ff40)));
             }
             for line in &layout.lines {
-                let _ = line.shaped.paint(
+                let painted = line.shaped.paint(
                     line.origin,
                     window.line_height(),
                     TextAlign::Left,
@@ -356,6 +356,11 @@ impl Element for Field {
                     window,
                     cx,
                 );
+                #[cfg(feature = "native-tests")]
+                if let Err(error) = &painted {
+                    panic!("OTP glyph paint failed: {error}");
+                }
+                let _ = painted;
             }
             if let Some(caret) = layout.caret {
                 window.paint_quad(fill(caret, layout.color));

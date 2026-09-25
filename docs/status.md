@@ -124,27 +124,15 @@ constrained-layout checks now pass, with a stacked-button overflow fixed. Extern
 macOS AX/OS keyboard tests also pass through the public example. Retained IME and
 history through configuration changes, hidden/modal gates, independent-window
 close during a held repeat, and three 256-editor workload/disposal cycles now pass.
-Slider and numeric editor/stepper local acceptance is complete; OTP remains
-pending before OCH-34 capability advertisement and ticket completion. OTP now has
-validated Core policy/value types and matching OCaml/Rust normalization and atomic
-selection-edit helpers with passing expect/unit and policy-encoding tests. A
-bounded native editing model now passes atomic paste, selection/cell navigation,
-UTF-16/preedit commit/rollback and undo/redo tests. Public
-Core configuration/snapshot/event/command contracts and standalone paired codecs
-now validate historical policies, Unicode boundaries, revision guards and bounded
-payloads. The native state owner now implements guarded commands, permissions,
-ordered completion, composition cleanup and clipboard/focus callback admission;
-retained view/configuration admission and observation dispatch now enforce stable
-seeds, immutable policies and identity/revision fences. Mailbox completion pairs
-have atomic count/byte admission with semantic coalescing boundaries. The GPUI
-segmented adapter now publishes native observations and passes local native
-key/clipboard/NSTextInputClient, pointer capture, clipped preedit geometry, real
-AppKit accessibility/value actions, masking, disposal and terminal overload checks.
-Correlated command/result envelopes, the public Bonsai/Eio controller and both
-alphabet examples now pass local bridge acceptance. Native composition guards,
-explicit cancellation and command observation-pressure failure also pass. Expanded
-OTP visual/lifecycle/workload acceptance still remains. See
-[OTP contract and integration requirements](design/otp-inputs.md).
+OCH-34 local acceptance is complete for sliders, numeric editors/steppers and OTP.
+OTP now has public Core/Bonsai/Eio controllers, bounded paired codecs, retained
+native editing and correlated commands. Native key/clipboard/NSTextInputClient,
+AppKit value/action/masking, public OS keyboard/AX, GPU light/dark/density/preedit,
+managed-list pins, hidden/modal/capture cleanup and independent-window lifetimes
+pass locally. Three 256-owner workloads verify bounded history/coalescing, idle
+behavior and complete disposal. Capability `34359738368` advertises the family
+(aggregate `68719476735`). Consolidated hosted gates and merge remain pending.
+See [OTP contracts](design/otp-inputs.md).
 See [numeric design](design/numeric-inputs.md) and
 [foundation evidence](evidence/numeric-inputs-och34.md).
 No milestone-05 completion or hosted acceptance is claimed yet.

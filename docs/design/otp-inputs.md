@@ -1,13 +1,12 @@
 # Segmented OTP inputs (OCH-34)
 
-Status: bounded text policy, atomic edit helpers, a platform-independent native
-editing model and native state owner, public Core contracts, retained view/event
-envelopes, OCaml/Rust codecs and a GPUI segmented text-input adapter are implemented.
-Local native keyboard/clipboard/IME, geometry, AppKit accessibility and overload
-checks pass. Correlated commands and the public Bonsai/Eio controller/example now
-pass local bridge and native composition/overload checks. Expanded visual and
-lifecycle/workload acceptance remains pending. No OTP capability is advertised. This
-document supplements [numeric inputs](numeric-inputs.md).
+Status: public Core/Bonsai/Eio APIs, bounded protocol, retained native editor,
+commands/events and local macOS acceptance are complete. This includes native
+IME/clipboard/AX, public application/OS keyboard checks, GPU appearance, managed
+row retention, hidden/modal/window lifetimes, overload and retained-owner workload.
+Capability `34359738368` covers numeric/range/stepper/OTP inputs; aggregate
+`68719476735`. Consolidated hosted gates and merge remain pending. This document
+supplements [numeric inputs](numeric-inputs.md).
 
 ## Implemented text contract
 
@@ -331,10 +330,22 @@ have a public example in `examples/numeric/otp.ml`; its self-test exercises the
 real bridge and closes its window. `scripts/test_otp_input.py` additionally targets
 the example through macOS accessibility and OS keyboard delivery.
 
-### Remaining integration and acceptance
+### Acceptance and remaining delivery gates
 
-- Expand OTP-specific hidden/modal/list/window lifecycle and retained-load checks;
-  validate layout/theme/scale/masking visually and external OS input as appropriate.
-- Complete local macOS acceptance and consolidated required macOS/Linux checks
-  before advertising the capability or completing OCH-34. Linux desktop GUI
-  acceptance remains tracked separately under OCH-17.
+Local macOS acceptance now covers retained public application behavior and real
+OS keyboard/AX delivery; native NSTextInputClient composition; GPU light/dark,
+selection, masked preedit, 1x/2x synthetic density and narrow geometry; managed-row
+pins, hidden/modal cleanup, actual activation loss, independent windows and close
+during capture/composition; and three 256-owner mount/edit/disposal workloads.
+See the [evidence ledger](../evidence/numeric-inputs-och34.md) for limits, exact
+commands, artifacts and debug timings. Native glyph paint errors fail the native
+test configuration instead of passing unnoticed.
+
+The visual fixture checks every occupied cell, verifies its accepted value and
+uses read-only fields while capturing accepted codes. Masked images are compared
+across different same-length values and preedit, and actual exported screenshots
+are inspected. Synthetic density is not evidence of physical monitor transitions.
+
+Consolidated required macOS/Linux CI and merge remain before ticket completion.
+Full Linux desktop GUI release acceptance remains OCH-17. No new dependency,
+toolchain or upstream compatibility claim is introduced by these controls.

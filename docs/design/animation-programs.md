@@ -6,7 +6,7 @@ Spring parameters, typed programs, bounded decoding, compiled timelines, atomic
 session admission, retained clocks and the public `View.animate_program` API are
 implemented. Actual mounted/public checks cover geometry, controls, retained-list
 and panel visibility, deferred overlays, cross-window clocks and bounded workloads.
-Capability `4294967296` advertises advanced programs; the current aggregate is `34359738367`.
+Capability `4294967296` advertises advanced programs; the current aggregate is `68719476735`.
 Acceptance remains the complete live OCH-25 ticket, followed by integrated chat
 showcase OCH-46. Linux GUI follows the existing OCH-17 platform policy.
 

@@ -13,6 +13,15 @@ use std::{
 #[cfg(target_os = "macos")]
 #[path = "otp_input_accessibility_test.rs"]
 mod accessibility;
+#[cfg(feature = "native-image-tests")]
+#[path = "otp_input_appearance_test.rs"]
+mod appearance;
+#[path = "otp_input_policy_test.rs"]
+mod policy;
+#[path = "otp_input_window_test.rs"]
+mod windows;
+#[path = "otp_input_workload_test.rs"]
+mod workload;
 
 fn node() -> NodeId {
     NodeId::from_parts(0, 1).unwrap()
@@ -391,6 +400,10 @@ async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Tra
         assert!(snapshot(cx, handle).composition.is_none());
         apply(cx, handle, vec![Op::SetStyle(node(), vec![])]);
     }
+    #[cfg(feature = "native-image-tests")]
+    appearance::exercise(cx, handle, transport).await;
+    policy::exercise(cx, handle, transport).await;
+    windows::exercise(cx, handle, transport).await;
     // Masked clipboard operations do not replace the user's clipboard.
     apply(
         cx,
@@ -660,6 +673,8 @@ pub(crate) fn run() {
                 exercise(cx, handle, &transport).await;
                 let next = cx.update(|cx| open_test_window(cx, &transport));
                 command_pressure(cx, next, &transport).await;
+                let next = cx.update(|cx| open_test_window(cx, &transport));
+                workload::exercise(cx, next, &transport).await;
             })
             .await;
             *task_failure.borrow_mut() = result.err();

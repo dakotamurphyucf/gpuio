@@ -81,5 +81,6 @@ On macOS, `python3 scripts/test_otp_input.py` launches and closes its own exampl
 It exercises real accessibility values/actions and OS selection, deletion and
 history shortcuts, asynchronous completion/rejection feedback, secure masking,
 policy changes and remounting. It needs the same accessibility access as the
-other native test scripts. Broader OTP visual/workload acceptance remains part
-of OCH-34; this example does not claim that all milestone gates are complete.
+other native test scripts. Local native visual/lifecycle/workload acceptance also
+passes; consolidated hosted gates and merge remain pending. See the
+[acceptance ledger](../../docs/evidence/numeric-inputs-och34.md).
