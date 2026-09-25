@@ -605,7 +605,7 @@ impl View {
                 .focus(|style| style.border_color(rgba(0x6688ffff)));
         }
         if node.number_input.is_some() {
-            element = element.min_w(px(80.)).w(px(180.));
+            element = element.min_w(px(80.)).w(px(180.)).min_h(px(40.));
         }
         if let Some(slider) = &node.slider {
             element = element

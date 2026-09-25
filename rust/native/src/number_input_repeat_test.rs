@@ -227,7 +227,10 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
                     handle,
                     vec![Op::SetStyle(
                         node(1),
-                        vec![Style::Fields(vec![Field::Width(Length::Px(240.))])],
+                        vec![Style::Fields(vec![
+                            Field::Width(Length::Px(240.)),
+                            Field::Height(Length::Px(60.)),
+                        ])],
                     )],
                 );
                 frame(cx, handle).await;

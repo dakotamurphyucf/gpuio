@@ -119,8 +119,11 @@ checks. Actual AppKit numeric/text values, focus/edit/step/button actions in all
 three stepper layouts, draft feedback, application metadata and IME/read-only/
 disabled/hidden policies now pass locally. The public numeric example now passes
 three-layout command/event, draft/history/selection, revision/lease/policy and
-remount/close integration checks. Numeric visual/workload/lifetime acceptance and
-OTP remain pending; no capability is advertised.
+remount/close integration checks. Numeric GPU light/dark, density, focus and
+constrained-layout checks now pass, with a stacked-button overflow fixed. External
+macOS AX/OS keyboard tests also pass through the public example. Broader numeric
+workload/lifetime/policy acceptance and OTP remain pending; no capability is
+advertised.
 See [numeric design](design/numeric-inputs.md) and
 [foundation evidence](evidence/numeric-inputs-och34.md).
 No milestone-05 completion or hosted acceptance is claimed yet.

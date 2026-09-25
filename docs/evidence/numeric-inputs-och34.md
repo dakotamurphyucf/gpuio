@@ -732,3 +732,60 @@ acceptance. Broader numeric visual/workload/policy acceptance and OTP remain ope
 
 The final `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @fmt` passed,
 as did workflow YAML parsing and diff whitespace checks.
+
+## Numeric GPU appearance and external desktop acceptance
+
+`number_input_appearance_test.rs` extends the actual native test under
+`native-image-tests`. GPU readback passes supplied light/dark foreground and
+background colors, focused/unfocused border pixels, native editor text ink, all
+three step-control layouts and synthetic scale factors 1 and 2. Draft text stays
+intact across those changes. Geometry checks also pass 80/180 px widths and
+40/64 px heights with borders, positive editor dimensions, contained step-button
+bounds and no overlap with editable text.
+
+The tests found an actual stacked-layout defect: inheriting the editor's line
+height made each arrow button 26 px tall and overflowed a 48 px field. Stacked
+buttons now have compact glyph metrics and stretch within their column; fields
+have a 40 px default minimum height. The existing repeat geometry test now changes
+height explicitly as well as width: after the minimum-height fix, changing only
+the right edge no longer moved the held left button. Its contract remains
+cancellation when the held button's geometry changes.
+
+An initial geometry assertion also mistook the existing content-box probe for an
+outer border-box measurement. The test now accounts for the known 2 px border;
+production measurements were not changed. Actual saved renders were inspected
+for all three layouts and both palettes. Representative unmodified GPU outputs:
+[light Sides](../images/number-light-Sides.png) and
+[dark Stacked](../images/number-dark-Stacked.png). These are deliberately simple
+control fixtures, not screenshots of the final chat showcase.
+
+`python3 scripts/test_number_input.py` also passes against the public OCaml
+example using external macOS AX objects and OS keyboard events. It verifies
+initial values, transient invalid feedback, Return rejection/commit/clamp,
+Escape restoration, arrow stepping, incrementor and visible-button actions,
+application-rendered committed observations, read-only/disabled policy,
+programmatic reset while disabled, removal/remount and closure in all layouts.
+This supplements the in-process AppKit suite and public command self-test; it
+still does not claim human VoiceOver speech, external IME candidate-panel testing
+or Linux desktop acceptance.
+
+Local validation:
+
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-image-tests --test native_number_input --no-run` passed.
+- The native executable passed normally under a 60-second process-group guard,
+  printing AX, APPEARANCE, REPEAT and INPUT_NATIVE success markers. To save the six
+  palette/layout images, set `GPUIO_NUMBER_SCREENSHOTS` to an existing directory.
+  Density changes are synthetic; no physical monitor-scale transition is claimed.
+- `GPUIO_JOBS=2 ./scripts/gpuio build examples/numeric/number.exe` passed; the external
+  Python desktop test passed under a 100-second process-group guard and printed
+  `GPUIO_NUMBER_APP_AX_OK`.
+- All-target Clippy with `--features native-image-tests -- -D warnings` and Python
+  syntax compilation passed. Owned GUI processes/windows closed and were reaped.
+
+CI runs the GPU numeric suite through the existing native-image-tests lane and
+now includes the external numeric editor script. Hosted execution remains pending.
+Remaining OCH-34 scope includes broader workload/lifetime/policy acceptance and
+OTP; no new capability or completed ticket is claimed.
+
+Final `dune build -j 2 @all @fmt`, Rustfmt, workflow YAML parsing and diff
+whitespace checks passed through the isolated toolchain.

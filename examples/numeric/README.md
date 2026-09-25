@@ -46,3 +46,10 @@ changes and closed-window rejection. A deliberately unplaced controller checks
 `Not_mounted`. Focus denial uses `Focus_blocked`; disabled stepping uses `Disabled`.
 The application self-test is a bridge/lifecycle check, not simulated OS keyboard
 or accessibility evidence; the Rust native suite separately invokes those paths.
+
+On macOS, `python3 scripts/test_number_input.py` launches and closes its own
+instance and exercises all three layouts through external accessibility objects
+and OS keyboard events. It verifies transient draft feedback, Enter/Escape and
+arrow stepping, accessible step buttons, asynchronous observations rendered by
+OCaml, read-only/disabled behavior and remounting. It uses the same local macOS
+accessibility access as the other desktop test scripts.

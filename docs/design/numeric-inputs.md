@@ -542,3 +542,25 @@ Disabled and read-only fields advertise no edit/step actions and reject forced
 native mutation requests. Read-only fields remain enabled. Composition rejects
 accessibility edits/steps without discarding marked text. Hidden fields disappear
 from the native accessibility tree.
+
+### Numeric layout and appearance
+
+The numeric field defaults to 180 px width, with minimum width 80 px and minimum
+height 40 px. Ordinary style properties can override these defaults. Its native
+editor inherits the application's foreground/font styling and transparent
+background. The root accepts application borders and focus-state refinements;
+style/configuration changes do not replace its draft or editor owner.
+
+Sides uses fixed-width increment/decrement buttons around a shrinking text area.
+Stacked uses a stretching button column with compact 12 px arrow glyphs and
+16 px minimum row heights. This keeps button hit regions inside ordinary fields
+without making the arrows inherit the editor's full text line height. The glyph
+metrics are internal presentation choices; text font styling remains independent.
+Hidden keeps keyboard and accessibility stepping without visible buttons.
+
+GPU validation covers supplied light/dark palettes, focused/unfocused borders,
+native text colors, synthetic scale factors 1 and 2, and all three layouts.
+Constrained checks cover 80/180 px widths and 40/64 px heights with borders,
+positive editor bounds and no editor/button overlap. Explicit styles that force
+smaller geometry than the content needs can still clip, as with other native
+controls; no automatic font-size reduction is promised.

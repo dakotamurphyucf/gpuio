@@ -534,6 +534,13 @@ impl Instance {
                 .min_h(px(20.))
                 .rounded(px(4.))
                 .child(glyph);
+            if config.step_controls == n::StepControls::Stacked {
+                button = button
+                    .flex_1()
+                    .min_h(px(16.))
+                    .text_size(px(12.))
+                    .line_height(px(12.));
+            }
             if !config.disabled && !config.read_only {
                 let accessible = route.clone();
                 let editor = entity.clone();
@@ -597,6 +604,7 @@ impl Instance {
                 div()
                     .flex()
                     .flex_col()
+                    .self_stretch()
                     .gap(px(1.))
                     .child(button(
                         Direction::Increase,
