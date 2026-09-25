@@ -123,6 +123,7 @@ pub enum Kind {
     Extension,
     CanvasView,
     AnimationProgram,
+    ContainerQuery,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -591,6 +592,7 @@ pub enum Op {
     SetExtension(NodeId, crate::extension::Config),
     SetCanvas(NodeId, crate::canvas_view::Config),
     SetAnimationProgram(NodeId, crate::animation_program::Config),
+    SetContainerQuery(NodeId, crate::container_query::Config),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -734,5 +736,12 @@ pub enum Event {
         HandlerId,
         i64,
         Vec<crate::animation_program::Signal>,
+    ),
+    ContainerSelected(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::container_query::Snapshot,
     ),
 }

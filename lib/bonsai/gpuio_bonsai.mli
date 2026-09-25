@@ -8,6 +8,14 @@ module View : sig
   type t = unit Bonsai.Effect.t Gpuio.View.t
   type toast = unit Bonsai.Effect.t Gpuio.View.toast
 
+  val container_query
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?on_select:(Gpuio.Container_query.Selection.t -> unit Bonsai.Effect.t)
+    -> Gpuio.Container_query.Config.t
+    -> (Gpuio.Container_query.Branch_id.t * t) list
+    -> t Or_error.t
+
   (** Native springs, ordered sequences and synchronized repeating programs. *)
   val animate_program
     :  ?key:Gpuio.Key.t

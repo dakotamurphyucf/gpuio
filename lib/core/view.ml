@@ -36,6 +36,7 @@ module Kind = struct
     | Extension
     | Canvas_view
     | Animation_program
+    | Container_query
   [@@deriving equal, sexp_of]
 end
 
@@ -128,6 +129,11 @@ type 'action notification =
   ; on_dismiss : Toast.Dismissal.t -> 'action
   }
 
+type 'action container_query =
+  { config : Container_query.Config.t
+  ; on_select : (Container_query.Selection.t -> 'action) option
+  }
+
 type 'action animation_program =
   { config : Animation.Program.t
   ; on_event : (Animation.Program.Event.t -> 'action) option
@@ -196,6 +202,7 @@ type 'action t =
   ; progress : Progress.Config.t option
   ; animation : 'action animation option
   ; animation_program : 'action animation_program option
+  ; container_query : 'action container_query option
   ; image : 'action image option
   ; extension : 'action extension option
   ; split_pane : 'action split_pane option
@@ -231,6 +238,7 @@ let text ?key ?(style = Style.empty) text =
   ; progress = None
   ; animation = None
   ; animation_program = None
+  ; container_query = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -301,6 +309,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; progress = None
   ; animation = None
   ; animation_program = None
+  ; container_query = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -396,6 +405,7 @@ let button
   ; progress = None
   ; animation = None
   ; animation_program = None
+  ; container_query = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -463,6 +473,7 @@ let toggle
   ; progress = None
   ; animation = None
   ; animation_program = None
+  ; container_query = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -514,6 +525,7 @@ let focus_scope ?key ?style ~config children =
   ; progress = None
   ; animation = None
   ; animation_program = None
+  ; container_query = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -662,6 +674,39 @@ let split_pane ?key ?(style = Style.empty) ?on_resize ~config ~first ~second () 
   }
 ;;
 
+let container_query ?key ?(style = Style.empty) ?on_select config presentations =
+  let expected = Container_query.Config.branches config in
+  if
+    List.length presentations <> List.length expected
+    || List.contains_dup
+         (List.map presentations ~f:(fun (id, _) ->
+            Container_query.Branch_id.to_string id))
+         ~compare:String.compare
+  then Or_error.error_string "container query needs exactly one presentation per branch"
+  else
+    let open Or_error.Let_syntax in
+    let%map children =
+      List.map expected ~f:(fun id ->
+        match
+          List.find presentations ~f:(fun (candidate, _) ->
+            Container_query.Branch_id.equal candidate id)
+        with
+        | None -> Or_error.error_string "missing container query presentation"
+        | Some (_, child) ->
+          let key = Key.of_string_exn (Container_query.Branch_id.to_string id) in
+          Ok
+            (container
+               ~key
+               [ Width (Length.percent_exn 100.); Height (Length.percent_exn 100.) ]
+               [ child ]))
+      |> Or_error.all
+    in
+    { (container ?key ~style [] children) with
+      kind = Container_query
+    ; container_query = Some { config; on_select }
+    }
+;;
+
 let row ?key ?style children =
   container ?key ?style [ Display Flex; Direction Row ] children
 ;;
@@ -787,6 +832,7 @@ let text_input
   ; progress = None
   ; animation = None
   ; animation_program = None
+  ; container_query = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -823,6 +869,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; progress = None
   ; animation = None
   ; animation_program = None
+  ; container_query = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -885,6 +932,7 @@ let combobox
   ; progress = None
   ; animation = None
   ; animation_program = None
+  ; container_query = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -1000,6 +1048,11 @@ module Expert = struct
       ~on_retain:(Some on_retain)
       rows
   ;;
+
+  type nonrec 'action container_query = 'action container_query =
+    { config : Container_query.Config.t
+    ; on_select : (Container_query.Selection.t -> 'action) option
+    }
 
   type nonrec 'action animation_program = 'action animation_program =
     { config : Animation.Program.t
@@ -1123,6 +1176,7 @@ module Expert = struct
     ; progress : Progress.Config.t option
     ; animation : 'action animation option
     ; animation_program : 'action animation_program option
+    ; container_query : 'action container_query option
     ; image : 'action image option
     ; extension : 'action extension option
     ; split_pane : 'action split_pane option

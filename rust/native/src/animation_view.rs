@@ -243,6 +243,17 @@ impl View {
             })
             .clone()
     }
+    pub(super) fn suspend_hidden_animations(&self) {
+        for (id, state) in &self.animations {
+            if !self.focus.borrow().visible(*id) {
+                let mut state = state.borrow_mut();
+                let now = state.now();
+                state.motion.set_visible(false, now);
+                state.timer = None;
+                state.deadline = None;
+            }
+        }
+    }
     pub(super) fn sync_animations(&mut self, dirty: &[NodeId], cx: &App) {
         let nodes = {
             let session = self.session.borrow();

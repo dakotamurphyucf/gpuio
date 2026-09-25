@@ -92,3 +92,24 @@ impl Config {
             + self.rules.capacity() * std::mem::size_of::<Rule>()
     }
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
+pub struct Snapshot {
+    pub generation: i64,
+    pub sequence: i64,
+    pub branch: i64,
+    pub width: f64,
+    pub height: f64,
+}
+impl Snapshot {
+    pub fn is_valid(&self) -> bool {
+        self.generation > 0
+            && self.sequence > 0
+            && self.branch >= 0
+            && self.branch < MAX_BRANCHES as i64
+            && self.width.is_finite()
+            && self.height.is_finite()
+            && self.width >= 0.
+            && self.height >= 0.
+    }
+}

@@ -189,3 +189,9 @@ required-features = ["native-canvas-tests"]
 name = "native_animation_program"
 harness = false
 required-features = ["native-tests"]
+
+[[test]]
+name = "native_container_query"
+path = "tests/native_container_query.rs"
+harness = false
+required-features = ["native-tests"]

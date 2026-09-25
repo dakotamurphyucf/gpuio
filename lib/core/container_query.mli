@@ -50,7 +50,23 @@ module Config : sig
   val select : t -> width:float -> height:float -> Branch_id.t Or_error.t
 end
 
+module Selection : sig
+  (** Paint-confirmed branch selection. Sizes are logical pixels at selection;
+      resizing within the same branch does not emit repeated snapshots. *)
+  type t = private
+    { branch : Branch_id.t
+    ; width : float
+    ; height : float
+    }
+  [@@deriving equal, sexp_of]
+end
+
 module Expert : sig
+  val selection_of_wire
+    :  Gpuio_protocol.Container_query_wire.Config.t
+    -> Gpuio_protocol.Container_query_wire.Snapshot.t
+    -> Selection.t Or_error.t
+
   val to_wire
     :  Config.t
     -> generation:int64

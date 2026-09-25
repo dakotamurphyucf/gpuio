@@ -6,6 +6,8 @@
    (sandbox preserve_file_kind)
    animation-v1-config.hex
    container-query.hex
+   container-query-request.hex
+   container-query-events.hex
    animation-spring.hex
    animation-program.hex
    animation-program-request.hex
@@ -134,3 +136,7 @@
 (copy_files ../fixtures/animation-program-events.hex)
 
 (copy_files ../fixtures/container-query.hex)
+
+(copy_files ../fixtures/container-query-request.hex)
+
+(copy_files ../fixtures/container-query-events.hex)

@@ -13,6 +13,7 @@ fn allows_children(kind: Kind) -> bool {
             | Kind::VirtualList
             | Kind::Animated
             | Kind::AnimationProgram
+            | Kind::ContainerQuery
             | Kind::Button
             | Kind::CommandButton
             | Kind::FocusScope
@@ -51,6 +52,7 @@ pub struct Node {
     pub canvas: Option<Arc<gpuio_protocol::canvas_view::Config>>,
     pub animation: Option<Arc<gpuio_protocol::animation::Config>>,
     pub animation_program: Option<Arc<gpuio_protocol::animation_program::Config>>,
+    pub container_query: Option<Arc<gpuio_protocol::container_query::Config>>,
     pub list_config: Option<Arc<gpuio_protocol::list::Config>>,
     pub list_order: Option<Arc<gpuio_protocol::list::Order>>,
     pub list_index: Option<Arc<crate::list_index::Index>>,
@@ -72,6 +74,10 @@ pub struct Node {
 impl Node {
     fn payload_bytes(&self) -> usize {
         self.text.len()
+            + self
+                .container_query
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
             + self
                 .animation_program
                 .as_ref()
@@ -366,7 +372,13 @@ impl Tree {
         let mut extension_updates = BTreeSet::new();
         let mut canvas_updates = BTreeSet::new();
         let mut program_updates = BTreeSet::new();
+        let mut query_updates = BTreeSet::new();
         for op in &tx.operations {
+            if let Op::SetContainerQuery(id, _) = op
+                && !query_updates.insert(*id)
+            {
+                return Err(ErrorCode::InvalidTree.into());
+            }
             if let Op::SetAnimationProgram(id, _) = op
                 && !program_updates.insert(*id)
             {
@@ -464,6 +476,17 @@ impl Tree {
                             || node.handler.is_some()
                             || !node.text.is_empty()
                             || node.children.len() > MAX_TOASTS
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::ContainerQuery) != node.container_query.is_some()
+                    || node.container_query.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || !node.text.is_empty()
+                            || node.children.len() != config.branches.len()
                             || node.control.is_some()
                             || node.choice.is_some()
                     })
@@ -641,6 +664,7 @@ impl Tree {
                     | Kind::Icon
                     | Kind::Animated
                     | Kind::AnimationProgram
+                    | Kind::ContainerQuery
                     | Kind::VirtualList
                     | Kind::Text
                     | Kind::Button => {
@@ -984,6 +1008,7 @@ impl Plan<'_> {
             | Op::SetPalette(id, ..)
             | Op::SetAnimation(id, ..)
             | Op::SetAnimationProgram(id, ..)
+            | Op::SetContainerQuery(id, ..)
             | Op::SetListConfig(id, ..)
             | Op::SetListOrder(id, ..)
             | Op::SetListRows(id, ..)
@@ -1087,6 +1112,7 @@ impl Plan<'_> {
                             canvas: None,
                             animation: None,
                             animation_program: None,
+                            container_query: None,
                             list_config: None,
                             list_order: None,
                             list_index: None,
@@ -1173,6 +1199,18 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.toast_stack = Some(Arc::new(config.clone()));
+            }
+            Op::SetContainerQuery(id, config) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::ContainerQuery
+                    || !config.is_valid()
+                    || node.container_query.as_ref().is_some_and(|old| {
+                        config != old.as_ref() && config.generation <= old.generation
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.container_query = Some(Arc::new(config.clone()));
             }
             Op::SetAnimationProgram(id, config) => {
                 let node = self.node(*id)?;

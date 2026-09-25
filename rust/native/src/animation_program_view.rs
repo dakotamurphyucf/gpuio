@@ -192,6 +192,13 @@ impl View {
             }
         }
     }
+    pub(super) fn suspend_hidden_programs(&self) {
+        for (id, state) in &self.animation_programs {
+            if !self.focus.borrow().visible(*id) {
+                state.borrow_mut().hide();
+            }
+        }
+    }
     pub(super) fn begin_program_paint(&self) {
         for state in self.animation_programs.values() {
             state.borrow_mut().painted_in_frame = false;

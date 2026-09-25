@@ -175,3 +175,8 @@ pub fn run_native_canvas_view_test() {
 pub fn run_native_canvas_input_test() {
     host::canvas_view::test::run_input();
 }
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_container_query_test() {
+    host::container_query_test::run();
+}

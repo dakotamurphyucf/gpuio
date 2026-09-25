@@ -64,6 +64,8 @@ module Identity = struct
 end
 
 type 'a callback =
+  | Container_query of
+      Wire.Container_query.Config.t * int64 ref * (Container_query.Selection.t -> 'a)
   | Extension of Wire.Extension.Config.t * (Wire.Extension.Signal.t -> 'a)
   | Split_pane of Split_pane.Config.t * (Split_pane.Snapshot.t -> 'a)
   | Canvas of Wire.Canvas_view.Config.t * (Canvas.Event.t -> 'a)
@@ -100,6 +102,8 @@ type 'a mounted =
   ; animation_seen : int64 ref
   ; animation_program : Wire.Animation_program.Config.t option
   ; program_seen : (int64 * int64) ref
+  ; container_query : Wire.Container_query.Config.t option
+  ; query_seen : int64 ref
   ; list_identity : List_identity.t option
   ; choice_appearance : Wire.Choice_appearance.t option
   ; children : 'a mounted list
@@ -231,6 +235,7 @@ let kind = function
   | Icon -> Icon
   | Animated -> Animated
   | Animation_program -> Animation_program
+  | Container_query -> Container_query
   | Virtual_list -> Virtual_list
   | Canvas_view -> Canvas_view
   | Document_view -> Document_view
@@ -338,6 +343,30 @@ let rec mount builder ~depth previous view =
               builder.command_generation
           in
           { candidate with generation }))
+    in
+    let query_seen =
+      Option.value_map previous ~default:(ref 0L) ~f:(fun old -> old.query_seen)
+    in
+    let container_query =
+      Option.map description.container_query ~f:(fun item ->
+        let old = Option.bind previous ~f:(fun mounted -> mounted.container_query) in
+        let old_config =
+          Option.bind previous ~f:(fun mounted ->
+            Option.map (View.Expert.describe mounted.view).container_query ~f:(fun old ->
+              old.config))
+        in
+        let generation =
+          match old with
+          | None -> 1L
+          | Some old
+            when Option.equal Container_query.Config.equal old_config (Some item.config)
+            -> old.generation
+          | Some old ->
+            if Int64.equal old.generation Int64.max_value
+            then fail "container query generation exhausted";
+            Int64.succ old.generation
+        in
+        Container_query.Expert.to_wire item.config ~generation |> value)
     in
     let program_seen =
       Option.value_map previous ~default:(ref (0L, 0L)) ~f:(fun old -> old.program_seen)
@@ -499,6 +528,16 @@ let rec mount builder ~depth previous view =
       | Some _, _, Some _ -> fail "animation program cannot combine another handler"
       | Some _, None, None | None, Some _, _ ->
         fail "missing animation program configuration"
+    in
+    let callback =
+      match description.container_query, container_query, callback with
+      | Some item, Some config, None ->
+        Option.map item.on_select ~f:(fun callback ->
+          Container_query (config, query_seen, callback))
+      | None, None, callback -> callback
+      | Some _, _, Some _ -> fail "container query cannot combine another handler"
+      | Some _, None, None | None, Some _, _ ->
+        fail "missing container query configuration"
     in
     let list_identity =
       Option.map description.virtual_list ~f:(fun list ->
@@ -678,6 +717,11 @@ let rec mount builder ~depth previous view =
       in
       if not (Option.equal Toast.Stack.equal old (Some config))
       then emit builder (Set_toast_stack (id, Toast.Expert.stack_to_wire config)));
+    let old_query = Option.bind previous ~f:(fun mounted -> mounted.container_query) in
+    if not (Option.equal Wire.Container_query.Config.equal container_query old_query)
+    then
+      Option.iter container_query ~f:(fun config ->
+        emit builder (Set_container_query (id, config)));
     let old_program =
       Option.bind previous ~f:(fun mounted -> mounted.animation_program)
     in
@@ -1033,6 +1077,8 @@ let rec mount builder ~depth previous view =
     ; animation_seen
     ; animation_program
     ; program_seen
+    ; container_query
+    ; query_seen
     ; list_identity
     ; choice_appearance
     ; children
@@ -1266,6 +1312,25 @@ let dispatch t = function
        |> Option.bind ~f:(fun viewport ->
          Option.map list.on_viewport ~f:(fun callback -> callback viewport))
      | Some _ | None -> None)
+  | Wire.Event.Container_selected (window, node, handler, revision, snapshot)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Container_query (config, seen, callback)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Int64.(snapshot.sequence > !seen) ->
+       (match Container_query.Expert.selection_of_wire config snapshot with
+        | Error _ -> None
+        | Ok selection ->
+          seen := snapshot.sequence;
+          Some (callback selection))
+     | Some _ | None -> None)
   | Wire.Event.Animation_program_event (window, node, handler, revision, signals)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -1346,6 +1411,7 @@ let dispatch t = function
         | Drop_target _
         | Animation _
         | Animation_program _
+        | Container_query _
         | Image _
         | Virtual_list _
         | Extension _
@@ -1548,6 +1614,7 @@ let dispatch t = function
   | Image_state _
   | Animation_endpoint _
   | Animation_program_event _
+  | Container_selected _
   | List_retained _
   | List_viewport _
   | Asset_response _

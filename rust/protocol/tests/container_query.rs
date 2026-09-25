@@ -191,3 +191,71 @@ fn all_admission_invariants_are_checked() {
     assert!(encode(&maximum).len() < MAX_CONFIG_BYTES);
     assert_eq!(decode_container_query(&encode(&maximum)), Ok(maximum));
 }
+
+#[test]
+fn appended_transaction_and_selection_event_match_ocaml_fixtures() {
+    use gpuio_protocol::{HandlerId, NodeId, WindowId, decode, v1::*};
+    let window = WindowId::from_parts(0, 1).unwrap();
+    let node = NodeId::from_parts(0, 1).unwrap();
+    let handler = HandlerId::from_parts(0, 1).unwrap();
+    let message = Message::Apply(Transaction {
+        window,
+        base: 0,
+        revision: 1,
+        operations: vec![
+            Op::Create(node, Kind::ContainerQuery, "".into(), Some(handler)),
+            Op::SetContainerQuery(node, config()),
+        ],
+    });
+    let bytes = encode(&message);
+    let hex = |bytes: &[u8]| bytes.iter().map(|b| format!("{b:02x}")).collect::<String>();
+    assert_eq!(
+        hex(&bytes),
+        include_str!("../../../test/fixtures/container-query-request.hex").trim()
+    );
+    assert_eq!(decode(&bytes), Ok(message));
+    for end in 0..bytes.len() {
+        assert!(decode(&bytes[..end]).is_err());
+    }
+    let snapshot = Snapshot {
+        generation: 42,
+        sequence: 9,
+        branch: 1,
+        width: 480.25,
+        height: 600.,
+    };
+    assert!(snapshot.is_valid());
+    let events = vec![Event::ContainerSelected(window, node, handler, 7, snapshot)];
+    assert_eq!(
+        hex(&encode(&events)),
+        include_str!("../../../test/fixtures/container-query-events.hex").trim()
+    );
+    for bad in [
+        Snapshot {
+            sequence: 0,
+            ..snapshot
+        },
+        Snapshot {
+            generation: 0,
+            ..snapshot
+        },
+        Snapshot {
+            branch: -1,
+            ..snapshot
+        },
+        Snapshot {
+            branch: 16,
+            ..snapshot
+        },
+        Snapshot {
+            width: f64::NAN,
+            ..snapshot
+        },
+        Snapshot {
+            height: -1.,
+            ..snapshot
+        },
+    ] {
+        assert!(!bad.is_valid());
+    }
+}

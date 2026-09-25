@@ -41,6 +41,28 @@ impl Session {
     pub fn motion(&self) -> std::rc::Rc<std::cell::RefCell<crate::motion_host::Store>> {
         self.motion.clone()
     }
+    pub fn container_selected(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        snapshot: gpuio_protocol::container_query::Snapshot,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let current = state.tree.get(node)?;
+        let config = current.container_query.as_ref()?;
+        (!state.overloaded
+            && current.handler == Some(handler)
+            && revision >= 0
+            && revision <= state.tree.revision()
+            && snapshot.is_valid()
+            && snapshot.generation == config.generation
+            && config.select(snapshot.width, snapshot.height) == Some(snapshot.branch as usize))
+        .then_some(Event::ContainerSelected(
+            window, node, handler, revision, snapshot,
+        ))
+    }
     pub fn animation_program_event(
         &self,
         window: WindowId,

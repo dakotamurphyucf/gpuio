@@ -274,6 +274,7 @@ impl Mailbox {
             | Event::SplitResized(id, ..)
             | Event::AnimationEndpoint(id, ..)
             | Event::AnimationProgramEvent(id, ..)
+            | Event::ContainerSelected(id, ..)
             | Event::ListViewport(id, ..)
             | Event::DropTargetEvent(id, ..)
             | Event::PointerEvent(id, ..)

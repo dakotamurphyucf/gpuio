@@ -113,3 +113,161 @@ let%expect_test "invalid bounds, IDs, dimensions and capacity limits" =
   print_s [%sexp (Q.Config.select empty ~width:0. ~height:0. |> ok : Q.Branch_id.t)];
   [%expect {| compact |}]
 ;;
+
+let%expect_test "retained presentations preserve identity and fence selection delivery" =
+  let module Wire = Gpuio_protocol.Wire in
+  let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok in
+  let reconciler = Reconciler.create window in
+  let presentations =
+    [ compact, View.text "compact"; wide, View.text "wide"; tall, View.text "tall" ]
+  in
+  let view label config =
+    View.container_query ~on_select:(fun selected -> label, selected) config presentations
+    |> ok
+  in
+  let prepare value =
+    Reconciler.prepare reconciler ~theme:Theme.default (Some value) |> ok
+  in
+  let first = prepare (view "first" (config ())) in
+  let node, handler =
+    match Reconciler.message first with
+    | Some (Apply tx) ->
+      List.find_map_exn tx.operations ~f:(function
+        | Create (node, Container_query, _, Some handler) -> Some (node, handler)
+        | _ -> None)
+    | _ -> assert false
+  in
+  Reconciler.accept reconciler first |> ok;
+  let latest = prepare (view "latest" (config ())) in
+  assert (Option.is_none (Reconciler.message latest));
+  Reconciler.accept reconciler latest |> ok;
+  let snapshot : W.Snapshot.t =
+    { generation = 1L; sequence = 1L; branch = 0L; width = 400.; height = 300. }
+  in
+  let event ?(revision = 1L) snapshot =
+    Wire.Event.Container_selected (window, node, handler, revision, snapshot)
+  in
+  let deliver snapshot = Reconciler.dispatch reconciler (event snapshot) in
+  let label, selected = deliver snapshot |> Option.value_exn in
+  print_s [%sexp (label : string), (selected : Q.Selection.t)];
+  assert (Option.is_none (deliver snapshot));
+  List.iter
+    [ { snapshot with generation = 2L; sequence = 2L }
+    ; { snapshot with generation = 0L; sequence = 2L }
+    ; { snapshot with branch = 1L; sequence = 2L }
+    ; { snapshot with branch = 3L; sequence = 2L }
+    ; { snapshot with width = Float.nan; sequence = 2L }
+    ; { snapshot with sequence = 0L }
+    ]
+    ~f:(fun snapshot -> assert (Option.is_none (deliver snapshot)));
+  assert (
+    Option.is_none
+      (Reconciler.dispatch
+         reconciler
+         (event ~revision:2L { snapshot with sequence = 2L })));
+  assert (Option.is_some (deliver { snapshot with sequence = 2L }));
+  let reordered = Q.Config.create ~default:compact [ rule tall; rule wide ] |> ok in
+  let pending = prepare (view "reordered" reordered) in
+  let revision =
+    match Reconciler.message pending with
+    | Some (Apply tx) ->
+      assert (
+        List.for_all tx.operations ~f:(function
+          | Create _ | Remove _ | Bind _ -> false
+          | _ -> true));
+      assert (
+        List.exists tx.operations ~f:(function
+          | Set_container_query (_, c) -> Int64.equal c.generation 2L
+          | _ -> false));
+      tx.revision
+    | _ -> assert false
+  in
+  (* Preparation does not replace the accepted callback/config. *)
+  let label, _ = deliver { snapshot with sequence = 3L } |> Option.value_exn in
+  assert (String.equal label "latest");
+  Reconciler.accept reconciler pending |> ok;
+  assert (Option.is_none (deliver { snapshot with sequence = 4L }));
+  let next = { snapshot with generation = 2L; sequence = 4L; branch = 1L } in
+  let label, selected =
+    Reconciler.dispatch reconciler (event ~revision next) |> Option.value_exn
+  in
+  print_s [%sexp (label : string), (selected : Q.Selection.t)];
+  assert (Option.is_none (Reconciler.dispatch reconciler (event ~revision next)));
+  let gone = Reconciler.prepare reconciler ~theme:Theme.default None |> ok in
+  Reconciler.accept reconciler gone |> ok;
+  assert (
+    Option.is_none
+      (Reconciler.dispatch reconciler (event ~revision { next with sequence = 5L })));
+  [%expect
+    {|
+    (latest ((branch compact) (width 400) (height 300)))
+    (reordered ((branch tall) (width 400) (height 300)))
+    |}]
+;;
+
+let%expect_test "presentation validation and independent transaction/event bytes" =
+  let module Wire = Gpuio_protocol.Wire in
+  List.iter
+    [ []
+    ; [ compact, View.text "x" ]
+    ; [ compact, View.text "x"; wide, View.text "x"; wide, View.text "x" ]
+    ; [ compact, View.text "x"; wide, View.text "x"; id "unknown", View.text "x" ]
+    ]
+    ~f:(fun presentations ->
+      assert (Result.is_error (View.container_query (config ()) presentations)));
+  let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok in
+  let node = Gpuio_protocol.Node_id.create ~slot:0L ~generation:1L |> ok in
+  let handler = Gpuio_protocol.Handler_id.create ~slot:0L ~generation:1L |> ok in
+  let config = Q.Expert.to_wire (config ()) ~generation:42L |> ok in
+  let message =
+    Wire.Message.Apply
+      { window
+      ; base = 0L
+      ; revision = 1L
+      ; operations =
+          [ Create (node, Container_query, "", Some handler)
+          ; Set_container_query (node, config)
+          ]
+      }
+  in
+  let request = Wire.Message.encode message |> ok in
+  let snapshot : W.Snapshot.t =
+    { generation = 42L; sequence = 9L; branch = 1L; width = 480.25; height = 600. }
+  in
+  let event snapshot =
+    Wire.Event.Container_selected (window, node, handler, 7L, snapshot)
+  in
+  let encode snapshot =
+    Bin_prot.Utils.bin_dump [%bin_writer: Wire.Event.t list] [ event snapshot ]
+    |> Bigstring.to_string
+  in
+  let events = encode snapshot in
+  Eio_main.run (fun env ->
+    List.iter
+      [ "container-query-request.hex", request; "container-query-events.hex", events ]
+      ~f:(fun (name, bytes) ->
+        let expected =
+          Eio.Path.load Eio.Path.(Eio.Stdenv.fs env / name) |> String.strip
+        in
+        let hex =
+          String.to_list bytes
+          |> List.map ~f:(fun c -> sprintf "%02x" (Char.to_int c))
+          |> String.concat
+        in
+        assert (String.equal hex expected)));
+  assert (List.equal Wire.Event.equal (Wire.Event.decode events |> ok) [ event snapshot ]);
+  for length = 0 to String.length events - 1 do
+    assert (Result.is_error (Wire.Event.decode (String.prefix events length)))
+  done;
+  assert (Result.is_error (Wire.Event.decode (events ^ "\000")));
+  List.iter
+    [ { snapshot with generation = 0L }
+    ; { snapshot with branch = 16L }
+    ; { snapshot with sequence = 0L }
+    ; { snapshot with width = Float.infinity }
+    ; { snapshot with height = -1. }
+    ]
+    ~f:(fun invalid -> assert (Result.is_error (Wire.Event.decode (encode invalid))));
+  print_s [%sexp (Q.Expert.selection_of_wire config snapshot |> ok : Q.Selection.t)];
+  [%expect {| ((branch wide) (width 480.25) (height 600)) |}]
+;;

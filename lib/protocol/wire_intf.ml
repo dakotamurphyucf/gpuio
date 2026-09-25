@@ -4,6 +4,7 @@ module type S = sig
   module Asset = Asset_wire
   module Image = Image_wire
   module Animation = Animation_wire
+  module Container_query = Container_query_wire
   module Animation_program = Animation_program_wire
   module Document = Document_wire
   module Canvas = Canvas_resource_wire
@@ -52,6 +53,7 @@ module type S = sig
       | Extension
       | Canvas_view
       | Animation_program
+      | Container_query
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -705,6 +707,7 @@ module type S = sig
       | Set_extension of Node_id.t * Extension.Config.t
       | Set_canvas of Node_id.t * Canvas_view.Config.t
       | Set_animation_program of Node_id.t * Animation_program.Config.t
+      | Set_container_query of Node_id.t * Container_query.Config.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -918,6 +921,8 @@ module type S = sig
           * Canvas_view.Observation.t
       | Animation_program_event of
           Window_id.t * Node_id.t * Handler_id.t * int64 * Animation_program.Batch.t
+      | Container_selected of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Container_query.Snapshot.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

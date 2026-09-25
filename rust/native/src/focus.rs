@@ -32,6 +32,7 @@ pub(super) struct Manager {
     seen: BTreeSet<NodeId>,
     active: Option<NodeId>,
     hidden: BTreeSet<NodeId>,
+    query_hidden: BTreeSet<NodeId>,
     last_editor: Option<NodeId>,
     order: u64,
     enter: Option<NodeId>,
@@ -48,6 +49,7 @@ impl Manager {
             seen: BTreeSet::new(),
             active: None,
             hidden: BTreeSet::new(),
+            query_hidden: BTreeSet::new(),
             last_editor: None,
             order: 0,
             enter: None,
@@ -75,12 +77,28 @@ impl Manager {
         };
         let mut cursor = Some(node);
         while let Some(id) = cursor {
-            if self.hidden.contains(&id) {
+            if self.hidden.contains(&id) || self.query_hidden.contains(&id) {
                 return true;
             }
             cursor = tree.get(id).and_then(|node| node.parent);
         }
         false
+    }
+    pub(super) fn set_query_hidden(&mut self, hidden: BTreeSet<NodeId>) {
+        if self.query_hidden != hidden {
+            self.query_hidden = hidden;
+            self.pending = true;
+        }
+    }
+    pub(super) fn select_query(&mut self, children: &[NodeId], selected: Option<NodeId>) {
+        for child in children {
+            if Some(*child) == selected {
+                self.query_hidden.remove(child);
+            } else {
+                self.query_hidden.insert(*child);
+            }
+        }
+        self.pending = true;
     }
     pub(super) fn set_hidden(&mut self, hidden: BTreeSet<NodeId>) {
         if self.hidden != hidden {
@@ -209,7 +227,7 @@ impl Manager {
             if let Some(tree) = session.tree(self.window) {
                 let mut stack = tree.root().into_iter().collect::<Vec<_>>();
                 while let Some(id) = stack.pop() {
-                    if self.hidden.contains(&id) {
+                    if self.hidden.contains(&id) || self.query_hidden.contains(&id) {
                         continue;
                     }
                     let node = tree.get(id).expect("validated node");

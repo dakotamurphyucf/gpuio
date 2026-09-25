@@ -59,6 +59,8 @@ case "${1:-}" in
     timeout 90 ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_animation --test native_animation_program
     timeout 90 _build/default/examples/animation/main.exe --self-test
     timeout 90 _build/default/examples/animation_program/main.exe --self-test
+    timeout 90 ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_container_query
+    timeout 90 _build/default/examples/container_query/main.exe --self-test
     timeout 90 ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_editor
     timeout 90 ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_ui
     ;;

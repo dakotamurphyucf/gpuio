@@ -10,6 +10,11 @@ pub(super) mod animation_program_test;
 pub(super) mod animation_test;
 #[path = "canvas_view.rs"]
 pub(crate) mod canvas_view;
+#[path = "container_query_view.rs"]
+mod container_query;
+#[cfg(feature = "native-tests")]
+#[path = "container_query_test.rs"]
+pub(super) mod container_query_test;
 #[path = "extension_view.rs"]
 mod extension_view;
 use crate::{session::Session, transport::Transport};
@@ -154,6 +159,7 @@ struct View {
     lists: BTreeMap<NodeId, Rc<RefCell<list_view::State>>>,
     animations: BTreeMap<NodeId, Rc<RefCell<animation::State>>>,
     animation_programs: BTreeMap<NodeId, Rc<RefCell<animation_program::State>>>,
+    container_queries: BTreeMap<NodeId, container_query::State>,
     #[cfg(feature = "native-tests")]
     render_count: u64,
 }
@@ -371,6 +377,7 @@ impl View {
             lists: Default::default(),
             animations: Default::default(),
             animation_programs: Default::default(),
+            container_queries: Default::default(),
             #[cfg(feature = "native-tests")]
             render_count: 0,
         }
@@ -379,6 +386,7 @@ impl View {
         self.install_command_interceptor(window, cx);
         self.install_pointer_observer(window, cx);
         self.install_menu_observers(window, cx);
+        self.sync_container_queries(dirty);
         self.sync_lists(dirty, cx);
         self.sync_images(dirty, window, cx);
         self.sync_documents(dirty, window, cx);
@@ -390,6 +398,10 @@ impl View {
         self.sync_tooltips(window, cx);
         self.sync_canvases(dirty, window, cx);
         self.sync_splits(window, cx);
+        // An unselected query branch is hidden even before the first layout.
+        // Do not count time waiting for its first visible paint as active motion.
+        self.suspend_hidden_animations();
+        self.suspend_hidden_programs();
         let nodes = {
             let session = self.session.borrow();
             let Some(tree) = session.tree(self.id) else {
@@ -503,6 +515,7 @@ impl View {
             Kind::Container
                 | Kind::Animated
                 | Kind::AnimationProgram
+                | Kind::ContainerQuery
                 | Kind::TabPanel
                 | Kind::FocusScope
                 | Kind::CommandScope
@@ -523,6 +536,9 @@ impl View {
                 .border_1()
                 .border_color(rgba(0x80808080))
                 .rounded(px(4.));
+        }
+        if node.container_query.is_some() {
+            element = element.size_full();
         }
         if let Some(config) = &node.drag_source {
             element = element
@@ -935,7 +951,9 @@ impl View {
                 );
             }
         }
-        if node.split.is_some() {
+        if node.container_query.is_some() {
+            element = element.child(self.container_query_element(tree, node, interaction, cx));
+        } else if node.split.is_some() {
             element = element.child(self.split_element(tree, node, interaction, window, cx));
         } else {
             element = element.children(
@@ -1246,7 +1264,10 @@ impl Render for View {
                     |_, _, _| (),
                     move |_, _, window, cx| {
                         begin_focus.borrow_mut().begin_frame();
-                        let _ = program_begin.update(cx, |view, _| view.begin_program_paint());
+                        let _ = program_begin.update(cx, |view, _| {
+                            view.begin_program_paint();
+                            view.begin_query_paint();
+                        });
                         *canvas_budget.borrow_mut() = Default::default();
                         for state in &canvases {
                             if let Some(state) = state.upgrade() {
@@ -1350,16 +1371,21 @@ impl Render for View {
         root.child(
             canvas(
                 |_, _, _| (),
-                move |_, _, _, cx| {
+                move |_, _, window, cx| {
                     // Deferred popups paint after the root tree. Sweep only once
                     // the complete effect cycle has painted; never request a frame.
                     if program_finish
-                        .update(cx, |view, _| !view.animation_programs.is_empty())
+                        .update(cx, |view, _| {
+                            !view.animation_programs.is_empty()
+                                || !view.container_queries.is_empty()
+                        })
                         .unwrap_or(false)
                     {
-                        cx.defer(move |cx| {
-                            let _ =
-                                program_finish.update(cx, |view, _| view.finish_program_paint());
+                        window.defer(cx, move |window, cx| {
+                            let _ = program_finish.update(cx, |view, cx| {
+                                view.finish_query_paint(window, cx);
+                                view.finish_program_paint();
+                            });
                         });
                     }
                     let events = session.borrow_mut().painted(id, revision);

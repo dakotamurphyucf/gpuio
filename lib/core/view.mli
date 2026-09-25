@@ -308,6 +308,20 @@ val animate
   -> 'action t list
   -> 'action t
 
+(** Native assigned-size selection among retained, stable named presentations.
+    All branches remain mounted in Bonsai. Hidden branches retain editing state,
+    but do not paint or receive native input. The selected child's intrinsic size
+    cannot size the outer query. Supply a meaningful parent/explicit size.
+    [on_select] observes painted selection asynchronously; it never drives layout.
+    Rejects duplicate, missing or extra presentation IDs before reconciliation. *)
+val container_query
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?on_select:(Container_query.Selection.t -> 'action)
+  -> Container_query.Config.t
+  -> (Container_query.Branch_id.t * 'action t) list
+  -> 'action t Core.Or_error.t
+
 (** Retained springs/sequences/shared repeats. Animated targets own matching
     numeric style fields. Playback-only changes preserve run identity; new bodies
     retarget from painted values and a higher restart token resets initial values.
@@ -431,6 +445,11 @@ module Expert : sig
     -> (Key.t * 'action t) list
     -> 'action t Core.Or_error.t
 
+  type 'action container_query =
+    { config : Container_query.Config.t
+    ; on_select : (Container_query.Selection.t -> 'action) option
+    }
+
   type 'action animation_program =
     { config : Animation.Program.t
     ; on_event : (Animation.Program.Event.t -> 'action) option
@@ -521,6 +540,7 @@ module Expert : sig
       | Extension
       | Canvas_view
       | Animation_program
+      | Container_query
     [@@deriving equal, sexp_of]
   end
 
@@ -604,6 +624,7 @@ module Expert : sig
     ; progress : Progress.Config.t option
     ; animation : 'action animation option
     ; animation_program : 'action animation_program option
+    ; container_query : 'action container_query option
     ; image : 'action image option
     ; extension : 'action extension option
     ; split_pane : 'action split_pane option

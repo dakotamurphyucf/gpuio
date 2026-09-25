@@ -79,3 +79,21 @@ module Config = struct
     |> Option.value ~default:t.default
   ;;
 end
+
+module Snapshot = struct
+  type t =
+    { generation : int64
+    ; sequence : int64
+    ; branch : int64
+    ; width : float
+    ; height : float
+    }
+  [@@deriving bin_io, equal, sexp_of]
+
+  let valid t =
+    Int64.(t.generation > 0L && t.sequence > 0L && t.branch >= 0L && t.branch < 16L)
+    && Float.is_finite t.width
+    && Float.is_finite t.height
+    && Float.(t.width >= 0. && t.height >= 0.)
+  ;;
+end

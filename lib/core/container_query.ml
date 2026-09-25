@@ -90,7 +90,35 @@ module Config = struct
   ;;
 end
 
+module Selection = struct
+  type t =
+    { branch : Branch_id.t
+    ; width : float
+    ; height : float
+    }
+  [@@deriving equal, sexp_of]
+end
+
 module Expert = struct
+  let selection_of_wire (config : W.Config.t) (snapshot : W.Snapshot.t) =
+    if
+      not
+        (W.Config.valid config
+         && W.Snapshot.valid snapshot
+         && Int64.equal config.generation snapshot.generation
+         && Int64.equal
+              (W.Config.select config ~width:snapshot.width ~height:snapshot.height)
+              snapshot.branch)
+    then Or_error.error_string "invalid container selection generation or values"
+    else (
+      match List.nth config.branches (Int64.to_int_exn snapshot.branch) with
+      | None -> Or_error.error_string "unknown container branch"
+      | Some branch ->
+        let open Or_error.Let_syntax in
+        let%map branch = Branch_id.of_string branch in
+        { Selection.branch; width = snapshot.width; height = snapshot.height })
+  ;;
+
   let to_wire (t : Config.t) ~generation =
     let index branch =
       List.findi_exn t.branches ~f:(fun _ candidate -> Branch_id.equal candidate branch)
