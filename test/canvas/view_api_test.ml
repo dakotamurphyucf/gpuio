@@ -183,3 +183,13 @@ let%expect_test
   print_endline "bounded semantic observations";
   [%expect {| bounded semantic observations |}]
 ;;
+
+let%expect_test "canvas capability handshake crosses the signed 32-bit boundary" =
+  let module W = Gpuio_protocol.Wire in
+  let bytes = W.Message.encode (Hello (W.version, W.capabilities)) |> ok in
+  String.to_list bytes
+  |> List.map ~f:(fun char -> sprintf "%02x" (Char.to_int char))
+  |> String.concat
+  |> print_endline;
+  [%expect {| 0001fcffffffff00000000 |}]
+;;

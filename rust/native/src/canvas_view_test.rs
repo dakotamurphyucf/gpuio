@@ -1,5 +1,7 @@
 //! Actual retained-tree mount/paint lifecycle; hidden GPU window, no OS input claim.
 use super::*;
+#[path = "canvas_workload_test.rs"]
+mod workload;
 use binprot::BinProtWrite;
 use gpuio_protocol::{
     canvas::*,
@@ -135,11 +137,19 @@ fn draw(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
         .unwrap();
 }
 async fn ready(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, revision: i64) {
+    ready_node(cx, handle, id(1), revision).await;
+}
+async fn ready_node(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    node: NodeId,
+    revision: i64,
+) {
     for _ in 0..300 {
         draw(cx, handle);
         if handle
             .update(cx, |view, _, _| {
-                view.canvases.get(&id(1)).is_some_and(|state| {
+                view.canvases.get(&node).is_some_and(|state| {
                     state
                         .borrow()
                         .ready
@@ -173,10 +183,13 @@ fn pixels(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, expected: [u8; 4]
         .unwrap();
 }
 fn mount(source: ResourceId) -> Vec<Op> {
+    mount_nodes(source, id(0), id(1))
+}
+fn mount_nodes(source: ResourceId, root: NodeId, canvas: NodeId) -> Vec<Op> {
     vec![
-        Op::Create(id(0), Kind::Container, "".into(), None),
+        Op::Create(root, Kind::Container, "".into(), None),
         Op::SetStyle(
-            id(0),
+            root,
             vec![Style::Fields(vec![
                 Field::Width(Length::Px(240.)),
                 Field::Height(Length::Px(240.)),
@@ -184,21 +197,21 @@ fn mount(source: ResourceId) -> Vec<Op> {
             ])],
         ),
         Op::Create(
-            id(1),
+            canvas,
             Kind::CanvasView,
             "".into(),
             Some(HandlerId::from_parts(1, 1).unwrap()),
         ),
-        Op::SetCanvas(id(1), config(Some(source))),
+        Op::SetCanvas(canvas, config(Some(source))),
         Op::SetStyle(
-            id(1),
+            canvas,
             vec![Style::Fields(vec![
                 Field::Width(Length::Px(200.)),
                 Field::Height(Length::Px(200.)),
             ])],
         ),
-        Op::Splice(id(0), 0, 0, vec![id(1)]),
-        Op::SetRoot(Some(id(0))),
+        Op::Splice(root, 0, 0, vec![canvas]),
+        Op::SetRoot(Some(root)),
     ]
 }
 async fn exercise(
@@ -643,6 +656,7 @@ fn run_mode(input: bool) {
             let result = crate::host::native_test::protect(async {
                 if input {
                     exercise_input(cx, handle, source, session.clone(), transport.clone()).await;
+                    workload::exercise(cx, handle, session.clone(), transport.clone()).await;
                 } else {
                     exercise(cx, handle, source, session.clone(), transport.clone()).await;
                 }

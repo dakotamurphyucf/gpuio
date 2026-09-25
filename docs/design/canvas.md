@@ -1,19 +1,12 @@
 # Retained canvas
 
-Status: OCH-24 implementation design in progress. The bounds below are proposed
-admission limits to validate with the implementation and workload evidence, not
-claims of completed functionality.
-
-The current implementation provides validated `Canvas_geometry` and
-`Canvas_path` OCaml values and matching Rust protocol geometry. The immutable
-scene wire schema, bounded Rust decoder, reference/geometry admission and pure
-topmost hit testing are implemented. The native session also owns a tested staged
-scene registry, connected through the bridge and the raw Eio expert request lane.
-`Canvas_resource` and `Canvas_scene` provide pure typed construction and owner-aware
-encoding. `Gpuio_eio.Canvas` now provides scoped publication, coalesced updates,
-explicit reset and release. Native retained-tree rendering is implemented;
-mounted pointer/keyboard/accessibility integration and public widget acceptance
-remain in progress.
+Status: OCH-24 is implemented and locally validated on macOS. The native canvas,
+public OCaml/Bonsai/Eio API and runnable [Canvas Lab](../../examples/canvas/README.md)
+are available on the milestone-5 branch. Consolidated macOS/Linux hosted gates
+remain pending; Linux GUI release validation remains OCH-17 under the accepted
+platform policy. See the [acceptance evidence](../evidence/canvas-och24.md) for exact
+workloads and platform coverage. The limits below are enforced contracts, not
+process RSS guarantees.
 
 ## OCaml construction
 
@@ -104,12 +97,12 @@ uses at most a 4 MiB Bigstring, and the one pending chunk is at most 256 KiB.
 These are logical retention bounds, not a GC/RSS or native painting-cache limit.
 Local setter admission failure leaves its previous desired scene unchanged.
 
-### Planned mounted component
+### Mounted component ownership
 
 The canvas uses a dedicated typed view configuration so application ownership
 survives until reconciliation; it must not hide a scene ID inside arbitrary
-extension bytes before that check. The native view will use the existing scene
-lease and the extension SDK's guarded/revocable event contract. It does not add a
+extension bytes before that check. The native view uses the existing scene lease and guarded, asynchronous
+observations with application, node, handler and scene-generation validation. It does not add a
 process-global scene store or require a static extension factory to capture
 non-Send UI state. Its small configuration references a registered scene.
 Scene data changes cross the bridge; ordinary paint, native dragging and pan/zoom
@@ -148,12 +141,13 @@ derived from schema counts plus candidate history/validation structures, checked
 at compile time for the target's type sizes. These are accounting limits, not
 RSS/allocator ceilings or GPUI mesh/font/image-cache budgets. The fixed 256-slot
 registry metadata also remains bounded after release. Native tessellation/cache
-limits and their actual workloads remain required.
+limits and their workloads are specified below.
 
 Bridge message tag 13 carries a positive correlation and canvas resource request;
 event tag 39 carries its reserved response. Capability `1073741824` advertises
-scene registration only (aggregate capabilities `2147483647`), not a rendered
-canvas widget. `App.Expert.canvas` admits at most 63 pending raw requests, leaving
+scene registration. Capability `2147483648` additionally advertises the native
+canvas widget, with aggregate capabilities `4294967295`. `App.Expert.canvas`
+admits at most 63 pending raw requests, leaving
 one lane for the scoped adapter. Chunk length is checked before native allocation;
 responses survive input mailbox pressure. Raw callers own release and late-reply
 cleanup. Successful publication schedules native redraw without calling OCaml
@@ -166,7 +160,7 @@ queues. `canvas_host` schedules them on GPUI background workers, and `canvas_pai
 paints admitted meshes. `canvas_content` paints native text and managed images.
 The typed `View.canvas` and Bonsai alias reconcile small configurations through
 the tree protocol. Native mounted painting is connected to that retained-tree
-kind; pointer/keyboard/accessibility and the public OCaml example remain in progress.
+kind, native pointer/keyboard/accessibility and the public OCaml example.
 
 ### View and observation bridge
 
@@ -197,8 +191,8 @@ fences the old epoch. After acknowledgement, observations of older displayed
 revisions are ignored, even while native geometry preparation catches up.
 Failed ordinary publication preserves eligibility of the earlier accepted scene.
 Release and shutdown suppress subsequent scene observations; mounted native
-leases still follow the separate resource-retention contract above. This bridge
-does not yet advertise a rendered-canvas capability.
+leases still follow the separate resource-retention contract above. The full
+canvas capability covers this bridge and the mounted widget.
 
 ### Mounted native presentation
 
@@ -261,8 +255,8 @@ from the native scene registry and OCaml adapter quotas. Charges include vector
 capacities, plan metadata and conservative cache/Arc allowances; externally held
 mesh readers keep their charge until their final drop. A mesh under construction
 and bounded preparation indexes are transient workspace, not silently included
-in the retained charge. Text shaping, decoded image and GPUI frame/cache budgets
-remain separate integration requirements.
+in the retained charge. Text shaping, decoded image and GPUI frame/cache budgets are separate enforced
+bounds described below.
 
 The job pool admits 128 mounted-view handles, two running workers and only one
 latest desired request per handle. Superseded work is cancelled and obsolete
@@ -284,8 +278,7 @@ Mesh painting adds the normalized shape origin before the item transform, then
 applies viewport translation/zoom. World clips stay fixed during object movement;
 GPUI applies device scale and inherited clipping/opacity. Culling precedes triangle
 expansion. A shared `FrameBudget` admits at most 1,048,576 expanded vertices per
-window frame, checking before allocation. The mounted view integration must share
-that budget across canvases rather than allocate a separate allowance per canvas.
+window frame, checking before allocation. The mounted view shares that budget across all canvases in its window.
 The helper accepts meshes only; text and images require their own painting paths.
 
 ## Native text and images
@@ -336,9 +329,8 @@ world/viewport/inherited clipping and destination culling. `Loading` waits for
 native image completion to wake the window; it does not introduce polling.
 Frame-end drops unused image variants, including obsolete SVG sizes. Publication
 prunes removed/replaced resources; scene-generation reset clears both caches.
-Hiding/disposal must clear mounted caches. A mounted source change recreates the
-content owner, just as it recreates interaction state. These painting helpers are
-validated natively; their public widget/lifecycle integration is still required.
+Hiding/disposal clears mounted caches. A mounted source change recreates the
+content owner, just as it recreates interaction state. The mounted widget uses these same painting helpers and lifecycle paths.
 
 ## Coordinates and drawing vocabulary
 
@@ -394,10 +386,10 @@ that rule; this does not imply arbitrary-path clipping support.
 
 ## Mounted configuration contract
 
-`Gpuio.Canvas` now defines the pure mounted-view configuration and semantic event
-vocabulary. This is the interface/codec stage: mounting, command execution and
-native interaction are still being implemented and are not advertised as working
-capabilities. `Gpuio_eio.Canvas` continues to own registration independently.
+`Gpuio.Canvas` defines the pure mounted-view configuration and semantic event
+vocabulary. `Gpuio_eio.Canvas` owns registration independently; `View.canvas`
+mounts its borrowed handle. Native ownership, commands, input and accessibility
+are implemented through the retained tree and asynchronous observation bridge.
 
 A viewport stores the world point at the top-left and positive zoom; local pixels
 are `(world - origin) * zoom`, before GPUI device scaling. Zoom is within
@@ -453,20 +445,18 @@ Older sequences are ignored, and changing the latest sequence's action reports
 one invalid-command observation. Scene resets do not reset this high watermark.
 Zoom preserves the world point under its logical-pixel anchor unless the world
 origin must clamp to the coordinate-domain edge. A completed pan emits a viewport
-observation; cancelling a preview restores the prior viewport. The mounted host
-must coalesce wheel/zoom observations and stamp them with the displayed snapshot's
-revision/generation.
+observation; cancelling a preview restores the prior viewport. The mounted host coalesces wheel/zoom observations and stamps them with the
+displayed snapshot's revision/generation.
 
-Input starts disabled until the host enables it. The host must immediately
-disable/cancel it for hiding, modal exclusion and window deactivation, even when
+Input starts disabled until the host enables it. The host immediately disables/cancels it for hiding, modal exclusion and window deactivation, even when
 no render occurs between disable and enable. Changing input policy or replacing
-the scene also cancels previews. Real pointer/keyboard dispatch, focus handling,
-AX nodes and this lifecycle integration are still required; pure state tests and
-direct state calls in the GPU test do not establish native input acceptance.
+the scene also cancels previews. Native pointer/keyboard dispatch, focus handling, AX nodes and lifecycle integration
+have dedicated mounted tests, supplemented by external macOS AX/keyboard checks
+against the public OCaml example.
 
 The component has one primary focus entry. Keyboard navigation selects labeled
-interactive items; accessible item nodes expose equivalent selection/activation
-and movement actions. Decorative marks require a meaningful scene-level text
+interactive items; accessible item nodes expose selection/activation actions and
+keyboard movement alternatives. Decorative marks require a meaningful scene-level text
 description. Visible geometry alone is not an accessibility representation.
 
 Native policies provide selection, bounded object dragging and pan/zoom, with
@@ -474,18 +464,18 @@ explicit limits and keyboard alternatives. Report completed semantic changes and
 bounded/coalesced viewport observations, rather than sending each paint frame to
 OCaml. Escape, reconfiguration, removal, hiding, disabling, modal exclusion,
 window deactivation and unmount cancel in-progress manipulation. Cancellation
-must happen before a hidden instance can resume; sink rejection alone is not
-sufficient to reset a retained gesture. Extend the SDK lifecycle hook if needed.
+happens before a hidden instance can resume; sink rejection alone would not
+reset a retained gesture.
 
-## Proposed admission and validation
+## Admission and validation
 
-Start with a 4 MiB encoded scene limit, 20,000 items, 4,096 drawing resources,
+The scene has a 4 MiB encoded limit, 20,000 items, 4,096 drawing resources,
 65,536 total path commands and 1 MiB aggregate text. Individual messages remain
 within the bridge envelope. Bound concurrent staging, total live scene bytes,
 tessellation vertices, decoded/shaped caches and accessibility nodes separately;
 serialized byte bounds do not bound those expanded resources by themselves.
 Geometry, worker and native content/frame bounds are implemented as described
-above. Their integration into the public mounted widget remains in progress.
+above. The public mounted widget uses the same admission and painting paths.
 
 The version-1 immutable scene schema now enforces those wire limits, a maximum
 of eight world clip rectangles per item and 2,048 interactive items per scene.
@@ -509,10 +499,10 @@ Validation covers finite geometry, nonsingular transforms, positive dimensions,
 valid path topology, valid UTF-8, unique identities, exact resource generations,
 clip depth, labels/actions and total admission budgets. Rejected updates preserve
 the prior published scene and revision. Scene/node/window generations fence late
-observations. The implementation must measure large-scene update, hit and render
-workloads, retained memory after repeated disposal, and work while interaction and
-streaming are active. Record macOS native evidence separately from Linux build and
-later graphical acceptance.
+observations. The evidence ledger records large-scene update, hit/render and repeated-disposal
+workloads. Combined streaming and artifact workloads are also part of the OCH-46
+chat showcase. macOS native evidence is distinct from Linux builds and later
+Linux graphical acceptance.
 
 
 ## Mounted native input
@@ -546,8 +536,9 @@ Selection paints one transformed outline using the configured color, clipped to
 the canvas and the selected item's world clip stack. Rectangle/ellipse hit bounds
 or a polygon's bounding rectangle determine the outline. This fixed-size decorative
 stroke is additional to the scene mesh vertex budget; it never uploads a changed
-scene or requests an OCaml paint callback. Object semantics are described below; public application and aggregate acceptance
-remain required before full canvas acceptance.
+scene or requests an OCaml paint callback. Object semantics are described below;
+[local acceptance evidence](../evidence/canvas-och24.md#final-local-acceptance-matrix)
+covers the public application and aggregate workloads.
 
 
 ## Accessible object representation

@@ -42,7 +42,10 @@ Native macOS object accessibility now passes label/selection/focus, separate
 activation, transformed bounds, offscreen reveal, disabled/hide/removal checks.
 The public OCaml Canvas Lab passes command/update/reset lifecycle checks with
 184 and 19,024 items, plus external macOS AX/keyboard interaction checks.
-Aggregate acceptance and consolidated hosted gates remain in progress. See the
+The maximum mounted workload also passes with 20,000 marks, 2,048 interactive
+objects, 4,096 accessibility nodes and zero retained accounting after each of
+three update/resize/disposal cycles. Local canvas acceptance is complete and the
+full canvas capability is advertised; consolidated hosted gates remain pending. See the
 [extension](evidence/extensions-och23.md) and [canvas](evidence/canvas-och24.md)
 evidence for exact completed scope. Its scope includes OCH-23–26 and OCH-33–39, followed by
 [OCH-46](https://linear.app/ochat/issue/OCH-46/showcase-milestone-05-features-in-the-polished-agent-chat-reference):

@@ -213,3 +213,14 @@ fn semantic_observations_and_commands_have_bounded_values() {
         assert_eq!(decode_canvas_view_config(&encode(&value)), Ok(value));
     }
 }
+
+#[test]
+fn canvas_capability_handshake_matches_ocaml_above_signed_32_bit_boundary() {
+    use gpuio_protocol::{decode, v1::*};
+    assert_eq!(CAPABILITIES & CAP_CANVAS, 2147483648);
+    let message = Message::Hello(VERSION, CAPABILITIES);
+    let bytes = encode(&message);
+    let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
+    assert_eq!(hex, "0001fcffffffff00000000");
+    assert_eq!(decode(&bytes), Ok(message));
+}

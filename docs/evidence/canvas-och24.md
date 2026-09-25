@@ -1,7 +1,10 @@
 # Retained canvas implementation evidence
 
-OCH-24 is in progress. This ledger distinguishes the implemented pure geometry
-from the scene registry, widget and platform acceptance still required.
+OCH-24 local implementation and macOS acceptance are complete. Consolidated
+macOS/Linux hosted gates and merge remain pending; Linux GUI acceptance is deferred
+to OCH-17. The final acceptance matrix below states current coverage. Earlier
+sections are chronological checkpoints; their pending-work notes describe those
+checkpoints, not the current implementation.
 
 ## Geometry and paths
 
@@ -55,17 +58,12 @@ Source: `lib/protocol/canvas_scene_wire.ml`, `rust/protocol/src/canvas_scene.rs`
 `rust/protocol/src/decode/canvas.rs`, `rust/protocol/tests/canvas_scene.rs`,
 `test/canvas/scene_codec_test.ml`.
 
-## Remaining acceptance
+## Reading the checkpoints
 
-See the registry and bridge checkpoints below for native resource ownership and
-raw transport; the scoped registration adapter and widget are still pending.
-
-Scoped Eio registration and integration of scene-handle ownership with views,
-native painting/tessellation/cache budgets,
-rendered images/text, accessible native selection/dragging/pan/zoom, an OCaml
-diagram/plot example, measured rendered-scene/repeated-widget-disposal workloads
-and the integrated chat showcase remain unimplemented. No native canvas
-window, Linux canvas acceptance or hosted M5 CI is claimed. OCH-24 remains open.
+The sections below record incremental implementation evidence. The final
+acceptance matrix at the end supersedes their historical pending-work statements.
+OCH-46 remains the separate, required integration of these completed features into
+the polished chat showcase; it is not deferred out of milestone 05.
 
 ## Native scene registry
 
@@ -583,3 +581,47 @@ canvas-feature all-target Clippy with warnings denied, the native mounted-scene
 regression, repository formatting and diff checks. The input/accessibility suite
 and external public script passed after the publication and paint-scheduling fixes.
 No milestone-05 hosted acceptance or merge is claimed at this checkpoint.
+
+## Final local acceptance matrix
+
+Local macOS arm64 acceptance covers the complete OCH-24 contract. Hosted macOS
+and Linux build/unit gates and merge remain pending; Linux GUI release validation
+is explicitly deferred to OCH-17 under the owner's platform policy. This is not a
+milestone-05 completion claim.
+
+| Requirement | Implementation and direct evidence |
+| --- | --- |
+| Typed drawing vocabulary, units, validated geometry and explicit exclusions | `Canvas_geometry`, `Canvas_path`, `Canvas_resource`, `Canvas_scene` public interfaces; OCaml canvas expect tests; Rust protocol geometry/scene tests; [canvas contract](../design/canvas.md) |
+| Stable identities, revisions, resource lifetime and bounded transport | `canvas_store` and scoped Eio canvas registry tests: atomic publication, stale handles, resource history, image leases, upload races, reset epochs and shutdown; independently encoded OCaml/Rust fixtures |
+| Native retained painting without OCaml paint callbacks | `canvas_view`, `canvas_host`, `canvas_jobs`, `canvas_mesh`, `canvas_content`; hidden native GPU suites check shape/text/raster/SVG pixels, transforms, clipping, pan/zoom, updates, failure/recovery and cache disposal |
+| Public OCaml plot | `examples/canvas/` normal and large self-tests; external `scripts/test_canvas.py` proves actual macOS accessibility and keyboard movement through the public event/model/publication bridge |
+| Selection, hit testing, drag and viewport semantics | Pure `canvas_state` tests plus `native_canvas_input` check overlapping hits, clips, capture, preview/commit, cancellation, keyboard alternatives, wheel coalescing and stale callbacks |
+| Focus, labels, actions and disposal | Actual AppKit accessibility checks verify object labels, selected active descendant, separate activation, transformed bounds, offscreen reveal, disabled/hidden/removal behavior; repeated mounted disposal tests |
+| Resize and scale behavior | Native GPU window resize from 240×240 to 320×280; mounted viewport resize/clipping; preparation quality tests and actual macOS device scale used by readback/zoom. Physical display hot swapping is not claimed. |
+| Bounded queues, geometry, text and resources | Quota/admission tests in store/jobs/mesh/content/state plus mounted maximum workload below; old readers remain charged, worker concurrency is bounded, disposal returns tracked retention to zero |
+| Cross-language capability negotiation | OCaml and Rust independently encode/decode Hello version 1, mask 4,294,967,295 as `0001fcffffffff00000000`, crossing the signed 32-bit boundary; the rendered-canvas bit is 2,147,483,648 |
+
+### Maximum mounted workload
+
+`canvas_workload_test.rs`, run by `native_canvas_input`, mounts 20,000 rectangle
+marks, including 2,048 interactive objects with separate activation actions. The
+encoded scene is 1,984,271 bytes. Actual AppKit traversal sees 2,048 object nodes
+and 2,048 activation children. A full frame accounts for 120,000 shape vertices.
+
+Three consecutive cycles publish, mount, verify green pixels, resize the viewport
+from 200 to 120 logical pixels and verify clipping, publish blue pixels, unmount
+and release the source. Every cycle asserts zero scene, mesh and text accounting,
+no remaining accessible objects and no failed canvas observations. Node slot
+reuse advances generations, as required by the normal tree contract.
+
+One local debug run took 6.911485458 seconds for all three cycles, including actual
+accessibility traversal and updates. This is not per-frame latency. Final worker
+metrics were 12 completed, 1 discarded, peak 1 concurrent worker, zero retained
+mesh bytes. Existing scheduler tests independently exercise the two-worker limit,
+supersession and queue bounds. These measured workloads substantiate explicit
+accounting limits, not a universal application RSS ceiling.
+
+Final capability checkpoint also passes isolated `dune build -j 2 @all @runtest`,
+`cargo clippy --locked -p gpuio-native --features native-canvas-tests --all-targets
+-j 2 -- -D warnings`, repository `check-fmt`, independent Rust capability decoder
+tests and the rebuilt public Canvas Lab self-test. All owned processes exited.
