@@ -91,7 +91,7 @@ class Mac:
                 self.release(window)
         return None
 
-    def find(self, title, label, role=None, contains=False):
+    def find(self, title, label, role=None, contains=False, search_files=False):
         root = self.window(title)
         if not root:
             return None
@@ -103,9 +103,11 @@ class Mac:
             matches = any(label in value if contains else label == value for value in values)
             if matches and (role is None or self.text(node, 'AXRole') == role):
                 return self.retain(node)
-            if role != 'AXTextField' and self.text(node, 'AXRole') in ['AXTable', 'AXOutline', 'AXBrowser']:
+            if not search_files and role != 'AXTextField' and self.text(node, 'AXRole') in ['AXTable', 'AXOutline', 'AXBrowser']:
                 return None
             children = self.children(node)
+            if search_files:
+                children.reverse()  # Current column precedes ancestor directory columns.
             try:
                 for child in children:
                     found = visit(child, depth + 1)
@@ -120,12 +122,12 @@ class Mac:
         finally:
             self.release(root)
 
-    def wait_find(self, title, label, role=None, contains=False):
+    def wait_find(self, title, label, role=None, contains=False, search_files=False):
         end = time.monotonic() + 35
         while time.monotonic() < end:
             if self.child is not None and self.child.poll() is not None:
                 raise RuntimeError(f"Reference app exited early: {self.child.returncode}")
-            node = self.find(title, label, role, contains)
+            node = self.find(title, label, role, contains, search_files)
             if node:
                 return node
             time.sleep(0.05)
@@ -212,6 +214,61 @@ class Mac:
             finally:
                 self.release(event)
 
+    def double_click(self, node):
+        class Point(C.Structure):
+            _fields_ = [('x', C.c_double), ('y', C.c_double)]
+        get_value = self.ax.AXValueGetValue
+        get_value.restype = C.c_bool
+        get_value.argtypes = [C.c_void_p, C.c_int, C.c_void_p]
+        position, size = Point(), Point()
+        for name, kind, result in [('AXPosition', 1, position), ('AXSize', 2, size)]:
+            value = self.attr(node, name)
+            try:
+                if not value or not get_value(value, kind, C.byref(result)):
+                    raise RuntimeError('Native file has no accessible bounds')
+            finally:
+                if value:
+                    self.release(value)
+        create = self.cg.CGEventCreateMouseEvent
+        create.restype = C.c_void_p
+        create.argtypes = [C.c_void_p, C.c_int, Point, C.c_int]
+        set_integer = self.cg.CGEventSetIntegerValueField
+        set_integer.restype = None
+        set_integer.argtypes = [C.c_void_p, C.c_int, C.c_longlong]
+        if size.x <= 0 or size.y <= 0:
+            raise RuntimeError("Native file has empty accessible bounds")
+        center = Point(position.x + size.x / 2, position.y + size.y / 2)
+        print("AX_FILE_CLICK", self.text(node, "AXRole"), center.x, center.y, flush=True)
+        system = self.ax.AXUIElementCreateSystemWide
+        system.restype, system.argtypes = C.c_void_p, []
+        hit_test = self.ax.AXUIElementCopyElementAtPosition
+        hit_test.restype = C.c_int
+        hit_test.argtypes = [C.c_void_p, C.c_float, C.c_float, C.POINTER(C.c_void_p)]
+        get_pid = self.ax.AXUIElementGetPid
+        get_pid.restype, get_pid.argtypes = C.c_int, [C.c_void_p, C.POINTER(C.c_int)]
+        post = self.cg.CGEventPost
+        post.restype = None
+        post.argtypes = [C.c_int, C.c_void_p]
+        root, hit, owner = system(), C.c_void_p(), C.c_int()
+        try:
+            if (hit_test(root, center.x, center.y, C.byref(hit)) or not hit.value
+                    or get_pid(hit, C.byref(owner)) or owner.value != self.pid):
+                raise RuntimeError('Native file is occluded by another application')
+        finally:
+            if hit.value:
+                self.release(hit)
+            self.release(root)
+        for count in [1, 2]:
+            for event_type in [1, 2]:  # Real left click at the verified child-owned point.
+                event = create(None, event_type, center, 0)
+                if not event:
+                    raise RuntimeError('Cannot create native file click')
+                try:
+                    set_integer(event, 1, count)  # kCGMouseEventClickState.
+                    post(0, event)
+                finally:
+                    self.release(event)
+
     def close(self, title):
         window = self.window(title)
         if not window:
@@ -278,25 +335,21 @@ def exercise(mac, attachment):
     actual = mac.draft(first, one)
     assert actual == 'Keep this newer draft', repr(actual)
     mac.press(first, 'Attach text…')
-    # AppKit persists the picker view per machine; use its native list-view
-    # shortcut before selecting a row so column/icon preferences cannot change
-    # the accessibility structure this test exercises.
-    mac.wait_text(first, 'Open')
-    mac.key(19, 1 << 20)  # Command-2: native file-picker list view.
-    filename = mac.wait_find(first, attachment.name, 'AXTextField')
-    row = filename
+    # Select the exact file through its accessible screen bounds. macOS releases
+    # expose different row/cell parents and saved list/column/icon views; native
+    # double-click works without assuming a particular accessibility hierarchy.
+    mac.set(mac.app, 'AXFrontmost', mac.true)
+    window = mac.window(first)
     try:
-        while mac.text(row, 'AXRole') != 'AXRow':
-            parent = mac.attr(row, 'AXParent')
-            mac.release(row)
-            row = parent
-            if not row:
-                raise RuntimeError('Attachment has no selectable native row')
-        mac.set(row, 'AXSelected', mac.true)
+        mac.perform(window, 'AXRaise')
     finally:
-        if row:
-            mac.release(row)
-    mac.press(first, 'Open')
+        mac.release(window)
+    time.sleep(0.3)
+    filename = mac.wait_find(first, attachment.name, search_files=True)
+    try:
+        mac.double_click(filename)
+    finally:
+        mac.release(filename)
     mac.wait_text(first, 'Attached native-attachment.txt')
     mac.press(first, 'New window')
     assert mac.draft(second, one) == ''

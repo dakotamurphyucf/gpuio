@@ -40,11 +40,13 @@ The reference-app controller scenario opens real GPUI windows and checks:
 - Theme changes, requested native frames and orderly application shutdown.
 
 The external macOS test (`scripts/test_agent_chat.py`) targets only its child PID.
-It uses native accessibility activation/value/selection plus targeted Return,
+It uses native accessibility activation/value plus targeted Return,
 Command-Shift-P and Escape. It checks sidebar search; Send; delayed-send draft
 protection; native Enter/error/retry; retained tabs; independent windows; actual
 AppKit picker selection followed by Eio read/preview; theme and keyboard palette;
-and OS close deny/allow. Success requires the process to return through `App.run`
+and OS close deny/allow. File selection uses a real double-click at the exact
+file element’s accessible bounds, after verifying the screen point belongs to
+the test child; an occluding application causes failure. Success requires the process to return through `App.run`
 and emit `GPUIO_AGENT_CHAT_NATIVE_APP_RETURNED`. Failure terminates/reaps its child.
 This test requires macOS Accessibility authorization; a missing permission is not
 an application success. No unrelated desktop process or file is targeted.
@@ -146,6 +148,8 @@ The PR retains all required-check runs and the immutable final merge revision.
 The first hosted macOS run passed the public chat/controller scenario and preceding
 native component tests, but the external driver stopped at the native attachment
 picker: the runner used column view, whereas the test selected a list-view row.
-The driver now explicitly selects AppKit list view before locating the file.
-This is an automation correction; the native picker and Eio attachment path
-remain real and required. Follow-up runs are linked in PR #12.
+The next run passed the full X11 sequence, but found that macOS15 also exposes
+different row/cell parents. The driver now searches the exact filename across
+view layouts and double-clicks its verified child-owned screen position, avoiding
+row assumptions. This is an automation correction; native picker/Eio attachment
+acceptance remains real and required. Final runs are linked in PR #12.
