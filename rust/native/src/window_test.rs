@@ -80,8 +80,9 @@ async fn exercise(
         .unwrap();
     assert_eq!(cx.update(|cx| cx.windows().len()), 1);
     let response = second
-        .update(cx, |_, window, _| {
+        .update(cx, |view, window, _| {
             window_host::command(
+                view,
                 &gpuio_protocol::window::Command::SetTitle("Surviving window".into()),
                 window,
             )

@@ -109,6 +109,7 @@ impl Default for Interaction {
 
 struct View {
     id: WindowId,
+    window_title: String,
     session: SharedSession,
     transport: Arc<Transport>,
     images: BTreeMap<NodeId, image_view::State>,
@@ -300,6 +301,7 @@ impl View {
     fn new(id: WindowId, session: SharedSession, transport: Arc<Transport>) -> Self {
         Self {
             id,
+            window_title: String::new(),
             focus: focus::Manager::new(id, session.clone()),
             session,
             transport,
@@ -1398,7 +1400,8 @@ pub fn run(transport: Arc<Transport>) {
                                     |window, cx| {
                                         window.set_window_title(&title);
                                         cx.new(|cx| {
-                                            let view=View::new(id, session.clone(), transport.clone());
+                                            let mut view=View::new(id, session.clone(), transport.clone());
+                                            view.window_title=title.clone();
                                             window_host::watch(&view,window,cx);
                                             view
                                         })
@@ -1518,7 +1521,7 @@ pub fn run(transport: Arc<Transport>) {
                         }
                         Message::WindowCommand(correlation,id,command)=>{
                             let result=match windows.get(&id) {
-                                Some(handle)=>handle.update(cx,|view,window,cx| {let result=window_host::command(&command,window);window_host::observe(view,window);cx.notify();result}).unwrap_or(gpuio_protocol::window::Response::Failed(gpuio_protocol::window::Error::Closed)),
+                                Some(handle)=>handle.update(cx,|view,window,cx| {let result=window_host::command(view,&command,window);window_host::observe(view,window);cx.notify();result}).unwrap_or(gpuio_protocol::window::Response::Failed(gpuio_protocol::window::Error::Closed)),
                                 None=>gpuio_protocol::window::Response::Failed(gpuio_protocol::window::Error::Closed),
                             };
                             transport.respond(Event::WindowResponse(correlation,id,result));

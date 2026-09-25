@@ -9,10 +9,11 @@ pub(super) fn control(transport: &Transport, event: Event) {
         .control(event);
     transport.wake_ocaml();
 }
-pub(super) fn snapshot(window: &Window) -> wire::Snapshot {
+pub(super) fn snapshot(view: &View, window: &Window) -> wire::Snapshot {
     let bounds = window.bounds();
     wire::Snapshot {
-        title: window.window_title(),
+        // GPUI Linux uses the default empty get_title; retain the host-owned title.
+        title: view.window_title.clone(),
         x: f32::from(bounds.origin.x) as f64,
         y: f32::from(bounds.origin.y) as f64,
         width: f32::from(bounds.size.width) as f64,
@@ -27,23 +28,30 @@ pub(super) fn snapshot(window: &Window) -> wire::Snapshot {
 pub(super) fn observe(view: &View, window: &Window) {
     control(
         &view.transport,
-        Event::WindowChanged(view.id, snapshot(window)),
+        Event::WindowChanged(view.id, snapshot(view, window)),
     );
 }
-pub(super) fn command(command: &wire::Command, window: &mut Window) -> wire::Response {
+pub(super) fn command(
+    view: &mut View,
+    command: &wire::Command,
+    window: &mut Window,
+) -> wire::Response {
     if !command.is_valid() {
         return wire::Response::Failed(wire::Error::InvalidRequest);
     }
     match command {
         wire::Command::Observe => (),
-        wire::Command::SetTitle(title) => window.set_window_title(title),
+        wire::Command::SetTitle(title) => {
+            window.set_window_title(title);
+            view.window_title.clone_from(title);
+        }
         wire::Command::Resize(w, h) => window.resize(size(px(*w as f32), px(*h as f32))),
         wire::Command::Activate => window.activate_window(),
         wire::Command::Zoom => window.zoom_window(),
         wire::Command::ToggleFullscreen => window.toggle_fullscreen(),
         wire::Command::SetEdited(edited) => window.set_window_edited(*edited),
     }
-    wire::Response::Observed(snapshot(window))
+    wire::Response::Observed(snapshot(view, window))
 }
 pub(super) fn capabilities() -> wire::Capabilities {
     #[cfg(target_os = "macos")]

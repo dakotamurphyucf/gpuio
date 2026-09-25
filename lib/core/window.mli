@@ -8,7 +8,9 @@ module Backend = Gpuio_protocol.Window_wire.Backend
 module Capabilities = Gpuio_protocol.Window_wire.Capabilities
 
 (** Snapshot width/height describe the outer native bounds. Content dimensions
-    describe the drawable viewport. They may differ by titlebar/decorations. *)
+    describe the drawable viewport. They may differ by titlebar/decorations.
+    [title] retains the application-configured title and successful [Set_title]
+    commands; it does not observe external window-manager retitling. *)
 module Snapshot = Gpuio_protocol.Window_wire.Snapshot
 
 (** [Resize] requests a content size; asynchronous compositor transitions are

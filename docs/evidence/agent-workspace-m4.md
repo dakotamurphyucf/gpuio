@@ -3,8 +3,9 @@
 Local implementation and acceptance ledger for OCH-14, OCH-15 and OCH-16.
 Platform: macOS arm64; stock OCaml 5.3, Bonsai/Core v0.17, Eio 1.3, Dune 3.24.2,
 Rust 1.97.1. All commands select this repository's isolated toolchain. No other
-switch or project was modified. Consolidated final validation and hosted results
-are recorded below as they complete; this document does not yet claim merge.
+switch or project was modified. Consolidated validation and hosted results are recorded below.
+[PR #12](https://github.com/dakotamurphyucf/gpuio/pull/12) records the final checked
+head and merge; Linear records delivery and the remaining OCH-17 platform work.
 
 ## Scope and evidence
 
@@ -77,9 +78,31 @@ completed jobs. Peak RSS was130,613,248 bytes (124.6MiB); macOS reported peak me
 footprint177,539,904 bytes (169.3MiB). These are distinct OS accounting measures,
 not retained heap size or steady-state idle CPU. No swap was reported.
 
-Hosted macOS/Linux worker measurements will be appended with their exact run. Linux GUI/layout/RSS evidence
-is only claimed if its informational compositor scenario actually reaches those
-checks. Compilation and headless worker measurements do not establish GUI acceptance.
+Hosted measurements at implementation revision `aea1edb`,
+[run 36081642291](https://github.com/dakotamurphyucf/gpuio/actions/runs/36081642291):
+
+| Scenario | Queue µs | Parse µs | Highlight µs | Search µs | Source bytes | Worker peak | Reserved peak |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| macOS arm64 headless workers | 140190 | 3988 | 58285 | 7632 | 1080882 | 2 | 9438592 |
+| macOS native document | 90663 | 3687 | 49959 | 750 | 100570 | 1 | 3210432 |
+| Linux x64 headless workers | 168701 | 1835 | 76563 | 8320 | 1080882 | 2 | 9438592 |
+| Linux X11 native document | 8067 | 675 | 24052 | 935 | 100570 | 1 | 3210432 |
+
+The hosted macOS document scenario measured 124,908µs layout/paint,57,458,688bytes
+peak process RSS and366ms scenario duration.
+
+The X11 document test completed six jobs without discarded results, with39,410µs
+layout/paint,199,565,312bytes peak process RSS and247ms scenario duration. The X11
+public agent scenario passed in4,507ms with49 commits,30 rendered acknowledgements,
+1,524 turns,270 clock ticks and37 completed jobs. These hosted software-rendering
+results are workload observations, not physical-presentation or hardware budgets.
+
+Both Linux graphical sequences remained informational failures: X11 reached and
+passed document/chat scenarios, then found the pinned GPUI Linux title getter
+returns an empty string in the window-lifecycle test. The host now retains its
+configured/updated title explicitly; follow-up CI validates that correction.
+Wayland stopped earlier at the known combobox clipboard assertion (`native_controls`),
+before reaching M4. Compilation and headless workers do not establish GUI acceptance.
 
 ## Visual acceptance
 
@@ -117,4 +140,12 @@ GPUIO_JOBS=2 ./scripts/gpuio check-fmt
 ```
 
 Full workspace lint and the legacy bridge/typed-view examples also pass.
-PR, hosted runs and merge: pending.
+Delivery: [PR #12](https://github.com/dakotamurphyucf/gpuio/pull/12).
+The PR retains all required-check runs and the immutable final merge revision.
+
+The first hosted macOS run passed the public chat/controller scenario and preceding
+native component tests, but the external driver stopped at the native attachment
+picker: the runner used column view, whereas the test selected a list-view row.
+The driver now explicitly selects AppKit list view before locating the file.
+This is an automation correction; the native picker and Eio attachment path
+remain real and required. Follow-up runs are linked in PR #12.

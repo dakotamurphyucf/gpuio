@@ -4,9 +4,9 @@ Native OCaml applications built with Jane Street Bonsai and Zed's GPUI.
 OCaml owns application state; Rust owns native rendering, input and UI resources.
 The bridge exchanges versioned bin_prot commands and events.
 
-**Status:** milestones 1–3 are merged. Milestone 4 adds streaming documents,
-windows/tabs/splits and a runnable agent-chat workspace. Its consolidated
-validation is in progress. See the current implementation
+**Status:** milestones 1–3 are merged. Milestone 4 implements streaming documents,
+windows/tabs/splits and a polished, runnable agent-chat workspace in
+[PR #12](https://github.com/dakotamurphyucf/gpuio/pull/12). See the current implementation
 status and its validation limits below. This is an experimental framework with
 no stable API release yet.
 

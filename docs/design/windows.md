@@ -1,7 +1,7 @@
 # Windows and workspace lifetimes
 
-Status: OCH-15 implementation in progress. Local evidence is recorded below;
-this is not milestone completion or Linux GUI acceptance.
+Status: OCH-15 implemented in [PR #12](https://github.com/dakotamurphyucf/gpuio/pull/12).
+See the [M4 evidence ledger](../evidence/agent-workspace-m4.md) for validation and platform limits.
 
 ## Application and window ownership
 
@@ -146,8 +146,8 @@ All eight local window-family validation commands passed on macOS on2026-09-24:
 paired Rust/OCaml wire fixtures, public example build, decision/resize scenario,
 last-window scenario, native OS callback/reopen scenario, Clippy with warnings
 denied, and mailbox/session tests. `native_window` includes the parent marker
-check. No hosted CI or merge has run for this milestone yet. Linux build/unit
-checks are required at integration; Linux GUI checks remain informational per
+check. Hosted checks and delivery are linked in the M4 evidence ledger. Linux
+build/unit checks are required; Linux GUI checks remain informational per
 the owner's platform policy. Native tabs and retained panels additionally passed the complete OCaml/Rust
 suites, native keyboard/macOS accessibility/hidden-panel checks, the full native
 controls regression, Clippy, and formatting. Split panes additionally passed native pointer/keyboard/macOS AX increment and
@@ -170,3 +170,8 @@ second Submitted event, so button and Enter paths invoke the handler once.
 without editing, submitting or focusing. Retained hidden/disabled editors remain
 readable. Close guards should use it when the last asynchronous Bonsai observation
 might lag native input; the agent-workspace example demonstrates this contract.
+
+Window titles are host-owned application state. Snapshots retain the configured
+title and successful `Set_title` commands; they do not discover external window-manager
+retitling. The pinned GPUI Linux backends inherit an empty title getter, so native
+OS title readback is deliberately not used as this state source.

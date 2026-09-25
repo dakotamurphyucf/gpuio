@@ -278,6 +278,11 @@ def exercise(mac, attachment):
     actual = mac.draft(first, one)
     assert actual == 'Keep this newer draft', repr(actual)
     mac.press(first, 'Attach text…')
+    # AppKit persists the picker view per machine; use its native list-view
+    # shortcut before selecting a row so column/icon preferences cannot change
+    # the accessibility structure this test exercises.
+    mac.wait_text(first, 'Open')
+    mac.key(19, 1 << 20)  # Command-2: native file-picker list view.
     filename = mac.wait_find(first, attachment.name, 'AXTextField')
     row = filename
     try:
