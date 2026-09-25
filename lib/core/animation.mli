@@ -42,6 +42,26 @@ module Easing : sig
   val cubic_bezier : x1:float -> y1:float -> x2:float -> y2:float -> t Or_error.t
 end
 
+module Spring : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** Physical parameters: stiffness in [0.01,10_000], damping in [0,1_000],
+      mass in [0.01,1_000]. All values must be finite. [epsilon] defaults to
+      0.001 animated units and is in [0.0001,1]. Velocity tolerance is epsilon
+      times the natural frequency. [max_duration] defaults to 10 seconds,
+      is positive, rounds up to milliseconds and is at most 60 seconds.
+      At that deadline the spring settles exactly at its target, including
+      undamped springs. Native spring rendering is under implementation. *)
+  val create
+    :  ?epsilon:float
+    -> ?max_duration:Time_ns.Span.t
+    -> stiffness:float
+    -> damping:float
+    -> mass:float
+    -> unit
+    -> t Or_error.t
+end
+
 module Repeat : sig
   type t =
     | Once
@@ -112,6 +132,7 @@ module Event : sig
 end
 
 module Expert : sig
+  val spring_to_wire : Spring.t -> Gpuio_protocol.Wire.Animation.Spring.t
   val event_of_wire : Gpuio_protocol.Wire.Animation.Endpoint.t -> Event.t Or_error.t
 
   val to_wire

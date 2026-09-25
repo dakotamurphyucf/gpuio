@@ -138,3 +138,109 @@ fn application_motion_tags_are_stable_and_invalid_values_rejected() {
     assert!(decode(&[9]).is_err());
     assert!(decode(&[9, 1, 0]).is_err());
 }
+
+#[test]
+fn physical_spring_parameters_match_ocaml_and_validate_limits() {
+    let config = Spring {
+        stiffness: 100.,
+        damping: 10.,
+        mass: 1.,
+        epsilon: 0.001,
+        max_duration_ms: 10_000,
+    };
+    let mut bytes = vec![];
+    config.binprot_write(&mut bytes).unwrap();
+    let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
+    assert_eq!(
+        hex,
+        include_str!("../../../test/fixtures/animation-spring.hex").trim()
+    );
+    assert!(config.is_valid());
+    for value in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, -1.] {
+        assert!(
+            !Spring {
+                stiffness: value,
+                ..config
+            }
+            .is_valid()
+        );
+        assert!(
+            !Spring {
+                damping: value,
+                ..config
+            }
+            .is_valid()
+        );
+        assert!(
+            !Spring {
+                mass: value,
+                ..config
+            }
+            .is_valid()
+        );
+        assert!(
+            !Spring {
+                epsilon: value,
+                ..config
+            }
+            .is_valid()
+        );
+    }
+    for value in [0, -1, 60_001, i64::MAX] {
+        assert!(
+            !Spring {
+                max_duration_ms: value,
+                ..config
+            }
+            .is_valid()
+        );
+    }
+    assert!(
+        Spring {
+            stiffness: 0.01,
+            mass: 0.01,
+            damping: 0.,
+            epsilon: 0.0001,
+            max_duration_ms: 1
+        }
+        .is_valid()
+    );
+    assert!(
+        Spring {
+            stiffness: 10_000.,
+            mass: 1_000.,
+            damping: 1_000.,
+            epsilon: 1.,
+            max_duration_ms: 60_000
+        }
+        .is_valid()
+    );
+    assert!(
+        !Spring {
+            stiffness: 10_001.,
+            ..config
+        }
+        .is_valid()
+    );
+    assert!(
+        !Spring {
+            mass: 1_001.,
+            ..config
+        }
+        .is_valid()
+    );
+    assert!(
+        !Spring {
+            damping: 1_001.,
+            ..config
+        }
+        .is_valid()
+    );
+    assert!(
+        !Spring {
+            epsilon: 1.01,
+            ..config
+        }
+        .is_valid()
+    );
+}

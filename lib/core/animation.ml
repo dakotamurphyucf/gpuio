@@ -93,6 +93,41 @@ module Easing = struct
   ;;
 end
 
+module Spring = struct
+  type t = W.Spring.t [@@deriving equal, sexp_of]
+
+  let create
+        ?(epsilon = 0.001)
+        ?(max_duration = Time_ns.Span.of_sec 10.)
+        ~stiffness
+        ~damping
+        ~mass
+        ()
+    =
+    let bounded value ~lower ~upper =
+      Float.is_finite value && Float.(value >= lower && value <= upper)
+    in
+    let milliseconds = Time_ns.Span.to_ms max_duration in
+    if
+      not
+        (bounded stiffness ~lower:0.01 ~upper:10_000.
+         && bounded damping ~lower:0. ~upper:1_000.
+         && bounded mass ~lower:0.01 ~upper:1_000.
+         && bounded epsilon ~lower:0.0001 ~upper:1.
+         && Float.(milliseconds > 0. && milliseconds <= 60_000.))
+    then Or_error.error_string "spring parameters or maximum duration are out of bounds"
+    else
+      Ok
+        ({ stiffness
+         ; damping
+         ; mass
+         ; epsilon
+         ; max_duration_ms = Float.iround_up_exn milliseconds |> Int64.of_int
+         }
+         : W.Spring.t)
+  ;;
+end
+
 module Repeat = struct
   type t = W.Repeat.t =
     | Once
@@ -186,6 +221,8 @@ module Event = struct
 end
 
 module Expert = struct
+  let spring_to_wire (spring : Spring.t) = spring
+
   let event_of_wire ({ generation; outcome } : W.Endpoint.t) =
     if Int64.(generation <= 0L)
     then Or_error.error_string "invalid animation run"

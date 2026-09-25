@@ -1,5 +1,8 @@
 //! Deterministic native motion state. Layout previews values; paint commits them.
 //! No timers, GPUI entities, callbacks or transport are owned by this module.
+#[path = "motion_spring.rs"]
+pub mod spring;
+
 use gpuio_protocol::animation::{
     CancelReason, Config, Endpoint, Outcome, PROPERTY_COUNT, Property, Repeat, Target,
 };

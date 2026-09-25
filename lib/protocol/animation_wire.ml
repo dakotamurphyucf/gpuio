@@ -35,6 +35,17 @@ module Easing = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Spring = struct
+  type t =
+    { stiffness : float
+    ; damping : float
+    ; mass : float
+    ; epsilon : float
+    ; max_duration_ms : int64
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Repeat = struct
   type t =
     | Once
