@@ -418,3 +418,59 @@ Local macOS validation passed for this contract checkpoint:
 
 No GUI tests were needed for this type/codec-only checkpoint; no GUI process was
 started. Native slider evidence above is from the preceding mounted-widget runs.
+
+## Native numeric policy owner
+
+`number_input_state.rs` now wraps a native editor observation with numeric policy:
+validated configuration, normalized committed value, revision guards, commit/
+cancel/step and typed responses. It does not own a second editor/history or run
+any timer. It synchronizes pending edits before commands and configuration
+changes, reserves revision capacity before invoking an editor callback, validates
+its final state and suppresses a later duplicate notification. Each operation
+returns at most two ordered events; semantic boundaries remain distinct from
+ordinary changes. Invalid native observations or inconsistent callback success
+cause a sticky fault that the mounted adapter must propagate to window input.
+
+Twelve deterministic model tests pass:
+
+- Initial normalization and decimal round trips include signed zero, the largest
+  finite magnitudes, the smallest normal/subnormal magnitudes and wide exponents.
+- Pending edits make stale replacements fail; final observations are deduplicated
+  while selection direction and incomplete/Unicode drafts remain intact.
+- Incomplete/invalid/non-finite/disallowed-empty commits reject without editing;
+  finite values clamp/round and repeated commit attempts have distinct revisions.
+  Blur preserves the draft and committed value.
+- Steps normalize before advancing, seed empty drafts at normalized zero without
+  another step, reject invalid drafts and saturate at endpoints.
+- Stubbed native undo restores a draft while retaining the committed value;
+  cancel restores committed text with the correct semantic reason.
+- Configuration changes preserve draft, directional selection and composition
+  while normalizing the committed value. Native observations precede the new
+  domain observation. Mutating commands cannot discard marked text.
+- Disabled/read-only gate user mutations and all Step commands; explicit
+  replacements/Commit/Cancel retain their accepted programmatic semantics.
+- Text/selection/value validation occurs before the editor callback; Preserve
+  selection is checked against UTF-8 boundaries in the replacement.
+- Command revision exhaustion prevents native mutation/config publication;
+  ordinary-observation exhaustion faults without rewinding a native edit.
+- Native command failure cannot publish numeric success. Inconsistent native
+  success or malformed/regressing observations fault the owner permanently.
+- Allowed empty commits are semantic boundaries. Making a field required does
+  not invent a number or rewrite its draft; a later empty commit rejects.
+- A 256-cycle mixed edit/commit/step/cancel/domain-update sequence maintains valid
+  snapshots/events, monotonically ordered revisions and bounded publication.
+
+The editor-result stubs deliberately do not simulate a complete input widget or
+history implementation. These tests verify numeric policy and adapter contracts;
+actual GPUI InputState undo/redo, typing/paste/IME, focus, stepper repeat, AX and
+mounted lifetime evidence still need the retained/native adapter implementation.
+
+Local macOS checks passed:
+
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo check --locked -j 2 -p gpuio-native`
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --lib` (159 tests, including 12 numeric-policy tests)
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native --all-targets -- -D warnings`
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all -- --check`
+
+No GUI process was started. Retained numeric views/envelopes, mounted editor and
+stepper, public controller, OTP, hosted checks and ticket completion remain open.

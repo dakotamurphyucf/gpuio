@@ -1,6 +1,6 @@
 # Implementation status
 
-Updated 2026-09-24. Milestones 01 and 02 are merged, including native text editing,
+Updated 2026-09-25. Milestones 01 and 02 are merged, including native text editing,
 controls/interactions and declarative animations. [PR #10](https://github.com/dakotamurphyucf/gpuio/pull/10)
 merged at `17e863279bff25253edf47f449c04cd9aee5e867` after the required macOS and
 Linux checks passed. Milestone 03 / OCH-13 implements keyed collections, paging and managed virtual
@@ -105,6 +105,9 @@ and owner-disposal checks; debug timing and batching limits are documented.
 Number_input Core/wire contracts and bounded native codecs now cover draft/value
 separation, historical domains, UTF-8 selection/IME ranges and guarded commands;
 independent cross-language fixtures and semantic validation tests pass locally.
+The native numeric policy model now validates commit/cancel/step, pending-edit
+guards, composition/configuration preservation and revision/fault behavior with
+deterministic state tests. Its editor callbacks remain to be connected to GPUI.
 Native numeric editor/stepper and OTP integration remains pending; no capability
 is advertised.
 See [numeric design](design/numeric-inputs.md) and

@@ -216,7 +216,9 @@ the outer control's size has not changed. Late release cannot commit the old dra
 
 The following refines the accepted draft/value contract for OCH-34. The Core
 `Number_input` types and standalone OCaml/Rust wire contracts are implemented
-and tested. Retained views, native numeric editing/stepping, event routing and
+and tested. The independent native policy owner also implements commit/cancel,
+stepping, configuration updates and command/observation revision rules. Retained
+views, actual native editor/stepper integration, event routing and
 the Eio controller remain implementation targets; these contracts alone do not
 provide a usable numeric widget.
 
@@ -357,3 +359,47 @@ backward selection/active composition, a settled Stepper commit, guarded draft
 and value replacements with different selection/history policies, and an
 Incomplete rejection response. OCaml and Rust encoders agree on every byte;
 native decoders additionally require complete consumption and semantic validity.
+
+### Native policy owner
+
+`rust/native/src/number_input_state.rs` implements the numeric owner independently
+of GPUI rendering. It caches one bounded snapshot for observation comparison;
+the editor remains the authoritative owner of draft text, selection, composition
+and undo history. It has no timer, repeat task or retained command queue.
+
+The mounted adapter must pass a fresh native editor snapshot to each `execute`
+or `configure` call. Pending native changes are observed first, so a replacement
+guard cannot overwrite an edit that has not yet reached the asynchronous observer.
+An operation returns at most two ordered events: that pending Changed event, then
+its own change/semantic boundary. Publish those before the correlated response.
+After successful editing, a repeated native observation is suppressed because
+the owner already captured the final editor snapshot. The model's synchronous
+editor callback must not reenter the owner and must either fail before mutation
+or return the final live snapshot. The adapter still supplies native identity,
+visibility/modal/focus gates and the actual editor operation.
+
+The numeric revision is checked for capacity before an editor callback runs.
+Commit, cancel and rejected commit/step attempts consume a semantic revision even
+when the text does not change. Read does not reserve capacity. Other commands
+publish only exposed changes; an inner history revision without an exposed change
+does not invent a numeric observation. A stale guard, invalid command or native
+editor failure leaves the command's numeric state unchanged; an earlier pending
+native observation remains ordered before that failure response.
+
+Configuration updates preserve draft, selection and composition while normalizing
+the committed value in the new domain. An actual configuration change produces
+Observed, including policy/label changes; an equal configuration is a no-op.
+Ordinary focus loss produces Changed and never commits. Explicit Commit/Step
+attempts during composition emit Rejected Composing and return the Composing
+error; other mutating commands fail Composing without discarding marked text.
+The mounted keyboard adapter must let the editor/IME handle composition Enter
+and Escape first, rather than invoking these numeric operations on that keystroke.
+
+Recoverable command errors are distinct from sticky native faults. Malformed or
+regressing native observations, ordinary-observation revision exhaustion, or a
+native callback reporting an inconsistent success fault this owner. The adapter
+must then fault window input; it must not rewind native text or resume commands
+using the cached old state. A config-update failure after retained configuration
+publication likewise requires the adapter to fault rather than leave two live
+configurations. Tests use explicit editor-result stubs for these policy rules;
+they do not establish actual InputState history, IME or mounted-widget acceptance.

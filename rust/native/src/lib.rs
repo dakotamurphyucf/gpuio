@@ -191,4 +191,5 @@ pub fn run_native_slider_test() {
     host::presentation_test::run_sliders();
 }
 
+pub mod number_input_state;
 pub mod slider_state;
