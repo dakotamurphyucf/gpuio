@@ -193,6 +193,7 @@ pub fn run_native_slider_test() {
 
 pub mod number_input_state;
 pub mod otp_edit;
+pub mod otp_input_state;
 pub mod slider_state;
 
 #[cfg(feature = "native-tests")]

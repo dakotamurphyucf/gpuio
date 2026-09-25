@@ -1,8 +1,8 @@
 # Segmented OTP inputs (OCH-34)
 
 Status: bounded text policy, atomic edit helpers, a platform-independent native
-editing model, public Core contracts and standalone OCaml/Rust codecs are
-implemented. Native segmented rendering, platform editing integration, retained
+editing model and native state owner, public Core contracts and standalone
+OCaml/Rust codecs are implemented. Native segmented rendering, platform editing integration, retained
 bridge envelopes and public Bonsai/Eio controllers are not implemented yet. No OTP capability is
 advertised. This document supplements [numeric inputs](numeric-inputs.md).
 
@@ -100,8 +100,9 @@ states, truncation and trailing bytes. Standalone encoded limits are 4,200 bytes
 for configuration, 4,352 for event/response and 128 for commands. These are
 payload bounds, separate from future transport-envelope accounting.
 
-These interfaces define the native owner contract; they do not themselves
-implement event sequencing, command execution, masking or platform behavior.
+These interfaces define the native owner contract. The state owner below now
+implements sequencing and commands; platform rendering, AX and bridge delivery
+still require the mounted adapter.
 
 ## Native integration requirements
 
@@ -172,6 +173,54 @@ redo; unchanged values, selection and preedit do not. The mounted event owner
 must distinguish user edits from programmatic observations and preserve ordered
 Changed/Complete boundaries. The model does not yet publish bridge events.
 
+### Implemented native state owner
+
+`rust/native/src/otp_input_state.rs` owns the editing session, immutable policy,
+configuration, revision and observed focus. It executes explicit commands and
+native actions separately. Programmatic effects emit only Observed; a user edit
+that changes accepted code to full length emits Changed then Complete with
+distinct consecutive revisions. Rejected input always produces its semantic
+boundary, even if text did not change. Repeated focus/configuration observations
+and no-op edits do not consume revisions.
+
+The owner reserves the operation's maximum event count before mutation, including
+before Rust focus/clipboard callbacks. Reservation is conservative near signed
+64-bit exhaustion: an operation that could produce two events needs capacity for
+both even when a particular input would produce fewer. Exhaustion leaves code,
+selection, preedit, history, configuration and callback side effects untouched.
+Read_snapshot remains available. The mounted adapter must stop/fault input on
+exhaustion instead of applying unobservable native edits.
+
+Replacement guards and validation precede mutation. Preserve clamps each
+selection endpoint, explicit Select fits exactly, and Reset clears history even
+for unchanged text. Policy-changing configurations reject atomically. Other
+configuration changes retain the editor session, code, directional selection,
+preedit and history. Actual platform focus updates are reported separately;
+programmatic Focus must be confirmed by the Rust adapter before success.
+
+Native access checks include an adapter-supplied visibility/modal gate and the
+current disabled/read-only policy. Read-only selection and unmasked copying are
+allowed; native content/history edits and cut are denied. Programmatic Replace/
+Clear remain available under disabled/read-only. Masked copy/cut and empty
+selection do not touch the clipboard. Copy/cut reject active composition. Cut
+reserves capacity, calls the Rust clipboard writer, then deletes the selection;
+a failed writer leaves text/selection/history/revision unchanged. These tests use
+Rust callbacks, not the actual operating-system clipboard.
+
+Platform unmark commits only when editing is still permitted. If the field has
+become hidden, modal-blocked, disabled or read-only, unmark restores the preedit
+checkpoint instead. Empty marked text and explicit lifecycle cancellation also
+restore it even after interaction is gated; composition cannot be left stranded
+because a control was disabled. Cleanup produces Changed without Complete.
+Ordinary configuration updates themselves do not cancel composition.
+
+The owner returns batches of at most two native events or one programmatic
+observation before its response. Adjacent Changed observations may coalesce only
+with increasing revisions under the same policy; Complete, Rejected, Observed
+and responses remain boundaries. The retained bridge still must enforce window/
+node/handler identities, admit and publish each batch in order, account retained
+bytes and fence old leases. No queue or GPUI entity is established by this owner.
+
 ### Remaining native integration
 
 Implement and test:
@@ -179,8 +228,8 @@ Implement and test:
 - Enforce immutable policy at native placement and in the public controller API.
 - Connect the accepted/preedit/history model to actual platform IME callbacks,
   keyboard routing and lifecycle cancellation; pure tests are not platform proof.
-- Revision reservation and the specified ordering for Changed and Complete, including
-  same-value edits, caret movement, undo/redo, initial state and explicit commands.
+- Preserve the tested revision and Changed/Complete ordering through real native
+  callbacks, queue coalescing, command responses and OCaml observation admission.
 - Segmented selection/caret/IME geometry, accessibility value/actions and masking,
   and clipboard behavior for masked fields.
 - Bounded queues/history, hidden idle behavior, unmount/window close and old-lease

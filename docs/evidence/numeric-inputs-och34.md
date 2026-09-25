@@ -966,3 +966,41 @@ Protocol all-target Clippy with `-D warnings`, Rustfmt and whitespace checks pas
 No native window was launched. GPUI platform callbacks, revision/event ownership,
 retained transport envelopes, segmented rendering, public controllers/examples
 and actual local native acceptance remain necessary before completing OCH-34.
+
+## OTP native state owner
+
+`rust/native/src/otp_input_state.rs` now executes the public command/event
+contract around the bounded editing session. It owns configuration, revision and
+focus observations; reserves event capacity before mutation; keeps programmatic
+Observed separate from native Changed/Complete; and rejects policy changes,
+stale replacements, invalid selections and disallowed edits atomically.
+
+Native access uses current disabled/read-only policy and an adapter-supplied
+visibility/modal gate. Configuration updates retain preedit, selection and
+history. Unmark after editing is gated restores the original checkpoint; empty
+preedit/lifecycle cancellation also works after disabling. Masked/empty copying
+and cutting leave the clipboard alone, read-only selection/copy remain possible,
+and a failed Rust clipboard callback cannot delete text. Focus success requires
+confirmation by a Rust callback. These callbacks have no OCaml reentry.
+
+Local validation:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-native --lib otp_ -j 2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --all-targets --features native-tests -j 2 -- -D warnings
+```
+
+All 24 focused tests pass (13 owner tests plus the 11 editing tests); the other
+160 native unit tests were filtered out, not rerun. Native all-target Clippy
+passes. Owner tests cover completion pairs with consecutive revisions, no
+completion for programmatic/unchanged values, user versus programmatic history,
+digit/alphanumeric paste, rejection/IME rollback, scalar-boundary errors,
+configuration retention, permission/focus/clipboard admission, selection policies,
+stale and invalid commands, and signed-64-bit exhaustion before side effects.
+A coalescing model preserves Complete/Rejected/Observed boundaries. Native
+transport queues still need their own identity, batch-admission and lifetime
+tests; a pure coalescing test does not establish those properties in the bridge.
+
+No GPUI window, OS clipboard, IME or accessibility service was exercised in this
+checkpoint. The owner is ready for retained/native integration; rendering,
+platform callbacks, controller/event delivery and actual acceptance remain open.
