@@ -163,7 +163,41 @@ synchronously. App stop completes pending raw requests with Closed.
 `canvas_mesh`, `canvas_plan` and `canvas_jobs` implement bounded geometry and work
 queues. `canvas_host` schedules them on GPUI background workers, and `canvas_paint`
 paints admitted meshes. `canvas_content` paints native text and managed images.
-The mounted public view remains in progress.
+The mounted public view remains in progress. The typed `View.canvas` and Bonsai
+alias now reconcile small configurations through the tree protocol, but native
+mounted painting/input/accessibility are not yet connected to that constructor.
+
+### View and observation bridge
+
+`View.canvas ?key ?style ?on_event config` borrows the scene handle retained in
+`Canvas.Config.t`. The reconciler checks its application owner before encoding;
+a foreign owner produces an absent source for a typed native failure, never an
+unchecked resource ID. Configurations travel in `Set_canvas` (operation tag 36),
+with `Canvas_view` kind tag 31. A canvas is a leaf with no text/children. Native
+tree admission allows at most 128 canvas nodes per window, accounts configuration
+retention, and rejects multiple canvas configurations for one node within a
+transaction so intermediate commands cannot silently disappear. Transaction
+failure preserves the previous tree and quota counters.
+
+`Canvas_event` (event tag 40) includes the window, node, handler, tree revision,
+optional source identity, displayed scene revision/generation and typed
+observation. Only a pre-acquisition failure may use the zero scene pair; an
+absent source also requires such a failure. Config changes rotate the callback
+handler while preserving node identity; callback-only refresh retains the handler
+and uses the latest closure. Replaced/unmounted handlers, foreign sources,
+malformed observations and future tree revisions are rejected.
+
+The Eio adapter additionally requires a live registration and the desired reset
+epoch. It accepts the currently acknowledged scene or the exact publication
+actually in flight, since an event can precede that publication's acknowledgement.
+Queued uploads cannot generate accepted events. Ordinary updates keep the prior
+acknowledged revision eligible until publication succeeds; reset intent immediately
+fences the old epoch. After acknowledgement, observations of older displayed
+revisions are ignored, even while native geometry preparation catches up.
+Failed ordinary publication preserves eligibility of the earlier accepted scene.
+Release and shutdown suppress subsequent scene observations; mounted native
+leases still follow the separate resource-retention contract above. This bridge
+does not yet advertise a rendered-canvas capability.
 
 Geometry is tessellated in local coordinates before applying the item's affine
 transform. This preserves stroke width semantics under nonuniform scale, shear

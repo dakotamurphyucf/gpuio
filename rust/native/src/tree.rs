@@ -47,6 +47,7 @@ pub struct Node {
     pub extension_command: Option<Arc<gpuio_protocol::extension::Command>>,
     pub split: Option<Arc<gpuio_protocol::split::Config>>,
     pub document: Option<Arc<gpuio_protocol::document::Config>>,
+    pub canvas: Option<Arc<gpuio_protocol::canvas_view::Config>>,
     pub animation: Option<Arc<gpuio_protocol::animation::Config>>,
     pub list_config: Option<Arc<gpuio_protocol::list::Config>>,
     pub list_order: Option<Arc<gpuio_protocol::list::Order>>,
@@ -69,6 +70,10 @@ pub struct Node {
 impl Node {
     fn payload_bytes(&self) -> usize {
         self.text.len()
+            + self
+                .canvas
+                .as_ref()
+                .map_or(0, |config| config.label.len() + 256)
             + self.extension.as_ref().map_or(0, |config| {
                 256 + config.schema.name.len()
                     + config.schema.fingerprint.len()
@@ -202,6 +207,7 @@ pub struct Tree {
     slots: Vec<Slot>,
     node_count: usize,
     extension_count: usize,
+    canvas_count: usize,
     retained_bytes: usize,
 }
 
@@ -229,6 +235,7 @@ impl Tree {
             slots: Vec::new(),
             node_count: 0,
             extension_count: 0,
+            canvas_count: 0,
             retained_bytes: 0,
         }
     }
@@ -334,16 +341,25 @@ impl Tree {
             slot_count: self.slots.len(),
             node_count: self.node_count,
             extension_count: self.extension_count,
+            canvas_count: self.canvas_count,
             retained_bytes: self.retained_bytes,
             budget: budget.min(MAX_RETAINED_BYTES),
             structural: false,
             lists: Vec::new(),
         };
         let mut extension_updates = BTreeSet::new();
+        let mut canvas_updates = BTreeSet::new();
         for op in &tx.operations {
             if let Op::SetExtension(id, _) = op
                 && !extension_updates.insert(*id)
             {
+                return Err(ErrorCode::InvalidTree.into());
+            }
+            if let Op::SetCanvas(id, _) = op
+                && !canvas_updates.insert(*id)
+            {
+                // Each command must reach the mounted state; a later config in
+                // this transaction cannot silently replace an earlier one.
                 return Err(ErrorCode::InvalidTree.into());
             }
             plan.operation(op)?;
@@ -471,6 +487,13 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
+                if (node.kind == Kind::CanvasView) != node.canvas.is_some()
+                    || node.canvas.as_ref().is_some_and(|config| {
+                        !config.is_valid() || !node.text.is_empty() || !node.children.is_empty()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 if (node.kind == Kind::DocumentView) != node.document.is_some()
                     || node.document.as_ref().is_some_and(|config| {
                         !config.is_valid() || !node.text.is_empty() || !node.children.is_empty()
@@ -581,6 +604,7 @@ impl Tree {
                     | Kind::TabPanel
                     | Kind::SplitPane
                     | Kind::Extension
+                    | Kind::CanvasView
                     | Kind::DocumentView
                     | Kind::Icon
                     | Kind::Animated
@@ -672,6 +696,7 @@ impl Tree {
             slot_count,
             node_count,
             extension_count,
+            canvas_count,
             retained_bytes,
             lists,
             ..
@@ -687,6 +712,7 @@ impl Tree {
         self.root = root;
         self.node_count = node_count;
         self.extension_count = extension_count;
+        self.canvas_count = canvas_count;
         self.retained_bytes = retained_bytes;
         self.revision = tx.revision;
         Ok(Applied {
@@ -727,6 +753,7 @@ struct Plan<'a> {
     slot_count: usize,
     node_count: usize,
     extension_count: usize,
+    canvas_count: usize,
     retained_bytes: usize,
     budget: usize,
     structural: bool,
@@ -904,6 +931,7 @@ impl Plan<'_> {
             | Op::InvalidateListRows(id, ..)
             | Op::ScrollList(id, ..)
             | Op::SetImage(id, ..)
+            | Op::SetCanvas(id, ..)
             | Op::SetDocument(id, ..)
             | Op::SetExtension(id, ..)
             | Op::SetSplit(id, ..)
@@ -958,6 +986,12 @@ impl Plan<'_> {
                 if id.slot() == self.slot_count {
                     self.slot_count += 1;
                 }
+                if *kind == Kind::CanvasView {
+                    if self.canvas_count == 128 {
+                        return Err(ErrorCode::LimitExceeded);
+                    }
+                    self.canvas_count += 1;
+                }
                 if *kind == Kind::Extension {
                     if self.extension_count == 256 {
                         return Err(ErrorCode::LimitExceeded);
@@ -991,6 +1025,7 @@ impl Plan<'_> {
                             extension_command: None,
                             split: None,
                             document: None,
+                            canvas: None,
                             animation: None,
                             list_config: None,
                             list_order: None,
@@ -1012,6 +1047,9 @@ impl Plan<'_> {
                 self.structural = true;
             }
             Op::Remove(id) => {
+                if self.node(*id)?.kind == Kind::CanvasView {
+                    self.canvas_count -= 1;
+                }
                 if self.node(*id)?.kind == Kind::Extension {
                     self.extension_count -= 1;
                 }
@@ -1189,6 +1227,12 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.split = Some(Arc::new(config.clone()));
+            }
+            Op::SetCanvas(id, config) => {
+                if self.node(*id)?.kind != Kind::CanvasView || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.canvas = Some(Arc::new(config.clone()));
             }
             Op::SetDocument(id, config) => {
                 if self.node(*id)?.kind != Kind::DocumentView || !config.is_valid() {

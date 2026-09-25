@@ -583,6 +583,7 @@ let open_window_config t ?(theme = Gpuio.Theme.default) config component =
           Driver.create
             ~asset_owner:(Asset_registry.Expert.owner t.asset_registry)
             ~document_owner:(Document_registry.Expert.owner t.document_registry)
+            ~canvas_owner:(Canvas_registry.Expert.owner t.canvas_registry)
             id
             ~start:(t.now ())
             ~theme
@@ -680,6 +681,19 @@ let process t = function
         Option.iter window.driver ~f:(fun driver ->
           Driver.acknowledge driver ~revision |> Or_error.ok_exn));
     Inbox.wake t.inbox
+  | Canvas_event (id, _, _, _, source, scene_revision, scene_generation, observation) as
+    event ->
+    if
+      Canvas_registry.accepts_event
+        t.canvas_registry
+        source
+        ~scene_revision
+        ~scene_generation
+        observation
+    then
+      Option.iter (find_window t id) ~f:(fun window ->
+        if not (Window.is_closed window)
+        then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))
   | Document_navigation (id, _, _, _, source, generation, _) as event ->
     if Document_registry.accepts_navigation t.document_registry source ~generation
     then

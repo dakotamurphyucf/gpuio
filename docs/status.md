@@ -32,7 +32,9 @@ Native interaction state now covers selection, drag previews/cancellation,
 position ownership, viewport policies and commands; GPU checks validate its
 effective transforms through direct state calls. Bounded native text/raster/SVG
 painting now passes GPU clipping, zoom, retired-source and deferred-work checks.
-OS input/AX and the public canvas widget remain in progress. See the
+The typed canvas view, owner-aware reconciliation, bounded native tree admission
+and revision-checked event bridge now have local regression coverage. Mounted
+native rendering, OS input/AX and public widget acceptance remain in progress. See the
 [extension](evidence/extensions-och23.md) and [canvas](evidence/canvas-och24.md)
 evidence for exact completed scope. Its scope includes OCH-23–26 and OCH-33–39, followed by
 [OCH-46](https://linear.app/ochat/issue/OCH-46/showcase-milestone-05-features-in-the-polished-agent-chat-reference):

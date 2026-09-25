@@ -362,3 +362,45 @@ The native GPU command uses `native-canvas-tests --test native_canvas` under a
 Canvas-feature all-target Clippy with warnings denied, the full isolated Dune
 build including the independent consumer backend, and repository formatting pass
 at this checkpoint. The final native test and all build/check processes exited.
+
+## Public view and event bridge checkpoint
+
+The typed `View.canvas`/Bonsai constructor now carries an application-owned
+configuration through the reconciler and native tree. This checkpoint covers
+the bridge and tree admission; the mounted native renderer and OS input/AX
+integration still remain. No additional rendered-canvas capability is advertised.
+
+Independent OCaml and Rust tests agree on the transaction bytes for kind 31 and
+operation 36 and on event tag 40 with window/node/handler/source/scene identity.
+They reject truncated transactions/events, trailing bytes, malformed observations,
+missing sources and invalid publication pairs. The OCaml reconciler test verifies
+callback-only replacement without bridge operations, handler rotation on config
+change without remount, future revisions, foreign application ownership, typed
+pre-acquisition failure and unmount suppression.
+
+Eio scheduler tests exercise ordinary publication, pending-but-unsent uploads,
+events before a Publish acknowledgement, failed publication, immediate reset
+intent, another reset during publication, release, unknown sources and shutdown.
+The earlier revision remains eligible during ordinary upload; it is rejected
+after acknowledgement or immediately on reset intent. An event for the exact
+in-flight Publish may arrive before its response; merely queued revisions cannot.
+
+Native tree tests verify leaf/config validation, duplicate configuration rejection,
+unchanged revision/retention after failed updates, all 128 permitted canvas mounts,
+rejection of mount 129, quota reuse after removal, and zero configuration retention
+after disposal. These are tree accounting checks, not native cache/RSS measurements.
+
+Local macOS validation with the isolated wrapper and jobs=2 passes:
+
+- `dune runtest -j 2 test/canvas test/runtime`.
+- `cargo test --locked -j 2 -p gpuio-protocol --test canvas_view -p gpuio-native --test canvas_tree`
+  (four protocol tests and two tree tests).
+- `cargo test --locked -j 2 -p gpuio-native --lib` (99 tests).
+- `cargo clippy --locked -j 2 -p gpuio-native --features native-canvas-tests --all-targets -- -D warnings`.
+- Full `dune build -j 2`, including the independently packaged extension consumer.
+- Repository `check-fmt` and `git diff --check`.
+
+No GUI windows were opened by this checkpoint's checks. Native painting evidence
+above remains from the earlier hidden GPU scenario; these bridge tests do not
+extend that evidence to a public widget or keyboard/accessibility acceptance.
+Hosted M5 validation remains pending.

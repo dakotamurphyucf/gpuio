@@ -52,7 +52,61 @@ let%expect_test
     in
     assert (String.equal expected hex));
   print_s [%sexp (String.length bytes : int)];
+  let module W = Gpuio_protocol.Wire in
+  let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok in
+  let node = Gpuio_protocol.Node_id.create ~slot:0L ~generation:1L |> ok in
+  let handler = Gpuio_protocol.Handler_id.create ~slot:0L ~generation:1L |> ok in
+  let framed =
+    W.Message.encode
+      (Apply
+         { window
+         ; base = 0L
+         ; revision = 1L
+         ; operations =
+             [ Create (node, Canvas_view, "", Some handler); Set_canvas (node, wire) ]
+         })
+    |> ok
+  in
+  let to_hex data =
+    String.to_list data
+    |> List.map ~f:(fun c -> sprintf "%02x" (Char.to_int c))
+    |> String.concat
+  in
+  assert (String.equal (to_hex framed) ("0300010001020000011f00010001240001" ^ hex));
+  let events =
+    W.Event.decode "\001\040\000\001\000\001\000\001\001\001\007\002\002\003\001\009"
+    |> ok
+  in
+  assert (
+    List.equal
+      W.Event.equal
+      events
+      [ Canvas_event (window, node, handler, 1L, Some native_id, 2L, 3L, Activated 9L) ]);
   [%expect {| 91 |}]
+;;
+
+let%expect_test
+    "canvas event decoder rejects invalid epochs, missing sources and truncated frames"
+  =
+  let module W = Gpuio_protocol.Wire in
+  let good = "\001\040\000\001\000\001\000\001\001\001\007\002\002\003\001\009" in
+  for length = 0 to String.length good - 1 do
+    assert (Result.is_error (W.Event.decode (String.prefix good length)))
+  done;
+  assert (Result.is_error (W.Event.decode (good ^ "\000")));
+  (* Fixed envelope prefix through tree revision; test invalid publication pairs,
+     malformed semantic values, and the allowed pre-acquisition failure. *)
+  let prefix = "\001\040\000\001\000\001\000\001\001" in
+  List.iter
+    [ "\000\001\001\001\009"
+    ; "\001\007\002\000\000\001\009"
+    ; "\001\007\002\001\000\005\000"
+    ; "\001\007\002\001\001\001\000"
+    ]
+    ~f:(fun suffix -> assert (Result.is_error (W.Event.decode (prefix ^ suffix))));
+  assert (Result.is_ok (W.Event.decode (prefix ^ "\000\000\000\005\000")));
+  print_endline "invalid scene identities and observations rejected at decode";
+  [%expect {| invalid scene identities and observations rejected at decode |}]
 ;;
 
 let%expect_test

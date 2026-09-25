@@ -27,10 +27,57 @@ fn config() -> Config {
         }),
     }
 }
-fn encode(value: &Config) -> Vec<u8> {
+fn encode(value: &impl BinProtWrite) -> Vec<u8> {
     let mut bytes = Vec::new();
     value.binprot_write(&mut bytes).unwrap();
     bytes
+}
+
+#[test]
+fn canvas_view_transaction_and_event_match_independent_ocaml_fixture() {
+    use gpuio_protocol::{HandlerId, NodeId, WindowId, decode, v1::*};
+    let window = WindowId::from_parts(0, 1).unwrap();
+    let node = NodeId::from_parts(0, 1).unwrap();
+    let handler = HandlerId::from_parts(0, 1).unwrap();
+    let message = Message::Apply(Transaction {
+        window,
+        base: 0,
+        revision: 1,
+        operations: vec![
+            Op::Create(node, Kind::CanvasView, "".into(), Some(handler)),
+            Op::SetCanvas(node, config()),
+        ],
+    });
+    let bytes = encode(&message);
+    let hex = |bytes: &[u8]| bytes.iter().map(|b| format!("{b:02x}")).collect::<String>();
+    assert_eq!(
+        hex(&bytes),
+        format!(
+            "0300010001020000011f00010001240001{}",
+            include_str!("../../../test/fixtures/canvas-v1-view.hex").trim()
+        )
+    );
+    assert_eq!(decode(&bytes), Ok(message));
+    for end in 0..bytes.len() {
+        assert!(decode(&bytes[..end]).is_err());
+    }
+    let mut trailing = bytes;
+    trailing.push(0);
+    assert_eq!(decode(&trailing), Err(DecodeError::Malformed));
+    let event = Event::CanvasEvent(
+        window,
+        node,
+        handler,
+        1,
+        Some(ResourceId::from_parts(7, 2).unwrap()),
+        2,
+        3,
+        Observation::Activated(9),
+    );
+    assert_eq!(
+        hex(&encode(&vec![event])),
+        "01280001000100010101070202030109"
+    );
 }
 
 #[test]

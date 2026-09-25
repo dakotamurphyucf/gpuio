@@ -117,6 +117,7 @@ pub enum Kind {
     TabPanel,
     SplitPane,
     Extension,
+    CanvasView,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -583,6 +584,7 @@ pub enum Op {
     SetDocument(NodeId, crate::document::Config),
     SetSplit(NodeId, crate::split::Config),
     SetExtension(NodeId, crate::extension::Config),
+    SetCanvas(NodeId, crate::canvas_view::Config),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -710,4 +712,14 @@ pub enum Event {
         crate::extension::Signal,
     ),
     CanvasResponse(i64, crate::canvas_resource::Response),
+    CanvasEvent(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        Option<crate::ResourceId>,
+        i64,
+        i64,
+        crate::canvas_view::Observation,
+    ),
 }

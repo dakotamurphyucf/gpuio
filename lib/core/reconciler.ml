@@ -66,6 +66,7 @@ end
 type 'a callback =
   | Extension of Wire.Extension.Config.t * (Wire.Extension.Signal.t -> 'a)
   | Split_pane of Split_pane.Config.t * (Split_pane.Snapshot.t -> 'a)
+  | Canvas of Wire.Canvas_view.Config.t * (Canvas.Event.t -> 'a)
   | Document of Text_source.Handle.t * (Document.Navigation.t -> 'a)
   | Virtual_list of List_identity.t * 'a View.Expert.virtual_list
   | Animation of int64 * int64 ref * (Animation.Event.t -> 'a)
@@ -121,6 +122,7 @@ type 'a t =
   { owner : unit ref
   ; asset_owner : Asset.Expert.Owner.t option
   ; document_owner : Text_source.Expert.Owner.t option
+  ; canvas_owner : Canvas_scene.Expert.Owner.t option
   ; window : Window_id.t
   ; mutable state : 'a state
   ; mutable closed : bool
@@ -144,12 +146,14 @@ type 'a builder =
   ; theme_unchanged : bool
   ; asset_owner : Asset.Expert.Owner.t option
   ; document_owner : Text_source.Expert.Owner.t option
+  ; canvas_owner : Canvas_scene.Expert.Owner.t option
   }
 
-let create ?asset_owner ?document_owner window =
+let create ?asset_owner ?document_owner ?canvas_owner window =
   { owner = ref ()
   ; asset_owner
   ; document_owner
+  ; canvas_owner
   ; window
   ; closed = false
   ; state =
@@ -224,6 +228,7 @@ let kind = function
   | Icon -> Icon
   | Animated -> Animated
   | Virtual_list -> Virtual_list
+  | Canvas_view -> Canvas_view
   | Document_view -> Document_view
   | Tab_bar -> Tab_bar
   | Tab_panel -> Tab_panel
@@ -426,6 +431,14 @@ let rec mount builder ~depth previous view =
       | Some _, Some _ -> fail "split pane cannot combine another handler"
     in
     let callback =
+      match description.canvas, callback with
+      | Some item, None ->
+        Option.map item.on_event ~f:(fun callback ->
+          Canvas (Canvas.Expert.to_wire item.config ~owner:builder.canvas_owner, callback))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "canvas cannot combine another handler"
+    in
+    let callback =
       match description.document, callback with
       | Some item, None ->
         Option.map item.on_navigate ~f:(fun callback ->
@@ -474,6 +487,11 @@ let rec mount builder ~depth previous view =
           | Some item, Some mounted ->
             Option.exists (View.Expert.describe mounted.view).split_pane ~f:(fun old ->
               not (Split_pane.Config.equal old.config item.config))
+          | None, _ | Some _, None -> false)
+      || (match description.canvas, previous with
+          | Some item, Some mounted ->
+            Option.exists (View.Expert.describe mounted.view).canvas ~f:(fun old ->
+              not (Canvas.Config.equal old.config item.config))
           | None, _ | Some _, None -> false)
       || (match description.document, previous with
           | Some document, Some mounted ->
@@ -648,6 +666,16 @@ let rec mount builder ~depth previous view =
       then fail "split-pane reset_generation must not decrease";
       if not (Option.equal Split_pane.Config.equal old (Some item.config))
       then emit builder (Set_split (id, Split_pane.Expert.to_wire item.config)));
+    Option.iter description.canvas ~f:(fun item ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).canvas ~f:(fun old -> old.config))
+      in
+      if not (Option.equal Canvas.Config.equal old (Some item.config))
+      then
+        emit
+          builder
+          (Set_canvas (id, Canvas.Expert.to_wire item.config ~owner:builder.canvas_owner)));
     Option.iter description.document ~f:(fun document ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -985,6 +1013,7 @@ let prepare t ~theme view =
         ; theme_unchanged = Theme.equal theme t.state.theme
         ; asset_owner = t.asset_owner
         ; document_owner = t.document_owner
+        ; canvas_owner = t.canvas_owner
         }
       in
       let root =
@@ -1123,6 +1152,33 @@ let dispatch t = function
             && Int64.equal generation (Split_pane.Expert.generation config) ->
        Split_pane.Expert.snapshot_of_wire snapshot |> Result.ok |> Option.map ~f:callback
      | Some _ | None -> None)
+  | Wire.Event.Canvas_event
+      ( window
+      , node
+      , handler
+      , revision
+      , source
+      , scene_revision
+      , scene_generation
+      , observation )
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Canvas (config, callback)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Option.equal Resource_id.equal source config.source
+            && (Option.is_some source
+                || Int64.(scene_revision = 0L && scene_generation = 0L)) ->
+       Canvas.Expert.event ~scene_revision ~scene_generation observation
+       |> Result.ok
+       |> Option.map ~f:callback
+     | Some _ | None -> None)
   | Wire.Event.Document_navigation (window, node, handler, revision, source, _, navigation)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -1217,6 +1273,7 @@ let dispatch t = function
         | Virtual_list _
         | Extension _
         | Split_pane _
+        | Canvas _
         | Document _ -> None)
      | Some _ | None -> None)
   | Choice (window, node, handler, revision, selected)
@@ -1424,6 +1481,7 @@ let dispatch t = function
   | Window_capabilities _
   | Extension_event _
   | Split_resized _
+  | Canvas_event _
   | Canvas_response _
   | Document_response _
   | Document_navigation _

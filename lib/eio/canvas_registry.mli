@@ -43,6 +43,17 @@ val register
 
 val next_request : t -> Gpuio_protocol.Wire.Canvas.Request.t option
 val complete : t -> Gpuio_protocol.Wire.Canvas.Response.t -> unit
+
+(** Fences released registrations, scene resets and unpublished revisions. A
+    Publish acknowledgement may follow an event from that exact in-flight Publish. *)
+val accepts_event
+  :  t
+  -> Gpuio_protocol.Resource_id.t option
+  -> scene_revision:int64
+  -> scene_generation:int64
+  -> Gpuio_protocol.Canvas_view_wire.Observation.t
+  -> bool
+
 val close : t -> unit
 
 module Expert : sig

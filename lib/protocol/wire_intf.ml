@@ -6,6 +6,7 @@ module type S = sig
   module Animation = Animation_wire
   module Document = Document_wire
   module Canvas = Canvas_resource_wire
+  module Canvas_view = Canvas_view_wire
   module Window = Window_wire
   module Extension = Extension_wire
   module Split = Split_wire
@@ -48,6 +49,7 @@ module type S = sig
       | Tab_panel
       | Split_pane
       | Extension
+      | Canvas_view
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -699,6 +701,7 @@ module type S = sig
       | Set_document of Node_id.t * Document.Config.t
       | Set_split of Node_id.t * Split.Config.t
       | Set_extension of Node_id.t * Extension.Config.t
+      | Set_canvas of Node_id.t * Canvas_view.Config.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -901,6 +904,15 @@ module type S = sig
       | Extension_event of
           Window_id.t * Node_id.t * Handler_id.t * int64 * int64 * Extension.Signal.t
       | Canvas_response of int64 * Canvas.Response.t
+      | Canvas_event of
+          Window_id.t
+          * Node_id.t
+          * Handler_id.t
+          * int64
+          * Resource_id.t option
+          * int64
+          * int64
+          * Canvas_view.Observation.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

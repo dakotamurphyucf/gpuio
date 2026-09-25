@@ -391,6 +391,45 @@ let close t =
   t.entries <- Int.Map.empty
 ;;
 
+let accepts_event t source ~scene_revision ~scene_generation observation =
+  check t;
+  let before_scene =
+    Int64.(scene_revision = 0L && scene_generation = 0L)
+    &&
+    match observation with
+    | Gpuio_protocol.Canvas_view_wire.Observation.Failed _ -> true
+    | _ -> false
+  in
+  (not t.closed)
+  && Gpuio_protocol.Canvas_view_wire.Observation.valid observation
+  && (before_scene || Int64.(scene_revision > 0L && scene_generation > 0L))
+  &&
+  match source with
+  | None -> before_scene
+  | Some id ->
+    Map.exists t.entries ~f:(fun entry ->
+      (not entry.released)
+      && Option.exists entry.id ~f:(Id.equal id)
+      && Option.exists entry.desired ~f:(fun desired ->
+        let matches snapshot revision generation =
+          phys_equal desired.epoch snapshot.epoch
+          && (before_scene
+              || (Int64.equal scene_revision revision
+                  && Int64.equal scene_generation generation))
+        in
+        Option.exists entry.accepted ~f:(fun snapshot ->
+          matches snapshot entry.revision entry.generation)
+        || Option.exists entry.upload ~f:(fun upload ->
+          matches upload.snapshot upload.update.revision upload.update.generation
+          && Option.exists t.pending ~f:(fun (pending, request) ->
+            phys_equal pending entry
+            &&
+            match request with
+            | Wire.Request.Publish (source, revision) ->
+              Id.equal source id && Int64.equal revision upload.update.revision
+            | Create | Begin _ | Chunk _ | Abort _ | Release _ -> false))))
+;;
+
 module Expert = struct
   let owner t = t.owner
 

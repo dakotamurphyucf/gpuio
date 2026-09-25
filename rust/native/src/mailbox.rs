@@ -267,6 +267,7 @@ impl Mailbox {
             | Event::ToastDismissed(id, ..)
             | Event::DragSourceEvent(id, ..)
             | Event::ImageState(id, ..)
+            | Event::CanvasEvent(id, ..)
             | Event::DocumentNavigation(id, ..)
             | Event::ExtensionEvent(id, ..)
             | Event::SplitResized(id, ..)

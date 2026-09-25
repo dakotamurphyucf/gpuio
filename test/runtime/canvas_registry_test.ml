@@ -67,6 +67,109 @@ let change result =
 
 let begin_info (update : Wire.Update.t) = update.base, update.revision, update.generation
 
+let%expect_test
+    "canvas events track accepted and in-flight publications, reset intent and release"
+  =
+  with_registry (fun scope registry _ ->
+    let registration = registered registry scope (empty "initial") in
+    let accepts revision generation =
+      Registry.accepts_event
+        registry
+        (Some id)
+        ~scene_revision:revision
+        ~scene_generation:generation
+        (Activated 1L)
+    in
+    assert (accepts 1L 1L);
+    assert (not (accepts 0L 0L));
+    assert (not (accepts 2L 1L));
+    assert (
+      not
+        (Registry.accepts_event
+           registry
+           (Some id)
+           ~scene_revision:1L
+           ~scene_generation:1L
+           (Activated 0L)));
+    change (Registration.set registration (empty "ordinary update"));
+    assert (accepts 1L 1L);
+    let begin_ = next registry in
+    Registry.complete registry (response begin_);
+    assert (not (accepts 2L 1L));
+    let chunk = next registry in
+    Registry.complete registry (response chunk);
+    assert (not (accepts 2L 1L));
+    (match next registry with
+     | Publish (_, 2L) -> ()
+     | _ -> assert false);
+    assert (accepts 1L 1L && accepts 2L 1L);
+    Registry.complete registry Ack;
+    assert (not (accepts 1L 1L));
+    assert (accepts 2L 1L);
+    change (Registration.reset registration (empty "reset"));
+    assert (not (accepts 2L 1L));
+    let begin_ = next registry in
+    Registry.complete registry (response begin_);
+    let chunk = next registry in
+    Registry.complete registry (response chunk);
+    assert (not (accepts 3L 2L));
+    (match next registry with
+     | Publish (_, 3L) -> ()
+     | _ -> assert false);
+    assert (accepts 3L 2L);
+    change (Registration.reset registration (empty "new reset during publish"));
+    assert (not (accepts 3L 2L));
+    Registry.complete registry Ack;
+    assert (not (accepts 3L 2L));
+    drain registry ~f:(fun _ -> ());
+    assert (accepts 4L 3L);
+    Registration.release registration;
+    assert (not (accepts 4L 3L));
+    drain registry ~f:(fun _ -> ());
+    assert (not (accepts 4L 3L)));
+  print_endline "unpublished, stale, reset and released events rejected";
+  [%expect {| unpublished, stale, reset and released events rejected |}]
+;;
+
+let%expect_test
+    "failed publication preserves earlier event identity and shutdown fences failures"
+  =
+  with_registry (fun scope registry _ ->
+    let registration = registered registry scope (empty "initial") in
+    let accepts ?(source = Some id) revision generation observation =
+      Registry.accepts_event
+        registry
+        source
+        ~scene_revision:revision
+        ~scene_generation:generation
+        observation
+    in
+    assert (accepts ~source:None 0L 0L (Failed Wrong_application));
+    assert (not (accepts ~source:None 1L 1L (Failed Unavailable_scene)));
+    assert (accepts 0L 0L (Failed Unavailable_scene));
+    assert (not (accepts 0L 1L (Failed Unavailable_scene)));
+    let unknown = Gpuio_protocol.Resource_id.create ~slot:99L ~generation:1L |> ok in
+    assert (not (accepts ~source:(Some unknown) 0L 0L (Failed Unavailable_scene)));
+    change (Registration.set registration (empty "rejected"));
+    for _ = 1 to 2 do
+      let request = next registry in
+      Registry.complete registry (response request)
+    done;
+    (match next registry with
+     | Publish _ -> ()
+     | _ -> assert false);
+    assert (accepts 2L 1L (Activated 1L));
+    Registry.complete registry (Failed Stale_resource);
+    assert (not (accepts 2L 1L (Activated 1L)));
+    assert (accepts 1L 1L (Activated 1L));
+    drain registry ~f:(fun _ -> ());
+    Registry.close registry;
+    assert (not (accepts 1L 1L (Activated 1L)));
+    assert (not (accepts ~source:None 0L 0L (Failed Wrong_application))));
+  print_endline "failed publish preserves old scene; closed registry rejects all events";
+  [%expect {| failed publish preserves old scene; closed registry rejects all events |}]
+;;
+
 let%expect_test "coalescing, stable handle and charged retention after publication" =
   with_registry (fun scope registry owner ->
     let registration = registered registry scope (empty "initial") in

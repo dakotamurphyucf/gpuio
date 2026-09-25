@@ -5,6 +5,15 @@ type 'action t
 
 val text : ?key:Key.t -> ?style:Style.t -> string -> 'action t
 
+(** Retained native canvas backed by a scoped scene registration. Style determines
+    its size. Native interaction observations enqueue application actions. *)
+val canvas
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?on_event:(Canvas.Event.t -> 'action)
+  -> Canvas.Config.t
+  -> 'action t
+
 (** Native Markdown/code/unified-diff display, backed by a scoped document
     resource. Parsing, selection and copy are native; navigation is asynchronous. *)
 val document
@@ -423,6 +432,11 @@ module Expert : sig
     ; on_resize : (Split_pane.Snapshot.t -> 'action) option
     }
 
+  type 'action canvas =
+    { config : Canvas.Config.t
+    ; on_event : (Canvas.Event.t -> 'action) option
+    }
+
   type 'action document =
     { config : Document.Config.t
     ; on_navigate : (Document.Navigation.t -> 'action) option
@@ -486,6 +500,7 @@ module Expert : sig
       | Tab_panel
       | Split_pane
       | Extension
+      | Canvas_view
     [@@deriving equal, sexp_of]
   end
 
@@ -572,6 +587,7 @@ module Expert : sig
     ; extension : 'action extension option
     ; split_pane : 'action split_pane option
     ; document : 'action document option
+    ; canvas : 'action canvas option
     ; palette : 'action palette option
     ; menu : menu option
     ; focus_scope : Focus_scope.t option

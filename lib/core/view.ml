@@ -34,6 +34,7 @@ module Kind = struct
     | Tab_panel
     | Split_pane
     | Extension
+    | Canvas_view
   [@@deriving equal, sexp_of]
 end
 
@@ -141,6 +142,11 @@ type 'action split_pane =
   ; on_resize : (Split_pane.Snapshot.t -> 'action) option
   }
 
+type 'action canvas =
+  { config : Canvas.Config.t
+  ; on_event : (Canvas.Event.t -> 'action) option
+  }
+
 type 'action document =
   { config : Document.Config.t
   ; on_navigate : (Document.Navigation.t -> 'action) option
@@ -187,6 +193,7 @@ type 'action t =
   ; extension : 'action extension option
   ; split_pane : 'action split_pane option
   ; document : 'action document option
+  ; canvas : 'action canvas option
   ; palette : 'action palette option
   ; menu : menu option
   ; focus_scope : Focus_scope.t option
@@ -220,6 +227,7 @@ let text ?key ?(style = Style.empty) text =
   ; extension = None
   ; split_pane = None
   ; document = None
+  ; canvas = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -239,6 +247,10 @@ let animate ?key ?(style = Style.empty) ?on_event config children =
 
 let image ?key ?(style = Style.empty) ?on_change config =
   { (text ?key ~style "") with kind = Image; image = Some { config; on_change } }
+;;
+
+let canvas ?key ?(style = Style.empty) ?on_event config =
+  { (text ?key ~style "") with kind = Canvas_view; canvas = Some { config; on_event } }
 ;;
 
 let document ?key ?(style = Style.empty) ?on_navigate config =
@@ -276,6 +288,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; extension = None
   ; split_pane = None
   ; document = None
+  ; canvas = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -369,6 +382,7 @@ let button
   ; extension = None
   ; split_pane = None
   ; document = None
+  ; canvas = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -434,6 +448,7 @@ let toggle
   ; extension = None
   ; split_pane = None
   ; document = None
+  ; canvas = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -483,6 +498,7 @@ let focus_scope ?key ?style ~config children =
   ; extension = None
   ; split_pane = None
   ; document = None
+  ; canvas = None
   ; palette = None
   ; menu = None
   ; focus_scope = Some config
@@ -754,6 +770,7 @@ let text_input
   ; extension = None
   ; split_pane = None
   ; document = None
+  ; canvas = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -788,6 +805,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; extension = None
   ; split_pane = None
   ; document = None
+  ; canvas = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -848,6 +866,7 @@ let combobox
   ; extension = None
   ; split_pane = None
   ; document = None
+  ; canvas = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -974,6 +993,11 @@ module Expert = struct
     ; on_resize : (Split_pane.Snapshot.t -> 'action) option
     }
 
+  type nonrec 'action canvas = 'action canvas =
+    { config : Canvas.Config.t
+    ; on_event : (Canvas.Event.t -> 'action) option
+    }
+
   type nonrec 'action document = 'action document =
     { config : Document.Config.t
     ; on_navigate : (Document.Navigation.t -> 'action) option
@@ -1074,6 +1098,7 @@ module Expert = struct
     ; extension : 'action extension option
     ; split_pane : 'action split_pane option
     ; document : 'action document option
+    ; canvas : 'action canvas option
     ; palette : 'action palette option
     ; menu : menu option
     ; focus_scope : Focus_scope.t option

@@ -834,6 +834,7 @@ impl Decoder<'_> {
                     28 => Kind::TabPanel,
                     29 => Kind::SplitPane,
                     30 => Kind::Extension,
+                    31 => Kind::CanvasView,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -903,6 +904,7 @@ impl Decoder<'_> {
             26 => Op::SetImage(self.node()?, self.image_config()?),
             33 => Op::SetDocument(self.node()?, self.document_config()?),
             35 => Op::SetExtension(self.node()?, self.extension_config()?),
+            36 => Op::SetCanvas(self.node()?, self.canvas_view_config()?),
             34 => {
                 let id = self.node()?;
                 let config = crate::split::Config {

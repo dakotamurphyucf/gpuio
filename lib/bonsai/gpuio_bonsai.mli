@@ -17,6 +17,13 @@ module View : sig
     -> t list
     -> t
 
+  val canvas
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?on_event:(Gpuio.Canvas.Event.t -> unit Bonsai.Effect.t)
+    -> Gpuio.Canvas.Config.t
+    -> t
+
   (** Revisioned native documents; register source with [Gpuio_eio.Document]. *)
   val document
     :  ?key:Gpuio.Key.t
