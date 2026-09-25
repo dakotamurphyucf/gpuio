@@ -135,11 +135,13 @@ behavior and complete disposal. Capability `34359738368` advertises the family
 See [OTP contracts](design/otp-inputs.md).
 See [numeric design](design/numeric-inputs.md) and
 [foundation evidence](evidence/numeric-inputs-och34.md).
-OCH-35 now has tested OCaml and Rust civil-date/month/selection/constraint models,
-including explicit partial ranges, bounded disabled-date rules, checked date
-ordinals and strict OCaml date formats. The complete Gregorian-cycle and daily
-reference checks pass locally. Native calendars/pickers, bridge codecs/controllers
-and their acceptance remain in progress; no calendar capability is advertised.
+OCH-35 now has tested civil-date/month/selection/constraint models, typed locale
+configuration, commands/observations, bounded paired codecs and a native calendar
+policy owner. Partial ranges, historical selection validity, focus callback
+failure and revision exhaustion have model coverage. Gregorian-cycle, daily
+reference, malformed-wire and maximum-config checks pass locally. GPUI rendering,
+retained transport integration, public controllers and popup-picker acceptance
+remain in progress; no calendar capability is advertised.
 See [calendar design](design/calendar.md) and [model evidence](evidence/calendar-och35.md).
 No milestone-05 completion or hosted acceptance is claimed yet.
 

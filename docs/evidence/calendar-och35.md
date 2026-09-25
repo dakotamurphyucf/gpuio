@@ -51,10 +51,8 @@ uses Core's uppercase weekday sexps. No failing behavior was promoted away.
 
 ## Still required for this ticket
 
-- Bounded independently checked OCaml/Rust codecs, validating malformed dates,
-  list lengths, modes and intervals before allocation/admission.
-- Configuration/locale labels, native ownership and revisioned commands/events,
-  retained-tree admission and public Core/Bonsai/Eio controllers.
+- Retained message/op/event envelopes and admission using the now-tested bounded
+  codecs; native tree/lifetime ownership and public Core/Bonsai/Eio controllers.
 - Native inline calendar with day/month/year navigation, focus and selection;
   strict locale/format policy, disabled/read-only/hidden/modal behavior.
 - Popup date-picker integration with the existing overlay system and explicit
@@ -63,3 +61,43 @@ uses Core's uppercase weekday sexps. No failing behavior was promoted away.
   stale-lifetime and independent-window tests, idle/retention/disposal workloads.
 - Required macOS/Linux consolidated CI, merge and Linear completion; final
   integration into OCH-46. Full Linux GUI release acceptance remains OCH-17.
+
+## Configuration, codec and native policy checkpoint
+
+Added `lib/protocol/calendar_wire.ml`, typed Core configuration/labels/commands/
+observations, `rust/protocol/src/calendar_input.rs`, the bounded
+`decode/calendar.rs` adapter, and `rust/native/src/calendar_state.rs`.
+The native policy owner has no GPUI rendering or retained placement yet.
+
+Local macOS checks pass:
+
+- Four additional Core expect tests cover typed configuration, locale changes,
+  semantic decoding, leases, commands and observations. Together with the initial
+  seven tests, these run within the full view-API expect suite; `@fmt` passes.
+- Five calendar codec Rust tests cover five independently assembled bin_prot
+  fixtures (Python datetime plus explicit byte assembly, consumed independently by
+  OCaml and Rust), full consumption, every truncated fixture prefix, invalid date/
+  range/weekday/tag/Boolean values, malformed UTF-8, control/oversized labels,
+  collection counts rejected before allocation, canonicalization and a maximum
+  valid configuration. The five prior Rust civil-model tests remain passing.
+- Five native policy unit tests cover explicit initial month/cursor, programmatic
+  observations, guarded commands, partial/restarted/completed ranges, consecutive
+  Changed/Selected revisions, rejection preservation, historical invalidation on
+  configuration changes, read-only/disabled/modal gates, leap-day navigation,
+  failed native-focus callback rollback and revision exhaustion before mutation
+  or invoking focus. These are policy tests, not actual OS focus validation.
+
+Commands:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @test/view_api/runtest @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-protocol --test calendar --test calendar_codec -j 2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-native --lib calendar_state -j 2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --all-targets --features native-image-tests -j 2 -- -D warnings
+```
+
+The configuration and all response/input structures are bounded and validated,
+but this checkpoint adds no top-level retained protocol tags and advertises no
+calendar capability. Native-image all-target Clippy also passes with warnings
+denied. Native rendering, transport/window ownership, public mounted
+controllers and picker acceptance remain required.

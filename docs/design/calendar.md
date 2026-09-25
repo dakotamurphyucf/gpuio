@@ -1,10 +1,11 @@
 # Calendars and date pickers — OCH-35
 
-Status: implementation contract in progress. Pure OCaml and Rust civil-date,
-month-grid, selection and constraint models pass local tests. The OCaml model
-also provides strict date formatting/parsing. Native widgets, bounded bridge
-codecs/controllers, locale presentation, picker composition and acceptance remain
-required. No calendar capability is advertised yet. See the
+Status: implementation contract in progress. Civil-date models, bounded standalone
+codecs, typed locale/configuration/command/observation contracts and a native
+calendar policy owner pass local tests. The OCaml model also provides strict date
+formatting/parsing. Retained-tree/transport integration, GPUI rendering, public
+controllers, popup composition and native acceptance remain required.
+No calendar capability is advertised yet. See the
 [foundation evidence](../evidence/calendar-och35.md).
 
 ## Civil values and bounded work
@@ -71,6 +72,62 @@ Initial parsing formats are fixed-width ASCII `YYYY-MM-DD`, `DD/MM/YYYY` and
 implicit natural-language parsing, calendar-system conversion or time picker.
 If editable date entry is exposed, it must reuse the existing native input
 draft/IME/commit contract rather than translating every keystroke into a date.
+
+### Concrete configuration and command contracts
+
+`Calendar.Labels` contains 12 January-first month names, 7 Sunday-first weekday
+names and 7 short weekday names, plus previous/next, choose-month/year, today and
+clear action labels. All 32 labels are nonblank UTF-8, at most 128 bytes each,
+without ASCII controls; no label is an executable formatting program. The first
+weekday independently defaults to Monday. Configuration defaults to English
+labels, single mode, unrestricted constraints and no today marker; its required
+accessible label permits up to 4096 bytes under the same text rules. It carries
+neither the selected value nor the initial displayed month.
+
+The native owner takes an explicit initial month and validated seed selection.
+Its keyboard cursor prefers a selected endpoint in that month, then the supplied
+today marker in that month, then the first day. Cursor, displayed month and
+selection are separate. Month navigation clamps the existing cursor day to the
+target month (for example, leap day to February 28 next year); it never changes
+selection. Day/month/year presentation is explicit. Focus loss preserves these
+values and is reported separately from a selection change.
+
+Snapshots carry a nonnegative native revision, mode, selection, selection-allowed
+flag, displayed month, cursor date, presentation and actual focus. The cursor
+must belong to the displayed month. Core observations additionally bind a
+window/node lease. Empty selection is always allowed; a nonempty historical
+selection may remain present while disallowed by newer constraints.
+
+`Observed` covers initial/configuration/programmatic changes. `Changed` covers
+native navigation/focus and selection changes, including partial ranges. A
+changed complete native selection emits `Changed`, then `Selected` with the next
+revision. Repeated unchanged single-date activation emits neither. Rejected date
+activation preserves selection and navigation and emits an ordered `Rejected`.
+No programmatic command emits `Selected`.
+
+Commands are Replace/Clear (optional revision guard), Show_month/Move_months,
+Focus_date/Focus, Set_presentation and Read_snapshot. Replace/Clear remain
+available read-only/disabled, but replacements must satisfy current mode and
+constraints. Navigation commands preserve selection; Focus_date reveals a date
+and confirms native focus before mutating the owner. Disabled dates may receive
+the discovery cursor but cannot be selected. Native read-only navigation remains
+available; disabled or modal/hidden-blocked native interaction is denied.
+Mode changes require remount. Configuration updates retain selection/navigation.
+
+The owner reserves event revision capacity before any mutation or native focus
+side effect, including both slots of a potential Changed/Selected pair. Exhaustion
+is conservative even when an operation might be a no-op. Read_snapshot remains
+available without advancing revisions. The GPUI/bridge adapter still must check
+leases, actual focus gates, publish event batches atomically and fault on lost
+required output; standalone policy tests do not establish those adapter behaviors.
+
+Standalone Rust decoders check full consumption and cap configurations at 24 KiB,
+constraint blocks at 7100 bytes, selections at 19 bytes, events/responses at 128
+bytes and commands at 64 bytes. Collection counts are checked before allocation;
+domain conversion validates every date, interval, weekday, label and mode.
+Valid raw duplicate constraints canonicalize on either side. Five independently
+assembled fixtures cover configuration, constraints, selection, completion and
+guarded replacement. Retained message/op/event envelopes remain to be connected.
 
 ## Pinned upstream evaluation
 

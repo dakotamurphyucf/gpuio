@@ -7,6 +7,7 @@ pub mod animation_program;
 pub mod asset;
 pub mod avatar;
 pub mod calendar;
+pub mod calendar_input;
 pub mod canvas;
 pub mod canvas_resource;
 pub mod canvas_scene;
@@ -32,7 +33,9 @@ pub mod rating;
 pub mod v1;
 
 pub use decode::{
-    DecodeError, decode, decode_accessibility, decode_animation_program, decode_canvas_scene,
+    DecodeError, decode, decode_accessibility, decode_animation_program, decode_calendar_command,
+    decode_calendar_config, decode_calendar_constraints, decode_calendar_event,
+    decode_calendar_response, decode_calendar_selection, decode_canvas_scene,
     decode_canvas_view_config, decode_container_query, decode_number_input_command,
     decode_number_input_config, decode_number_input_event, decode_number_input_response,
     decode_numeric_domain, decode_otp_input_command, decode_otp_input_config,

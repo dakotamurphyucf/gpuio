@@ -1,4 +1,5 @@
 open Core
+module W = Gpuio_protocol.Calendar_wire
 
 let min_date = Date.create_exn ~y:1 ~m:Jan ~d:1
 let max_date = Date.create_exn ~y:9999 ~m:Dec ~d:31
@@ -78,7 +79,7 @@ module Range = struct
 end
 
 module Mode = struct
-  type t =
+  type t = W.Mode.t =
     | Single
     | Range
   [@@deriving equal, sexp_of]
@@ -114,7 +115,7 @@ module Selection = struct
 end
 
 module Range_policy = struct
-  type t =
+  type t = W.Range_policy.t =
     | Every_day
     | Endpoints_only
   [@@deriving equal, sexp_of]
@@ -219,7 +220,7 @@ module Constraints = struct
 end
 
 module Selection_error = struct
-  type t =
+  type t = W.Selection_error.t =
     | Wrong_mode
     | Unsupported_date
     | Disabled_date
@@ -305,7 +306,7 @@ module Format = struct
   ;;
 end
 
-module Expert = struct
+module Wire_conversion = struct
   let date_to_ordinal date =
     Or_error.map (validate_date date) ~f:(fun date ->
       Int64.of_int (Date.diff date min_date))
@@ -316,4 +317,355 @@ module Expert = struct
     then Or_error.error_string "calendar ordinal must be in 0..3652058"
     else Ok (Date.add_days min_date (Int64.to_int_exn ordinal))
   ;;
+
+  let range_to_wire t =
+    { W.Range.first = Int64.of_int (Date.diff (Range.first t) min_date)
+    ; last = Int64.of_int (Date.diff (Range.last t) min_date)
+    }
+  ;;
+
+  let range_of_wire t =
+    let open Or_error.Let_syntax in
+    let%bind first = date_of_ordinal t.W.Range.first in
+    let%bind last = date_of_ordinal t.last in
+    Range.create ~first ~last
+  ;;
+
+  let selection_to_wire = function
+    | Selection.Empty -> W.Selection.Empty
+    | Single date -> Single (Int64.of_int (Date.diff date min_date))
+    | Range_start date -> Range_start (Int64.of_int (Date.diff date min_date))
+    | Range range -> Range (range_to_wire range)
+  ;;
+
+  let selection_of_wire = function
+    | W.Selection.Empty -> Ok Selection.empty
+    | Single date -> Or_error.bind (date_of_ordinal date) ~f:Selection.single
+    | Range_start date -> Or_error.bind (date_of_ordinal date) ~f:Selection.range_start
+    | Range range -> Or_error.map (range_of_wire range) ~f:Selection.range
+  ;;
+
+  let constraints_to_wire t =
+    { W.Constraints.min = Int64.of_int (Date.diff (Constraints.min t) min_date)
+    ; max = Int64.of_int (Date.diff (Constraints.max t) min_date)
+    ; disabled_dates =
+        List.map (Constraints.disabled_dates t) ~f:(fun d ->
+          Int64.of_int (Date.diff d min_date))
+    ; disabled_ranges = List.map (Constraints.disabled_ranges t) ~f:range_to_wire
+    ; disabled_weekdays =
+        List.map (Constraints.disabled_weekdays t) ~f:(fun d ->
+          Int64.of_int (Day_of_week.to_int d))
+    ; range_policy = Constraints.range_policy t
+    }
+  ;;
+
+  let constraints_of_wire t =
+    if not (W.Constraints.valid t)
+    then Or_error.error_string "invalid calendar wire constraints"
+    else
+      let open Or_error.Let_syntax in
+      let%bind min = date_of_ordinal t.min in
+      let%bind max = date_of_ordinal t.max in
+      let%bind disabled_dates =
+        List.map t.disabled_dates ~f:date_of_ordinal |> Or_error.all
+      in
+      let%bind disabled_ranges =
+        List.map t.disabled_ranges ~f:range_of_wire |> Or_error.all
+      in
+      let disabled_weekdays =
+        List.map t.disabled_weekdays ~f:(fun d ->
+          Day_of_week.of_int_exn (Int64.to_int_exn d))
+      in
+      Constraints.create
+        ~min
+        ~max
+        ~disabled_dates
+        ~disabled_ranges
+        ~disabled_weekdays
+        ~range_policy:t.range_policy
+        ()
+  ;;
+end
+
+module Labels = struct
+  type t = W.Labels.t [@@deriving equal, sexp_of]
+
+  let validate t =
+    if W.Labels.valid t
+    then Ok t
+    else
+      Or_error.error_string
+        "calendar labels require 12 months, 7 weekdays and 7 short weekdays, with \
+         nonblank UTF-8 labels of at most 128 bytes and no ASCII controls"
+  ;;
+
+  let create
+        ~months
+        ~weekdays
+        ~short_weekdays
+        ~previous
+        ~next
+        ~choose_month
+        ~choose_year
+        ~today
+        ~clear
+        ()
+    =
+    validate
+      { W.Labels.months
+      ; weekdays
+      ; short_weekdays
+      ; previous
+      ; next
+      ; choose_month
+      ; choose_year
+      ; today
+      ; clear
+      }
+  ;;
+
+  let english =
+    create
+      ~months:
+        [ "January"
+        ; "February"
+        ; "March"
+        ; "April"
+        ; "May"
+        ; "June"
+        ; "July"
+        ; "August"
+        ; "September"
+        ; "October"
+        ; "November"
+        ; "December"
+        ]
+      ~weekdays:
+        [ "Sunday"; "Monday"; "Tuesday"; "Wednesday"; "Thursday"; "Friday"; "Saturday" ]
+      ~short_weekdays:[ "Sun"; "Mon"; "Tue"; "Wed"; "Thu"; "Fri"; "Sat" ]
+      ~previous:"Previous"
+      ~next:"Next"
+      ~choose_month:"Choose month"
+      ~choose_year:"Choose year"
+      ~today:"Today"
+      ~clear:"Clear"
+      ()
+    |> Or_error.ok_exn
+  ;;
+end
+
+module Config = struct
+  type t = W.Config.t [@@deriving equal, sexp_of]
+
+  let of_wire t =
+    if not (W.Config.valid t)
+    then Or_error.error_string "invalid calendar configuration"
+    else
+      Or_error.map
+        (Wire_conversion.constraints_of_wire t.constraints)
+        ~f:(fun constraints ->
+          { t with constraints = Wire_conversion.constraints_to_wire constraints })
+  ;;
+
+  let create
+        ?(mode = Mode.Single)
+        ?(constraints = Constraints.unrestricted)
+        ?(first_weekday = Day_of_week.Mon)
+        ?(labels = Labels.english)
+        ?today
+        ~label
+        ?(disabled = false)
+        ?(read_only = false)
+        ?(auto_focus = false)
+        ()
+    =
+    let open Or_error.Let_syntax in
+    let%bind today =
+      Option.map today ~f:Wire_conversion.date_to_ordinal
+      |> Option.value_map ~default:(Ok None) ~f:(Or_error.map ~f:Option.some)
+    in
+    of_wire
+      { W.Config.mode
+      ; constraints = Wire_conversion.constraints_to_wire constraints
+      ; first_weekday = Int64.of_int (Day_of_week.to_int first_weekday)
+      ; labels
+      ; today
+      ; label
+      ; disabled
+      ; read_only
+      ; auto_focus
+      }
+  ;;
+
+  let mode t = t.W.Config.mode
+
+  let constraints t =
+    Wire_conversion.constraints_of_wire t.W.Config.constraints |> Or_error.ok_exn
+  ;;
+
+  let first_weekday t = Day_of_week.of_int_exn (Int64.to_int_exn t.W.Config.first_weekday)
+  let labels t = t.W.Config.labels
+
+  let today t =
+    Option.map t.W.Config.today ~f:(fun day ->
+      Wire_conversion.date_of_ordinal day |> Or_error.ok_exn)
+  ;;
+
+  let label t = t.W.Config.label
+  let is_disabled t = t.W.Config.disabled
+  let is_read_only t = t.W.Config.read_only
+end
+
+module Presentation = struct
+  type t = W.Presentation.t =
+    | Days
+    | Months
+    | Years
+  [@@deriving equal, sexp_of]
+end
+
+module Revision = struct
+  type t = int64 [@@deriving compare, equal, sexp_of]
+
+  let of_int64 value =
+    if Int64.(value >= 0L)
+    then Ok value
+    else Or_error.error_string "calendar revision must be nonnegative"
+  ;;
+
+  let to_int64 t = t
+end
+
+let month_to_wire t =
+  Int64.of_int (((Month.year t - 1) * 12) + Core.Month.to_int (Month.month t) - 1)
+;;
+
+let month_of_wire value =
+  if not (W.valid_month value)
+  then Or_error.error_string "invalid calendar month index"
+  else (
+    let index = Int64.to_int_exn value in
+    Month.create
+      ~year:((index / 12) + 1)
+      ~month:(Core.Month.of_int_exn ((index % 12) + 1)))
+;;
+
+module Snapshot = struct
+  type t =
+    { window : Gpuio_protocol.Window_id.t
+    ; node : Gpuio_protocol.Node_id.t
+    ; wire : W.Snapshot.t
+    }
+  [@@deriving equal, sexp_of]
+
+  let revision t = t.wire.revision
+  let mode t = t.wire.mode
+  let selection t = Wire_conversion.selection_of_wire t.wire.selection |> Or_error.ok_exn
+  let selection_allowed t = t.wire.selection_allowed
+  let month t = month_of_wire t.wire.month |> Or_error.ok_exn
+
+  let focused_date t =
+    Wire_conversion.date_of_ordinal t.wire.focused_date |> Or_error.ok_exn
+  ;;
+
+  let presentation t = t.wire.presentation
+  let focused t = t.wire.focused
+end
+
+module Event = struct
+  type t =
+    | Observed of Snapshot.t
+    | Changed of Snapshot.t
+    | Selected of Snapshot.t
+    | Rejected of Selection_error.t * Snapshot.t
+  [@@deriving equal, sexp_of]
+end
+
+module Command = struct
+  type t =
+    | Replace of
+        { selection : Selection.t
+        ; if_revision : Revision.t option
+        }
+    | Clear of { if_revision : Revision.t option }
+    | Show_month of Month.t
+    | Move_months of int
+    | Focus_date of Date.t
+    | Focus
+    | Set_presentation of Presentation.t
+    | Read_snapshot
+  [@@deriving equal, sexp_of]
+end
+
+module Command_error = struct
+  type t = W.Error.t =
+    | Not_mounted
+    | Closed
+    | Stale_input
+    | Stale_revision
+    | Limit_exceeded
+    | Busy
+    | Native_failure
+    | Invalid_config
+    | Wrong_mode
+    | Disabled_date
+    | Disabled_interior
+    | Focus_blocked
+    | Disabled
+    | Read_only
+    | Invalid_value
+  [@@deriving equal, sexp_of]
+end
+
+module Expert = struct
+  include Wire_conversion
+
+  let config_to_wire t = t
+  let config_of_wire = Config.of_wire
+  let month_to_wire = month_to_wire
+  let month_of_wire = month_of_wire
+
+  let snapshot_of_wire ~window ~node wire =
+    if W.Snapshot.valid wire
+    then Ok { Snapshot.window; node; wire }
+    else Or_error.error_string "invalid calendar snapshot"
+  ;;
+
+  let event_of_wire ~window ~node event =
+    if not (W.Event.valid event)
+    then Or_error.error_string "invalid calendar event"
+    else
+      Or_error.map
+        (snapshot_of_wire ~window ~node (W.Event.snapshot event))
+        ~f:(fun snapshot ->
+          match event with
+          | W.Event.Observed _ -> Event.Observed snapshot
+          | Changed _ -> Changed snapshot
+          | Selected _ -> Selected snapshot
+          | Rejected (error, _) -> Rejected (error, snapshot))
+  ;;
+
+  let command_to_wire command =
+    let open Or_error.Let_syntax in
+    let%bind wire =
+      match command with
+      | Command.Replace { selection; if_revision } ->
+        Ok (W.Command.Replace { selection = selection_to_wire selection; if_revision })
+      | Clear { if_revision } -> Ok (W.Command.Clear { if_revision })
+      | Show_month month -> Ok (W.Command.Show_month (month_to_wire month))
+      | Move_months count -> Ok (W.Command.Move_months (Int64.of_int count))
+      | Focus_date date ->
+        Or_error.map (date_to_ordinal date) ~f:(fun date -> W.Command.Focus_date date)
+      | Focus -> Ok W.Command.Focus
+      | Set_presentation presentation -> Ok (W.Command.Set_presentation presentation)
+      | Read_snapshot -> Ok W.Command.Read_snapshot
+    in
+    if W.Command.valid wire
+    then Ok wire
+    else Or_error.error_string "invalid calendar command"
+  ;;
+
+  let error_of_wire t = t
+  let window t = t.Snapshot.window
+  let node t = t.Snapshot.node
 end

@@ -4,6 +4,11 @@
  (inline_tests
   (deps
    (sandbox preserve_file_kind)
+   calendar-config.hex
+   calendar-constraints.hex
+   calendar-selection.hex
+   calendar-selected.hex
+   calendar-replace.hex
    animation-v1-config.hex
    accessibility-field.hex
    accessibility-request.hex
@@ -203,3 +208,5 @@
 (copy_files ../fixtures/number-input-*.hex)
 
 (copy_files ../fixtures/otp-input-*.hex)
+
+(copy_files ../fixtures/calendar-*.hex)

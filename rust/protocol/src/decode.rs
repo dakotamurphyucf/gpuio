@@ -4,6 +4,11 @@ use std::io::{Cursor, Read};
 
 mod accessibility;
 mod avatar;
+mod calendar;
+pub use calendar::{
+    decode_calendar_command, decode_calendar_config, decode_calendar_constraints,
+    decode_calendar_event, decode_calendar_response, decode_calendar_selection,
+};
 mod loading;
 mod number_input;
 mod otp_input;
