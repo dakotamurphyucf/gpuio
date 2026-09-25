@@ -886,3 +886,39 @@ segmented rendering, IME integration, controller or capability is claimed yet.
 
 Protocol all-target Clippy with `-D warnings`, Rustfmt and diff whitespace
 checks also passed. No GUI process was needed for this pure policy checkpoint.
+
+## OTP editing model
+
+`rust/native/src/otp_edit.rs` now provides one bounded editing session intended
+for a dedicated GPUI `EntityInputHandler` adapter. The generic editor's shared
+validator/history and ordinary glyph geometry are unsuitable for the segmented
+IME contract without broader changes. No shared editor behavior was changed.
+
+The model retains canonical text separately from temporary preedit. Valid IME
+commits normalize atomically into one undo edit; rejected commits restore the
+original code and exact directional selection without evicting undo/redo.
+It supports exact UTF-16/UTF-8 conversion, explicit native replacement ranges,
+selection within preedit, unmark/cancel, distinct paste normalization, cell
+navigation/deletion and guarded Record/Reset programmatic replacement. History
+is bounded to 128 edits across both stacks (at most 8,192 bytes of code payload).
+The composing draft is independently bounded to 4,096 bytes. See the updated
+[OTP contract](../design/otp-inputs.md) for event-owner responsibilities and limits.
+
+Local macOS command:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native --lib otp_edit::tests -j 2
+```
+
+All 11 focused tests pass. They cover normalized/rejected edits and completion
+eligibility, exact rollback and one-step IME undo/redo, history preservation under
+100 repeated long preedit updates, total draft bounds, control characters,
+surrogate-interior rejection, partial marked replacements, navigation/deletion,
+composition command denial and atomic history reset. An exhaustive selection/
+insertion comparison checks every length 1..32 under both alphabets against the
+protocol's atomic edit contract. UTF conversion also checks joined emoji and
+combining characters. These tests call the pure model; they do not establish
+native IME, candidate placement, accessibility or GUI acceptance.
+
+All-target native Clippy with `native-tests` and `-D warnings` also passes. No GUI
+process was opened. OCH-34, native OTP integration and hosted gates remain open.

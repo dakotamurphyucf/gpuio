@@ -127,8 +127,10 @@ close during a held repeat, and three 256-editor workload/disposal cycles now pa
 Slider and numeric editor/stepper local acceptance is complete; OTP remains
 pending before OCH-34 capability advertisement and ticket completion. OTP now has
 validated Core policy/value types and matching OCaml/Rust normalization and atomic
-selection-edit helpers with passing expect/unit and policy-encoding tests. Its
-native widget, IME, event/command lane and controllers remain unimplemented; see
+selection-edit helpers with passing expect/unit and policy-encoding tests. A
+bounded native editing model now passes atomic paste, selection/cell navigation,
+UTF-16/preedit commit/rollback and undo/redo tests. Its GPUI platform adapter,
+segmented widget, event/command lane and controllers remain unimplemented; see
 [OTP contract and integration requirements](design/otp-inputs.md).
 See [numeric design](design/numeric-inputs.md) and
 [foundation evidence](evidence/numeric-inputs-och34.md).
