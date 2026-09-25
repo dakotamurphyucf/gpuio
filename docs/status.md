@@ -97,8 +97,10 @@ native single/range rendering and initial macOS pointer/keyboard/AX checks now p
 Correlated commands and the public Bonsai/Eio slider controller/example pass local integration.
 Slider foreground/focus styling now passes local GPU pixel checks for both axes,
 light/dark palettes, display densities and constrained layouts. The public example
-shows single/range and linear/logarithmic modes. Expanded slider acceptance and
-number/OTP integration remain pending; no capability
+shows single/range and linear/logarithmic modes, all now exercised by external
+macOS keyboard/AX automation. Decorated pointer geometry, capture loss,
+minimize/restore and independent-window/close lifetimes also pass locally.
+Many-owner workload acceptance and number/OTP integration remain pending; no capability
 is advertised.
 See [numeric design](design/numeric-inputs.md) and
 [foundation evidence](evidence/numeric-inputs-och34.md).

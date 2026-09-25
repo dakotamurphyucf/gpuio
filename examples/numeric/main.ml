@@ -29,15 +29,18 @@ let component ~self_test ~completed window graph =
   let open B.Let_syntax in
   let shown, set_shown = B.state true graph in
   let disabled, set_disabled = B.state false graph in
+  let read_only, set_read_only = B.state false graph in
   let status, set_status = B.state "Ready" graph in
   let config =
-    let%arr disabled = disabled in
+    let%arr disabled = disabled
+    and read_only = read_only in
     S.Config.create
       ~domain
       ~label:"Output range"
       ~lower_label:"Minimum output"
       ~upper_label:"Maximum output"
       ~disabled
+      ~read_only
       ()
     |> ok
   in
@@ -156,6 +159,8 @@ let component ~self_test ~completed window graph =
   and set_shown = set_shown
   and disabled = disabled
   and set_disabled = set_disabled
+  and read_only = read_only
+  and set_read_only = set_read_only
   and status = status
   and set_status = set_status
   and single = single
@@ -222,6 +227,9 @@ let component ~self_test ~completed window graph =
            [ View.button
                ~on_click:(set_disabled (not disabled))
                (if disabled then "Enable" else "Disable")
+           ; View.button
+               ~on_click:(set_read_only (not read_only))
+               (if read_only then "Allow edits" else "Read-only")
            ; View.button
                ~on_click:(set_shown (not shown))
                (if shown then "Unmount" else "Mount")

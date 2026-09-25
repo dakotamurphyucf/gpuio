@@ -16,6 +16,7 @@ pub(super) struct State {
     pub focus: Vec<(Thumb, FocusHandle)>,
     route: Route,
     bounds: Bounds<Pixels>,
+    pub(super) track_bounds: Bounds<Pixels>,
     hitbox: Option<HitboxId>,
     capture: Option<HitboxId>,
     drag_offset: f64,
@@ -151,16 +152,15 @@ impl State {
         }
     }
     fn fraction(&self, position: Point<Pixels>) -> f64 {
+        let bounds = self.track_bounds;
         let (offset, length) = match self.model.config().axis {
-            Axis::Horizontal => (position.x - self.bounds.left(), self.bounds.size.width),
-            Axis::Vertical => (self.bounds.bottom() - position.y, self.bounds.size.height),
+            Axis::Horizontal => (position.x - bounds.left(), bounds.size.width),
+            Axis::Vertical => (bounds.bottom() - position.y, bounds.size.height),
         };
-        let inset = 10_f64.min(f64::from(f32::from(length)) / 2.);
-        let span = f64::from(f32::from(length)) - 2. * inset;
-        if span <= 0. {
+        if length <= px(0.) {
             0.
         } else {
-            (f64::from(f32::from(offset)) - inset) / span
+            f64::from(f32::from(offset)) / f64::from(f32::from(length))
         }
     }
     fn thumb_value(&self, thumb: Thumb) -> f64 {
@@ -387,6 +387,7 @@ impl View {
                         .collect(),
                     route,
                     bounds: Bounds::default(),
+                    track_bounds: Bounds::default(),
                     hitbox: None,
                     capture: None,
                     drag_offset: 0.,
@@ -450,9 +451,16 @@ pub(super) fn element(
             config.fraction(upper).unwrap(),
         ),
     };
+    let geometry = shared.clone();
     track = track.child(
         canvas(
-            |_, _, _| (),
+            move |bounds, window, _| {
+                let mut state = geometry.borrow_mut();
+                if state.track_bounds != bounds && state.capture.is_some() {
+                    state.cancel(CancelReason::Interrupted, window);
+                }
+                state.track_bounds = bounds;
+            },
             move |bounds, _, window, _| {
                 let color = window.text_style().color;
                 let bar = match axis {

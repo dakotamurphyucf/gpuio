@@ -284,3 +284,48 @@ Validation at this checkpoint (local macOS):
 Owned GUI processes exited and were reaped. CI now explicitly prebuilds the slider
 image-test variant on both platforms; hosted execution/merge remains pending.
 No Linux GUI coverage or completion of OCH-34 is claimed.
+
+## Styled geometry, public OS input and window lifetimes
+
+A native regression exposed a real pointer bug with asymmetric borders: clicking
+20% along the laid-out rail selected `1` instead of `0` in the `[-2, 8]` domain.
+The pointer calculation had approximated the rail from the outer box. Native
+state now records the actual rail bounds during prepaint and uses those bounds
+for all pointer mapping. Changing rail geometry during capture cancels the drag
+and restores the committed value even if the outer size remains unchanged.
+Horizontal/vertical decorated-layout tests now pass, including late-release
+suppression after reconfiguration.
+
+`scripts/test_numeric.py` launches the public Bonsai/Eio example and uses external
+macOS accessibility APIs plus OS keyboard events. It passed locally for all four
+examples: independent horizontal range thumb traversal, AX values/min/max/set,
+single linear and logarithmic keyboard stepping, logarithmic range actions and
+non-crossing bounds, read-only input suppression, explicit replacement while
+disabled, unmount/remount initialization and close. An observed native change is
+also checked in the OCaml-rendered value text. The example now exposes a read-only
+toggle. The script always reaps its own child; CI runs it alongside the existing
+presentation automation.
+
+Expanded native tests passed for capture loss, ancestor pointer exclusion,
+minimization during a drag, no settled minimized-window renders, restoration with
+late-release suppression, actual two-window deactivation, independent sliders
+using the same node/handler slots in different windows, closing a window during
+capture, weak-owner reclamation and input in the surviving window.
+
+The first two-window harness stalled because it unnecessarily queued activation
+of an already-active first window. GPUI's platform activation is asynchronous;
+that queued request ran after the second window opened, bringing the first back
+in front. The harness now requests activation only when needed and settles the
+first frame before opening the second. No production focus or upstream change was
+needed. Window activation and rendering were verified after this correction.
+
+Validation (local macOS):
+
+- `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @test/view_api/runtest @fmt` passed for the production geometry/public example changes.
+- Native `native_slider` built with `native-image-tests` and passed under a 30-second subprocess timeout, including the previous GPU/keyboard/AX regressions plus decorated geometry, capture, minimize/restore and two-window checks.
+- `python3 scripts/test_numeric.py` passed; owned child exited normally.
+- Workspace/all-target Clippy with combined native image/canvas features passed; Rustfmt and diff whitespace checks passed.
+
+All GUI children are terminal and reaped. Bounded many-owner workloads and the
+remaining numeric editor/stepper/OTP families are still pending. Hosted CI, merge
+and Linux desktop GUI acceptance remain outstanding; OCH-34 is still In Progress.

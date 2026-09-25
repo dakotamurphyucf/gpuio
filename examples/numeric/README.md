@@ -15,3 +15,10 @@ stale revisions and leases, wrong-mode/thumb errors, disabled replacement,
 remount initialization and closed-window rejection, then closes the window.
 The separate Rust `native_slider` suite exercises pointer/keyboard and AppKit
 accessibility behavior. No external service or credentials are needed.
+
+On macOS, `python3 scripts/test_numeric.py` launches and closes its own instance,
+then uses OS keyboard events and the application's accessibility tree to test
+all four slider examples. It checks value/range actions, separate thumb focus,
+read-only/disabled behavior, programmatic replacement, remount initialization and
+an observation rendered back through OCaml. It uses the same local accessibility
+access as the existing editor and presentation automation.

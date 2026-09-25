@@ -206,3 +206,8 @@ logical pixels: 4px rail, 12px solid thumb, 20px thumb target/focus ring, 10px e
 inset, and a default minimum of 24px on each axis. Width/height change the available
 travel, not the domain. The native renderer scales these with the display density.
 Painting uses a constant number of primitives per slider and has no idle timer.
+
+Pointer mapping uses the actual rail bounds produced by native layout, including
+asymmetric border/padding refinements. If those bounds change during capture,
+the drag cancels with `Interrupted` and restores the committed value, even when
+the outer control's size has not changed. Late release cannot commit the old drag.

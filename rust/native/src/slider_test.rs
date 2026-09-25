@@ -1,3 +1,5 @@
+#[path = "slider_lifecycle_test.rs"]
+mod lifecycle;
 use super::super::{
     editor_test::key,
     native_test::{mouse, move_mouse},
@@ -136,6 +138,128 @@ fn accessible(
         let content: *mut AnyObject = msg_send![window, contentView];
         visit(content, label, action, 0)
     }
+}
+
+async fn decorated_geometry(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    transport: &Transport,
+) {
+    use gpuio_protocol::v1::Field as F;
+    for axis in [s::Axis::Horizontal, s::Axis::Vertical] {
+        apply(
+            cx,
+            handle,
+            vec![
+                Op::SetStyle(
+                    node(1),
+                    vec![Style::Fields(vec![
+                        F::Width(Length::Px(240.)),
+                        F::Height(Length::Px(240.)),
+                        F::BorderLeftWidth(32.),
+                        F::BorderRightWidth(4.),
+                        F::BorderTopWidth(28.),
+                        F::BorderBottomWidth(6.),
+                        F::PaddingLeft(Length::Px(18.)),
+                        F::PaddingTop(Length::Px(12.)),
+                        F::BorderColor(Color::Rgba(0xaaaaaaff)),
+                    ])],
+                ),
+                Op::SetSlider(node(1), s::Config { axis, ..config() }, initial()),
+            ],
+        );
+        frame(cx, handle).await;
+        let bounds = handle
+            .update(cx, |v, _, _| v.sliders[&node(1)].borrow().track_bounds)
+            .unwrap();
+        let vertical = axis == s::Axis::Vertical;
+        let point_at = |fraction| {
+            if vertical {
+                gpui::point(
+                    bounds.center().x,
+                    bounds.bottom() - bounds.size.height * fraction,
+                )
+            } else {
+                gpui::point(
+                    bounds.left() + bounds.size.width * fraction,
+                    bounds.center().y,
+                )
+            }
+        };
+        // Track clicks must use the actual laid-out rail, including asymmetric
+        // borders, not a separately approximated outer-box coordinate system.
+        mouse(cx, handle, point_at(0.2), true);
+        mouse(cx, handle, point_at(0.2), false);
+        assert_eq!(
+            snapshot(cx, handle).value,
+            s::Value::Range {
+                lower: 0.,
+                upper: 7.
+            }
+        );
+        mouse(cx, handle, point_at(0.7), true);
+        mouse(cx, handle, point_at(0.7), false);
+        assert_eq!(
+            snapshot(cx, handle).value,
+            s::Value::Range {
+                lower: 0.,
+                upper: 5.
+            }
+        );
+        handle
+            .update(cx, |v, w, cx| {
+                assert!(matches!(
+                    v.slider_command(
+                        node(1),
+                        s::Command::Replace {
+                            value: initial(),
+                            if_revision: None,
+                        },
+                        w,
+                        cx
+                    ),
+                    s::Response::Applied(_)
+                ));
+            })
+            .unwrap();
+        frame(cx, handle).await;
+        events(transport);
+        mouse(cx, handle, point_at(0.2), true);
+        assert!(snapshot(cx, handle).dragging.is_some());
+        let committed = snapshot(cx, handle).committed;
+        // Outer size is unchanged but the actual travel changes with the border.
+        apply(
+            cx,
+            handle,
+            vec![Op::SetStyle(
+                node(1),
+                vec![
+                    Style::Width(Length::Px(240.)),
+                    Style::Height(Length::Px(240.)),
+                ],
+            )],
+        );
+        frame(cx, handle).await;
+        assert!(snapshot(cx, handle).dragging.is_none());
+        assert_eq!(snapshot(cx, handle).value, committed);
+        assert!(
+            events(transport)
+                .iter()
+                .any(|event| matches!(event, s::Event::Cancelled(s::CancelReason::Interrupted, _)))
+        );
+        mouse(cx, handle, point_at(0.8), false);
+        assert_eq!(snapshot(cx, handle).value, committed);
+    }
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::SetStyle(node(1), vec![]),
+            Op::SetSlider(node(1), config(), initial()),
+        ],
+    );
+    frame(cx, handle).await;
+    events(transport);
 }
 
 #[cfg(feature = "native-image-tests")]
@@ -385,6 +509,8 @@ pub(super) async fn exercise(
         appearance(cx, handle).await;
         events(transport);
     }
+    decorated_geometry(cx, handle, transport).await;
+    lifecycle::exercise(cx, handle, transport).await;
     let idle_count = handle.update(cx, |v, _, _| v.render_count).unwrap();
     cx.background_executor()
         .timer(std::time::Duration::from_millis(150))
