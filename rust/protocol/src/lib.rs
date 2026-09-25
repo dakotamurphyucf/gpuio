@@ -4,6 +4,7 @@
 pub mod animation;
 pub mod asset;
 pub mod canvas;
+pub mod canvas_resource;
 pub mod canvas_scene;
 mod command;
 mod decode;

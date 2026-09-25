@@ -5,6 +5,7 @@ pub mod asset_cache;
 pub mod asset_decode;
 pub mod asset_store;
 pub mod asset_svg;
+pub mod canvas_store;
 mod document_highlight;
 pub mod document_host;
 pub mod document_jobs;

@@ -57,9 +57,47 @@ Source: `lib/protocol/canvas_scene_wire.ml`, `rust/protocol/src/canvas_scene.rs`
 
 ## Remaining acceptance
 
-Ergonomic public scene/item/resource constructors, application-bound native leases,
-bounded uploads and atomic publication, native painting/tessellation/cache
-budgets, images/text, accessible native selection/dragging/pan/zoom, an OCaml
-diagram/plot example, measured large-scene/repeated-disposal workloads and
-integrated chat showcase are not implemented by this checkpoint. No native canvas
+See the registry checkpoint below for native resource ownership; the OCaml
+transport/registration adapter and widget are still pending.
+
+Ergonomic public scene/item/resource constructors, OCaml application-owner checks,
+bridge/Eio upload integration, native painting/tessellation/cache budgets,
+rendered images/text, accessible native selection/dragging/pan/zoom, an OCaml
+diagram/plot example, measured rendered-scene/repeated-widget-disposal workloads
+and the integrated chat showcase remain unimplemented. No native canvas
 window, Linux canvas acceptance or hosted M5 CI is claimed. OCH-24 remains open.
+
+## Native scene registry
+
+`rust/native/src/canvas_store.rs` and the native `Session` now implement creation,
+ordered upload staging, revision/generation-checked atomic publication, abort,
+release, retained snapshots and terminal shutdown. Image acquisition uses the
+same session's asset store. Existing snapshots retain asset leases after encoded
+registration release; new scenes cannot acquire a retired asset. Resource history
+rejects generation rollback and same-generation content changes even after removal;
+explicit scene-generation reset permits a fresh identity namespace.
+
+Local checks pass:
+
+- `dune runtest -j2 test/canvas test/protocol`, including paired OCaml/Rust upload
+  request frames with opaque binary chunks.
+- `cargo test -j2 -p gpuio-native --lib`: all 67 tests, including nine canvas
+  registry/session tests. Coverage includes partial uploads, rejected publication,
+  abort, stale slot reuse, image retirement, negotiation, shutdown and retained
+  snapshots after release.
+- Full `cargo test -j2 -p gpuio-protocol --locked`, native/protocol Clippy
+  `--all-targets -- -D warnings`, and project formatting checks.
+
+A local 20,000-item retained-snapshot pressure test reached revision 28 with 28
+held readers and 132,005,046 charged bytes before publication rejected the next
+snapshot. Dropping old readers reclaimed quota and allowed publication to retry
+using the already staged bytes. Final registration/reader disposal returned the
+data accounting charge to zero. Separate history-count/history-byte pressure
+tests recover through explicit reset. These are logical capacity/ownership
+measurements, not RSS or GPUI rendering/cache measurements.
+
+The registry is session-owned but its requests are not yet wired into the bridge
+envelope or the Eio adapter. No canvas capability is advertised. The
+[design](../design/canvas.md) distinguishes the 128 MiB retained/staged quota,
+bounded temporary publication work, fixed slot metadata, and native rendering
+budgets still to be implemented.

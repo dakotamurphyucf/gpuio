@@ -33,6 +33,7 @@ pub struct Session {
     retained_bytes: usize,
     assets: crate::asset_store::Store,
     documents: crate::document_store::Store,
+    canvases: crate::canvas_store::Store,
 }
 
 impl Session {
@@ -193,6 +194,54 @@ impl Session {
             Ok(()) => Response::Ack,
             Err(error) => Response::Failed(error),
         }
+    }
+
+    pub fn canvas_request(
+        &mut self,
+        request: gpuio_protocol::canvas_resource::Request,
+    ) -> gpuio_protocol::canvas_resource::Response {
+        use gpuio_protocol::canvas_resource::{Error, Request, Response};
+        if let Err(error) = self.check_ready() {
+            return Response::Failed(if error == ErrorCode::Closed {
+                Error::Closed
+            } else {
+                Error::NotReady
+            });
+        }
+        let result = match request {
+            Request::Create => {
+                return match self.canvases.create() {
+                    Ok(id) => Response::Created(id),
+                    Err(error) => Response::Failed(error),
+                };
+            }
+            Request::Begin(update) => self.canvases.begin(update),
+            Request::Chunk(id, revision, offset, bytes) => usize::try_from(offset)
+                .map_err(|_| Error::InvalidRange)
+                .and_then(|offset| self.canvases.chunk(id, revision, offset, bytes.as_bytes())),
+            Request::Publish(id, revision) => self.canvases.publish(id, revision, &self.assets),
+            Request::Abort(id, revision) => self.canvases.abort(id, revision),
+            Request::Release(id) => self.canvases.release(id),
+        };
+        match result {
+            Ok(()) => Response::Ack,
+            Err(error) => Response::Failed(error),
+        }
+    }
+
+    pub fn canvas(
+        &self,
+        id: gpuio_protocol::ResourceId,
+    ) -> Result<crate::canvas_store::Lease, gpuio_protocol::canvas_resource::Error> {
+        use gpuio_protocol::canvas_resource::Error;
+        self.check_ready().map_err(|error| {
+            if error == ErrorCode::Closed {
+                Error::Closed
+            } else {
+                Error::NotReady
+            }
+        })?;
+        self.canvases.acquire(id)
     }
 
     pub fn document(
@@ -652,6 +701,7 @@ impl Session {
     }
 
     pub fn shutdown(&mut self) -> Vec<Event> {
+        self.canvases.close();
         self.assets.close();
         self.documents.close();
         let mut events = Vec::new();

@@ -7,8 +7,9 @@ claims of completed functionality.
 The current implementation provides validated `Canvas_geometry` and
 `Canvas_path` OCaml values and matching Rust protocol geometry. The immutable
 scene wire schema, bounded Rust decoder, reference/geometry admission and pure
-topmost hit testing are implemented. The ergonomic public scene API, resource
-registration, native rendering and canvas interaction are still in progress;
+topmost hit testing are implemented. The native session also owns a tested staged
+scene registry; it is not yet connected to the OCaml bridge. The ergonomic public
+scene API, transport adapter, native rendering and canvas interaction remain in progress;
 these pure modules do not yet expose a rendered canvas widget.
 
 ## Ownership and updates
@@ -37,6 +38,31 @@ Removing an item cancels its gesture and clears its selection. Resource referenc
 must match both ID and generation in the scene; missing or stale references fail
 before publication. Image resources also validate their existing application asset
 identity and use the established asset lease/cache limits.
+
+The native registry admits 256 scene registrations and four simultaneous uploads.
+Begin requires the exact accepted base revision, next revision, and either the
+current scene generation or an explicit one-step generation reset. Nonempty
+chunks are ordered and at most 256 KiB. Publish validates the complete scene and
+acquires image leases before swapping the shared snapshot; failures preserve both
+the published scene and staged bytes for retry or Abort. Release/close discard
+staging and prevent new acquisition; existing readers retain their snapshots.
+
+Within a scene generation, reusing a drawing-resource ID at the same generation
+requires exactly equal canonical resource bytes; lower generations are rejected.
+Removing a resource retains its generation/history entry. This prevents removal
+and reintroduction from bypassing cache identity. History is capped at 4,096 IDs
+and 4 MiB of canonical buffer capacity; explicit scene-generation reset clears
+it. Higher resource generations replace an ID's prior canonical history.
+
+Registered, staged, current and externally retained snapshot data share a 128 MiB
+accounting quota. Charges include vector/string capacities and conservative
+metadata allowances; old readers retain their charge until their final drop.
+Publication also has a separate conservative 64 MiB temporary-capacity bound
+derived from schema counts plus candidate history/validation structures, checked
+at compile time for the target's type sizes. These are accounting limits, not
+RSS/allocator ceilings or GPUI mesh/font/image-cache budgets. The fixed 256-slot
+registry metadata also remains bounded after release. Native tessellation/cache
+limits and their actual workloads remain required.
 
 ## Coordinates and drawing vocabulary
 
