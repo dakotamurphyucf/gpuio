@@ -197,6 +197,7 @@ fn configure<M: InputModeKind>(
             }
         }
         crate::semantics::State {
+            hidden: false,
             metadata: route
                 .session
                 .borrow()

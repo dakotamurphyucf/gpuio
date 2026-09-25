@@ -236,6 +236,7 @@ let kind = function
   | Animated -> Animated
   | Animation_program -> Animation_program
   | Container_query -> Container_query
+  | Loading -> Loading
   | Virtual_list -> Virtual_list
   | Canvas_view -> Canvas_view
   | Document_view -> Document_view
@@ -804,6 +805,13 @@ let rec mount builder ~depth previous view =
         emit
           builder
           (Set_image (id, Image.Expert.to_wire image.config ~owner:builder.asset_owner)));
+    Option.iter description.loading ~f:(fun config ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          (View.Expert.describe mounted.view).loading)
+      in
+      if not (Option.equal Loading.Config.equal old (Some config))
+      then emit builder (Set_loading (id, Loading.Expert.to_wire config)));
     Option.iter description.progress ~f:(fun progress ->
       let old =
         Option.bind previous ~f:(fun mounted ->

@@ -83,6 +83,7 @@ fn field_relationships(config: &Config, builder: &mut A11ySubtreeBuilder) {
     }
 }
 pub struct State<E> {
+    pub hidden: bool,
     pub metadata: Option<std::sync::Arc<gpuio_protocol::accessibility::Config>>,
     pub element: E,
     pub disabled: bool,
@@ -144,10 +145,13 @@ impl<E: Element> Element for State<E> {
             .as_ref()
             .and_then(|c| c.role.map(role))
             .or_else(|| self.element.a11y_role())
-            .or_else(|| self.metadata.as_ref().map(|_| accesskit::Role::Group))
+            .or_else(|| (self.hidden || self.metadata.is_some()).then_some(accesskit::Role::Group))
     }
     fn write_a11y_info(&self, node: &mut accesskit::Node) {
         self.element.write_a11y_info(node);
+        if self.hidden {
+            node.set_hidden();
+        }
         if let Some(live) = self.live {
             node.set_live(live);
         }
@@ -192,6 +196,23 @@ mod tests {
     use super::*;
     use gpui::prelude::*;
     #[test]
+    fn hidden_structural_roots_have_a_semantic_node_to_hide_their_children() {
+        let element = State {
+            hidden: true,
+            metadata: None,
+            element: gpui::div().id("hidden-parent"),
+            disabled: false,
+            read_only: false,
+            modal: false,
+            live: None,
+        };
+        assert_eq!(element.a11y_role(), Some(accesskit::Role::Group));
+        let mut node = accesskit::Node::new(element.a11y_role().unwrap());
+        element.write_a11y_info(&mut node);
+        assert!(node.is_hidden());
+        assert!(!node.is_disabled());
+    }
+    #[test]
     fn field_state_keeps_control_actions_and_sets_required_invalid_and_help() {
         use gpuio_protocol::accessibility::Field;
         let mut config = Config {
@@ -235,6 +256,7 @@ mod tests {
             (accesskit::Role::Alert, accesskit::Live::Assertive),
         ] {
             let element = State {
+                hidden: false,
                 metadata: None,
                 element: gpui::div()
                     .id("notification")

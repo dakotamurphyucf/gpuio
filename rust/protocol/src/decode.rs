@@ -3,6 +3,7 @@ use binprot::BinProtRead;
 use std::io::{Cursor, Read};
 
 mod accessibility;
+mod loading;
 pub use accessibility::decode_accessibility;
 mod container_query;
 pub use container_query::decode_container_query;
@@ -835,6 +836,7 @@ impl Decoder<'_> {
                     31 => Kind::CanvasView,
                     32 => Kind::AnimationProgram,
                     33 => Kind::ContainerQuery,
+                    34 => Kind::Loading,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -908,6 +910,7 @@ impl Decoder<'_> {
             37 => Op::SetAnimationProgram(self.node()?, self.animation_program_config()?),
             38 => Op::SetContainerQuery(self.node()?, self.container_query_config()?),
             39 => Op::SetAccessibility(self.node()?, self.option(|d| d.accessibility_config())?),
+            40 => Op::SetLoading(self.node()?, self.loading_config()?),
             34 => {
                 let id = self.node()?;
                 let config = crate::split::Config {

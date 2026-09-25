@@ -20,6 +20,7 @@ pub mod file_path;
 mod id;
 pub mod image;
 pub mod list;
+pub mod loading;
 mod menu;
 mod palette;
 pub mod v1;

@@ -44,6 +44,7 @@ pub struct Node {
     pub menu: Option<Arc<MenuConfig>>,
     pub palette: Option<Arc<PaletteConfig>>,
     pub progress: Option<Arc<ProgressConfig>>,
+    pub loading: Option<Arc<gpuio_protocol::loading::Config>>,
     pub image: Option<Arc<ImageConfig>>,
     pub extension: Option<Arc<gpuio_protocol::extension::Config>>,
     pub extension_command: Option<Arc<gpuio_protocol::extension::Command>>,
@@ -74,7 +75,8 @@ pub struct Node {
 
 impl Node {
     fn payload_bytes(&self) -> usize {
-        self.text.len()
+        self.loading.as_ref().map_or(0, |c| c.retained_bytes())
+            + self.text.len()
             + self
                 .accessibility
                 .as_ref()
@@ -561,6 +563,18 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
+                if (node.kind == Kind::Loading) != node.loading.is_some()
+                    || node.loading.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || node.handler.is_some()
+                            || !node.text.is_empty()
+                            || !node.children.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 if (node.kind == Kind::Progress) != node.progress.is_some()
                     || node.progress.as_ref().is_some_and(|config| {
                         !config.is_valid()
@@ -660,6 +674,7 @@ impl Tree {
                     | Kind::Menu
                     | Kind::CommandPalette
                     | Kind::Progress
+                    | Kind::Loading
                     | Kind::Image
                     | Kind::TabPanel
                     | Kind::SplitPane
@@ -1015,6 +1030,7 @@ impl Plan<'_> {
             | Op::SetAnimationProgram(id, ..)
             | Op::SetContainerQuery(id, ..)
             | Op::SetAccessibility(id, ..)
+            | Op::SetLoading(id, ..)
             | Op::SetListConfig(id, ..)
             | Op::SetListOrder(id, ..)
             | Op::SetListRows(id, ..)
@@ -1110,6 +1126,7 @@ impl Plan<'_> {
                             menu: None,
                             palette: None,
                             progress: None,
+                            loading: None,
                             image: None,
                             extension: None,
                             extension_command: None,
@@ -1367,6 +1384,12 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.document = Some(Arc::new(config.clone()));
+            }
+            Op::SetLoading(id, config) => {
+                if self.node(*id)?.kind != Kind::Loading || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.loading = Some(Arc::new(config.clone()));
             }
             Op::SetProgress(id, config) => {
                 if self.node(*id)?.kind != Kind::Progress || !config.is_valid() {

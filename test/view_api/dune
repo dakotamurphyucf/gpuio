@@ -8,6 +8,7 @@
    accessibility-field.hex
    accessibility-request.hex
    accessibility-roles.hex
+   loading-request.hex
    container-query.hex
    container-query-request.hex
    container-query-events.hex
@@ -149,3 +150,5 @@
 (copy_files ../fixtures/accessibility-request.hex)
 
 (copy_files ../fixtures/accessibility-roles.hex)
+
+(copy_files ../fixtures/loading-request.hex)

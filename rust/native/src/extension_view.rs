@@ -339,6 +339,7 @@ impl View {
             }
         });
         crate::semantics::State {
+            hidden: false,
             metadata: None,
             element,
             disabled: !enabled,

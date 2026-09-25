@@ -72,6 +72,8 @@ pub(crate) mod image_view;
 pub(super) mod list_test;
 #[path = "list_view.rs"]
 mod list_view;
+#[path = "loading.rs"]
+mod loading;
 #[path = "menu.rs"]
 mod menu;
 #[path = "menu_platform.rs"]
@@ -158,6 +160,8 @@ struct View {
     probes: Rc<RefCell<BTreeMap<NodeId, native_test::Probe>>>,
     #[cfg(feature = "native-tests")]
     progress_probes: BTreeMap<NodeId, progress::Probe>,
+    #[cfg(feature = "native-tests")]
+    loading_probes: BTreeMap<NodeId, loading::Probe>,
     scrolls: BTreeMap<NodeId, Rc<scroll::State>>,
     lists: BTreeMap<NodeId, Rc<RefCell<list_view::State>>>,
     animations: BTreeMap<NodeId, Rc<RefCell<animation::State>>>,
@@ -376,6 +380,8 @@ impl View {
             probes: Default::default(),
             #[cfg(feature = "native-tests")]
             progress_probes: Default::default(),
+            #[cfg(feature = "native-tests")]
+            loading_probes: Default::default(),
             scrolls: Default::default(),
             lists: Default::default(),
             animations: Default::default(),
@@ -569,6 +575,32 @@ impl View {
             element = image;
             image_corners = Some(corners);
         }
+        if let Some(config) = &node.loading {
+            let corners = image_corners::Shared::default();
+            image_corners = Some(corners.clone());
+            let spinner = config.kind == gpuio_protocol::loading::Kind::Spinner;
+            element = element
+                .w(px(if spinner { 20. } else { 160. }))
+                .h(px(if spinner { 20. } else { 16. }))
+                .rounded(px(4.))
+                .overflow_hidden()
+                .text_color(rgba(0x8b98abff))
+                .role(gpui::Role::ProgressIndicator)
+                .aria_label(config.label.clone())
+                .on_mouse_down(gpui::MouseButton::Left, |_, window, _| {
+                    window.prevent_default()
+                });
+            if self.focus.borrow().visible(id) {
+                element = element.child(loading::indicator(
+                    config,
+                    identity,
+                    cx.reduce_motion(),
+                    corners,
+                    #[cfg(feature = "native-tests")]
+                    self.loading_probes.entry(id).or_default().clone(),
+                ));
+            }
+        }
         if let Some(config) = &node.progress {
             element = element
                 .w(px(200.))
@@ -632,10 +664,11 @@ impl View {
                 node.control,
                 Some(Control::Checkbox(CheckState::Checked, _) | Control::Switch(true, _))
             );
-        let indeterminate = node
-            .progress
-            .as_ref()
-            .is_some_and(|config| config.fraction.is_none())
+        let indeterminate = node.loading.is_some()
+            || node
+                .progress
+                .as_ref()
+                .is_some_and(|config| config.fraction.is_none())
             || matches!(
                 node.control,
                 Some(Control::Checkbox(CheckState::Indeterminate, _))
@@ -1180,6 +1213,7 @@ impl View {
     ) -> gpui::AnyElement {
         let id = node.id;
         let element = crate::semantics::State {
+            hidden: !self.focus.borrow().visible(node.id),
             metadata: if node.editor.is_none() {
                 node.accessibility.clone()
             } else {
@@ -1328,6 +1362,13 @@ impl Render for View {
                 .tree(self.id)
                 .and_then(|tree| tree.get(*id))
                 .is_some_and(|node| node.progress.is_some())
+        });
+        #[cfg(feature = "native-tests")]
+        self.loading_probes.retain(|id, _| {
+            session
+                .tree(self.id)
+                .and_then(|tree| tree.get(*id))
+                .is_some_and(|node| node.loading.is_some())
         });
         self.selections.retain(|id, _| self.visited.contains(id));
         // GPUI routes key events along the focused element's ancestry. Keep a

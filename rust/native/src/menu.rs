@@ -649,6 +649,7 @@ impl View {
                     }
                 }
                 base = base.child(crate::semantics::State {
+                    hidden: false,
                     metadata: None,
                     live: None,
                     element: trigger,
@@ -775,6 +776,7 @@ impl View {
             );
         }
         crate::semantics::State {
+            hidden: false,
             metadata: None,
             live: None,
             element: base,
@@ -1017,6 +1019,7 @@ impl View {
                             .size_full(),
                     );
                     crate::semantics::State {
+                        hidden: false,
                         metadata: None,
                         live: None,
                         element,

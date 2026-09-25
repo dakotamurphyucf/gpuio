@@ -32,6 +32,19 @@ def assert_action_layout(mac, label):
         mac.release(node)
 
 
+def assert_loading_semantics(mac):
+    for label in ['Preparing content', 'Loading preview', 'Loading workspace']:
+        node = mac.wait_find(TITLE, label, 'AXProgressIndicator')
+        value = mac.attr(node, 'AXValue')
+        try:
+            if value:
+                raise RuntimeError(f'Indeterminate loading must not invent a numeric value: {label}')
+        finally:
+            if value:
+                mac.release(value)
+            mac.release(node)
+
+
 def exercise(mac, images):
     field = mac.wait_find(TITLE, 'Workspace name', 'AXTextField')
     try:
@@ -60,6 +73,21 @@ def exercise(mac, images):
     mac.press(TITLE, 'Clear error')
     node = mac.wait_find(TITLE, 'Show validation', 'AXButton')
     mac.release(node)
+    assert_loading_semantics(mac)
+    mac.press(TITLE, 'Static indicators')
+    node = mac.wait_find(TITLE, 'Animate indicators', 'AXButton')
+    mac.release(node)
+    assert_loading_semantics(mac)
+    mac.press(TITLE, 'Hide indicators')
+    node = mac.wait_find(TITLE, 'Show indicators', 'AXButton')
+    mac.release(node)
+    for label in ['Preparing content', 'Loading preview', 'Loading workspace']:
+        node = mac.find(TITLE, label, 'AXProgressIndicator')
+        if node:
+            mac.release(node)
+            raise RuntimeError(f'Hidden indicator remains in native accessibility: {label}')
+    mac.press(TITLE, 'Show indicators')
+    assert_loading_semantics(mac)
     for label in ['Details', 'Preview']:
         assert_action_layout(mac, label)
     if images:

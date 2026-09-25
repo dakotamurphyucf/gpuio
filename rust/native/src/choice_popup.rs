@@ -222,6 +222,7 @@ pub(super) fn element(render: Render<'_>, window: &Window) -> Stateful<Div> {
                     );
                 }
                 crate::semantics::State {
+                    hidden: false,
                     metadata: None,
                     live: None,
                     element: row,

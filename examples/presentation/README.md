@@ -32,6 +32,12 @@ checks action geometry, captures both themes and closes the native window.
 It requires macOS accessibility access. No Linux desktop behavior is inferred.
 
 This example is the current OCH-33 foundation, not full component acceptance:
-avatar asset fallback, loading indicators, rating and wider scale/content checks
+avatar asset fallback, rating and wider scale/content checks
 remain to be implemented and added here. OCH-46 separately integrates the finished
 milestone into the polished agent-chat showcase.
+
+The Background work group uses `View.loading` with Skeleton, Shimmer and Spinner.
+Hide/show preserves their leaf identities; Static/Animate changes only the native
+configuration. Application reduced-motion policy also settles them. The native
+suite verifies whole-window idle behavior, and the external AX test verifies that
+hidden indicators disappear and that indeterminate loading has no numeric value.

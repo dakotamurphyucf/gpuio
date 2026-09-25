@@ -16,6 +16,8 @@ let component ~phase ~observed ~editor_ref window graph =
   let dark, set_dark = B.state true graph in
   let invalid, set_invalid = B.state false graph in
   let checked, toggle = B.toggle ~default_model:true graph in
+  let show_loading, toggle_loading = B.toggle ~default_model:true graph in
+  let animate_loading, toggle_animation = B.toggle ~default_model:true graph in
   let notice, set_notice = B.state "All changes stay in this local demo." graph in
   let phase = B.Expert.Var.value phase in
   let editor =
@@ -41,12 +43,18 @@ let component ~phase ~observed ~editor_ref window graph =
   and set_invalid = set_invalid
   and checked = checked
   and toggle = toggle
+  and show_loading = show_loading
+  and toggle_loading = toggle_loading
+  and animate_loading = animate_loading
+  and toggle_animation = toggle_animation
   and notice = notice
   and set_notice = set_notice
   and editor = editor
   and phase = phase in
   let dark = if phase < 0 then dark else phase % 2 = 0 in
   let invalid = if phase < 0 then invalid else phase = 1 in
+  let show_loading = if phase < 0 then show_loading else phase < 2 in
+  let animate_loading = if phase < 0 then animate_loading else phase = 0 in
   let p = if dark then P.Appearance.dark else P.Appearance.light in
   let canvas = Color.rgb_exn (if dark then 0x131821 else 0xf5f6fa) in
   let ink = Color.rgb_exn (if dark then 0xe5eaf2 else 0x202735) in
@@ -67,6 +75,56 @@ let component ~phase ~observed ~editor_ref window graph =
       text
   in
   let heading text = View.text ~style:(style [ Font_size 24.; Font_weight 600 ]) text in
+  let indicator kind label =
+    let config = Loading.Config.create ~kind ~label ~animated:animate_loading () |> ok in
+    View.loading
+      ~config
+      ~style:
+        (style
+           [ Foreground muted
+           ; Width
+               (px
+                  (match kind with
+                   | Spinner -> 24.
+                   | Skeleton | Shimmer -> 220.))
+           ; Height
+               (px
+                  (match kind with
+                   | Spinner -> 24.
+                   | Skeleton | Shimmer -> 12.))
+           ])
+      ()
+  in
+  let loading =
+    P.group_box
+      p
+      ~header:(View.text "Background work")
+      [ View.row
+          ~style:(style [ Gap (px 8.) ])
+          [ button
+              toggle_loading
+              (if show_loading then "Hide indicators" else "Show indicators")
+          ; button
+              toggle_animation
+              (if animate_loading then "Static indicators" else "Animate indicators")
+          ]
+      ; View.column
+          ~style:
+            (style
+               [ Gap (px 12.)
+               ; Min_height (px 72.)
+               ; Visibility (if show_loading then Visible else Hidden)
+               ])
+          [ indicator Skeleton "Preparing content"
+          ; indicator Shimmer "Loading preview"
+          ; View.row
+              ~style:(style [ Align_items Center; Gap (px 8.) ])
+              [ indicator Spinner "Loading workspace"
+              ; View.text "Preparing your workspace…"
+              ]
+          ]
+      ]
+  in
   let details =
     P.description_list
       p
@@ -212,7 +270,7 @@ let component ~phase ~observed ~editor_ref window graph =
         [ View.column
             ~style:
               (style [ Width (Length.percent_exn 43.); Min_width (px 0.); Gap (px 16.) ])
-            [ settings; P.group_box p ~header:(View.text "At a glance") [ details ] ]
+            [ settings; loading ]
         ; View.column
             ~style:(style [ Grow 1.; Basis (px 0.); Min_width (px 0.); Gap (px 16.) ])
             [ assistant

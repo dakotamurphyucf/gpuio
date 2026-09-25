@@ -92,3 +92,63 @@ CI definitions include native/public/AX checks for this foundation, but the mile
 consolidated hosted run and merge are still pending. Continue with avatar, loading
 and rating; extend the example and complete OCH-33's acceptance before marking it
 Done. OCH-46 remains the final integrated chat showcase after all component tickets.
+
+## Native loading indicators
+
+The next checkpoint adds `Loading.Kind`/`Config` and `View.loading` (also in
+`Gpuio_bonsai.View`) with native Skeleton, Shimmer and Spinner presentations.
+Wire kind 34 and operation 40 are appended; no existing tags or capability mask
+change. Labels are nonblank UTF-8 without NUL, at most 4096 bytes. The native period
+is 100..60000ms, defaults to 1200ms and rounds up at the public API boundary.
+Explicit `animated=false` and application reduced motion produce static output.
+
+Native paint is bounded to one skeleton quad, three shimmer quads or twelve spinner
+strokes. Size/color come from ordinary styles. The existing radius-capture wrapper
+transfers computed placeholder corners to paint, including the clipped shimmer
+highlight. The leaf owns no editor/controller, worker task, event callback or
+OCaml clock. GPUI advances its animation while visible; configuration changes
+retain the native node and do not invent a completed fraction.
+
+The independent `loading-request.hex` fixture contains all three kinds and minimum,
+default and maximum periods. OCaml/Rust checks agree on its exact bytes. Rust
+rejects every truncated prefix, trailing bytes, invalid UTF-8, oversized/blank/NUL
+labels and invalid periods. Expect tests cover validation/rounding, no-op updates,
+no callback binding and same-leaf shape/static changes. Native admission rejects
+missing configuration, handlers and child text atomically, preserving previous
+state/accounting; disposal reclaims storage.
+
+Actual macOS native checks pass for all three cycles advancing without tree commits,
+size/color/radius overrides, indeterminate AX roles, reduced/static whole-window
+idle, parent-hidden idle, resume and weak-state/tree disposal. A real minimize/
+restore check also passes: the minimized window stops rendering and animation
+resumes after restoration. Markers are `GPUIO_LOADING_NATIVE_OK` and
+`GPUIO_LOADING_MINIMIZED_OK`.
+
+The first external AX check found that hidden indicators stopped painting but
+remained exposed through accessibility. The shared semantic wrapper now writes
+AccessKit's hidden state from the existing native visibility policy. A hidden
+structural element without a role gets a Group node so that its descendants can
+be hidden too. This is an internal semantic fix, not a new protocol field. Unit
+coverage checks that representation, and both native and external tests now prove
+the indicators disappear and return in the actual macOS AX tree. External tests
+also assert that indeterminate loading has no numeric AX value.
+
+Component Studio now exposes all three loading forms plus Hide/Show and Static/
+Animate controls. Its public self-test retains the editor through these updates.
+Both themes were captured and inspected; the screenshots above show the expanded
+example. Rounded shapes, centered static shimmer and radial spinner are visible.
+This does not claim a physical monitor-scale test or a full VoiceOver audit.
+
+Passing checks use the isolated jobs=2 toolchain: full Dune `@all @runtest @fmt`,
+Rust workspace tests, default and native-image/native-canvas all-target Clippy,
+public `--self-test` and `scripts/test_presentation.py`. Native presentation is
+rebuilt with the new loading checks. Native presentation, controls, editor and
+container-query executables were built with `native-image-tests` and run directly
+with a 90-second timeout each; all pass. The query regression includes retained
+editor/IME isolation, native hidden accessibility, scaled layout and its existing
+256-query workload. All owned native and public test windows/processes were
+closed/reaped; no hosted or Linux GUI result is claimed.
+
+Avatar fallback, rating and the complete OCH-33 family acceptance remain pending.
+The existing presentation CI step automatically includes the extended native/public
+tests; consolidated hosted gates and milestone-05 merge still follow local scope.

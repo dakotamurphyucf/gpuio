@@ -147,6 +147,13 @@ module View : sig
     -> string
     -> t
 
+  val loading
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Loading.Config.t
+    -> unit
+    -> t
+
   val progress
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

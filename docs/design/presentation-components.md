@@ -1,7 +1,7 @@
 # Presentation, feedback and form components (OCH-33)
 
 Status: semantic metadata, form composition and stateless presentation helpers
-are implemented and tested locally. Avatar fallback, loading indicators and rating
+are implemented and tested locally. Avatar fallback and rating
 remain pending; acceptance is the complete live OCH-33 ticket. No OCH-33 capability
 is advertised. See the [evidence ledger](../evidence/presentation-components-och33.md).
 
@@ -68,6 +68,19 @@ configured shortcut; they never silently install bindings. Static status/alert
 semantics have explicit live-region priority and must not announce every frame.
 
 ## Stateful behavior still required
+
+Loading implementation contract: `Loading.Config.create ~kind ~label ?animated
+?period ()` and `View.loading` use one bounded native leaf. Kinds are Skeleton
+(pulsing placeholder), Shimmer (sweeping highlight), and Spinner (twelve radial
+strokes). The default period is 1200ms, with a validated 100ms..60s range. The leaf
+has indeterminate ProgressIndicator semantics and no value, focus target or event
+handler. Foreground/size use normal styles. Static/reduced output remains visible.
+Hidden native owners never construct animated children; removal drops GPUI's
+animation state. The semantic wrapper also marks hidden structural roots and
+leaves hidden in AccessKit, so platform accessibility omits their descendants.
+Placeholder corners use the existing computed-radius capture at paint time. No OCaml polling, per-frame protocol updates or worker task is
+introduced. Whole-window idle and nested-hidden checks must prove this path, not
+merely infer it from the underlying animation helper.
 
 - Avatar reuses scoped asset/image decoding and cache ownership. A failed/missing
   image shows an explicit fallback; stale results cannot replace a newer asset.
