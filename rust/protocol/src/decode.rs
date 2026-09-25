@@ -1058,6 +1058,7 @@ impl Decoder<'_> {
             2 => EditorCommand::Focus,
             3 => EditorCommand::Undo,
             4 => EditorCommand::Redo,
+            5 => EditorCommand::Submit,
             _ => return Err(DecodeError::Malformed),
         })
     }

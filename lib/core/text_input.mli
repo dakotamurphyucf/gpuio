@@ -81,6 +81,9 @@ module Submission : sig
 end
 
 module Command : sig
+  (** [Submit] captures the current native snapshot outside composition, without
+      editing or emitting a second native submit event. Prefer the Eio
+      controller's [submit] to invoke its configured application handler. *)
   type t =
     | Replace of
         { text : string
@@ -92,6 +95,7 @@ module Command : sig
     | Focus
     | Undo
     | Redo
+    | Submit
   [@@deriving equal, sexp_of]
 end
 

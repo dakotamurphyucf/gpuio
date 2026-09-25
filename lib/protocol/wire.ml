@@ -446,6 +446,7 @@ module Editor = struct
       | Focus
       | Undo
       | Redo
+      | Submit
     [@@deriving bin_io, equal, sexp_of]
   end
 

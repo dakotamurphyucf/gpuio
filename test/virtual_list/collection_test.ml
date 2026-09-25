@@ -179,3 +179,29 @@ let%expect_test
   assert (List.equal Int.equal (changed replaced spliced) [ 2 ]);
   [%expect {| |}]
 ;;
+
+let%expect_test "live append preserves older history request and validates atomically" =
+  let t =
+    P.create (collection [ 2, "existing" ]) ~before:(More (Some "older")) ~after:End
+  in
+  let pending = P.request t Before |> Or_error.ok_exn |> Option.value_exn in
+  let generation = P.generation t in
+  P.append t [ 3, "new user"; 4, "new response" ] |> Or_error.ok_exn;
+  assert (Int64.equal generation (P.generation t));
+  print_s [%sexp (P.status t Before : P.Status.t)];
+  completion (P.complete t pending ~rows:[ 1, "older" ] ~next:End);
+  rows (P.items t);
+  print_s [%sexp (Result.is_error (P.append t [ 5, "unused"; 3, "duplicate" ]) : bool)];
+  rows (P.items t);
+  let unknown = P.create (collection []) ~before:End ~after:(More None) in
+  print_s [%sexp (Result.is_error (P.append unknown [ 1, "new" ]) : bool)];
+  [%expect
+    {|
+    Loading
+    (Ok Applied)
+    ((1 older) (2 existing) (3 "new user") (4 "new response"))
+    true
+    ((1 older) (2 existing) (3 "new user") (4 "new response"))
+    true
+    |}]
+;;

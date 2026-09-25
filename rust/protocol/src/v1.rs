@@ -391,6 +391,7 @@ pub enum EditorCommand {
     Focus,
     Undo,
     Redo,
+    Submit,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum EditorError {

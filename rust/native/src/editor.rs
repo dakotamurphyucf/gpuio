@@ -273,6 +273,7 @@ fn apply<M: InputModeKind>(
         EditorCommand::Focus => state.focus(window, cx),
         EditorCommand::Undo => state.bridge_undo(window, cx),
         EditorCommand::Redo => state.bridge_redo(window, cx),
+        EditorCommand::Submit => (),
     }
     Ok(snapshot(state, window, cx))
 }
@@ -476,8 +477,9 @@ impl Instance {
         {
             return EditorResult::Failed(EditorError::StaleEditor);
         }
-        if matches!(command, EditorCommand::Focus)
-            && !self.route.gate.borrow().allows(self.route.node)
+        if matches!(command, EditorCommand::Focus | EditorCommand::Submit)
+            && (!self.route.gate.borrow().allows(self.route.node)
+                || (matches!(command, EditorCommand::Submit) && self.config.disabled))
         {
             return EditorResult::Failed(EditorError::FocusBlocked);
         }

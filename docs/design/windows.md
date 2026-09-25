@@ -154,3 +154,13 @@ controls regression, Clippy, and formatting. Split panes additionally passed nat
 decrement checks, cancellation on hide/Escape/reset, both axes, native child-editor
 identity preservation, disposal, and independent Rust/OCaml binary fixtures.
 The integrated agent application and final consolidated gates remain pending.
+
+The reference-workspace integration adds two composition APIs. `List_paging.append`
+adds live rows only at a known latest boundary (`After = End`), preserving the
+collection generation and any in-flight older-history request. Duplicate IDs fail
+atomically. `Gpuio_eio.Text_input.submit` obtains an exact native snapshot before
+invoking the editor's configured submit handler; it does not use a potentially
+older Bonsai observation. Active IME composition and hidden/disabled placements
+reject submission. `clear_if_unchanged` remains the conditional clear after
+application acceptance. Native Submit returns its snapshot without emitting a
+second Submitted event, so button and Enter paths invoke the handler once.

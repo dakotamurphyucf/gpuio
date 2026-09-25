@@ -61,3 +61,8 @@ val value : ('key, 'data, 'cmp) t -> ('key, 'data, 'cmp) Snapshot.t Bonsai.Cont.
     Closed or obsolete generations ignore delayed actions. Admission failures
     appear as [Failed] snapshots for explicit retry. *)
 val controls : (_, _, _) t -> Gpuio_bonsai.Virtual_list.Paging.t
+
+(** Append newly created rows at a known latest boundary ([After = End]).
+    Preserves generation, scroll identity and pending older-history requests.
+    Duplicate keys or an unknown latest boundary fail without changing state. *)
+val append : ('key, 'data, _) t -> ('key * 'data) list -> unit Or_error.t

@@ -450,6 +450,7 @@ module type S = sig
         | Focus
         | Undo
         | Redo
+        | Submit
       [@@deriving bin_io, equal, sexp_of]
     end
 

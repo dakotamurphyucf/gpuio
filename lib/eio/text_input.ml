@@ -6,6 +6,7 @@ type t =
   { editor : Editor_controller.t
   ; config : Input.Config.t
   ; initial_text : string
+  ; on_submit : Input.Submission.t -> unit Bonsai.Effect.t
   ; on_event : Input.Event.t -> unit Bonsai.Effect.t
   }
 
@@ -27,7 +28,7 @@ let create window ~config ?(initial_text = "") ?on_submit graph =
         ; on_submit submission
         ]
   in
-  { editor; config; initial_text; on_event }
+  { editor; config; initial_text; on_event; on_submit }
 ;;
 
 let view ?style t =
@@ -57,4 +58,17 @@ let clear_if_unchanged t submission =
     ~selection:Start
     ~undo:Record
     ""
+;;
+
+let submit t =
+  let open Bonsai.Effect.Let_syntax in
+  let%bind result = command t Submit in
+  match result with
+  | Error error -> Bonsai.Effect.return (Error error)
+  | Ok snapshot ->
+    (match Input.Expert.submission snapshot with
+     | Error _ -> Bonsai.Effect.return (Error Input.Command_error.Composing)
+     | Ok submission ->
+       let%map () = t.on_submit submission in
+       Ok ())
 ;;

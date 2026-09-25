@@ -206,6 +206,10 @@ async fn exercise(
     key(cx, handle, "backspace");
     assert_eq!(snapshot(cx, handle, node(1)).text, "Aé");
     assert_eq!(
+        command(cx, handle, node(1), EditorCommand::Submit),
+        EditorResult::Applied(snapshot(cx, handle, node(1)))
+    );
+    assert_eq!(
         command(
             cx,
             handle,
@@ -244,6 +248,10 @@ async fn exercise(
         let marked = snapshot(cx, handle, node(2));
         assert_eq!(marked.text, "に");
         assert!(marked.composition.is_some());
+        assert_eq!(
+            command(cx, handle, node(2), EditorCommand::Submit),
+            EditorResult::Failed(EditorError::Composing)
+        );
         key(cx, handle, "enter");
         let events = transport.mailbox.lock().unwrap().drain(256);
         assert!(!events.iter().any(|event| matches!(
@@ -434,6 +442,10 @@ async fn exercise(
         command(cx, handle, node(1), EditorCommand::Focus);
         frame(cx, handle).await;
         if disabled {
+            assert_eq!(
+                command(cx, handle, node(1), EditorCommand::Submit),
+                EditorResult::Failed(EditorError::FocusBlocked)
+            );
             assert!(!snapshot(cx, handle, node(1)).focused);
             command(cx, handle, node(2), EditorCommand::Focus);
             frame(cx, handle).await;
