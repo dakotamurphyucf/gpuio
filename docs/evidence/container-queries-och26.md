@@ -1,7 +1,7 @@
 # Container query evidence (OCH-26)
 
-These are chronological checkpoints. The mounted bridge and initial local
-macOS scenarios now work; broader acceptance and hosted gates remain pending.
+These are chronological checkpoints. Mounted bridge and local macOS acceptance
+are complete; consolidated hosted macOS/Linux gates and merge remain pending.
 
 ## Typed rule and codec foundation
 
@@ -129,3 +129,73 @@ All commands exited zero. The final native query/nested checks and both legacy a
 advanced animation executables passed; the rebuilt public self-test passed again
 and closed its window. This checkpoint does not advertise a query capability or
 claim the broader remaining acceptance, hosted CI, or Linux GUI validation.
+
+
+## Expanded local native acceptance
+
+The native query executable now also exercises the following actual macOS paths:
+
+- A retained 32-row list: actual scrolling to row 20 hides the first query's input
+  eligibility without destroying its button; returning does not replay an unchanged
+  selection. Offscreen config/observer changes wait for paint. Reordered branch
+  IDs preserve native identity, a detached observer receives no events, and a new
+  observer receives future selections only. All list/query/native state disposes.
+- Fractional assigned widths below/equal/above 300.5, with GPUI scale overrides of
+  1, 1.5, 2 and restoration of the display scale. Predicates use assigned logical
+  sizes after device-pixel snapping: a declared 300.5 at scale 1 assigns 300. The
+  test checks exact observed size and branch, not a pre-snapping expectation.
+  This is a real GPUI layout test using its scale override, not physical movement
+  between monitors. The macOS CI command enables the existing native-image-tests
+  feature to include upstream test-support and these scale cases.
+- AppKit accessibility traversal exposes only the selected native editor. Real
+  NSTextInputClient marked/committed text stays with its original retained editor
+  through resize, hidden focus is rejected, fallback input modifies neither draft,
+  and explicit return/focus permits editing the original owner. This does not
+  claim a walkthrough of every OS input method or a VoiceOver usability review.
+- A held native pointer capture ends with Hidden cancellation when its branch
+  disappears; a late mouse release does not complete the cancelled gesture.
+
+Two test-harness corrections were necessary: the transaction helper must dispatch
+accepted list actions, as the production host already does; AX traversal must
+start at the window's content view to activate/access the native accessibility
+subtree. Neither required a production adapter change. The first-paint motion
+clock test now advances its clock in the same host update as admission, preventing
+an intervening paint from making the test nondeterministic.
+
+The debug workload lays out 256 visible queries with 32 rules each and 512 retained
+alternatives, changes all branches through four real window resizes, dispatches
+a native button click, verifies unchanged tree revisions/payload, confirms no
+selection events for unobserved queries, settles idle and returns retained payload
+to zero on removal. One measured run used 573,664 retained payload bytes:
+admission 87.2 ms; initial frame barrier 61.4 ms; resize barriers 91.4–95.9 ms;
+native injected input dispatch 14.0 ms; disposal 3.4 ms. These are debug wall times
+including scheduling, not frame CPU time, OS input latency, total RSS, or universal
+performance guarantees. Changed selections currently synchronize shared managers
+and can revisit the tree; this cost remains explicit for the integrated showcase.
+
+Capability bit `8589934592` is now enabled (aggregate `17179869183`). Independent
+OCaml/Rust Hello expectations pin `0001fcffffffff03000000`. Historical evidence
+above describes earlier checkpoints and is not rewritten to imply this bit existed
+then. Hosted macOS/Linux gates and merge remain pending.
+
+
+## Final local capability validation
+
+All of the following exited zero on macOS arm64 with the capability enabled:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @runtest @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --workspace --locked -j 2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --all-targets --features native-tests,native-image-tests,native-canvas-tests -j 2 -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests,native-image-tests --test native_container_query --no-run -j 2
+./scripts/gpuio exec _build/default/examples/container_query/main.exe --self-test
+./scripts/gpuio exec cargo fmt --all --check
+```
+
+The rebuilt native query executable was run with a 60-second subprocess deadline
+and passed all seven marker families, including scale, lifecycle, AX/IME and
+workload scenarios. Its final debug resize barriers were 91.2–100.1 ms and input
+dispatch 13.7 ms, consistent with the measurement limitations above. The public
+self-test passed and closed; no owned native test windows/processes remain.
+No hosted run or Linux GUI acceptance is claimed. The accepted local scope is
+complete; the ticket remains in progress pending consolidated CI and merge.

@@ -1,7 +1,8 @@
 # Native container queries (OCH-26)
 
-Status: mounted bridge and initial macOS acceptance implemented; broader acceptance
-is still in progress. No container-query capability is advertised yet.
+Status: mounted bridge and local macOS acceptance implemented; consolidated hosted
+macOS/Linux gates and merge remain pending. Capability `8589934592` advertises
+container queries; the current aggregate is `17179869183`.
 Read the live OCH-26 ticket and the platform policy in AGENTS.md for acceptance.
 
 ## Public model
@@ -130,8 +131,25 @@ OCaml closure runs at layout frequency. Removal and close discard the owner.
 Late observer attachment does not replay a previously painted selection; config
 replacement and subsequent branch changes produce fresh snapshots.
 
-Remaining acceptance includes virtualized query retention, full native
-accessibility/input-composition and gesture cancellation cases, scale/fractional
-and observer/config-lifetime coverage, measured aggregate workloads, and
-consolidated hosted gates. Existing successful native/public scenarios are
-recorded in the evidence file; they do not substitute for these remaining checks.
+Local acceptance also covers virtualized query retention, AppKit accessibility and
+native marked/committed text input, held pointer cancellation, fractional sizes
+and GPUI test scale overrides, future-only observers and config reorder, and a
+256-visible-query workload. Exact coverage and limitations are recorded in
+[the evidence](../evidence/container-queries-och26.md). Physical display movement
+and Linux GUI acceptance are not implied by the scale override or build results.
+
+A hidden editor retains its draft and native editing state. A marked composition
+is not transferred to another presentation; focus falls back normally, and a
+later explicit focus can resume that retained editor. Read-snapshot remains
+available while hidden. Hidden editors reject focus/input commands, and native
+text sent to the fallback does not modify either presentation's draft.
+
+Per-owner adapter storage is fixed metadata plus shared references to the
+already-budgeted config and child array. Owner and hidden-root counts are bounded
+by the retained tree node limit; hidden branches continue to count against tree
+payload and individual component quotas. There are no query timers or unbounded
+selection queues. Work per unchanged selection is a bounded rule scan. A changed
+selection currently synchronizes the existing focus/resource managers; many
+simultaneous changes can therefore traverse the window tree repeatedly. The
+workload records this cost explicitly; it is not a 60-fps guarantee for arbitrary
+query counts or retained-tree sizes. OCH-46 must recheck the integrated workload.

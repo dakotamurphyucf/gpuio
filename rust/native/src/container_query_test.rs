@@ -1,7 +1,13 @@
 //! Actual assigned-size selection, input gating and retained native identity.
 use super::*;
+#[path = "container_query_interaction_test.rs"]
+mod interaction;
+#[path = "container_query_lifecycle_test.rs"]
+mod lifecycle;
 #[path = "container_query_nested_test.rs"]
 mod nested;
+#[path = "container_query_workload_test.rs"]
+mod workload;
 use gpuio_protocol::container_query::{Config, Predicate, Range, Rule, Snapshot};
 use std::{
     os::fd::{AsRawFd, FromRawFd, OwnedFd},
@@ -35,6 +41,14 @@ fn config(generation: i64, threshold: f64) -> Config {
     }
 }
 fn apply(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, operations: Vec<Op>) {
+    apply_before_paint(cx, handle, operations, |_, _, _| ());
+}
+fn apply_before_paint(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    operations: Vec<Op>,
+    after: impl FnOnce(&mut View, &mut Window, &mut Context<View>),
+) {
     handle
         .update(cx, |v, w, cx| {
             let base = v.session.borrow().tree(v.id).unwrap().revision();
@@ -49,6 +63,8 @@ fn apply(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, operations: Vec<Op
                 })
                 .unwrap();
             v.update_editors(&applied.dirty, w, cx);
+            v.list_actions(&applied.lists);
+            after(v, w, cx);
             cx.notify();
         })
         .unwrap();
@@ -295,6 +311,9 @@ pub(crate) fn run() {
             let result = super::native_test::protect(async {
                 exercise(cx, window, &transport).await;
                 nested::exercise(cx, &transport).await;
+                lifecycle::exercise(cx, &transport).await;
+                interaction::exercise(cx, &transport).await;
+                workload::exercise(cx, &transport).await;
             })
             .await;
             *task_failure.borrow_mut() = result.err();

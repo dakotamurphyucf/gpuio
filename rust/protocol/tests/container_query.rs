@@ -259,3 +259,15 @@ fn appended_transaction_and_selection_event_match_ocaml_fixtures() {
         assert!(!bad.is_valid());
     }
 }
+
+#[test]
+fn query_capability_uses_the_shared_64_bit_handshake() {
+    use gpuio_protocol::{decode, v1::*};
+    assert_eq!(CAPABILITIES & CAP_CONTAINER_QUERIES, 1_i64 << 33);
+    let message = Message::Hello(VERSION, CAPABILITIES);
+    let mut bytes = Vec::new();
+    message.binprot_write(&mut bytes).unwrap();
+    let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
+    assert_eq!(hex, "0001fcffffffff03000000");
+    assert_eq!(decode(&bytes), Ok(message));
+}

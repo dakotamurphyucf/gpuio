@@ -55,7 +55,7 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, transport: &Arc<Transport>
             clock: A::Clock::Independent,
         },
     };
-    apply(
+    apply_before_paint(
         cx,
         window,
         vec![
@@ -95,23 +95,25 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, transport: &Arc<Transport>
             Op::Splice(node(0), 0, 0, vec![node(1), node(2)]),
             Op::SetRoot(Some(node(0))),
         ],
-    );
-    // Admission precedes layout: no branch may accumulate hidden active time
-    // while the application waits to obtain its first assigned size/paint.
-    window
-        .update(cx, |v, w, _| {
+        |v, _, _| {
+            assert_eq!(v.animation_programs[&node(6)].borrow().paint_count, 0);
             v.session
                 .borrow()
                 .motion()
                 .borrow_mut()
                 .set_test_time(Some(Duration::from_millis(500)));
-            w.refresh();
-        })
-        .unwrap();
+        },
+    );
+    // Admission precedes layout: no branch may accumulate hidden active time
+    // while the application waits to obtain its first assigned size/paint.
     frame(cx, window).await;
     window
         .update(cx, |v, _, _| {
-            assert!((f32::from(v.probes.borrow()[&node(6)].bounds.size.width) - 20.).abs() < 0.1);
+            let width = f32::from(v.probes.borrow()[&node(6)].bounds.size.width);
+            assert!(
+                (width - 20.).abs() < 0.1,
+                "initial query animation width: {width}"
+            );
         })
         .unwrap();
     let events = transport.mailbox.lock().unwrap().drain(128);

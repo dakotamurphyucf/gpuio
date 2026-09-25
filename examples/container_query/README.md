@@ -12,8 +12,9 @@ state shared outside the branches when two presentations should share a model.
 `_build/default/examples/container_query/main.exe --self-test` opens a local
 window, resizes it, verifies hidden-editor state/focus denial and Bonsai lifecycle,
 and closes it. No external services are needed. Native tests separately exercise
-actual button dispatch and assigned-size geometry. Broader OCH-26 acceptance is
-still in progress; full Linux GUI validation follows OCH-17.
+actual button dispatch and assigned-size geometry. Expanded local macOS acceptance
+is recorded in `docs/evidence/container-queries-och26.md`; hosted gates remain
+pending and full Linux GUI validation follows OCH-17.
 
 On macOS this self-test requests focus so the window actually paints; an occluded
 background window may accept the tree and initialize editors without painting.

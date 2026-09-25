@@ -66,13 +66,15 @@ The advanced-program capability is now advertised; hosted gates remain pending. 
 [advanced animation evidence](evidence/animation-programs-och25.md) and
 [design](design/animation-programs.md).
 OCH-26 now connects typed container rules through retained views, bounded
-selection events and native assigned-size layout. Initial macOS checks pass
-resize selection, keyed branch identity, nested/dialog queries, hidden animation
-timing and the public Bonsai/Eio example with retained editor/lifecycle behavior.
-Broader accessibility/scale/virtualization/workload acceptance remains pending;
-no capability is advertised.
+selection events and native assigned-size layout. Local macOS checks pass resize
+selection, keyed identity, nested/dialog/virtualized queries, hidden motion,
+AppKit accessibility and IME isolation, pointer cancellation, fractional/scale
+boundaries, observer/config lifetimes and a 256-query workload. The public
+Bonsai/Eio example verifies retained editors and lifecycle behavior. Container
+queries are advertised and final local capability checks pass. Consolidated
+hosted macOS/Linux gates and merge remain pending.
 See [container query design](design/container-queries.md) and
-[foundation evidence](evidence/container-queries-och26.md).
+[acceptance evidence](evidence/container-queries-och26.md).
 No milestone-05 completion or hosted acceptance is claimed yet.
 
 The [milestone acceptance ledger](evidence/milestones-01-02.md) maps every ticket

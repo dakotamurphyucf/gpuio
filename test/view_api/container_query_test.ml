@@ -271,3 +271,12 @@ let%expect_test "presentation validation and independent transaction/event bytes
   print_s [%sexp (Q.Expert.selection_of_wire config snapshot |> ok : Q.Selection.t)];
   [%expect {| ((branch wide) (width 480.25) (height 600)) |}]
 ;;
+
+let%expect_test "query capability handshake above 32 bits" =
+  let module Wire = Gpuio_protocol.Wire in
+  assert (Int64.equal (Int64.bit_and Wire.capabilities 8589934592L) 8589934592L);
+  let bytes = Wire.Message.encode (Hello (Wire.version, Wire.capabilities)) |> ok in
+  String.iter bytes ~f:(fun byte -> printf "%02x" (Char.to_int byte));
+  print_endline "";
+  [%expect {| 0001fcffffffff03000000 |}]
+;;
