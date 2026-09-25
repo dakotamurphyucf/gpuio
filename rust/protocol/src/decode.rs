@@ -5,7 +5,12 @@ use std::io::{Cursor, Read};
 mod accessibility;
 mod avatar;
 mod loading;
+mod number_input;
 mod numeric;
+pub use number_input::{
+    decode_number_input_command, decode_number_input_config, decode_number_input_event,
+    decode_number_input_response,
+};
 mod rating;
 mod slider;
 pub use accessibility::decode_accessibility;

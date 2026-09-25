@@ -12,6 +12,12 @@
    avatar-request.hex
    rating-request.hex
    rating-events.hex
+   number-input-config.hex
+   number-input-observed.hex
+   number-input-committed.hex
+   number-input-replace-draft.hex
+   number-input-replace-value.hex
+   number-input-failed.hex
    numeric-domain.hex
    slider-request.hex
    slider-events.hex
@@ -185,3 +191,5 @@
 (copy_files ../fixtures/slider-command-request.hex)
 
 (copy_files ../fixtures/slider-command-events.hex)
+
+(copy_files ../fixtures/number-input-*.hex)

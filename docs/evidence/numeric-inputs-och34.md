@@ -374,3 +374,47 @@ All children exited normally on the passing run. Numeric editor/stepper/OTP
 implementation remains pending, so no OCH-34 capability or ticket completion is
 claimed. The detailed Number_input target in the design document records the
 next implementation's draft/commit/IME/undo/revision/stepper contracts.
+
+## Numeric editor contracts and standalone codecs
+
+Added Core `Number_input` value/configuration/revision/snapshot/event/command
+contracts and matching internal OCaml/Rust representations. A snapshot records
+its own domain, separating historical classification from current configuration.
+It preserves a native draft independently of the normalized committed value,
+UTF-8 selection direction and composition, focus and numeric observation revision.
+Explicit replacements reuse the public text-input selection/history policies;
+finite values, owner-bound snapshot conversion and semantic boundaries are validated.
+These types do not yet mount or edit a numeric widget.
+
+Six independently constructed bin_prot fixtures cover configuration, Unicode
+observation, commit, guarded draft/value replacements and a rejection response.
+The fixtures use domain `[-2,8]` with step `0.5`, an observed `é1e-` draft with
+backward byte selection `5..2` and composition `2..5`, and a settled Stepper
+commit of `2.5`. The two replacements exercise different selection/history
+policies and numeric revisions. Both encoders match the independent byte strings.
+Native decoding rejects every proper fixture prefix, trailing bytes, invalid
+UTF-8/tags/Booleans, non-finite or unnormalized committed values, invalid byte
+boundaries, reversed composition, inconsistent commit/cancel/rejection events,
+negative guards and bounded-message overflow. Maximum valid payloads also pass.
+
+Core expect tests cover the same public invariants, owner identity, classification
+of transient/invalid/out-of-range drafts, historical domains and command
+conversion. The first run's only expectation difference was Sexplib's escaped
+UTF-8 display (`é` becomes `\195\169`) and line layout; those diffs were reviewed
+before promotion. An initial compile error required explicit conversion of the
+public `Numeric.Direction` constructors to the wire type across its `.mli` boundary.
+Neither fix changed numeric behavior or weakened a validation assertion.
+
+Native number-input/stepper integration, top-level bridge envelopes, Eio
+controllers, actual editing/IME/AX validation and OTP remain pending. No new
+capability, native-widget completion, hosted CI or Linux GUI evidence is claimed.
+
+Local macOS validation passed for this contract checkpoint:
+
+- `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @test/view_api/runtest @fmt`
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-protocol`
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-protocol --all-targets -- -D warnings`
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all -- --check`
+
+No GUI tests were needed for this type/codec-only checkpoint; no GUI process was
+started. Native slider evidence above is from the preceding mounted-widget runs.

@@ -1,7 +1,7 @@
 //! Shared bounded binary-float rules; these types own no native interaction state.
 use binprot::macros::BinProtWrite;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Direction {
     Increase,
     Decrease,

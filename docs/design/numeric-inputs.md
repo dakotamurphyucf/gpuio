@@ -214,8 +214,11 @@ the outer control's size has not changed. Late release cannot commit the old dra
 
 ## Numeric editor and stepper implementation target
 
-The following refines the accepted draft/value contract for the next OCH-34
-implementation. It is an API target, not a claim that `Number_input` exists yet.
+The following refines the accepted draft/value contract for OCH-34. The Core
+`Number_input` types and standalone OCaml/Rust wire contracts are implemented
+and tested. Retained views, native numeric editing/stepping, event routing and
+the Eio controller remain implementation targets; these contracts alone do not
+provide a usable numeric widget.
 
 ### Ownership and public shape
 
@@ -225,7 +228,7 @@ a native numeric owner holds its validated configuration, committed value and
 observation revision. Step buttons share that owner and preserve editor focus.
 Do not use the candidate NumberInput's mask/parse-to-zero path.
 
-The Core module will be `Number_input`, with `Value`, `Config`, `Revision`,
+The Core module is `Number_input`, with `Value`, `Config`, `Revision`,
 `Snapshot`, `Event`, `Command` and `Command_error` submodules. `Value` distinguishes
 `Empty` from a validated finite `Number`; constructors reject NaN/infinity.
 `Config` owns `Numeric.Domain`, labels, placeholder, empty-commit policy,
@@ -234,7 +237,9 @@ A public `Gpuio_eio.Number_input` Bonsai controller supplies one stable placemen
 observations and correlated commands, following the slider/editor lease rules.
 Snapshots are owner-bound and opaque, exposing the draft, its current
 `Numeric.Draft` classification, last committed value, selection/composition,
-focus and a numeric observation revision. They are never fed back as replacement
+focus and a numeric observation revision. Each snapshot carries its observed
+domain, so later configuration changes do not reinterpret historical drafts.
+They are never fed back as replacement
 properties. `initial` seeds the native owner only once.
 
 An empty initial value means no committed number yet, including required fields.
@@ -318,3 +323,37 @@ Bonsai/Eio controller; public examples and actual paste/IME/selection/undo,
 keyboard/pointer repeat, AX, stale-guard and lifetime acceptance. Reuse the
 existing shared domain/draft tests and include transient `-`, exponent prefixes,
 rounding boundaries, overflow and domain updates during marked text.
+
+### Contract and codec checkpoint
+
+`lib/core/number_input.mli` defines the public types; `Number_input_wire` and
+`rust/protocol/src/number_input.rs` define the internal wire layout. Configuration
+fields encode domain, label, placeholder, increase/decrease labels, step-control
+layout, empty policy, disabled, read-only and autofocus in that order. Labels are
+required nonblank single-line UTF-8 strings; each text field has a 4,096-byte cap.
+
+Snapshots encode numeric revision, domain, draft, committed value, directional
+selection, optional ordered composition range and focus. Revisions are
+nonnegative signed 64-bit integers. Selection/composition offsets are UTF-8 byte
+boundaries within the draft. The committed value is Empty or a normalized finite
+point in the observed domain. Invalid/incomplete drafts remain valid observations;
+only commit/cancel events require a settled draft matching the committed value
+with no active composition. Semantic events require a positive revision;
+an initial observation may use zero. Rejection reasons must match the draft or
+active composition. Oversize text fails admission; it cannot produce a valid
+oversize snapshot or a semantic `Too_long` rejection event.
+
+Standalone native decoders cap configuration at 16,480 bytes, events/responses
+at 4,300 and commands at 4,200, including bin_prot overhead. They reject invalid
+tags/Booleans/UTF-8, malformed state, trailing bytes, truncation and invalid
+guards. Raw OCaml bin_prot readers are representation readers; the wire validity
+checks and Core Expert conversions provide semantic validation. Top-level bridge
+envelopes are not wired yet. No OCH-34 capability is advertised by this checkpoint.
+
+The six `test/fixtures/number-input-*.hex` fixtures were constructed independently
+from field order, integer tags and little-endian IEEE-754 doubles. They cover
+Stacked configuration with mixed Boolean flags, an observed Unicode draft with
+backward selection/active composition, a settled Stepper commit, guarded draft
+and value replacements with different selection/history policies, and an
+Incomplete rejection response. OCaml and Rust encoders agree on every byte;
+native decoders additionally require complete consumption and semantic validity.
