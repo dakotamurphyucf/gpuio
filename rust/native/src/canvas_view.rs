@@ -16,6 +16,8 @@ use gpuio_protocol::{
     canvas_view::{Config, Error, Observation},
 };
 
+#[path = "canvas_accessibility.rs"]
+mod accessibility;
 #[path = "canvas_input.rs"]
 mod input;
 
@@ -238,6 +240,9 @@ impl State {
                                 }
                             }
                             self.ready = Some(ready);
+                            if window.is_a11y_active() {
+                                window.refresh();
+                            }
                             self.emit(events, cx);
                         }
                         Err(error) => self.failure = Some(error),
@@ -434,7 +439,7 @@ impl View {
         &mut self,
         node: &crate::tree::Node,
         interaction: Interaction,
-        _window: &mut Window,
+        window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         self.visited.insert(node.id);
@@ -450,6 +455,7 @@ impl View {
         };
         let budget = self.canvas_budget.clone();
         let element = input::keyboard(element, state.clone());
+        let element = accessibility::objects(element, &state, window);
         let prepaint = state.clone();
         let element = element.relative().child(
             canvas(

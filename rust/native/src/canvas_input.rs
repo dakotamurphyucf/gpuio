@@ -77,7 +77,7 @@ impl State {
             self.input.pending = None;
         }
     }
-    fn flush_viewport(&mut self, cx: &mut App) {
+    pub(super) fn flush_viewport(&mut self, cx: &mut App) {
         if let Some((revision, generation, viewport)) = self.input.pending.take() {
             self.emit_at(
                 vec![Observation::ViewportChanged(viewport)],
@@ -87,7 +87,7 @@ impl State {
             );
         }
     }
-    fn valid_callback(&self, token: &Rc<()>, window: &Window, pointer: bool) -> bool {
+    pub(super) fn valid_callback(&self, token: &Rc<()>, window: &Window, pointer: bool) -> bool {
         Rc::ptr_eq(token, &self.input.token) && self.input_allowed(window, pointer)
     }
     fn local(&self, point: gpui::Point<Pixels>) -> Point {
@@ -96,13 +96,13 @@ impl State {
             y: f64::from(f32::from(point.y - self.input.bounds.origin.y)),
         }
     }
-    fn center(&self) -> Point {
+    pub(super) fn center(&self) -> Point {
         Point {
             x: f64::from(f32::from(self.input.bounds.size.width)) / 2.,
             y: f64::from(f32::from(self.input.bounds.size.height)) / 2.,
         }
     }
-    fn enable(&mut self) {
+    pub(super) fn enable(&mut self) {
         if let Some(native) = &mut self.native {
             native.set_input_enabled(true);
         }
@@ -145,7 +145,7 @@ impl State {
         };
         let center = self.center();
         let native = self.native.as_mut().unwrap();
-        let events = if let Some((x, y)) = direction {
+        let mut events = if let Some((x, y)) = direction {
             if modifiers.shift {
                 let step = if modifiers.alt { 10. } else { 1. };
                 native.move_selected(Point {
@@ -178,6 +178,13 @@ impl State {
         } else {
             return;
         };
+        if !modifiers.shift
+            && !modifiers.alt
+            && (direction.is_some() || matches!(key, "home" | "end"))
+            && let Some(id) = native.selection()
+        {
+            events.extend(super::accessibility::reveal(native, id, center));
+        }
         // Native keyboard operations cancel previews too; release owned capture.
         self.cancel_input(window);
         self.emit(events, cx);
@@ -396,32 +403,13 @@ pub(super) fn paint(state: &Shared, hitbox: Hitbox, window: &mut Window) {
 /// One decorative outline, bounded by the selected item's (at most 256-point)
 /// hit-region bounds. Preserve its affine transform and world clip stack.
 pub(super) fn selection(native: &canvas_state::State, bounds: Bounds<Pixels>, window: &mut Window) {
-    use gpuio_protocol::canvas::{HitRegion, Rect};
     let Some(item) = native.selection().and_then(|id| native.item(id)) else {
         return;
     };
     let Some(interaction) = &item.interaction else {
         return;
     };
-    let rect = match &interaction.hit_region {
-        HitRegion::Rectangle(rect) | HitRegion::Ellipse(rect) => *rect,
-        HitRegion::Polygon(points) => {
-            let mut lo = points[0];
-            let mut hi = lo;
-            for point in points {
-                lo.x = lo.x.min(point.x);
-                lo.y = lo.y.min(point.y);
-                hi.x = hi.x.max(point.x);
-                hi.y = hi.y.max(point.y);
-            }
-            Rect {
-                x: lo.x,
-                y: lo.y,
-                width: hi.x - lo.x,
-                height: hi.y - lo.y,
-            }
-        }
-    };
+    let rect = hit_bounds(&interaction.hit_region);
     let placement = Placement {
         origin: Point { x: 0., y: 0. },
         transform: native.transform(item),
@@ -466,5 +454,28 @@ pub(super) fn selection(native: &canvas_state::State, bounds: Bounds<Pixels>, wi
         window.with_content_mask(Some(gpui::ContentMask { bounds: clip }), |window| {
             window.paint_path(path, rgba(native.config().selection_color as u32))
         });
+    }
+}
+
+pub(super) fn hit_bounds(hit: &gpuio_protocol::canvas::HitRegion) -> gpuio_protocol::canvas::Rect {
+    use gpuio_protocol::canvas::{HitRegion, Rect};
+    match hit {
+        HitRegion::Rectangle(rect) | HitRegion::Ellipse(rect) => *rect,
+        HitRegion::Polygon(points) => {
+            let mut lo = points[0];
+            let mut hi = lo;
+            for point in points {
+                lo.x = lo.x.min(point.x);
+                lo.y = lo.y.min(point.y);
+                hi.x = hi.x.max(point.x);
+                hi.y = hi.y.max(point.y);
+            }
+            Rect {
+                x: lo.x,
+                y: lo.y,
+                width: hi.x - lo.x,
+                height: hi.y - lo.y,
+            }
+        }
     }
 }

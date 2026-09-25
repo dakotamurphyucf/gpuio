@@ -501,6 +501,14 @@ impl State {
             self.positions.insert(id, transform);
         }
     }
+    /// Select a semantic object without a pointer hit; used by assistive input.
+    pub fn select_item(&mut self, id: i64) -> Vec<Observation> {
+        if !self.enabled() || !self.config.selectable || self.item(id).is_none() {
+            return vec![];
+        }
+        self.cancel();
+        self.select(Some(id))
+    }
     pub fn navigate(&mut self, direction: Navigation) -> Vec<Observation> {
         if !self.enabled() || !self.config.selectable || self.order.is_empty() {
             return vec![];
@@ -1074,6 +1082,32 @@ mod tests {
         assert!(state.move_selected(point(1., 0.)).is_empty());
         state.set_input_enabled(false);
         assert!(state.navigate(Navigation::Next).is_empty());
+    }
+
+    #[test]
+    fn semantic_selection_obeys_policy_and_cancels_preview_without_activation() {
+        let mut fixture = Fixture::new();
+        let mut state = fixture.state();
+        assert_eq!(
+            state.select_item(3),
+            vec![Observation::SelectionChanged(Some(3))]
+        );
+        assert!(state.select_item(3).is_empty());
+        assert!(state.select_item(123).is_empty());
+        state.begin_pointer(point(5., 5.), PointerMode::Select);
+        state.move_pointer(point(20., 20.));
+        state.select_item(7);
+        assert!(!state.has_gesture());
+        assert_eq!(state.selection(), Some(7));
+        state.set_input_enabled(false);
+        assert!(state.select_item(9).is_empty());
+        state.set_input_enabled(true);
+        state.config.selectable = false;
+        assert!(state.select_item(9).is_empty());
+        state.config.selectable = true;
+        state.config.disabled = true;
+        assert!(state.select_item(9).is_empty());
+        assert_eq!(state.selection(), Some(7));
     }
 
     #[test]

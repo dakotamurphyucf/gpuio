@@ -494,3 +494,36 @@ CI builds all three canvas targets on macOS/Linux and schedules the input target
 with the existing macOS canvas tests. Hosted execution remains pending. Accessible
 object representation/actions, the public OCaml diagram and remaining aggregate
 acceptance remain unfinished; no full canvas capability is advertised yet.
+
+
+## Accessible objects checkpoint
+
+`native_canvas_input` now additionally exercises the actual macOS AccessKit/AppKit
+object subtree. The harness queries `accessibilityChildren`, labels, roles,
+selected/focused/enabled state and screen bounds, and calls native focus/press
+actions. It verifies selection alone does not activate, the separate activation
+button emits the expected observation, active-descendant focus follows selection,
+and a ten-pixel keyboard move changes the reported screen rectangle by ten pixels.
+This is an in-process AppKit accessibility test, not a VoiceOver usability session.
+
+The scenario moves the viewport 5,000 world units away, locates the offscreen
+object through AppKit and selects it; a native viewport observation brings it
+back into view. Hiding its ancestor removes it from the accessibility tree and
+reshowing restores it. Disabled objects report disabled and reject an activation
+attempt. Final unmount removes the object. Both input and hidden renderer suites
+still assert zero canvas scene/mesh/text accounting after shutdown; the input
+worker metrics after the hide/show scenario are `(6, 1, 1, 0)`.
+
+Native unit tests cover gated semantic selection without activation and the
+composition order of affine transformation, world clipping and viewport projection
+for accessible bounds, including a fully clipped polygon. Full canvas/public OCaml
+and aggregate acceptance are still pending. No hosted or Linux GUI acceptance is
+claimed from these local macOS results.
+
+
+The final local commands for this checkpoint pass through the isolated wrapper
+with `GPUIO_JOBS=2`: native library tests (101), `native_canvas_input`, full
+`dune build -j 2`, all-target canvas-feature Clippy with `-D warnings`, repository
+`check-fmt` and `git diff --check`. The hidden `native_canvas_view` regression also
+passed after object integration; final semantic-layer changes were validated by
+the active input/AX target. Owned processes exited and test windows were removed.

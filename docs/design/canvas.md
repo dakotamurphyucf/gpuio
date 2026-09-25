@@ -546,5 +546,45 @@ Selection paints one transformed outline using the configured color, clipped to
 the canvas and the selected item's world clip stack. Rectangle/ellipse hit bounds
 or a polygon's bounding rectangle determine the outline. This fixed-size decorative
 stroke is additional to the scene mesh vertex budget; it never uploads a changed
-scene or requests an OCaml paint callback. Root focus semantics are present;
-per-object accessible semantics remain required before full canvas acceptance.
+scene or requests an OCaml paint callback. Object semantics are described below; public application and aggregate acceptance
+remain required before full canvas acceptance.
+
+
+## Accessible object representation
+
+When GPUI accessibility is active, the native canvas exposes the scene description
+and its interactive objects in scene order. A selectable canvas is a semantic
+listbox; each object has its author-supplied label and selected state. Keyboard
+focus stays on the canvas while GPUI reports the selected object as its active
+descendant. A non-selectable canvas uses a group with graphics objects instead.
+These are native semantic elements, not additional OCaml views or tab stops.
+
+Focus or the object's selection action selects without activation. An activatable
+object has a separate labelled `Activate <label>` button; its action selects and
+activates the object. Enter/Space also activate the selected object. This separation
+matters on macOS, whose adapter maps setting selected state through the selection
+item's click action. Representing the object itself as a button would lose the
+platform's selected-state reporting.
+
+Keyboard navigation and accessible object actions bring an offscreen or partially
+visible object to the center of the canvas, preserving zoom, when pan/zoom policy
+permits. This produces a semantic viewport observation. Fully world-clipped
+objects retain their labels with zero-sized bounds; they are not made visible by
+panning. Application commands retain their explicitly requested viewport behavior.
+
+Accessible bounds are an axis-aligned envelope of the effective transformed hit
+bounds, intersected with world clips and projected through the native viewport.
+They need not match the exact outline of a rotated shape or polygon. A fixed-size,
+clipped semantic layer keeps these envelopes out of the outer view's scroll
+extents. Offscreen objects remain discoverable. Object identities include source,
+scene generation and item identity, so same-generation updates preserve identity
+while resets replace it.
+
+Callbacks validate configuration identity, the displayed snapshot and current input
+gates. Retired snapshots are held weakly by callbacks. Disabled/unready objects have
+no enabled actions; hiding/removal removes their semantic subtree. At most 2,048
+object nodes and 2,048 activation children are built, and only while accessibility
+is active. Installing newly prepared geometry requests one further frame in that
+case so the next accessibility prepaint observes the installed snapshot. Native
+selection, dragging and viewport state continue to own interaction; assistive input
+does not introduce an OCaml frame callback.

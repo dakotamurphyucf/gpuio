@@ -698,6 +698,178 @@ async fn frame(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
         .await;
     draw(cx, handle);
 }
+#[cfg(target_os = "macos")]
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum AccessRequest {
+    Inspect,
+    Select,
+    Activate,
+}
+#[cfg(target_os = "macos")]
+#[derive(Debug)]
+struct AccessibleObject {
+    role: String,
+    selected: bool,
+    focused: bool,
+    enabled: bool,
+    bounds: objc2_foundation::NSRect,
+}
+#[cfg(target_os = "macos")]
+fn accessible_object(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    request: AccessRequest,
+) -> Option<AccessibleObject> {
+    use objc2::{
+        msg_send,
+        runtime::{AnyObject, Bool},
+    };
+    use objc2_foundation::NSString;
+    unsafe fn visit(
+        object: *mut AnyObject,
+        request: AccessRequest,
+        depth: usize,
+    ) -> Option<AccessibleObject> {
+        if object.is_null() || depth > 16 {
+            return None;
+        }
+        unsafe {
+            let title: *mut NSString = msg_send![object, accessibilityTitle];
+            if !title.is_null()
+                && (*title).to_string()
+                    == if request == AccessRequest::Activate {
+                        "Activate Task"
+                    } else {
+                        "Task"
+                    }
+            {
+                let role: *mut NSString = msg_send![object, accessibilityRole];
+                let selected: Bool = msg_send![object, isAccessibilitySelected];
+                let focused: Bool = msg_send![object, isAccessibilityFocused];
+                let enabled: Bool = msg_send![object, isAccessibilityEnabled];
+                let bounds = msg_send![object, accessibilityFrame];
+                if request != AccessRequest::Inspect {
+                    let _: () = msg_send![object, setAccessibilityFocused: true];
+                    let accepted: Bool = msg_send![object, accessibilityPerformPress];
+                    assert!(!enabled.as_bool() || accepted.as_bool());
+                }
+                return Some(AccessibleObject {
+                    role: (*role).to_string(),
+                    selected: selected.as_bool(),
+                    focused: focused.as_bool(),
+                    enabled: enabled.as_bool(),
+                    bounds,
+                });
+            }
+            let children: *mut AnyObject = msg_send![object, accessibilityChildren];
+            if !children.is_null() {
+                let count: usize = msg_send![children, count];
+                assert!(count <= 2048);
+                for index in 0..count {
+                    let child = msg_send![children, objectAtIndex: index];
+                    if let Some(found) = visit(child, request, depth + 1) {
+                        return Some(found);
+                    }
+                }
+            }
+            None
+        }
+    }
+    let view = super::super::editor_test::native_view(cx, handle) as *mut AnyObject;
+    unsafe {
+        let window: *mut AnyObject = msg_send![view, window];
+        let content = msg_send![window, contentView];
+        visit(content, request, 0)
+    }
+}
+#[cfg(target_os = "macos")]
+async fn exercise_accessibility(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    source: ResourceId,
+    transport: &Transport,
+) {
+    let _ = accessible_object(cx, handle, AccessRequest::Inspect); // activate the native adapter
+    frame(cx, handle).await;
+    let object =
+        accessible_object(cx, handle, AccessRequest::Inspect).expect("accessible canvas object");
+    assert_eq!(object.role, "AXStaticText");
+    assert!(
+        object.enabled && object.selected && object.focused,
+        "{object:?}"
+    );
+    assert_eq!(object.bounds.size.width, 60.);
+    assert_eq!(object.bounds.size.height, 60.);
+    let mut clear = config(Some(source));
+    clear.command = Some(Command {
+        sequence: 2,
+        action: Action::Select(None),
+    });
+    apply(cx, handle, vec![Op::SetCanvas(id(1), clear)]);
+    observations(transport);
+    frame(cx, handle).await;
+    assert!(
+        !accessible_object(cx, handle, AccessRequest::Inspect)
+            .unwrap()
+            .selected
+    );
+    accessible_object(cx, handle, AccessRequest::Select).unwrap();
+    frame(cx, handle).await;
+    assert_eq!(
+        observations(transport),
+        vec![Observation::SelectionChanged(Some(1))]
+    );
+    accessible_object(cx, handle, AccessRequest::Activate).unwrap();
+    frame(cx, handle).await;
+    assert_eq!(observations(transport), vec![Observation::Activated(1)]);
+    let before = accessible_object(cx, handle, AccessRequest::Inspect).unwrap();
+    assert!(before.selected && before.focused);
+    key(cx, handle, "alt-shift-right");
+    frame(cx, handle).await;
+    let after = accessible_object(cx, handle, AccessRequest::Inspect).unwrap();
+    assert_eq!(after.bounds.origin.x - before.bounds.origin.x, 10.);
+    assert!(matches!(
+        observations(transport).as_slice(),
+        [Observation::Moved(1, _)]
+    ));
+    let mut offscreen = config(Some(source));
+    offscreen.command = Some(Command {
+        sequence: 3,
+        action: Action::SetViewport(Viewport {
+            origin: Point { x: 5000., y: 5000. },
+            zoom: 1.,
+        }),
+    });
+    apply(cx, handle, vec![Op::SetCanvas(id(1), offscreen)]);
+    observations(transport);
+    frame(cx, handle).await;
+    accessible_object(cx, handle, AccessRequest::Select)
+        .expect("offscreen object stays discoverable");
+    frame(cx, handle).await;
+    assert!(matches!(
+        observations(transport).as_slice(),
+        [Observation::ViewportChanged(_)]
+    ));
+    let visible = accessible_object(cx, handle, AccessRequest::Inspect).unwrap();
+    assert!(visible.bounds.origin.x > 0. && visible.bounds.origin.y > 0.);
+    apply(
+        cx,
+        handle,
+        vec![Op::SetStyle(
+            id(0),
+            vec![Style::Fields(vec![Field::Display(3)])],
+        )],
+    );
+    frame(cx, handle).await;
+    assert!(accessible_object(cx, handle, AccessRequest::Inspect).is_none());
+    apply(cx, handle, vec![Op::SetStyle(id(0), vec![])]);
+    ready(cx, handle, 2).await;
+    frame(cx, handle).await;
+    assert!(accessible_object(cx, handle, AccessRequest::Inspect).is_some());
+    eprintln!(
+        "GPUIO_CANVAS_MACOS_AX_OK: native object label/role, selected active-descendant focus, focus/press delivery, keyboard movement and transformed AX bounds"
+    );
+}
 async fn exercise_input(
     cx: &mut gpui::AsyncApp,
     handle: WindowHandle<View>,
@@ -1092,16 +1264,18 @@ async fn exercise_input(
     assert!(
         matches!(observations(&transport).as_slice(),[Observation::ViewportChanged(v)] if v.origin.x == -8.)
     );
+    #[cfg(target_os = "macos")]
+    exercise_accessibility(cx, handle, source, &transport).await;
     // Disable rejects key/pointer changes, while explicit commands still work.
     let mut disabled = config(Some(source));
     disabled.disabled = true;
     disabled.command = Some(Command {
-        sequence: 2,
+        sequence: 4,
         action: Action::ResetViewport,
     });
     apply(cx, handle, vec![Op::SetCanvas(id(1), disabled)]);
     let events = observations(&transport);
-    assert!(events.contains(&Observation::CommandCompleted(2)));
+    assert!(events.contains(&Observation::CommandCompleted(4)));
     key(cx, handle, "shift-right");
     move_mouse(cx, handle, position(50., 30.), false);
     mouse(cx, handle, position(50., 30.), true);
@@ -1113,6 +1287,18 @@ async fn exercise_input(
         })
         .unwrap();
     frame(cx, handle).await;
+    #[cfg(target_os = "macos")]
+    assert!(
+        !accessible_object(cx, handle, AccessRequest::Inspect)
+            .unwrap()
+            .enabled
+    );
+    #[cfg(target_os = "macos")]
+    {
+        accessible_object(cx, handle, AccessRequest::Activate).unwrap();
+        frame(cx, handle).await;
+        assert!(observations(&transport).is_empty());
+    }
     key(cx, handle, "tab");
     assert!(
         !handle
@@ -1137,7 +1323,12 @@ async fn exercise_input(
             .canvas_request(Request::Release(source)),
         Response::Ack
     );
+    #[cfg(target_os = "macos")]
+    {
+        frame(cx, handle).await;
+        assert!(accessible_object(cx, handle, AccessRequest::Inspect).is_none());
+    }
     eprintln!(
-        "GPUIO_NATIVE_CANVAS_INPUT_OK: native dispatch focus, drag capture/preview/commit, selection pixels, keyboard activation/movement, cancellation, publication fencing and wheel coalescing; object AX acceptance pending"
+        "GPUIO_NATIVE_CANVAS_INPUT_OK: native dispatch focus, drag capture/preview/commit, selection pixels, keyboard activation/movement, cancellation, publication fencing and wheel coalescing"
     );
 }
