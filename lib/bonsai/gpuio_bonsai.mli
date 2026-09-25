@@ -8,6 +8,8 @@ module View : sig
   type t = unit Bonsai.Effect.t Gpuio.View.t
   type toast = unit Bonsai.Effect.t Gpuio.View.toast
 
+  val with_accessibility : t -> Gpuio.Accessibility.t -> t Or_error.t
+
   val container_query
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

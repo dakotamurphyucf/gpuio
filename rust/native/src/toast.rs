@@ -551,6 +551,7 @@ impl View {
             .on_any_mouse_down(|_, _, cx| cx.stop_propagation())
             .on_scroll_wheel(|_, _, cx| cx.stop_propagation());
         crate::semantics::State {
+            metadata: None,
             element: panel,
             disabled: false,
             read_only: false,

@@ -2,6 +2,8 @@ use crate::{HandlerId, NodeId, WindowId, v1::*};
 use binprot::BinProtRead;
 use std::io::{Cursor, Read};
 
+mod accessibility;
+pub use accessibility::decode_accessibility;
 mod container_query;
 pub use container_query::decode_container_query;
 mod animation_program;
@@ -905,6 +907,7 @@ impl Decoder<'_> {
             36 => Op::SetCanvas(self.node()?, self.canvas_view_config()?),
             37 => Op::SetAnimationProgram(self.node()?, self.animation_program_config()?),
             38 => Op::SetContainerQuery(self.node()?, self.container_query_config()?),
+            39 => Op::SetAccessibility(self.node()?, self.option(|d| d.accessibility_config())?),
             34 => {
                 let id = self.node()?;
                 let config = crate::split::Config {

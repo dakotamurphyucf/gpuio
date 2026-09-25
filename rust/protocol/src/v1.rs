@@ -595,6 +595,7 @@ pub enum Op {
     SetCanvas(NodeId, crate::canvas_view::Config),
     SetAnimationProgram(NodeId, crate::animation_program::Config),
     SetContainerQuery(NodeId, crate::container_query::Config),
+    SetAccessibility(NodeId, Option<crate::accessibility::Config>),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]

@@ -195,3 +195,8 @@ name = "native_container_query"
 path = "tests/native_container_query.rs"
 harness = false
 required-features = ["native-tests"]
+
+[[test]]
+name = "native_presentation"
+harness = false
+required-features = ["native-tests"]

@@ -3,6 +3,12 @@
     domain, after generation validation, using the latest accepted closure. *)
 type 'action t
 
+(** Preserve keyed identity while applying validated native semantics. General
+    presentation roles apply to containers/text; Link applies to buttons. Field
+    metadata applies to native input/textarea/combobox, checkbox/switch and
+    radio/select roots. Ambiguous or unsupported placements return an error. *)
+val with_accessibility : 'action t -> Accessibility.t -> 'action t Core.Or_error.t
+
 val text : ?key:Key.t -> ?style:Style.t -> string -> 'action t
 
 (** Retained native canvas backed by a scoped scene registration. Style determines
@@ -625,6 +631,7 @@ module Expert : sig
     ; animation : 'action animation option
     ; animation_program : 'action animation_program option
     ; container_query : 'action container_query option
+    ; accessibility : Accessibility.t option
     ; image : 'action image option
     ; extension : 'action extension option
     ; split_pane : 'action split_pane option

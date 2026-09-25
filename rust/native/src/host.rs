@@ -17,6 +17,9 @@ mod container_query;
 pub(super) mod container_query_test;
 #[path = "extension_view.rs"]
 mod extension_view;
+#[cfg(feature = "native-tests")]
+#[path = "presentation_test.rs"]
+pub(super) mod presentation_test;
 use crate::{session::Session, transport::Transport};
 use gpui::Focusable;
 use gpui::{
@@ -423,7 +426,12 @@ impl View {
         };
         for node in nodes {
             if let Some(editor) = self.editors.get_mut(&node.id) {
-                editor.configure(node.editor.as_ref().expect("validated editor"), window, cx);
+                editor.configure(
+                    node.editor.as_ref().expect("validated editor"),
+                    &node.accessibility,
+                    window,
+                    cx,
+                );
             } else {
                 let editor = editor::Instance::new(
                     self.id,
@@ -1172,6 +1180,11 @@ impl View {
     ) -> gpui::AnyElement {
         let id = node.id;
         let element = crate::semantics::State {
+            metadata: if node.editor.is_none() {
+                node.accessibility.clone()
+            } else {
+                None
+            },
             live: None,
             element,
             disabled,

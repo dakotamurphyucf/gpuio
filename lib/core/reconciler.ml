@@ -717,6 +717,16 @@ let rec mount builder ~depth previous view =
       in
       if not (Option.equal Toast.Stack.equal old (Some config))
       then emit builder (Set_toast_stack (id, Toast.Expert.stack_to_wire config)));
+    let accessibility = description.accessibility in
+    let old_accessibility =
+      Option.bind previous ~f:(fun mounted ->
+        (View.Expert.describe mounted.view).accessibility)
+    in
+    if not (Option.equal Accessibility.equal accessibility old_accessibility)
+    then
+      emit
+        builder
+        (Set_accessibility (id, Option.map accessibility ~f:Accessibility.Expert.to_wire));
     let old_query = Option.bind previous ~f:(fun mounted -> mounted.container_query) in
     if not (Option.equal Wire.Container_query.Config.equal container_query old_query)
     then

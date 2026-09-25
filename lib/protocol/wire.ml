@@ -2,6 +2,7 @@ open Core
 module Asset = Asset_wire
 module Image = Image_wire
 module Animation = Animation_wire
+module Accessibility = Accessibility_wire
 module Container_query = Container_query_wire
 module Animation_program = Animation_program_wire
 module Document = Document_wire
@@ -706,6 +707,7 @@ module Op = struct
     | Set_canvas of Node_id.t * Canvas_view.Config.t
     | Set_animation_program of Node_id.t * Animation_program.Config.t
     | Set_container_query of Node_id.t * Container_query.Config.t
+    | Set_accessibility of Node_id.t * Accessibility.Config.t option
   [@@deriving bin_io, equal, sexp_of]
 end
 

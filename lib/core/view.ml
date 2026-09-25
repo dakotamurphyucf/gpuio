@@ -203,6 +203,7 @@ type 'action t =
   ; animation : 'action animation option
   ; animation_program : 'action animation_program option
   ; container_query : 'action container_query option
+  ; accessibility : Accessibility.t option
   ; image : 'action image option
   ; extension : 'action extension option
   ; split_pane : 'action split_pane option
@@ -239,6 +240,7 @@ let text ?key ?(style = Style.empty) text =
   ; animation = None
   ; animation_program = None
   ; container_query = None
+  ; accessibility = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -259,6 +261,47 @@ let animate_program ?key ?(style = Style.empty) ?on_event config children =
   ; animation_program = Some { config; on_event }
   ; children
   }
+;;
+
+let with_accessibility t accessibility =
+  let metadata = Accessibility.Expert.to_wire accessibility in
+  let supported =
+    match metadata.field, metadata.role, t.kind with
+    | ( Some _
+      , None
+      , (Input | Textarea | Combobox | Checkbox | Switch | Radio_group | Select) ) -> true
+    | None, Some Link, (Button | Command_button) -> true
+    | ( None
+      , Some
+          ( Group
+          | Label
+          | Separator
+          | Description_list
+          | Term
+          | Definition
+          | Status
+          | Alert
+          | Image
+          | Heading _ )
+      , (Container | Text) ) -> true
+    | ( None
+      , None
+      , ( Container
+        | Text
+        | Button
+        | Command_button
+        | Input
+        | Textarea
+        | Combobox
+        | Checkbox
+        | Switch
+        | Radio_group
+        | Select ) ) -> true
+    | _ -> false
+  in
+  if supported
+  then Ok { t with accessibility = Some accessibility }
+  else Or_error.error_string "accessibility metadata is incompatible with this view kind"
 ;;
 
 let animate ?key ?(style = Style.empty) ?on_event config children =
@@ -310,6 +353,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; animation = None
   ; animation_program = None
   ; container_query = None
+  ; accessibility = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -406,6 +450,7 @@ let button
   ; animation = None
   ; animation_program = None
   ; container_query = None
+  ; accessibility = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -474,6 +519,7 @@ let toggle
   ; animation = None
   ; animation_program = None
   ; container_query = None
+  ; accessibility = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -526,6 +572,7 @@ let focus_scope ?key ?style ~config children =
   ; animation = None
   ; animation_program = None
   ; container_query = None
+  ; accessibility = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -833,6 +880,7 @@ let text_input
   ; animation = None
   ; animation_program = None
   ; container_query = None
+  ; accessibility = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -870,6 +918,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; animation = None
   ; animation_program = None
   ; container_query = None
+  ; accessibility = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -933,6 +982,7 @@ let combobox
   ; animation = None
   ; animation_program = None
   ; container_query = None
+  ; accessibility = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -1177,6 +1227,7 @@ module Expert = struct
     ; animation : 'action animation option
     ; animation_program : 'action animation_program option
     ; container_query : 'action container_query option
+    ; accessibility : Accessibility.t option
     ; image : 'action image option
     ; extension : 'action extension option
     ; split_pane : 'action split_pane option

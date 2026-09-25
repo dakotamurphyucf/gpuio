@@ -53,6 +53,7 @@ pub struct Node {
     pub animation: Option<Arc<gpuio_protocol::animation::Config>>,
     pub animation_program: Option<Arc<gpuio_protocol::animation_program::Config>>,
     pub container_query: Option<Arc<gpuio_protocol::container_query::Config>>,
+    pub accessibility: Option<Arc<gpuio_protocol::accessibility::Config>>,
     pub list_config: Option<Arc<gpuio_protocol::list::Config>>,
     pub list_order: Option<Arc<gpuio_protocol::list::Order>>,
     pub list_index: Option<Arc<crate::list_index::Index>>,
@@ -74,6 +75,10 @@ pub struct Node {
 impl Node {
     fn payload_bytes(&self) -> usize {
         self.text.len()
+            + self
+                .accessibility
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
             + self
                 .container_query
                 .as_ref()
@@ -1009,6 +1014,7 @@ impl Plan<'_> {
             | Op::SetAnimation(id, ..)
             | Op::SetAnimationProgram(id, ..)
             | Op::SetContainerQuery(id, ..)
+            | Op::SetAccessibility(id, ..)
             | Op::SetListConfig(id, ..)
             | Op::SetListOrder(id, ..)
             | Op::SetListRows(id, ..)
@@ -1113,6 +1119,7 @@ impl Plan<'_> {
                             animation: None,
                             animation_program: None,
                             container_query: None,
+                            accessibility: None,
                             list_config: None,
                             list_order: None,
                             list_index: None,
@@ -1211,6 +1218,16 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.container_query = Some(Arc::new(config.clone()));
+            }
+            Op::SetAccessibility(id, config) => {
+                let kind = self.node(*id)?.kind;
+                if config
+                    .as_ref()
+                    .is_some_and(|c| !c.is_valid() || !c.supports(kind))
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.accessibility = config.clone().map(Arc::new);
             }
             Op::SetAnimationProgram(id, config) => {
                 let node = self.node(*id)?;

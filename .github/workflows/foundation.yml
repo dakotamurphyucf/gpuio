@@ -99,7 +99,7 @@ jobs:
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_editor --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_controls --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_scroll --test native_list --test native_document --test native_window --test native_tabs --test native_split --test native_extension --no-run
-          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_animation --test native_animation_program --test native_drag_drop --test native_file_dialog --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_animation --test native_animation_program --test native_presentation --test native_drag_drop --test native_file_dialog --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-tests --all-targets -- -D warnings
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_images --test native_image_views --test native_container_query --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-image-tests --all-targets -- -D warnings
@@ -158,6 +158,12 @@ jobs:
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_container_query"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-container-query-native.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/container_query/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-container-query-public.log
+      - name: macOS native and public presentation components
+        if: runner.os == 'macOS'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_presentation"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-presentation-native.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/presentation/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-presentation-public.log
+          python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_presentation.py"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-presentation-ax.log
       - name: macOS native nested scrolling
         if: runner.os == 'macOS'
         run: |

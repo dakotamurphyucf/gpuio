@@ -5,6 +5,9 @@
   (deps
    (sandbox preserve_file_kind)
    animation-v1-config.hex
+   accessibility-field.hex
+   accessibility-request.hex
+   accessibility-roles.hex
    container-query.hex
    container-query-request.hex
    container-query-events.hex
@@ -140,3 +143,9 @@
 (copy_files ../fixtures/container-query-request.hex)
 
 (copy_files ../fixtures/container-query-events.hex)
+
+(copy_files ../fixtures/accessibility-field.hex)
+
+(copy_files ../fixtures/accessibility-request.hex)
+
+(copy_files ../fixtures/accessibility-roles.hex)

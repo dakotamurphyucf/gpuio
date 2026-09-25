@@ -75,6 +75,13 @@ queries are advertised and final local capability checks pass. Consolidated
 hosted macOS/Linux gates and merge remain pending.
 See [container query design](design/container-queries.md) and
 [acceptance evidence](evidence/container-queries-och26.md).
+OCH-33 now implements bounded semantic metadata, native form associations and
+stateless presentation/card helpers with public Core/Bonsai/Eio usage. Local
+OCaml/Rust tests and macOS editor/AX/keyboard checks pass, including metadata
+updates during IME composition and corrected light/dark card layouts. Avatar
+fallback, native loading indicators, rating and complete family acceptance remain.
+See [presentation evidence](evidence/presentation-components-och33.md) and
+the [Component Studio example](../examples/presentation/README.md).
 No milestone-05 completion or hosted acceptance is claimed yet.
 
 The [milestone acceptance ledger](evidence/milestones-01-02.md) maps every ticket

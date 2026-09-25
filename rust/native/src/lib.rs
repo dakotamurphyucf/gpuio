@@ -180,3 +180,8 @@ pub fn run_native_canvas_input_test() {
 pub fn run_native_container_query_test() {
     host::container_query_test::run();
 }
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_presentation_test() {
+    host::presentation_test::run();
+}

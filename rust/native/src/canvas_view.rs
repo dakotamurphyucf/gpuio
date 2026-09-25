@@ -509,6 +509,7 @@ impl View {
             .size_full(),
         );
         crate::semantics::State {
+            metadata: None,
             element,
             disabled: config.disabled,
             read_only: false,

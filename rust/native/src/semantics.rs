@@ -4,7 +4,86 @@ use gpui::{
     A11ySubtreeBuilder, App, Bounds, Element, ElementId, GlobalElementId, InspectorElementId,
     IntoElement, LayoutId, Pixels, Window, accesskit,
 };
+use gpuio_protocol::accessibility::{Config, Live, Role};
+
+fn role(role: Role) -> accesskit::Role {
+    match role {
+        Role::Group => accesskit::Role::Group,
+        Role::Label => accesskit::Role::Label,
+        Role::Link => accesskit::Role::Link,
+        Role::Separator => accesskit::Role::Splitter,
+        Role::DescriptionList => accesskit::Role::DescriptionList,
+        Role::Term => accesskit::Role::Term,
+        Role::Definition => accesskit::Role::Definition,
+        Role::Status => accesskit::Role::Status,
+        Role::Alert => accesskit::Role::Alert,
+        Role::Image => accesskit::Role::Image,
+        Role::Heading(_) => accesskit::Role::Heading,
+    }
+}
+fn metadata(config: &Config, node: &mut accesskit::Node) {
+    if let Some(label) = &config.label {
+        node.set_label(label.clone());
+    }
+    if let Some(description) = &config.description {
+        node.set_description(description.clone());
+    }
+    node.set_live(match config.live {
+        Live::Off => accesskit::Live::Off,
+        Live::Polite => accesskit::Live::Polite,
+        Live::Assertive => accesskit::Live::Assertive,
+    });
+    if let Some(Role::Heading(level)) = config.role {
+        node.set_level(level as usize);
+    }
+    if let Some(field) = &config.field {
+        node.set_label(field.label.clone());
+        if field.required {
+            node.set_required();
+        }
+        if field.error.is_some() {
+            node.set_invalid(accesskit::Invalid::True);
+        }
+        let description = [field.help.as_deref(), field.error.as_deref()]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>()
+            .join("\n");
+        if !description.is_empty() {
+            node.set_description(description);
+        }
+    }
+}
+
+fn field_relationships(config: &Config, builder: &mut A11ySubtreeBuilder) {
+    let Some(field) = &config.field else {
+        return;
+    };
+    let label = builder.synthetic_node_id("gpuio-field-label");
+    let mut label_node = accesskit::Node::new(accesskit::Role::Label);
+    label_node.set_label(field.label.clone());
+    if builder.push_child(label, label_node) {
+        builder.parent_node().set_labelled_by(vec![label]);
+    }
+    for (key, text, error) in [
+        ("gpuio-field-help", field.help.as_deref(), false),
+        ("gpuio-field-error", field.error.as_deref(), true),
+    ] {
+        if let Some(text) = text {
+            let id = builder.synthetic_node_id(key);
+            let mut node = accesskit::Node::new(accesskit::Role::Label);
+            node.set_label(text.to_owned());
+            if builder.push_child(id, node) {
+                builder.parent_node().push_described_by(id);
+                if error {
+                    builder.parent_node().set_error_message(id);
+                }
+            }
+        }
+    }
+}
 pub struct State<E> {
+    pub metadata: Option<std::sync::Arc<gpuio_protocol::accessibility::Config>>,
     pub element: E,
     pub disabled: bool,
     pub read_only: bool,
@@ -61,7 +140,11 @@ impl<E: Element> Element for State<E> {
             .paint(id, inspector, bounds, layout, prepaint, window, cx);
     }
     fn a11y_role(&self) -> Option<accesskit::Role> {
-        self.element.a11y_role()
+        self.metadata
+            .as_ref()
+            .and_then(|c| c.role.map(role))
+            .or_else(|| self.element.a11y_role())
+            .or_else(|| self.metadata.as_ref().map(|_| accesskit::Role::Group))
     }
     fn write_a11y_info(&self, node: &mut accesskit::Node) {
         self.element.write_a11y_info(node);
@@ -76,6 +159,9 @@ impl<E: Element> Element for State<E> {
         }
         if self.read_only {
             node.set_read_only();
+        }
+        if let Some(config) = &self.metadata {
+            metadata(config, node);
         }
         // accesskit_macos 0.26.3 maps any non-False Toggled to NSNumber(true),
         // losing Mixed. Cocoa checkboxes require NSNumber(2) for mixed state.
@@ -95,6 +181,9 @@ impl<E: Element> Element for State<E> {
         builder: &mut A11ySubtreeBuilder,
     ) {
         self.element.a11y_synthetic_children(prepaint, builder);
+        if let Some(config) = &self.metadata {
+            field_relationships(config, builder);
+        }
     }
 }
 
@@ -103,12 +192,50 @@ mod tests {
     use super::*;
     use gpui::prelude::*;
     #[test]
+    fn field_state_keeps_control_actions_and_sets_required_invalid_and_help() {
+        use gpuio_protocol::accessibility::Field;
+        let mut config = Config {
+            role: None,
+            label: None,
+            description: None,
+            live: Live::Off,
+            field: Some(Field {
+                label: "Name".into(),
+                help: Some("Public name".into()),
+                error: Some("Required".into()),
+                required: true,
+            }),
+        };
+        let mut node = accesskit::Node::new(accesskit::Role::TextInput);
+        node.add_action(accesskit::Action::Focus);
+        node.add_action(accesskit::Action::SetValue);
+        node.set_read_only();
+        metadata(&config, &mut node);
+        assert_eq!(node.role(), accesskit::Role::TextInput);
+        assert_eq!(node.label(), Some("Name"));
+        assert_eq!(node.description(), Some("Public name\nRequired"));
+        assert!(node.is_required());
+        assert_eq!(node.invalid(), Some(accesskit::Invalid::True));
+        assert!(node.supports_action(accesskit::Action::Focus));
+        assert!(node.supports_action(accesskit::Action::SetValue));
+        assert!(node.is_read_only());
+        let field = config.field.as_mut().unwrap();
+        field.required = false;
+        field.error = None;
+        let mut next = accesskit::Node::new(accesskit::Role::TextInput);
+        metadata(&config, &mut next);
+        assert!(!next.is_required());
+        assert_eq!(next.invalid(), None);
+        assert_eq!(next.description(), Some("Public name"));
+    }
+    #[test]
     fn notifications_preserve_polite_and_assertive_live_semantics() {
         for (role, live) in [
             (accesskit::Role::Status, accesskit::Live::Polite),
             (accesskit::Role::Alert, accesskit::Live::Assertive),
         ] {
             let element = State {
+                metadata: None,
                 element: gpui::div()
                     .id("notification")
                     .role(role)

@@ -22,3 +22,7 @@ where a test permits background execution. CI supplies the final platform gates.
 
 - `combobox`: editable choices with native query ownership and a public controller
   self-test for guarded replacement, undo and stale unmount. See its README.
+
+- [`presentation`](presentation/README.md): public stateless presentation helpers,
+  settings/form semantics and reusable chat cards, with light/dark appearances
+  and native keyboard/accessibility checks. OCH-33's stateful families remain pending.

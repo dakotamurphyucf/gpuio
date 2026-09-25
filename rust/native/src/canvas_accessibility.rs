@@ -209,6 +209,7 @@ pub(super) fn objects(
                     });
             }
             object = object.child(crate::semantics::State {
+                metadata: None,
                 element: activate,
                 disabled,
                 read_only: false,
@@ -217,6 +218,7 @@ pub(super) fn objects(
             });
         }
         objects = objects.child(crate::semantics::State {
+            metadata: None,
             element: object,
             disabled,
             read_only: false,

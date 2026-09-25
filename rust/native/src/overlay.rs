@@ -83,6 +83,7 @@ pub(super) fn element(
         None => panel.into_any_element(),
     };
     let panel = crate::semantics::State {
+        metadata: None,
         live: None,
         element: panel,
         disabled: false,

@@ -197,6 +197,12 @@ fn configure<M: InputModeKind>(
             }
         }
         crate::semantics::State {
+            metadata: route
+                .session
+                .borrow()
+                .tree(route.window)
+                .and_then(|tree| tree.get(route.node))
+                .and_then(|node| node.accessibility.clone()),
             live: None,
             element,
             disabled: config.disabled,
@@ -287,6 +293,7 @@ enum State {
 pub(super) struct Instance {
     state: State,
     config: EditorConfig,
+    accessibility: Option<Arc<gpuio_protocol::accessibility::Config>>,
     route: Rc<Route>,
     _subscriptions: Vec<Subscription>,
     combobox: Option<Rc<RefCell<super::combobox::State>>>,
@@ -359,6 +366,7 @@ impl Instance {
         let instance = Self {
             state,
             config,
+            accessibility: node.accessibility.clone(),
             route,
             _subscriptions: subscriptions,
             combobox,
@@ -374,7 +382,20 @@ impl Instance {
             .publish(instance.snapshot(window, cx), EditorEventKind::Changed);
         instance
     }
-    pub(super) fn configure(&mut self, config: &EditorConfig, window: &mut Window, cx: &mut App) {
+    pub(super) fn configure(
+        &mut self,
+        config: &EditorConfig,
+        accessibility: &Option<Arc<gpuio_protocol::accessibility::Config>>,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        if self.accessibility != *accessibility {
+            self.accessibility = accessibility.clone();
+            match &self.state {
+                State::Input(entity) => entity.update(cx, |_, cx| cx.notify()),
+                State::Textarea(entity) => entity.update(cx, |_, cx| cx.notify()),
+            }
+        }
         if &self.config == config {
             return;
         }
