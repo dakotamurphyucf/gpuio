@@ -3,6 +3,8 @@
 mod command_test;
 #[path = "drag_drop_test.rs"]
 mod drag_drop_test;
+#[path = "extension_test.rs"]
+mod extension_test;
 #[path = "menu_test.rs"]
 mod menu_test;
 #[path = "overlay_test.rs"]
@@ -1585,6 +1587,7 @@ enum Suite {
     Controls,
     Tabs,
     Splits,
+    Extensions,
     Menus,
     Palette,
     Progress,
@@ -1594,6 +1597,10 @@ enum Suite {
 }
 pub fn run() {
     run_suite(Suite::Controls);
+}
+pub fn run_extensions() {
+    extension_test::install();
+    run_suite(Suite::Extensions);
 }
 pub fn run_splits() {
     run_suite(Suite::Splits);
@@ -1698,7 +1705,10 @@ fn run_suite(suite: Suite) {
             Op::Splice(node(0), 0, 0, vec![node(1), node(2), node(3), node(4)]),
             Op::SetRoot(Some(node(0))),
         ]);
-        if suite != Suite::Controls && suite != Suite::Tabs && suite != Suite::Splits {
+        if !matches!(
+            suite,
+            Suite::Controls | Suite::Tabs | Suite::Splits | Suite::Extensions
+        ) {
             // Reserve the same generational slots used by preceding component
             // fixtures, without exercising those unrelated windows/interactions.
             let end = match suite {
@@ -1708,7 +1718,7 @@ fn run_suite(suite: Suite) {
                 Suite::Toast => 61,
                 Suite::Pointer => 82,
                 Suite::DragDrop => 90,
-                Suite::Controls | Suite::Tabs | Suite::Splits => unreachable!(),
+                Suite::Controls | Suite::Tabs | Suite::Splits | Suite::Extensions => unreachable!(),
             };
             for slot in 5..end {
                 operations.push(Op::Create(node(slot), Kind::Text, String::new(), None));
@@ -1751,6 +1761,7 @@ fn run_suite(suite: Suite) {
                 if suite != Suite::Controls {
                     frame(cx, handle).await;
                     match suite {
+                        Suite::Extensions => extension_test::exercise(cx, handle, &transport).await,
                         Suite::Splits => split_test::exercise(cx, handle, &transport).await,
                         Suite::Tabs => {
                             radio(cx, handle, &transport, Kind::TabBar, 5).await;
@@ -1764,9 +1775,11 @@ fn run_suite(suite: Suite) {
                         Suite::Pointer => pointer_test::exercise(cx, handle, &transport).await,
                         Suite::Controls => unreachable!(),
                     }
-                    handle
-                        .update(cx, |_, window, _| window.remove_window())
-                        .unwrap();
+                    if suite != Suite::Extensions {
+                        handle
+                            .update(cx, |_, window, _| window.remove_window())
+                            .unwrap();
+                    }
                 } else {
                     exercise(cx, handle, transport).await;
                 }

@@ -117,7 +117,11 @@ impl Manager {
         let Some(item) = tree.get(node) else {
             return false;
         };
-        if item.control.is_some_and(Control::disabled)
+        if item
+            .extension
+            .as_ref()
+            .is_some_and(|config| config.disabled)
+            || item.control.is_some_and(Control::disabled)
             || item.editor.as_ref().is_some_and(|config| config.disabled)
             || item.choice.as_ref().is_some_and(|config| config.disabled)
             || item

@@ -94,3 +94,26 @@ module Signal = struct
     | Mounted | Failed _ -> true
   ;;
 end
+
+module Catalog = struct
+  type t = Schema.t list [@@deriving bin_io, equal, sexp_of]
+
+  let decode bytes =
+    Or_error.try_with (fun () ->
+      if String.length bytes > (max_components * 256) + 9
+      then failwith "extension catalog exceeds its byte limit";
+      let buffer = Bigstring.of_string bytes in
+      let pos_ref = ref 0 in
+      let count = (Bin_prot.Read.bin_read_nat0 buffer ~pos_ref :> int) in
+      if count > max_components
+      then failwith "extension catalog exceeds its component limit";
+      let schemas = List.init count ~f:(fun _ -> Schema.bin_read_t buffer ~pos_ref) in
+      if !pos_ref <> String.length bytes then failwith "trailing extension catalog bytes";
+      if not (List.for_all schemas ~f:Schema.valid)
+      then failwith "invalid extension schema";
+      let names = List.map schemas ~f:(fun schema -> schema.name) in
+      if List.contains_dup names ~compare:String.compare
+      then failwith "duplicate extension schema";
+      schemas)
+  ;;
+end

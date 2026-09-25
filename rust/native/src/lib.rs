@@ -1,3 +1,5 @@
+pub mod extensions;
+pub use gpuio_extension_sdk as extension_sdk;
 mod appearance;
 pub mod asset_cache;
 pub mod asset_decode;
@@ -134,4 +136,9 @@ pub fn run_native_tabs_test() {
 #[cfg(feature = "native-tests")]
 pub fn run_native_split_test() {
     host::control_test::run_splits();
+}
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_extension_test() {
+    host::control_test::run_extensions();
 }

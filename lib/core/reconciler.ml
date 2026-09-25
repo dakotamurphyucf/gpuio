@@ -64,6 +64,7 @@ module Identity = struct
 end
 
 type 'a callback =
+  | Extension of Wire.Extension.Config.t * (Wire.Extension.Signal.t -> 'a)
   | Split_pane of Split_pane.Config.t * (Split_pane.Snapshot.t -> 'a)
   | Document of Text_source.Handle.t * (Document.Navigation.t -> 'a)
   | Virtual_list of List_identity.t * 'a View.Expert.virtual_list
@@ -227,12 +228,18 @@ let kind = function
   | Tab_bar -> Tab_bar
   | Tab_panel -> Tab_panel
   | Split_pane -> Split_pane
+  | Extension -> Extension
 ;;
 
 let compatible mounted view =
   let old = View.Expert.describe mounted.view
   and next = View.Expert.describe view in
-  View.Expert.Kind.equal old.kind next.kind && Option.equal Key.equal old.key next.key
+  View.Expert.Kind.equal old.kind next.kind
+  && Option.equal Key.equal old.key next.key
+  && Option.equal
+       Wire.Extension.Schema.equal
+       (Option.map old.extension ~f:(fun item -> item.config.schema))
+       (Option.map next.extension ~f:(fun item -> item.config.schema))
 ;;
 
 let splice builder id old_children new_children =
@@ -406,6 +413,12 @@ let rec mount builder ~depth previous view =
       | Some _, Some _ -> fail "drop_target cannot combine another handler"
     in
     let callback =
+      match description.extension, callback with
+      | Some item, None -> Some (Extension (item.config, item.on_event))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "extension cannot combine another handler"
+    in
+    let callback =
       match description.split_pane, callback with
       | Some item, None ->
         Option.map item.on_resize ~f:(fun callback -> Split_pane (item.config, callback))
@@ -452,11 +465,16 @@ let rec mount builder ~depth previous view =
       | _ -> fail "incompatible virtual list callback"
     in
     let rotate_handler =
-      (match description.split_pane, previous with
+      (match description.extension, previous with
        | Some item, Some mounted ->
-         Option.exists (View.Expert.describe mounted.view).split_pane ~f:(fun old ->
-           not (Split_pane.Config.equal old.config item.config))
+         Option.exists (View.Expert.describe mounted.view).extension ~f:(fun old ->
+           not (Wire.Extension.Config.equal old.config item.config))
        | None, _ | Some _, None -> false)
+      || (match description.split_pane, previous with
+          | Some item, Some mounted ->
+            Option.exists (View.Expert.describe mounted.view).split_pane ~f:(fun old ->
+              not (Split_pane.Config.equal old.config item.config))
+          | None, _ | Some _, None -> false)
       || (match description.document, previous with
           | Some document, Some mounted ->
             Option.exists (View.Expert.describe mounted.view).document ~f:(fun old ->
@@ -607,6 +625,16 @@ let rec mount builder ~depth previous view =
     if not (Option.equal Wire.Animation.Config.equal animation old_animation)
     then
       Option.iter animation ~f:(fun config -> emit builder (Set_animation (id, config)));
+    Option.iter description.extension ~f:(fun item ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).extension ~f:(fun old ->
+            old.config))
+      in
+      if Option.exists old ~f:(fun old -> Int64.(item.config.generation < old.generation))
+      then fail "extension generation must not decrease";
+      if not (Option.equal Wire.Extension.Config.equal old (Some item.config))
+      then emit builder (Set_extension (id, item.config)));
     Option.iter description.split_pane ~f:(fun item ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -1062,6 +1090,24 @@ let retain_list_rows t notices =
 ;;
 
 let dispatch t = function
+  | Wire.Event.Extension_event (window, node, handler, revision, generation, signal)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Extension (config, callback)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Int64.equal generation config.generation
+            && Wire.Extension.Signal.valid signal ->
+       (match signal with
+        | Data _ when config.disabled -> None
+        | Data _ | Mounted | Command_completed _ | Failed _ -> Some (callback signal))
+     | Some _ | None -> None)
   | Wire.Event.Split_resized (window, node, handler, revision, generation, snapshot)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -1169,6 +1215,7 @@ let dispatch t = function
         | Animation _
         | Image _
         | Virtual_list _
+        | Extension _
         | Split_pane _
         | Document _ -> None)
      | Some _ | None -> None)
@@ -1375,6 +1422,7 @@ let dispatch t = function
   | Window_changed _
   | Window_response _
   | Window_capabilities _
+  | Extension_event _
   | Split_resized _
   | Document_response _
   | Document_navigation _

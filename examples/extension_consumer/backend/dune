@@ -1,0 +1,30 @@
+; Generated backend: explicitly add gpuio_counter_backend to the executable's libraries.
+
+(rule
+ (targets libgpuio_counter_backend.a link_flags.sexp c_link_flags.sexp)
+ (deps
+  (sandbox none)
+  (env_var CARGO_TARGET_DIR)
+  Cargo.toml
+  Cargo.lock
+  registration.rs
+  (source_tree "../../../rust")
+  (source_tree "../../../vendor/gpui-base")
+  (source_tree "../../extension_package/rust")
+  "../../../scripts/build_native.py")
+ (action
+  (run
+   python3
+   "../../../scripts/build_native.py"
+   %{profile}
+   gpuio-counter-backend
+   Cargo.toml)))
+
+(library
+ (name gpuio_counter_backend)
+ (implements gpuio.native)
+ (modes native)
+ (no_dynlink)
+ (foreign_archives gpuio_counter_backend)
+ (c_library_flags
+  (:include c_link_flags.sexp)))

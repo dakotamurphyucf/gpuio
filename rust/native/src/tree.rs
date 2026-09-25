@@ -43,6 +43,8 @@ pub struct Node {
     pub palette: Option<Arc<PaletteConfig>>,
     pub progress: Option<Arc<ProgressConfig>>,
     pub image: Option<Arc<ImageConfig>>,
+    pub extension: Option<Arc<gpuio_protocol::extension::Config>>,
+    pub extension_command: Option<Arc<gpuio_protocol::extension::Command>>,
     pub split: Option<Arc<gpuio_protocol::split::Config>>,
     pub document: Option<Arc<gpuio_protocol::document::Config>>,
     pub animation: Option<Arc<gpuio_protocol::animation::Config>>,
@@ -67,6 +69,20 @@ pub struct Node {
 impl Node {
     fn payload_bytes(&self) -> usize {
         self.text.len()
+            + self.extension.as_ref().map_or(0, |config| {
+                256 + config.schema.name.len()
+                    + config.schema.fingerprint.len()
+                    + config.label.len()
+                    + config.properties.0.len()
+                    + config
+                        .command
+                        .as_ref()
+                        .map_or(0, |command| command.payload.0.len())
+            })
+            + self
+                .extension_command
+                .as_ref()
+                .map_or(0, |command| command.payload.0.len() + 32)
             + self
                 .split
                 .as_ref()
@@ -185,6 +201,7 @@ pub struct Tree {
     root: Option<NodeId>,
     slots: Vec<Slot>,
     node_count: usize,
+    extension_count: usize,
     retained_bytes: usize,
 }
 
@@ -211,6 +228,7 @@ impl Tree {
             root: None,
             slots: Vec::new(),
             node_count: 0,
+            extension_count: 0,
             retained_bytes: 0,
         }
     }
@@ -315,12 +333,19 @@ impl Tree {
             root: self.root,
             slot_count: self.slots.len(),
             node_count: self.node_count,
+            extension_count: self.extension_count,
             retained_bytes: self.retained_bytes,
             budget: budget.min(MAX_RETAINED_BYTES),
             structural: false,
             lists: Vec::new(),
         };
+        let mut extension_updates = BTreeSet::new();
         for op in &tx.operations {
+            if let Op::SetExtension(id, _) = op
+                && !extension_updates.insert(*id)
+            {
+                return Err(ErrorCode::InvalidTree.into());
+            }
             plan.operation(op)?;
         }
         for slot in plan.changes.values() {
@@ -424,6 +449,16 @@ impl Tree {
                             || !node.children.is_empty()
                             || node.control.is_some()
                             || node.choice.is_some()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::Extension) != node.extension.is_some()
+                    || node.extension.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || !node.text.is_empty()
+                            || !node.children.is_empty()
+                            || node.handler.is_none()
                     })
                 {
                     return Err(ErrorCode::InvalidTree.into());
@@ -545,6 +580,7 @@ impl Tree {
                     | Kind::Image
                     | Kind::TabPanel
                     | Kind::SplitPane
+                    | Kind::Extension
                     | Kind::DocumentView
                     | Kind::Icon
                     | Kind::Animated
@@ -635,6 +671,7 @@ impl Tree {
             root,
             slot_count,
             node_count,
+            extension_count,
             retained_bytes,
             lists,
             ..
@@ -649,6 +686,7 @@ impl Tree {
         }
         self.root = root;
         self.node_count = node_count;
+        self.extension_count = extension_count;
         self.retained_bytes = retained_bytes;
         self.revision = tx.revision;
         Ok(Applied {
@@ -688,6 +726,7 @@ struct Plan<'a> {
     root: Option<NodeId>,
     slot_count: usize,
     node_count: usize,
+    extension_count: usize,
     retained_bytes: usize,
     budget: usize,
     structural: bool,
@@ -866,6 +905,7 @@ impl Plan<'_> {
             | Op::ScrollList(id, ..)
             | Op::SetImage(id, ..)
             | Op::SetDocument(id, ..)
+            | Op::SetExtension(id, ..)
             | Op::SetSplit(id, ..)
             | Op::SetProgress(id, ..)
             | Op::SetToast(id, ..)
@@ -918,6 +958,12 @@ impl Plan<'_> {
                 if id.slot() == self.slot_count {
                     self.slot_count += 1;
                 }
+                if *kind == Kind::Extension {
+                    if self.extension_count == 256 {
+                        return Err(ErrorCode::LimitExceeded);
+                    }
+                    self.extension_count += 1;
+                }
                 self.node_count += 1;
                 self.changes.insert(
                     id.slot(),
@@ -941,6 +987,8 @@ impl Plan<'_> {
                             palette: None,
                             progress: None,
                             image: None,
+                            extension: None,
+                            extension_command: None,
                             split: None,
                             document: None,
                             animation: None,
@@ -964,7 +1012,9 @@ impl Plan<'_> {
                 self.structural = true;
             }
             Op::Remove(id) => {
-                self.node(*id)?;
+                if self.node(*id)?.kind == Kind::Extension {
+                    self.extension_count -= 1;
+                }
                 self.changes.insert(
                     id.slot(),
                     Slot {
@@ -1096,6 +1146,36 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.image = Some(Arc::new(config.clone()));
+            }
+            Op::SetExtension(id, config) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::Extension
+                    || !config.is_valid()
+                    || node.extension.as_ref().is_some_and(|old| {
+                        config.schema != old.schema || config.generation < old.generation
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let same_generation = node
+                    .extension
+                    .as_ref()
+                    .is_some_and(|old| old.generation == config.generation);
+                if same_generation
+                    && let (Some(old), Some(next)) = (&node.extension_command, &config.command)
+                    && (next.sequence < old.sequence
+                        || (next.sequence == old.sequence && next != old.as_ref()))
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let node = self.node_mut(*id)?;
+                if !same_generation {
+                    node.extension_command = None;
+                }
+                if let Some(command) = &config.command {
+                    node.extension_command = Some(Arc::new(command.clone()));
+                }
+                node.extension = Some(Arc::new(config.clone()));
             }
             Op::SetSplit(id, config) => {
                 let node = self.node(*id)?;

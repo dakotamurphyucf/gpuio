@@ -2450,6 +2450,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpuio-example-counter"
+version = "0.0.0"
+dependencies = [
+ "gpuio-extension-sdk",
+]
+
+[[package]]
 name = "gpuio-extension-sdk"
 version = "0.0.0"
 dependencies = [
@@ -2484,6 +2491,7 @@ dependencies = [
  "gpui",
  "gpui-base",
  "gpui_platform",
+ "gpuio-extension-sdk",
  "gpuio-portal",
  "gpuio-protocol",
  "gpuio-wayland",

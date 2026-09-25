@@ -213,6 +213,13 @@ module View : sig
 
   val row : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> t list -> t
 
+  val extension
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> on_event:('event Gpuio.Extension.Event.t -> unit Bonsai.Effect.t)
+    -> 'event Gpuio.Extension.Instance.t
+    -> t
+
   val split_pane
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

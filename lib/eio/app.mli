@@ -167,3 +167,8 @@ val run
   -> ?motion:Gpuio.Animation.Preference.t
   -> (Eio_unix.Stdenv.base -> t -> unit)
   -> unit
+
+(** Read the linked component schemas on the OS main thread before [run].
+    This initializes the selected backend and freezes native registration.
+    Compare with package definitions before constructing application windows. *)
+val extension_catalog : unit -> Gpuio.Extension.Schema.t list Or_error.t

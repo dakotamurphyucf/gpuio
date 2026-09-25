@@ -3,6 +3,8 @@ mod animation;
 #[cfg(feature = "native-tests")]
 #[path = "animation_test.rs"]
 pub(super) mod animation_test;
+#[path = "extension_view.rs"]
+mod extension_view;
 use crate::{session::Session, transport::Transport};
 use gpui::Focusable;
 use gpui::{
@@ -114,6 +116,7 @@ struct View {
     transport: Arc<Transport>,
     images: BTreeMap<NodeId, image_view::State>,
     documents: BTreeMap<NodeId, document_view::State>,
+    extensions: BTreeMap<NodeId, extension_view::State>,
     splits: BTreeMap<NodeId, split_view::State>,
     split_activation: Option<gpui::Subscription>,
     buttons: BTreeMap<NodeId, Rc<ButtonState>>,
@@ -297,6 +300,27 @@ fn apply_styles(
     (element, states)
 }
 
+// Pointer-event inheritance uses the nearest explicit field, matching View rendering.
+fn pointer_enabled(tree: &crate::tree::Tree, mut id: NodeId) -> bool {
+    loop {
+        let Some(node) = tree.get(id) else {
+            return false;
+        };
+        for style in node.style.iter().rev() {
+            if let Style::Fields(fields) = style {
+                for field in fields.iter().rev() {
+                    if let Field::PointerEvents(enabled) = field {
+                        return *enabled;
+                    }
+                }
+            }
+        }
+        let Some(parent) = node.parent else {
+            return true;
+        };
+        id = parent;
+    }
+}
 impl View {
     fn new(id: WindowId, session: SharedSession, transport: Arc<Transport>) -> Self {
         Self {
@@ -307,6 +331,7 @@ impl View {
             transport,
             images: BTreeMap::new(),
             documents: BTreeMap::new(),
+            extensions: BTreeMap::new(),
             splits: BTreeMap::new(),
             split_activation: None,
             buttons: BTreeMap::new(),
@@ -344,6 +369,7 @@ impl View {
         self.sync_lists(dirty, cx);
         self.sync_images(dirty, window, cx);
         self.sync_documents(dirty, window, cx);
+        self.sync_extensions(dirty, window, cx);
         self.sync_animations(dirty, cx);
         self.sync_palettes(window, cx);
         self.sync_toasts(cx);
@@ -394,6 +420,9 @@ impl View {
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let node = tree.get(id).expect("validated retained node");
+        if node.kind == Kind::Extension {
+            return self.extension_element(tree, node, interaction, window, cx);
+        }
         if node.kind == Kind::DocumentView {
             return self.document_element(tree, node, interaction, window, cx);
         }
@@ -1210,6 +1239,7 @@ impl Render for View {
                 state.presentation = None;
             }
         }
+        self.hide_unvisited_extensions();
         self.buttons.retain(|id, _| self.visited.contains(id));
         self.radios.retain(|id, _| self.visited.contains(id));
         self.selects.retain(|id, _| self.visited.contains(id));
@@ -1246,6 +1276,10 @@ impl Render for View {
                     .documents
                     .values()
                     .any(|state| state.focused(window, cx))
+                || self
+                    .extensions
+                    .values()
+                    .any(|state| state.focus.contains_focused(window, cx))
                 || root_focus.is_focused(window)
                 || self
                     .buttons
@@ -1513,7 +1547,7 @@ pub fn run(transport: Arc<Transport>) {
                                     transport.respond(Event::Closed(correlation, id));
                                     if let Some(window) = windows.remove(&id) {
                                         let _ = window
-                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); view.cancel_split_drag(window, cx); window.remove_window(); });
+                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); view.cancel_split_drag(window, cx); view.extensions.clear(); window.remove_window(); });
                                     }
                                 }
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),

@@ -27,11 +27,15 @@ work must hold a revocable event sink, never an OCaml closure or runtime value.
 
 ## Bounds and error handling
 
-The initial SDK admits at most64 registered component names. Properties are at
-most64KiB; individual command/event payloads at most16KiB. These limits supplement
+The initial SDK admits at most 64 registered component names and 256 retained
+instances per window. Properties are at most 64 KiB; individual command/event
+payloads at most 16 KiB. These limits supplement
 the host's retained-tree, transaction and mailbox limits. Component schemas may
 choose smaller limits. Bin_prot codecs require exact consumption, reject trailing
-bytes and validate domain values after decoding. Length checks precede allocation.
+bytes and validate domain values after decoding. Outer byte lengths are checked
+before host allocation. Package decoders must additionally validate nested
+collection lengths before allocating; a general derived bin_prot reader does not
+provide that guarantee by itself. The fixed-byte sample has no nested allocation.
 
 Rust factories validate properties before transaction acceptance. Mount, update,
 command and render failures must produce typed failure observations and invalidate
@@ -42,7 +46,7 @@ process isolation and cannot recover arbitrary unsafe-code corruption or aborts.
 ## Build composition
 
 Use one Cargo dependency graph and one native static archive per application.
-The proposed Dune integration makes the native archive backend a virtual-library
+The Dune integration makes the native archive backend a virtual-library
 implementation: ordinary applications select the default host; a component
 consumer selects a generated backend containing the same host and registered
 extension crates. This avoids linking independently compiled copies of GPUI or
@@ -64,3 +68,50 @@ repeated mount/unmount and window close. Native output must remain accessible an
 participate in semantic automation. Check the default backend still builds every
 existing example. Record actual macOS behavior separately from Linux compilation
 and informational compositor runs. Full release coverage remains OCH-17.
+
+## Implemented integration
+
+`Gpuio.Extension.Definition` binds three codecs to a schema; `Instance.create`
+encodes a property snapshot and optional sequenced command. `View.extension`
+(and the Bonsai view adapter) dispatches typed `Data`, `Mounted`,
+`Command_completed` and `Failed` observations. A schema change replaces the node;
+a higher generation disposes and remounts native state. Property/configuration
+changes rotate the handler and revoke old event sinks. Hidden/disabled sinks
+reject input; commands still follow the package's explicit command policy.
+
+One transaction may set an instance's extension configuration once. Commands run
+at application time, before rendering, so coalesced frames cannot skip commands.
+The host remembers the highest sequence even when subsequent snapshots omit the
+command. A lower sequence or the same sequence with different bytes rejects the
+whole transaction. A failed component remains failed until its generation changes.
+
+`Gpuio_eio.App.extension_catalog ()` initializes the chosen backend and returns
+its exact schemas. Call on the OS main thread before `App.run`; registration is
+then immutable. Missing or incompatible factories and malformed package payloads
+reject transactions before publishing tree changes. Package hook failures become
+instance `Failed` events. Background producers hold weak event sinks; delivery is
+bounded by the ordinary input mailbox and reports overload to the producer.
+
+Rust authors implement `Factory` and `Component` from `gpuio-extension-sdk`, using
+its re-exported pinned `gpui`. The host contains hook panics. Authors must guard
+installed input callbacks with `EventSink.guard`; direct arbitrary GPUI callbacks,
+custom element layout/paint code and unsafe code remain trusted author code.
+Guarded callback panics revoke the lease; the next host lifecycle/render boundary
+observes the failure. Unmount cancels package-owned work; the host also contains
+ordinary unwinding failures from unmount/drop. This is source compatibility at the
+pinned SDK revision, not an ABI promise.
+
+`examples/extension_package` supplies an OCaml library and an independent Rust
+crate. `examples/extension_consumer/native.json` lists the selected packages;
+`scripts/compose_backend.py` generates one Cargo archive and a Dune implementation
+of `gpuio.native`. The application adds that implementation to its libraries.
+Keep the generated files and reviewed Cargo.lock in source control. The default
+backend remains available for applications that use only built-in components.
+
+The SDK supplies one primary `Context.focus` handle per instance. The component
+binds that handle to exactly one accessible element; the host wrapper records it
+for traversal but does not register a second accessibility focus target. Nested
+controls may own additional handles under the package's documented focus policy.
+Pointer callbacks use `EventSink.guard_pointer`; keyboard/accessibility actions
+use `guard`. Inherited pointer disabling does not disable keyboard or accessible
+activation. Both guards reject hidden, disabled, obsolete and closed instances.

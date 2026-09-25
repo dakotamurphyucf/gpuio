@@ -98,11 +98,18 @@ jobs:
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_ui --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_editor --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_controls --no-run
-          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_scroll --test native_list --test native_document --test native_window --test native_tabs --test native_split --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_scroll --test native_list --test native_document --test native_window --test native_tabs --test native_split --test native_extension --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_animation --test native_drag_drop --test native_file_dialog --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-tests --all-targets -- -D warnings
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_images --test native_image_views --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-image-tests --all-targets -- -D warnings
+      - name: Independent native extension consumer
+        run: python3 scripts/test_extension_consumer.py 2>&1 | tee .cache/ci/extension-consumer.log
+      - name: macOS native extension checks
+        if: runner.os == 'macOS'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_extension"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-extension-native.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/extension_consumer/main.exe", "--smoke"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-extension-consumer.log
       - name: Document worker measurements
         run: ./scripts/gpuio exec cargo test --locked -p gpuio-native --lib document_jobs::tests::measurement_report -- --nocapture 2>&1 | tee .cache/ci/document-worker-measurements.log
       - name: macOS public runtime checks

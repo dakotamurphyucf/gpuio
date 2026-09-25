@@ -48,3 +48,10 @@ let submit t message =
 ;;
 
 let drain t = Wire.Event.decode (drain_bytes t)
+
+external extension_catalog_bytes : unit -> string = "gpuio_v1_extension_catalog"
+
+let extension_catalog () =
+  Lazy.force initialization;
+  Gpuio_protocol.Extension_wire.Catalog.decode (extension_catalog_bytes ())
+;;

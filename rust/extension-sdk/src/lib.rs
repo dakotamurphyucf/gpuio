@@ -133,6 +133,10 @@ impl Registry {
         Ok(result)
     }
 
+    pub fn descriptors(&self) -> impl Iterator<Item = Descriptor> + '_ {
+        self.factories.values().map(|(descriptor, _)| *descriptor)
+    }
+
     pub fn resolve(
         &self,
         name: &str,
@@ -150,7 +154,9 @@ impl Registry {
 struct EventState {
     generation: u64,
     visible: bool,
+    pointer_enabled: bool,
     closed: bool,
+    panicked: bool,
 }
 type Deliver = dyn Fn(Vec<u8>) -> Result<(), Error> + Send + Sync;
 struct LeaseInner {
@@ -176,7 +182,9 @@ impl EventLease {
             state: Mutex::new(EventState {
                 generation: 1,
                 visible: true,
+                pointer_enabled: true,
                 closed: false,
+                panicked: false,
             }),
             maximum,
             deliver: Box::new(deliver),
@@ -214,8 +222,27 @@ impl EventLease {
         })
     }
 
+    /// A guarded callback panic closes the instance. The host observes this on
+    /// its next lifecycle/render boundary and delivers a failure observation.
+    pub fn failure(&self) -> Option<Error> {
+        self.0
+            .state
+            .lock()
+            .expect("event lease poisoned")
+            .panicked
+            .then_some(Error::Panicked)
+    }
+
     pub fn set_visible(&self, visible: bool) {
         self.0.state.lock().expect("event lease poisoned").visible = visible;
+    }
+
+    pub fn set_pointer_enabled(&self, enabled: bool) {
+        self.0
+            .state
+            .lock()
+            .expect("event lease poisoned")
+            .pointer_enabled = enabled;
     }
 
     pub fn close(&self) {
@@ -235,13 +262,17 @@ pub struct EventSink {
 }
 impl EventSink {
     pub fn check(&self) -> Result<(), Error> {
+        self.check_input(false)
+    }
+
+    fn check_input(&self, pointer: bool) -> Result<(), Error> {
         let lease = self.lease.upgrade().ok_or(Error::Closed)?;
         let state = lease.state.lock().expect("event lease poisoned");
         if state.closed {
             Err(Error::Closed)
         } else if state.generation != self.generation {
             Err(Error::Stale)
-        } else if !state.visible {
+        } else if !state.visible || (pointer && !state.pointer_enabled) {
             Err(Error::Hidden)
         } else {
             Ok(())
@@ -268,6 +299,14 @@ impl EventSink {
         contain(|| (lease.deliver)(payload))
     }
 
+    /// Pointer callbacks additionally honor the inherited PointerEvents style.
+    /// Keyboard and accessibility actions use [guard], so disabling pointer
+    /// interaction does not remove an otherwise enabled control's keyboard use.
+    pub fn guard_pointer<T>(&self, f: impl FnOnce() -> Result<T, Error>) -> Result<T, Error> {
+        self.check_input(true)?;
+        self.guard(f)
+    }
+
     /// Guard an input callback on the native UI thread. Obsolete/hidden callbacks
     /// do not run. A panic permanently closes this lease; callers must report
     /// the error through their host failure path. This is not a background-task
@@ -278,7 +317,9 @@ impl EventSink {
         if matches!(result, Err(Error::Panicked))
             && let Some(lease) = self.lease.upgrade()
         {
-            lease.state.lock().expect("event lease poisoned").closed = true;
+            let mut state = lease.state.lock().expect("event lease poisoned");
+            state.closed = true;
+            state.panicked = true;
         }
         result
     }
@@ -406,6 +447,7 @@ mod tests {
             Err::<(), _>(Error::Panicked)
         );
         assert_eq!(sink.emit(vec![]), Err(Error::Closed));
+        assert_eq!(lease.failure(), Some(Error::Panicked));
         assert_eq!(lease.advance().err(), Some(Error::Closed));
     }
 

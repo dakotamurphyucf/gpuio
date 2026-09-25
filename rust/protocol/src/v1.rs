@@ -39,7 +39,9 @@ pub const CAP_ANIMATIONS: i64 = 33554432;
 pub const CAP_VIRTUAL_LISTS: i64 = 67108864;
 pub const CAP_DOCUMENTS: i64 = 134217728;
 pub const CAP_WINDOWS: i64 = 268435456;
-pub const CAPABILITIES: i64 = CAP_WINDOWS
+pub const CAP_EXTENSIONS: i64 = 536870912;
+pub const CAPABILITIES: i64 = CAP_EXTENSIONS
+    | CAP_WINDOWS
     | CAP_DOCUMENTS
     | CAP_VIRTUAL_LISTS
     | CAP_ANIMATIONS
@@ -112,6 +114,7 @@ pub enum Kind {
     TabBar,
     TabPanel,
     SplitPane,
+    Extension,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -577,6 +580,7 @@ pub enum Op {
     ScrollList(NodeId, crate::list::ScrollRequest),
     SetDocument(NodeId, crate::document::Config),
     SetSplit(NodeId, crate::split::Config),
+    SetExtension(NodeId, crate::extension::Config),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -693,5 +697,13 @@ pub enum Event {
         i64,
         i64,
         crate::split::Snapshot,
+    ),
+    ExtensionEvent(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        i64,
+        crate::extension::Signal,
     ),
 }

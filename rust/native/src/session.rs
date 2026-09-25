@@ -334,6 +334,11 @@ impl Session {
         if window.overloaded {
             return Err(ErrorCode::Overloaded.into());
         }
+        for operation in &tx.operations {
+            if let Op::SetExtension(_, config) = operation {
+                crate::extensions::validate(config).map_err(|_| ErrorCode::InvalidTree)?;
+            }
+        }
         let before = window.tree.retained_bytes();
         let budget = MAX_SESSION_BYTES - (self.retained_bytes - before);
         let window = self.window_mut(tx.window)?;

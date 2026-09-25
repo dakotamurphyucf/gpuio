@@ -22,6 +22,15 @@ The full consolidated local build, suites, native regressions, Clippy and format
 checks pass. The evidence ledger records hosted results; PR #12 records the final
 checked head and merge status. Full Linux GUI acceptance remains OCH-17.
 
+Milestone 05 is in progress on `milestone-5-ui-extensions`, beginning with OCH-23
+static native components. Its scope includes OCH-23–26 and OCH-33–39, followed by
+[OCH-46](https://linear.app/ochat/issue/OCH-46/showcase-milestone-05-features-in-the-polished-agent-chat-reference):
+showcase the completed feature families in the polished agent-chat application.
+OCH-46 is part of milestone completion and covers feature mapping, interactive
+flows, light/dark and responsive-layout polish, accessibility, reduced motion,
+streaming/performance regression checks and updated screenshots/documentation.
+No milestone-05 completion or hosted acceptance is claimed yet.
+
 The [milestone acceptance ledger](evidence/milestones-01-02.md) maps every ticket
 to its implementation and evidence. The first consolidated hosted run passed all
 macOS checks and Linux build/unit tests; one Linux-only native-test lint issue was

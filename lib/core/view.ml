@@ -33,6 +33,7 @@ module Kind = struct
     | Tab_bar
     | Tab_panel
     | Split_pane
+    | Extension
   [@@deriving equal, sexp_of]
 end
 
@@ -130,6 +131,11 @@ type 'action animation =
   ; on_event : (Animation.Event.t -> 'action) option
   }
 
+type 'action extension =
+  { config : Gpuio_protocol.Extension_wire.Config.t
+  ; on_event : Gpuio_protocol.Extension_wire.Signal.t -> 'action
+  }
+
 type 'action split_pane =
   { config : Split_pane.Config.t
   ; on_resize : (Split_pane.Snapshot.t -> 'action) option
@@ -178,6 +184,7 @@ type 'action t =
   ; progress : Progress.Config.t option
   ; animation : 'action animation option
   ; image : 'action image option
+  ; extension : 'action extension option
   ; split_pane : 'action split_pane option
   ; document : 'action document option
   ; palette : 'action palette option
@@ -210,6 +217,7 @@ let text ?key ?(style = Style.empty) text =
   ; progress = None
   ; animation = None
   ; image = None
+  ; extension = None
   ; split_pane = None
   ; document = None
   ; palette = None
@@ -265,6 +273,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; progress = None
   ; animation = None
   ; image = None
+  ; extension = None
   ; split_pane = None
   ; document = None
   ; palette = None
@@ -357,6 +366,7 @@ let button
   ; progress = None
   ; animation = None
   ; image = None
+  ; extension = None
   ; split_pane = None
   ; document = None
   ; palette = None
@@ -421,6 +431,7 @@ let toggle
   ; progress = None
   ; animation = None
   ; image = None
+  ; extension = None
   ; split_pane = None
   ; document = None
   ; palette = None
@@ -469,6 +480,7 @@ let focus_scope ?key ?style ~config children =
   ; progress = None
   ; animation = None
   ; image = None
+  ; extension = None
   ; split_pane = None
   ; document = None
   ; palette = None
@@ -592,6 +604,18 @@ let tooltip ?key ?(style = Style.empty) ~config ?on_open_change ~anchor ~content
   { (container ?key ~style:(overlay_style (Some style)) [] [ anchor; content ]) with
     kind = Tooltip
   ; tooltip = Some { config; on_open_change }
+  }
+;;
+
+let extension ?key ?(style = Style.empty) ~on_event instance =
+  { (text ?key ~style "") with
+    kind = Extension
+  ; extension =
+      Some
+        { config = Extension.Instance.Expert.to_wire instance
+        ; on_event =
+            (fun signal -> on_event (Extension.Instance.Expert.event instance signal))
+        }
   }
 ;;
 
@@ -727,6 +751,7 @@ let text_input
   ; progress = None
   ; animation = None
   ; image = None
+  ; extension = None
   ; split_pane = None
   ; document = None
   ; palette = None
@@ -760,6 +785,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; progress = None
   ; animation = None
   ; image = None
+  ; extension = None
   ; split_pane = None
   ; document = None
   ; palette = None
@@ -819,6 +845,7 @@ let combobox
   ; progress = None
   ; animation = None
   ; image = None
+  ; extension = None
   ; split_pane = None
   ; document = None
   ; palette = None
@@ -937,6 +964,11 @@ module Expert = struct
     ; on_event : (Animation.Event.t -> 'action) option
     }
 
+  type nonrec 'action extension = 'action extension =
+    { config : Gpuio_protocol.Extension_wire.Config.t
+    ; on_event : Gpuio_protocol.Extension_wire.Signal.t -> 'action
+    }
+
   type nonrec 'action split_pane = 'action split_pane =
     { config : Split_pane.Config.t
     ; on_resize : (Split_pane.Snapshot.t -> 'action) option
@@ -1039,6 +1071,7 @@ module Expert = struct
     ; progress : Progress.Config.t option
     ; animation : 'action animation option
     ; image : 'action image option
+    ; extension : 'action extension option
     ; split_pane : 'action split_pane option
     ; document : 'action document option
     ; palette : 'action palette option

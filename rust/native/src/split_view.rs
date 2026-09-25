@@ -43,27 +43,6 @@ fn sizes(entity: &Entity<ResizableState>, cx: &App) -> Option<Snapshot> {
     };
     snapshot.is_valid().then_some(snapshot)
 }
-// Pointer-event inheritance uses the nearest explicit field, matching View rendering.
-fn pointer_enabled(tree: &crate::tree::Tree, mut id: NodeId) -> bool {
-    loop {
-        let Some(node) = tree.get(id) else {
-            return false;
-        };
-        for style in node.style.iter().rev() {
-            if let Style::Fields(fields) = style {
-                for field in fields.iter().rev() {
-                    if let Field::PointerEvents(enabled) = field {
-                        return *enabled;
-                    }
-                }
-            }
-        }
-        let Some(parent) = node.parent else {
-            return true;
-        };
-        id = parent;
-    }
-}
 impl View {
     pub(super) fn cancel_split_drag(&mut self, window: &mut Window, cx: &mut App) -> bool {
         let mut cancelled = false;

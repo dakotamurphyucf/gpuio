@@ -5,9 +5,10 @@ module Animation = Animation_wire
 module Document = Document_wire
 module Window = Window_wire
 module Split = Split_wire
+module Extension = Extension_wire
 
 let version = 1L
-let capabilities = 536870911L
+let capabilities = 1073741823L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -42,6 +43,7 @@ module Kind = struct
     | Tab_bar
     | Tab_panel
     | Split_pane
+    | Extension
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -693,6 +695,7 @@ module Op = struct
     | Scroll_list of Node_id.t * List_wire.Scroll_request.t
     | Set_document of Node_id.t * Document.Config.t
     | Set_split of Node_id.t * Split.Config.t
+    | Set_extension of Node_id.t * Extension.Config.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -953,6 +956,8 @@ module Event = struct
     | Window_capabilities of Window.Capabilities.t
     | Split_resized of
         Window_id.t * Node_id.t * Handler_id.t * int64 * int64 * Split.Snapshot.t
+    | Extension_event of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * int64 * Extension.Signal.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -972,6 +977,8 @@ module Event = struct
   ;;
 
   let rec valid_event = function
+    | Extension_event (_, _, _, revision, generation, signal) ->
+      Int64.(revision >= 0L && generation > 0L) && Extension.Signal.valid signal
     | Split_resized (_, _, _, revision, generation, snapshot) ->
       Int64.(revision >= 0L && generation >= 0L) && Split.Snapshot.valid snapshot
     | Window_changed (_, snapshot) | Window_response (_, _, Observed snapshot) ->

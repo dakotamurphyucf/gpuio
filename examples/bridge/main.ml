@@ -101,6 +101,7 @@ let worker native notification_read =
       | Window_changed _
       | Window_response _
       | Window_capabilities _
+      | Extension_event _
       | Split_resized _
       | Press _
       | Editor_event _

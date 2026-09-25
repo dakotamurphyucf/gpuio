@@ -648,7 +648,8 @@ let process t = function
       Option.iter (find_window t id) ~f:(fun window ->
         if not (Window.is_closed window)
         then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))
-  | ( Split_resized (id, _, _, _, _, _)
+  | ( Extension_event (id, _, _, _, _, _)
+    | Split_resized (id, _, _, _, _, _)
     | Press (id, _, _, _)
     | Editor_event (id, _, _, _, _, _)
     | Choice (id, _, _, _, _)
@@ -1034,4 +1035,9 @@ let run
       Gpuio_native.dispose native;
       reraise_result worker_result;
       reraise_result native_result))
+;;
+
+let extension_catalog () =
+  let%bind.Or_error schemas = Gpuio_native.extension_catalog () in
+  List.map schemas ~f:Gpuio.Extension.Schema.Expert.of_wire |> Or_error.all
 ;;

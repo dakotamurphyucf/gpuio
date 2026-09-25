@@ -23,6 +23,7 @@ impl Transport {
         Self::with_options(fd, true)
     }
     pub fn with_options(fd: i32, exit_on_last_window: bool) -> std::io::Result<Self> {
+        let _ = crate::extensions::registry();
         let duplicate = unsafe { libc::fcntl(fd, libc::F_DUPFD_CLOEXEC, 0) };
         if duplicate < 0 {
             return Err(std::io::Error::last_os_error());

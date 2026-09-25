@@ -65,6 +65,43 @@ impl Decoder<'_> {
         Ok(value)
     }
 
+    fn extension_payload(
+        &mut self,
+        maximum: usize,
+    ) -> Result<crate::extension::Payload, DecodeError> {
+        let count = self.count(maximum)?;
+        let start = self.0.position() as usize;
+        let payload = self.0.get_ref()[start..start + count].to_vec();
+        self.0.set_position((start + count) as u64);
+        Ok(crate::extension::Payload(payload))
+    }
+
+    fn extension_config(&mut self) -> Result<crate::extension::Config, DecodeError> {
+        use crate::extension::*;
+        let config = Config {
+            schema: Schema {
+                name: self.bounded_text(128)?,
+                version: self.int()?,
+                fingerprint: self.bounded_text(64)?,
+            },
+            generation: self.int()?,
+            label: self.bounded_text(1024)?,
+            disabled: self.boolean()?,
+            properties: self.extension_payload(MAX_PROPERTIES)?,
+            command: self.option(|decoder| {
+                Ok(Command {
+                    sequence: decoder.int()?,
+                    payload: decoder.extension_payload(MAX_MESSAGE)?,
+                })
+            })?,
+        };
+        if config.is_valid() {
+            Ok(config)
+        } else {
+            Err(DecodeError::Malformed)
+        }
+    }
+
     fn file_path(&mut self) -> Result<crate::file_path::FilePath, DecodeError> {
         let count = self.count(crate::file_path::MAX_PATH_BYTES)?;
         let start = self.0.position() as usize;
@@ -791,6 +828,7 @@ impl Decoder<'_> {
                     27 => Kind::TabBar,
                     28 => Kind::TabPanel,
                     29 => Kind::SplitPane,
+                    30 => Kind::Extension,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -859,6 +897,7 @@ impl Decoder<'_> {
             ),
             26 => Op::SetImage(self.node()?, self.image_config()?),
             33 => Op::SetDocument(self.node()?, self.document_config()?),
+            35 => Op::SetExtension(self.node()?, self.extension_config()?),
             34 => {
                 let id = self.node()?;
                 let config = crate::split::Config {

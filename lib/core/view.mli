@@ -213,6 +213,16 @@ val radio_group
   -> unit
   -> 'action t
 
+(** A statically registered native component. Changing its schema replaces the
+    node; increasing its generation resets native state. Events are delivered
+    asynchronously and obsolete property callbacks are rejected. *)
+val extension
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> on_event:('event Extension.Event.t -> 'action)
+  -> 'event Extension.Instance.t
+  -> 'action t
+
 (** A native-owned divider between two retained children. Give the parent a
     bounded size. Pointer resizing stays in Rust; the optional callback reports
     completed resizes. Keyboard and accessibility actions share native limits. *)
@@ -403,6 +413,11 @@ module Expert : sig
     ; on_event : (Animation.Event.t -> 'action) option
     }
 
+  type 'action extension =
+    { config : Gpuio_protocol.Extension_wire.Config.t
+    ; on_event : Gpuio_protocol.Extension_wire.Signal.t -> 'action
+    }
+
   type 'action split_pane =
     { config : Split_pane.Config.t
     ; on_resize : (Split_pane.Snapshot.t -> 'action) option
@@ -470,6 +485,7 @@ module Expert : sig
       | Tab_bar
       | Tab_panel
       | Split_pane
+      | Extension
     [@@deriving equal, sexp_of]
   end
 
@@ -553,6 +569,7 @@ module Expert : sig
     ; progress : Progress.Config.t option
     ; animation : 'action animation option
     ; image : 'action image option
+    ; extension : 'action extension option
     ; split_pane : 'action split_pane option
     ; document : 'action document option
     ; palette : 'action palette option
