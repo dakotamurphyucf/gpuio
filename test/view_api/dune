@@ -12,6 +12,7 @@
    avatar-request.hex
    rating-request.hex
    rating-events.hex
+   numeric-domain.hex
    container-query.hex
    container-query-request.hex
    container-query-events.hex
@@ -161,3 +162,5 @@
 (copy_files ../fixtures/rating-request.hex)
 
 (copy_files ../fixtures/rating-events.hex)
+
+(copy_files ../fixtures/numeric-domain.hex)

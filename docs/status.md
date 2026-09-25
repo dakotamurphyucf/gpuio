@@ -89,6 +89,11 @@ spinner leaves now pass local reduced/static/ancestor-hidden idle, resume,
 accessibility and disposal checks; the public example exercises all three.
 See [presentation evidence](evidence/presentation-components-och33.md) and
 the [Component Studio example](../examples/presentation/README.md).
+OCH-34 has begun with validated shared numeric domains, min-anchored stepping,
+and draft classification, with independent OCaml/Rust fixtures and boundary tests.
+Native slider/number/OTP integration remains pending; no capability is advertised.
+See [numeric design](design/numeric-inputs.md) and
+[foundation evidence](evidence/numeric-inputs-och34.md).
 No milestone-05 completion or hosted acceptance is claimed yet.
 
 The [milestone acceptance ledger](evidence/milestones-01-02.md) maps every ticket

@@ -29,7 +29,7 @@ pub mod v1;
 
 pub use decode::{
     DecodeError, decode, decode_accessibility, decode_animation_program, decode_canvas_scene,
-    decode_canvas_view_config, decode_container_query,
+    decode_canvas_view_config, decode_container_query, decode_numeric_domain,
 };
 pub use id::{HandlerId, NodeId, ResourceId, WindowId};
 
@@ -42,3 +42,5 @@ pub mod pointer;
 pub mod window;
 
 pub mod split;
+
+pub mod numeric;
