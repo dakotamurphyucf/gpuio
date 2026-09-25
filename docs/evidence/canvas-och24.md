@@ -527,3 +527,59 @@ with `GPUIO_JOBS=2`: native library tests (101), `native_canvas_input`, full
 `check-fmt` and `git diff --check`. The hidden `native_canvas_view` regression also
 passed after object integration; final semantic-layer changes were validated by
 the active input/AX target. Owned processes exited and test windows were removed.
+
+## Public OCaml plot and autonomous frame scheduling
+
+`examples/canvas/` implements Canvas Lab through public typed scene, Bonsai view
+and scoped Eio APIs. It shows shapes, text, clipping, sample selection/movement,
+activation and pan/zoom, with reset/disabled/hide controls. The application accepts
+a native moved transform and publishes one updated scene after the interaction;
+it does not send preview frames. The window scope owns the registration.
+[The native screenshot](../images/canvas-lab.png) was captured from the owned app
+window and visually inspected; a clipped footer found in the first layout was
+fixed by compacting the sidebar/footer and allowing the containing page to scroll.
+
+The public self-test passes in normal and large modes. Normal mode has 184 items
+and 22,942 encoded bytes; large mode has 19,024 items and 2,396,782 encoded bytes.
+Both have four interactive samples. It checks scoped publication, declarative view
+mounting, selection/viewport command observations, same-generation publication,
+reset to generation 2, release/unmount, and unchanged OCaml view-commit count over
+a 200 ms idle observation after settling. This last check is not a native GPU frame
+latency or CPU-idle benchmark.
+
+`scripts/test_canvas.py` separately passes external macOS accessibility selection,
+a process-targeted Shift+Right event changing Swift's position from x=180 to x=181
+in the OCaml model, native activation, hide/show, dataset reset and application
+shutdown. It uses the actual child application, closes its window and reaps its
+process. It needs accessibility permission like the existing agent-chat script.
+
+This integration found and fixed two gaps missed by manually driven GPU tests:
+
+- A command arriving after scene acceptance but before prepared presentation could
+  consume its sequence against the old scene, producing a correctly rejected old
+  acknowledgement. Commands now wait for the matching publication. A directed
+  native regression asserts no old-scene completion and exactly the expected
+  revision-5/generation-2 completion after installation.
+- `refresh()` during GPUI paint is ignored, leaving a newly installed accessibility
+  tree or deferred text dependent on unrelated future input. Pending work now uses
+  a follow-up frame request. The external public test progresses without manual
+  draw calls and verifies actions after ordinary scene publication.
+
+CI builds the example with the full Dune build on both platforms and schedules
+normal/large public self-tests plus the native macOS script. Hosted execution,
+Linux GUI and final aggregate canvas acceptance remain pending.
+
+
+One macOS arm64 debug measurement using `/usr/bin/time -l` around the large
+self-test reports 2.55 s wall time, 1.24 s user time, 0.20 s system time,
+388,055,040 bytes maximum RSS (about 370.1 MiB), 314,117,184 bytes peak memory
+footprint and zero swaps. This is the complete process lifecycle, including native
+startup and the deliberate idle interval, not a per-frame timing or a universal
+memory ceiling. Native queue/cache quotas and zero-retention lifecycle assertions
+are established by the lower-level checks described above.
+
+Final local validation also passes the full isolated Dune `@all @runtest` build,
+canvas-feature all-target Clippy with warnings denied, the native mounted-scene
+regression, repository formatting and diff checks. The input/accessibility suite
+and external public script passed after the publication and paint-scheduling fixes.
+No milestone-05 hosted acceptance or merge is claimed at this checkpoint.

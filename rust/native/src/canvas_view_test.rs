@@ -441,13 +441,39 @@ async fn exercise(
         })
         .unwrap();
     ready(cx, handle, 4).await;
+    transport.mailbox.lock().unwrap().drain(128);
     publish(&session, source, 4, 2, 0x0000ffff);
     handle
         .update(cx, |view, window, cx| {
-            view.canvas_changed(source, window, cx)
+            view.canvas_changed(source, window, cx);
+            let mut pending = config(Some(source));
+            pending.command = Some(Command {
+                sequence: 2,
+                action: Action::ResetViewport,
+            });
+            apply_to_view(view, window, cx, vec![Op::SetCanvas(id(1), pending)]);
+            assert!(
+                !transport
+                    .mailbox
+                    .lock()
+                    .unwrap()
+                    .drain(128)
+                    .iter()
+                    .any(|event| matches!(event, Event::CanvasEvent(..))),
+                "pending command must not acknowledge an old publication"
+            );
         })
         .unwrap();
     ready(cx, handle, 5).await;
+    let reset_events = transport.mailbox.lock().unwrap().drain(128);
+    assert!(reset_events.iter().any(|event| matches!(
+        event,
+        Event::CanvasEvent(_, _, _, _, _, 5, 2, Observation::CommandCompleted(2))
+    )));
+    assert!(!reset_events.iter().any(|event| matches!(
+        event,
+        Event::CanvasEvent(_, _, _, _, _, _, _, Observation::CommandCompleted(1))
+    )));
     handle
         .update(cx, |view, window, _| {
             let state = view.canvases[&id(1)].borrow();

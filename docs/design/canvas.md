@@ -588,3 +588,20 @@ is active. Installing newly prepared geometry requests one further frame in that
 case so the next accessibility prepaint observes the installed snapshot. Native
 selection, dragging and viewport state continue to own interaction; assistive input
 does not introduce an OCaml frame callback.
+
+## Publication and frame scheduling
+
+Scene publication and prepared presentation are separate stages. If a view
+configuration arrives while the native state still represents an earlier scene,
+its latest configuration/command waits for preparation. The renderer installs
+policies, publishes the new snapshot, then applies the command. It does not consume
+a command sequence against an older publication whose observations OCaml must
+reject. Subsequent configuration updates can replace a pending configuration;
+preparation failure is reported, and hidden canvases resume preparation on showing.
+Commands on the current snapshot still work immediately, including while disabled.
+
+GPUI ignores `Window::refresh` while painting. The canvas therefore requests a
+follow-up frame for deferred content work, a newly installed accessibility
+representation or changed mesh quality after a deferred viewport command. These requests are made only while there is unfinished work;
+worker/image completion wakes remain independent. The public plot checks this
+path without the manual draws used by the lower-level GPU harnesses.

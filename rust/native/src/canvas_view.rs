@@ -162,16 +162,22 @@ impl State {
             .focus
             .clone()
             .tab_stop(!self.config.disabled && self.lease.is_some());
-        if let Some(native) = &mut self.native {
+        if let Some(native) = &mut self.native
+            && self
+                .lease
+                .as_ref()
+                .is_some_and(|lease| Arc::ptr_eq(native.snapshot(), &lease.snapshot()))
+        {
             match native.configure((*self.config).clone()) {
                 Ok(events) => self.emit(events, cx),
                 Err(error) => self.report(error, cx),
             }
         }
     }
-    fn prepare(&mut self, window: &mut Window, cx: &mut App) {
+    fn prepare(&mut self, window: &mut Window, cx: &mut App) -> bool {
+        let mut followup_frame = false;
         if self.closed {
-            return;
+            return false;
         }
         let Some(lease) = &self.lease else {
             self.report(
@@ -182,11 +188,11 @@ impl State {
                 },
                 cx,
             );
-            return;
+            return false;
         };
         let snapshot = lease.snapshot();
         let Some(native) = &self.native else {
-            return;
+            return false;
         };
         let zoom = if snapshot.generation != native.snapshot().generation {
             self.config.initial_viewport.zoom
@@ -203,7 +209,7 @@ impl State {
                     true,
                     cx,
                 );
-                return;
+                return false;
             }
         };
         let changed = self.requested.as_ref().is_none_or(|(old, old_quality)| {
@@ -231,7 +237,17 @@ impl State {
             match result {
                 Ok(ready) => {
                     let native = self.native.as_mut().expect("acquired canvas state");
-                    match native.publish(ready.snapshot.clone()) {
+                    // A command accepted during preparation belongs to the new
+                    // publication. Never consume its sequence against an older
+                    // snapshot whose observations the OCaml registry rejects.
+                    let mut policies = (*self.config).clone();
+                    policies.command = None;
+                    let installed = native.configure(policies).and_then(|mut events| {
+                        events.extend(native.publish(ready.snapshot.clone())?);
+                        events.extend(native.configure((*self.config).clone())?);
+                        Ok(events)
+                    });
+                    match installed {
                         Ok(events) => {
                             match &mut self.content {
                                 Some(content) => content.publish(ready.snapshot.clone()),
@@ -239,10 +255,13 @@ impl State {
                                     self.content = Some(Content::new(ready.snapshot.clone(), cx))
                                 }
                             }
+                            followup_frame = window.is_a11y_active()
+                                || Quality::new(
+                                    native.viewport().zoom,
+                                    f64::from(window.scale_factor()),
+                                )
+                                .is_ok_and(|quality| quality != ready.quality);
                             self.ready = Some(ready);
-                            if window.is_a11y_active() {
-                                window.refresh();
-                            }
                             self.emit(events, cx);
                         }
                         Err(error) => self.failure = Some(error),
@@ -257,6 +276,7 @@ impl State {
             // its failure to the requested publication so Eio can accept it.
             self.report_at(error, snapshot.revision, snapshot.generation, true, cx);
         }
+        followup_frame
     }
     fn paint(
         &mut self,
@@ -265,7 +285,7 @@ impl State {
         window: &mut Window,
         cx: &mut App,
     ) {
-        self.prepare(window, cx);
+        let followup_frame = self.prepare(window, cx);
         if self.closed {
             return;
         }
@@ -278,10 +298,19 @@ impl State {
         let result = paint(ready, native, content, bounds, budget, window, cx);
         content.end_frame();
         input::selection(native, bounds, window);
-        match result {
-            Ok(true) => window.refresh(), // bounded deferred shaping; images wake independently
-            Ok(false) => (),
-            Err(error) => self.report(error, cx),
+        let deferred = match result {
+            Ok(deferred) => deferred,
+            Err(error) => {
+                self.report(error, cx);
+                false
+            }
+        };
+        if deferred || followup_frame {
+            // refresh() is deliberately ignored while GPUI is drawing. Schedule
+            // the next frame so deferred text, installed AX objects and any
+            // quality change from a deferred viewport command progress without
+            // a later unrelated input event.
+            window.request_animation_frame();
         }
     }
 }

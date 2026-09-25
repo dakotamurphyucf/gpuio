@@ -17,6 +17,7 @@ Dune 3.24.2 and Rust 1.97.1. macOS and Linux (Wayland and X11) are v1 targets.
 
 - [Current implementation status](docs/status.md)
 - [Run the agent workspace](examples/agent_chat/README.md)
+- [Explore the native canvas](examples/canvas/README.md)
 - [Documents](docs/design/documents.md) and [windows/tabs/splits](docs/design/windows.md)
 - [Contributor guide](CONTRIBUTING.md)
 - [OCaml engineering standards](docs/design/engineering-standards.md)

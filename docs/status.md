@@ -40,7 +40,9 @@ Native-dispatch input checks now pass focus, drag/selection pixels, keyboard,
 pan/zoom, wheel coalescing and cancellation, including actual window deactivation.
 Native macOS object accessibility now passes label/selection/focus, separate
 activation, transformed bounds, offscreen reveal, disabled/hide/removal checks.
-Public OCaml widget and aggregate acceptance remain in progress. See the
+The public OCaml Canvas Lab passes command/update/reset lifecycle checks with
+184 and 19,024 items, plus external macOS AX/keyboard interaction checks.
+Aggregate acceptance and consolidated hosted gates remain in progress. See the
 [extension](evidence/extensions-och23.md) and [canvas](evidence/canvas-och24.md)
 evidence for exact completed scope. Its scope includes OCH-23–26 and OCH-33–39, followed by
 [OCH-46](https://linear.app/ochat/issue/OCH-46/showcase-milestone-05-features-in-the-polished-agent-chat-reference):

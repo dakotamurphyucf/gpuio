@@ -115,9 +115,15 @@ jobs:
       - name: macOS canvas scene uploads without windows
         if: runner.os == 'macOS'
         run: python3 -c 'import subprocess; subprocess.run(["_build/default/examples/canvas_upload/main.exe"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-canvas-upload.log
-      - name: macOS hidden-window canvas geometry and mounted-view checks
+      - name: macOS canvas rendering, input and accessibility checks
         if: runner.os == 'macOS'
         run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-canvas-tests", "--test", "native_canvas", "--test", "native_canvas_view", "--test", "native_canvas_input"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-canvas-native.log
+      - name: macOS public canvas checks
+        if: runner.os == 'macOS'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/canvas/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-canvas-public.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/canvas/main.exe", "--self-test", "--large"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-canvas-large.log
+          python3 scripts/test_canvas.py 2>&1 | tee .cache/ci/macos-canvas-public-native.log
       - name: Document worker measurements
         run: ./scripts/gpuio exec cargo test --locked -p gpuio-native --lib document_jobs::tests::measurement_report -- --nocapture 2>&1 | tee .cache/ci/document-worker-measurements.log
       - name: macOS public runtime checks
