@@ -411,6 +411,33 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
         .timer(repeat::DELAY + repeat::INTERVAL)
         .await;
     assert_eq!(status(cx, handle).2, ticks);
+    let first_value = snapshot(cx, handle).committed;
+    apply(
+        cx,
+        other,
+        vec![
+            Op::Create(node(0), Kind::Container, "".into(), None),
+            Op::Create(
+                node(1),
+                Kind::NumberInput,
+                "".into(),
+                Some(HandlerId::from_parts(1, 1).unwrap()),
+            ),
+            Op::SetNumberInput(node(1), config(), n::Value::Number(4.)),
+            Op::Splice(node(0), 0, 0, vec![node(1)]),
+            Op::SetRoot(Some(node(0))),
+        ],
+    );
+    frame(cx, other).await;
+    press(cx, other, Direction::Increase);
+    assert_eq!(snapshot(cx, other).committed, n::Value::Number(4.5));
+    assert_eq!(snapshot(cx, handle).committed, first_value);
+    let (closed_owner, closed_input) = other
+        .update(cx, |v, _, _| {
+            let instance = &v.numbers[&node(1)];
+            (Rc::downgrade(&instance.owner), instance.state.downgrade())
+        })
+        .unwrap();
     other
         .update(cx, |v, w, _| {
             v.session.borrow_mut().close(v.id).unwrap();
@@ -420,6 +447,10 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
     handle.update(cx, |_, w, _| w.activate_window()).unwrap();
     activation(cx, handle, true).await;
     frame(cx, handle).await;
+    assert!(closed_owner.upgrade().is_none());
+    assert!(closed_input.upgrade().is_none());
+    assert!(session.borrow().tree(other_id).is_none());
+    assert_eq!(snapshot(cx, handle).committed, first_value);
     mouse(cx, handle, point, false);
     idle(cx, handle);
     events(transport);
@@ -429,6 +460,6 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
     press(cx, handle, Direction::Increase);
     assert!(status(cx, handle).0);
     eprintln!(
-        "GPUIO_NUMBER_REPEAT_OK: native delayed repeat, repaint capture, release/leave/capture/Escape/edit/policy/hide/geometry/window cancellation, bounds and idle timer disposal"
+        "GPUIO_NUMBER_REPEAT_OK: native delayed repeat, repaint capture, release/leave/capture/Escape/edit/policy/hide/geometry/window cancellation, bounds, independent-window close and idle timer disposal"
     );
 }

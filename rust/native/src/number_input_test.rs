@@ -14,8 +14,12 @@ mod accessibility_test;
 #[cfg(feature = "native-image-tests")]
 #[path = "number_input_appearance_test.rs"]
 mod appearance_test;
+#[path = "number_input_policy_test.rs"]
+mod policy_test;
 #[path = "number_input_repeat_test.rs"]
 mod repeat_test;
+#[path = "number_input_workload_test.rs"]
+mod workload_test;
 
 async fn frame(cx: &mut AsyncApp, handle: WindowHandle<View>) {
     for attempt in 0..6 {
@@ -384,6 +388,7 @@ async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Tra
     accessibility_test::exercise(cx, handle, transport).await;
     #[cfg(feature = "native-image-tests")]
     appearance_test::exercise(cx, handle, transport).await;
+    policy_test::exercise(cx, handle, transport).await;
     repeat_test::exercise(cx, handle, transport).await;
     let (weak, input) = handle
         .update(cx, |v, _, _| {
@@ -410,6 +415,7 @@ async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Tra
                 && v.session.borrow().retained_bytes() == 0)
             .unwrap()
     );
+    workload_test::exercise(cx, handle, transport).await;
     eprintln!(
         "GPUIO_NUMBER_INPUT_NATIVE_OK: one editor, draft/commit/cancel, native keyboard/clipboard/history, stale guards, configuration, IME and disposal"
     );

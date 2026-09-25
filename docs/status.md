@@ -121,9 +121,11 @@ disabled/hidden policies now pass locally. The public numeric example now passes
 three-layout command/event, draft/history/selection, revision/lease/policy and
 remount/close integration checks. Numeric GPU light/dark, density, focus and
 constrained-layout checks now pass, with a stacked-button overflow fixed. External
-macOS AX/OS keyboard tests also pass through the public example. Broader numeric
-workload/lifetime/policy acceptance and OTP remain pending; no capability is
-advertised.
+macOS AX/OS keyboard tests also pass through the public example. Retained IME and
+history through configuration changes, hidden/modal gates, independent-window
+close during a held repeat, and three 256-editor workload/disposal cycles now pass.
+Slider and numeric editor/stepper local acceptance is complete; OTP remains
+pending before OCH-34 capability advertisement and ticket completion.
 See [numeric design](design/numeric-inputs.md) and
 [foundation evidence](evidence/numeric-inputs-och34.md).
 No milestone-05 completion or hosted acceptance is claimed yet.

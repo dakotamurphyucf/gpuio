@@ -789,3 +789,71 @@ OTP; no new capability or completed ticket is claimed.
 
 Final `dune build -j 2 @all @fmt`, Rustfmt, workflow YAML parsing and diff
 whitespace checks passed through the isolated toolchain.
+
+## Numeric policy, window-close and workload acceptance
+
+The expanded native numeric suite passes the remaining retained-state scenarios:
+
+- Real AppKit marked text survives simultaneous domain, label, placeholder,
+  step-layout and style changes with the same editor entity, draft, selection,
+  composition, focus and history payload. The committed value normalizes under the
+  new domain separately. Escape unmarks first; explicit cancel restores the newly
+  normalized committed number.
+- Hiding an ancestor during a captured step cancels the task/capture and blocks
+  focus, while explicit hidden draft replacement and state reads remain usable.
+  Showing the ancestor preserves both editor identity and updated draft.
+- Adding a trapping focus scope cancels a held stepper, denies background focus
+  and the accessibility-source action route, and prevents late pointer release
+  or keyboard input from mutating the background field. Removing it preserves
+  the editor and allows focus again. This particular gate assertion calls the
+  adapter route directly; actual AppKit actions are covered in the earlier suite.
+- A second real window mounts the same node ID with an independent value. Closing
+  that window while its own stepper is held releases both owner and editor weak
+  references and removes its session tree; the original window retains its value.
+
+`number_input_workload_test.rs` passes three cycles of 256 retained numeric editors,
+with 32-owner mount batches and no duplicate ordinary-editor owners. Each cycle
+checks 32 keyboard commits, 1,024 alternating maximum-size (4,096-byte) explicit
+drafts, the 2 MiB history payload limit, undo after cancel, reset-to-zero history,
+no native-tree transaction for native input, and no idle repeat tasks. Draft bursts
+retain one latest adjacent Changed observation before the cancel boundary; undo,
+explicit value replacement and focus loss retain their correct subsequent event
+boundaries. Stationary unfocused owners produce no renders or bridge observations
+over the measured settled idle interval. Removal releases every weak owner/editor
+and all retained tree accounting.
+
+The first workload assertion allowed four events but omitted the legitimate
+focus-loss Changed observation after the explicit reset's Observed boundary.
+The final assertion checks the four expected event types and payloads plus only
+that optional fifth focus-loss observation; it does not permit uncoalesced drafts.
+
+Final local debug-build measurements on this macOS host:
+
+| Cycle | Tree payload bytes | Mount 256 editors | 32 keyboard events + frame | Whole cycle |
+| -- | -- | -- | -- | -- |
+| 1 | 51,968 | 204 ms | 1.242 s | 3.979 s |
+| 2 | 51,968 | 208 ms | 1.129 s | 3.771 s |
+| 3 | 51,968 | 209 ms | 1.145 s | 3.789 s |
+
+Payload accounting excludes native editor/history/renderer allocations; it is not
+an RSS estimate. Keyboard timing includes synthetic event/update/redraw boundaries
+in an unoptimized build and is not a 60 fps or production latency promise. These
+measurements establish the tested workload and cleanup behavior; simultaneous
+chat integration remains OCH-46.
+
+Validation: isolated Cargo native-image-tests numeric build and the resulting
+executable under a 60-second process-group timeout passed with AX, APPEARANCE,
+POLICY, REPEAT, three WORKLOAD and INPUT_NATIVE success markers. No timeout or
+frame retry occurred in the final run. All-target native-image-tests Clippy with
+`-D warnings` passed. Owned windows/processes closed and were reaped normally.
+These test modules are included in the existing numeric CI executable; hosted
+execution remains deferred to consolidated milestone validation.
+
+Numeric editor/stepper local acceptance now joins the completed slider family.
+OTP remains to be implemented and validated before advertising the OCH-34
+capability or closing the ticket. Consolidated hosted macOS/Linux gates and merge
+also remain pending; no Linux GUI acceptance is claimed.
+
+All-target Clippy also passed with the smaller `native-tests` feature set;
+Rustfmt and diff whitespace checks passed. This checkpoint changes tests/docs,
+not the public API, wire layout or production numeric behavior.

@@ -564,3 +564,36 @@ Constrained checks cover 80/180 px widths and 40/64 px heights with borders,
 positive editor bounds and no editor/button overlap. Explicit styles that force
 smaller geometry than the content needs can still clip, as with other native
 controls; no automatic font-size reduction is promised.
+
+### Numeric retained policies and workload limits
+
+Domain/label/placeholder/step-layout and ordinary style updates preserve the same
+native editor, draft, directional selection, marked composition and undo history.
+The committed number can normalize under the new domain independently of the
+preserved draft. The initial-value property on these updates remains a seed for
+future mounting, not an implicit replacement.
+
+Hiding an ancestor cancels a held repeat and blocks focus, while explicit
+programmatic draft replacement and snapshots remain available. Revealing the
+ancestor restores the same editor and updated draft. A trapping focus scope also
+cancels repetition and blocks background focus and user/accessibility actions;
+late pointer release and keyboard input must not change the background field.
+Removing the scope retains the numeric editor rather than recreating it.
+
+Window/node pairs identify owners: identical node IDs in separate windows have
+independent editors and numeric values. Closing a window during a held repeat
+releases that window's owner/editor and does not mutate a different window.
+
+Each numeric editor uses the existing 2 MiB undo payload budget, in addition to
+the 4,096-byte draft limit. This is a per-editor history payload budget, not a
+claim about total process RSS or a global history cap. Reset replacement clears
+history. Mount observations and semantic commit/cancel/observed boundaries remain
+discrete; application scheduling must drain them between bounded mount batches.
+Adjacent draft changes coalesce without erasing those boundaries or focus changes.
+
+The local workload retains 256 editors over three complete disposal cycles,
+mounts in batches of 32, drives keyboard stepping, and submits 1,024 maximum-size
+draft replacements per cycle. It verifies bounded history and output, stable tree
+payload accounting across cycles, stationary unfocused idle behavior, dead owner/
+editor weak references and zero retained tree accounting after removal. This
+workload is acceptance evidence, not a new hard application-size or latency limit.
