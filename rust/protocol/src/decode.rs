@@ -2,6 +2,8 @@ use crate::{HandlerId, NodeId, WindowId, v1::*};
 use binprot::BinProtRead;
 use std::io::{Cursor, Read};
 
+mod container_query;
+pub use container_query::decode_container_query;
 mod animation_program;
 pub use animation_program::decode_animation_program;
 mod canvas;

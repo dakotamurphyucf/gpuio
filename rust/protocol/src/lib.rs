@@ -9,6 +9,7 @@ pub mod canvas_resource;
 pub mod canvas_scene;
 pub mod canvas_view;
 mod command;
+pub mod container_query;
 mod decode;
 pub mod document;
 pub mod drag_drop;
@@ -24,6 +25,7 @@ pub mod v1;
 
 pub use decode::{
     DecodeError, decode, decode_animation_program, decode_canvas_scene, decode_canvas_view_config,
+    decode_container_query,
 };
 pub use id::{HandlerId, NodeId, ResourceId, WindowId};
 

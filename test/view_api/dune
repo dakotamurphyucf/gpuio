@@ -5,6 +5,7 @@
   (deps
    (sandbox preserve_file_kind)
    animation-v1-config.hex
+   container-query.hex
    animation-spring.hex
    animation-program.hex
    animation-program-request.hex
@@ -131,3 +132,5 @@
 (copy_files ../fixtures/animation-program-request.hex)
 
 (copy_files ../fixtures/animation-program-events.hex)
+
+(copy_files ../fixtures/container-query.hex)

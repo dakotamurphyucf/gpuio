@@ -65,6 +65,11 @@ retarget controls and a 1,024-visible-owner workload with input and complete dis
 The advanced-program capability is now advertised; hosted gates remain pending. See
 [advanced animation evidence](evidence/animation-programs-och25.md) and
 [design](design/animation-programs.md).
+OCH-26 now has typed container ranges/rules, deterministic selection and a bounded
+OCaml/Rust configuration fixture. Native layout, retained presentation visibility,
+focus and observation integration remain pending; no capability is advertised.
+See [container query design](design/container-queries.md) and
+[foundation evidence](evidence/container-queries-och26.md).
 No milestone-05 completion or hosted acceptance is claimed yet.
 
 The [milestone acceptance ledger](evidence/milestones-01-02.md) maps every ticket
