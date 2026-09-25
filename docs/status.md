@@ -113,8 +113,10 @@ routing and byte-accounted change coalescing now pass local bridge tests.
 Mounted numeric editing, basic step buttons, correlated commands and the Eio
 controller are implemented. Initial macOS native checks pass keyboard commit/
 cancel/step, clipboard, undo/redo, revision guards, retained configuration, marked
-text composition and disposal. Numeric pointer-repeat, full AX/visual/public
-example/lifetime acceptance and OTP remain pending; no capability is advertised.
+text composition and disposal. Native step-button hold-repeat now passes local
+Sides/Stacked, cancellation, real window deactivation and idle-task disposal
+checks. Full numeric AX/visual/public example/lifetime acceptance and OTP remain
+pending; no capability is advertised.
 See [numeric design](design/numeric-inputs.md) and
 [foundation evidence](evidence/numeric-inputs-och34.md).
 No milestone-05 completion or hosted acceptance is claimed yet.

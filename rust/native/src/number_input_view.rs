@@ -18,6 +18,9 @@ use std::{
     sync::Arc,
 };
 
+#[path = "number_input_repeat.rs"]
+mod repeat;
+
 struct Route {
     window: WindowId,
     node: NodeId,
@@ -59,6 +62,7 @@ impl Route {
 struct Owner {
     model: Model,
     route: Route,
+    repeat: repeat::Repeat,
 }
 impl Owner {
     fn current(&self) -> bool {
@@ -117,6 +121,9 @@ fn perform(
         {
             return n::Response::Failed(n::Error::FocusBlocked);
         }
+    }
+    if source != n::Source::Stepper && !matches!(command, n::Command::ReadSnapshot) {
+        owner.borrow_mut().stop_repeat(window);
     }
     entity
         .update(cx, |state, cx| {
@@ -321,6 +328,7 @@ impl Instance {
         )?;
         let owner = Rc::new(RefCell::new(Owner {
             model,
+            repeat: repeat::Repeat::default(),
             route: Route {
                 window: id,
                 node: node.id,
@@ -340,7 +348,11 @@ impl Instance {
                 if owner.current() {
                     let live = editor::snapshot(state.read(cx), window, cx);
                     match owner.model.observe(&live) {
-                        Ok(event) => owner.route.emit(event),
+                        Ok(Some(event)) => {
+                            owner.stop_repeat(window);
+                            owner.route.emit([event]);
+                        }
+                        Ok(None) => (),
                         Err(_) => owner.route.fault(),
                     }
                 }
@@ -357,10 +369,26 @@ impl Instance {
             _subscriptions: vec![subscription],
         })
     }
-    fn configure(&mut self, config: Arc<n::Config>, window: &mut Window, cx: &mut App) {
+    fn configure(
+        &mut self,
+        config: Arc<n::Config>,
+        handler: HandlerId,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
         let live = editor::snapshot(self.state.read(cx), window, cx);
         {
             let mut owner = self.owner.borrow_mut();
+            let previous = owner.model.config();
+            let policy_changed = previous.domain != config.domain
+                || previous.step_controls != config.step_controls
+                || previous.allow_empty != config.allow_empty
+                || previous.disabled != config.disabled
+                || previous.read_only != config.read_only;
+            if policy_changed || owner.route.handler != handler {
+                owner.stop_repeat(window);
+            }
+            owner.route.handler = handler;
             let outcome = owner.model.configure(config.clone(), &live);
             if matches!(owner.result(outcome), n::Response::Failed(_)) {
                 owner.route.fault();
@@ -482,39 +510,23 @@ impl Instance {
                     );
                 });
                 if pointer {
-                    button = button.cursor_pointer().on_mouse_down(
-                        MouseButton::Left,
-                        move |_, window, cx| {
-                            window.prevent_default();
-                            perform(
-                                &route,
-                                &entity,
-                                &n::Command::Focus,
-                                n::Source::Programmatic,
-                                window,
-                                cx,
-                            );
-                            perform(
-                                &route,
-                                &entity,
-                                &n::Command::Step(direction),
-                                n::Source::Stepper,
-                                window,
-                                cx,
-                            );
-                            cx.stop_propagation();
-                        },
-                    );
+                    button = button.cursor_pointer();
                 }
             }
-            crate::semantics::State {
-                element: button,
-                metadata: None,
-                hidden: false,
-                live: None,
-                disabled: config.disabled || config.read_only,
-                read_only: config.read_only,
-                modal: false,
+            repeat::Button {
+                owner: route,
+                entity,
+                direction,
+                enabled: pointer && !config.disabled && !config.read_only,
+                element: crate::semantics::State {
+                    element: button,
+                    metadata: None,
+                    hidden: false,
+                    live: None,
+                    disabled: config.disabled || config.read_only,
+                    read_only: config.read_only,
+                    modal: false,
+                },
             }
         };
         let next = owner.route.gate.clone();
@@ -572,10 +584,18 @@ impl View {
         let nodes = {
             let session = self.session.borrow();
             let Some(tree) = session.tree(self.id) else {
+                self.cancel_number_repeats(window);
                 self.numbers.clear();
                 return;
             };
-            self.numbers.retain(|id, _| tree.get(*id).is_some());
+            self.numbers.retain(|id, instance| {
+                if tree.get(*id).is_some() {
+                    true
+                } else {
+                    instance.owner.borrow_mut().stop_repeat(window);
+                    false
+                }
+            });
             dirty
                 .iter()
                 .filter_map(|id| tree.get(*id))
@@ -587,6 +607,7 @@ impl View {
             if let Some(instance) = self.numbers.get_mut(&node.id) {
                 instance.configure(
                     node.number_input.as_ref().unwrap().config.clone(),
+                    node.handler.expect("validated numeric handler"),
                     window,
                     cx,
                 );
@@ -609,6 +630,28 @@ impl View {
                         }
                     }
                 }
+            }
+        }
+        for instance in self.numbers.values() {
+            instance.owner.borrow_mut().check_repeat(window);
+        }
+    }
+    pub(super) fn cancel_number_repeats(&self, window: &mut Window) -> bool {
+        let mut cancelled = false;
+        for instance in self.numbers.values() {
+            cancelled = instance.owner.borrow_mut().stop_repeat(window) || cancelled;
+        }
+        cancelled
+    }
+    pub(super) fn hide_unvisited_numbers(&self, window: &mut Window, cx: &mut App) {
+        for (id, instance) in &self.numbers {
+            if !self.visited.contains(id) && instance.owner.borrow().repeat.is_active() {
+                let weak = Rc::downgrade(&instance.owner);
+                window.defer(cx, move |window, _| {
+                    if let Some(owner) = weak.upgrade() {
+                        owner.borrow_mut().stop_repeat(window);
+                    }
+                });
             }
         }
     }

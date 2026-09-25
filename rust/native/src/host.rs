@@ -950,6 +950,7 @@ impl View {
                 cx,
             );
         } else if let Some(number) = self.numbers.get(&id) {
+            self.visited.insert(id);
             element = number.element(element, interaction.pointer, cx);
         } else if node.slider.is_some() {
             self.visited.insert(id);
@@ -1498,6 +1499,7 @@ impl Render for View {
         self.hide_unvisited_extensions();
         self.hide_unvisited_canvases(window);
         self.hide_unvisited_sliders(window, cx);
+        self.hide_unvisited_numbers(window, cx);
         self.buttons.retain(|id, _| self.visited.contains(id));
         self.radios.retain(|id, _| self.visited.contains(id));
         self.ratings.retain(|id, _| self.visited.contains(id));

@@ -591,3 +591,59 @@ Validation for this checkpoint (local macOS):
 
 Owned test windows and subprocesses are closed/reaped. Hosted validation and
 merge remain deferred to the consolidated milestone submission.
+
+## Native numeric step-button hold-repeat
+
+`number_input_repeat.rs` implements captured Sides/Stacked button gestures. One
+immediate step is followed by a native 400 ms delay and 75 ms repeat interval;
+all steps use the existing numeric commit/history/event rules. The task holds
+weak references and a per-gesture lifetime token. It is dropped on termination,
+including invalid/composing drafts and reaching a bound. There is no idle
+numeric-repeat task; native caret blinking/Bonsai scheduling are separate.
+
+The actual native numeric suite now also passes:
+
+- Immediate and repeated Stepper commits; capture survives repaint/hitbox rebinding
+  and label/color-only updates. Both Sides and Stacked presentations work, including
+  increasing and decreasing from separate stacked buttons.
+- Fifteen cancellation cases: pointer leave, capture loss, Escape (including its
+  normal Cancelled event), explicit draft replacement, read-only, disabled, hidden
+  step buttons, disabled pointer input, hidden field, changed button geometry,
+  native text insertion, focus loss, keyboard stepping, changed numeric domain,
+  and rebinding the event handler. Late releases preserve the resulting value.
+- Incomplete drafts and actual macOS marked text reject a button step without
+  starting a timer or discarding draft/composition. A step reaching max stops.
+- A second real window deactivates the held owner; returning to the first window
+  and delivering its late release does not resume or mutate the cancelled gesture.
+- After release/deactivation, native tick counts stay unchanged beyond the initial
+  delay plus interval, and both task and capture are absent. Removing an actively
+  held owner releases its editor/owner weak references and all retained accounting.
+
+The first repeat run exposed a mismatch between dispatched pointer positions and
+GPUI's separately polled physical cursor position. The timer initially cancelled a
+valid captured gesture because those positions differed. Captured mouse motion
+now determines leaving, while capture/policy/geometry/window checks remain.
+A subsequent blur assertion assumed immediate notification; GPUI queues focus
+notifications with painting. The adapter now checks actual focus before timer
+steps and during prepaint, and the test waits for acknowledged frames. Handler
+rebinding also now updates the retained route rather than leaving its owner stale.
+
+One expanded run hit the 60-second outer timeout without diagnostic output; its
+process group was terminated and reaped. A traced rerun passed all stages. The
+numeric suite now bounds each two-frame paint acknowledgement to six 500 ms
+attempts, refreshing and reporting activation on retry; exhaustion fails through
+normal cleanup. The final run passed without a frame retry. The original stall's
+cause was not established; this is not a claim to fix GPUI frame scheduling.
+
+The final native run prints `GPUIO_NUMBER_REPEAT_OK` and
+`GPUIO_NUMBER_INPUT_NATIVE_OK`, and closes/reaps its windows normally. CI now
+builds this numeric suite on both target platforms and includes its macOS native
+execution in the consolidated workflow. Hosted checks have not run yet. Numeric
+AX/visual/public-application acceptance, broader workloads and OTP remain open.
+
+Local checkpoint validation:
+
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-tests --test native_number_input --no-run`, then the resulting native executable under the 60-second process-group guard: final native suite passed.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --lib --test number_input`: 159 native unit tests and four numeric bridge tests passed.
+- All-target Clippy with `-D warnings` passed for both `native-tests` and the CI `native-image-tests` configuration.
+- Rustfmt and diff whitespace checks passed. No OCaml types or wire layouts changed in this checkpoint.

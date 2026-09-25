@@ -1,6 +1,6 @@
 //! Actual native InputState checks, separate from the deterministic policy model.
 use super::super::{
-    editor_test::{frame, key, native_text},
+    editor_test::{frame as editor_frame, key, native_text},
     stop_application,
 };
 use super::*;
@@ -8,6 +8,39 @@ use crate::session::Session;
 use gpuio_protocol::numeric::Domain;
 use gpuio_protocol::v1::{Length, Style};
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+#[path = "number_input_repeat_test.rs"]
+mod repeat_test;
+
+async fn frame(cx: &mut AsyncApp, handle: WindowHandle<View>) {
+    for attempt in 0..6 {
+        let timeout = cx
+            .background_executor()
+            .timer(std::time::Duration::from_millis(500));
+        let painted = futures_lite::future::or(
+            async {
+                editor_frame(cx, handle).await;
+                true
+            },
+            async {
+                timeout.await;
+                false
+            },
+        )
+        .await;
+        if painted {
+            return;
+        }
+        let active = handle
+            .update(cx, |_, window, cx| {
+                window.refresh();
+                cx.notify();
+                window.is_window_active()
+            })
+            .unwrap();
+        eprintln!("NUMBER_INPUT_FRAME_RETRY attempt={attempt} active={active}");
+    }
+    panic!("numeric native window did not acknowledge painted frames within 3 seconds");
+}
 
 fn node(slot: i64) -> NodeId {
     NodeId::from_parts(slot, 1).unwrap()
@@ -341,6 +374,7 @@ async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Tra
         "explicit replacement allowed read-only"
     );
     events(transport);
+    repeat_test::exercise(cx, handle, transport).await;
     let (weak, input) = handle
         .update(cx, |v, _, _| {
             let instance = &v.numbers[&node(1)];
@@ -353,6 +387,11 @@ async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Tra
         vec![Op::SetRoot(None), Op::Remove(node(1)), Op::Remove(node(0))],
     );
     frame(cx, handle).await;
+    assert!(
+        handle
+            .update(cx, |_, w, _| w.captured_hitbox().is_none())
+            .unwrap()
+    );
     assert!(weak.upgrade().is_none());
     assert!(input.upgrade().is_none());
     assert!(

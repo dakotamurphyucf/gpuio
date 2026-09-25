@@ -221,8 +221,9 @@ stepping, configuration updates and command/observation revision rules. Retained
 view descriptions, tree admission and event routing are connected. Native editor
 mounting, basic step controls, correlated command routing and the Eio controller
 are now implemented. Initial local native keyboard, clipboard, history and macOS
-marked-text checks pass. Pointer repeat, complete accessibility and visual checks,
-the public integration example and wider lifetime acceptance remain targets.
+marked-text checks pass. Native pointer hold-repeat and cancellation now also pass
+local checks. Complete accessibility and visual checks, the public integration
+example and wider lifetime acceptance remain targets.
 
 ### Ownership and public shape
 
@@ -457,8 +458,8 @@ route. Initial autofocus precedes the initial numeric snapshot.
 Enter commits, Up/Down step, and Escape first ends composition without restoring
 the committed text; a later Escape cancels the draft. Programmatic Cancel fails
 while composing. Initial tests enter through GPUI keyboard dispatch and macOS
-NSTextInputClient marked/committed text methods. Step buttons currently perform
-one step per pointer down; hold-repeat is still required before acceptance.
+NSTextInputClient marked/committed text methods. Step buttons perform one step
+on pointer down and repeat natively while held, as specified below.
 
 The correlated lane appends Message `Number_input_command` tag 15 and Event
 `Number_input_result` tag 47. Requests carry a positive correlation plus the exact
@@ -474,3 +475,29 @@ Bonsai state ignores older revisions and replies for a replaced lease. Native
 observations are never treated as text replacement commands. The public API
 builds; its full application-level integration scenario is the next validation
 step. No new capability is advertised until OCH-34 acceptance is complete.
+
+### Native step-button hold lifetime
+
+Sides and Stacked buttons use the same captured native gesture and weak-owner
+task. A valid press focuses the editor and immediately steps/commits. Current
+implementation timing is a 400 ms initial delay followed by one step every 75 ms;
+this is an internal choice, not a public configurable clock. Each successful step
+is a normal Stepper commit and undo transaction. Invalid/incomplete/composing
+drafts reject once and never arm a task. Reaching the bound also ends repetition.
+
+Release, leaving the button, capture loss, focus loss, window deactivation, hidden
+content, changed button geometry, disabled/read-only/pointer-disabled state,
+changed domain/empty policy/button presentation, handler rebinding, explicit
+mutating commands, native edits and removal stop the task and release capture.
+Late release does not edit or roll back previously committed steps. Escape keeps
+its ordinary numeric Cancelled event while ending the hold. Label/color-only
+updates preserve it. The retained event route is refreshed on handler rebinding.
+
+Each paint rebinds capture to the current native hitbox if its bounds and policy
+still match. Leaving is determined by captured mouse events, not the separately
+polled cursor position. The timer and prepaint also check the editor's actual
+focus/composition: GPUI delivers blur notifications after a frame, so an old
+cached focus observation must not permit another repeat step. Weak editor/owner
+references and a distinct per-hold token fence late work. There is no task or
+periodic numeric-repeat wake while idle; this does not remove ordinary native
+caret blinking or the application's Bonsai clock.
