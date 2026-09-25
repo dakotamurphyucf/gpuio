@@ -1,0 +1,6 @@
+(library
+ (name gpuio_canvas_tests)
+ (libraries core expect_test_helpers_core gpuio gpuio.protocol)
+ (inline_tests)
+ (preprocess
+  (pps ppx_jane ppx_expect)))

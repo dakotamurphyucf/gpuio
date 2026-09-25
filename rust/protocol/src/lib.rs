@@ -3,6 +3,7 @@
 //! V1 is under development; the private foundation protocol is unrelated.
 pub mod animation;
 pub mod asset;
+pub mod canvas;
 mod command;
 mod decode;
 pub mod document;
