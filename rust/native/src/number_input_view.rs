@@ -20,6 +20,8 @@ use std::{
 
 #[path = "number_input_repeat.rs"]
 mod repeat;
+#[path = "number_input_semantics.rs"]
+mod semantics;
 
 struct Route {
     window: WindowId,
@@ -65,6 +67,22 @@ struct Owner {
     repeat: repeat::Repeat,
 }
 impl Owner {
+    fn accessibility(
+        &self,
+    ) -> (
+        Option<Arc<gpuio_protocol::accessibility::Config>>,
+        Option<String>,
+    ) {
+        let session = self.route.session.borrow();
+        let Some(tree) = session.tree(self.route.window) else {
+            return (None, None);
+        };
+        (
+            tree.get(self.route.node)
+                .and_then(|node| node.accessibility.clone()),
+            tree.tooltip_description(self.route.node).map(str::to_owned),
+        )
+    }
     fn current(&self) -> bool {
         let session = self.route.session.borrow();
         session
@@ -274,17 +292,23 @@ fn configure_input(
                     });
             }
         }
-        let metadata = owner.upgrade().and_then(|owner| {
-            let owner = owner.borrow();
-            let session = owner.route.session.borrow();
-            session
-                .tree(owner.route.window)
-                .and_then(|tree| tree.get(owner.route.node))
-                .and_then(|node| node.accessibility.clone())
-        });
+        let (application, tooltip) = owner
+            .upgrade()
+            .map(|owner| {
+                let owner = owner.borrow();
+                owner.accessibility()
+            })
+            .unwrap_or_default();
+        let metadata = semantics::metadata(
+            &config,
+            &state.value(),
+            state.bridge_composition().is_some(),
+            application.as_deref(),
+            tooltip.as_deref(),
+        );
         crate::semantics::State {
             element,
-            metadata,
+            metadata: Some(metadata),
             hidden: false,
             live: None,
             disabled: config.disabled,
@@ -443,21 +467,35 @@ impl Instance {
         let owner = self.owner.borrow();
         let config = owner.model.config();
         let weak = Rc::downgrade(&self.owner);
+        let state = self.state.read(cx);
+        let text = state.value();
+        let composing = state.bridge_composition().is_some();
+        let (application, tooltip) = owner.accessibility();
+        let metadata = semantics::metadata(
+            config,
+            &text,
+            composing,
+            application.as_deref(),
+            tooltip.as_deref(),
+        );
         base = base
             .flex()
             .flex_row()
             .items_center()
             .gap(px(4.))
             .role(Role::SpinButton)
-            .aria_label(config.label.clone())
+            .aria_label(metadata.field.as_ref().unwrap().label.clone())
             .aria_min_numeric_value(config.domain.min())
             .aria_max_numeric_value(config.domain.max())
             .aria_numeric_value_step(config.domain.step());
-        let text = self.state.read(cx).value();
-        if let Draft::Valid(value) = Draft::parse(config.domain, &text) {
+        if !composing && let Draft::Valid(value) = Draft::parse(config.domain, &text) {
             base = base.aria_numeric_value(value);
+        } else {
+            base = base.aria_value(text);
         }
-        base = base.aria_value(text);
+        if let Some(description) = semantics::description(&metadata) {
+            base = base.aria_description(description);
+        }
         if !config.disabled && !config.read_only {
             for (action, direction) in [
                 (AccessibleAction::Increment, Direction::Increase),

@@ -8,6 +8,9 @@ use crate::session::Session;
 use gpuio_protocol::numeric::Domain;
 use gpuio_protocol::v1::{Length, Style};
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+#[cfg(target_os = "macos")]
+#[path = "number_input_accessibility_test.rs"]
+mod accessibility_test;
 #[path = "number_input_repeat_test.rs"]
 mod repeat_test;
 
@@ -374,6 +377,8 @@ async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Tra
         "explicit replacement allowed read-only"
     );
     events(transport);
+    #[cfg(target_os = "macos")]
+    accessibility_test::exercise(cx, handle, transport).await;
     repeat_test::exercise(cx, handle, transport).await;
     let (weak, input) = handle
         .update(cx, |v, _, _| {

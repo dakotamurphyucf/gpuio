@@ -647,3 +647,52 @@ Local checkpoint validation:
 - `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --lib --test number_input`: 159 native unit tests and four numeric bridge tests passed.
 - All-target Clippy with `-D warnings` passed for both `native-tests` and the CI `native-image-tests` configuration.
 - Rustfmt and diff whitespace checks passed. No OCaml types or wire layouts changed in this checkpoint.
+
+## Native numeric accessibility
+
+The native numeric suite now walks the actual AppKit accessibility objects and
+invokes their actions. `number_input_accessibility_test.rs` runs before the
+existing repeat suite in the same bounded native test executable. Locally on
+macOS it passes:
+
+- AXTextField draft text and required/editable/enabled state, and AXIncrementor
+  NSNumber value, min/max and increment/decrement support. Actual accessibility
+  focus restores the editor after blur.
+- Sides, Stacked and Hidden presentations: increment/decrement commits and visible
+  button press actions; Hidden retains incrementor actions without button nodes.
+  Events identify Accessibility as the commit source.
+- Native SetValue preserves transient `-`, Unicode-invalid text, `1e999` and `99`
+  without committing. Help describes each error or commit-time clamping. The
+  incrementor preserves these strings rather than exposing a false numeric value.
+  A step from `99` clamps/commits to max and clears automatic feedback; empty input
+  remains an empty string rather than zero.
+- Real NSTextInputClient marked text remains intact when accessibility edits and
+  steps are attempted. Automatic syntax feedback is suppressed while composing;
+  application help/errors and a changed label remain available without resetting
+  composition. Application and automatic errors combine after composition ends.
+- Read-only and disabled states remove advertised edit/step actions. Forced native
+  requests preserve draft and committed value; read-only remains enabled. Hiding
+  the field removes both native roles.
+
+The first run passed the earlier role/action/draft/IME assertions, then rejected
+an invalid test fixture that combined field metadata with top-level description.
+The fixture was corrected to put its help in the field record, preserving the
+existing protocol rule. Pure metadata tests now use valid application configs for
+both field and plain semantics. No protocol validation was weakened.
+
+Validation commands (isolated local macOS toolchain):
+
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-tests --test native_number_input --no-run` passed.
+- The resulting native executable passed under the 60-second process-group guard,
+  printing `GPUIO_NUMBER_AX_OK`, `GPUIO_NUMBER_REPEAT_OK` and
+  `GPUIO_NUMBER_INPUT_NATIVE_OK`. It exited normally and all owned windows/processes
+  were closed/reaped.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --lib --test number_input`: 160 unit and four numeric bridge tests passed.
+
+This establishes native AppKit object/action behavior, not external OS accessibility
+automation, human VoiceOver speech or Linux desktop behavior. Numeric visual/public
+application/workload acceptance and OTP remain open. No new capability, hosted
+validation or milestone/ticket completion is claimed.
+
+All-target Clippy (`--features native-image-tests -- -D warnings`), Rustfmt and
+diff whitespace checks also passed for this checkpoint.

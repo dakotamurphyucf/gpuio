@@ -501,3 +501,42 @@ cached focus observation must not permit another repeat step. Weak editor/owner
 references and a distinct per-hold token fence late work. There is no task or
 periodic numeric-repeat wake while idle; this does not remove ordinary native
 caret blinking or the application's Bonsai clock.
+
+### Numeric accessibility and draft feedback
+
+The native number field exposes an editable text field plus a SpinButton container
+(macOS AXTextField and AXIncrementor). The text field exposes its exact draft;
+SetValue edits that draft without committing, and Focus uses the same guarded
+native route as other focus requests. The incrementor exposes min/max/step and
+increment/decrement actions even when visual step buttons are Hidden. Sides and
+Stacked also expose separately labelled buttons. Accessibility steps are ordinary
+Accessibility-source commits with the same validation/history rules.
+
+Only a valid, noncomposing draft exposes a numeric value on the incrementor. This
+value can differ from the last committed value. Empty, incomplete, invalid,
+out-of-range and composing drafts expose their raw text; they never pretend to
+be zero or an already-clamped value. On the pinned macOS adapter a string value
+takes precedence over numeric_value, so the container supplies exactly one.
+
+The inner field is required when empty values are disallowed or application field
+metadata requires it. Blank input is not immediately marked invalid; applications
+can supply submission errors. Incomplete, syntax-invalid and nonfinite drafts get
+specific feedback; out-of-range feedback explains commit-time clamping. Automatic
+feedback is suppressed during IME composition, while application errors remain.
+These are accessibility descriptions and relationships, not an extra visual error
+row or a commit. Applications can render visible validation from observations.
+
+Application field labels/help/errors are preserved. Plain semantic labels and
+descriptions, tooltip descriptions and live-region settings also flow through the
+native adapter. The accepted wire metadata remains unchanged: field records carry
+their own help and error and cannot also set top-level label/description/live.
+Derived native metadata combines automatic feedback and application information
+without changing that wire contract. Required/invalid and label/help/error
+relationships use the existing semantic wrapper. Actual macOS tests verify required
+and help; they do not establish an additional platform-specific invalid attribute
+or VoiceOver speech output.
+
+Disabled and read-only fields advertise no edit/step actions and reject forced
+native mutation requests. Read-only fields remain enabled. Composition rejects
+accessibility edits/steps without discarding marked text. Hidden fields disappear
+from the native accessibility tree.

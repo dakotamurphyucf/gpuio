@@ -115,8 +115,10 @@ controller are implemented. Initial macOS native checks pass keyboard commit/
 cancel/step, clipboard, undo/redo, revision guards, retained configuration, marked
 text composition and disposal. Native step-button hold-repeat now passes local
 Sides/Stacked, cancellation, real window deactivation and idle-task disposal
-checks. Full numeric AX/visual/public example/lifetime acceptance and OTP remain
-pending; no capability is advertised.
+checks. Actual AppKit numeric/text values, focus/edit/step/button actions in all
+three stepper layouts, draft feedback, application metadata and IME/read-only/
+disabled/hidden policies now pass locally. Numeric visual/public example/lifetime
+acceptance and OTP remain pending; no capability is advertised.
 See [numeric design](design/numeric-inputs.md) and
 [foundation evidence](evidence/numeric-inputs-och34.md).
 No milestone-05 completion or hosted acceptance is claimed yet.
