@@ -98,6 +98,40 @@ should keep a bounded number of retained panels; unmounting a panel is an explic
 choice with the normal resource-release semantics. Conversation scopes belong to
 the application/store, not to whether a tab or virtual row is visible.
 
+## Native split panes
+
+`View.split_pane ~config ~first ~second` exposes a two-pane horizontal or vertical
+layout; nested splits compose ordinary workspaces. Rust owns live sizing through
+GPUI Base. Pointer movement never round-trips through OCaml. Optional `on_resize`
+receives logical pixel sizes once a pointer gesture completes or a keyboard/AX
+resize occurs, so applications can save layout preferences.
+
+`Split_pane.Config` validates a nonempty accessible label, finite initial first
+size, first minimum/maximum, second minimum, keyboard step, and nonnegative reset
+generation. Initial size applies on mount, axis change, or generation reset;
+ordinary rerenders preserve native geometry. Resetting a split preserves the
+identities, drafts and selections of its child editors. Container resize uses
+native proportional redistribution. The parent must provide bounded dimensions;
+minimum sizes may exceed a small parent and clip content. Applications should
+choose a responsive layout or a suitable window size. This is not a docking or
+drag-to-detach implementation.
+
+The divider is one keyboard tab stop and a native accessibility Splitter, with
+label, orientation, current/min/max/step values and increment/decrement actions.
+Arrows along the layout axis resize by one step; Home/End move to the permitted
+limits. Hiding, removing, resetting, window deactivation/close, and Escape cancel
+an owned drag without a completion callback, retaining the current geometry.
+Pointer-events styling blocks new pointer drags and cancels existing ones while
+keyboard access remains available. Stale callback handler/reset generations are
+rejected at the OCaml reconciler.
+
+The reviewed GPUI Base adaptation adds a weak lease tied to the actual drag
+entity, public ownership/cancellation queries, and live-state event guards. A
+stale painted handler cannot restart a cancelled drag; an expired lease cannot
+cancel an unrelated native drag. No OCaml closures are stored in Rust. Split
+configuration and events are part of the current private window/workspace
+protocol; the two runtimes ship together.
+
 ## Local evidence and remaining work
 
 `examples/window_lifecycle` exercises two public OCaml windows, title commands,
@@ -116,5 +150,7 @@ check. No hosted CI or merge has run for this milestone yet. Linux build/unit
 checks are required at integration; Linux GUI checks remain informational per
 the owner's platform policy. Native tabs and retained panels additionally passed the complete OCaml/Rust
 suites, native keyboard/macOS accessibility/hidden-panel checks, the full native
-controls regression, Clippy, and formatting. Split panes and the integrated
-agent app are the next implementation stages.
+controls regression, Clippy, and formatting. Split panes additionally passed native pointer/keyboard/macOS AX increment and
+decrement checks, cancellation on hide/Escape/reset, both axes, native child-editor
+identity preservation, disposal, and independent Rust/OCaml binary fixtures.
+The integrated agent application and final consolidated gates remain pending.

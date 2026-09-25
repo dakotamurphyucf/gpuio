@@ -81,6 +81,7 @@ module View = struct
   let menu_bar = Gpuio.View.menu_bar
   let command_button = Gpuio.View.command_button
   let tooltip = Gpuio.View.tooltip
+  let split_pane = Gpuio.View.split_pane
   let tab_bar = Gpuio.View.tab_bar
   let tab_panel = Gpuio.View.tab_panel
   let radio_group = Gpuio.View.radio_group

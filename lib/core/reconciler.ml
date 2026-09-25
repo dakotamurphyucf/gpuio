@@ -64,6 +64,7 @@ module Identity = struct
 end
 
 type 'a callback =
+  | Split_pane of Split_pane.Config.t * (Split_pane.Snapshot.t -> 'a)
   | Document of Text_source.Handle.t * (Document.Navigation.t -> 'a)
   | Virtual_list of List_identity.t * 'a View.Expert.virtual_list
   | Animation of int64 * int64 ref * (Animation.Event.t -> 'a)
@@ -225,6 +226,7 @@ let kind = function
   | Document_view -> Document_view
   | Tab_bar -> Tab_bar
   | Tab_panel -> Tab_panel
+  | Split_pane -> Split_pane
 ;;
 
 let compatible mounted view =
@@ -404,6 +406,13 @@ let rec mount builder ~depth previous view =
       | Some _, Some _ -> fail "drop_target cannot combine another handler"
     in
     let callback =
+      match description.split_pane, callback with
+      | Some item, None ->
+        Option.map item.on_resize ~f:(fun callback -> Split_pane (item.config, callback))
+      | None, _ -> callback
+      | Some _, Some _ -> fail "split pane cannot combine another handler"
+    in
+    let callback =
       match description.document, callback with
       | Some item, None ->
         Option.map item.on_navigate ~f:(fun callback ->
@@ -443,14 +452,19 @@ let rec mount builder ~depth previous view =
       | _ -> fail "incompatible virtual list callback"
     in
     let rotate_handler =
-      (match description.document, previous with
-       | Some document, Some mounted ->
-         Option.exists (View.Expert.describe mounted.view).document ~f:(fun old ->
-           not
-             (Text_source.Handle.equal
-                (Document.Config.source old.config)
-                (Document.Config.source document.config)))
+      (match description.split_pane, previous with
+       | Some item, Some mounted ->
+         Option.exists (View.Expert.describe mounted.view).split_pane ~f:(fun old ->
+           not (Split_pane.Config.equal old.config item.config))
        | None, _ | Some _, None -> false)
+      || (match description.document, previous with
+          | Some document, Some mounted ->
+            Option.exists (View.Expert.describe mounted.view).document ~f:(fun old ->
+              not
+                (Text_source.Handle.equal
+                   (Document.Config.source old.config)
+                   (Document.Config.source document.config)))
+          | None, _ | Some _, None -> false)
       || (match description.image, previous with
           | Some image, Some mounted ->
             Option.exists (View.Expert.describe mounted.view).image ~f:(fun old ->
@@ -593,6 +607,19 @@ let rec mount builder ~depth previous view =
     if not (Option.equal Wire.Animation.Config.equal animation old_animation)
     then
       Option.iter animation ~f:(fun config -> emit builder (Set_animation (id, config)));
+    Option.iter description.split_pane ~f:(fun item ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).split_pane ~f:(fun old ->
+            old.config))
+      in
+      if
+        Option.exists old ~f:(fun old ->
+          Int64.(
+            Split_pane.Expert.generation item.config < Split_pane.Expert.generation old))
+      then fail "split-pane reset_generation must not decrease";
+      if not (Option.equal Split_pane.Config.equal old (Some item.config))
+      then emit builder (Set_split (id, Split_pane.Expert.to_wire item.config)));
     Option.iter description.document ~f:(fun document ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -1035,6 +1062,21 @@ let retain_list_rows t notices =
 ;;
 
 let dispatch t = function
+  | Wire.Event.Split_resized (window, node, handler, revision, generation, snapshot)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Split_pane (config, callback)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Int64.equal generation (Split_pane.Expert.generation config) ->
+       Split_pane.Expert.snapshot_of_wire snapshot |> Result.ok |> Option.map ~f:callback
+     | Some _ | None -> None)
   | Wire.Event.Document_navigation (window, node, handler, revision, source, _, navigation)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -1127,6 +1169,7 @@ let dispatch t = function
         | Animation _
         | Image _
         | Virtual_list _
+        | Split_pane _
         | Document _ -> None)
      | Some _ | None -> None)
   | Choice (window, node, handler, revision, selected)
@@ -1332,6 +1375,7 @@ let dispatch t = function
   | Window_changed _
   | Window_response _
   | Window_capabilities _
+  | Split_resized _
   | Document_response _
   | Document_navigation _
   | Editor_result _

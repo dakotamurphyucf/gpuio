@@ -9,6 +9,7 @@ fn allows_children(kind: Kind) -> bool {
         kind,
         Kind::Container
             | Kind::TabPanel
+            | Kind::SplitPane
             | Kind::VirtualList
             | Kind::Animated
             | Kind::Button
@@ -42,6 +43,7 @@ pub struct Node {
     pub palette: Option<Arc<PaletteConfig>>,
     pub progress: Option<Arc<ProgressConfig>>,
     pub image: Option<Arc<ImageConfig>>,
+    pub split: Option<Arc<gpuio_protocol::split::Config>>,
     pub document: Option<Arc<gpuio_protocol::document::Config>>,
     pub animation: Option<Arc<gpuio_protocol::animation::Config>>,
     pub list_config: Option<Arc<gpuio_protocol::list::Config>>,
@@ -65,6 +67,10 @@ pub struct Node {
 impl Node {
     fn payload_bytes(&self) -> usize {
         self.text.len()
+            + self
+                .split
+                .as_ref()
+                .map_or(0, |config| config.label.len() + 128)
             + self.list_order.as_ref().map_or(0, |order| {
                 // Admission units include expanded indexing and GPUI measurement
                 // metadata, not merely the compact serialized runs. This is a
@@ -422,6 +428,14 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
+                if (node.kind == Kind::SplitPane) != node.split.is_some()
+                    || node
+                        .split
+                        .as_ref()
+                        .is_some_and(|config| !config.is_valid() || node.children.len() != 2)
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 if (node.kind == Kind::DocumentView) != node.document.is_some()
                     || node.document.as_ref().is_some_and(|config| {
                         !config.is_valid() || !node.text.is_empty() || !node.children.is_empty()
@@ -530,6 +544,7 @@ impl Tree {
                     | Kind::Progress
                     | Kind::Image
                     | Kind::TabPanel
+                    | Kind::SplitPane
                     | Kind::DocumentView
                     | Kind::Icon
                     | Kind::Animated
@@ -851,6 +866,7 @@ impl Plan<'_> {
             | Op::ScrollList(id, ..)
             | Op::SetImage(id, ..)
             | Op::SetDocument(id, ..)
+            | Op::SetSplit(id, ..)
             | Op::SetProgress(id, ..)
             | Op::SetToast(id, ..)
             | Op::SetToastStack(id, ..)
@@ -925,6 +941,7 @@ impl Plan<'_> {
                             palette: None,
                             progress: None,
                             image: None,
+                            split: None,
                             document: None,
                             animation: None,
                             list_config: None,
@@ -1079,6 +1096,19 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.image = Some(Arc::new(config.clone()));
+            }
+            Op::SetSplit(id, config) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::SplitPane
+                    || !config.is_valid()
+                    || node
+                        .split
+                        .as_ref()
+                        .is_some_and(|old| config.reset_generation < old.reset_generation)
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.split = Some(Arc::new(config.clone()));
             }
             Op::SetDocument(id, config) => {
                 if self.node(*id)?.kind != Kind::DocumentView || !config.is_valid() {

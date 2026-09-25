@@ -26,3 +26,5 @@ pub mod toast;
 pub mod pointer;
 
 pub mod window;
+
+pub mod split;

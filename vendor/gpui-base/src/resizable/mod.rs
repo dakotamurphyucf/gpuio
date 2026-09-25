@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{ops::Range, rc::Weak};
 
 use gpui::{
     Along, App, Axis, Bounds, Context, ElementId, EventEmitter, IsZero, Pixels, Window, px,
@@ -36,6 +36,7 @@ pub struct ResizableState {
     panels: Vec<ResizablePanelState>,
     sizes: Vec<Pixels>,
     resizing_panel_ix: Option<usize>,
+    resizing_drag: Weak<()>,
     bounds: Bounds<Pixels>,
 }
 
@@ -46,12 +47,31 @@ impl Default for ResizableState {
             panels: vec![],
             sizes: vec![],
             resizing_panel_ix: None,
+            resizing_drag: Weak::new(),
             bounds: Bounds::default(),
         }
     }
 }
 
 impl ResizableState {
+    /// Whether this group owns an in-progress native divider drag.
+    pub fn is_resizing(&self) -> bool {
+        self.resizing_panel_ix.is_some() && self.resizing_drag.upgrade().is_some()
+    }
+
+    /// Cancel this group's drag on hide, disposal or Escape. Keep the current
+    /// geometry without emitting a completed-resize event. An inactive group
+    /// must not cancel another control's native drag.
+    pub fn cancel_resize(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let owns_drag = self.is_resizing();
+        self.resizing_panel_ix = None;
+        self.resizing_drag = Weak::new();
+        if owns_drag {
+            cx.stop_active_drag(window);
+            cx.notify();
+        }
+    }
+
     /// Get the size of the panels.
     pub fn sizes(&self) -> &Vec<Pixels> {
         &self.sizes

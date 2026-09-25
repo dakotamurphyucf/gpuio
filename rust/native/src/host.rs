@@ -78,6 +78,8 @@ mod scroll;
 pub(super) mod scroll_test;
 #[path = "select.rs"]
 mod select;
+#[path = "split_view.rs"]
+mod split_view;
 #[path = "toast.rs"]
 mod toast;
 #[path = "toast_clock.rs"]
@@ -111,6 +113,8 @@ struct View {
     transport: Arc<Transport>,
     images: BTreeMap<NodeId, image_view::State>,
     documents: BTreeMap<NodeId, document_view::State>,
+    splits: BTreeMap<NodeId, split_view::State>,
+    split_activation: Option<gpui::Subscription>,
     buttons: BTreeMap<NodeId, Rc<ButtonState>>,
     selections: BTreeMap<NodeId, Rc<RefCell<crate::selection::State>>>,
     editors: BTreeMap<NodeId, editor::Instance>,
@@ -301,6 +305,8 @@ impl View {
             transport,
             images: BTreeMap::new(),
             documents: BTreeMap::new(),
+            splits: BTreeMap::new(),
+            split_activation: None,
             buttons: BTreeMap::new(),
             selections: BTreeMap::new(),
             editors: BTreeMap::new(),
@@ -340,6 +346,7 @@ impl View {
         self.sync_palettes(window, cx);
         self.sync_toasts(cx);
         self.sync_tooltips(window, cx);
+        self.sync_splits(window, cx);
         let nodes = {
             let session = self.session.borrow();
             let Some(tree) = session.tree(self.id) else {
@@ -864,13 +871,18 @@ impl View {
                 );
             }
         }
-        element = element.children(
-            node.children
-                .iter()
-                .filter(|_| !matches!(node.kind, Kind::Button | Kind::CommandButton))
-                .map(|id| self.element(tree, *id, interaction, window, cx))
-                .collect::<Vec<_>>(),
-        );
+        if node.split.is_some() {
+            element = element.child(self.split_element(tree, node, interaction, window, cx));
+        } else {
+            element = element.children(
+                node.children
+                    .iter()
+                    .filter(|_| !matches!(node.kind, Kind::Button | Kind::CommandButton))
+                    .map(|id| self.element(tree, *id, interaction, window, cx))
+                    .collect::<Vec<_>>(),
+            );
+        }
+
         if let Some(route) = command.filter(|_| !disabled) {
             let accessible = route.clone();
             let owner = cx.weak_entity();
@@ -900,6 +912,7 @@ impl View {
             && node.pointer.is_none()
             && node.image.is_none()
             && node.animation.is_none()
+            && node.split.is_none()
             && !disabled
         {
             let window = self.id;
@@ -1134,6 +1147,11 @@ impl Render for View {
         let begin_focus = self.focus.clone();
         let drag_window = self.id;
         let mut root = drag_drop::root(div(), self.id, cx)
+            .capture_key_down(cx.listener(|view, event: &gpui::KeyDownEvent, window, cx| {
+                if event.keystroke.key == "escape" && view.cancel_split_drag(window, cx) {
+                    cx.stop_propagation();
+                }
+            }))
             .on_action(
                 cx.listener(|view, action: &menu_platform::Invoke, window, cx| {
                     view.platform_menu_action(action, window, cx)
@@ -1212,6 +1230,10 @@ impl Render for View {
                     .toasts
                     .values()
                     .any(|state| state.close_focus.is_focused(window))
+                || self
+                    .splits
+                    .values()
+                    .any(|state| state.focus.is_focused(window))
                 || self.focus.borrow().contains_focus(window)
                 || self
                     .documents
@@ -1483,7 +1505,7 @@ pub fn run(transport: Arc<Transport>) {
                                     transport.respond(Event::Closed(correlation, id));
                                     if let Some(window) = windows.remove(&id) {
                                         let _ = window
-                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); window.remove_window(); });
+                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); view.cancel_split_drag(window, cx); window.remove_window(); });
                                     }
                                 }
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),

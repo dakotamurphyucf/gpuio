@@ -648,7 +648,8 @@ let process t = function
       Option.iter (find_window t id) ~f:(fun window ->
         if not (Window.is_closed window)
         then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))
-  | ( Press (id, _, _, _)
+  | ( Split_resized (id, _, _, _, _, _)
+    | Press (id, _, _, _)
     | Editor_event (id, _, _, _, _, _)
     | Choice (id, _, _, _, _)
     | Combobox_selected (id, _, _, _, _, _)

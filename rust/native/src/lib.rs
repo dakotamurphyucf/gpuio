@@ -130,3 +130,8 @@ pub fn run_native_window_test() {
 pub fn run_native_tabs_test() {
     host::control_test::run_tabs();
 }
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_split_test() {
+    host::control_test::run_splits();
+}

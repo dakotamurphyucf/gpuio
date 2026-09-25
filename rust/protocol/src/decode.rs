@@ -790,6 +790,7 @@ impl Decoder<'_> {
                     26 => Kind::DocumentView,
                     27 => Kind::TabBar,
                     28 => Kind::TabPanel,
+                    29 => Kind::SplitPane,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -858,6 +859,27 @@ impl Decoder<'_> {
             ),
             26 => Op::SetImage(self.node()?, self.image_config()?),
             33 => Op::SetDocument(self.node()?, self.document_config()?),
+            34 => {
+                let id = self.node()?;
+                let config = crate::split::Config {
+                    label: self.text()?,
+                    axis: match self.tag()? {
+                        0 => crate::split::Axis::Horizontal,
+                        1 => crate::split::Axis::Vertical,
+                        _ => return Err(DecodeError::Malformed),
+                    },
+                    initial_first: self.float()?,
+                    minimum_first: self.float()?,
+                    maximum_first: self.float()?,
+                    minimum_second: self.float()?,
+                    keyboard_step: self.float()?,
+                    reset_generation: self.int()?,
+                };
+                if !config.is_valid() {
+                    return Err(DecodeError::Malformed);
+                }
+                Op::SetSplit(id, config)
+            }
             27 => Op::SetAnimation(self.node()?, self.animation_config()?),
             28 => Op::SetListConfig(self.node()?, self.list_config()?),
             29 => Op::SetListOrder(self.node()?, self.list_order()?),

@@ -6,6 +6,7 @@ module type S = sig
   module Animation = Animation_wire
   module Document = Document_wire
   module Window = Window_wire
+  module Split = Split_wire
   module Drag_and_drop = Drag_and_drop_wire
 
   val version : int64
@@ -43,6 +44,7 @@ module type S = sig
       | Document_view
       | Tab_bar
       | Tab_panel
+      | Split_pane
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -690,6 +692,7 @@ module type S = sig
       | Invalidate_list_rows of Node_id.t * int64 list
       | Scroll_list of Node_id.t * List_wire.Scroll_request.t
       | Set_document of Node_id.t * Document.Config.t
+      | Set_split of Node_id.t * Split.Config.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -886,6 +889,8 @@ module type S = sig
       | Window_changed of Window_id.t * Window.Snapshot.t
       | Window_response of int64 * Window_id.t * Window.Response.t
       | Window_capabilities of Window.Capabilities.t
+      | Split_resized of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * int64 * Split.Snapshot.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

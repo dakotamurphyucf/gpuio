@@ -111,6 +111,7 @@ pub enum Kind {
     DocumentView,
     TabBar,
     TabPanel,
+    SplitPane,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -573,6 +574,7 @@ pub enum Op {
     InvalidateListRows(NodeId, Vec<i64>),
     ScrollList(NodeId, crate::list::ScrollRequest),
     SetDocument(NodeId, crate::document::Config),
+    SetSplit(NodeId, crate::split::Config),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -682,4 +684,12 @@ pub enum Event {
     WindowChanged(WindowId, crate::window::Snapshot),
     WindowResponse(i64, WindowId, crate::window::Response),
     WindowCapabilities(crate::window::Capabilities),
+    SplitResized(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        i64,
+        crate::split::Snapshot,
+    ),
 }

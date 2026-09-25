@@ -13,6 +13,8 @@ mod palette_test;
 mod pointer_test;
 #[path = "progress_test.rs"]
 mod progress_test;
+#[path = "split_test.rs"]
+mod split_test;
 #[path = "toast_test.rs"]
 mod toast_test;
 #[path = "tooltip_test.rs"]
@@ -1277,6 +1279,8 @@ enum AccessibilityRequest<'a> {
     Press,
     Focus,
     SetValue(&'a str),
+    Increment,
+    Decrement,
 }
 #[cfg(target_os = "macos")]
 fn accessible_with_role(
@@ -1345,6 +1349,14 @@ fn accessible_request(
                     }
                     AccessibilityRequest::Focus => {
                         let _: () = msg_send![object, setAccessibilityFocused: true];
+                    }
+                    AccessibilityRequest::Increment => {
+                        let accepted: Bool = msg_send![object, accessibilityPerformIncrement];
+                        assert!(accepted.as_bool());
+                    }
+                    AccessibilityRequest::Decrement => {
+                        let accepted: Bool = msg_send![object, accessibilityPerformDecrement];
+                        assert!(accepted.as_bool());
                     }
                     AccessibilityRequest::SetValue(value) => {
                         let value = NSString::from_str(value);
@@ -1564,6 +1576,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
 enum Suite {
     Controls,
     Tabs,
+    Splits,
     Menus,
     Palette,
     Progress,
@@ -1573,6 +1586,9 @@ enum Suite {
 }
 pub fn run() {
     run_suite(Suite::Controls);
+}
+pub fn run_splits() {
+    run_suite(Suite::Splits);
 }
 pub fn run_tabs() {
     run_suite(Suite::Tabs);
@@ -1674,7 +1690,7 @@ fn run_suite(suite: Suite) {
             Op::Splice(node(0), 0, 0, vec![node(1), node(2), node(3), node(4)]),
             Op::SetRoot(Some(node(0))),
         ]);
-        if suite != Suite::Controls && suite != Suite::Tabs {
+        if suite != Suite::Controls && suite != Suite::Tabs && suite != Suite::Splits {
             // Reserve the same generational slots used by preceding component
             // fixtures, without exercising those unrelated windows/interactions.
             let end = match suite {
@@ -1684,7 +1700,7 @@ fn run_suite(suite: Suite) {
                 Suite::Toast => 61,
                 Suite::Pointer => 82,
                 Suite::DragDrop => 90,
-                Suite::Controls | Suite::Tabs => unreachable!(),
+                Suite::Controls | Suite::Tabs | Suite::Splits => unreachable!(),
             };
             for slot in 5..end {
                 operations.push(Op::Create(node(slot), Kind::Text, String::new(), None));
@@ -1727,6 +1743,7 @@ fn run_suite(suite: Suite) {
                 if suite != Suite::Controls {
                     frame(cx, handle).await;
                     match suite {
+                        Suite::Splits => split_test::exercise(cx, handle, &transport).await,
                         Suite::Tabs => {
                             radio(cx, handle, &transport, Kind::TabBar, 5).await;
                             retained_tab_panel(cx, handle).await;

@@ -213,6 +213,16 @@ module View : sig
 
   val row : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> t list -> t
 
+  val split_pane
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?on_resize:(Gpuio.Split_pane.Snapshot.t -> unit Bonsai.Effect.t)
+    -> config:Gpuio.Split_pane.Config.t
+    -> first:t
+    -> second:t
+    -> unit
+    -> t
+
   val tab_bar
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

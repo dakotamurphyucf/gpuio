@@ -213,6 +213,19 @@ val radio_group
   -> unit
   -> 'action t
 
+(** A native-owned divider between two retained children. Give the parent a
+    bounded size. Pointer resizing stays in Rust; the optional callback reports
+    completed resizes. Keyboard and accessibility actions share native limits. *)
+val split_pane
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?on_resize:(Split_pane.Snapshot.t -> 'action)
+  -> config:Split_pane.Config.t
+  -> first:'action t
+  -> second:'action t
+  -> unit
+  -> 'action t
+
 (** Native tab-list roles, one keyboard focus stop, automatic selection with
     arrows/Home/End and pointer/accessibility activation. The caller owns the
     selected ID and panel lifetimes. Disabled tabs are skipped. *)
@@ -390,6 +403,11 @@ module Expert : sig
     ; on_event : (Animation.Event.t -> 'action) option
     }
 
+  type 'action split_pane =
+    { config : Split_pane.Config.t
+    ; on_resize : (Split_pane.Snapshot.t -> 'action) option
+    }
+
   type 'action document =
     { config : Document.Config.t
     ; on_navigate : (Document.Navigation.t -> 'action) option
@@ -451,6 +469,7 @@ module Expert : sig
       | Document_view
       | Tab_bar
       | Tab_panel
+      | Split_pane
     [@@deriving equal, sexp_of]
   end
 
@@ -534,6 +553,7 @@ module Expert : sig
     ; progress : Progress.Config.t option
     ; animation : 'action animation option
     ; image : 'action image option
+    ; split_pane : 'action split_pane option
     ; document : 'action document option
     ; palette : 'action palette option
     ; menu : menu option

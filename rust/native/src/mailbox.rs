@@ -265,6 +265,7 @@ impl Mailbox {
             | Event::DragSourceEvent(id, ..)
             | Event::ImageState(id, ..)
             | Event::DocumentNavigation(id, ..)
+            | Event::SplitResized(id, ..)
             | Event::AnimationEndpoint(id, ..)
             | Event::ListViewport(id, ..)
             | Event::DropTargetEvent(id, ..)

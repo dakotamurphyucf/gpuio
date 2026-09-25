@@ -4,6 +4,7 @@ module Image = Image_wire
 module Animation = Animation_wire
 module Document = Document_wire
 module Window = Window_wire
+module Split = Split_wire
 
 let version = 1L
 let capabilities = 536870911L
@@ -40,6 +41,7 @@ module Kind = struct
     | Document_view
     | Tab_bar
     | Tab_panel
+    | Split_pane
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -688,6 +690,7 @@ module Op = struct
     | Invalidate_list_rows of Node_id.t * int64 list
     | Scroll_list of Node_id.t * List_wire.Scroll_request.t
     | Set_document of Node_id.t * Document.Config.t
+    | Set_split of Node_id.t * Split.Config.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -946,6 +949,8 @@ module Event = struct
     | Window_changed of Window_id.t * Window.Snapshot.t
     | Window_response of int64 * Window_id.t * Window.Response.t
     | Window_capabilities of Window.Capabilities.t
+    | Split_resized of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * int64 * Split.Snapshot.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -965,6 +970,8 @@ module Event = struct
   ;;
 
   let rec valid_event = function
+    | Split_resized (_, _, _, revision, generation, snapshot) ->
+      Int64.(revision >= 0L && generation >= 0L) && Split.Snapshot.valid snapshot
     | Window_changed (_, snapshot) | Window_response (_, _, Observed snapshot) ->
       Window.Snapshot.valid snapshot
     | Window_response (_, _, Failed _)
