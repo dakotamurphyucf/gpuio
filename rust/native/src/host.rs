@@ -92,6 +92,8 @@ mod popup;
 mod progress;
 #[path = "radio.rs"]
 mod radio;
+#[path = "rating.rs"]
+mod rating;
 #[path = "scroll.rs"]
 mod scroll;
 #[cfg(feature = "native-tests")]
@@ -147,6 +149,7 @@ struct View {
     focus: focus::Shared,
     selects: BTreeMap<NodeId, Rc<RefCell<select::State>>>,
     radios: BTreeMap<NodeId, Rc<RefCell<choice::State>>>,
+    ratings: BTreeMap<NodeId, Rc<RefCell<rating::State>>>,
     tooltips: BTreeMap<NodeId, tooltip::State>,
     tooltip_last_closed: Option<std::time::Instant>,
     command_subscription: Option<gpui::Subscription>,
@@ -366,6 +369,7 @@ impl View {
             editors: BTreeMap::new(),
             root_focus: None,
             radios: BTreeMap::new(),
+            ratings: BTreeMap::new(),
             tooltips: BTreeMap::new(),
             tooltip_last_closed: None,
             command_subscription: None,
@@ -536,6 +540,7 @@ impl View {
                 | Kind::FocusScope
                 | Kind::CommandScope
                 | Kind::RadioGroup
+                | Kind::Rating
                 | Kind::TabBar
                 | Kind::PointerArea
                 | Kind::DragSource
@@ -576,6 +581,18 @@ impl View {
             let (image, corners) = self.image_element(tree, node, config, element, window, cx);
             element = image;
             image_corners = Some(corners);
+        }
+        if node.rating.is_some() {
+            element = element
+                .flex()
+                .flex_row()
+                .items_center()
+                .flex_nowrap()
+                .border_1()
+                .border_color(gpui::transparent_black())
+                .rounded(px(4.))
+                .text_color(rgba(0xe8ad36ff))
+                .focus(|style| style.border_color(rgba(0x6688ffff)));
         }
         if let Some(config) = &node.avatar {
             element = element
@@ -673,6 +690,7 @@ impl View {
                 .is_some_and(|config| config.disabled())
             || node.pointer.as_ref().is_some_and(|config| config.disabled)
             || node.choice.as_ref().is_some_and(|config| config.disabled)
+            || node.rating.as_ref().is_some_and(|config| config.disabled)
             || node.control.is_some_and(Control::disabled)
             || node.editor.as_ref().is_some_and(|config| config.disabled);
         let checked = command
@@ -701,6 +719,7 @@ impl View {
                 | Kind::Checkbox
                 | Kind::Switch
                 | Kind::RadioGroup
+                | Kind::Rating
                 | Kind::TabBar
                 | Kind::Select
         ) {
@@ -737,6 +756,7 @@ impl View {
                     Kind::Checkbox => gpui::Role::CheckBox,
                     Kind::Switch => gpui::Role::Switch,
                     Kind::RadioGroup => gpui::Role::RadioGroup,
+                    Kind::Rating => gpui::Role::Slider,
                     Kind::TabBar => gpui::Role::TabList,
                     Kind::Select => gpui::Role::ComboBox,
                     _ => gpui::Role::Button,
@@ -755,7 +775,10 @@ impl View {
                     gpui::accesskit::Toggled::False
                 });
             }
-            if interaction.pointer && !disabled {
+            if interaction.pointer
+                && !disabled
+                && !node.rating.as_ref().is_some_and(|config| config.read_only)
+            {
                 element = element.cursor_pointer();
             }
         }
@@ -877,6 +900,32 @@ impl View {
                     route,
                     pointer: interaction.pointer,
                     selected_style,
+                },
+                window,
+                cx,
+            );
+        } else if let Some(config) = &node.rating {
+            let state = self.ratings.entry(id).or_default().clone();
+            let route = node
+                .handler
+                .filter(|_| !disabled && !config.read_only)
+                .map(|handler| choice::Route {
+                    window: self.id,
+                    node: id,
+                    handler,
+                    revision: tree.revision(),
+                    session: self.session.clone(),
+                    gate: self.focus.clone(),
+                    transport: self.transport.clone(),
+                });
+            element = rating::element(
+                element,
+                rating::Render {
+                    config,
+                    state,
+                    focus: self.buttons[&id].focus.clone(),
+                    route,
+                    pointer: interaction.pointer,
                 },
                 window,
                 cx,
@@ -1049,6 +1098,7 @@ impl View {
             && node.commands.is_none()
             && node.editor.is_none()
             && node.choice.is_none()
+            && node.rating.is_none()
             && node.overlay.is_none()
             && node.pointer.is_none()
             && node.image.is_none()
@@ -1240,7 +1290,7 @@ impl View {
             live: None,
             element,
             disabled,
-            read_only: false,
+            read_only: node.rating.as_ref().is_some_and(|config| config.read_only),
             modal: false,
         };
         if node.drop_target.is_some() {
@@ -1371,6 +1421,7 @@ impl Render for View {
         self.hide_unvisited_canvases(window);
         self.buttons.retain(|id, _| self.visited.contains(id));
         self.radios.retain(|id, _| self.visited.contains(id));
+        self.ratings.retain(|id, _| self.visited.contains(id));
         self.selects.retain(|id, _| self.visited.contains(id));
         self.menus.retain(|id, _| self.visited.contains(id));
         self.sync_platform_menus(window, cx);

@@ -147,6 +147,14 @@ module View : sig
     -> string
     -> t
 
+  val rating
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Rating.Config.t
+    -> on_request:(Gpuio.Rating.Request.t -> unit Bonsai.Effect.t)
+    -> unit
+    -> t
+
   val avatar
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

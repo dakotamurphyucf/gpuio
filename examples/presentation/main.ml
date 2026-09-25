@@ -12,7 +12,8 @@ let px = Length.px_exn
 let style = Style.create_exn
 let full = Length.percent_exn 100.
 
-let component ~assets ~avatar_status ~phase ~observed ~editor_ref window graph =
+let component ~assets ~avatar_status ~phase ~observed ~editor_ref ~rating_ref window graph
+  =
   let dark, set_dark = B.state true graph in
   let invalid, set_invalid = B.state false graph in
   let checked, toggle = B.toggle ~default_model:true graph in
@@ -20,6 +21,12 @@ let component ~assets ~avatar_status ~phase ~observed ~editor_ref window graph =
   let animate_loading, toggle_animation = B.toggle ~default_model:true graph in
   let avatar_mode, set_avatar_mode = B.state Avatar_mode.Initials graph in
   let avatar_state, set_avatar_state = B.state "Initials only" graph in
+  let rating, inject_rating =
+    B.state_machine0
+      ~default_model:Rating_action.initial
+      ~apply_action:(fun _ model action -> Rating_action.apply model action)
+      graph
+  in
   let notice, set_notice = B.state "All changes stay in this local demo." graph in
   let phase = B.Expert.Var.value phase in
   let editor =
@@ -34,10 +41,13 @@ let component ~assets ~avatar_status ~phase ~observed ~editor_ref window graph =
   let open B.Let_syntax in
   B.Edge.after_display
     (let%arr phase = phase
-     and editor = editor in
+     and editor = editor
+     and rating = rating
+     and inject_rating = inject_rating in
      E.of_thunk (fun () ->
        observed := phase;
-       editor_ref := Some editor))
+       editor_ref := Some editor;
+       rating_ref := Some (rating, inject_rating)))
     graph;
   let%arr dark = dark
   and set_dark = set_dark
@@ -54,6 +64,8 @@ let component ~assets ~avatar_status ~phase ~observed ~editor_ref window graph =
   and set_avatar_mode = set_avatar_mode
   and avatar_state = avatar_state
   and set_avatar_state = set_avatar_state
+  and rating = rating
+  and inject_rating = inject_rating
   and notice = notice
   and set_notice = set_notice
   and editor = editor
@@ -248,6 +260,45 @@ let component ~assets ~avatar_status ~phase ~observed ~editor_ref window graph =
            | Failed _ -> "Image unavailable — showing initials")
       ]
   in
+  let feedback =
+    P.group_box
+      p
+      ~header:(View.text "Response feedback")
+      [ Form.field
+          (Form.Field.create
+             ~label:"Response quality"
+             ~help:"Use arrow keys or choose a star. Select that star again to clear."
+             ()
+           |> ok)
+          ~help_style:(style [ Foreground muted ])
+          ~control:
+            (View.rating
+               ~config:rating
+               ~style:(style [ Foreground accent ])
+               ~on_request:(fun request -> inject_rating (Rating_action.Request request))
+               ())
+          ()
+        |> ok
+      ; View.text
+          (sprintf
+             "Rating: %d of %d"
+             (Rating.Config.value rating)
+             (Rating.Config.maximum rating))
+      ; View.row
+          ~style:(style [ Gap (px 6.); Wrap Wrap ])
+          [ button
+              (inject_rating Toggle_read_only)
+              (if Rating.Config.is_read_only rating
+               then "Allow rating edits"
+               else "Read-only rating")
+          ; button
+              (inject_rating Toggle_disabled)
+              (if Rating.Config.is_disabled rating
+               then "Enable rating"
+               else "Disable rating")
+          ]
+      ]
+  in
   let assistant =
     P.message
       p
@@ -264,7 +315,7 @@ let component ~assets ~avatar_status ~phase ~observed ~editor_ref window graph =
                 ; Background (Background.solid accent)
                 ])
            avatar_config)
-      ~footer:(P.marker p ~tone:Success "Ready for your review")
+      ~footer:feedback
       (P.bubble
          p
          (View.column
@@ -367,7 +418,8 @@ let () =
     and observed = ref (-2)
     and editor_ref = ref None
     and assets = B.Expert.Var.create None
-    and avatar_status = ref None in
+    and avatar_status = ref None
+    and rating_ref = ref None in
     let window =
       App.open_window
         app
@@ -375,7 +427,7 @@ let () =
         ~title:"GPUIO Component Studio"
         ~width:1040.
         ~height:860.
-        (component ~assets ~avatar_status ~phase ~observed ~editor_ref)
+        (component ~assets ~avatar_status ~phase ~observed ~editor_ref ~rating_ref)
       |> ok
     in
     Avatar_assets.load env app assets;
@@ -431,7 +483,28 @@ let () =
             let (_ : int64) = frame 3 in
             assert (Int64.(first < error && error < cleared));
             assert (Text_input.Snapshot.equal initial during_error);
-            assert (Text_input.Snapshot.equal initial after)))
+            assert (Text_input.Snapshot.equal initial after);
+            Scope.Expert.enqueue (App.Window.scope window) (fun () ->
+              let _, inject = Option.value_exn !rating_ref in
+              E.Expert.handle
+                (E.Many
+                   (List.init 4 ~f:(fun _ ->
+                      inject (Rating_action.Request Rating.Request.increase)))));
+            while Rating.Config.value (fst (Option.value_exn !rating_ref)) <> 5 do
+              Eio.Time.sleep clock 0.005
+            done;
+            Scope.Expert.enqueue (App.Window.scope window) (fun () ->
+              let _, inject = Option.value_exn !rating_ref in
+              E.Expert.handle
+                (E.Many
+                   [ inject (Request (Rating.Request.toggle 5 |> ok))
+                   ; inject Toggle_read_only
+                   ; inject (Request Rating.Request.increase)
+                   ]));
+            while not (Rating.Config.is_read_only (fst (Option.value_exn !rating_ref))) do
+              Eio.Time.sleep clock 0.005
+            done;
+            assert (Rating.Config.value (fst (Option.value_exn !rating_ref)) = 0)))
         ~on_result:(fun result ->
           E.of_thunk (fun () ->
             ok result;
@@ -444,5 +517,6 @@ let () =
     assert !completed;
     print_endline
       "GPUIO_PRESENTATION_PUBLIC_OK: theme, form validation, avatar \
-       ready/failure/fallback, stable editor and shutdown")
+       ready/failure/fallback, rating reducer bursts/read-only, stable editor and \
+       shutdown")
 ;;

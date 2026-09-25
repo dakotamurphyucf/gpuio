@@ -67,6 +67,7 @@ impl Config {
                         | Kind::Combobox
                         | Kind::Checkbox
                         | Kind::Switch
+                        | Kind::Rating
                         | Kind::RadioGroup
                         | Kind::Select
                 );
@@ -96,6 +97,7 @@ impl Config {
                     | Kind::Combobox
                     | Kind::Checkbox
                     | Kind::Switch
+                    | Kind::Rating
                     | Kind::RadioGroup
                     | Kind::Select
             ),

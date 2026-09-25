@@ -143,3 +143,42 @@ count against existing tree/resource budgets. No synchronous OCaml callbacks fro
 layout/paint. Linux build/unit and consolidated CI remain required, GUI coverage
 is reported separately under OCH-17. OCH-46 integrates these families into the
 polished chat showcase; it does not replace individual component acceptance.
+
+## Rating contract
+
+`Rating.Config.create ~label ~value ?maximum ?star_size ?disabled ?read_only ()`
+validates zero through maximum, with maximum 1..32 (default five), 8..128 logical
+pixel stars (default 24), and the usual bounded nonblank accessible label. Zero
+means unrated. Ordinary foreground styles color the stars; inactive stars use
+reduced opacity. The native leaf draws bounded star geometry, owns only transient
+hover state and uses the existing focus/visibility/modal gates.
+
+`View.rating ~config ~on_request ()` is application-controlled. Its
+`Rating.Request` values are Set, Toggle, Increase and Decrease. Applications apply
+`Rating.Config.apply_request` inside their state-machine reducer, in delivery
+order. Steps saturate at the boundaries. Clicking the currently selected star
+clears; clicking another star selects it. Keyboard Right/Up increases, Left/Down
+decreases, Home/Delete/Backspace clears and End selects maximum. Modified keys
+are left to application commands. Hover previews the proposed selection without
+committing it or sending an OCaml event; exit/hide/disable/read-only resets it.
+
+Relative requests deliberately avoid stale-value arithmetic when repeated key
+presses arrive before an OCaml frame is committed. No optimistic native committed
+value, acknowledgement queue or second rating model is introduced. Accessibility
+reports the committed value, not hover. The public pure reducer ignores requests
+made invalid by a changed maximum or disabled/read-only policy. The event bridge
+also checks current kind, handler generation, revision and policy. Requests are
+discrete mailbox events and are not coalesced; existing bounded overload handling
+applies. An application may explicitly reject a request by retaining its model.
+
+The control is one keyboard stop and exposes a labelled Slider with integer range
+0..maximum, unit step and increment/decrement/set-value actions. Individual
+painted stars are not additional focus or accessibility children. Disabled leaves
+traversal; read-only remains focusable and readable but emits no requests. No
+continuous timer or frame callback is needed. New wire kind36/op42/event43 are
+append-only; no capability is advertised until complete OCH-33 acceptance.
+
+Required evidence before acceptance: fast repeated-key reducer ordering, pointer
+preview/selection/clear, actual AX numeric/actions/read-only, native focus and
+ancestor/modal gating, hide/unmount cleanup and idle, paired strict codecs,
+reconciliation callbacks, public example, themes and synthetic density checks.

@@ -362,6 +362,17 @@ val icon
   -> Icon.Config.t
   -> 'action t
 
+(** Controlled integer rating. Apply each request against the latest application
+    state with [Rating.Config.apply_request]. Hover stays native; keyboard and
+    accessibility report ordered requests without a second committed model. *)
+val rating
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Rating.Config.t
+  -> on_request:(Rating.Request.t -> 'action)
+  -> unit
+  -> 'action t
+
 (** Stable native avatar with image/fallback selection. Image observations use the
     existing source-generation fences; no asset means no observation. *)
 val avatar
@@ -500,6 +511,11 @@ module Expert : sig
     ; on_navigate : (Document.Navigation.t -> 'action) option
     }
 
+  type 'action rating =
+    { config : Rating.Config.t
+    ; on_request : Rating.Request.t -> 'action
+    }
+
   type 'action image =
     { config : Image.Config.t
     ; on_change : (Image.State.t -> 'action) option
@@ -563,6 +579,7 @@ module Expert : sig
       | Container_query
       | Loading
       | Avatar
+      | Rating
     [@@deriving equal, sexp_of]
   end
 
@@ -646,6 +663,7 @@ module Expert : sig
     ; progress : Progress.Config.t option
     ; loading : Loading.Config.t option
     ; avatar : Avatar.Config.t option
+    ; rating : 'action rating option
     ; animation : 'action animation option
     ; animation_program : 'action animation_program option
     ; container_query : 'action container_query option

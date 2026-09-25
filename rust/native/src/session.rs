@@ -501,6 +501,23 @@ impl Session {
         .then_some(Event::Press(id, node, handler, revision))
     }
 
+    pub fn request_rating(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        request: gpuio_protocol::rating::Request,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        (!window.overloaded
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && window.tree.accepts_handler(node, handler)
+            && window.tree.get(node)?.rating.as_ref()?.can_apply(request))
+        .then_some(Event::RatingRequested(id, node, handler, revision, request))
+    }
+
     pub fn choose(
         &self,
         id: WindowId,

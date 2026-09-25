@@ -128,6 +128,7 @@ pub enum Kind {
     ContainerQuery,
     Loading,
     Avatar,
+    Rating,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -600,6 +601,7 @@ pub enum Op {
     SetAccessibility(NodeId, Option<crate::accessibility::Config>),
     SetLoading(NodeId, crate::loading::Config),
     SetAvatar(NodeId, crate::avatar::Config),
+    SetRating(NodeId, crate::rating::Config),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -751,4 +753,5 @@ pub enum Event {
         i64,
         crate::container_query::Snapshot,
     ),
+    RatingRequested(WindowId, NodeId, HandlerId, i64, crate::rating::Request),
 }

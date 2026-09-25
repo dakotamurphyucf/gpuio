@@ -47,6 +47,7 @@ pub struct Node {
     pub loading: Option<Arc<gpuio_protocol::loading::Config>>,
     pub image: Option<Arc<ImageConfig>>,
     pub avatar: Option<Arc<gpuio_protocol::avatar::Config>>,
+    pub rating: Option<Arc<gpuio_protocol::rating::Config>>,
     pub extension: Option<Arc<gpuio_protocol::extension::Config>>,
     pub extension_command: Option<Arc<gpuio_protocol::extension::Command>>,
     pub split: Option<Arc<gpuio_protocol::split::Config>>,
@@ -76,7 +77,8 @@ pub struct Node {
 
 impl Node {
     fn payload_bytes(&self) -> usize {
-        self.avatar.as_ref().map_or(0, |c| c.retained_bytes())
+        self.rating.as_ref().map_or(0, |c| c.retained_bytes())
+            + self.avatar.as_ref().map_or(0, |c| c.retained_bytes())
             + self.loading.as_ref().map_or(0, |c| c.retained_bytes())
             + self.text.len()
             + self
@@ -535,6 +537,18 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
+                if (node.kind == Kind::Rating) != node.rating.is_some()
+                    || node.rating.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || !node.text.is_empty()
+                            || !node.children.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                            || (!config.disabled && !config.read_only && node.handler.is_none())
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 if (node.kind == Kind::Avatar) != node.avatar.is_some()
                     || node.avatar.as_ref().is_some_and(|config| {
                         !config.is_valid()
@@ -694,6 +708,7 @@ impl Tree {
                     | Kind::Loading
                     | Kind::Image
                     | Kind::Avatar
+                    | Kind::Rating
                     | Kind::TabPanel
                     | Kind::SplitPane
                     | Kind::Extension
@@ -1050,6 +1065,7 @@ impl Plan<'_> {
             | Op::SetAccessibility(id, ..)
             | Op::SetLoading(id, ..)
             | Op::SetAvatar(id, ..)
+            | Op::SetRating(id, ..)
             | Op::SetListConfig(id, ..)
             | Op::SetListOrder(id, ..)
             | Op::SetListRows(id, ..)
@@ -1148,6 +1164,7 @@ impl Plan<'_> {
                             loading: None,
                             image: None,
                             avatar: None,
+                            rating: None,
                             extension: None,
                             extension_command: None,
                             split: None,
@@ -1343,6 +1360,12 @@ impl Plan<'_> {
             }
             Op::ScrollList(id, request) => {
                 self.lists.push(ListAction::Scroll(*id, *request));
+            }
+            Op::SetRating(id, config) => {
+                if self.node(*id)?.kind != Kind::Rating || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.rating = Some(Arc::new(config.clone()));
             }
             Op::SetAvatar(id, config) => {
                 if self.node(*id)?.kind != Kind::Avatar || !config.is_valid() {

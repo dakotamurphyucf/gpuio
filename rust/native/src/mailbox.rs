@@ -261,6 +261,7 @@ impl Mailbox {
             | Event::FrameRequested(_, id, _)
             | Event::Press(id, ..)
             | Event::EditorEvent(id, ..)
+            | Event::RatingRequested(id, ..)
             | Event::Choice(id, ..)
             | Event::OverlayDismissed(id, ..)
             | Event::TooltipOpenChanged(id, ..)

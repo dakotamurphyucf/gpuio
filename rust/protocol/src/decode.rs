@@ -5,6 +5,7 @@ use std::io::{Cursor, Read};
 mod accessibility;
 mod avatar;
 mod loading;
+mod rating;
 pub use accessibility::decode_accessibility;
 mod container_query;
 pub use container_query::decode_container_query;
@@ -839,6 +840,7 @@ impl Decoder<'_> {
                     33 => Kind::ContainerQuery,
                     34 => Kind::Loading,
                     35 => Kind::Avatar,
+                    36 => Kind::Rating,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -914,6 +916,7 @@ impl Decoder<'_> {
             39 => Op::SetAccessibility(self.node()?, self.option(|d| d.accessibility_config())?),
             40 => Op::SetLoading(self.node()?, self.loading_config()?),
             41 => Op::SetAvatar(self.node()?, self.avatar_config()?),
+            42 => Op::SetRating(self.node()?, self.rating_config()?),
             34 => {
                 let id = self.node()?;
                 let config = crate::split::Config {

@@ -704,6 +704,7 @@ let process t = function
     | Split_resized (id, _, _, _, _, _)
     | Press (id, _, _, _)
     | Editor_event (id, _, _, _, _, _)
+    | Rating_requested (id, _, _, _, _)
     | Choice (id, _, _, _, _)
     | Combobox_selected (id, _, _, _, _, _)
     | Palette_dismissed (id, _, _, _, _)

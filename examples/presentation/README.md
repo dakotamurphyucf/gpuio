@@ -32,8 +32,7 @@ checks action geometry, captures both themes and closes the native window.
 It requires macOS accessibility access. No Linux desktop behavior is inferred.
 
 This example is the current OCH-33 foundation, not full component acceptance:
-rating and wider family scale/content checks remain to be implemented and added
-here. OCH-46 separately integrates the finished
+the final cross-family content/layout checks remain. OCH-46 separately integrates the finished
 milestone into the polished agent-chat showcase.
 
 The Background work group uses `View.loading` with Skeleton, Shimmer and Spinner.
@@ -49,3 +48,16 @@ fallback automatically and preserves the accessible label. Registration success
 does not imply successful decoding. Both assets remain scoped to the application;
 the example performs no external image fetch. The public self-test and external
 AX test cover all three states while keeping the editor intact.
+
+Response feedback uses `View.rating` with one labelled native slider and styled
+stars. Click a star to select it, click that selected star again to clear, or use
+Right/Up, Left/Down, Home and End. Read-only and disabled controls demonstrate their
+different focus/interaction policies. Hover stays native and does not update the
+application model.
+
+The example's `rating_action.ml` applies `Rating.Config.apply_request` inside a
+Bonsai state machine. This preserves every increment/decrement in an input burst:
+requests are evaluated against the latest model, rather than using the value from
+an older render. The application may retain its model to reject a request. The
+self-test exercises burst saturation, toggling to zero and read-only rejection;
+external macOS validation sends actual keyboard input and an AX increment action.

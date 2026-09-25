@@ -143,6 +143,7 @@ impl Manager {
             || item.control.is_some_and(Control::disabled)
             || item.editor.as_ref().is_some_and(|config| config.disabled)
             || item.choice.as_ref().is_some_and(|config| config.disabled)
+            || item.rating.as_ref().is_some_and(|config| config.disabled)
             || item
                 .menu
                 .as_ref()

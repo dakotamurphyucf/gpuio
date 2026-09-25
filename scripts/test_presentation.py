@@ -100,6 +100,32 @@ def exercise(mac, images):
             raise RuntimeError(f'Hidden indicator remains in native accessibility: {label}')
     mac.press(TITLE, 'Show indicators')
     assert_loading_semantics(mac)
+    rating = mac.wait_find(TITLE, 'Response quality', 'AXSlider')
+    try:
+        mac.set(rating, 'AXFocused', mac.true)
+        for _ in range(4):
+            mac.key(124)  # Right: four relative requests from the initial value two.
+        mac.wait_text(TITLE, 'Rating: 5 of 5')
+        mac.key(115)  # Home clears.
+        mac.wait_text(TITLE, 'Rating: 0 of 5')
+        mac.perform(rating, 'AXIncrement')
+        mac.wait_text(TITLE, 'Rating: 1 of 5')
+    finally:
+        mac.release(rating)
+    mac.press(TITLE, 'Read-only rating')
+    rating = mac.wait_find(TITLE, 'Response quality', 'AXSlider')
+    try:
+        mac.set(rating, 'AXFocused', mac.true)
+        mac.key(124)
+        time.sleep(0.15)
+        mac.wait_text(TITLE, 'Rating: 1 of 5')
+    finally:
+        mac.release(rating)
+    mac.press(TITLE, 'Allow rating edits')
+    mac.press(TITLE, 'Disable rating')
+    node = mac.wait_find(TITLE, 'Enable rating', 'AXButton')
+    mac.release(node)
+    mac.press(TITLE, 'Enable rating')
     for label in ['Details', 'Preview', 'Use image', 'Simulate failure', 'Use initials']:
         assert_action_layout(mac, label)
     if images:

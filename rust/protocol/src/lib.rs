@@ -24,6 +24,7 @@ pub mod list;
 pub mod loading;
 mod menu;
 mod palette;
+pub mod rating;
 pub mod v1;
 
 pub use decode::{

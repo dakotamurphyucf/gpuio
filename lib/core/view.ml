@@ -39,6 +39,7 @@ module Kind = struct
     | Container_query
     | Loading
     | Avatar
+    | Rating
   [@@deriving equal, sexp_of]
 end
 
@@ -73,6 +74,11 @@ type 'action editor =
   { controller : Key.t
   ; config : Text_input.Config.t
   ; on_event : Text_input.Event.t -> 'action
+  }
+
+type 'action rating =
+  { config : Rating.Config.t
+  ; on_request : Rating.Request.t -> 'action
   }
 
 type 'action choice =
@@ -204,6 +210,7 @@ type 'action t =
   ; progress : Progress.Config.t option
   ; loading : Loading.Config.t option
   ; avatar : Avatar.Config.t option
+  ; rating : 'action rating option
   ; animation : 'action animation option
   ; animation_program : 'action animation_program option
   ; container_query : 'action container_query option
@@ -243,6 +250,7 @@ let text ?key ?(style = Style.empty) text =
   ; progress = None
   ; loading = None
   ; avatar = None
+  ; rating = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -275,7 +283,8 @@ let with_accessibility t accessibility =
     match metadata.field, metadata.role, t.kind with
     | ( Some _
       , None
-      , (Input | Textarea | Combobox | Checkbox | Switch | Radio_group | Select) ) -> true
+      , (Input | Textarea | Combobox | Checkbox | Switch | Radio_group | Select | Rating)
+      ) -> true
     | None, Some Link, (Button | Command_button) -> true
     | ( None
       , Some
@@ -302,7 +311,8 @@ let with_accessibility t accessibility =
         | Checkbox
         | Switch
         | Radio_group
-        | Select ) ) -> true
+        | Select
+        | Rating ) ) -> true
     | _ -> false
   in
   if supported
@@ -358,6 +368,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; progress = None
   ; loading = None
   ; avatar = None
+  ; rating = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -457,6 +468,7 @@ let button
   ; progress = None
   ; loading = None
   ; avatar = None
+  ; rating = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -528,6 +540,7 @@ let toggle
   ; progress = None
   ; loading = None
   ; avatar = None
+  ; rating = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -583,6 +596,7 @@ let focus_scope ?key ?style ~config children =
   ; progress = None
   ; loading = None
   ; avatar = None
+  ; rating = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -893,6 +907,7 @@ let text_input
   ; progress = None
   ; loading = None
   ; avatar = None
+  ; rating = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -933,6 +948,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; progress = None
   ; loading = None
   ; avatar = None
+  ; rating = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -999,6 +1015,7 @@ let combobox
   ; progress = None
   ; loading = None
   ; avatar = None
+  ; rating = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -1034,6 +1051,10 @@ let command_palette
     kind = Command_palette
   ; palette = Some { config; appearance; on_dismiss }
   }
+;;
+
+let rating ?key ?(style = Style.empty) ~config ~on_request () =
+  { (text ?key ~style "") with kind = Rating; rating = Some { config; on_request } }
 ;;
 
 let avatar ?key ?(style = Style.empty) ?on_change config =
@@ -1167,6 +1188,11 @@ module Expert = struct
     ; on_navigate : (Document.Navigation.t -> 'action) option
     }
 
+  type nonrec 'action rating = 'action rating =
+    { config : Rating.Config.t
+    ; on_request : Rating.Request.t -> 'action
+    }
+
   type nonrec 'action image = 'action image =
     { config : Image.Config.t
     ; on_change : (Image.State.t -> 'action) option
@@ -1259,6 +1285,7 @@ module Expert = struct
     ; progress : Progress.Config.t option
     ; loading : Loading.Config.t option
     ; avatar : Avatar.Config.t option
+    ; rating : 'action rating option
     ; animation : 'action animation option
     ; animation_program : 'action animation_program option
     ; container_query : 'action container_query option

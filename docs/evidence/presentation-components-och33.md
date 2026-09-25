@@ -1,5 +1,11 @@
 # Presentation component evidence (OCH-33)
 
+Current state: semantic/form helpers, stateless presentation, loading, avatars and
+rating are implemented with local component tests. Final cross-family content/
+layout acceptance and capability advertisement remain; consolidated hosted gates
+and merge are pending. The sections below preserve incremental checkpoint evidence
+and its original scope. Older lists of remaining components are historical.
+
 ## Semantic, form and stateless presentation foundation
 
 Local macOS arm64, 2026-09-25; stock project OCaml 5.3/Bonsai v0.17 pins and
@@ -221,3 +227,70 @@ built public Component Studio `--self-test` passes under a 45-second timeout.
 `scripts/test_presentation.py --images scratch/agents/root-20260924-m5/avatar-images`
 passed the actual macOS interaction/screenshot walkthrough. No hosted result is
 claimed for these local commands.
+
+## Controlled rating implementation
+
+The rating implementation adds `Rating.Request` and validated `Rating.Config`,
+`View.rating ~config ~on_request ()` and the Bonsai alias. Value is zero through
+maximum, maximum is 1..32 (default five), and star size is 8..128 logical pixels
+(default 24). Zero means unrated. Labels use the existing bounded UTF-8 policy.
+New kind 36, operation 42 and event 43 are appended; no earlier tag changes.
+
+Requests are Set, Toggle, Increase and Decrease. The public pure
+`Rating.Config.apply_request` reduces them against the application's latest model,
+saturates steps, toggles an already selected star to zero and ignores requests
+invalidated by a changed range or read-only/disabled policy. Native hover owns no
+committed value and emits no application event. Every discrete request uses the
+existing bounded mailbox with current node/handler/revision/policy checks. No
+native acknowledgement queue, optimistic model or per-frame OCaml callback is
+introduced. The native owner retains only a bounded hover value and focus state.
+
+Independent OCaml/Rust fixtures agree on configuration and all four event requests.
+Core expect tests pass malformed configuration, ordered reducer bursts, current
+range rejection, no-op/latest-callback updates and disabled/read-only/stale-handler
+fences. Rust codec tests pass invalid labels, bounds, floats, truncated/trailing
+bytes and request validation. Native transaction tests pass missing-handler and
+invalid-update rejection, exact revision/config/accounting rollback, current
+policy and generation checks, and complete retained-tree disposal.
+
+The initial actual macOS native test passes native-only hover, GPU filled/outline
+star centers, four consecutive relative key requests without an intervening tree
+transaction, Home/End/Delete/Backspace and modified-key behavior, and single-stop
+Tab traversal. AppKit reports AXSlider with committed value and 0..maximum range;
+Increment, Decrement and SetValue deliver requests. Fractional SetValue is rejected.
+Read-only remains readable and focusable with no mutation; disabled removes focus.
+Ancestor hiding clears preview and removes AX exposure. Static idle and weak-state/
+tree disposal pass. The expanded pointer-policy/modal/maximum/density checks are
+recorded in the final checkpoint below once executed; they are not implied by
+this initial run.
+
+Component Studio applies requests through a Bonsai state machine and places a
+Form.field-labelled rating in the assistant message's feedback section. Its
+public self-test passes burst saturation, toggle-to-zero and subsequent read-only
+rejection alongside unchanged native editor snapshots and avatar transitions.
+
+Expanded actual macOS checks now also pass pointer-disabled ratings retaining
+keyboard behavior, exclusion by a real modal dialog, and 32 stars at the minimum
+8px size under synthetic densities 1, 1.5, 2 and restoration. Raster checks require
+opaque foreground in the nearest 3×3 region around a star's logical center:
+fractional-density multisample boundaries can partially cover the single rounded
+center pixel. Outline centers remain unfilled. This is not a physical monitor
+transition claim. The native marker is `GPUIO_RATING_NATIVE_OK` within the existing
+`native_presentation` executable (GPU checks require `native-image-tests`).
+
+The public macOS AX/keyboard walkthrough passes real Right-key bursts to the upper
+bound, Home to zero, AXIncrement, read-only rejection, disable/enable and theme
+switching. Both appearances were visually inspected; inactive star outlines were
+strengthened afterward. The response feedback appears inside the assistant card.
+All owned windows/processes were closed and reaped. The current ticket remains
+In Progress until final cross-family content/layout acceptance is complete.
+
+Final rating checkpoint (local macOS arm64): full Dune `@all @runtest @fmt`,
+Rust workspace tests, and all-target Clippy with default, `native-tests`, and
+combined `native-image-tests,native-canvas-tests` features pass. The freshly built
+GPU-enabled `native_presentation` passes both `GPUIO_RATING_GPU_OK` and
+`GPUIO_RATING_NATIVE_OK`, alongside existing loading and form/IME/AX checks.
+Component Studio `--self-test` and `scripts/test_presentation.py` pass. Final
+light/dark screenshots were recaptured, visually inspected and copied into
+`docs/images/presentation-{dark,light}.png`. CI now runs presentation GPU checks;
+these results are local evidence, not hosted validation.

@@ -2,6 +2,8 @@
 use super::*;
 #[path = "loading_test.rs"]
 mod loading_test;
+#[path = "rating_test.rs"]
+mod rating_test;
 use gpuio_protocol::accessibility::{Config, Field, Live, Role};
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
 fn node(n: i64) -> NodeId {
@@ -283,6 +285,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
     frame(cx, handle).await;
     assert!(!alive());
     loading_test::exercise(cx, handle).await;
+    rating_test::exercise(cx, handle, transport).await;
     handle
         .update(cx, |v, w, _| {
             assert_eq!(v.session.borrow().retained_bytes(), 0);

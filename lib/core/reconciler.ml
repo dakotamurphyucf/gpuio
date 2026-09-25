@@ -85,6 +85,7 @@ type 'a callback =
   | Tooltip of Tooltip.Config.t * (bool -> 'a)
   | Editor of (Text_input.Event.t -> 'a)
   | Choice of Choice.Config.t * (Choice.Id.t -> 'a)
+  | Rating of Rating.Config.t * (Rating.Request.t -> 'a)
   | Combobox of Combobox.Config.t * (Combobox.Event.t -> 'a)
 
 type 'a binding =
@@ -238,6 +239,7 @@ let kind = function
   | Container_query -> Container_query
   | Loading -> Loading
   | Avatar -> Avatar
+  | Rating -> Rating
   | Virtual_list -> Virtual_list
   | Canvas_view -> Canvas_view
   | Document_view -> Document_view
@@ -446,6 +448,17 @@ let rec mount builder ~depth previous view =
         Some (Commands (registry, commands))
       | None, None, None, None, None, None, None -> None
       | _ -> fail "a view cannot combine incompatible handler kinds"
+    in
+    let callback =
+      match description.rating, callback with
+      | Some rating, None ->
+        if
+          Rating.Config.is_disabled rating.config
+          || Rating.Config.is_read_only rating.config
+        then None
+        else Some (Rating (rating.config, rating.on_request))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "rating cannot combine another handler"
     in
     let callback =
       match description.palette, callback with
@@ -808,6 +821,14 @@ let rec mount builder ~depth previous view =
           emit
             builder
             (Set_image (id, Image.Expert.to_wire image.config ~owner:builder.asset_owner)));
+    Option.iter description.rating ~f:(fun rating ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).rating ~f:(fun item ->
+            item.config))
+      in
+      if not (Option.equal Rating.Config.equal old (Some rating.config))
+      then emit builder (Set_rating (id, Rating.Expert.to_wire rating.config)));
     Option.iter description.avatar ~f:(fun config ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -1430,6 +1451,7 @@ let dispatch t = function
        (match binding.callback with
         | Click callback -> Some (callback ())
         | Editor _
+        | Rating _
         | Choice _
         | Combobox _
         | Dismiss _
@@ -1450,6 +1472,23 @@ let dispatch t = function
         | Canvas _
         | Document _ -> None)
      | Some _ | None -> None)
+  | Rating_requested (window, node, handler, revision, request)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match
+       Map.find t.state.bindings (node_slot node), Rating.Expert.request_of_wire request
+     with
+     | ( Some
+           { node = expected
+           ; handler = expected_handler
+           ; callback = Rating (config, callback)
+           }
+       , Some request )
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Rating.Expert.can_apply config request -> Some (callback request)
+     | _ -> None)
   | Choice (window, node, handler, revision, selected)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -1645,6 +1684,7 @@ let dispatch t = function
   | Image_state _
   | Animation_endpoint _
   | Animation_program_event _
+  | Rating_requested _
   | Container_selected _
   | List_retained _
   | List_viewport _

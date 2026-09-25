@@ -7,6 +7,7 @@ module type S = sig
   module Accessibility = Accessibility_wire
   module Loading = Loading_wire
   module Avatar = Avatar_wire
+  module Rating = Rating_wire
   module Container_query = Container_query_wire
   module Animation_program = Animation_program_wire
   module Document = Document_wire
@@ -59,6 +60,7 @@ module type S = sig
       | Container_query
       | Loading
       | Avatar
+      | Rating
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -716,6 +718,7 @@ module type S = sig
       | Set_accessibility of Node_id.t * Accessibility.Config.t option
       | Set_loading of Node_id.t * Loading.Config.t
       | Set_avatar of Node_id.t * Avatar.Config.t
+      | Set_rating of Node_id.t * Rating.Config.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -931,6 +934,8 @@ module type S = sig
           Window_id.t * Node_id.t * Handler_id.t * int64 * Animation_program.Batch.t
       | Container_selected of
           Window_id.t * Node_id.t * Handler_id.t * int64 * Container_query.Snapshot.t
+      | Rating_requested of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Rating.Request.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

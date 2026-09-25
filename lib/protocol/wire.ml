@@ -5,6 +5,7 @@ module Animation = Animation_wire
 module Accessibility = Accessibility_wire
 module Loading = Loading_wire
 module Avatar = Avatar_wire
+module Rating = Rating_wire
 module Container_query = Container_query_wire
 module Animation_program = Animation_program_wire
 module Document = Document_wire
@@ -56,6 +57,7 @@ module Kind = struct
     | Container_query
     | Loading
     | Avatar
+    | Rating
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -714,6 +716,7 @@ module Op = struct
     | Set_accessibility of Node_id.t * Accessibility.Config.t option
     | Set_loading of Node_id.t * Loading.Config.t
     | Set_avatar of Node_id.t * Avatar.Config.t
+    | Set_rating of Node_id.t * Rating.Config.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -997,6 +1000,8 @@ module Event = struct
         Window_id.t * Node_id.t * Handler_id.t * int64 * Animation_program.Batch.t
     | Container_selected of
         Window_id.t * Node_id.t * Handler_id.t * int64 * Container_query.Snapshot.t
+    | Rating_requested of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Rating.Request.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1055,6 +1060,8 @@ module Event = struct
       Int64.(revision > 0L) && Or_error.is_ok (List_wire.Retained.validate_all notices)
     | List_viewport (_, _, _, revision, viewport) ->
       Int64.(revision >= 0L) && Or_error.is_ok (List_wire.Viewport.validate viewport)
+    | Rating_requested (_, _, _, revision, request) ->
+      Int64.(revision >= 0L) && Rating.Request.valid request
     | Container_selected (_, _, _, revision, snapshot) ->
       Int64.(revision >= 0L) && Container_query.Snapshot.valid snapshot
     | Animation_program_event (_, _, _, revision, signals) ->
