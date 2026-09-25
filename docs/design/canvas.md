@@ -513,3 +513,38 @@ observations. The implementation must measure large-scene update, hit and render
 workloads, retained memory after repeated disposal, and work while interaction and
 streaming are active. Record macOS native evidence separately from Linux build and
 later graphical acceptance.
+
+
+## Mounted native input
+
+The mounted canvas participates in native focus traversal. Left click selects;
+a double click activates an activatable item. Left drag previews an item's local
+to world transform in Rust and reports its resulting transform on release.
+Middle drag pans. Wheel samples pan; Control/platform-modified wheel samples zoom
+around the pointer. Wheel viewport observations occupy one pending slot per canvas
+and coalesce until the next actual root paint. A keyboard/pointer action flushes
+an earlier wheel observation first; configuration changes and disposal discard
+pending delivery. No new timer or per-sample frame callback is allocated.
+
+With canvas focus, arrows select previous/next interactive items in scene order;
+Home/End select first/last. Enter/Space activate the selected item. Shift+arrows
+move it by one logical pixel, Alt+Shift+arrows by ten. Alt+arrows pan by twenty
+logical pixels; +/- zoom around the canvas center. Escape rolls back an unfinished
+drag. Tab cancels any gesture and uses the existing application focus traversal.
+The native scene state enforces selectable, draggable and pan/zoom policies.
+
+Capture survives repaint by rebinding to the current canvas hitbox. Focus loss,
+window deactivation, hiding, modal exclusion, disabled input, configuration changes,
+scene publication, changed bounds, source replacement and unmount cancel gestures.
+Cancellation rolls back preview transforms and releases only this canvas's capture.
+Old frame callbacks are fenced by configuration identity and the current scene
+lease; a frame retained while replacement geometry prepares cannot interact as
+though it represented the newer publication. Disabled canvases leave tab traversal;
+explicit application commands can still update them.
+
+Selection paints one transformed outline using the configured color, clipped to
+the canvas and the selected item's world clip stack. Rectangle/ellipse hit bounds
+or a polygon's bounding rectangle determine the outline. This fixed-size decorative
+stroke is additional to the scene mesh vertex budget; it never uploads a changed
+scene or requests an OCaml paint callback. Root focus semantics are present;
+per-object accessible semantics remain required before full canvas acceptance.

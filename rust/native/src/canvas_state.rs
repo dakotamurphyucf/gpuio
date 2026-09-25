@@ -237,7 +237,7 @@ impl State {
     pub fn interactive_ids(&self) -> &[i64] {
         &self.order
     }
-    fn item(&self, id: i64) -> Option<&Item> {
+    pub(crate) fn item(&self, id: i64) -> Option<&Item> {
         self.interactive
             .get(&id)
             .map(|entry| &self.snapshot.scene.items[entry.index])

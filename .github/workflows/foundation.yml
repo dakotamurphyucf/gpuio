@@ -103,7 +103,7 @@ jobs:
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-tests --all-targets -- -D warnings
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_images --test native_image_views --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-image-tests --all-targets -- -D warnings
-          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-canvas-tests --test native_canvas --test native_canvas_view --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-canvas-tests --test native_canvas --test native_canvas_view --test native_canvas_input --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-canvas-tests --all-targets -- -D warnings
       - name: Independent native extension consumer
         run: python3 scripts/test_extension_consumer.py 2>&1 | tee .cache/ci/extension-consumer.log
@@ -117,7 +117,7 @@ jobs:
         run: python3 -c 'import subprocess; subprocess.run(["_build/default/examples/canvas_upload/main.exe"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-canvas-upload.log
       - name: macOS hidden-window canvas geometry and mounted-view checks
         if: runner.os == 'macOS'
-        run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-canvas-tests", "--test", "native_canvas", "--test", "native_canvas_view"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-canvas-native.log
+        run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-canvas-tests", "--test", "native_canvas", "--test", "native_canvas_view", "--test", "native_canvas_input"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-canvas-native.log
       - name: Document worker measurements
         run: ./scripts/gpuio exec cargo test --locked -p gpuio-native --lib document_jobs::tests::measurement_report -- --nocapture 2>&1 | tee .cache/ci/document-worker-measurements.log
       - name: macOS public runtime checks

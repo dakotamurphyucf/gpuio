@@ -36,7 +36,9 @@ The typed canvas view, owner-aware reconciliation, bounded native tree admission
 and revision-checked event bridge now have local regression coverage. Mounted
 retained-tree GPU rendering passes publication, hide/show, command retention,
 preparation failure/recovery, generation reset and repeated disposal checks.
-OS input/AX and public OCaml widget acceptance remain in progress. See the
+Native-dispatch input checks now pass focus, drag/selection pixels, keyboard,
+pan/zoom, wheel coalescing and cancellation, including actual window deactivation.
+Object accessibility and public OCaml widget acceptance remain in progress. See the
 [extension](evidence/extensions-och23.md) and [canvas](evidence/canvas-och24.md)
 evidence for exact completed scope. Its scope includes OCH-23–26 and OCH-33–39, followed by
 [OCH-46](https://linear.app/ochat/issue/OCH-46/showcase-milestone-05-features-in-the-polished-agent-chat-reference):

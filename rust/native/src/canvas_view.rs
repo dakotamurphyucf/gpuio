@@ -16,7 +16,11 @@ use gpuio_protocol::{
     canvas_view::{Config, Error, Observation},
 };
 
+#[path = "canvas_input.rs"]
+mod input;
+
 pub(super) struct State {
+    input: input::Input,
     node: NodeId,
     window: WindowId,
     config: Arc<Config>,
@@ -113,7 +117,8 @@ impl State {
             self.emit_at(vec![Observation::Failed(error)], revision, generation, cx);
         }
     }
-    fn suspend(&mut self) {
+    fn suspend(&mut self, window: &mut Window) {
+        self.cancel_input(window);
         if let Some(native) = &mut self.native {
             native.set_input_enabled(false);
         }
@@ -123,20 +128,38 @@ impl State {
         self.content = None;
         self.failure = None;
     }
-    pub(super) fn close(&mut self) {
+    pub(super) fn close(&mut self, window: &mut Window) {
         self.closed = true;
-        self.suspend();
+        self.suspend(window);
         self.native = None;
         self.lease = None;
     }
-    fn configure(&mut self, node: &crate::tree::Node, revision: i64, cx: &mut App) {
-        if self.handler != node.handler {
+    fn configure(
+        &mut self,
+        node: &crate::tree::Node,
+        revision: i64,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        if self.handler != node.handler
+            || node
+                .canvas
+                .as_ref()
+                .is_some_and(|config| config != &self.config)
+        {
+            self.cancel_input(window);
+            self.input.token = Rc::new(());
             self.reported = None;
             self.reported_preparation = None;
         }
         self.handler = node.handler;
         self.revision = revision;
         self.config = node.canvas.clone().expect("validated canvas");
+        self.input.focus = self
+            .input
+            .focus
+            .clone()
+            .tab_stop(!self.config.disabled && self.lease.is_some());
         if let Some(native) = &mut self.native {
             match native.configure((*self.config).clone()) {
                 Ok(events) => self.emit(events, cx),
@@ -249,6 +272,7 @@ impl State {
         content.begin_frame();
         let result = paint(ready, native, content, bounds, budget, window, cx);
         content.end_frame();
+        input::selection(native, bounds, window);
         match result {
             Ok(true) => window.refresh(), // bounded deferred shaping; images wake independently
             Ok(false) => (),
@@ -307,11 +331,16 @@ fn paint(
     Ok(deferred)
 }
 impl View {
-    pub(super) fn sync_canvases(&mut self, dirty: &[NodeId], cx: &mut Context<Self>) {
+    pub(super) fn sync_canvases(
+        &mut self,
+        dirty: &[NodeId],
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let session = self.session.borrow();
         let Some(tree) = session.tree(self.id) else {
             for state in self.canvases.values() {
-                state.borrow_mut().close();
+                state.borrow_mut().close(window);
             }
             self.canvases.clear();
             return;
@@ -322,7 +351,7 @@ impl View {
                 .and_then(|n| n.canvas.as_ref())
                 .is_some_and(|config| config.source == state.borrow().config.source);
             if !keep {
-                state.borrow_mut().close();
+                state.borrow_mut().close(window);
             }
             keep
         });
@@ -334,6 +363,7 @@ impl View {
                 let config = node.canvas.clone().unwrap();
                 let lease = config.source.and_then(|id| session.canvas(id).ok());
                 let mut state = State {
+                    input: input::Input::new(self.focus.clone(), cx),
                     node: *id,
                     window: self.id,
                     config: config.clone(),
@@ -361,37 +391,40 @@ impl View {
                         Err(error) => state.report(error, cx),
                     }
                 }
-                self.canvases.insert(*id, Rc::new(RefCell::new(state)));
+                let state = Rc::new(RefCell::new(state));
+                input::install_blur(&state, window, cx);
+                self.canvases.insert(*id, state);
             } else {
                 self.canvases[id]
                     .borrow_mut()
-                    .configure(node, tree.revision(), cx);
+                    .configure(node, tree.revision(), window, cx);
             }
         }
         for (id, state) in &self.canvases {
             if !self.focus.borrow().visible(*id) {
-                state.borrow_mut().suspend();
-            } else if (!self.focus.borrow().allows(*id) || !pointer_enabled(tree, *id))
-                && let Some(native) = &mut state.borrow_mut().native
-            {
-                native.set_input_enabled(false);
+                state.borrow_mut().suspend(window);
+            } else if !self.focus.borrow().allows(*id) || !pointer_enabled(tree, *id) {
+                state.borrow_mut().cancel_input(window);
             }
         }
     }
-    pub(super) fn hide_unvisited_canvases(&self) {
+    pub(super) fn hide_unvisited_canvases(&self, window: &mut Window) {
         for (id, state) in &self.canvases {
             if !self.visited.contains(id) {
-                state.borrow_mut().suspend();
+                state.borrow_mut().suspend(window);
             }
         }
     }
-    pub(super) fn canvas_changed(&self, source: ResourceId, cx: &mut Context<Self>) {
+    pub(super) fn canvas_changed(
+        &self,
+        source: ResourceId,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         for (id, state) in &self.canvases {
             let mut state = state.borrow_mut();
             if state.config.source == Some(source) {
-                if let Some(native) = &mut state.native {
-                    native.cancel();
-                }
+                state.cancel_input(window);
                 self.invalidate_resource_row(*id);
             }
         }
@@ -416,30 +449,38 @@ impl View {
             return element.into_any_element();
         };
         let budget = self.canvas_budget.clone();
-        element
-            .relative()
-            .child(
-                canvas(
-                    |_, _, _| (),
-                    move |bounds, _, window, cx| {
-                        if bounds.size.width <= px(0.)
-                            || bounds.size.height <= px(0.)
-                            || !bounds.intersects(&window.content_mask().bounds)
-                        {
-                            state.borrow_mut().suspend();
-                            return;
-                        }
-                        state
-                            .borrow_mut()
-                            .paint(bounds, &mut budget.borrow_mut(), window, cx);
-                    },
-                )
-                .absolute()
-                .top_0()
-                .left_0()
-                .size_full(),
+        let element = input::keyboard(element, state.clone());
+        let prepaint = state.clone();
+        let element = element.relative().child(
+            canvas(
+                move |bounds, window, _| input::prepaint(&prepaint, bounds, window),
+                move |bounds, hitbox, window, cx| {
+                    if bounds.size.width <= px(0.)
+                        || bounds.size.height <= px(0.)
+                        || !bounds.intersects(&window.content_mask().bounds)
+                    {
+                        state.borrow_mut().suspend(window);
+                        return;
+                    }
+                    state
+                        .borrow_mut()
+                        .paint(bounds, &mut budget.borrow_mut(), window, cx);
+                    input::paint(&state, hitbox, window);
+                },
             )
-            .into_any_element()
+            .absolute()
+            .top_0()
+            .left_0()
+            .size_full(),
+        );
+        crate::semantics::State {
+            element,
+            disabled: config.disabled,
+            read_only: false,
+            modal: false,
+            live: None,
+        }
+        .into_any_element()
     }
 }
 

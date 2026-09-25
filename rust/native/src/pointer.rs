@@ -365,6 +365,10 @@ impl View {
             self.pointer_activation =
                 Some(cx.observe_window_activation(window, |view, window, cx| {
                     if !window.is_window_active() {
+                        for state in view.canvases.values() {
+                            state.borrow_mut().cancel_input(window);
+                        }
+                        window.refresh();
                         super::drag_drop::cancel(
                             view.id,
                             gpuio_protocol::drag_drop::CancelReason::WindowInactive,

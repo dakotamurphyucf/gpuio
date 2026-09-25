@@ -380,7 +380,7 @@ impl View {
         self.sync_palettes(window, cx);
         self.sync_toasts(cx);
         self.sync_tooltips(window, cx);
-        self.sync_canvases(dirty, cx);
+        self.sync_canvases(dirty, window, cx);
         self.sync_splits(window, cx);
         let nodes = {
             let session = self.session.borrow();
@@ -1192,6 +1192,7 @@ impl Render for View {
         let tab_focus = self.focus.clone();
         let begin_focus = self.focus.clone();
         let canvas_budget = self.canvas_budget.clone();
+        let canvases: Vec<_> = self.canvases.values().map(Rc::downgrade).collect();
         let drag_window = self.id;
         let mut root = drag_drop::root(div(), self.id, cx)
             .capture_key_down(cx.listener(|view, event: &gpui::KeyDownEvent, window, cx| {
@@ -1223,6 +1224,11 @@ impl Render for View {
                     move |_, _, window, cx| {
                         begin_focus.borrow_mut().begin_frame();
                         *canvas_budget.borrow_mut() = Default::default();
+                        for state in &canvases {
+                            if let Some(state) = state.upgrade() {
+                                state.borrow_mut().flush_canvas_frame(window, cx);
+                            }
+                        }
                         drag_drop::install_cleanup(drag_window, window, cx);
                     },
                 )
@@ -1252,7 +1258,7 @@ impl Render for View {
             }
         }
         self.hide_unvisited_extensions();
-        self.hide_unvisited_canvases();
+        self.hide_unvisited_canvases(window);
         self.buttons.retain(|id, _| self.visited.contains(id));
         self.radios.retain(|id, _| self.visited.contains(id));
         self.selects.retain(|id, _| self.visited.contains(id));
@@ -1293,6 +1299,10 @@ impl Render for View {
                     .extensions
                     .values()
                     .any(|state| state.focus.contains_focused(window, cx))
+                || self
+                    .canvases
+                    .values()
+                    .any(|state| state.borrow().canvas_focused(window))
                 || root_focus.is_focused(window)
                 || self
                     .buttons
@@ -1561,7 +1571,7 @@ pub fn run(transport: Arc<Transport>) {
                                     transport.respond(Event::Closed(correlation, id));
                                     if let Some(window) = windows.remove(&id) {
                                         let _ = window
-                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); view.cancel_split_drag(window, cx); view.extensions.clear(); for state in view.canvases.values() { state.borrow_mut().close(); } view.canvases.clear(); window.remove_window(); });
+                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); view.cancel_split_drag(window, cx); view.extensions.clear(); for state in view.canvases.values() { state.borrow_mut().close(window); } view.canvases.clear(); window.remove_window(); });
                                     }
                                 }
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),
@@ -1592,7 +1602,7 @@ pub fn run(transport: Arc<Transport>) {
                             let published=match &request { gpuio_protocol::canvas_resource::Request::Publish(id,_) => Some(*id), _ => None };
                             let response=session.borrow_mut().canvas_request(request);
                             if let Some(source)=published && matches!(response,gpuio_protocol::canvas_resource::Response::Ack) {
-                                for handle in windows.values() { let _=handle.update(cx,|view,_,cx|view.canvas_changed(source,cx)); }
+                                for handle in windows.values() { let _=handle.update(cx,|view,window,cx|view.canvas_changed(source,window,cx)); }
                             }
                             transport.respond(Event::CanvasResponse(correlation,response));
                         }

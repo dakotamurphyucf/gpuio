@@ -459,3 +459,38 @@ CI now builds the new test on both
 platforms and runs it beside the existing canvas GPU scenario on macOS; hosted
 execution remains pending. Pointer/keyboard interaction, selection presentation,
 accessible object semantics and the public OCaml diagram remain next work.
+
+
+## Mounted input checkpoint
+
+The new `native_canvas_input` target runs in an active macOS window. It dispatches
+GPUI native input events into the production retained-tree `View`; this is not
+external OS keyboard injection or completed object accessibility acceptance.
+The locally passing input and hidden-renderer targets verify:
+
+- Selection/focus, pointer capture across paints, drag preview with no bridge
+  traffic, release transform observations, moved shape pixels and selection outline.
+- Keyboard activation/movement, middle-button pan, +/- zoom and modified-wheel zoom.
+- Escape rollback, focus loss, disabling/re-enabling without painting, scene
+  publication, modal focus-scope changes and actual window deactivation cancel
+  captures. A brief second window triggers deactivation and is then removed.
+- Wheel samples coalesce into exactly one observation at an explicit paint;
+  a configuration accepted before painting suppresses stale pending delivery while
+  preserving the native viewport. The test controls the paint boundary because
+  GPUI can draw before returning from an AsyncApp update.
+- Tab includes the enabled canvas and excludes it when disabled. Explicit viewport
+  commands still work while disabled; keyboard/pointer changes are rejected.
+- Both harnesses remove windows, stop workers and assert zero scene/mesh/text
+  accounting at shutdown. Final input worker metrics were `(5, 1, 1, 0)`.
+
+Command, local macOS arm64, isolated environment with `GPUIO_JOBS=2`:
+
+```
+./scripts/gpuio exec cargo test --locked -p gpuio-native \
+  --features native-canvas-tests --test native_canvas_input --test native_canvas_view
+```
+
+CI builds all three canvas targets on macOS/Linux and schedules the input target
+with the existing macOS canvas tests. Hosted execution remains pending. Accessible
+object representation/actions, the public OCaml diagram and remaining aggregate
+acceptance remain unfinished; no full canvas capability is advertised yet.

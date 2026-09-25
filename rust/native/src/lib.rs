@@ -162,3 +162,8 @@ pub fn run_native_canvas_test() {
 pub fn run_native_canvas_view_test() {
     host::canvas_view::test::run();
 }
+
+#[cfg(feature = "native-canvas-tests")]
+pub fn run_native_canvas_input_test() {
+    host::canvas_view::test::run_input();
+}

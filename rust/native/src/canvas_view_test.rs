@@ -36,7 +36,17 @@ fn scene(color: i64) -> Scene {
             id: 1,
             transform: Transform::IDENTITY,
             clips: vec![],
-            interaction: None,
+            interaction: Some(gpuio_protocol::canvas_scene::Interaction {
+                label: "Task".into(),
+                hit_region: HitRegion::Rectangle(Rect {
+                    x: 10.,
+                    y: 10.,
+                    width: 60.,
+                    height: 60.,
+                }),
+                draggable: true,
+                activatable: true,
+            }),
             drawing: Drawing::Shape(
                 Shape::Rectangle(Rect {
                     x: 10.,
@@ -93,22 +103,30 @@ fn publish_scene(
         Response::Ack
     );
 }
+fn apply_to_view(
+    view: &mut View,
+    window: &mut Window,
+    cx: &mut gpui::Context<View>,
+    operations: Vec<Op>,
+) {
+    let base = view.session.borrow().tree(view.id).unwrap().revision();
+    let applied = view
+        .session
+        .borrow_mut()
+        .apply(&Transaction {
+            window: view.id,
+            base,
+            revision: base + 1,
+            operations,
+        })
+        .unwrap();
+    view.update_editors(&applied.dirty, window, cx);
+    cx.notify();
+}
 fn apply(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, operations: Vec<Op>) {
     handle
         .update(cx, |view, window, cx| {
-            let base = view.session.borrow().tree(view.id).unwrap().revision();
-            let applied = view
-                .session
-                .borrow_mut()
-                .apply(&Transaction {
-                    window: view.id,
-                    base,
-                    revision: base + 1,
-                    operations,
-                })
-                .unwrap();
-            view.update_editors(&applied.dirty, window, cx);
-            cx.notify();
+            apply_to_view(view, window, cx, operations)
         })
         .unwrap();
 }
@@ -256,7 +274,9 @@ async fn exercise(
     );
     publish(&session, source, 1, 1, 0x00ff00ff);
     handle
-        .update(cx, |view, _, cx| view.canvas_changed(source, cx))
+        .update(cx, |view, window, cx| {
+            view.canvas_changed(source, window, cx)
+        })
         .unwrap();
     ready(cx, handle, 2).await;
     pixels(cx, handle, [0, 255, 0, 255]);
@@ -342,7 +362,9 @@ async fn exercise(
         .collect();
     publish_scene(&session, source, 2, 1, large);
     handle
-        .update(cx, |view, _, cx| view.canvas_changed(source, cx))
+        .update(cx, |view, window, cx| {
+            view.canvas_changed(source, window, cx)
+        })
         .unwrap();
     let mut failed = false;
     for _ in 0..300 {
@@ -414,12 +436,16 @@ async fn exercise(
     );
     publish(&session, source, 3, 1, 0x00ff00ff);
     handle
-        .update(cx, |view, _, cx| view.canvas_changed(source, cx))
+        .update(cx, |view, window, cx| {
+            view.canvas_changed(source, window, cx)
+        })
         .unwrap();
     ready(cx, handle, 4).await;
     publish(&session, source, 4, 2, 0x0000ffff);
     handle
-        .update(cx, |view, _, cx| view.canvas_changed(source, cx))
+        .update(cx, |view, window, cx| {
+            view.canvas_changed(source, window, cx)
+        })
         .unwrap();
     ready(cx, handle, 5).await;
     handle
@@ -541,6 +567,12 @@ async fn exercise(
     );
 }
 pub(crate) fn run() {
+    run_mode(false);
+}
+pub(crate) fn run_input() {
+    run_mode(true);
+}
+fn run_mode(input: bool) {
     let failure = Rc::new(RefCell::new(None));
     let task_failure = failure.clone();
     let mut fds = [0; 2];
@@ -566,8 +598,8 @@ pub(crate) fn run() {
         let handle = cx
             .open_window(
                 WindowOptions {
-                    focus: false,
-                    show: false,
+                    focus: input,
+                    show: input,
                     window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
                         None,
                         size(px(240.), px(240.)),
@@ -578,18 +610,21 @@ pub(crate) fn run() {
                 |_, cx| cx.new(|_| View::new(window_id, session.clone(), transport.clone())),
             )
             .unwrap();
+        if input {
+            cx.activate(true);
+        }
         cx.spawn(async move |cx| {
-            let result = crate::host::native_test::protect(exercise(
-                cx,
-                handle,
-                source,
-                session.clone(),
-                transport,
-            ))
+            let result = crate::host::native_test::protect(async {
+                if input {
+                    exercise_input(cx, handle, source, session.clone(), transport.clone()).await;
+                } else {
+                    exercise(cx, handle, source, session.clone(), transport.clone()).await;
+                }
+            })
             .await;
             let _ = handle.update(cx, |view, window, _| {
                 for state in view.canvases.values() {
-                    state.borrow_mut().close();
+                    state.borrow_mut().close(window);
                 }
                 view.canvases.clear();
                 window.remove_window();
@@ -614,4 +649,495 @@ pub(crate) fn run() {
     if let Some(error) = failure.borrow_mut().take() {
         std::panic::resume_unwind(error);
     }
+}
+
+fn observations(transport: &Transport) -> Vec<Observation> {
+    transport
+        .mailbox
+        .lock()
+        .unwrap()
+        .drain(128)
+        .into_iter()
+        .filter_map(|event| match event {
+            Event::CanvasEvent(_, _, _, _, _, _, _, event) => Some(event),
+            _ => None,
+        })
+        .collect()
+}
+fn key(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, value: &str) {
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.dispatch_event(
+            gpui::PlatformInput::KeyDown(gpui::KeyDownEvent {
+                keystroke: gpui::Keystroke::parse(value).unwrap(),
+                is_held: false,
+                prefer_character_input: false,
+            }),
+            cx,
+        );
+    })
+    .unwrap();
+}
+fn wheel(window: &mut Window, cx: &mut App, x: f32) {
+    window.dispatch_event(
+        gpui::PlatformInput::ScrollWheel(gpui::ScrollWheelEvent {
+            position: position(50., 30.),
+            delta: gpui::ScrollDelta::Pixels(position(x, 0.)),
+            touch_phase: gpui::TouchPhase::Moved,
+            modifiers: Default::default(),
+        }),
+        cx,
+    );
+}
+fn position(x: f32, y: f32) -> gpui::Point<gpui::Pixels> {
+    gpui::point(px(x), px(y))
+}
+async fn frame(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
+    draw(cx, handle);
+    cx.background_executor()
+        .timer(Duration::from_millis(25))
+        .await;
+    draw(cx, handle);
+}
+async fn exercise_input(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    source: ResourceId,
+    session: SharedSession,
+    transport: Arc<Transport>,
+) {
+    use crate::host::native_test::{mouse, move_mouse};
+    apply(cx, handle, mount(source));
+    ready(cx, handle, 1).await;
+    for _ in 0..100 {
+        if handle
+            .update(cx, |_, window, _| window.is_window_active())
+            .unwrap()
+        {
+            break;
+        }
+        cx.background_executor()
+            .timer(Duration::from_millis(10))
+            .await;
+    }
+    assert!(
+        handle
+            .update(cx, |_, window, _| window.is_window_active())
+            .unwrap()
+    );
+    move_mouse(cx, handle, position(20., 30.), false);
+    mouse(cx, handle, position(20., 30.), true);
+    handle
+        .update(cx, |view, window, _| {
+            assert!(view.canvases[&id(1)].borrow().canvas_focused(window));
+            assert!(window.captured_hitbox().is_some());
+        })
+        .unwrap();
+    assert_eq!(
+        observations(&transport),
+        vec![Observation::SelectionChanged(Some(1))]
+    );
+    move_mouse(cx, handle, position(45., 30.), true);
+    frame(cx, handle).await;
+    assert!(
+        observations(&transport).is_empty(),
+        "native preview emits no movement traffic"
+    );
+    mouse(cx, handle, position(45., 30.), false);
+    frame(cx, handle).await;
+    let events = observations(&transport);
+    assert!(
+        matches!(events.as_slice(),[Observation::Moved(1,transform)] if transform.tx==25. && transform.ty==0.)
+    );
+    handle
+        .update(cx, |_, window, _| {
+            let image = window.render_to_image().unwrap();
+            let scale = window.scale_factor();
+            assert_eq!(
+                image
+                    .get_pixel((50. * scale) as u32, (30. * scale) as u32)
+                    .0,
+                [255, 0, 0, 255]
+            );
+            assert_eq!(
+                image
+                    .get_pixel((20. * scale) as u32, (30. * scale) as u32)
+                    .0,
+                [16, 16, 16, 255]
+            );
+            let mut outline = 0;
+            for x in (34. * scale) as u32..(37. * scale) as u32 {
+                for y in (12. * scale) as u32..(66. * scale) as u32 {
+                    let [r, g, b, _] = image.get_pixel(x, y).0;
+                    if r > 220 && g > 220 && b > 220 {
+                        outline += 1;
+                    }
+                }
+            }
+            assert!(outline > 30, "selection outline follows moved hit region");
+            assert!(window.captured_hitbox().is_none());
+        })
+        .unwrap();
+    key(cx, handle, "enter");
+    assert_eq!(observations(&transport), vec![Observation::Activated(1)]);
+    key(cx, handle, "shift-right");
+    assert!(matches!(observations(&transport).as_slice(),[Observation::Moved(1,t)] if t.tx==26.));
+    // Capture survives a repaint and movement outside the element; Escape rolls
+    // back the preview without a completed-movement observation.
+    move_mouse(cx, handle, position(50., 30.), false);
+    mouse(cx, handle, position(50., 30.), true);
+    move_mouse(cx, handle, position(225., 30.), true);
+    frame(cx, handle).await;
+    key(cx, handle, "escape");
+    mouse(cx, handle, position(225., 30.), false);
+    assert!(observations(&transport).is_empty());
+    handle
+        .update(cx, |view, window, _| {
+            let state = view.canvases[&id(1)].borrow();
+            let native = state.native.as_ref().unwrap();
+            assert_eq!(native.transform(native.item(1).unwrap()).tx, 26.);
+            assert!(!native.has_gesture());
+            assert!(window.captured_hitbox().is_none());
+        })
+        .unwrap();
+    // Disable/re-enable without a paint cannot resurrect captured callbacks.
+    move_mouse(cx, handle, position(50., 30.), false);
+    mouse(cx, handle, position(50., 30.), true);
+    move_mouse(cx, handle, position(80., 30.), true);
+    apply(
+        cx,
+        handle,
+        vec![Op::SetCanvas(
+            id(1),
+            Config {
+                disabled: true,
+                ..config(Some(source))
+            },
+        )],
+    );
+    apply(cx, handle, vec![Op::SetCanvas(id(1), config(Some(source)))]);
+    mouse(cx, handle, position(80., 30.), false);
+    assert!(observations(&transport).is_empty());
+    frame(cx, handle).await;
+    // Focus loss cancels capture immediately.
+    move_mouse(cx, handle, position(50., 30.), false);
+    mouse(cx, handle, position(50., 30.), true);
+    move_mouse(cx, handle, position(75., 30.), true);
+    handle
+        .update(cx, |view, window, cx| {
+            window.focus(view.root_focus.as_ref().unwrap(), cx)
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    assert!(
+        handle
+            .update(cx, |_, window, _| window.captured_hitbox().is_none())
+            .unwrap()
+    );
+    mouse(cx, handle, position(75., 30.), false);
+    assert!(observations(&transport).is_empty());
+    // Publication cancels before new geometry becomes ready.
+    move_mouse(cx, handle, position(50., 30.), false);
+    mouse(cx, handle, position(50., 30.), true);
+    move_mouse(cx, handle, position(70., 30.), true);
+    publish(&session, source, 1, 1, 0x00ff00ff);
+    handle
+        .update(cx, |view, window, cx| {
+            view.canvas_changed(source, window, cx)
+        })
+        .unwrap();
+    mouse(cx, handle, position(70., 30.), false);
+    assert!(observations(&transport).is_empty());
+    ready(cx, handle, 2).await;
+    // A trapping focus scope added and removed without painting cannot leave
+    // the earlier pointer gesture alive behind it.
+    move_mouse(cx, handle, position(50., 30.), false);
+    mouse(cx, handle, position(50., 30.), true);
+    move_mouse(cx, handle, position(80., 30.), true);
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Create(id(2), Kind::FocusScope, "".into(), None),
+            Op::SetFocusScope(
+                id(2),
+                FocusScopeConfig {
+                    trap: true,
+                    auto_focus: true,
+                    restore_focus: true,
+                },
+            ),
+            Op::Splice(id(0), 1, 0, vec![id(2)]),
+        ],
+    );
+    assert!(
+        handle
+            .update(cx, |_, window, _| window.captured_hitbox().is_none())
+            .unwrap()
+    );
+    apply(
+        cx,
+        handle,
+        vec![Op::Splice(id(0), 1, 1, vec![]), Op::Remove(id(2))],
+    );
+    mouse(cx, handle, position(80., 30.), false);
+    assert!(observations(&transport).is_empty());
+    frame(cx, handle).await;
+    // Native window deactivation cancels a held gesture. A second small window
+    // supplies a real activation transition and is removed immediately afterward.
+    move_mouse(cx, handle, position(50., 30.), false);
+    mouse(cx, handle, position(50., 30.), true);
+    move_mouse(cx, handle, position(80., 30.), true);
+    let other_id = WindowId::from_parts(1, 1).unwrap();
+    session
+        .borrow_mut()
+        .open(2, other_id, "Canvas activation test", 120., 80.)
+        .unwrap();
+    let other = cx.update(|cx| {
+        cx.open_window(
+            WindowOptions {
+                focus: true,
+                show: true,
+                window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
+                    None,
+                    size(px(120.), px(80.)),
+                    cx,
+                ))),
+                ..Default::default()
+            },
+            |_, cx| cx.new(|_| View::new(other_id, session.clone(), transport.clone())),
+        )
+        .unwrap()
+    });
+    for _ in 0..100 {
+        if !handle
+            .update(cx, |_, window, _| window.is_window_active())
+            .unwrap()
+        {
+            break;
+        }
+        cx.background_executor()
+            .timer(Duration::from_millis(10))
+            .await;
+    }
+    handle
+        .update(cx, |view, window, _| {
+            assert!(!window.is_window_active());
+            assert!(window.captured_hitbox().is_none());
+            assert!(
+                !view.canvases[&id(1)]
+                    .borrow()
+                    .native
+                    .as_ref()
+                    .unwrap()
+                    .has_gesture()
+            );
+        })
+        .unwrap();
+    other
+        .update(cx, |_, window, _| window.remove_window())
+        .unwrap();
+    session.borrow_mut().close(other_id).unwrap();
+    handle
+        .update(cx, |_, window, _| window.activate_window())
+        .unwrap();
+    for _ in 0..100 {
+        if handle
+            .update(cx, |_, window, _| window.is_window_active())
+            .unwrap()
+        {
+            break;
+        }
+        cx.background_executor()
+            .timer(Duration::from_millis(10))
+            .await;
+    }
+    mouse(cx, handle, position(80., 30.), false);
+    assert!(observations(&transport).is_empty());
+    handle
+        .update(cx, |view, window, cx| {
+            window.focus(view.root_focus.as_ref().unwrap(), cx)
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    key(cx, handle, "tab");
+    assert!(
+        handle
+            .update(cx, |view, window, _| view.canvases[&id(1)]
+                .borrow()
+                .canvas_focused(window))
+            .unwrap()
+    );
+    move_mouse(cx, handle, position(120., 100.), false);
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.dispatch_event(
+            gpui::PlatformInput::MouseDown(gpui::MouseDownEvent {
+                position: position(120., 100.),
+                button: gpui::MouseButton::Middle,
+                modifiers: Default::default(),
+                click_count: 1,
+                first_mouse: false,
+            }),
+            cx,
+        );
+        window.dispatch_event(
+            gpui::PlatformInput::MouseMove(gpui::MouseMoveEvent {
+                position: position(140., 115.),
+                pressed_button: Some(gpui::MouseButton::Middle),
+                modifiers: Default::default(),
+            }),
+            cx,
+        );
+        window.dispatch_event(
+            gpui::PlatformInput::MouseUp(gpui::MouseUpEvent {
+                position: position(140., 115.),
+                button: gpui::MouseButton::Middle,
+                modifiers: Default::default(),
+                click_count: 1,
+            }),
+            cx,
+        );
+    })
+    .unwrap();
+    assert!(
+        matches!(observations(&transport).as_slice(),[Observation::ViewportChanged(v)] if v.origin==Point{x:-20.,y:-15.})
+    );
+    key(cx, handle, "+");
+    assert!(
+        matches!(observations(&transport).as_slice(),[Observation::ViewportChanged(v)] if v.zoom>1.)
+    );
+    key(cx, handle, "-");
+    assert!(
+        matches!(observations(&transport).as_slice(),[Observation::ViewportChanged(v)] if (v.zoom-1.).abs()<1e-9)
+    );
+    move_mouse(cx, handle, position(120., 100.), false);
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.dispatch_event(
+            gpui::PlatformInput::ScrollWheel(gpui::ScrollWheelEvent {
+                position: position(120., 100.),
+                delta: gpui::ScrollDelta::Pixels(position(0., 20.)),
+                touch_phase: gpui::TouchPhase::Moved,
+                modifiers: gpui::Modifiers {
+                    control: true,
+                    ..Default::default()
+                },
+            }),
+            cx,
+        );
+    })
+    .unwrap();
+    frame(cx, handle).await;
+    assert!(
+        matches!(observations(&transport).as_slice(),[Observation::ViewportChanged(v)] if v.zoom>1.)
+    );
+    let mut reset = config(Some(source));
+    reset.command = Some(Command {
+        sequence: 1,
+        action: Action::ResetViewport,
+    });
+    apply(cx, handle, vec![Op::SetCanvas(id(1), reset)]);
+    observations(&transport);
+    draw(cx, handle);
+    // Coalesce samples until an actual frame, irrespective of whether GPUI
+    // chooses to paint before AsyncApp.update_window returns to this task.
+    move_mouse(cx, handle, position(50., 30.), false);
+    cx.update_window(handle.into(), |_, window, cx| {
+        for _ in 0..3 {
+            wheel(window, cx, 1.);
+        }
+        assert!(observations(&transport).is_empty());
+        window.draw(cx).clear(cx);
+    })
+    .unwrap();
+    assert!(matches!(observations(&transport).as_slice(),
+        [Observation::ViewportChanged(v)] if v.origin.x == -3.));
+    // A configuration accepted before painting cancels the queued observation.
+    // It preserves the viewport itself; only stale delivery is discarded.
+    cx.update_window(handle.into(), |root, window, cx| {
+        wheel(window, cx, 1.);
+        assert!(observations(&transport).is_empty());
+        root.downcast::<View>()
+            .ok()
+            .unwrap()
+            .update(cx, |view, cx| {
+                apply_to_view(
+                    view,
+                    window,
+                    cx,
+                    vec![Op::SetCanvas(
+                        id(1),
+                        Config {
+                            label: "Updated canvas".into(),
+                            ..config(Some(source))
+                        },
+                    )],
+                );
+            });
+        window.draw(cx).clear(cx);
+        assert!(observations(&transport).is_empty());
+    })
+    .unwrap();
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.dispatch_event(
+            gpui::PlatformInput::ScrollWheel(gpui::ScrollWheelEvent {
+                position: position(50., 30.),
+                delta: gpui::ScrollDelta::Pixels(position(4., 0.)),
+                touch_phase: gpui::TouchPhase::Moved,
+                modifiers: Default::default(),
+            }),
+            cx,
+        );
+    })
+    .unwrap();
+    frame(cx, handle).await;
+    assert!(
+        matches!(observations(&transport).as_slice(),[Observation::ViewportChanged(v)] if v.origin.x == -8.)
+    );
+    // Disable rejects key/pointer changes, while explicit commands still work.
+    let mut disabled = config(Some(source));
+    disabled.disabled = true;
+    disabled.command = Some(Command {
+        sequence: 2,
+        action: Action::ResetViewport,
+    });
+    apply(cx, handle, vec![Op::SetCanvas(id(1), disabled)]);
+    let events = observations(&transport);
+    assert!(events.contains(&Observation::CommandCompleted(2)));
+    key(cx, handle, "shift-right");
+    move_mouse(cx, handle, position(50., 30.), false);
+    mouse(cx, handle, position(50., 30.), true);
+    mouse(cx, handle, position(50., 30.), false);
+    assert!(observations(&transport).is_empty());
+    handle
+        .update(cx, |view, window, cx| {
+            window.focus(view.root_focus.as_ref().unwrap(), cx)
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    key(cx, handle, "tab");
+    assert!(
+        !handle
+            .update(cx, |view, window, _| view.canvases[&id(1)]
+                .borrow()
+                .canvas_focused(window))
+            .unwrap()
+    );
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Splice(id(0), 0, 1, vec![]),
+            Op::Remove(id(1)),
+            Op::SetRoot(None),
+            Op::Remove(id(0)),
+        ],
+    );
+    assert_eq!(
+        session
+            .borrow_mut()
+            .canvas_request(Request::Release(source)),
+        Response::Ack
+    );
+    eprintln!(
+        "GPUIO_NATIVE_CANVAS_INPUT_OK: native dispatch focus, drag capture/preview/commit, selection pixels, keyboard activation/movement, cancellation, publication fencing and wheel coalescing; object AX acceptance pending"
+    );
 }
