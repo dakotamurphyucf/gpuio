@@ -150,3 +150,75 @@ to a 1e-9 logical-unit tolerance after inspecting its 3e-14 rounding difference.
 A test-only Clippy suggestion was also fixed. No production behavior was relaxed.
 All processes exited; no GUI windows opened. Hosted/Linux and full ticket acceptance
 remain pending.
+
+
+## Atomic admission, mounted GPUI adapter and public Bonsai API
+
+The implementation now connects `View.animate_program` and
+`Gpuio_bonsai.View.animate_program` through distinct wire kind 32, operation 37
+and batched event 41 to a retained GPUI owner. Existing duration-based animation
+wire bytes and native behavior remain covered by their regression tests.
+
+The public `Animation.Program.Event` delivers a nonempty ordered observation batch
+(up to 33 items). The decoder bounds its count before allocating entries, validates
+order and run identity, and reconciliation removes duplicate prefixes while
+preserving the latest accepted callback. Playback updates preserve the native run
+ID. Independent transaction and event fixtures pass OCaml/Rust checks, including
+truncation and invalid data. Mailbox byte accounting includes the batch payload.
+
+Three session admission tests prove cross-window group conflicts, invalid tree
+rollback, stale/duplicate program updates, bounded events, 1,024-owner admission,
+128-MiB compiled-storage rejection, and release on close/shutdown. Admission runs
+after tree/list-pin validation and allocation reservation. Shared clocks use a
+separately borrowed application store, so rendering never mutably borrows Session.
+The application motion policy updates clocks before rendering, including when no
+widget is visible. Constant-policy renders take a fast path without walking groups.
+
+The mounted `native_animation_program` check passes locally on macOS. It uses a
+real GPUI/AppKit window and checks actual tween/spring geometry, ordered sequence
+stages, pause/resume with preserved run identity, late shared-phase joining,
+reduced-motion placement, settled/reduced idle render counts, autonomous real-time
+repetition, a real delayed wake, unmount and window-close cleanup. Weak-owner and
+zero-reservation assertions verify release; repeats produce no cycle events.
+The baseline `native_animation` executable also passes on the same local build.
+
+The first mounted run caught missing visited-node bookkeeping: a program was
+being hidden before its sample could commit. Marking rendered program nodes as
+visited fixed it. Idle assertions allow an already-requested platform frame to
+drain for 80 ms, then require an unchanged render count for the measured interval;
+this does not permit ongoing idle polling. Two raw-bridge examples were updated
+for the new exhaustive event case. A new expect fixture required whitespace-only
+layout correction; expected values were reviewed.
+
+`examples/animation_program/` is a runnable public Bonsai/Core/Eio example with
+pause, resume, restart, reverse, cancel and shared activity members. Its local
+`--self-test` passes actual FFI/event delivery, playback run preservation, reduced
+stage batches, absence of repeat callbacks and scoped window shutdown. It reports
+`GPUIO_ANIMATION_PROGRAM_PUBLIC_OK`. Native checks report
+`GPUIO_ANIMATION_PROGRAM_OK` and `GPUIO_ANIMATION_PROGRAM_TIMER_CLOSE_OK`.
+The macOS CI workflow and informational X11/Wayland scripts now include both the
+native and public program checks; hosted results are still pending.
+
+Validation commands (all through the isolated jobs=2 toolchain):
+
+```sh
+./scripts/gpuio exec cargo test --workspace --locked -j 2
+./scripts/gpuio exec cargo clippy --locked -p gpuio-native --all-targets --features native-tests,native-image-tests,native-canvas-tests -j 2 -- -D warnings
+./scripts/gpuio exec dune build -j 2 @all @runtest
+./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_animation_program --test native_animation -j 2
+_build/default/examples/animation_program/main.exe --self-test
+./scripts/gpuio check-fmt
+```
+
+The workspace Rust suite and combined-feature Clippy pass. Full Dune build/expect
+tests passed after updating the exhaustive example matches; the final check also
+covers the new public demo and bounded-reader assertion. Formatting and final
+source validation are recorded with the checkpoint. All local GUI checks terminate
+and close their windows. No Linux GUI or hosted acceptance is claimed.
+
+OCH-25 remains in progress: expand actual hidden/list/tab and two-window group
+lifecycle coverage, validate the remaining control/retarget/observer cases through
+the mounted public path, review runtime bounds under realistic simultaneous
+workloads, and advertise the completed capability only after acceptance. The
+polished chat integration remains OCH-46. Full milestone hosted gates and merge
+remain pending.

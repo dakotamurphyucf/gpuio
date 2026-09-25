@@ -48,6 +48,7 @@ module Kind = struct
     | Split_pane
     | Extension
     | Canvas_view
+    | Animation_program
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -701,6 +702,7 @@ module Op = struct
     | Set_split of Node_id.t * Split.Config.t
     | Set_extension of Node_id.t * Extension.Config.t
     | Set_canvas of Node_id.t * Canvas_view.Config.t
+    | Set_animation_program of Node_id.t * Animation_program.Config.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -980,6 +982,8 @@ module Event = struct
         * int64
         * int64
         * Canvas_view.Observation.t
+    | Animation_program_event of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Animation_program.Batch.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1038,6 +1042,8 @@ module Event = struct
       Int64.(revision > 0L) && Or_error.is_ok (List_wire.Retained.validate_all notices)
     | List_viewport (_, _, _, revision, viewport) ->
       Int64.(revision >= 0L) && Or_error.is_ok (List_wire.Viewport.validate viewport)
+    | Animation_program_event (_, _, _, revision, signals) ->
+      Int64.(revision >= 0L) && Animation_program.Signal.valid_batch signals
     | Animation_endpoint (_, _, _, revision, endpoint) ->
       Int64.(revision >= 0L && endpoint.generation > 0L)
     | Image_state (_, _, _, revision, state) ->
@@ -1156,6 +1162,7 @@ module Event = struct
       | Bin_prot.Common.Read_error _
       | Generational_id.Invalid_wire_handle
       | Drag_and_drop.Invalid_wire_data
+      | Animation_program.Invalid_wire_batch
       | File_dialog.Invalid_wire_result ->
         Or_error.error_string "malformed event envelope")
   ;;

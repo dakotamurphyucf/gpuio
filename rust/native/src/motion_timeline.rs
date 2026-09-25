@@ -175,6 +175,19 @@ impl Timeline {
     pub fn duration(&self) -> Duration {
         self.duration
     }
+    /// Worst retained storage for a compiled, validated declaration, independent
+    /// of retarget position and spring settling duration. Includes Arc overhead.
+    pub(crate) fn reservation(program: &Program) -> usize {
+        std::mem::size_of::<Self>()
+            + 2 * std::mem::size_of::<usize>()
+            + program.stages.len() * std::mem::size_of::<Segment>()
+            + program
+                .stages
+                .iter()
+                .filter(|s| matches!(s.timing, Timing::Spring(_)))
+                .count()
+                * std::mem::size_of::<[Option<Trajectory>; PROPERTY_COUNT]>()
+    }
     pub fn retained_bytes(&self) -> usize {
         std::mem::size_of::<Self>()
             + self.segments.capacity() * std::mem::size_of::<Segment>()

@@ -12,6 +12,7 @@ fn allows_children(kind: Kind) -> bool {
             | Kind::SplitPane
             | Kind::VirtualList
             | Kind::Animated
+            | Kind::AnimationProgram
             | Kind::Button
             | Kind::CommandButton
             | Kind::FocusScope
@@ -49,6 +50,7 @@ pub struct Node {
     pub document: Option<Arc<gpuio_protocol::document::Config>>,
     pub canvas: Option<Arc<gpuio_protocol::canvas_view::Config>>,
     pub animation: Option<Arc<gpuio_protocol::animation::Config>>,
+    pub animation_program: Option<Arc<gpuio_protocol::animation_program::Config>>,
     pub list_config: Option<Arc<gpuio_protocol::list::Config>>,
     pub list_order: Option<Arc<gpuio_protocol::list::Order>>,
     pub list_index: Option<Arc<crate::list_index::Index>>,
@@ -70,6 +72,10 @@ pub struct Node {
 impl Node {
     fn payload_bytes(&self) -> usize {
         self.text.len()
+            + self
+                .animation_program
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
             + self
                 .canvas
                 .as_ref()
@@ -325,6 +331,16 @@ impl Tree {
         budget: usize,
         pins: &[gpuio_protocol::list::Retained],
     ) -> Result<Applied, ApplyFailure> {
+        self.apply_with_admission(tx, budget, pins, |_| Ok(()))
+    }
+
+    pub(crate) fn apply_with_admission(
+        &mut self,
+        tx: &Transaction,
+        budget: usize,
+        pins: &[gpuio_protocol::list::Retained],
+        admit: impl FnOnce(&[ProgramChange]) -> Result<(), ErrorCode>,
+    ) -> Result<Applied, ApplyFailure> {
         if tx.window != self.window {
             return Err(ErrorCode::StaleHandle.into());
         }
@@ -349,7 +365,13 @@ impl Tree {
         };
         let mut extension_updates = BTreeSet::new();
         let mut canvas_updates = BTreeSet::new();
+        let mut program_updates = BTreeSet::new();
         for op in &tx.operations {
+            if let Op::SetAnimationProgram(id, _) = op
+                && !program_updates.insert(*id)
+            {
+                return Err(ErrorCode::InvalidTree.into());
+            }
             if let Op::SetExtension(id, _) = op
                 && !extension_updates.insert(*id)
             {
@@ -442,6 +464,16 @@ impl Tree {
                             || node.handler.is_some()
                             || !node.text.is_empty()
                             || node.children.len() > MAX_TOASTS
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::AnimationProgram) != node.animation_program.is_some()
+                    || node.animation_program.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || !node.text.is_empty()
                             || node.control.is_some()
                             || node.choice.is_some()
                     })
@@ -608,6 +640,7 @@ impl Tree {
                     | Kind::DocumentView
                     | Kind::Icon
                     | Kind::Animated
+                    | Kind::AnimationProgram
                     | Kind::VirtualList
                     | Kind::Text
                     | Kind::Button => {
@@ -690,6 +723,25 @@ impl Tree {
         if !retained.is_empty() {
             return Err(ApplyFailure::Retained(retained));
         }
+        let mut programs = Vec::new();
+        for (index, slot) in &plan.changes {
+            let before = self.slots.get(*index).and_then(|s| s.node.as_ref());
+            let after = slot.node.as_ref();
+            if before.and_then(|n| n.animation_program.as_ref())
+                == after.and_then(|n| n.animation_program.as_ref())
+                && before.map(|n| n.id) == after.map(|n| n.id)
+            {
+                continue;
+            }
+            if let Some(node) = before.filter(|n| n.animation_program.is_some()) {
+                programs.push((node.id, None));
+            }
+            if let Some(node) = after
+                && let Some(config) = &node.animation_program
+            {
+                programs.push((node.id, Some(config.clone())));
+            }
+        }
         let Plan {
             changes,
             root,
@@ -705,6 +757,7 @@ impl Tree {
         self.slots
             .try_reserve(slot_count - self.slots.len())
             .map_err(|_| ErrorCode::LimitExceeded)?;
+        admit(&programs)?;
         self.slots.resize_with(slot_count, Slot::default);
         for (index, slot) in changes {
             self.slots[index] = slot;
@@ -724,6 +777,11 @@ impl Tree {
         })
     }
 }
+
+pub(crate) type ProgramChange = (
+    NodeId,
+    Option<Arc<gpuio_protocol::animation_program::Config>>,
+);
 
 /// Invalid transactions and stale row-eviction attempts have different retry semantics.
 #[derive(Debug, PartialEq, Eq)]
@@ -925,6 +983,7 @@ impl Plan<'_> {
             | Op::SetMenu(id, ..)
             | Op::SetPalette(id, ..)
             | Op::SetAnimation(id, ..)
+            | Op::SetAnimationProgram(id, ..)
             | Op::SetListConfig(id, ..)
             | Op::SetListOrder(id, ..)
             | Op::SetListRows(id, ..)
@@ -1027,6 +1086,7 @@ impl Plan<'_> {
                             document: None,
                             canvas: None,
                             animation: None,
+                            animation_program: None,
                             list_config: None,
                             list_order: None,
                             list_index: None,
@@ -1113,6 +1173,19 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.toast_stack = Some(Arc::new(config.clone()));
+            }
+            Op::SetAnimationProgram(id, config) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::AnimationProgram
+                    || !config.is_valid()
+                    || node.animation_program.as_ref().is_some_and(|old| {
+                        (config != old.as_ref() && config.generation <= old.generation)
+                            || (config.program == old.program && config.restart < old.restart)
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.animation_program = Some(Arc::new(config.clone()));
             }
             Op::SetAnimation(id, config) => {
                 let node = self.node(*id)?;

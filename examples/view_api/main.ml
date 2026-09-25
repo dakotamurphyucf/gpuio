@@ -116,6 +116,7 @@ let worker native notification_read ~self_test =
       | Asset_response _
       | List_retained _
       | List_viewport _
+      | Animation_program_event _
       | Animation_endpoint _
       | File_dialog_result _ -> ()
     in

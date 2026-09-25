@@ -51,6 +51,7 @@ module type S = sig
       | Split_pane
       | Extension
       | Canvas_view
+      | Animation_program
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -703,6 +704,7 @@ module type S = sig
       | Set_split of Node_id.t * Split.Config.t
       | Set_extension of Node_id.t * Extension.Config.t
       | Set_canvas of Node_id.t * Canvas_view.Config.t
+      | Set_animation_program of Node_id.t * Animation_program.Config.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -914,6 +916,8 @@ module type S = sig
           * int64
           * int64
           * Canvas_view.Observation.t
+      | Animation_program_event of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Animation_program.Batch.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

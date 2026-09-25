@@ -8,6 +8,15 @@ module View : sig
   type t = unit Bonsai.Effect.t Gpuio.View.t
   type toast = unit Bonsai.Effect.t Gpuio.View.toast
 
+  (** Native springs, ordered sequences and synchronized repeating programs. *)
+  val animate_program
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?on_event:(Gpuio.Animation.Program.Event.t -> unit Bonsai.Effect.t)
+    -> Gpuio.Animation.Program.t
+    -> t list
+    -> t
+
   (** Retained native motion; endpoint callbacks execute as Bonsai effects. *)
   val animate
     :  ?key:Gpuio.Key.t

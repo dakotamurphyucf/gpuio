@@ -245,6 +245,9 @@ impl Registry {
         }
     }
     pub fn set_reduced(&mut self, reduced: bool, now: Duration) {
+        if self.reduced == reduced {
+            return;
+        }
         self.reduced = reduced;
         if let Some(clock) = &mut self.application {
             clock.set_reduced(reduced, now);

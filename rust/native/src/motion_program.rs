@@ -204,6 +204,20 @@ impl State {
     pub fn is_finished(&self) -> bool {
         self.finished
     }
+    /// Session quota for the maximum first/forward/reverse tracks, configuration
+    /// copies and adapter bookkeeping. This is a conservative admission unit,
+    /// not process RSS; a replacement also has one bounded transient compilation.
+    pub fn reservation(config: &Config) -> usize {
+        let tracks = match config.program.repeat {
+            Repeat::Once => 1,
+            Repeat::Loop => 2,
+            Repeat::Alternate => 3,
+        };
+        std::mem::size_of::<Self>()
+            + 3 * config.retained_bytes()
+            + 4096
+            + tracks * Timeline::reservation(&config.program)
+    }
     pub fn retained_bytes(&self) -> usize {
         std::mem::size_of::<Self>() + self.config.retained_bytes() + self.tracks.retained_bytes()
     }

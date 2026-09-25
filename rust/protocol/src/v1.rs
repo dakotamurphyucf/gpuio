@@ -120,6 +120,7 @@ pub enum Kind {
     SplitPane,
     Extension,
     CanvasView,
+    AnimationProgram,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -587,6 +588,7 @@ pub enum Op {
     SetSplit(NodeId, crate::split::Config),
     SetExtension(NodeId, crate::extension::Config),
     SetCanvas(NodeId, crate::canvas_view::Config),
+    SetAnimationProgram(NodeId, crate::animation_program::Config),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -723,5 +725,12 @@ pub enum Event {
         i64,
         i64,
         crate::canvas_view::Observation,
+    ),
+    AnimationProgramEvent(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        Vec<crate::animation_program::Signal>,
     ),
 }

@@ -99,13 +99,15 @@ fn property(field: &Field) -> Option<Property> {
     })
 }
 fn filtered_styles(styles: &[Style], config: &Config) -> Arc<[Style]> {
+    filtered_targets(styles, &config.targets)
+}
+pub(super) fn filtered_targets(
+    styles: &[Style],
+    targets: &[gpuio_protocol::animation::Target],
+) -> Arc<[Style]> {
     let keep = |field: &Field| {
-        property(field).is_none_or(|property| {
-            !config
-                .targets
-                .iter()
-                .any(|target| target.property == property)
-        })
+        property(field)
+            .is_none_or(|property| !targets.iter().any(|target| target.property == property))
     };
     styles
         .iter()

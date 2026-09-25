@@ -6,6 +6,7 @@ use std::{cell::RefCell, rc::Rc};
 struct State {
     preference: Preference,
     system: Option<bool>,
+    clocks: Option<std::rc::Weak<RefCell<crate::motion_host::Store>>>,
     #[cfg(feature = "native-tests")]
     updates: usize,
 }
@@ -21,7 +22,7 @@ pub(crate) fn set(preference: Preference, cx: &mut App) {
     let state = cx.global_mut::<State>();
     state.preference = preference;
     let reduced = resolve(state.preference, state.system);
-    cx.set_reduce_motion(reduced);
+    apply(reduced, cx);
 }
 fn system_changed(system: Option<bool>, cx: &mut App) {
     let state = cx.global_mut::<State>();
@@ -31,6 +32,26 @@ fn system_changed(system: Option<bool>, cx: &mut App) {
         state.updates += 1;
     }
     let reduced = resolve(state.preference, system);
+    apply(reduced, cx);
+}
+
+/// Policy changes must reach clocks even when every widget is hidden or there
+/// are no open windows. The weak store reference cannot retain an application.
+pub(crate) fn bind_clocks(store: &Rc<RefCell<crate::motion_host::Store>>, cx: &mut App) {
+    cx.global_mut::<State>().clocks = Some(Rc::downgrade(store));
+    apply(cx.reduce_motion(), cx);
+}
+fn apply(reduced: bool, cx: &mut App) {
+    if let Some(store) = cx
+        .global::<State>()
+        .clocks
+        .as_ref()
+        .and_then(std::rc::Weak::upgrade)
+    {
+        let mut store = store.borrow_mut();
+        let now = store.now();
+        store.clocks.set_reduced(reduced, now);
+    }
     cx.set_reduce_motion(reduced);
 }
 
@@ -43,6 +64,7 @@ pub(crate) fn init(cx: &mut App) -> Rc<RefCell<Option<Watch>>> {
     cx.set_global(State {
         preference: Preference::System,
         system: None,
+        clocks: None,
         #[cfg(feature = "native-tests")]
         updates: 0,
     });

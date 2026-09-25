@@ -107,7 +107,51 @@ module Playback : sig
   [@@deriving equal, sexp_of]
 end
 
+(** Run numbers are scoped to one retained animated wrapper, not globally unique. *)
+module Run_id : sig
+  type t [@@deriving equal, compare, sexp_of]
+
+  val to_int64 : t -> int64
+end
+
 module Program : sig
+  module Stage_result : sig
+    type t =
+      | Played
+      | Reduced_motion
+    [@@deriving equal, sexp_of]
+  end
+
+  module Cancel_reason : sig
+    type t =
+      | Replaced
+      | Removed
+      | Window_closed
+      | Requested
+    [@@deriving equal, sexp_of]
+  end
+
+  module Observation : sig
+    (** Stage indices are zero-based. [Played] records active time crossing the
+        stage boundary, confirmed by paint; it does not promise a distinct frame
+        showing every intermediate stage. *)
+    type t =
+      | Stage_completed of int * Stage_result.t
+      | Finished
+      | Cancelled of Cancel_reason.t
+    [@@deriving equal, sexp_of]
+  end
+
+  module Event : sig
+    (** One ordered, nonempty batch (at most 33 observations) from one native run.
+        Repeats do not emit stage/cycle events. No callback runs for each frame. *)
+    type t = private
+      { run_id : Run_id.t
+      ; observations : Observation.t list
+      }
+    [@@deriving equal, sexp_of]
+  end
+
   type t [@@deriving equal, sexp_of]
 
   (** One to 32 stages with the same properties. Multi-stage programs and repeats
@@ -117,7 +161,7 @@ module Program : sig
       Shared clocks require repetition, timed stages, explicit initial values and
       zero initial delay. [clock] defaults to independent, [repeat] to once.
 
-      This validated representation is under integration with the native renderer. *)
+      Use [View.animate_program] to mount a retained native program. *)
   val create
     :  ?initial:Target.t
     -> ?delay:Time_ns.Span.t
@@ -170,13 +214,6 @@ module Config : sig
     -> t Or_error.t
 end
 
-(** Run numbers are scoped to one retained animated wrapper, not globally unique. *)
-module Run_id : sig
-  type t [@@deriving equal, compare, sexp_of]
-
-  val to_int64 : t -> int64
-end
-
 module Cancel_reason : sig
   type t =
     | Replaced
@@ -201,6 +238,10 @@ module Event : sig
 end
 
 module Expert : sig
+  val program_event_of_wire
+    :  Gpuio_protocol.Wire.Animation_program.Signal.t list
+    -> Program.Event.t Or_error.t
+
   val spring_to_wire : Spring.t -> Gpuio_protocol.Wire.Animation.Spring.t
 
   val program_to_wire

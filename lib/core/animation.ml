@@ -195,7 +195,45 @@ module Playback = struct
   [@@deriving equal, sexp_of]
 end
 
+module Run_id = struct
+  type t = int64 [@@deriving equal, compare, sexp_of]
+
+  let to_int64 t = t
+end
+
 module Program = struct
+  module Stage_result = struct
+    type t = P.Stage_result.t =
+      | Played
+      | Reduced_motion
+    [@@deriving equal, sexp_of]
+  end
+
+  module Cancel_reason = struct
+    type t = P.Cancel_reason.t =
+      | Replaced
+      | Removed
+      | Window_closed
+      | Requested
+    [@@deriving equal, sexp_of]
+  end
+
+  module Observation = struct
+    type t =
+      | Stage_completed of int * Stage_result.t
+      | Finished
+      | Cancelled of Cancel_reason.t
+    [@@deriving equal, sexp_of]
+  end
+
+  module Event = struct
+    type t =
+      { run_id : Run_id.t
+      ; observations : Observation.t list
+      }
+    [@@deriving equal, sexp_of]
+  end
+
   type t =
     { program : P.Program.t
     ; playback : Playback.t
@@ -339,12 +377,6 @@ module Config = struct
   ;;
 end
 
-module Run_id = struct
-  type t = int64 [@@deriving equal, compare, sexp_of]
-
-  let to_int64 t = t
-end
-
 module Cancel_reason = struct
   type t = W.Cancel_reason.t =
     | Replaced
@@ -369,6 +401,21 @@ module Event = struct
 end
 
 module Expert = struct
+  let program_event_of_wire signals =
+    if not (P.Signal.valid_batch signals)
+    then Or_error.error_string "invalid animation observation batch"
+    else (
+      let observations =
+        List.map signals ~f:(fun (signal : P.Signal.t) ->
+          match signal.observation with
+          | Stage_completed (index, result) ->
+            Program.Observation.Stage_completed (Int64.to_int_exn index, result)
+          | Finished -> Finished
+          | Cancelled reason -> Cancelled reason)
+      in
+      Ok ({ run_id = (List.hd_exn signals).generation; observations } : Program.Event.t))
+  ;;
+
   let spring_to_wire (spring : Spring.t) = spring
 
   let program_to_wire (config : Program.t) ~generation =

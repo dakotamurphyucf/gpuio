@@ -184,3 +184,8 @@ required-features = ["native-canvas-tests"]
 name = "native_canvas_input"
 harness = false
 required-features = ["native-canvas-tests"]
+
+[[test]]
+name = "native_animation_program"
+harness = false
+required-features = ["native-tests"]

@@ -15,6 +15,7 @@ pub const MAX_INPUT_BYTES: usize = 4 * MAX_MESSAGE_BYTES;
 // Drain includes those prefixes when fitting a response batch into 1 MiB.
 fn event_bytes(event: &Event) -> usize {
     256 + match event {
+        Event::AnimationProgramEvent(_, _, _, _, signals) => signals.len() * 32,
         Event::ExtensionEvent(_, _, _, _, _, gpuio_protocol::extension::Signal::Data(payload)) => {
             payload.0.len()
         }
@@ -272,6 +273,7 @@ impl Mailbox {
             | Event::ExtensionEvent(id, ..)
             | Event::SplitResized(id, ..)
             | Event::AnimationEndpoint(id, ..)
+            | Event::AnimationProgramEvent(id, ..)
             | Event::ListViewport(id, ..)
             | Event::DropTargetEvent(id, ..)
             | Event::PointerEvent(id, ..)

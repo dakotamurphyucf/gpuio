@@ -34,9 +34,35 @@ pub struct Session {
     assets: crate::asset_store::Store,
     documents: crate::document_store::Store,
     canvases: crate::canvas_store::Store,
+    motion: std::rc::Rc<std::cell::RefCell<crate::motion_host::Store>>,
 }
 
 impl Session {
+    pub fn motion(&self) -> std::rc::Rc<std::cell::RefCell<crate::motion_host::Store>> {
+        self.motion.clone()
+    }
+    pub fn animation_program_event(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        signals: Vec<gpuio_protocol::animation_program::Signal>,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let current = state.tree.get(node)?;
+        let config = current.animation_program.as_ref()?;
+        (!state.overloaded
+            && current.handler == Some(handler)
+            && revision >= 0
+            && revision <= state.tree.revision()
+            && gpuio_protocol::animation_program::Signal::valid_batch(&signals)
+            && signals[0].generation <= config.generation)
+            .then_some(Event::AnimationProgramEvent(
+                window, node, handler, revision, signals,
+            ))
+    }
+
     #[cfg(feature = "native-canvas-tests")]
     pub(crate) fn retained_canvas_bytes(&self) -> usize {
         self.canvases.reserved_bytes()
@@ -395,8 +421,13 @@ impl Session {
         }
         let before = window.tree.retained_bytes();
         let budget = MAX_SESSION_BYTES - (self.retained_bytes - before);
+        let motion = self.motion.clone();
         let window = self.window_mut(tx.window)?;
-        let result = window.tree.apply_guarded(tx, budget, pins)?;
+        let result = window
+            .tree
+            .apply_with_admission(tx, budget, pins, |changes| {
+                motion.borrow_mut().admit(tx.window, changes)
+            })?;
         let after = window.tree.retained_bytes();
         self.retained_bytes = self.retained_bytes - before + after;
         Ok(result)
@@ -702,10 +733,12 @@ impl Session {
             .take()
             .expect("validated window");
         self.retained_bytes -= window.tree.retained_bytes();
+        self.motion.borrow_mut().close_window(id);
         Ok(window.requested_frame)
     }
 
     pub fn shutdown(&mut self) -> Vec<Event> {
+        self.motion.borrow_mut().close();
         self.canvases.close();
         self.assets.close();
         self.documents.close();

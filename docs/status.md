@@ -57,8 +57,10 @@ OCH-25 now has validated public spring parameters, an independent OCaml/Rust
 parameter fixture and a tested analytic native spring trajectory. Typed programs,
 a bounded codec and compiled finite sequence timelines also pass local tests.
 The retained owner and bounded shared-clock registry now pass deterministic
-lifetime, playback, phase and stale-paint tests. Session admission, GPUI rendering
-and public view/event transport remain in progress; see
+lifetime, playback, phase and stale-paint tests. Atomic session admission and
+compiled-storage quotas, GPUI rendering, and `View.animate_program` with bounded
+stage-event batches are wired. Initial mounted macOS checks pass; public-example
+and broader lifecycle acceptance remain in progress. See
 [advanced animation evidence](evidence/animation-programs-och25.md) and
 [design](design/animation-programs.md).
 No milestone-05 completion or hosted acceptance is claimed yet.

@@ -69,6 +69,7 @@ type 'a callback =
   | Canvas of Wire.Canvas_view.Config.t * (Canvas.Event.t -> 'a)
   | Document of Text_source.Handle.t * (Document.Navigation.t -> 'a)
   | Virtual_list of List_identity.t * 'a View.Expert.virtual_list
+  | Animation_program of int64 * (int64 * int64) ref * (Animation.Program.Event.t -> 'a)
   | Animation of int64 * int64 ref * (Animation.Event.t -> 'a)
   | Image of (Image.State.t -> 'a)
   | Pointer of (Pointer.Event.t -> 'a)
@@ -97,6 +98,8 @@ type 'a mounted =
   ; style : Wire.Style.t list
   ; animation : Wire.Animation.Config.t option
   ; animation_seen : int64 ref
+  ; animation_program : Wire.Animation_program.Config.t option
+  ; program_seen : (int64 * int64) ref
   ; list_identity : List_identity.t option
   ; choice_appearance : Wire.Choice_appearance.t option
   ; children : 'a mounted list
@@ -227,6 +230,7 @@ let kind = function
   | Image -> Image
   | Icon -> Icon
   | Animated -> Animated
+  | Animation_program -> Animation_program
   | Virtual_list -> Virtual_list
   | Canvas_view -> Canvas_view
   | Document_view -> Document_view
@@ -334,6 +338,31 @@ let rec mount builder ~depth previous view =
               builder.command_generation
           in
           { candidate with generation }))
+    in
+    let program_seen =
+      Option.value_map previous ~default:(ref (0L, 0L)) ~f:(fun old -> old.program_seen)
+    in
+    let animation_program =
+      Option.map description.animation_program ~f:(fun item ->
+        let old = Option.bind previous ~f:(fun mounted -> mounted.animation_program) in
+        let old_config =
+          Option.bind previous ~f:(fun mounted ->
+            Option.map
+              (View.Expert.describe mounted.view).animation_program
+              ~f:(fun old -> old.config))
+        in
+        let generation =
+          match old with
+          | None -> 1L
+          | Some old
+            when Option.equal Animation.Program.equal old_config (Some item.config) ->
+            old.generation
+          | Some old ->
+            if Int64.equal old.generation Int64.max_value
+            then fail "animation program generation exhausted";
+            Int64.succ old.generation
+        in
+        Animation.Expert.program_to_wire item.config ~generation |> value)
     in
     let animation_seen =
       Option.value_map previous ~default:(ref 0L) ~f:(fun old -> old.animation_seen)
@@ -460,6 +489,16 @@ let rec mount builder ~depth previous view =
       | None, None, callback -> callback
       | Some _, _, Some _ -> fail "animation cannot combine another handler"
       | Some _, None, None | None, Some _, _ -> fail "missing animation configuration"
+    in
+    let callback =
+      match description.animation_program, animation_program, callback with
+      | Some item, Some config, None ->
+        Option.map item.on_event ~f:(fun callback ->
+          Animation_program (config.generation, program_seen, callback))
+      | None, None, callback -> callback
+      | Some _, _, Some _ -> fail "animation program cannot combine another handler"
+      | Some _, None, None | None, Some _, _ ->
+        fail "missing animation program configuration"
     in
     let list_identity =
       Option.map description.virtual_list ~f:(fun list ->
@@ -639,6 +678,14 @@ let rec mount builder ~depth previous view =
       in
       if not (Option.equal Toast.Stack.equal old (Some config))
       then emit builder (Set_toast_stack (id, Toast.Expert.stack_to_wire config)));
+    let old_program =
+      Option.bind previous ~f:(fun mounted -> mounted.animation_program)
+    in
+    if
+      not (Option.equal Wire.Animation_program.Config.equal animation_program old_program)
+    then
+      Option.iter animation_program ~f:(fun config ->
+        emit builder (Set_animation_program (id, config)));
     let old_animation = Option.bind previous ~f:(fun mounted -> mounted.animation) in
     if not (Option.equal Wire.Animation.Config.equal animation old_animation)
     then
@@ -984,6 +1031,8 @@ let rec mount builder ~depth previous view =
     ; style
     ; animation
     ; animation_seen
+    ; animation_program
+    ; program_seen
     ; list_identity
     ; choice_appearance
     ; children
@@ -1217,6 +1266,33 @@ let dispatch t = function
        |> Option.bind ~f:(fun viewport ->
          Option.map list.on_viewport ~f:(fun callback -> callback viewport))
      | Some _ | None -> None)
+  | Wire.Event.Animation_program_event (window, node, handler, revision, signals)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision)
+         && Wire.Animation_program.Signal.valid_batch signals ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Animation_program (generation, seen, callback)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       let first = List.hd_exn signals in
+       let seen_run, seen_index = !seen in
+       if Int64.(first.generation > generation || first.generation < seen_run)
+       then None
+       else (
+         let fresh =
+           List.filter signals ~f:(fun signal ->
+             Int64.(signal.generation > seen_run || signal.index > seen_index))
+         in
+         match Animation.Expert.program_event_of_wire fresh with
+         | Error _ -> None
+         | Ok event ->
+           seen := first.generation, (List.last_exn fresh).index;
+           Some (callback event))
+     | Some _ | None -> None)
   | Wire.Event.Animation_endpoint (window, node, handler, revision, endpoint)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -1269,6 +1345,7 @@ let dispatch t = function
         | Drag_source _
         | Drop_target _
         | Animation _
+        | Animation_program _
         | Image _
         | Virtual_list _
         | Extension _
@@ -1470,6 +1547,7 @@ let dispatch t = function
   | File_dialog_result _
   | Image_state _
   | Animation_endpoint _
+  | Animation_program_event _
   | List_retained _
   | List_viewport _
   | Asset_response _

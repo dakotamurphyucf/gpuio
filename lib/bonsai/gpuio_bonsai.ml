@@ -12,6 +12,7 @@ module View = struct
   let toast_stack = Gpuio.View.toast_stack
   let icon = Gpuio.View.icon
   let animate = Gpuio.View.animate
+  let animate_program = Gpuio.View.animate_program
   let canvas = Gpuio.View.canvas
   let document = Gpuio.View.document
   let image = Gpuio.View.image

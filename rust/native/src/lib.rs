@@ -24,12 +24,17 @@ mod host;
 pub fn run_native_animation_test() {
     host::animation_test::run();
 }
+#[cfg(feature = "native-tests")]
+pub fn run_native_animation_program_test() {
+    host::animation_program_test::run();
+}
 pub mod image_host;
 pub mod list_index;
 pub mod list_state;
 pub mod mailbox;
 pub mod motion;
 pub mod motion_clock;
+pub mod motion_host;
 mod motion_preference;
 pub mod motion_program;
 pub mod motion_timeline;

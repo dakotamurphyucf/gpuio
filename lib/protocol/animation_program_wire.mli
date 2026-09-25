@@ -85,4 +85,14 @@ module Signal : sig
     ; observation : Observation.t
     }
   [@@deriving bin_io, equal, sexp_of]
+
+  val valid : t -> bool
+  val valid_batch : t list -> bool
+end
+
+exception Invalid_wire_batch
+
+(** Count and signal ordering are checked before admitting an event batch. *)
+module Batch : sig
+  type t = Signal.t list [@@deriving bin_io, equal, sexp_of]
 end

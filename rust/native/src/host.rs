@@ -1,5 +1,10 @@
 #[path = "animation_view.rs"]
 mod animation;
+#[path = "animation_program_view.rs"]
+mod animation_program;
+#[cfg(feature = "native-tests")]
+#[path = "animation_program_test.rs"]
+pub(super) mod animation_program_test;
 #[cfg(feature = "native-tests")]
 #[path = "animation_test.rs"]
 pub(super) mod animation_test;
@@ -148,6 +153,7 @@ struct View {
     scrolls: BTreeMap<NodeId, Rc<scroll::State>>,
     lists: BTreeMap<NodeId, Rc<RefCell<list_view::State>>>,
     animations: BTreeMap<NodeId, Rc<RefCell<animation::State>>>,
+    animation_programs: BTreeMap<NodeId, Rc<RefCell<animation_program::State>>>,
     #[cfg(feature = "native-tests")]
     render_count: u64,
 }
@@ -364,6 +370,7 @@ impl View {
             scrolls: Default::default(),
             lists: Default::default(),
             animations: Default::default(),
+            animation_programs: Default::default(),
             #[cfg(feature = "native-tests")]
             render_count: 0,
         }
@@ -377,6 +384,7 @@ impl View {
         self.sync_documents(dirty, window, cx);
         self.sync_extensions(dirty, window, cx);
         self.sync_animations(dirty, cx);
+        self.sync_programs(dirty, cx);
         self.sync_palettes(window, cx);
         self.sync_toasts(cx);
         self.sync_tooltips(window, cx);
@@ -494,6 +502,7 @@ impl View {
             node.kind,
             Kind::Container
                 | Kind::Animated
+                | Kind::AnimationProgram
                 | Kind::TabPanel
                 | Kind::FocusScope
                 | Kind::CommandScope
@@ -684,9 +693,15 @@ impl View {
                 .aria_label(accessible_name);
         }
         let animation = self.animation_frame(node, window, cx);
+        let program = self.program_frame(node, window, cx);
         let styles = animation
             .as_ref()
             .map(|(state, _)| state.borrow().styles.clone())
+            .or_else(|| {
+                program
+                    .as_ref()
+                    .map(|(state, _)| state.borrow().styles.clone())
+            })
             .unwrap_or_else(|| node.style.clone());
         let (styled, states) = apply_styles(element, &styles, interaction, disabled);
         element = styled;
@@ -742,6 +757,9 @@ impl View {
         }
         if let Some((_, sample)) = &animation {
             animation::apply(element.style(), &sample.values);
+        }
+        if let Some((_, sample)) = &program {
+            animation::apply(element.style(), &sample.frame.values);
         }
         let scrolling = if scroll::declared(&node.style)
             || element.style().overflow.x == Some(gpui::Overflow::Scroll)
@@ -958,6 +976,7 @@ impl View {
             && node.pointer.is_none()
             && node.image.is_none()
             && node.animation.is_none()
+            && node.animation_program.is_none()
             && node.split.is_none()
             && !disabled
         {
@@ -1100,6 +1119,9 @@ impl View {
         }
         if let Some((state, sample)) = animation {
             element = element.child(animation::paint(&state, sample));
+        }
+        if let Some((state, sample)) = program {
+            element = element.child(animation_program::paint(&state, sample));
         }
         if let Some(corners) = image_corners {
             let image = image_corners::Rounded::capture(element, corners);
@@ -1257,6 +1279,7 @@ impl Render for View {
                 state.presentation = None;
             }
         }
+        self.hide_unvisited_programs();
         self.hide_unvisited_extensions();
         self.hide_unvisited_canvases(window);
         self.buttons.retain(|id, _| self.visited.contains(id));
@@ -1371,6 +1394,7 @@ pub fn run(transport: Arc<Transport>) {
         // policy must control background applications consistently on both OSes.
         cx.set_quit_mode(gpui::QuitMode::Explicit);
         let session = Rc::new(RefCell::new(Session::default()));
+        crate::motion_preference::bind_clocks(&session.borrow().motion(), cx);
         let mut windows: BTreeMap<WindowId, WindowHandle<View>> = BTreeMap::new();
         let dialogs = crate::file_dialog::Dialogs::default();
         let quit_dialogs = dialogs.clone();

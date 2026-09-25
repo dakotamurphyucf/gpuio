@@ -271,3 +271,60 @@ fn signal_indices_bound_ordered_stages_and_terminal_delivery() {
         .is_valid()
     );
 }
+
+#[test]
+fn program_operation_and_batched_events_match_independent_wire_fixtures() {
+    use gpuio_protocol::{HandlerId, NodeId, WindowId, v1::*};
+    let w = WindowId::from_parts(0, 1).unwrap();
+    let n = NodeId::from_parts(0, 1).unwrap();
+    let h = HandlerId::from_parts(0, 1).unwrap();
+    let request = Message::Apply(Transaction {
+        window: w,
+        base: 0,
+        revision: 1,
+        operations: vec![
+            Op::Create(n, Kind::AnimationProgram, "".into(), Some(h)),
+            Op::SetAnimationProgram(n, example()),
+            Op::SetRoot(Some(n)),
+        ],
+    });
+    let mut bytes = vec![];
+    request.binprot_write(&mut bytes).unwrap();
+    let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
+    assert_eq!(
+        hex,
+        include_str!("../../../test/fixtures/animation-program-request.hex").trim()
+    );
+    assert_eq!(gpuio_protocol::decode(&bytes), Ok(request));
+    for end in 0..bytes.len() {
+        assert!(gpuio_protocol::decode(&bytes[..end]).is_err());
+    }
+    let signals = vec![
+        Signal {
+            generation: 42,
+            index: 1,
+            observation: Observation::StageCompleted(0, StageResult::Played),
+        },
+        Signal {
+            generation: 42,
+            index: 2,
+            observation: Observation::StageCompleted(1, StageResult::ReducedMotion),
+        },
+        Signal {
+            generation: 42,
+            index: 33,
+            observation: Observation::Finished,
+        },
+    ];
+    assert!(Signal::valid_batch(&signals));
+    assert!(!Signal::valid_batch(&[signals[0]; 34]));
+    let mut bytes = vec![];
+    vec![Event::AnimationProgramEvent(w, n, h, 1, signals)]
+        .binprot_write(&mut bytes)
+        .unwrap();
+    let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
+    assert_eq!(
+        hex,
+        include_str!("../../../test/fixtures/animation-program-events.hex").trim()
+    );
+}

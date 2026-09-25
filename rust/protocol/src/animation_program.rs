@@ -208,6 +208,14 @@ pub struct Signal {
     pub observation: Observation,
 }
 impl Signal {
+    pub fn valid_batch(signals: &[Self]) -> bool {
+        !signals.is_empty()
+            && signals.len() <= MAX_STAGES + 1
+            && signals
+                .iter()
+                .all(|s| s.is_valid() && s.generation == signals[0].generation)
+            && signals.windows(2).all(|w| w[0].index < w[1].index)
+    }
     pub fn is_valid(self) -> bool {
         self.generation > 0
             && match self.observation {

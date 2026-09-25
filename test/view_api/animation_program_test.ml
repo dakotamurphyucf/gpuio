@@ -153,3 +153,176 @@ let%expect_test "sequence reverse swaps endpoints and retains interval timing" =
     (((property Width) (value 120)) ((property Opacity) (value 0.5)))
     |}]
 ;;
+
+let%expect_test "retained program batches preserve run identity and reject stale delivery"
+  =
+  let module Wire = Gpuio_protocol.Wire in
+  let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok in
+  let reconciler = Reconciler.create window in
+  let program =
+    A.Program.create
+      ~initial
+      [ timed 100. (target 120. 0.5); timed 100. (target 240. 1.) ]
+    |> ok
+  in
+  let view label config =
+    View.animate_program config [] ~on_event:(fun event -> label, event)
+  in
+  let prepare v = Reconciler.prepare reconciler ~theme:Theme.default (Some v) |> ok in
+  let first = prepare (view "first" program) in
+  let id, handler =
+    match Reconciler.message first with
+    | Some (Apply tx) ->
+      List.find_map_exn tx.operations ~f:(function
+        | Create (id, Animation_program, _, Some handler) -> Some (id, handler)
+        | _ -> None)
+    | _ -> assert false
+  in
+  Reconciler.accept reconciler first |> ok;
+  let unchanged = prepare (view "latest" program) in
+  assert (Option.is_none (Reconciler.message unchanged));
+  Reconciler.accept reconciler unchanged |> ok;
+  let paused = prepare (view "paused" (A.Program.with_playback program Paused)) in
+  let revision =
+    match Reconciler.message paused with
+    | Some (Apply tx) ->
+      assert (
+        List.exists tx.operations ~f:(function
+          | Set_animation_program (_, c) -> Int64.equal c.generation 2L
+          | _ -> false));
+      assert (
+        List.for_all tx.operations ~f:(function
+          | Create _ | Remove _ | Bind _ -> false
+          | _ -> true));
+      tx.revision
+    | _ -> assert false
+  in
+  Reconciler.accept reconciler paused |> ok;
+  let signal generation index observation : W.Signal.t =
+    { generation; index; observation }
+  in
+  let stage = signal 1L 1L (Stage_completed (0L, Played)) in
+  let event signals =
+    Wire.Event.Animation_program_event (window, id, handler, revision, signals)
+  in
+  let deliver signals = Reconciler.dispatch reconciler (event signals) in
+  List.iter
+    [ []
+    ; [ stage; stage ]
+    ; [ { stage with generation = 3L } ]
+    ; [ { stage with index = 2L } ]
+    ]
+    ~f:(fun invalid -> assert (Option.is_none (deliver invalid)));
+  let label, observed = deliver [ stage ] |> Option.value_exn in
+  assert (String.equal label "paused");
+  assert (Int64.equal (A.Run_id.to_int64 observed.run_id) 1L);
+  print_s [%sexp (observed : A.Program.Event.t)];
+  let terminal =
+    [ stage; signal 1L 2L (Stage_completed (1L, Reduced_motion)); signal 1L 33L Finished ]
+  in
+  let _, observed = deliver terminal |> Option.value_exn in
+  print_s [%sexp (observed : A.Program.Event.t)];
+  assert (Option.is_none (deliver terminal));
+  assert (Option.is_none (deliver [ stage ]));
+  let restarted = prepare (view "restarted" (A.Program.restart program |> ok)) in
+  Reconciler.accept reconciler restarted |> ok;
+  let _, observed = deliver [ signal 3L 33L (Cancelled Requested) ] |> Option.value_exn in
+  print_s [%sexp (observed : A.Program.Event.t)];
+  let replacement = prepare (View.text "replacement") in
+  Reconciler.accept reconciler replacement |> ok;
+  assert (Option.is_none (deliver [ signal 3L 33L Finished ]));
+  [%expect
+    {|
+    ((run_id 1) (observations ((Stage_completed 0 Played))))
+    ((run_id 1) (observations ((Stage_completed 1 Reduced_motion) Finished)))
+    ((run_id 3) (observations ((Cancelled Requested)))) |}]
+;;
+
+let%expect_test "program operation and bounded observations match independent fixtures" =
+  let module Wire = Gpuio_protocol.Wire in
+  let load name =
+    Eio_main.run (fun env ->
+      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / name) |> String.strip)
+  in
+  let hex bytes = String.concat_map bytes ~f:(fun c -> sprintf "%02x" (Char.to_int c)) in
+  let bytes hex =
+    String.init
+      (String.length hex / 2)
+      ~f:(fun index ->
+        Int.of_string ("0x" ^ String.sub hex ~pos:(index * 2) ~len:2) |> Char.of_int_exn)
+  in
+  let config =
+    A.Program.create
+      ~initial
+      ~delay:(Time_ns.Span.of_ms 30.)
+      [ timed ~delay:10. 100. (target 120. 0.5)
+      ; A.Stage.create
+          ~delay:(Time_ns.Span.of_ms 20.)
+          ~timing:(A.Timing.spring spring)
+          ~target:(target 240. 1.)
+          ()
+        |> ok
+      ]
+    |> ok
+    |> A.Program.restart
+    |> ok
+    |> A.Program.restart
+    |> ok
+    |> fun program -> A.Program.with_playback program Paused |> wire
+  in
+  let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok in
+  let node = Gpuio_protocol.Node_id.create ~slot:0L ~generation:1L |> ok in
+  let handler = Gpuio_protocol.Handler_id.create ~slot:0L ~generation:1L |> ok in
+  let request =
+    Wire.Message.Apply
+      { window
+      ; base = 0L
+      ; revision = 1L
+      ; operations =
+          [ Create (node, Animation_program, "", Some handler)
+          ; Set_animation_program (node, config)
+          ; Set_root (Some node)
+          ]
+      }
+  in
+  assert (
+    String.equal
+      (Wire.Message.encode request |> ok |> hex)
+      (load "animation-program-request.hex"));
+  let encoded = load "animation-program-events.hex" |> bytes in
+  let events = Wire.Event.decode encoded |> ok in
+  (match events with
+   | [ Animation_program_event (w, n, h, 1L, signals) ] ->
+     assert (
+       Gpuio_protocol.Window_id.equal w window
+       && Gpuio_protocol.Node_id.equal n node
+       && Gpuio_protocol.Handler_id.equal h handler);
+     print_s [%sexp (A.Expert.program_event_of_wire signals |> ok : A.Program.Event.t)]
+   | _ -> assert false);
+  for length = 0 to String.length encoded - 1 do
+    assert (Result.is_error (Wire.Event.decode (String.prefix encoded length)))
+  done;
+  (* Header is envelope count, event tag, three generational handles, revision.
+     The next byte is the bounded batch count; reject it before reading signals. *)
+  let oversized = String.prefix encoded 9 ^ String.of_char (Char.of_int_exn 34) in
+  assert (Result.is_error (Wire.Event.decode oversized));
+  let pos_ref = ref 0 in
+  let rejected =
+    Result.try_with (fun () ->
+      W.Batch.bin_read_t
+        (Bigstring.of_string (String.of_char (Char.of_int_exn 34)))
+        ~pos_ref)
+  in
+  assert (
+    match rejected with
+    | Error W.Invalid_wire_batch -> !pos_ref = 1
+    | Error _ | Ok _ -> false);
+  let trailing = encoded ^ "\000" in
+  assert (Result.is_error (Wire.Event.decode trailing));
+  [%expect
+    {|
+    ((run_id 42)
+     (observations
+      ((Stage_completed 0 Played) (Stage_completed 1 Reduced_motion) Finished)))
+    |}]
+;;

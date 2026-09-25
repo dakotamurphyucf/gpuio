@@ -35,6 +35,7 @@ module Kind = struct
     | Split_pane
     | Extension
     | Canvas_view
+    | Animation_program
   [@@deriving equal, sexp_of]
 end
 
@@ -127,6 +128,11 @@ type 'action notification =
   ; on_dismiss : Toast.Dismissal.t -> 'action
   }
 
+type 'action animation_program =
+  { config : Animation.Program.t
+  ; on_event : (Animation.Program.Event.t -> 'action) option
+  }
+
 type 'action animation =
   { config : Animation.Config.t
   ; on_event : (Animation.Event.t -> 'action) option
@@ -189,6 +195,7 @@ type 'action t =
   ; toast_stack : Toast.Stack.t option
   ; progress : Progress.Config.t option
   ; animation : 'action animation option
+  ; animation_program : 'action animation_program option
   ; image : 'action image option
   ; extension : 'action extension option
   ; split_pane : 'action split_pane option
@@ -223,6 +230,7 @@ let text ?key ?(style = Style.empty) text =
   ; toast_stack = None
   ; progress = None
   ; animation = None
+  ; animation_program = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -234,6 +242,14 @@ let text ?key ?(style = Style.empty) text =
   ; virtual_list = None
   ; control = None
   ; children = []
+  }
+;;
+
+let animate_program ?key ?(style = Style.empty) ?on_event config children =
+  { (text ?key ~style "") with
+    kind = Animation_program
+  ; animation_program = Some { config; on_event }
+  ; children
   }
 ;;
 
@@ -284,6 +300,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; toast_stack = None
   ; progress = None
   ; animation = None
+  ; animation_program = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -378,6 +395,7 @@ let button
   ; toast_stack = None
   ; progress = None
   ; animation = None
+  ; animation_program = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -444,6 +462,7 @@ let toggle
   ; toast_stack = None
   ; progress = None
   ; animation = None
+  ; animation_program = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -494,6 +513,7 @@ let focus_scope ?key ?style ~config children =
   ; toast_stack = None
   ; progress = None
   ; animation = None
+  ; animation_program = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -766,6 +786,7 @@ let text_input
   ; toast_stack = None
   ; progress = None
   ; animation = None
+  ; animation_program = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -801,6 +822,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; toast_stack = None
   ; progress = None
   ; animation = None
+  ; animation_program = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -862,6 +884,7 @@ let combobox
   ; toast_stack = None
   ; progress = None
   ; animation = None
+  ; animation_program = None
   ; image = None
   ; extension = None
   ; split_pane = None
@@ -977,6 +1000,11 @@ module Expert = struct
       ~on_retain:(Some on_retain)
       rows
   ;;
+
+  type nonrec 'action animation_program = 'action animation_program =
+    { config : Animation.Program.t
+    ; on_event : (Animation.Program.Event.t -> 'action) option
+    }
 
   type nonrec 'action animation = 'action animation =
     { config : Animation.Config.t
@@ -1094,6 +1122,7 @@ module Expert = struct
     ; toast_stack : Toast.Stack.t option
     ; progress : Progress.Config.t option
     ; animation : 'action animation option
+    ; animation_program : 'action animation_program option
     ; image : 'action image option
     ; extension : 'action extension option
     ; split_pane : 'action split_pane option

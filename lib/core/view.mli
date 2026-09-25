@@ -308,6 +308,20 @@ val animate
   -> 'action t list
   -> 'action t
 
+(** Retained springs/sequences/shared repeats. Animated targets own matching
+    numeric style fields. Playback-only changes preserve run identity; new bodies
+    retarget from painted values and a higher restart token resets initial values.
+    Events arrive in ordered batches using the latest accepted closure. Hidden
+    content pauses independent timing; shared members rejoin the group phase.
+    Reduced motion and widget/window disposal are handled natively. *)
+val animate_program
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?on_event:(Animation.Program.Event.t -> 'action)
+  -> Animation.Program.t
+  -> 'action t list
+  -> 'action t
+
 (** Encoded assets registered with [Gpuio_eio.Asset]. Layout comes from [style];
     [config] declares fit and accessibility. State changes are asynchronous and
     refer to the currently mounted source. Retired registrations keep existing
@@ -417,6 +431,11 @@ module Expert : sig
     -> (Key.t * 'action t) list
     -> 'action t Core.Or_error.t
 
+  type 'action animation_program =
+    { config : Animation.Program.t
+    ; on_event : (Animation.Program.Event.t -> 'action) option
+    }
+
   type 'action animation =
     { config : Animation.Config.t
     ; on_event : (Animation.Event.t -> 'action) option
@@ -501,6 +520,7 @@ module Expert : sig
       | Split_pane
       | Extension
       | Canvas_view
+      | Animation_program
     [@@deriving equal, sexp_of]
   end
 
@@ -583,6 +603,7 @@ module Expert : sig
     ; toast_stack : Toast.Stack.t option
     ; progress : Progress.Config.t option
     ; animation : 'action animation option
+    ; animation_program : 'action animation_program option
     ; image : 'action image option
     ; extension : 'action extension option
     ; split_pane : 'action split_pane option

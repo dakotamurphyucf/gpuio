@@ -3,8 +3,10 @@
 Status: implementation design. The OCH-12 duration-based API remains supported.
 Spring parameters, typed programs, bounded decoding, compiled timelines and the
 retained motion/clock primitives are implemented and pass deterministic tests.
-Session admission, GPUI rendering and public view/event transport remain in
-progress; the expanded rendering pipeline is not yet available.
+Atomic session admission, GPUI rendering and the public `View.animate_program`
+API are now wired. Initial mounted macOS geometry/lifecycle tests pass; broader
+public-example and lifecycle acceptance remains in progress. The advanced
+capability is not advertised until that acceptance is complete.
 Acceptance remains the complete live OCH-25 ticket, followed by integrated chat
 showcase OCH-46. Linux GUI follows the existing OCH-17 platform policy.
 
@@ -26,8 +28,8 @@ expresses ordered stages. Sequences start at explicit initial values; a standalo
 spring may omit initial values and first mounts at its target, matching OCH-12.
 The mounted wrapper owns native state. OCaml publishes configurations, not frames.
 Keep existing baseline wire operation/fixture semantics; introduce a distinct
-advanced-program operation and normalize legacy configuration at the native
-boundary rather than silently changing the established record encoding.
+advanced-program operation. The established duration-based path retains its
+existing native owner and record encoding.
 
 ## Spring parameters and continuity
 
@@ -215,10 +217,43 @@ phase. A named-group program rejects an application-clock snapshot. Names share
 immutable storage; sampling does not allocate a new name string. Individual hidden
 or paused members hold their painted frame and rejoin shared phase when resumed.
 
-These are native state-machine primitives, not yet mounted widget acceptance.
-The adapter must admit a bounded batch of stage signals atomically, use one owned
-cancellable deadline for Wait, and release state on unmount/window close. Session
-integration must validate group declarations and aggregate compiled-memory limits
-before committing a tree. `State::retained_bytes` supplies accounting; it does not
-by itself enforce an application-wide memory quota. Rendering currently holds an
-immutable Session borrow, so clock mutation must use a separately borrowed store.
+## Mounted adapter and public event batches
+
+`View.animate_program ?key ?style ?on_event program children` mounts a distinct
+`Animation_program` node. This preserves the established `View.animate` endpoint
+contract and existing wire tags. Targets own their corresponding style fields.
+The new wire operation is appended as tag 37, node kind 32 and event 41; independent
+OCaml/Rust fixtures pin both the full transaction and an event envelope.
+
+`Animation.Program.Event.t` contains a run ID and a nonempty ordered list of
+`Stage_completed (zero_based_index, Played | Reduced_motion)`, `Finished`, or
+`Cancelled reason` observations. Native painting emits at most 33 observations
+as one mailbox event. The decoder bounds the list before allocating its entries;
+mailbox accounting includes its payload. Reconciliation validates the whole batch,
+checks window/node/handler/revision/generation, removes already-delivered prefixes
+using a run/index watermark, and invokes the latest accepted closure once. Repeats
+emit no cycle callbacks. Unmount/window disposal discards callbacks.
+
+Session admission owns an independently borrowed `motion_host::Store`, sharing
+one application monotonic origin with all windows. Application/system motion
+policy updates reach this store before paint, including when all widgets are
+hidden; a weak binding does not retain the application. Tree validation, list-pin
+checks and capacity reservation happen before a final admission callback. Only
+then may clocks/membership and the tree commit. A rejected tree, group conflict,
+stale generation, duplicate program update or quota failure preserves both old
+states. Style-only updates do not scan all retained tree nodes for motion.
+
+The application admits at most 1,024 advanced owners and 128 MiB of conservative
+compiled-storage reservations, in addition to 128 groups/1,024 shared memberships
+and existing tree/session quotas. Reservations cover the maximum first/forward/
+reverse compiled tracks, configuration copies and adapter bookkeeping. This is an
+admission unit, not RSS. A replacement may additionally compile one bounded owner
+before releasing its previous tracks. Removal, window close and shutdown release
+reservations and shared membership.
+
+The GPUI owner holds at most one cancellable deadline. Timer callbacks validate
+the captured lifetime/policy sample and owned deadline; an unrelated newer paint
+does not cancel a still-valid delayed start. Samples and timer closures do not own
+obsolete timelines or keep removed widgets alive. Only a live paint requests a
+subsequent animation frame. Pause, reduced motion, hidden content and disposal
+clear pending work according to the retained owner contract.
