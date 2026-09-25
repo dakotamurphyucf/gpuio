@@ -412,6 +412,9 @@ let component ~assets ~avatar_status ~phase ~observed ~editor_ref ~rating_ref wi
 
 let () =
   let self_test = Array.exists (Sys.get_argv ()) ~f:(String.equal "--self-test") in
+  let content_check =
+    Array.exists (Sys.get_argv ()) ~f:(String.equal "--content-check")
+  in
   let completed = ref false in
   App.run (fun env app ->
     let phase = B.Expert.Var.create (-1)
@@ -425,9 +428,11 @@ let () =
         app
         ~focus:true
         ~title:"GPUIO Component Studio"
-        ~width:1040.
+        ~width:(if content_check then 440. else 1040.)
         ~height:860.
-        (component ~assets ~avatar_status ~phase ~observed ~editor_ref ~rating_ref)
+        (if content_check
+         then Content_cases.component
+         else component ~assets ~avatar_status ~phase ~observed ~editor_ref ~rating_ref)
       |> ok
     in
     Avatar_assets.load env app assets;

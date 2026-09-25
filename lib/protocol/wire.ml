@@ -16,7 +16,7 @@ module Split = Split_wire
 module Extension = Extension_wire
 
 let version = 1L
-let capabilities = 17179869183L
+let capabilities = 34359738367L
 let max_message_bytes = 1_048_576
 
 module Kind = struct

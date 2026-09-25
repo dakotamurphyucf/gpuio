@@ -1,9 +1,9 @@
 # Presentation, feedback and form components (OCH-33)
 
-Status: semantic metadata, form composition and stateless presentation helpers
-are implemented and tested locally. Avatar fallback and rating
-remain pending; acceptance is the complete live OCH-33 ticket. No OCH-33 capability
-is advertised. See the [evidence ledger](../evidence/presentation-components-och33.md).
+Status: semantic metadata, forms, stateless presentation, loading, avatars and
+rating are implemented with local native and public-API acceptance. Capability
+`17179869184` advertises this family (aggregate `34359738367`). Hosted macOS/Linux
+gates and merge remain pending. See the [evidence ledger](../evidence/presentation-components-och33.md).
 
 ## Public organization
 
@@ -176,9 +176,23 @@ The control is one keyboard stop and exposes a labelled Slider with integer rang
 painted stars are not additional focus or accessibility children. Disabled leaves
 traversal; read-only remains focusable and readable but emits no requests. No
 continuous timer or frame callback is needed. New wire kind36/op42/event43 are
-append-only; no capability is advertised until complete OCH-33 acceptance.
+append-only; the presentation capability covers the complete OCH-33 family.
 
 Required evidence before acceptance: fast repeated-key reducer ordering, pointer
 preview/selection/clear, actual AX numeric/actions/read-only, native focus and
 ancestor/modal gating, hide/unmount cleanup and idle, paired strict codecs,
 reconciliation callbacks, public example, themes and synthetic density checks.
+
+## Constrained content
+
+Text in tag/badge/marker, shortcut and message-header rows may shrink below its
+intrinsic width and wrap. The status bar leading content also flexes. Action and
+icon slots retain their intrinsic space; the caller controls the content of
+these slots and can supply a wrapping action group where necessary. Form rows
+support vertical and explicit 160px-label horizontal layouts; choose vertical
+when the containing panel cannot accommodate that label plus its control.
+
+The public `--content-check` fixture and macOS AX walkthrough exercise 19 families
+with long, empty and localized text in 440px/800px windows under both appearances.
+This is constrained-layout coverage, not a claim of automatic translation or
+full bidirectional/RTL layout. See the evidence ledger for actual scale coverage.

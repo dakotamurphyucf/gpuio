@@ -83,7 +83,8 @@ image/fallback now passes actual GPU/AX, source lifetime, SVG resize recovery,
 synthetic density and idle checks, with a public example covering ready/failure/
 initials. Rating now provides controlled request reduction, native hover/stars,
 keyboard and AX slider actions with read-only/disabled and modal/pointer policies.
-Local component checks pass; complete cross-family acceptance remains. Native skeleton/shimmer/
+Local acceptance passes, including 228 constrained-content combinations. The
+presentation capability is enabled; consolidated hosted gates and merge remain. Native skeleton/shimmer/
 spinner leaves now pass local reduced/static/ancestor-hidden idle, resume,
 accessibility and disposal checks; the public example exercises all three.
 See [presentation evidence](evidence/presentation-components-och33.md) and

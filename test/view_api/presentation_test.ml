@@ -169,3 +169,11 @@ let%expect_test
     Assertive
   |}]
 ;;
+
+let%expect_test "presentation capability includes the accepted native family" =
+  assert (Int64.equal (Int64.bit_and W.capabilities 17179869184L) 17179869184L);
+  let bytes = W.Message.encode (Hello (W.version, W.capabilities)) |> ok in
+  String.iter bytes ~f:(fun byte -> printf "%02x" (Char.to_int byte));
+  print_endline "";
+  [%expect {| 0001fcffffffff07000000 |}]
+;;

@@ -1,10 +1,10 @@
 # Presentation component evidence (OCH-33)
 
-Current state: semantic/form helpers, stateless presentation, loading, avatars and
-rating are implemented with local component tests. Final cross-family content/
-layout acceptance and capability advertisement remain; consolidated hosted gates
-and merge are pending. The sections below preserve incremental checkpoint evidence
-and its original scope. Older lists of remaining components are historical.
+Current state: the complete OCH-33 family is implemented and local component plus
+cross-family content acceptance passes. Presentation capability `17179869184` is
+advertised and its final integrated checks pass; hosted gates and merge remain
+pending. The sections below preserve incremental checkpoint evidence and its
+original scope. Older lists of remaining components are historical.
 
 ## Semantic, form and stateless presentation foundation
 
@@ -294,3 +294,42 @@ Component Studio `--self-test` and `scripts/test_presentation.py` pass. Final
 light/dark screenshots were recaptured, visually inspected and copied into
 `docs/images/presentation-{dark,light}.png`. CI now runs presentation GPU checks;
 these results are local evidence, not hosted validation.
+
+## Cross-family native content acceptance
+
+The public Component Studio `--content-check` fixture cycles 19 presentation/form
+families through long, empty and localized content. `scripts/test_presentation_content.py`
+passes 228 actual native combinations: 19 families × 3 content variants × 2
+appearances × 2 window widths (440/800 logical pixels). It checks finite,
+nonnegative native text/control bounds within the window and noncollapsed action
+bounds, invokes 120 visible card actions, verifies their effects, then closes and
+reaps the process. Localized fixtures include Japanese, French, German and a
+joined emoji; this does not assert complete bidi layout or localization services.
+
+The initial run found intrinsic-width overflow in long tag text. Presentation
+rows now allow label text to shrink and wrap, and status-leading content flexes
+while action slots keep their required space. The full walkthrough passes with
+these changes. This supplements prior semantic/controller-lifetime, loading
+idle/reduced-motion, avatar failure/density and rating input/disposal evidence.
+
+Reproduce after building the public example:
+
+```sh
+python3 scripts/test_presentation_content.py --images scratch/presentation-content
+```
+
+Final local checks with the capability enabled pass: Dune `@all @runtest @fmt`,
+Rust workspace tests, combined GPU-feature all-target Clippy, freshly built
+`native_presentation`, public Component Studio `--self-test`, and both external
+AX walkthroughs. Independent OCaml/Rust Hello fixtures agree on
+`0001fcffffffff07000000` (aggregate `34359738367`). Native tests retain the prior
+form/IME, loading/minimize, and rating GPU/input markers. Normal Studio screenshots
+were refreshed and inspected after the wrapping changes; a diagnostic
+[narrow localized message capture](../images/presentation-content-message.png)
+shows the acceptance fixture. This fixture is deliberately repetitive test
+content; the polished integrated chat showcase remains OCH-46.
+
+Local OCH-33 implementation and acceptance are complete. Consolidated hosted
+macOS/Linux build/unit gates and merge are still required before ticket closure.
+Linux GUI, physical display transitions and a complete VoiceOver user journey
+have not been claimed by these tests.

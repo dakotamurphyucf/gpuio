@@ -178,7 +178,11 @@ let tag
          ])
     (List.filter_opt
        [ optional_slot "leading" leading
-       ; Some (View.text ~key:(internal_key "label") text)
+       ; Some
+           (View.text
+              ~key:(internal_key "label")
+              ~style:(style [ Min_width (px 0.) ])
+              text)
        ; optional_slot "trailing" trailing
        ])
 ;;
@@ -234,7 +238,7 @@ let marker
              ; Background (solid (color p tone))
              ])
         []
-    ; View.text ~key:(internal_key "label") text
+    ; View.text ~key:(internal_key "label") ~style:(style [ Min_width (px 0.) ]) text
     ]
 ;;
 
@@ -317,7 +321,7 @@ let secondary (p : Appearance.t) name text =
   Option.map text ~f:(fun text ->
     View.text
       ~key:(internal_key name)
-      ~style:(style [ Foreground p.Appearance.muted; Font_size 12. ])
+      ~style:(style [ Foreground p.Appearance.muted; Font_size 12.; Min_width (px 0.) ])
       text)
 ;;
 
@@ -485,6 +489,7 @@ let shortcut_label (p : Appearance.t) ?key ?style:(custom = Style.empty) names =
          ~style:
            (style
               [ Font_size 11.
+              ; Min_width (px 0.)
               ; Foreground p.Appearance.muted
               ; Background (solid p.raised)
               ; Border_width 1.
@@ -517,7 +522,11 @@ let status_bar (p : Appearance.t) ?key ?style:(custom = Style.empty) ?leading ?t
          ; custom
          ])
     (List.filter_opt
-       [ optional_slot "leading" leading
+       [ Option.map leading ~f:(fun content ->
+           View.column
+             ~key:(internal_key "leading")
+             ~style:(style [ Min_width (px 0.); Grow 1. ])
+             [ content ])
        ; Some (View.column ~key:(internal_key "spacer") ~style:(style [ Grow 1. ]) [])
        ; optional_slot "trailing" trailing
        ])
@@ -585,7 +594,7 @@ let message
          ; Some
              (View.text
                 ~key:(internal_key "author")
-                ~style:(style [ Font_size 12.; Font_weight 600 ])
+                ~style:(style [ Font_size 12.; Font_weight 600; Min_width (px 0.) ])
                 author)
          ; secondary p "detail" detail
          ; Some (View.column ~key:(internal_key "spacer") ~style:(style [ Grow 1. ]) [])

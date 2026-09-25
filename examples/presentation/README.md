@@ -61,3 +61,10 @@ requests are evaluated against the latest model, rather than using the value fro
 an older render. The application may retain its model to reject a request. The
 self-test exercises burst saturation, toggling to zero and read-only rejection;
 external macOS validation sends actual keyboard input and an AX increment action.
+
+For the content/layout acceptance fixture, run the executable with
+`--content-check`; the toolbar cycles through 19 presentation/form families with
+long, empty and localized content. `python3 scripts/test_presentation_content.py`
+validates actual macOS AX bounds/actions in narrow/wide windows and both themes.
+This focused fixture complements the main Component Studio and the final OCH-46
+chat showcase.

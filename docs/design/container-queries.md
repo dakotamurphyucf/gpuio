@@ -2,7 +2,7 @@
 
 Status: mounted bridge and local macOS acceptance implemented; consolidated hosted
 macOS/Linux gates and merge remain pending. Capability `8589934592` advertises
-container queries; the current aggregate is `17179869183`.
+container queries; the current aggregate is `34359738367`.
 Read the live OCH-26 ticket and the platform policy in AGENTS.md for acceptance.
 
 ## Public model

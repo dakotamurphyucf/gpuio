@@ -133,3 +133,9 @@ fn semantic_role_tags_match_ocaml() {
         assert_eq!(decode_accessibility(&encode(&value)), Ok(value));
     }
 }
+
+#[test]
+fn accepted_presentation_capability() {
+    use gpuio_protocol::v1::{CAP_PRESENTATION, CAPABILITIES};
+    assert_eq!(CAPABILITIES & CAP_PRESENTATION, 1_i64 << 34);
+}
