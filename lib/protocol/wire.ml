@@ -2,6 +2,7 @@ open Core
 module Asset = Asset_wire
 module Image = Image_wire
 module Animation = Animation_wire
+module Animation_program = Animation_program_wire
 module Document = Document_wire
 module Canvas = Canvas_resource_wire
 module Canvas_view = Canvas_view_wire

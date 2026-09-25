@@ -51,3 +51,53 @@ expect suite, nine baseline motion tests and the atomic tree animation lifecycle
 test. These checks open no GUI windows. No Linux or hosted execution is claimed.
 The [implementation design](../design/animation-programs.md) records remaining
 native scheduling, event, group and lifetime requirements.
+
+## Typed programs, bounded decoding and compiled timelines
+
+The next local checkpoint adds public Timing/Stage/Clock/Playback/Program types,
+immutable pause/restart/reverse configuration, a matching wire schema and a bounded
+standalone native decoder. This is still partial OCH-25 implementation: it does
+not yet mount an advanced program, emit its observations or own shared-clock state.
+No advanced runtime capability is advertised.
+
+The independent `animation-program.hex` fixture contains a delayed tween followed
+by a delayed physical spring, explicit initial values, paused playback, a restart
+token and a positive admission generation. Both OCaml and Rust construct it
+independently. Rust round-trips it and rejects every truncated prefix, trailing
+bytes, malformed numeric/property data, excess stages/properties and overlong
+configuration/group names. Shared-clock validation admits only timed positive
+repeating cycles and rejects missing initial values or an initial delay.
+
+The OCaml expect tests also prove immutable playback/restart configuration,
+32-stage boundaries, cycle duration limits, UTF-8 group validation and reversing
+a sequence twice restores its complete configuration. A compatibility test covers
+the old API's one-day initial delay plus one-day duration: the new common
+representation preserves both instead of incorrectly limiting their sum to one day.
+The pre-existing duration API's binary fixture is unchanged.
+
+Six native timeline tests cover mixed tween/spring timing, separate initial/stage
+delays, a late sample crossing multiple stages, spring velocity on retarget,
+initial values for newly added properties, cleared velocity for timed stages,
+constant-interval deadline scheduling, 32 zero-duration stages, immediate first
+placement without initial values, invalid input and retained-byte accounting.
+Sampling is immutable. These tests prove numerical stage traversal; the retained
+owner must still confirm paint before delivering any completed-stage prefix.
+
+Validation commands at this checkpoint, through the isolated jobs=2 wrapper:
+
+```sh
+./scripts/gpuio exec cargo test --locked -p gpuio-protocol --test animation --test animation_program -j 2
+./scripts/gpuio exec cargo test --locked -p gpuio-native --lib motion -j 2
+./scripts/gpuio exec cargo test --locked -p gpuio-native --test motion --test animations -j 2
+./scripts/gpuio exec dune runtest -j 2 test/view_api
+./scripts/gpuio exec cargo clippy --locked -p gpuio-native --all-targets --features native-tests -j 2 -- -D warnings
+./scripts/gpuio check-fmt
+```
+
+These pass locally on macOS: ten protocol tests, fourteen motion-related native
+unit tests, the nine baseline motion tests, atomic tree lifecycle test and OCaml
+view API suite. The expect-test correction was whitespace layout only; the values
+were reviewed. No GUI or Linux result is claimed from this checkpoint.
+
+The full isolated `dune build -j 2 @all @runtest` also passes with the new exported
+types and timeline code. All validation processes exited; none opened GUI windows.

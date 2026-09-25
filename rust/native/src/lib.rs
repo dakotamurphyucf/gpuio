@@ -30,6 +30,7 @@ pub mod list_state;
 pub mod mailbox;
 pub mod motion;
 mod motion_preference;
+pub mod motion_timeline;
 mod selection;
 mod semantics;
 pub mod session;

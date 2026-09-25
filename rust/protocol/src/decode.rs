@@ -2,6 +2,8 @@ use crate::{HandlerId, NodeId, WindowId, v1::*};
 use binprot::BinProtRead;
 use std::io::{Cursor, Read};
 
+mod animation_program;
+pub use animation_program::decode_animation_program;
 mod canvas;
 mod canvas_view;
 pub use canvas::decode_canvas_scene;
@@ -145,7 +147,7 @@ impl Decoder<'_> {
             .collect()
     }
     fn animation_config(&mut self) -> Result<crate::animation::Config, DecodeError> {
-        use crate::animation::{Config, Easing, Repeat};
+        use crate::animation::{Config, Repeat};
         let generation = self.int()?;
         let targets = self.animation_targets()?;
         let initial = match self.tag()? {
@@ -155,15 +157,7 @@ impl Decoder<'_> {
         };
         let duration_ms = self.int()?;
         let delay_ms = self.int()?;
-        let easing = match self.tag()? {
-            0 => Easing::Linear,
-            1 => Easing::Ease,
-            2 => Easing::EaseIn,
-            3 => Easing::EaseOut,
-            4 => Easing::EaseInOut,
-            5 => Easing::CubicBezier(self.float()?, self.float()?, self.float()?, self.float()?),
-            _ => return Err(DecodeError::Malformed),
-        };
+        let easing = self.animation_easing()?;
         let repeat = match self.tag()? {
             0 => Repeat::Once,
             1 => Repeat::Loop,

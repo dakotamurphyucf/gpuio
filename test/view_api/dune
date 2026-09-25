@@ -6,6 +6,7 @@
    (sandbox preserve_file_kind)
    animation-v1-config.hex
    animation-spring.hex
+   animation-program.hex
    icons-v1-request.hex
    images-v1-request.hex
    images-v1-events.hex
@@ -52,6 +53,8 @@
 (copy_files ../fixtures/animation-v1-config.hex)
 
 (copy_files ../fixtures/animation-spring.hex)
+
+(copy_files ../fixtures/animation-program.hex)
 
 (copy_files ../fixtures/controls-v1.hex)
 

@@ -11,12 +11,18 @@ use std::{sync::Arc, time::Duration};
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Values([Option<f64>; PROPERTY_COUNT]);
 impl Values {
-    fn from_targets(targets: &[Target]) -> Self {
+    pub(crate) fn from_targets(targets: &[Target]) -> Self {
         let mut result = Self([None; PROPERTY_COUNT]);
         for target in targets {
             result.0[target.property as usize] = Some(target.value);
         }
         result
+    }
+    pub(crate) fn empty() -> Self {
+        Self([None; PROPERTY_COUNT])
+    }
+    pub(crate) fn set(&mut self, property: Property, value: f64) {
+        self.0[property as usize] = Some(value);
     }
     pub fn get(&self, property: Property) -> Option<f64> {
         self.0[property as usize]

@@ -54,8 +54,9 @@ OCH-46 is part of milestone completion and covers feature mapping, interactive
 flows, light/dark and responsive-layout polish, accessibility, reduced motion,
 streaming/performance regression checks and updated screenshots/documentation.
 OCH-25 now has validated public spring parameters, an independent OCaml/Rust
-parameter fixture and a tested analytic native spring trajectory. Advanced motion
-transport/rendering, sequences and shared groups remain under implementation; see
+parameter fixture and a tested analytic native spring trajectory. Typed programs,
+a bounded codec and compiled finite sequence timelines also pass local tests.
+Retained playback/event ownership, view transport and shared groups remain in progress; see
 [advanced animation evidence](evidence/animation-programs-och25.md) and
 [design](design/animation-programs.md).
 No milestone-05 completion or hosted acceptance is claimed yet.

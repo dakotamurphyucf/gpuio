@@ -2,6 +2,7 @@
 //!
 //! V1 is under development; the private foundation protocol is unrelated.
 pub mod animation;
+pub mod animation_program;
 pub mod asset;
 pub mod canvas;
 pub mod canvas_resource;
@@ -21,7 +22,9 @@ mod menu;
 mod palette;
 pub mod v1;
 
-pub use decode::{DecodeError, decode, decode_canvas_scene, decode_canvas_view_config};
+pub use decode::{
+    DecodeError, decode, decode_animation_program, decode_canvas_scene, decode_canvas_view_config,
+};
 pub use id::{HandlerId, NodeId, ResourceId, WindowId};
 
 pub mod progress;

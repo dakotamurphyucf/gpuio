@@ -70,6 +70,75 @@ module Repeat : sig
   [@@deriving equal, sexp_of]
 end
 
+module Timing : sig
+  type t [@@deriving equal, sexp_of]
+
+  val tween : ?easing:Easing.t -> Time_ns.Span.t -> t Or_error.t
+  val spring : Spring.t -> t
+end
+
+module Stage : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** Delay before this stage, on each cycle. Default zero; at most one day. *)
+  val create
+    :  ?delay:Time_ns.Span.t
+    -> timing:Timing.t
+    -> target:Target.t
+    -> unit
+    -> t Or_error.t
+end
+
+module Clock : sig
+  type t [@@deriving equal, sexp_of]
+
+  val independent : t
+  val application : t
+
+  (** Application-scoped name, 1..128 UTF-8 bytes without NUL. *)
+  val group : string -> t Or_error.t
+end
+
+module Playback : sig
+  type t =
+    | Running
+    | Paused
+    | Cancelled
+  [@@deriving equal, sexp_of]
+end
+
+module Program : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** One to 32 stages with the same properties. Multi-stage programs and repeats
+      require initial values. The initial delay is applied once; stage delays apply
+      each cycle. The sum of stage maximum durations and delays is at most one day;
+      the separate initial delay is also at most one day. Repeats need positive cycle duration.
+      Shared clocks require repetition, timed stages, explicit initial values and
+      zero initial delay. [clock] defaults to independent, [repeat] to once.
+
+      This validated representation is under integration with the native renderer. *)
+  val create
+    :  ?initial:Target.t
+    -> ?delay:Time_ns.Span.t
+    -> ?repeat:Repeat.t
+    -> ?clock:Clock.t
+    -> Stage.t list
+    -> t Or_error.t
+
+  (** Playback changes preserve the run; cancellation holds its last painted value
+      and is terminal until a new program or restart. *)
+  val with_playback : t -> Playback.t -> t
+
+  (** Increment the restart token, resetting playback to Running. Retain the returned
+      value for subsequent restarts. Exhaustion returns an error. *)
+  val restart : t -> t Or_error.t
+
+  (** Reverse the declared intervals, retaining each interval's timing/delay.
+      Requires initial values. This is a new program, not a reversal of past events. *)
+  val reverse : t -> t Or_error.t
+end
+
 module Preference : sig
   type t =
     | System
@@ -133,6 +202,12 @@ end
 
 module Expert : sig
   val spring_to_wire : Spring.t -> Gpuio_protocol.Wire.Animation.Spring.t
+
+  val program_to_wire
+    :  Program.t
+    -> generation:int64
+    -> Gpuio_protocol.Wire.Animation_program.Config.t Or_error.t
+
   val event_of_wire : Gpuio_protocol.Wire.Animation.Endpoint.t -> Event.t Or_error.t
 
   val to_wire

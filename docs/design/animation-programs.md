@@ -1,8 +1,10 @@
 # Spring, sequence and shared-repeat motion (OCH-25)
 
 Status: implementation design. The OCH-12 duration-based API remains supported.
-Only the spring parameter/trajectory foundation has begun implementation; this
-page is not evidence that the expanded public rendering pipeline is available.
+Spring parameters, the typed program representation, bounded codec and compiled
+finite timeline are implemented. Retained playback/paint ownership, group clocks
+and view/event transport remain in progress; the expanded rendering pipeline is
+not yet available.
 Acceptance remains the complete live OCH-25 ticket, followed by integrated chat
 showcase OCH-46. Linux GUI follows the existing OCH-17 platform policy.
 
@@ -12,7 +14,10 @@ Extend the existing `Animation` vocabulary with abstract `Spring`, `Timing` and
 `Stage` modules and configuration constructors for springs and sequences. Reuse
 `Target` and the existing eleven numeric properties. A stage contains its target,
 delay and either duration/easing or physical spring timing. All stages name the
-same property set. At most 32 stages are accepted. Public constructors validate
+same property set. At most 32 stages are accepted. The sum of stage maximum
+durations and per-stage delays is at most one day. A separate initial delay
+is applied only before the first cycle and is independently bounded to one day,
+preserving the established API’s full delay/duration range. Public constructors validate
 before encoding; the native decoder independently bounds and validates input.
 
 The existing `Config.create` continues to express a single duration-based stage.
@@ -119,3 +124,43 @@ whole-window idle behavior, not merely endpoint values. Complete consolidated
 macOS/Linux build/unit gates before marking the ticket complete. Arbitrary
 keyframe timelines, shared-layout and exit-presence orchestration remain excluded;
 color, arbitrary object and percentage/auto interpolation are not introduced.
+
+## Implemented program representation
+
+`Animation.Timing.tween` and `.spring` describe validated stage timing;
+`Animation.Stage.create` pairs timing, target and per-stage delay.
+`Animation.Program.create` accepts initial values, stages, repetition, initial
+delay and `Animation.Clock` selection. `with_playback` changes playback without
+changing program data. `restart` increments its token and selects Running;
+`reverse` reverses declared intervals and requires initial values. These pure
+constructors do not yet provide a renderable advanced view.
+
+The matching `Animation_program_wire`/Rust `animation_program` schema has distinct
+Program and Config records. Config adds the admission generation, playback and
+restart token. `same_run` ignores admission generation and playback, so a future
+retained owner can distinguish pause/resume from a program replacement. The run ID
+must remain its start generation while playback-only configurations advance the
+admission generation; this is required when wiring callback fences.
+
+The standalone native decoder caps configuration bytes at 16,384, stages at 32,
+properties at 11 and group names at 128 UTF-8 bytes before allocation. It validates
+property sets, positive shared repeat periods and timed-only shared stages. Heap
+accounting includes vector/string capacities. No new transaction operation or
+runtime capability has been introduced at this checkpoint. `Program::from_legacy`
+provides a validated common representation without changing the old wire bytes.
+
+A finite stage observation carries a zero-based stage index and Played or
+Reduced_motion result. Its delivery index is stage index + 1; terminal signals use
+33. Signals carry the run generation. The retained bridge still needs to implement
+monotone (run generation, delivery index) dispatch and paint-confirmed delivery;
+these schema limits alone do not implement delivery.
+
+`motion_timeline::Timeline` compiles numeric stages and spring trajectories once.
+It samples active elapsed time without mutating state or emitting callbacks. A
+sample includes values, velocity, the completed stage prefix and either Idle,
+Frame or a relative Wait deadline. It visits at most 32 admitted stages even when
+a slow frame passes multiple boundaries. Constant timed intervals wait for their
+boundary without frame polling. Timed stages clear inherited spring velocity;
+new properties use declared initial values. It accounts for retained segment and
+spring-array storage. The owner still needs to enforce aggregate admission,
+paint epochs, cancellation, hidden/reduced policy and repeating clocks.
