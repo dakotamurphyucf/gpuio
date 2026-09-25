@@ -530,3 +530,64 @@ not a mounted numeric editor: native InputState/stepper rendering, command/resul
 envelopes, Eio controller and actual editing/IME/AX/lifetime acceptance remain
 pending, followed by OTP. No OCH-34 capability, ticket completion, hosted gates or
 Linux GUI acceptance is claimed.
+
+## Mounted numeric editor and command/controller checkpoint
+
+The native adapter now mounts a single InputState with the numeric policy owner.
+It uses weak native callbacks, includes numeric fields in native text-command
+routing, and preserves the editing session on configuration changes. Initial
+autofocus is captured before the first numeric observation. Message 15 and Event
+47 carry correlated commands/results; Eio caps pending requests at 64, validates
+drafts before encoding, checks reply identities and resolves closed-window work.
+The public `Gpuio_eio.Number_input` controller and explicit replacement/guard
+helpers compile. Independent command/reply fixtures agree in OCaml and Rust.
+
+The actual native test `native_number_input` passes locally on macOS:
+
+- One numeric editor without a duplicate generic editor registration.
+- Initial autofocus; incomplete `-` rejection; Escape restores committed text;
+  Enter clamps `99` to 8; native Up/Down step and produce keyboard commits.
+- Actual InputState undo/redo restores draft history while leaving the committed
+  value unchanged. A text insertion invalidates an older numeric revision guard.
+- GPUI-dispatched Cmd+A/C/V copies native selection and pastes incomplete `1e-`
+  without parse-to-zero behavior. The harness restores the prior clipboard.
+- Changing bounds/step/control presentation preserves draft and caret, normalizes
+  the committed value, and emits an observation.
+- On macOS, actual NSView NSTextInputClient marked text produces composition;
+  explicit commit/cancel reject it. Enter preserves it; the first Escape ends
+  composition without resetting the draft and a second Escape restores the value.
+- Read-only stepping is blocked while explicit replacement remains allowed.
+- Removal releases both weak native references, clears the instance map and
+  returns retained payload accounting to zero. The window/process exits normally.
+
+This uses native GPUI keyboard dispatch and AppKit text-client methods, not an
+external OS-keyboard automation run or a human-selected input-method session.
+Native compilation initially needed explicit protocol Style/Length imports to
+avoid their GPUI namesakes. The OCaml envelope test initially used a nonexistent
+Event.encode helper; corrected to the existing generated batch writer. No test
+expectations were promoted to bypass those compile failures.
+
+The stage does not establish pointer hold-repeat, actual numeric AX actions,
+visual/pixel acceptance, the public application's end-to-end event lifecycle,
+large workloads or all hide/modal/window-loss policies. Those remain open, along
+with OTP and consolidated hosted checks. No ticket/capability completion or Linux
+GUI acceptance is claimed.
+
+A final integration review added focused/composing numeric owners to managed-list
+row pinning. The native test now mounts its number field as a managed virtual
+row, verifies the pin and rejects a stale guarded eviction without changing the
+tree revision. All editing/IME/disposal scenarios also pass in that placement.
+The first list fixtures omitted the separate Splice child operation when adding
+and evicting the row, so strict tree validation rejected those fixtures. Both
+were corrected to preserve the metadata/children invariant; the retained-row
+expectation was kept.
+
+Validation for this checkpoint (local macOS):
+
+- `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @test/view_api/runtest @fmt` passed for the new API/envelopes.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-protocol -p gpuio-native --lib --tests` passed before the final focused/composing row-pin addition.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-tests --test native_number_input --no-run` rebuilt the final native fixture. Running the resulting `native_number_input-*` executable with a 60-second process-group timeout passed normally, including the final managed-row regression; no timeout or forced termination occurred.
+- Clippy with `-p gpuio-protocol -p gpuio-native --all-targets --features native-tests -- -D warnings`, Rustfmt and whitespace checks pass.
+
+Owned test windows and subprocesses are closed/reaped. Hosted validation and
+merge remain deferred to the consolidated milestone submission.

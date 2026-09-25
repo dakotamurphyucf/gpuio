@@ -124,6 +124,7 @@ let worker native notification_read =
       | List_viewport _
       | Slider_result _
       | Slider_event _
+      | Number_input_result _
       | Number_input_event _
       | Rating_requested _
       | Container_selected _

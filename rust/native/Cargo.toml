@@ -205,3 +205,8 @@ required-features = ["native-tests"]
 name = "native_slider"
 harness = false
 required-features = ["native-tests"]
+
+[[test]]
+name = "native_number_input"
+harness = false
+required-features = ["native-tests"]

@@ -107,11 +107,14 @@ separation, historical domains, UTF-8 selection/IME ranges and guarded commands;
 independent cross-language fixtures and semantic validation tests pass locally.
 The native numeric policy model now validates commit/cancel/step, pending-edit
 guards, composition/configuration preservation and revision/fault behavior with
-deterministic state tests. Its editor callbacks remain to be connected to GPUI.
+deterministic state tests. Its callbacks now connect to one native InputState.
 Retained numeric view descriptions, strict tree admission, owner/revision event
 routing and byte-accounted change coalescing now pass local bridge tests.
-Native numeric editor/stepper and OTP integration remains pending; no capability
-is advertised.
+Mounted numeric editing, basic step buttons, correlated commands and the Eio
+controller are implemented. Initial macOS native checks pass keyboard commit/
+cancel/step, clipboard, undo/redo, revision guards, retained configuration, marked
+text composition and disposal. Numeric pointer-repeat, full AX/visual/public
+example/lifetime acceptance and OTP remain pending; no capability is advertised.
 See [numeric design](design/numeric-inputs.md) and
 [foundation evidence](evidence/numeric-inputs-och34.md).
 No milestone-05 completion or hosted acceptance is claimed yet.

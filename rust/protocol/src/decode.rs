@@ -1222,6 +1222,13 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
             }
             Message::OpenConfigured(correlation, id, config)
         }
+        15 => {
+            let correlation = d.int()?;
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::NumberInputCommand(correlation, d.window()?, d.node()?, d.number_command()?)
+        }
         14 => {
             let correlation = d.int()?;
             if correlation <= 0 {

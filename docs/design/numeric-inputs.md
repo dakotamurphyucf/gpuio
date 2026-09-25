@@ -218,10 +218,11 @@ The following refines the accepted draft/value contract for OCH-34. The Core
 `Number_input` types and standalone OCaml/Rust wire contracts are implemented
 and tested. The independent native policy owner also implements commit/cancel,
 stepping, configuration updates and command/observation revision rules. Retained
-view descriptions, tree admission and event routing are connected. Actual native
-editor/stepper mounting, correlated command routing and the Eio controller remain
-implementation targets; these contracts alone do not
-provide a usable numeric widget.
+view descriptions, tree admission and event routing are connected. Native editor
+mounting, basic step controls, correlated command routing and the Eio controller
+are now implemented. Initial local native keyboard, clipboard, history and macOS
+marked-text checks pass. Pointer repeat, complete accessibility and visual checks,
+the public integration example and wider lifetime acceptance remain targets.
 
 ### Ownership and public shape
 
@@ -424,14 +425,15 @@ leaves with a required handler and no generic text, control or choice payload;
 failed admission leaves the published tree and payload accounting unchanged.
 The initial seed may be outside the domain and is normalized when the native
 owner is created. An initial-value property update is not a command to reset a
-live editor. Native mounting remains pending at this checkpoint.
+live editor. The mounted adapter applies the seed once, before its initial
+observation, and reconfigures the existing InputState without replacing its text.
 
 Both native and OCaml routing validate window/node/handler identity and the
 originating tree revision. Numeric snapshot validity uses the snapshot's own
 domain. A queued event is therefore not dropped just because a newer config has
 different bounds or is disabled/read-only. Generic Press does not address a
 numeric owner. The Eio window event pump passes numeric observations through the
-same reconciler; a dedicated controller and command replies are still pending.
+same reconciler and updates the dedicated Bonsai controller.
 
 The mailbox coalesces adjacent Changed events only for the same routed owner,
 tree revision, domain and committed value, with increasing numeric revisions.
@@ -440,3 +442,35 @@ Draft bytes count toward queue capacity and response-batch size, including growt
 when replacing a coalesced event. An oversized replacement fails admission while
 preserving the prior queued event. Undrained numeric output also prevents window
 slot reuse, following the existing output-lifetime rule.
+
+### Mounted numeric editor and correlated commands
+
+`number_input_view.rs` owns one `Entity<InputState>` and one numeric policy owner
+per retained placement. Focused or composing numeric fields pin their managed
+virtual-list rows against stale eviction, as ordinary editors do. It reuses the
+editor snapshot/apply primitives; there is
+no second Text_input controller for the numeric node. Focus traversal and native
+copy/cut/paste/undo/redo command routing include numeric editors. Native callbacks
+hold weak editor/owner references and publish through the bounded async event
+route. Initial autofocus precedes the initial numeric snapshot.
+
+Enter commits, Up/Down step, and Escape first ends composition without restoring
+the committed text; a later Escape cancels the draft. Programmatic Cancel fails
+while composing. Initial tests enter through GPUI keyboard dispatch and macOS
+NSTextInputClient marked/committed text methods. Step buttons currently perform
+one step per pointer down; hold-repeat is still required before acceptance.
+
+The correlated lane appends Message `Number_input_command` tag 15 and Event
+`Number_input_result` tag 47. Requests carry a positive correlation plus the exact
+window/node lease. Eio retains at most 64 pending requests, ignores mismatched
+replies, and completes a closing window's requests with Closed. Invalid draft
+text/length/selection is rejected before queue encoding; expected errors do not
+raise through the runtime. Reply draft bytes count when sizing outgoing batches.
+
+`Gpuio_eio.Number_input` exposes create/view/snapshot plus command, read_snapshot,
+focus, select, commit, cancel, step, undo/redo, explicit draft/value replacement
+and a value replacement helper that binds the expected lease and revision.
+Bonsai state ignores older revisions and replies for a replaced lease. Native
+observations are never treated as text replacement commands. The public API
+builds; its full application-level integration scenario is the next validation
+step. No new capability is advertised until OCH-34 acceptance is complete.

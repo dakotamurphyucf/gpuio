@@ -80,6 +80,8 @@ mod loading;
 mod menu;
 #[path = "menu_platform.rs"]
 mod menu_platform;
+#[path = "number_input_view.rs"]
+pub(super) mod number_input_view;
 #[path = "overlay.rs"]
 mod overlay;
 #[path = "palette.rs"]
@@ -153,6 +155,7 @@ struct View {
     radios: BTreeMap<NodeId, Rc<RefCell<choice::State>>>,
     ratings: BTreeMap<NodeId, Rc<RefCell<rating::State>>>,
     sliders: BTreeMap<NodeId, slider_view::Shared>,
+    numbers: BTreeMap<NodeId, number_input_view::Instance>,
     tooltips: BTreeMap<NodeId, tooltip::State>,
     tooltip_last_closed: Option<std::time::Instant>,
     command_subscription: Option<gpui::Subscription>,
@@ -374,6 +377,7 @@ impl View {
             radios: BTreeMap::new(),
             ratings: BTreeMap::new(),
             sliders: BTreeMap::new(),
+            numbers: BTreeMap::new(),
             tooltips: BTreeMap::new(),
             tooltip_last_closed: None,
             command_subscription: None,
@@ -418,6 +422,7 @@ impl View {
         self.sync_canvases(dirty, window, cx);
         self.sync_splits(window, cx);
         self.sync_sliders(dirty, window, cx);
+        self.sync_numbers(dirty, window, cx);
         // An unselected query branch is hidden even before the first layout.
         // Do not count time waiting for its first visible paint as active motion.
         self.suspend_hidden_animations();
@@ -599,6 +604,9 @@ impl View {
                 .text_color(rgba(0xe8ad36ff))
                 .focus(|style| style.border_color(rgba(0x6688ffff)));
         }
+        if node.number_input.is_some() {
+            element = element.min_w(px(80.)).w(px(180.));
+        }
         if let Some(slider) = &node.slider {
             element = element
                 .relative()
@@ -706,6 +714,10 @@ impl View {
                 .is_some_and(|config| config.disabled())
             || node.pointer.as_ref().is_some_and(|config| config.disabled)
             || node.choice.as_ref().is_some_and(|config| config.disabled)
+            || node
+                .number_input
+                .as_ref()
+                .is_some_and(|n| n.config.disabled)
             || node.rating.as_ref().is_some_and(|config| config.disabled)
             || node
                 .slider
@@ -847,6 +859,10 @@ impl View {
                 if editor.focus_handle(cx).is_focused(window) {
                     element.style().refine(&style);
                 }
+            } else if let Some(number) = self.numbers.get(&id) {
+                if number.focus_handle(cx).is_focused(window) {
+                    element.style().refine(&style);
+                }
             } else if let Some(slider) = self.sliders.get(&id) {
                 if slider
                     .borrow()
@@ -933,6 +949,8 @@ impl View {
                 window,
                 cx,
             );
+        } else if let Some(number) = self.numbers.get(&id) {
+            element = number.element(element, interaction.pointer, cx);
         } else if node.slider.is_some() {
             self.visited.insert(id);
             if let Some(state) = self.sliders.get(&id) {
@@ -1134,6 +1152,7 @@ impl View {
             && node.choice.is_none()
             && node.rating.is_none()
             && node.slider.is_none()
+            && node.number_input.is_none()
             && node.overlay.is_none()
             && node.pointer.is_none()
             && node.image.is_none()
@@ -1191,6 +1210,7 @@ impl View {
             .editors
             .get(&id)
             .map(|editor| editor.focus_handle(cx))
+            .or_else(|| self.numbers.get(&id).map(|number| number.focus_handle(cx)))
             .or_else(|| self.buttons.get(&id).map(|button| button.focus.clone()))
             .or_else(|| {
                 self.selections
@@ -1317,7 +1337,7 @@ impl View {
         let id = node.id;
         let element = crate::semantics::State {
             hidden: !self.focus.borrow().visible(node.id),
-            metadata: if node.editor.is_none() {
+            metadata: if node.editor.is_none() && node.number_input.is_none() {
                 node.accessibility.clone()
             } else {
                 None
@@ -1325,7 +1345,11 @@ impl View {
             live: None,
             element,
             disabled,
-            read_only: node.rating.as_ref().is_some_and(|config| config.read_only)
+            read_only: node
+                .number_input
+                .as_ref()
+                .is_some_and(|n| n.config.read_only)
+                || node.rating.as_ref().is_some_and(|config| config.read_only)
                 || node
                     .slider
                     .as_ref()
@@ -1514,6 +1538,10 @@ impl Render for View {
                     .values()
                     .any(|state| state.focus.is_focused(window))
                 || self.focus.borrow().contains_focus(window)
+                || self
+                    .numbers
+                    .values()
+                    .any(|number| number.focus_handle(cx).is_focused(window))
                 || self.sliders.values().any(|state| {
                     state
                         .borrow()
@@ -1766,6 +1794,15 @@ pub fn run(transport: Arc<Transport>) {
                                 }
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),
                             }
+                        }
+                        Message::NumberInputCommand(correlation, id, node, command) => {
+                            use gpuio_protocol::number_input::{Error, Response};
+                            let result = windows.get(&id).and_then(|handle| handle.update(cx, |view, window, cx| {
+                                let result = view.numbers.get(&node).map(|number| number.command(&command, window, cx)).unwrap_or(Response::Failed(Error::StaleInput));
+                                cx.notify();
+                                result
+                            }).ok()).unwrap_or(Response::Failed(Error::Closed));
+                            transport.respond(Event::NumberInputResult(correlation, id, node, result));
                         }
                         Message::SliderCommand(correlation, id, node, command) => {
                             use gpuio_protocol::slider::{Error, Response};

@@ -119,8 +119,17 @@ impl View {
             .iter()
             .find(|(_, editor)| editor.focus_handle(cx).is_focused(window))
             .map(|(node, _)| *node)
+            .or_else(|| {
+                self.numbers
+                    .iter()
+                    .find(|(_, number)| number.focus_handle(cx).is_focused(window))
+                    .map(|(node, _)| *node)
+            })
             .or_else(|| self.focus.borrow().last_editor())
-            .filter(|node| self.editors.contains_key(node) && self.focus.borrow().allows(*node))
+            .filter(|node| {
+                (self.editors.contains_key(node) || self.numbers.contains_key(node))
+                    && self.focus.borrow().allows(*node)
+            })
     }
     pub(super) fn command_available(
         &self,
@@ -137,7 +146,11 @@ impl View {
         let Some(editor) = self.command_editor(window, cx) else {
             return false;
         };
-        self.editors[&editor].command_available(action, cx)
+        if let Some(number) = self.numbers.get(&editor) {
+            number.command_available(action, cx)
+        } else {
+            self.editors[&editor].command_available(action, cx)
+        }
     }
 
     pub(super) fn invoke_command(
@@ -201,7 +214,12 @@ impl View {
                 };
                 // Toolbar/button activation may have moved focus. Native edit
                 // actions deliberately return it to the retained editing target.
-                window.focus(&self.editors[&editor].focus_handle(cx), cx);
+                let focus = self
+                    .numbers
+                    .get(&editor)
+                    .map(|number| number.focus_handle(cx))
+                    .unwrap_or_else(|| self.editors[&editor].focus_handle(cx));
+                window.focus(&focus, cx);
                 let action: Box<dyn gpui::Action> = match action {
                     NativeCommand::Copy => Box::new(gpui_base::input::Copy),
                     NativeCommand::Cut => Box::new(gpui_base::input::Cut),
@@ -256,9 +274,14 @@ impl View {
         let palette = self.palettes.values().find(|state| {
             !state.closed && state.query.read(cx).focus_handle(cx).is_focused(window)
         });
-        let composing = editor.is_some_and(|editor| editor.is_composing(cx))
+        let number = self
+            .numbers
+            .values()
+            .find(|number| number.focus_handle(cx).is_focused(window));
+        let composing = number.is_some_and(|number| number.is_composing(cx))
+            || editor.is_some_and(|editor| editor.is_composing(cx))
             || palette.is_some_and(|state| state.query.read(cx).bridge_composition().is_some());
-        let editing = editor.is_some() || palette.is_some();
+        let editing = editor.is_some() || number.is_some() || palette.is_some();
         let route = {
             let session = self.session.borrow();
             let Some(tree) = session.tree(self.id) else {

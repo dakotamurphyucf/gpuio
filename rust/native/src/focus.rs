@@ -142,6 +142,10 @@ impl Manager {
                 .is_some_and(|config| config.disabled)
             || item.control.is_some_and(Control::disabled)
             || item.editor.as_ref().is_some_and(|config| config.disabled)
+            || item
+                .number_input
+                .as_ref()
+                .is_some_and(|n| n.config.disabled)
             || item.choice.as_ref().is_some_and(|config| config.disabled)
             || item.rating.as_ref().is_some_and(|config| config.disabled)
             || item
@@ -393,7 +397,7 @@ impl Manager {
                 .borrow()
                 .tree(self.window)
                 .and_then(|tree| tree.get(node))
-                .is_some_and(|node| node.editor.is_some())
+                .is_some_and(|node| node.editor.is_some() || node.number_input.is_some())
         {
             self.last_editor = Some(node);
         }

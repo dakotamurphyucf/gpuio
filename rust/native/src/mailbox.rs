@@ -33,6 +33,12 @@ fn event_bytes(event: &Event) -> usize {
         | Event::PaletteDismissed(_, _, _, _, PaletteDismissal::Selected(id)) => id.len(),
         Event::ComboboxSelected(_, _, _, _, id, snapshot) => id.len() + snapshot.text.len(),
         Event::NumberInputEvent(_, _, _, _, event) => event.snapshot().draft.len(),
+        Event::NumberInputResult(
+            _,
+            _,
+            _,
+            gpuio_protocol::number_input::Response::Applied(snapshot),
+        ) => snapshot.draft.len(),
         Event::EditorEvent(_, _, _, _, _, snapshot)
         | Event::EditorResult(_, _, _, EditorResult::Applied(snapshot)) => snapshot.text.len(),
         _ => 0,
@@ -334,6 +340,7 @@ impl Mailbox {
             | Event::PaletteDismissed(id, ..)
             | Event::ComboboxSelected(id, ..)
             | Event::SliderResult(_, id, ..)
+            | Event::NumberInputResult(_, id, ..)
             | Event::EditorResult(_, id, ..)
             | Event::FileDialogResult(_, id, ..)
             | Event::Overloaded(id) => id.slot() == window_slot,

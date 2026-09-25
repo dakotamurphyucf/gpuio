@@ -864,6 +864,7 @@ module Message = struct
     | Open_configured of int64 * Window_id.t * Window.Config.t
     | Canvas of int64 * Canvas.Request.t
     | Slider_command of int64 * Window_id.t * Node_id.t * Slider.Command.t
+    | Number_input_command of int64 * Window_id.t * Node_id.t * Number_input.Command.t
   [@@deriving bin_io, equal, sexp_of]
 
   let encode t =
@@ -876,6 +877,8 @@ module Message = struct
         || not
              (Window.valid_title config.title
               && Window.valid_size config.width config.height)
+      | Number_input_command (correlation, _, _, command) ->
+        Int64.(correlation <= 0L) || not (Number_input.Command.valid command)
       | Slider_command (correlation, _, _, command) ->
         Int64.(correlation <= 0L) || not (Slider.Command.valid command)
       | Canvas (correlation, request) ->
@@ -1015,6 +1018,7 @@ module Event = struct
     | Slider_result of int64 * Window_id.t * Node_id.t * Slider.Response.t
     | Number_input_event of
         Window_id.t * Node_id.t * Handler_id.t * int64 * Number_input.Event.t
+    | Number_input_result of int64 * Window_id.t * Node_id.t * Number_input.Response.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1075,6 +1079,8 @@ module Event = struct
       Int64.(revision >= 0L) && Or_error.is_ok (List_wire.Viewport.validate viewport)
     | Slider_result (request, _, _, result) ->
       Int64.(request > 0L) && Slider.Response.valid result
+    | Number_input_result (request, _, _, result) ->
+      Int64.(request > 0L) && Number_input.Response.valid result
     | Number_input_event (_, _, _, revision, event) ->
       Int64.(revision >= 0L) && Number_input.Event.valid event
     | Slider_event (_, _, _, revision, event) ->

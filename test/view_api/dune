@@ -12,6 +12,8 @@
    avatar-request.hex
    rating-request.hex
    rating-events.hex
+   number-input-command-request.hex
+   number-input-command-events.hex
    number-input-request.hex
    number-input-events.hex
    number-input-config.hex

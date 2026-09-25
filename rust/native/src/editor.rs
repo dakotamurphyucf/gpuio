@@ -214,7 +214,7 @@ fn configure<M: InputModeKind>(
     }));
 }
 
-fn apply<M: InputModeKind>(
+pub(super) fn apply<M: InputModeKind>(
     state: &mut InputBaseState<M>,
     command: &EditorCommand,
     single_line: bool,

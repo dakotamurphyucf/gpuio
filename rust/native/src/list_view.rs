@@ -151,6 +151,10 @@ impl View {
                 (editor.is_composing(cx) || editor.focus_handle(cx).is_focused(window))
                     .then_some(*id)
             })
+            .chain(self.numbers.iter().filter_map(|(id, number)| {
+                (number.is_composing(cx) || number.focus_handle(cx).is_focused(window))
+                    .then_some(*id)
+            }))
             .chain(
                 self.documents
                     .iter()

@@ -84,6 +84,15 @@ module Window : sig
       -> Gpuio.Slider.Snapshot.t
       -> Gpuio.Slider.Command.t
       -> (Gpuio.Slider.Snapshot.t, Gpuio.Slider.Command_error.t) Result.t Bonsai.Effect.t
+
+    (** Correlated numeric commands bound to the observed window/node lease;
+        at most 64 requests pending. Closing completes them with [Closed]. *)
+    val number_input_command
+      :  t
+      -> Gpuio.Number_input.Snapshot.t
+      -> Gpuio.Number_input.Command.t
+      -> (Gpuio.Number_input.Snapshot.t, Gpuio.Number_input.Command_error.t) Result.t
+           Bonsai.Effect.t
   end
 end
 

@@ -538,3 +538,61 @@ fn retained_envelopes_match_independent_fixtures_and_validate_configuration() {
         assert_eq!(decode(&encode(&request)), Ok(request));
     }
 }
+
+#[test]
+fn correlated_commands_use_distinct_tags_and_reject_bad_envelopes() {
+    use gpuio_protocol::{NodeId, WindowId, decode, v1};
+    let window = WindowId::from_parts(0, 1).unwrap();
+    let node = NodeId::from_parts(0, 1).unwrap();
+    fixture(
+        v1::Message::NumberInputCommand(
+            9,
+            window,
+            node,
+            Command::ReplaceDraft {
+                text: "1e-".into(),
+                selection: SelectionPolicy::Select(Selection { anchor: 3, head: 0 }),
+                undo: UndoPolicy::Reset,
+                if_revision: Some(7),
+            },
+        ),
+        include_str!("../../../test/fixtures/number-input-command-request.hex"),
+        decode,
+    );
+    let events = vec![v1::Event::NumberInputResult(
+        9,
+        window,
+        node,
+        Response::Applied(settled()),
+    )];
+    let hex: String = encode(&events).iter().map(|b| format!("{b:02x}")).collect();
+    assert_eq!(
+        hex,
+        include_str!("../../../test/fixtures/number-input-command-events.hex").trim()
+    );
+    for correlation in [0, -1] {
+        assert!(
+            decode(&encode(&v1::Message::NumberInputCommand(
+                correlation,
+                window,
+                node,
+                Command::ReadSnapshot
+            )))
+            .is_err()
+        );
+    }
+    assert!(
+        decode(&encode(&v1::Message::NumberInputCommand(
+            9,
+            window,
+            node,
+            Command::ReplaceDraft {
+                text: "a\nb".into(),
+                selection: SelectionPolicy::End,
+                undo: UndoPolicy::Record,
+                if_revision: None
+            }
+        )))
+        .is_err()
+    );
+}

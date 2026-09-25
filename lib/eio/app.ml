@@ -4,6 +4,7 @@ module Guard = Gpuio_runtime_core.Domain_guard
 module Driver = Gpuio_runtime_core.Window_driver
 module Input = Gpuio.Text_input
 module Slider = Gpuio.Slider
+module Number_input = Gpuio.Number_input
 module Dialog = Gpuio.File_dialog
 module Native_window = Gpuio.Window
 
@@ -19,6 +20,12 @@ type slider_request =
   { window : Window_id.t
   ; node : Node_id.t
   ; complete : (Slider.Snapshot.t, Slider.Command_error.t) Result.t -> unit
+  }
+
+type number_input_request =
+  { window : Window_id.t
+  ; node : Node_id.t
+  ; complete : (Number_input.Snapshot.t, Number_input.Command_error.t) Result.t -> unit
   }
 
 type window_result = (Native_window.Snapshot.t, Native_window.Error.t) Result.t
@@ -67,6 +74,7 @@ type t =
   ; mutable frames : (Window_id.t * (revision:int64 -> unit Bonsai.Effect.t)) Int64.Map.t
   ; mutable editors : editor_request Int64.Map.t
   ; mutable sliders : slider_request Int64.Map.t
+  ; mutable number_inputs : number_input_request Int64.Map.t
   ; mutable dialogs : dialog_request Int64.Map.t
   ; mutable window_requests : window_request Int64.Map.t
   ; mutable window_capabilities : Native_window.Capabilities.t option
@@ -296,6 +304,12 @@ let release_window window =
     in
     window.app.sliders <- remaining_sliders;
     Map.iter cancelled_sliders ~f:(fun request -> request.complete (Error Closed));
+    let cancelled_number_inputs, remaining_number_inputs =
+      Map.partition_tf window.app.number_inputs ~f:(fun request ->
+        Window_id.equal request.window window.id)
+    in
+    window.app.number_inputs <- remaining_number_inputs;
+    Map.iter cancelled_number_inputs ~f:(fun request -> request.complete (Error Closed));
     Map.iter cancelled ~f:(fun request -> request.complete (Error Closed));
     let cancelled_dialogs, remaining_dialogs =
       Map.partition_tf window.app.dialogs ~f:(fun request ->
@@ -492,6 +506,50 @@ module Window = struct
           queue
             t.app
             (Slider_command (request, t.id, node, Slider.Expert.command_to_wire command))))
+    ;;
+
+    let number_input_command t snapshot command =
+      Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+        check t.app;
+        let command = Number_input.Expert.command_to_wire command in
+        let invalid : Number_input.Command_error.t option =
+          let module W = Gpuio_protocol.Number_input_wire in
+          match command with
+          | W.Command.Replace_draft { text; selection; _ } ->
+            if String.length text > Number_input.max_draft_bytes
+            then Some Limit_exceeded
+            else if not (W.valid_text text)
+            then Some Invalid_text
+            else if not (W.Selection_policy.within selection text)
+            then Some Invalid_selection
+            else None
+          | Replace_value { value; selection; _ } ->
+            if not (W.Value.valid value)
+            then Some Invalid_value
+            else if not (W.Selection_policy.valid selection)
+            then Some Invalid_selection
+            else None
+          | Select selection ->
+            if W.Selection.valid selection then None else Some Invalid_selection
+          | Focus | Undo | Redo | Commit | Cancel | Step _ | Read_snapshot -> None
+        in
+        if is_closed t || t.app.stopping
+        then callback (Error Number_input.Command_error.Closed)
+        else if Option.is_some invalid
+        then callback (Error (Option.value_exn invalid))
+        else if not (Window_id.equal t.id (Number_input.Expert.window snapshot))
+        then callback (Error Stale_input)
+        else if Map.length t.app.number_inputs >= 64
+        then callback (Error Busy)
+        else (
+          let request = correlation t.app in
+          let node = Number_input.Expert.node snapshot in
+          t.app.number_inputs
+          <- Map.set
+               t.app.number_inputs
+               ~key:request
+               ~data:{ window = t.id; node; complete = callback };
+          queue t.app (Number_input_command (request, t.id, node, command))))
     ;;
 
     let editor_command t snapshot command =
@@ -804,6 +862,20 @@ let process t = function
        in
        pending.complete result
      | Some _ | None -> ())
+  | Number_input_result (request, id, node, result) ->
+    (match Map.find t.number_inputs request with
+     | Some pending
+       when Window_id.equal pending.window id && Node_id.equal pending.node node ->
+       t.number_inputs <- Map.remove t.number_inputs request;
+       let result =
+         match result with
+         | Failed error -> Error (Number_input.Expert.error_of_wire error)
+         | Applied snapshot ->
+           Number_input.Expert.snapshot_of_wire ~window:id ~node snapshot
+           |> Result.map_error ~f:(fun _ -> Number_input.Command_error.Native_failure)
+       in
+       pending.complete result
+     | Some _ | None -> ())
   | Editor_result (request, id, node, result) ->
     (match Map.find t.editors request with
      | Some pending
@@ -870,6 +942,24 @@ let process t = function
       match code with
       | Closed -> Closed
       | Stale_handle -> Stale_slider
+      | Busy | Overloaded -> Busy
+      | Limit_exceeded -> Limit_exceeded
+      | Unsupported_version
+      | Unsupported_capability
+      | Malformed
+      | Not_ready
+      | Invalid_revision
+      | Invalid_tree
+      | Native_failure -> Native_failure
+    in
+    pending.complete (Error error)
+  | Failed (request, code) when Map.mem t.number_inputs request ->
+    let pending = Map.find_exn t.number_inputs request in
+    t.number_inputs <- Map.remove t.number_inputs request;
+    let error : Number_input.Command_error.t =
+      match code with
+      | Closed -> Closed
+      | Stale_handle -> Stale_input
       | Busy | Overloaded -> Busy
       | Limit_exceeded -> Limit_exceeded
       | Unsupported_version
@@ -1073,6 +1163,7 @@ let worker native read ~tick_hz ~max_tasks ~motion initialize =
         ; frames = Int64.Map.empty
         ; editors = Int64.Map.empty
         ; sliders = Int64.Map.empty
+        ; number_inputs = Int64.Map.empty
         ; dialogs = Int64.Map.empty
         ; window_requests = Int64.Map.empty
         ; window_capabilities = None

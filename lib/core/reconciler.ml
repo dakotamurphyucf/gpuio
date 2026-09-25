@@ -1812,6 +1812,7 @@ let dispatch t = function
   | Rating_requested _
   | Slider_result _
   | Slider_event _
+  | Number_input_result _
   | Number_input_event _
   | Container_selected _
   | List_retained _

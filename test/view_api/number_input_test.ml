@@ -56,6 +56,42 @@ let fixture fs name writer value =
   assert (String.equal (hex bytes) (Eio.Path.load Eio.Path.(fs / name) |> String.strip))
 ;;
 
+let%expect_test "numeric commands and replies match independent envelopes" =
+  let module Wire = Gpuio_protocol.Wire in
+  let events_bytes events = encode [%bin_writer: Wire.Event.t list] events in
+  let command =
+    W.Command.Replace_draft
+      { text = "1e-"
+      ; selection = Select { anchor = 3L; head = 0L }
+      ; undo = Reset
+      ; if_revision = Some 7L
+      }
+  in
+  let request = Wire.Message.Number_input_command (9L, window, node, command) in
+  let event = Wire.Event.Number_input_result (9L, window, node, Applied settled) in
+  Eio_main.run (fun env ->
+    let fs = Eio.Stdenv.fs env in
+    assert (
+      String.equal
+        (Wire.Message.encode request |> ok |> hex)
+        (Eio.Path.load Eio.Path.(fs / "number-input-command-request.hex") |> String.strip));
+    assert (
+      String.equal
+        (events_bytes [ event ] |> hex)
+        (Eio.Path.load Eio.Path.(fs / "number-input-command-events.hex") |> String.strip)));
+  assert (Result.is_ok (Wire.Event.decode (events_bytes [ event ])));
+  List.iter [ 0L; -1L ] ~f:(fun request ->
+    assert (
+      Result.is_error
+        (Wire.Message.encode (Number_input_command (request, window, node, command))));
+    assert (
+      Result.is_error
+        (Wire.Event.decode
+           (events_bytes [ Number_input_result (request, window, node, Applied settled) ]))));
+  print_endline "numeric command/reply tags, owner IDs, guard, and correlation validation";
+  [%expect {| numeric command/reply tags, owner IDs, guard, and correlation validation |}]
+;;
+
 let%expect_test "numeric editor contracts match independent fixtures" =
   let replace_draft =
     N.Command.Replace_draft

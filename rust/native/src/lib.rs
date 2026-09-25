@@ -193,3 +193,8 @@ pub fn run_native_slider_test() {
 
 pub mod number_input_state;
 pub mod slider_state;
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_number_input_test() {
+    host::number_input_view::test::run();
+}
