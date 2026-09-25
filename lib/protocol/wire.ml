@@ -8,6 +8,7 @@ module Avatar = Avatar_wire
 module Rating = Rating_wire
 module Slider = Slider_wire
 module Number_input = Number_input_wire
+module Otp_input = Otp_wire
 module Container_query = Container_query_wire
 module Animation_program = Animation_program_wire
 module Document = Document_wire
@@ -62,6 +63,7 @@ module Kind = struct
     | Rating
     | Slider
     | Number_input
+    | Otp_input
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -723,6 +725,7 @@ module Op = struct
     | Set_rating of Node_id.t * Rating.Config.t
     | Set_slider of Node_id.t * Slider.Config.t * Slider.Value.t
     | Set_number_input of Node_id.t * Number_input.Config.t * Number_input.Value.t
+    | Set_otp_input of Node_id.t * Otp_input.Config.t * string
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -1019,6 +1022,8 @@ module Event = struct
     | Number_input_event of
         Window_id.t * Node_id.t * Handler_id.t * int64 * Number_input.Event.t
     | Number_input_result of int64 * Window_id.t * Node_id.t * Number_input.Response.t
+    | Otp_input_event of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Otp_input.Event.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1081,6 +1086,8 @@ module Event = struct
       Int64.(request > 0L) && Slider.Response.valid result
     | Number_input_result (request, _, _, result) ->
       Int64.(request > 0L) && Number_input.Response.valid result
+    | Otp_input_event (_, _, _, revision, event) ->
+      Int64.(revision >= 0L) && Otp_input.Event.valid event
     | Number_input_event (_, _, _, revision, event) ->
       Int64.(revision >= 0L) && Number_input.Event.valid event
     | Slider_event (_, _, _, revision, event) ->

@@ -857,6 +857,7 @@ impl Decoder<'_> {
                     36 => Kind::Rating,
                     37 => Kind::Slider,
                     38 => Kind::NumberInput,
+                    39 => Kind::OtpInput,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -935,6 +936,15 @@ impl Decoder<'_> {
             42 => Op::SetRating(self.node()?, self.rating_config()?),
             43 => Op::SetSlider(self.node()?, self.slider_config()?, self.slider_value()?),
             44 => Op::SetNumberInput(self.node()?, self.number_config()?, self.number_value()?),
+            45 => {
+                let node = self.node()?;
+                let config = self.otp_config()?;
+                let initial = self.bounded_text(32)?;
+                if !config.policy.canonical(&initial) {
+                    return Err(DecodeError::Malformed);
+                }
+                Op::SetOtpInput(node, config, initial)
+            }
             34 => {
                 let id = self.node()?;
                 let config = crate::split::Config {

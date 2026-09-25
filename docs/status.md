@@ -135,7 +135,11 @@ Core configuration/snapshot/event/command contracts and standalone paired codecs
 now validate historical policies, Unicode boundaries, revision guards and bounded
 payloads. The native state owner now implements guarded commands, permissions,
 ordered completion, composition cleanup and clipboard/focus callback admission;
-retained transport and GPUI platform integration still remain. See
+retained view/configuration admission and observation dispatch now enforce stable
+seeds, immutable policies and identity/revision fences. Mailbox completion pairs
+have atomic count/byte admission with semantic coalescing boundaries. GPUI platform
+integration, transport publication, command/result correlation and controllers
+still remain. See
 [OTP contract and integration requirements](design/otp-inputs.md).
 See [numeric design](design/numeric-inputs.md) and
 [foundation evidence](evidence/numeric-inputs-och34.md).

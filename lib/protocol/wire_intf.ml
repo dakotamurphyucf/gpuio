@@ -10,6 +10,7 @@ module type S = sig
   module Rating = Rating_wire
   module Slider = Slider_wire
   module Number_input = Number_input_wire
+  module Otp_input = Otp_wire
   module Container_query = Container_query_wire
   module Animation_program = Animation_program_wire
   module Document = Document_wire
@@ -65,6 +66,7 @@ module type S = sig
       | Rating
       | Slider
       | Number_input
+      | Otp_input
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -725,6 +727,7 @@ module type S = sig
       | Set_rating of Node_id.t * Rating.Config.t
       | Set_slider of Node_id.t * Slider.Config.t * Slider.Value.t
       | Set_number_input of Node_id.t * Number_input.Config.t * Number_input.Value.t
+      | Set_otp_input of Node_id.t * Otp_input.Config.t * string
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -949,6 +952,8 @@ module type S = sig
       | Number_input_event of
           Window_id.t * Node_id.t * Handler_id.t * int64 * Number_input.Event.t
       | Number_input_result of int64 * Window_id.t * Node_id.t * Number_input.Response.t
+      | Otp_input_event of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Otp_input.Event.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

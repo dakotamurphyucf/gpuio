@@ -41,6 +41,12 @@ pub struct NumberInputMount {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct OtpInputMount {
+    pub config: Arc<gpuio_protocol::otp_input::Config>,
+    pub initial: Arc<str>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct Node {
     pub id: NodeId,
     pub kind: Kind,
@@ -62,6 +68,7 @@ pub struct Node {
     pub rating: Option<Arc<gpuio_protocol::rating::Config>>,
     pub slider: Option<SliderMount>,
     pub number_input: Option<NumberInputMount>,
+    pub otp_input: Option<OtpInputMount>,
     pub extension: Option<Arc<gpuio_protocol::extension::Config>>,
     pub extension_command: Option<Arc<gpuio_protocol::extension::Command>>,
     pub split: Option<Arc<gpuio_protocol::split::Config>>,
@@ -91,9 +98,13 @@ pub struct Node {
 
 impl Node {
     fn payload_bytes(&self) -> usize {
-        self.number_input
+        self.otp_input
             .as_ref()
-            .map_or(0, |s| s.config.retained_bytes())
+            .map_or(0, |s| s.config.retained_bytes() + s.initial.len())
+            + self
+                .number_input
+                .as_ref()
+                .map_or(0, |s| s.config.retained_bytes())
             + self
                 .slider
                 .as_ref()
@@ -571,6 +582,19 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
+                if (node.kind == Kind::OtpInput) != node.otp_input.is_some()
+                    || node.otp_input.as_ref().is_some_and(|input| {
+                        !input.config.is_valid()
+                            || !input.config.policy.canonical(&input.initial)
+                            || !node.text.is_empty()
+                            || !node.children.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                            || node.handler.is_none()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 if (node.kind == Kind::NumberInput) != node.number_input.is_some()
                     || node.number_input.as_ref().is_some_and(|number_input| {
                         !number_input.config.is_valid()
@@ -758,6 +782,7 @@ impl Tree {
                     | Kind::Rating
                     | Kind::Slider
                     | Kind::NumberInput
+                    | Kind::OtpInput
                     | Kind::TabPanel
                     | Kind::SplitPane
                     | Kind::Extension
@@ -1117,6 +1142,7 @@ impl Plan<'_> {
             | Op::SetRating(id, ..)
             | Op::SetSlider(id, ..)
             | Op::SetNumberInput(id, ..)
+            | Op::SetOtpInput(id, ..)
             | Op::SetListConfig(id, ..)
             | Op::SetListOrder(id, ..)
             | Op::SetListRows(id, ..)
@@ -1218,6 +1244,7 @@ impl Plan<'_> {
                             rating: None,
                             slider: None,
                             number_input: None,
+                            otp_input: None,
                             extension: None,
                             extension_command: None,
                             split: None,
@@ -1429,6 +1456,28 @@ impl Plan<'_> {
                 self.node_mut(*id)?.slider = Some(SliderMount {
                     config: Arc::new(config.clone()),
                     initial: *initial,
+                });
+            }
+            Op::SetOtpInput(id, config, initial) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::OtpInput
+                    || !config.is_valid()
+                    || !config.policy.canonical(initial)
+                    || node
+                        .otp_input
+                        .as_ref()
+                        .is_some_and(|old| old.config.policy != config.policy)
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                // Rerendered seeds never replace an existing placement's original seed.
+                let initial = node
+                    .otp_input
+                    .as_ref()
+                    .map_or_else(|| Arc::from(initial.as_str()), |old| old.initial.clone());
+                self.node_mut(*id)?.otp_input = Some(OtpInputMount {
+                    config: Arc::new(config.clone()),
+                    initial,
                 });
             }
             Op::SetNumberInput(id, config, initial) => {

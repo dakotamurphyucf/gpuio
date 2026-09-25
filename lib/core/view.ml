@@ -42,6 +42,7 @@ module Kind = struct
     | Rating
     | Slider
     | Number_input
+    | Otp_input
   [@@deriving equal, sexp_of]
 end
 
@@ -90,6 +91,13 @@ type 'action number_input =
   ; config : Number_input.Config.t
   ; initial : Number_input.Value.t
   ; on_event : Number_input.Event.t -> 'action
+  }
+
+type 'action otp_input =
+  { controller : Key.t
+  ; config : Otp_input.Config.t
+  ; initial : Otp_input.Value.t
+  ; on_event : Otp_input.Event.t -> 'action
   }
 
 type 'action rating =
@@ -229,6 +237,7 @@ type 'action t =
   ; rating : 'action rating option
   ; slider : 'action slider option
   ; number_input : 'action number_input option
+  ; otp_input : 'action otp_input option
   ; animation : 'action animation option
   ; animation_program : 'action animation_program option
   ; container_query : 'action container_query option
@@ -271,6 +280,7 @@ let text ?key ?(style = Style.empty) text =
   ; rating = None
   ; slider = None
   ; number_input = None
+  ; otp_input = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -312,7 +322,8 @@ let with_accessibility t accessibility =
         | Select
         | Rating
         | Slider
-        | Number_input ) ) -> true
+        | Number_input
+        | Otp_input ) ) -> true
     | None, Some Link, (Button | Command_button) -> true
     | ( None
       , Some
@@ -342,7 +353,8 @@ let with_accessibility t accessibility =
         | Select
         | Rating
         | Slider
-        | Number_input ) ) -> true
+        | Number_input
+        | Otp_input ) ) -> true
     | _ -> false
   in
   if supported
@@ -401,6 +413,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; rating = None
   ; slider = None
   ; number_input = None
+  ; otp_input = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -503,6 +516,7 @@ let button
   ; rating = None
   ; slider = None
   ; number_input = None
+  ; otp_input = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -577,6 +591,7 @@ let toggle
   ; rating = None
   ; slider = None
   ; number_input = None
+  ; otp_input = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -635,6 +650,7 @@ let focus_scope ?key ?style ~config children =
   ; rating = None
   ; slider = None
   ; number_input = None
+  ; otp_input = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -948,6 +964,7 @@ let text_input
   ; rating = None
   ; slider = None
   ; number_input = None
+  ; otp_input = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -991,6 +1008,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; rating = None
   ; slider = None
   ; number_input = None
+  ; otp_input = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -1060,6 +1078,7 @@ let combobox
   ; rating = None
   ; slider = None
   ; number_input = None
+  ; otp_input = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -1108,6 +1127,13 @@ let number_input ?(style = Style.empty) ~controller ~config ~initial ~on_event (
   { (text ~key:controller ~style "") with
     kind = Number_input
   ; number_input = Some { controller; config; initial; on_event }
+  }
+;;
+
+let otp_input ?(style = Style.empty) ~controller ~config ~initial ~on_event () =
+  { (text ~key:controller ~style "") with
+    kind = Otp_input
+  ; otp_input = Some { controller; config; initial; on_event }
   }
 ;;
 
@@ -1260,6 +1286,13 @@ module Expert = struct
     ; on_event : Number_input.Event.t -> 'action
     }
 
+  type nonrec 'action otp_input = 'action otp_input =
+    { controller : Key.t
+    ; config : Otp_input.Config.t
+    ; initial : Otp_input.Value.t
+    ; on_event : Otp_input.Event.t -> 'action
+    }
+
   type nonrec 'action rating = 'action rating =
     { config : Rating.Config.t
     ; on_request : Rating.Request.t -> 'action
@@ -1360,6 +1393,7 @@ module Expert = struct
     ; rating : 'action rating option
     ; slider : 'action slider option
     ; number_input : 'action number_input option
+    ; otp_input : 'action otp_input option
     ; animation : 'action animation option
     ; animation_program : 'action animation_program option
     ; container_query : 'action container_query option

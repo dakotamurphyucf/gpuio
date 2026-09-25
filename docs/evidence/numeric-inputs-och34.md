@@ -1004,3 +1004,53 @@ tests; a pure coalescing test does not establish those properties in the bridge.
 No GPUI window, OS clipboard, IME or accessibility service was exercised in this
 checkpoint. The owner is ready for retained/native integration; rendering,
 platform callbacks, controller/event delivery and actual acceptance remain open.
+
+
+## OTP retained view and observation bridge
+
+The retained bridge now appends Kind 39, configuration operation 45 and observation
+event 48 without changing previous tags. `View.otp_input` and reconciliation retain
+controller identity and one-time seeds, reject policy changes and duplicate
+controllers atomically, and route current typed callbacks behind window/node/
+handler/tree/native-revision fences. Native tree admission enforces the same
+policy lifetime and accounts configuration/seed storage through removal and
+remount. Disabled/read-only cleanup observations remain deliverable.
+
+The mailbox accounts accepted value plus draft, coalesces adjacent Changed events
+only under the same route/policy, and preserves semantic/response boundaries.
+Atomic Changed/Complete admission checks the entire pair and its byte/count budget
+before replacing a coalescible predecessor. Quota failure cannot overwrite a prior
+observation or expose half a completion.
+
+Local macOS validation through the isolated project toolchain:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @test/view_api/runtest @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-protocol --test otp_input -j 2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-native --test otp_input -j 2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-native --lib --tests -j 2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --all-targets --features native-tests -j 2 -- -D warnings
+```
+
+All pass. Two new Core expect groups and the fifth Rust protocol test pin independent
+request/event fixtures, truncation/full-consumption behavior and invalid payloads.
+Five native retained tests cover atomic admission/rollback, original seed retention,
+weak-reference disposal, stale routes and policies, disabled cleanup, 10,000
+coalescible changes, semantic/response barriers, exact count limits and byte
+pressure with maximum preedit payloads. The full non-graphical native regression
+run passes 270 tests across 39 test groups. Clippy compiles the native-test targets
+but does not run graphical executables.
+
+This validates retained view/observation contracts and queue admission only. No
+native window was opened. The GPUI widget, actual transport publication,
+command/result correlation, public mounted controllers and native OTP acceptance
+remain pending. OCH-34 remains In Progress without a new capability; hosted CI,
+Linux desktop acceptance and milestone completion are not claimed.
+
+The full `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @fmt`
+also passes after adding explicit OTP observation cases to the older bridge and
+view examples. Exhaustiveness warnings caught those omissions; no wildcard was
+introduced to hide future protocol additions.
+
+The complete `cargo test --locked -p gpuio-protocol -j 2` regression suite
+and `cargo fmt --all --check` also pass through the isolated wrapper.

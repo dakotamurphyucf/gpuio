@@ -1,10 +1,11 @@
 # Segmented OTP inputs (OCH-34)
 
 Status: bounded text policy, atomic edit helpers, a platform-independent native
-editing model and native state owner, public Core contracts and standalone
-OCaml/Rust codecs are implemented. Native segmented rendering, platform editing integration, retained
-bridge envelopes and public Bonsai/Eio controllers are not implemented yet. No OTP capability is
-advertised. This document supplements [numeric inputs](numeric-inputs.md).
+editing model and native state owner, public Core contracts, retained view/event
+envelopes and OCaml/Rust codecs are implemented. Native segmented rendering,
+platform editing integration, command/result envelopes and public Bonsai/Eio
+controllers are not implemented yet. No OTP capability is advertised. This
+document supplements [numeric inputs](numeric-inputs.md).
 
 ## Implemented text contract
 
@@ -44,8 +45,9 @@ OCaml implementation: `lib/core/otp_input.{ml,mli}` and
 The policy encoding is length followed by alphabet (Digits=0,
 Ascii_alphanumeric=1). Independent tests pin six digits to `0600` and length-32
 alphanumeric to `2001`. The standalone contract codecs below add configuration,
-observations and commands; no OTP message, node kind, command/result envelope or
-observation envelope is registered yet.
+observations and commands. The retained bridge below registers a node kind,
+configuration operation and observation envelope; command/result envelopes remain
+pending.
 
 ## Public Core and standalone wire contracts
 
@@ -217,15 +219,50 @@ Ordinary configuration updates themselves do not cancel composition.
 The owner returns batches of at most two native events or one programmatic
 observation before its response. Adjacent Changed observations may coalesce only
 with increasing revisions under the same policy; Complete, Rejected, Observed
-and responses remain boundaries. The retained bridge still must enforce window/
-node/handler identities, admit and publish each batch in order, account retained
-bytes and fence old leases. No queue or GPUI entity is established by this owner.
+and responses remain boundaries. No queue or GPUI entity is established by this
+owner; the retained bridge below supplies routing and queue admission separately.
+
+### Implemented retained view and event bridge
+
+`View.otp_input` takes a controller key, configuration, initial value and typed
+event callback. Reconciliation checks that the seed fits the policy, rejects
+duplicate controller identities and preserves the native placement across ordinary
+rerenders. Changing the seed alone emits no operation. Configuration changes do
+not change the original retained seed; changing length or alphabet requires a new
+controller identity. Both OCaml reconciliation and native tree admission reject
+policy changes atomically. The native tree requires a valid configuration and
+handler even for disabled fields, rejects children/text/control payloads and
+accounts configuration and seed bytes until disposal.
+
+Appended wire tags are Kind 39 (`Otp_input`), operation 45 (`Set_otp_input`) and
+event 48 (`Otp_input_event`). Existing tags are unchanged. The event carries
+window, node, handler and tree revision in addition to the typed observation.
+Native routing rejects foreign generations/handlers, future or negative tree
+revisions, invalid observations and mismatched policies. Core additionally fences
+native revisions, including across callback refreshes and pending reconciliations.
+Disabled/read-only cleanup observations still reach the current callback; stale
+events cannot revive an unmounted or closed controller.
+
+Mailbox accounting charges both accepted value and preedit draft. Adjacent Changed
+observations coalesce only under matching window/node/handler/tree revision and
+policy, with increasing native revisions. Observed, Complete, Rejected and
+responses preserve their boundaries. `Mailbox::otp_completion` validates and
+admits the entire Changed/Complete pair under one lock. Count and byte checks
+precede replacing a coalescible tail, so admission failure leaves the old queue
+intact and never publishes half a completion. Complete must describe the same
+full, noncomposing snapshot with exactly the next revision.
+
+This checkpoint establishes retained admission and observation dispatch, not a
+renderable widget. The GPUI adapter still must create the native entity, route its
+events through session validation, use atomic completion admission, and fault
+unobservable input on overload. Transport publication and command/result
+correlation remain pending alongside the Bonsai/Eio controllers.
 
 ### Remaining native integration
 
 Implement and test:
 
-- Enforce immutable policy at native placement and in the public controller API.
+- Connect the retained placement to the native entity and public controller API.
 - Connect the accepted/preedit/history model to actual platform IME callbacks,
   keyboard routing and lifecycle cancellation; pure tests are not platform proof.
 - Preserve the tested revision and Changed/Complete ordering through real native

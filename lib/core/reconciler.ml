@@ -88,6 +88,7 @@ type 'a callback =
   | Rating of Rating.Config.t * (Rating.Request.t -> 'a)
   | Slider of Slider.Value.t * int64 ref * (Slider.Event.t -> 'a)
   | Number_input of int64 ref * (Number_input.Event.t -> 'a)
+  | Otp_input of Otp_input.Policy.t * int64 ref * (Otp_input.Event.t -> 'a)
   | Combobox of Combobox.Config.t * (Combobox.Event.t -> 'a)
 
 type 'a binding =
@@ -109,6 +110,7 @@ type 'a mounted =
   ; query_seen : int64 ref
   ; slider_seen : int64 ref
   ; number_input_seen : int64 ref
+  ; otp_input_seen : int64 ref
   ; list_identity : List_identity.t option
   ; choice_appearance : Wire.Choice_appearance.t option
   ; children : 'a mounted list
@@ -246,6 +248,7 @@ let kind = function
   | Rating -> Rating
   | Slider -> Slider
   | Number_input -> Number_input
+  | Otp_input -> Otp_input
   | Virtual_list -> Virtual_list
   | Canvas_view -> Canvas_view
   | Document_view -> Document_view
@@ -325,6 +328,9 @@ let rec mount builder ~depth previous view =
       match previous with
       | Some mounted -> mounted.id
       | None -> new_node builder
+    in
+    let otp_input_seen =
+      Option.value_map previous ~default:(ref (-1L)) ~f:(fun old -> old.otp_input_seen)
     in
     let number_input_seen =
       Option.value_map previous ~default:(ref (-1L)) ~f:(fun old -> old.number_input_seen)
@@ -481,6 +487,14 @@ let rec mount builder ~depth previous view =
       | Some input, None -> Some (Number_input (number_input_seen, input.on_event))
       | None, callback -> callback
       | Some _, Some _ -> fail "numeric input cannot combine another handler"
+    in
+    let callback =
+      match description.otp_input, callback with
+      | Some input, None ->
+        Some
+          (Otp_input (Otp_input.Config.policy input.config, otp_input_seen, input.on_event))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "OTP input cannot combine another handler"
     in
     let callback =
       match description.rating, callback with
@@ -888,6 +902,28 @@ let rec mount builder ~depth previous view =
              ( id
              , Number_input.Expert.config_to_wire number_input.config
              , Number_input.Expert.value_to_wire number_input.initial )));
+    Option.iter description.otp_input ~f:(fun input ->
+      let policy = Otp_input.Config.policy input.config in
+      if not (Otp_input.Value.fits input.initial ~policy)
+      then fail "OTP initial value is incompatible with its policy";
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          (View.Expert.describe mounted.view).otp_input)
+      in
+      Option.iter old ~f:(fun old ->
+        if not (Otp_input.Policy.equal (Otp_input.Config.policy old.config) policy)
+        then fail "OTP policy is immutable; remount with a new controller identity");
+      if
+        not
+          (Option.exists old ~f:(fun old ->
+             Otp_input.Config.equal old.config input.config))
+      then
+        emit
+          builder
+          (Set_otp_input
+             ( id
+             , Otp_input.Expert.config_to_wire input.config
+             , Otp_input.Expert.value_to_wire input.initial )));
     Option.iter description.rating ~f:(fun rating ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -1142,13 +1178,15 @@ let rec mount builder ~depth previous view =
             ( description.editor
             , description.combobox
             , description.slider
-            , description.number_input )
+            , description.number_input
+            , description.otp_input )
           with
-          | Some editor, None, None, None -> Some editor.controller
-          | None, Some combo, None, None -> Some combo.controller
-          | None, None, Some slider, None -> Some slider.controller
-          | None, None, None, Some input -> Some input.controller
-          | None, None, None, None -> None
+          | Some editor, None, None, None, None -> Some editor.controller
+          | None, Some combo, None, None, None -> Some combo.controller
+          | None, None, Some slider, None, None -> Some slider.controller
+          | None, None, None, Some input, None -> Some input.controller
+          | None, None, None, None, Some input -> Some input.controller
+          | None, None, None, None, None -> None
           | _ -> fail "incompatible controller descriptions"
         in
         Option.value_map controller ~default:String.Set.empty ~f:(fun key ->
@@ -1207,6 +1245,7 @@ let rec mount builder ~depth previous view =
     ; query_seen
     ; slider_seen
     ; number_input_seen
+    ; otp_input_seen
     ; list_identity
     ; choice_appearance
     ; children
@@ -1530,6 +1569,7 @@ let dispatch t = function
         | Rating _
         | Slider _
         | Number_input _
+        | Otp_input _
         | Choice _
         | Combobox _
         | Dismiss _
@@ -1592,6 +1632,32 @@ let dispatch t = function
        then None
        else (
          match Number_input.Expert.event_of_wire ~window ~node event with
+         | Error _ -> None
+         | Ok event ->
+           seen := snapshot.revision;
+           Some (callback event))
+     | Some _ | None -> None)
+  | Otp_input_event (window, node, handler, revision, event)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Otp_input (policy, seen, callback)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       let snapshot = Wire.Otp_input.Event.snapshot event in
+       if
+         Int64.(snapshot.revision <= !seen)
+         || not
+              (Wire.Otp_input.Policy.equal
+                 snapshot.policy
+                 (Otp_input.Expert.policy_to_wire policy))
+       then None
+       else (
+         match Otp_input.Expert.event_of_wire ~window ~node event with
          | Error _ -> None
          | Ok event ->
            seen := snapshot.revision;
@@ -1814,6 +1880,7 @@ let dispatch t = function
   | Slider_event _
   | Number_input_result _
   | Number_input_event _
+  | Otp_input_event _
   | Container_selected _
   | List_retained _
   | List_viewport _

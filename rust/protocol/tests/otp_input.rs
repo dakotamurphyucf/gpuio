@@ -365,3 +365,58 @@ fn configuration_label_validation_matches_core() {
     assert!(config.is_valid());
     assert_eq!(decode_otp_input_config(&bytes(&config)), Ok(config));
 }
+
+#[test]
+fn retained_envelopes_pin_appended_tags_and_validate_initial_values() {
+    use gpuio_protocol::{HandlerId, NodeId, WindowId, decode, v1};
+    let window = WindowId::from_parts(0, 1).unwrap();
+    let node = NodeId::from_parts(0, 1).unwrap();
+    let handler = HandlerId::from_parts(0, 1).unwrap();
+    let request = |config, initial: &str| {
+        v1::Message::Apply(v1::Transaction {
+            window,
+            base: 0,
+            revision: 1,
+            operations: vec![
+                v1::Op::Create(node, v1::Kind::OtpInput, "".into(), Some(handler)),
+                v1::Op::SetOtpInput(node, config, initial.into()),
+                v1::Op::SetRoot(Some(node)),
+            ],
+        })
+    };
+    check(
+        request(config(), "12"),
+        include_str!("../../../test/fixtures/otp-input-request.hex").trim(),
+        decode,
+    );
+    let events = vec![v1::Event::OtpInputEvent(
+        window,
+        node,
+        handler,
+        1,
+        Event::Observed(composing()),
+    )];
+    assert_eq!(
+        bytes(&events),
+        hex(include_str!("../../../test/fixtures/otp-input-events.hex").trim())
+    );
+    for initial in ["１２", "ABC", "1234567", "1-2"] {
+        assert!(decode(&bytes(&request(config(), initial))).is_err());
+    }
+    assert!(
+        decode(&bytes(&request(
+            Config {
+                label: "".into(),
+                ..config()
+            },
+            ""
+        )))
+        .is_err()
+    );
+    let alphabet = Config {
+        policy: Policy::new(4, Alphabet::AsciiAlphanumeric).unwrap(),
+        ..config()
+    };
+    let request = request(alphabet, "Ab12");
+    assert_eq!(decode(&bytes(&request)), Ok(request));
+}

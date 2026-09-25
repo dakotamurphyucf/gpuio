@@ -146,6 +146,7 @@ impl Manager {
                 .number_input
                 .as_ref()
                 .is_some_and(|n| n.config.disabled)
+            || item.otp_input.as_ref().is_some_and(|n| n.config.disabled)
             || item.choice.as_ref().is_some_and(|config| config.disabled)
             || item.rating.as_ref().is_some_and(|config| config.disabled)
             || item

@@ -120,6 +120,7 @@ let worker native notification_read ~self_test =
       | Slider_event _
       | Number_input_result _
       | Number_input_event _
+      | Otp_input_event _
       | Rating_requested _
       | Container_selected _
       | Animation_program_event _

@@ -133,6 +133,7 @@ pub enum Kind {
     Rating,
     Slider,
     NumberInput,
+    OtpInput,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -612,6 +613,7 @@ pub enum Op {
         crate::number_input::Config,
         crate::number_input::Value,
     ),
+    SetOtpInput(NodeId, crate::otp_input::Config, String),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -770,4 +772,5 @@ pub enum Event {
     SliderResult(i64, WindowId, NodeId, crate::slider::Response),
     NumberInputEvent(WindowId, NodeId, HandlerId, i64, crate::number_input::Event),
     NumberInputResult(i64, WindowId, NodeId, crate::number_input::Response),
+    OtpInputEvent(WindowId, NodeId, HandlerId, i64, crate::otp_input::Event),
 }

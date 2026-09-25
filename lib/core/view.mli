@@ -392,6 +392,20 @@ val number_input
   -> unit
   -> 'action t
 
+(** One native segmented OTP editor. [initial] seeds a mount once and must fit
+    [config] policy. Changing a retained length/alphabet rejects; use a new
+    controller identity to remount deliberately. Observations never replace text.
+    The retained contract is implemented; native rendering and the mounted
+    controller adapter remain under development and are not advertised yet. *)
+val otp_input
+  :  ?style:Style.t
+  -> controller:Key.t
+  -> config:Otp_input.Config.t
+  -> initial:Otp_input.Value.t
+  -> on_event:(Otp_input.Event.t -> 'action)
+  -> unit
+  -> 'action t
+
 (** Controlled integer rating. Apply each request against the latest application
     state with [Rating.Config.apply_request]. Hover stays native; keyboard and
     accessibility report ordered requests without a second committed model. *)
@@ -555,6 +569,13 @@ module Expert : sig
     ; on_event : Number_input.Event.t -> 'action
     }
 
+  type 'action otp_input =
+    { controller : Key.t
+    ; config : Otp_input.Config.t
+    ; initial : Otp_input.Value.t
+    ; on_event : Otp_input.Event.t -> 'action
+    }
+
   type 'action rating =
     { config : Rating.Config.t
     ; on_request : Rating.Request.t -> 'action
@@ -626,6 +647,7 @@ module Expert : sig
       | Rating
       | Slider
       | Number_input
+      | Otp_input
     [@@deriving equal, sexp_of]
   end
 
@@ -712,6 +734,7 @@ module Expert : sig
     ; rating : 'action rating option
     ; slider : 'action slider option
     ; number_input : 'action number_input option
+    ; otp_input : 'action otp_input option
     ; animation : 'action animation option
     ; animation_program : 'action animation_program option
     ; container_query : 'action container_query option

@@ -70,6 +70,7 @@ impl Config {
                         | Kind::Rating
                         | Kind::Slider
                         | Kind::NumberInput
+                        | Kind::OtpInput
                         | Kind::RadioGroup
                         | Kind::Select
                 );
@@ -102,6 +103,7 @@ impl Config {
                     | Kind::Rating
                     | Kind::Slider
                     | Kind::NumberInput
+                    | Kind::OtpInput
                     | Kind::RadioGroup
                     | Kind::Select
             ),

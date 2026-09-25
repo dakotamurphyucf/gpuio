@@ -33,6 +33,9 @@ fn event_bytes(event: &Event) -> usize {
         | Event::PaletteDismissed(_, _, _, _, PaletteDismissal::Selected(id)) => id.len(),
         Event::ComboboxSelected(_, _, _, _, id, snapshot) => id.len() + snapshot.text.len(),
         Event::NumberInputEvent(_, _, _, _, event) => event.snapshot().draft.len(),
+        Event::OtpInputEvent(_, _, _, _, event) => {
+            event.snapshot().value.len() + event.snapshot().draft.len()
+        }
         Event::NumberInputResult(
             _,
             _,
@@ -52,6 +55,44 @@ struct Queued {
 struct Output {
     event: Event,
     class: Class,
+}
+
+fn otp_coalesces(previous: &Output, next: &Event) -> bool {
+    matches!((&previous.event, next),
+        (Event::OtpInputEvent(w, n, h, r, old), Event::OtpInputEvent(window, node, handler, revision, new))
+        if matches!(previous.class, Class::Input)
+            && (w, n, h, r) == (window, node, handler, revision)
+            && crate::otp_input_state::can_coalesce(old, new))
+}
+
+fn otp_completion_pair(events: &[Event; 2]) -> bool {
+    match (&events[0], &events[1]) {
+        (
+            Event::OtpInputEvent(w, n, h, r, gpuio_protocol::otp_input::Event::Changed(changed)),
+            Event::OtpInputEvent(
+                window,
+                node,
+                handler,
+                revision,
+                gpuio_protocol::otp_input::Event::Complete(complete),
+            ),
+        ) => {
+            if (w, n, h, r) != (window, node, handler, revision)
+                || *r < 0
+                || changed.revision <= 0
+                || !changed.is_valid()
+                || !complete.is_valid()
+                || !complete.is_complete()
+                || changed.revision.checked_add(1) != Some(complete.revision)
+            {
+                return false;
+            }
+            let mut expected = changed.clone();
+            expected.revision = complete.revision;
+            expected == *complete
+        }
+        _ => false,
+    }
 }
 #[derive(Clone, Copy)]
 enum Class {
@@ -217,6 +258,20 @@ impl Mailbox {
             return Ok(());
         }
         let bytes = event_bytes(&event);
+        if self
+            .events
+            .back()
+            .is_some_and(|previous| otp_coalesces(previous, &event))
+        {
+            let last = self.events.back_mut().expect("coalescing predecessor");
+            let next_bytes = self.input_bytes - event_bytes(&last.event) + bytes;
+            if next_bytes > MAX_INPUT_BYTES {
+                return Err(Box::new(event));
+            }
+            last.event = event;
+            self.input_bytes = next_bytes;
+            return Ok(());
+        }
         if let Event::NumberInputEvent(
             window,
             node,
@@ -286,6 +341,46 @@ impl Mailbox {
         Ok(())
     }
 
+    /// Admit a routed OTP Changed/Complete pair under one mailbox lock. Failed
+    /// validation/count/byte admission preserves the old queue, even when Changed
+    /// could replace its tail. Never expose half a completion or lose its boundary.
+    pub fn otp_completion(&mut self, events: [Event; 2]) -> Result<(), Box<[Event; 2]>> {
+        if self.closed || !otp_completion_pair(&events) {
+            return Err(Box::new(events));
+        }
+        let replacing = self
+            .events
+            .back()
+            .is_some_and(|previous| otp_coalesces(previous, &events[0]));
+        let replaced_bytes = if replacing {
+            event_bytes(&self.events.back().expect("predecessor").event)
+        } else {
+            0
+        };
+        let count = self.inputs + 2 - usize::from(replacing);
+        let bytes =
+            self.input_bytes - replaced_bytes + event_bytes(&events[0]) + event_bytes(&events[1]);
+        if count > MAX_INPUT_EVENTS || bytes > MAX_INPUT_BYTES {
+            return Err(Box::new(events));
+        }
+        let [changed, complete] = events;
+        if replacing {
+            self.events.back_mut().expect("predecessor").event = changed;
+        } else {
+            self.events.push_back(Output {
+                event: changed,
+                class: Class::Input,
+            });
+        }
+        self.events.push_back(Output {
+            event: complete,
+            class: Class::Input,
+        });
+        self.inputs = count;
+        self.input_bytes = bytes;
+        Ok(())
+    }
+
     /// One terminal overload notification per window generation. Reopening is
     /// refused by the host until the old window's output is drained.
     pub fn fault(&mut self, window: WindowId) {
@@ -320,6 +415,7 @@ impl Mailbox {
             | Event::RatingRequested(id, ..)
             | Event::SliderEvent(id, ..)
             | Event::NumberInputEvent(id, ..)
+            | Event::OtpInputEvent(id, ..)
             | Event::Choice(id, ..)
             | Event::OverlayDismissed(id, ..)
             | Event::TooltipOpenChanged(id, ..)
