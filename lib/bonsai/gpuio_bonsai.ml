@@ -78,6 +78,7 @@ module View = struct
   let dialog = Gpuio.View.dialog
   let popover = Gpuio.View.popover
   let command_scope = Gpuio.View.command_scope
+  let slider = Gpuio.View.slider
   let rating = Gpuio.View.rating
   let avatar = Gpuio.View.avatar
   let loading = Gpuio.View.loading

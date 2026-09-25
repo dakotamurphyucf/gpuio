@@ -40,6 +40,7 @@ module Kind = struct
     | Loading
     | Avatar
     | Rating
+    | Slider
   [@@deriving equal, sexp_of]
 end
 
@@ -74,6 +75,13 @@ type 'action editor =
   { controller : Key.t
   ; config : Text_input.Config.t
   ; on_event : Text_input.Event.t -> 'action
+  }
+
+type 'action slider =
+  { controller : Key.t
+  ; config : Slider.Config.t
+  ; initial : Slider.Value.t
+  ; on_event : Slider.Event.t -> 'action
   }
 
 type 'action rating =
@@ -211,6 +219,7 @@ type 'action t =
   ; loading : Loading.Config.t option
   ; avatar : Avatar.Config.t option
   ; rating : 'action rating option
+  ; slider : 'action slider option
   ; animation : 'action animation option
   ; animation_program : 'action animation_program option
   ; container_query : 'action container_query option
@@ -251,6 +260,7 @@ let text ?key ?(style = Style.empty) text =
   ; loading = None
   ; avatar = None
   ; rating = None
+  ; slider = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -283,8 +293,15 @@ let with_accessibility t accessibility =
     match metadata.field, metadata.role, t.kind with
     | ( Some _
       , None
-      , (Input | Textarea | Combobox | Checkbox | Switch | Radio_group | Select | Rating)
-      ) -> true
+      , ( Input
+        | Textarea
+        | Combobox
+        | Checkbox
+        | Switch
+        | Radio_group
+        | Select
+        | Rating
+        | Slider ) ) -> true
     | None, Some Link, (Button | Command_button) -> true
     | ( None
       , Some
@@ -312,7 +329,8 @@ let with_accessibility t accessibility =
         | Switch
         | Radio_group
         | Select
-        | Rating ) ) -> true
+        | Rating
+        | Slider ) ) -> true
     | _ -> false
   in
   if supported
@@ -369,6 +387,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; loading = None
   ; avatar = None
   ; rating = None
+  ; slider = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -469,6 +488,7 @@ let button
   ; loading = None
   ; avatar = None
   ; rating = None
+  ; slider = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -541,6 +561,7 @@ let toggle
   ; loading = None
   ; avatar = None
   ; rating = None
+  ; slider = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -597,6 +618,7 @@ let focus_scope ?key ?style ~config children =
   ; loading = None
   ; avatar = None
   ; rating = None
+  ; slider = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -908,6 +930,7 @@ let text_input
   ; loading = None
   ; avatar = None
   ; rating = None
+  ; slider = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -949,6 +972,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; loading = None
   ; avatar = None
   ; rating = None
+  ; slider = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -1016,6 +1040,7 @@ let combobox
   ; loading = None
   ; avatar = None
   ; rating = None
+  ; slider = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -1050,6 +1075,13 @@ let command_palette
   { (text ?key ~style "") with
     kind = Command_palette
   ; palette = Some { config; appearance; on_dismiss }
+  }
+;;
+
+let slider ?(style = Style.empty) ~controller ~config ~initial ~on_event () =
+  { (text ~key:controller ~style "") with
+    kind = Slider
+  ; slider = Some { controller; config; initial; on_event }
   }
 ;;
 
@@ -1188,6 +1220,13 @@ module Expert = struct
     ; on_navigate : (Document.Navigation.t -> 'action) option
     }
 
+  type nonrec 'action slider = 'action slider =
+    { controller : Key.t
+    ; config : Slider.Config.t
+    ; initial : Slider.Value.t
+    ; on_event : Slider.Event.t -> 'action
+    }
+
   type nonrec 'action rating = 'action rating =
     { config : Rating.Config.t
     ; on_request : Rating.Request.t -> 'action
@@ -1286,6 +1325,7 @@ module Expert = struct
     ; loading : Loading.Config.t option
     ; avatar : Avatar.Config.t option
     ; rating : 'action rating option
+    ; slider : 'action slider option
     ; animation : 'action animation option
     ; animation_program : 'action animation_program option
     ; container_query : 'action container_query option

@@ -148,8 +148,22 @@ end
 module Expert : sig
   val config_to_wire : Config.t -> Gpuio_protocol.Slider_wire.Config.t
   val value_to_wire : Value.t -> Gpuio_protocol.Slider_wire.Value.t
-  val snapshot_of_wire : Gpuio_protocol.Slider_wire.Snapshot.t -> Snapshot.t Or_error.t
-  val event_of_wire : Gpuio_protocol.Slider_wire.Event.t -> Event.t Or_error.t
+
+  val snapshot_of_wire
+    :  window:Gpuio_protocol.Window_id.t
+    -> node:Gpuio_protocol.Node_id.t
+    -> Gpuio_protocol.Slider_wire.Snapshot.t
+    -> Snapshot.t Or_error.t
+
+  val window : Snapshot.t -> Gpuio_protocol.Window_id.t
+  val node : Snapshot.t -> Gpuio_protocol.Node_id.t
+
+  val event_of_wire
+    :  window:Gpuio_protocol.Window_id.t
+    -> node:Gpuio_protocol.Node_id.t
+    -> Gpuio_protocol.Slider_wire.Event.t
+    -> Event.t Or_error.t
+
   val command_to_wire : Command.t -> Gpuio_protocol.Slider_wire.Command.t
   val error_of_wire : Gpuio_protocol.Slider_wire.Error.t -> Command_error.t
 end

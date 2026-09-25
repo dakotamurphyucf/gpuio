@@ -362,6 +362,19 @@ val icon
   -> Icon.Config.t
   -> 'action t
 
+(** Native-owned single/range slider. [controller] identifies one mounted owner;
+    [initial] seeds it only on mount. Use a new controller key to change between
+    single and range mode. Observations do not reset the native drag or value.
+    Disabled/read-only owners still report programmatic observations. *)
+val slider
+  :  ?style:Style.t
+  -> controller:Key.t
+  -> config:Slider.Config.t
+  -> initial:Slider.Value.t
+  -> on_event:(Slider.Event.t -> 'action)
+  -> unit
+  -> 'action t
+
 (** Controlled integer rating. Apply each request against the latest application
     state with [Rating.Config.apply_request]. Hover stays native; keyboard and
     accessibility report ordered requests without a second committed model. *)
@@ -511,6 +524,13 @@ module Expert : sig
     ; on_navigate : (Document.Navigation.t -> 'action) option
     }
 
+  type 'action slider =
+    { controller : Key.t
+    ; config : Slider.Config.t
+    ; initial : Slider.Value.t
+    ; on_event : Slider.Event.t -> 'action
+    }
+
   type 'action rating =
     { config : Rating.Config.t
     ; on_request : Rating.Request.t -> 'action
@@ -580,6 +600,7 @@ module Expert : sig
       | Loading
       | Avatar
       | Rating
+      | Slider
     [@@deriving equal, sexp_of]
   end
 
@@ -664,6 +685,7 @@ module Expert : sig
     ; loading : Loading.Config.t option
     ; avatar : Avatar.Config.t option
     ; rating : 'action rating option
+    ; slider : 'action slider option
     ; animation : 'action animation option
     ; animation_program : 'action animation_program option
     ; container_query : 'action container_query option

@@ -63,17 +63,32 @@ module Revision = struct
 end
 
 module Snapshot = struct
-  type t = W.Snapshot.t [@@deriving equal, sexp_of]
+  type t =
+    { window : Gpuio_protocol.Window_id.t
+    ; node : Gpuio_protocol.Node_id.t
+    ; data : W.Snapshot.t
+    }
+  [@@deriving equal, sexp_of]
 
-  let revision t = t.W.Snapshot.revision
-  let value t = t.W.Snapshot.value
-  let committed t = t.W.Snapshot.committed
-  let dragging t = t.W.Snapshot.dragging
+  let revision t = t.data.revision
+  let value t = t.data.value
+  let committed t = t.data.committed
+  let dragging t = t.data.dragging
 end
 
 module Source = W.Source
 module Cancel_reason = W.Cancel_reason
-module Event = W.Event
+
+module Event = struct
+  type t =
+    | Observed of Snapshot.t
+    | Drag_started of Snapshot.t
+    | Preview of Snapshot.t
+    | Committed of Source.t * Snapshot.t
+    | Cancelled of Cancel_reason.t * Snapshot.t
+  [@@deriving equal, sexp_of]
+end
+
 module Command = W.Command
 module Command_error = W.Error
 
@@ -81,12 +96,26 @@ module Expert = struct
   let config_to_wire t = t
   let value_to_wire t = t
 
-  let snapshot_of_wire t =
-    if W.Snapshot.valid t then Ok t else Or_error.error_string "invalid slider snapshot"
+  let snapshot_of_wire ~window ~node data =
+    if W.Snapshot.valid data
+    then Ok { Snapshot.window; node; data }
+    else Or_error.error_string "invalid slider snapshot"
   ;;
 
-  let event_of_wire t =
-    if W.Event.valid t then Ok t else Or_error.error_string "invalid slider event"
+  let window t = t.Snapshot.window
+  let node t = t.Snapshot.node
+
+  let event_of_wire ~window ~node event =
+    if not (W.Event.valid event)
+    then Or_error.error_string "invalid slider event"
+    else (
+      let%map.Or_error s = snapshot_of_wire ~window ~node (W.Event.snapshot event) in
+      match event with
+      | Observed _ -> Event.Observed s
+      | Drag_started _ -> Drag_started s
+      | Preview _ -> Preview s
+      | Committed (source, _) -> Committed (source, s)
+      | Cancelled (reason, _) -> Cancelled (reason, s))
   ;;
 
   let command_to_wire t = t

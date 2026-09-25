@@ -29,6 +29,12 @@ fn allows_children(kind: Kind) -> bool {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct SliderMount {
+    pub config: Arc<gpuio_protocol::slider::Config>,
+    pub initial: gpuio_protocol::slider::Value,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct Node {
     pub id: NodeId,
     pub kind: Kind,
@@ -48,6 +54,7 @@ pub struct Node {
     pub image: Option<Arc<ImageConfig>>,
     pub avatar: Option<Arc<gpuio_protocol::avatar::Config>>,
     pub rating: Option<Arc<gpuio_protocol::rating::Config>>,
+    pub slider: Option<SliderMount>,
     pub extension: Option<Arc<gpuio_protocol::extension::Config>>,
     pub extension_command: Option<Arc<gpuio_protocol::extension::Command>>,
     pub split: Option<Arc<gpuio_protocol::split::Config>>,
@@ -77,7 +84,10 @@ pub struct Node {
 
 impl Node {
     fn payload_bytes(&self) -> usize {
-        self.rating.as_ref().map_or(0, |c| c.retained_bytes())
+        self.slider
+            .as_ref()
+            .map_or(0, |s| s.config.retained_bytes())
+            + self.rating.as_ref().map_or(0, |c| c.retained_bytes())
             + self.avatar.as_ref().map_or(0, |c| c.retained_bytes())
             + self.loading.as_ref().map_or(0, |c| c.retained_bytes())
             + self.text.len()
@@ -537,6 +547,19 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
+                if (node.kind == Kind::Slider) != node.slider.is_some()
+                    || node.slider.as_ref().is_some_and(|slider| {
+                        !slider.config.is_valid()
+                            || !slider.initial.is_valid()
+                            || !node.text.is_empty()
+                            || !node.children.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                            || node.handler.is_none()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 if (node.kind == Kind::Rating) != node.rating.is_some()
                     || node.rating.as_ref().is_some_and(|config| {
                         !config.is_valid()
@@ -709,6 +732,7 @@ impl Tree {
                     | Kind::Image
                     | Kind::Avatar
                     | Kind::Rating
+                    | Kind::Slider
                     | Kind::TabPanel
                     | Kind::SplitPane
                     | Kind::Extension
@@ -1066,6 +1090,7 @@ impl Plan<'_> {
             | Op::SetLoading(id, ..)
             | Op::SetAvatar(id, ..)
             | Op::SetRating(id, ..)
+            | Op::SetSlider(id, ..)
             | Op::SetListConfig(id, ..)
             | Op::SetListOrder(id, ..)
             | Op::SetListRows(id, ..)
@@ -1165,6 +1190,7 @@ impl Plan<'_> {
                             image: None,
                             avatar: None,
                             rating: None,
+                            slider: None,
                             extension: None,
                             extension_command: None,
                             split: None,
@@ -1360,6 +1386,23 @@ impl Plan<'_> {
             }
             Op::ScrollList(id, request) => {
                 self.lists.push(ListAction::Scroll(*id, *request));
+            }
+            Op::SetSlider(id, config, initial) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::Slider
+                    || !config.is_valid()
+                    || !initial.is_valid()
+                    || node
+                        .slider
+                        .as_ref()
+                        .is_some_and(|old| !old.initial.same_mode(*initial))
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.slider = Some(SliderMount {
+                    config: Arc::new(config.clone()),
+                    initial: *initial,
+                });
             }
             Op::SetRating(id, config) => {
                 if self.node(*id)?.kind != Kind::Rating || !config.is_valid() {

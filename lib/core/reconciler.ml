@@ -86,6 +86,7 @@ type 'a callback =
   | Editor of (Text_input.Event.t -> 'a)
   | Choice of Choice.Config.t * (Choice.Id.t -> 'a)
   | Rating of Rating.Config.t * (Rating.Request.t -> 'a)
+  | Slider of Slider.Value.t * int64 ref * (Slider.Event.t -> 'a)
   | Combobox of Combobox.Config.t * (Combobox.Event.t -> 'a)
 
 type 'a binding =
@@ -105,6 +106,7 @@ type 'a mounted =
   ; program_seen : (int64 * int64) ref
   ; container_query : Wire.Container_query.Config.t option
   ; query_seen : int64 ref
+  ; slider_seen : int64 ref
   ; list_identity : List_identity.t option
   ; choice_appearance : Wire.Choice_appearance.t option
   ; children : 'a mounted list
@@ -240,6 +242,7 @@ let kind = function
   | Loading -> Loading
   | Avatar -> Avatar
   | Rating -> Rating
+  | Slider -> Slider
   | Virtual_list -> Virtual_list
   | Canvas_view -> Canvas_view
   | Document_view -> Document_view
@@ -320,6 +323,18 @@ let rec mount builder ~depth previous view =
       | Some mounted -> mounted.id
       | None -> new_node builder
     in
+    let slider_seen =
+      Option.value_map previous ~default:(ref (-1L)) ~f:(fun old -> old.slider_seen)
+    in
+    Option.iter description.slider ~f:(fun item ->
+      Option.iter previous ~f:(fun mounted ->
+        Option.iter (View.Expert.describe mounted.view).slider ~f:(fun old ->
+          if
+            not
+              (Wire.Slider.Value.same_mode
+                 (Slider.Expert.value_to_wire old.initial)
+                 (Slider.Expert.value_to_wire item.initial))
+          then fail "slider mode changes require a new controller key")));
     let old_handler = Option.bind previous ~f:(fun mounted -> mounted.handler) in
     let old_commands =
       Option.value_map previous ~default:[] ~f:(fun mounted -> mounted.commands)
@@ -448,6 +463,12 @@ let rec mount builder ~depth previous view =
         Some (Commands (registry, commands))
       | None, None, None, None, None, None, None -> None
       | _ -> fail "a view cannot combine incompatible handler kinds"
+    in
+    let callback =
+      match description.slider, callback with
+      | Some slider, None -> Some (Slider (slider.initial, slider_seen, slider.on_event))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "slider cannot combine another handler"
     in
     let callback =
       match description.rating, callback with
@@ -821,6 +842,23 @@ let rec mount builder ~depth previous view =
           emit
             builder
             (Set_image (id, Image.Expert.to_wire image.config ~owner:builder.asset_owner)));
+    Option.iter description.slider ~f:(fun slider ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          (View.Expert.describe mounted.view).slider)
+      in
+      if
+        not
+          (Option.exists old ~f:(fun old ->
+             Slider.Config.equal old.config slider.config
+             && Slider.Value.equal old.initial slider.initial))
+      then
+        emit
+          builder
+          (Set_slider
+             ( id
+             , Slider.Expert.config_to_wire slider.config
+             , Slider.Expert.value_to_wire slider.initial )));
     Option.iter description.rating ~f:(fun rating ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -1071,18 +1109,19 @@ let rec mount builder ~depth previous view =
     let controllers =
       let own =
         let controller =
-          match description.editor, description.combobox with
-          | Some editor, None -> Some editor.controller
-          | None, Some combo -> Some combo.controller
-          | None, None -> None
-          | Some _, Some _ -> fail "incompatible controller descriptions"
+          match description.editor, description.combobox, description.slider with
+          | Some editor, None, None -> Some editor.controller
+          | None, Some combo, None -> Some combo.controller
+          | None, None, Some slider -> Some slider.controller
+          | None, None, None -> None
+          | _ -> fail "incompatible controller descriptions"
         in
         Option.value_map controller ~default:String.Set.empty ~f:(fun key ->
           String.Set.singleton (Key.to_string key))
       in
       List.fold children ~init:own ~f:(fun keys child ->
         if not (Set.is_empty (Set.inter keys child.controllers))
-        then fail "text input controller appears more than once in a window";
+        then fail "native controller appears more than once in a window";
         Set.union keys child.controllers)
     in
     let menu_commands =
@@ -1131,6 +1170,7 @@ let rec mount builder ~depth previous view =
     ; program_seen
     ; container_query
     ; query_seen
+    ; slider_seen
     ; list_identity
     ; choice_appearance
     ; children
@@ -1452,6 +1492,7 @@ let dispatch t = function
         | Click callback -> Some (callback ())
         | Editor _
         | Rating _
+        | Slider _
         | Choice _
         | Combobox _
         | Dismiss _
@@ -1471,6 +1512,32 @@ let dispatch t = function
         | Split_pane _
         | Canvas _
         | Document _ -> None)
+     | Some _ | None -> None)
+  | Slider_event (window, node, handler, revision, event)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Slider (initial, seen, callback)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       let snapshot = Wire.Slider.Event.snapshot event in
+       if
+         Int64.(snapshot.revision <= !seen)
+         || not
+              (Wire.Slider.Value.same_mode
+                 (Slider.Expert.value_to_wire initial)
+                 snapshot.value)
+       then None
+       else (
+         match Slider.Expert.event_of_wire ~window ~node event with
+         | Error _ -> None
+         | Ok event ->
+           seen := snapshot.revision;
+           Some (callback event))
      | Some _ | None -> None)
   | Rating_requested (window, node, handler, revision, request)
     when (not t.closed)
@@ -1685,6 +1752,7 @@ let dispatch t = function
   | Animation_endpoint _
   | Animation_program_event _
   | Rating_requested _
+  | Slider_event _
   | Container_selected _
   | List_retained _
   | List_viewport _

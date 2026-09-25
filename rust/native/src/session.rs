@@ -495,10 +495,31 @@ impl Session {
             && revision <= window.tree.revision()
             && revision >= 0
             && window.tree.get(node).is_some_and(|node| {
-                node.image.is_none() && !node.control.is_some_and(Control::disabled)
+                node.image.is_none()
+                    && node.slider.is_none()
+                    && !node.control.is_some_and(Control::disabled)
             })
             && window.tree.accepts_handler(node, handler))
         .then_some(Event::Press(id, node, handler, revision))
+    }
+
+    pub fn slider_event(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        event: gpuio_protocol::slider::Event,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        let slider = window.tree.get(node)?.slider.as_ref()?;
+        (!window.overloaded
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && window.tree.accepts_handler(node, handler)
+            && event.is_valid()
+            && slider.initial.same_mode(event.snapshot().value))
+        .then_some(Event::SliderEvent(id, node, handler, revision, event))
     }
 
     pub fn request_rating(

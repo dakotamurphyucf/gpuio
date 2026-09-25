@@ -189,6 +189,26 @@ impl Mailbox {
             last.event = event;
             return Ok(());
         }
+        // Only adjacent previews from the same routed owner may collapse. Start,
+        // final, cancel, command responses and unrelated input are barriers.
+        if let Event::SliderEvent(
+            window,
+            node,
+            handler,
+            revision,
+            gpuio_protocol::slider::Event::Preview(snapshot),
+        ) = &event
+            && let Some(last) = self.events.back_mut()
+            && let Event::SliderEvent(w, n, h, r, gpuio_protocol::slider::Event::Preview(previous)) =
+                &last.event
+            && (window, node, handler, revision) == (w, n, h, r)
+            && snapshot.dragging == previous.dragging
+            && snapshot.committed == previous.committed
+            && snapshot.revision > previous.revision
+        {
+            last.event = event;
+            return Ok(());
+        }
         let bytes = event_bytes(&event);
         if let Event::ListViewport(window, node, handler, revision, viewport) = &event
             && let Some(last) = self.events.back_mut()
@@ -262,6 +282,7 @@ impl Mailbox {
             | Event::Press(id, ..)
             | Event::EditorEvent(id, ..)
             | Event::RatingRequested(id, ..)
+            | Event::SliderEvent(id, ..)
             | Event::Choice(id, ..)
             | Event::OverlayDismissed(id, ..)
             | Event::TooltipOpenChanged(id, ..)

@@ -3,7 +3,8 @@
 ## Current scope
 
 OCH-34 is In Progress. Shared numeric domain/draft rules and slider contracts/codec/native state are
-implemented. Slider rendering/bridge, numeric input/stepper and OTP integration
+implemented, along with retained slider views, tree admission and observation routing.
+Slider command transport/rendering, numeric input/stepper and OTP integration
 remain pending. No OCH-34
 capability is advertised and no new native GUI acceptance is claimed.
 
@@ -102,3 +103,49 @@ These are deterministic model/codec tests and compilation, not actual mouse,
 keyboard, AX or GUI acceptance. Renderer ownership, transport coalescing and
 current-node/handler fences, two-thumb traversal and mounted native acceptance
 are the next layer. No capability or hosted result is claimed.
+
+## Retained slider views and observation bridge
+
+Core/Bonsai `View.slider` now carries a stable controller, configuration,
+mount-only initial value and an observation callback. Public snapshots preserve
+their window/node identity. Native tree admission validates complete slider
+leaves, immutable single/range mode and retained configuration accounting.
+Session routing rejects stale identities/handlers, invalid lifecycle data and
+wrong modes, while retaining historical old-domain cancellations. A slider does
+not also trigger a generic Press callback.
+
+Independent request/event fixtures agree between OCaml and Rust, including the
+appended Kind/Op/Event tags. Tests reject truncated/trailing envelopes, malformed
+configuration/value data and invalid lifecycle phases. OCaml tests cover latest
+callbacks, duplicate/out-of-order native revisions, invalid-event fence poisoning,
+pending-update delivery, remount generations, closed windows and atomic rejection
+of mode changes or duplicate controller ownership. Policy updates retain the
+observation handler, including cancellation snapshots outside the new domain.
+
+Native tests cover failed-admission rollback and accounting, replacement/release
+of shared configurations, identity/phase routing and overload/close rejection.
+Ten thousand adjacent drag previews retain one latest preview between the start
+and final commit. Cancellation, observations, commit, start, responses and unrelated
+input remain barriers. Owner/tree revisions, thumbs and committed values prevent
+inappropriate coalescing. Capacity rejects a discrete commit explicitly rather
+than overwriting prior input, and normal delivery resumes after draining.
+
+This checkpoint does not implement native rendering or correlated slider
+commands. Actual pointer, keyboard, independent-thumb AX/focus, hidden/modal
+cancellation and mounted lifetime acceptance remain required before advertising
+the component. Numeric editor/stepper and OTP scope is unchanged.
+
+Local macOS arm64 validation passes with isolated `GPUIO_JOBS=2`:
+
+```sh
+./scripts/gpuio exec dune build -j 2 @all @test/view_api/runtest @fmt
+./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-protocol
+./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-protocol -p gpuio-native --lib --test slider --test rating --test session
+./scripts/gpuio exec cargo clippy --locked --workspace --all-targets --features gpuio-native/native-image-tests,gpuio-native/native-canvas-tests -j 2 -- -D warnings
+./scripts/gpuio exec cargo fmt --all
+```
+
+These commands build/link the public examples without launching GUI windows.
+The four native bridge tests and five slider protocol tests pass, alongside the
+native library and existing rating/session regressions. No hosted or Linux GUI
+result is claimed for this checkpoint.

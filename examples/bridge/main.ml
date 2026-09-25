@@ -122,6 +122,7 @@ let worker native notification_read =
       | Palette_dismissed _
       | List_retained _
       | List_viewport _
+      | Slider_event _
       | Rating_requested _
       | Container_selected _
       | Animation_program_event _

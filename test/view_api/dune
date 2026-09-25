@@ -13,6 +13,8 @@
    rating-request.hex
    rating-events.hex
    numeric-domain.hex
+   slider-request.hex
+   slider-events.hex
    slider-config.hex
    slider-preview.hex
    slider-replace.hex
@@ -173,3 +175,7 @@
 (copy_files ../fixtures/slider-preview.hex)
 
 (copy_files ../fixtures/slider-replace.hex)
+
+(copy_files ../fixtures/slider-request.hex)
+
+(copy_files ../fixtures/slider-events.hex)

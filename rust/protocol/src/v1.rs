@@ -131,6 +131,7 @@ pub enum Kind {
     Loading,
     Avatar,
     Rating,
+    Slider,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -604,6 +605,7 @@ pub enum Op {
     SetLoading(NodeId, crate::loading::Config),
     SetAvatar(NodeId, crate::avatar::Config),
     SetRating(NodeId, crate::rating::Config),
+    SetSlider(NodeId, crate::slider::Config, crate::slider::Value),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -756,4 +758,5 @@ pub enum Event {
         crate::container_query::Snapshot,
     ),
     RatingRequested(WindowId, NodeId, HandlerId, i64, crate::rating::Request),
+    SliderEvent(WindowId, NodeId, HandlerId, i64, crate::slider::Event),
 }

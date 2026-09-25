@@ -845,6 +845,7 @@ impl Decoder<'_> {
                     34 => Kind::Loading,
                     35 => Kind::Avatar,
                     36 => Kind::Rating,
+                    37 => Kind::Slider,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -921,6 +922,7 @@ impl Decoder<'_> {
             40 => Op::SetLoading(self.node()?, self.loading_config()?),
             41 => Op::SetAvatar(self.node()?, self.avatar_config()?),
             42 => Op::SetRating(self.node()?, self.rating_config()?),
+            43 => Op::SetSlider(self.node()?, self.slider_config()?, self.slider_value()?),
             34 => {
                 let id = self.node()?;
                 let config = crate::split::Config {

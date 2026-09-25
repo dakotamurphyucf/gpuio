@@ -147,6 +147,15 @@ module View : sig
     -> string
     -> t
 
+  val slider
+    :  ?style:Gpuio.Style.t
+    -> controller:Gpuio.Key.t
+    -> config:Gpuio.Slider.Config.t
+    -> initial:Gpuio.Slider.Value.t
+    -> on_event:(Gpuio.Slider.Event.t -> unit Bonsai.Effect.t)
+    -> unit
+    -> t
+
   val rating
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

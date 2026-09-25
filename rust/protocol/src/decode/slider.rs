@@ -2,7 +2,7 @@ use super::{DecodeError, Decoder};
 use crate::slider::*;
 use std::io::Cursor;
 impl Decoder<'_> {
-    fn slider_value(&mut self) -> Result<Value, DecodeError> {
+    pub(super) fn slider_value(&mut self) -> Result<Value, DecodeError> {
         let value = match self.tag()? {
             0 => Value::Single(self.float()?),
             1 => Value::Range {
@@ -43,30 +43,40 @@ impl Decoder<'_> {
         }
     }
 }
+impl Decoder<'_> {
+    pub(super) fn slider_config(&mut self) -> Result<Config, DecodeError> {
+        let c = Config {
+            domain: self.numeric_domain()?,
+            label: self.bounded_text(4096)?,
+            lower_label: self.bounded_text(4096)?,
+            upper_label: self.bounded_text(4096)?,
+            axis: match self.tag()? {
+                0 => Axis::Horizontal,
+                1 => Axis::Vertical,
+                _ => return Err(DecodeError::Malformed),
+            },
+            scale: match self.tag()? {
+                0 => Scale::Linear,
+                1 => Scale::Logarithmic,
+                _ => return Err(DecodeError::Malformed),
+            },
+            disabled: self.boolean()?,
+            read_only: self.boolean()?,
+        };
+        if c.is_valid() {
+            Ok(c)
+        } else {
+            Err(DecodeError::Malformed)
+        }
+    }
+}
 pub fn decode_slider_config(bytes: &[u8]) -> Result<Config, DecodeError> {
     if bytes.len() > MAX_CONFIG_BYTES {
         return Err(DecodeError::LimitExceeded);
     }
     let mut d = Decoder(Cursor::new(bytes));
-    let c = Config {
-        domain: d.numeric_domain()?,
-        label: d.bounded_text(4096)?,
-        lower_label: d.bounded_text(4096)?,
-        upper_label: d.bounded_text(4096)?,
-        axis: match d.tag()? {
-            0 => Axis::Horizontal,
-            1 => Axis::Vertical,
-            _ => return Err(DecodeError::Malformed),
-        },
-        scale: match d.tag()? {
-            0 => Scale::Linear,
-            1 => Scale::Logarithmic,
-            _ => return Err(DecodeError::Malformed),
-        },
-        disabled: d.boolean()?,
-        read_only: d.boolean()?,
-    };
-    if c.is_valid() && d.remaining() == 0 {
+    let c = d.slider_config()?;
+    if d.remaining() == 0 {
         Ok(c)
     } else {
         Err(DecodeError::Malformed)

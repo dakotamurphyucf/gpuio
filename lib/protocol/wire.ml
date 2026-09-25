@@ -6,6 +6,7 @@ module Accessibility = Accessibility_wire
 module Loading = Loading_wire
 module Avatar = Avatar_wire
 module Rating = Rating_wire
+module Slider = Slider_wire
 module Container_query = Container_query_wire
 module Animation_program = Animation_program_wire
 module Document = Document_wire
@@ -58,6 +59,7 @@ module Kind = struct
     | Loading
     | Avatar
     | Rating
+    | Slider
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -717,6 +719,7 @@ module Op = struct
     | Set_loading of Node_id.t * Loading.Config.t
     | Set_avatar of Node_id.t * Avatar.Config.t
     | Set_rating of Node_id.t * Rating.Config.t
+    | Set_slider of Node_id.t * Slider.Config.t * Slider.Value.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -1002,6 +1005,7 @@ module Event = struct
         Window_id.t * Node_id.t * Handler_id.t * int64 * Container_query.Snapshot.t
     | Rating_requested of
         Window_id.t * Node_id.t * Handler_id.t * int64 * Rating.Request.t
+    | Slider_event of Window_id.t * Node_id.t * Handler_id.t * int64 * Slider.Event.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1060,6 +1064,8 @@ module Event = struct
       Int64.(revision > 0L) && Or_error.is_ok (List_wire.Retained.validate_all notices)
     | List_viewport (_, _, _, revision, viewport) ->
       Int64.(revision >= 0L) && Or_error.is_ok (List_wire.Viewport.validate viewport)
+    | Slider_event (_, _, _, revision, event) ->
+      Int64.(revision >= 0L) && Slider.Event.valid event
     | Rating_requested (_, _, _, revision, request) ->
       Int64.(revision >= 0L) && Rating.Request.valid request
     | Container_selected (_, _, _, revision, snapshot) ->

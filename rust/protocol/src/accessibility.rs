@@ -68,6 +68,7 @@ impl Config {
                         | Kind::Checkbox
                         | Kind::Switch
                         | Kind::Rating
+                        | Kind::Slider
                         | Kind::RadioGroup
                         | Kind::Select
                 );
@@ -98,6 +99,7 @@ impl Config {
                     | Kind::Checkbox
                     | Kind::Switch
                     | Kind::Rating
+                    | Kind::Slider
                     | Kind::RadioGroup
                     | Kind::Select
             ),

@@ -236,3 +236,59 @@ fn bounded_linear_log_mapping_and_fixed_domain() {
     assert_eq!(c.from_fraction(0.5), Some(5.));
     assert_eq!(c.fraction(5.), Some(0.));
 }
+
+#[test]
+fn retained_envelopes_match_independent_fixtures_and_reject_malformed_requests() {
+    use gpuio_protocol::{HandlerId, NodeId, WindowId, decode, v1};
+    let window = WindowId::from_parts(0, 1).unwrap();
+    let node = NodeId::from_parts(0, 1).unwrap();
+    let handler = HandlerId::from_parts(0, 1).unwrap();
+    let message = |config, initial| {
+        v1::Message::Apply(v1::Transaction {
+            window,
+            base: 0,
+            revision: 1,
+            operations: vec![
+                v1::Op::Create(node, v1::Kind::Slider, "".into(), Some(handler)),
+                v1::Op::SetSlider(node, config, initial),
+                v1::Op::SetRoot(Some(node)),
+            ],
+        })
+    };
+    let request = message(config(), snapshot().committed);
+    let bytes = encode(&request);
+    assert_eq!(
+        hex(&bytes),
+        include_str!("../../../test/fixtures/slider-request.hex").trim()
+    );
+    assert_eq!(decode(&bytes), Ok(request));
+    for end in 0..bytes.len() {
+        assert!(decode(&bytes[..end]).is_err());
+    }
+    let mut extra = bytes;
+    extra.push(0);
+    assert!(decode(&extra).is_err());
+    let events = vec![v1::Event::SliderEvent(
+        window,
+        node,
+        handler,
+        1,
+        Event::Preview(snapshot()),
+    )];
+    assert_eq!(
+        hex(&encode(&events)),
+        include_str!("../../../test/fixtures/slider-events.hex").trim()
+    );
+    for initial in [
+        Value::Single(f64::NAN),
+        Value::Range {
+            lower: 7.,
+            upper: 2.,
+        },
+    ] {
+        assert!(decode(&encode(&message(config(), initial))).is_err());
+    }
+    let mut bad = config();
+    bad.label.clear();
+    assert!(decode(&encode(&message(bad, snapshot().committed))).is_err());
+}

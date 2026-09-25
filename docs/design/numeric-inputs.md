@@ -130,6 +130,25 @@ start/final/cancel boundaries and command responses remain ordered. The mounted
 bridge must apply node-generation and current-handler fences in addition to the
 model's revision checks.
 
+The retained bridge appends Kind 37, Set_slider operation 43 and Slider_event
+event 44 without changing older tags. `View.slider` uses its controller key as
+the node key and rejects duplicate controller ownership anywhere in one window.
+Core snapshots retain the originating window and node generations behind their
+abstract interface. Reconciliation preserves the native-revision fence through
+callback refreshes and pending tree updates, admits only the current owner and
+handler, and rejects repeated or backwards observations. Invalid observations
+cannot advance that fence. A remounted owner starts a new fence.
+
+Observation handlers remain bound when disabled/read-only. Policy and domain
+changes do not rotate the handler or filter historical cancellation against the
+new domain: that would lose the old-domain cancellation described above. Native
+input must enforce current policy before creating a user mutation. Transport
+may replace only adjacent previews for the same window/node/handler/tree revision,
+dragging thumb and committed value, with increasing native revisions. Every
+discrete lifecycle event, response and unrelated event remains a barrier. Full
+queues explicitly reject additional discrete input through the existing overload
+path; coalescing does not silently discard commits.
+
 Two range thumbs expose separate native accessible values/bounds/actions and Tab
 stops. Arrows step, Page Up/Down step ten times, Home/End go to the available bound,
 and Escape cancels an active drag. Vertical values increase upward. Mapping is

@@ -1099,6 +1099,7 @@ impl View {
             && node.editor.is_none()
             && node.choice.is_none()
             && node.rating.is_none()
+            && node.slider.is_none()
             && node.overlay.is_none()
             && node.pointer.is_none()
             && node.image.is_none()
