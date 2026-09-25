@@ -129,17 +129,19 @@ pending before OCH-34 capability advertisement and ticket completion. OTP now ha
 validated Core policy/value types and matching OCaml/Rust normalization and atomic
 selection-edit helpers with passing expect/unit and policy-encoding tests. A
 bounded native editing model now passes atomic paste, selection/cell navigation,
-UTF-16/preedit commit/rollback and undo/redo tests. Its GPUI platform adapter,
-segmented widget, event/command lane and controllers remain unimplemented. Public
+UTF-16/preedit commit/rollback and undo/redo tests. Public
 Core configuration/snapshot/event/command contracts and standalone paired codecs
 now validate historical policies, Unicode boundaries, revision guards and bounded
 payloads. The native state owner now implements guarded commands, permissions,
 ordered completion, composition cleanup and clipboard/focus callback admission;
 retained view/configuration admission and observation dispatch now enforce stable
 seeds, immutable policies and identity/revision fences. Mailbox completion pairs
-have atomic count/byte admission with semantic coalescing boundaries. GPUI platform
-integration, transport publication, command/result correlation and controllers
-still remain. See
+have atomic count/byte admission with semantic coalescing boundaries. The GPUI
+segmented adapter now publishes native observations and passes local native
+key/clipboard/NSTextInputClient, pointer capture, clipped preedit geometry, real
+AppKit accessibility/value actions, masking, disposal and terminal overload checks.
+Command/result correlation, public controllers/examples and expanded OTP visual/
+application/workload acceptance still remain. See
 [OTP contract and integration requirements](design/otp-inputs.md).
 See [numeric design](design/numeric-inputs.md) and
 [foundation evidence](evidence/numeric-inputs-och34.md).

@@ -395,8 +395,9 @@ val number_input
 (** One native segmented OTP editor. [initial] seeds a mount once and must fit
     [config] policy. Changing a retained length/alphabet rejects; use a new
     controller identity to remount deliberately. Observations never replace text.
-    The retained contract is implemented; native rendering and the mounted
-    controller adapter remain under development and are not advertised yet. *)
+    The retained view and native renderer are implemented; the mounted command
+    controller and expanded acceptance remain pending. No OTP capability is
+    advertised yet. *)
 val otp_input
   :  ?style:Style.t
   -> controller:Key.t

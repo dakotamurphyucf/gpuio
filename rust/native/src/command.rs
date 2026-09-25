@@ -125,9 +125,17 @@ impl View {
                     .find(|(_, number)| number.focus_handle(cx).is_focused(window))
                     .map(|(node, _)| *node)
             })
+            .or_else(|| {
+                self.otps
+                    .iter()
+                    .find(|(_, otp)| otp.focus_handle(cx).is_focused(window))
+                    .map(|(node, _)| *node)
+            })
             .or_else(|| self.focus.borrow().last_editor())
             .filter(|node| {
-                (self.editors.contains_key(node) || self.numbers.contains_key(node))
+                (self.editors.contains_key(node)
+                    || self.numbers.contains_key(node)
+                    || self.otps.contains_key(node))
                     && self.focus.borrow().allows(*node)
             })
     }
@@ -146,7 +154,9 @@ impl View {
         let Some(editor) = self.command_editor(window, cx) else {
             return false;
         };
-        if let Some(number) = self.numbers.get(&editor) {
+        if let Some(otp) = self.otps.get(&editor) {
+            otp.command_available(action, cx)
+        } else if let Some(number) = self.numbers.get(&editor) {
             number.command_available(action, cx)
         } else {
             self.editors[&editor].command_available(action, cx)
@@ -218,6 +228,7 @@ impl View {
                     .numbers
                     .get(&editor)
                     .map(|number| number.focus_handle(cx))
+                    .or_else(|| self.otps.get(&editor).map(|otp| otp.focus_handle(cx)))
                     .unwrap_or_else(|| self.editors[&editor].focus_handle(cx));
                 window.focus(&focus, cx);
                 let action: Box<dyn gpui::Action> = match action {
@@ -278,10 +289,15 @@ impl View {
             .numbers
             .values()
             .find(|number| number.focus_handle(cx).is_focused(window));
-        let composing = number.is_some_and(|number| number.is_composing(cx))
+        let otp = self
+            .otps
+            .values()
+            .find(|otp| otp.focus_handle(cx).is_focused(window));
+        let composing = otp.is_some_and(|otp| otp.is_composing(cx))
+            || number.is_some_and(|number| number.is_composing(cx))
             || editor.is_some_and(|editor| editor.is_composing(cx))
             || palette.is_some_and(|state| state.query.read(cx).bridge_composition().is_some());
-        let editing = editor.is_some() || number.is_some() || palette.is_some();
+        let editing = editor.is_some() || number.is_some() || palette.is_some() || otp.is_some();
         let route = {
             let session = self.session.borrow();
             let Some(tree) = session.tree(self.id) else {

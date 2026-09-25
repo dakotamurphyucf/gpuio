@@ -398,7 +398,9 @@ impl Manager {
                 .borrow()
                 .tree(self.window)
                 .and_then(|tree| tree.get(node))
-                .is_some_and(|node| node.editor.is_some() || node.number_input.is_some())
+                .is_some_and(|node| {
+                    node.editor.is_some() || node.number_input.is_some() || node.otp_input.is_some()
+                })
         {
             self.last_editor = Some(node);
         }

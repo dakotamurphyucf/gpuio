@@ -2,9 +2,10 @@
 
 Status: bounded text policy, atomic edit helpers, a platform-independent native
 editing model and native state owner, public Core contracts, retained view/event
-envelopes and OCaml/Rust codecs are implemented. Native segmented rendering,
-platform editing integration, command/result envelopes and public Bonsai/Eio
-controllers are not implemented yet. No OTP capability is advertised. This
+envelopes, OCaml/Rust codecs and a GPUI segmented text-input adapter are implemented.
+Local native keyboard/clipboard/IME, geometry, AppKit accessibility and overload
+checks pass. Command/result envelopes, public Bonsai/Eio controllers and expanded
+application/visual/workload acceptance remain pending. No OTP capability is advertised. This
 document supplements [numeric inputs](numeric-inputs.md).
 
 ## Implemented text contract
@@ -56,7 +57,7 @@ label, with optional masked/disabled/read-only/auto-focus flags (all false by
 default). Labels are nonblank single-line UTF-8 without NUL, bounded to 4,096
 bytes. A policy belongs to a native placement and changing it requires remounting;
 initial code is a separate one-time seed, never a controlled text property.
-The planned masked behavior hides painted/accessibility text and disables copy
+Masked behavior hides painted/accessibility text and disables copy
 and cut. It does not redact application snapshots or promise secure storage.
 
 Snapshots carry a nonnegative revision, immutable policy, accepted value, raw
@@ -103,8 +104,8 @@ for configuration, 4,352 for event/response and 128 for commands. These are
 payload bounds, separate from future transport-envelope accounting.
 
 These interfaces define the native owner contract. The state owner below now
-implements sequencing and commands; platform rendering, AX and bridge delivery
-still require the mounted adapter.
+implements sequencing and commands; the mounted adapter below connects native
+rendering, AX and observation delivery. Public command correlation remains pending.
 
 ## Native integration requirements
 
@@ -124,7 +125,7 @@ The existing `InputBaseState` has a boolean validator, but calls it for both fin
 text and marked composition. Installing an ASCII-only validator would reject
 legitimate IME intermediates, and that validator cannot normalize insertion text.
 
-The OTP adapter will implement GPUI's `EntityInputHandler` directly, using one
+The OTP adapter implements GPUI's `EntityInputHandler` directly, using one
 entity and one bounded editing session. This avoids changing the generic editor's
 validation/history behavior and lets segmented paint, hit testing, selection and
 IME candidate bounds share the same geometry. An invisible ordinary text editor
@@ -252,26 +253,54 @@ precede replacing a coalescible tail, so admission failure leaves the old queue
 intact and never publishes half a completion. Complete must describe the same
 full, noncomposing snapshot with exactly the next revision.
 
-This checkpoint establishes retained admission and observation dispatch, not a
-renderable widget. The GPUI adapter still must create the native entity, route its
-events through session validation, use atomic completion admission, and fault
-unobservable input on overload. Transport publication and command/result
-correlation remain pending alongside the Bonsai/Eio controllers.
+### Implemented GPUI adapter
 
-### Remaining native integration
+`rust/native/src/otp_input_view.rs` owns one GPUI entity per retained node; it
+holds the bounded state owner, native focus, event route and focus/activation
+subscriptions. `otp_input_paint.rs` supplies the layout used by paint, caret,
+selection, hit testing and UTF-16 candidate queries. Accepted ASCII is rendered as
+segmented cells. During composition, the bounded Unicode draft is continuously
+shaped inside the field, with its marked range underlined. This avoids splitting
+combining characters into artificial code cells. Both modes clip to the field and
+scroll the caret into view under constrained width. Masked modes paint bullets
+and expose a protected accessibility value while application snapshots retain text.
 
-Implement and test:
+Native key actions handle cell navigation, selection, deletion, undo/redo and
+clipboard operations. Two OTP-scoped selection actions avoid changing the base
+library's export surface. Native platform paste uses the same normalization path
+as keyboard paste. Platform selection/range queries use exact UTF-16 boundaries;
+read-only fields allow selection/copy but reject edits. AppKit SetValue uses the
+same atomic normalization/validation as ordinary user insertion. Programmatic
+command/result envelopes are still separate pending work.
 
-- Connect the retained placement to the native entity and public controller API.
-- Connect the accepted/preedit/history model to actual platform IME callbacks,
-  keyboard routing and lifecycle cancellation; pure tests are not platform proof.
-- Preserve the tested revision and Changed/Complete ordering through real native
-  callbacks, queue coalescing, command responses and OCaml observation admission.
-- Segmented selection/caret/IME geometry, accessibility value/actions and masking,
-  and clipboard behavior for masked fields.
-- Bounded queues/history, hidden idle behavior, unmount/window close and old-lease
-  command rejection, with native and public examples for each supported alphabet.
+The host retains entities across rerenders, includes them in native command focus
+routing and pins focused/composing managed-list rows. Pointer capture survives
+repaint and allows selection beyond the field bounds; release, blur, hiding,
+removal and window deactivation clean it up. Losing access cancels composition
+through the existing checkpoint semantics. No caret polling or permanent animation
+timer is installed; the current caret is steady.
 
-These are remaining implementation requirements, not features established by the
-pure text helpers/editing model. Actual local macOS acceptance and consolidated macOS/Linux
-checks remain necessary before completing OCH-34.
+Native observations pass through session generation/handler/policy validation.
+Two-event completions use `Transport::otp_completion`, holding one mailbox lock
+through pair admission. Failed admission faults the window; subsequent platform
+input cannot mutate its terminal owner. Rendering and native delegates never call
+OCaml synchronously.
+
+The local native harness now validates actual macOS NSTextInputClient marked and
+committed text, key dispatch, the system clipboard, real AppKit accessible values
+and SetValue, protected values, captured selection, narrow maximum-size preedit,
+configuration retention, disable/unmount cleanup and terminal overload. These
+checks establish the initial native adapter; they do not establish final visual
+quality, external OS shortcut delivery or the full public-application contract.
+
+### Remaining integration and acceptance
+
+- Add command/result envelopes and public mounted Bonsai/Eio controllers, including
+  current lease checks, cancellation and correlated response ordering.
+- Provide public examples for both alphabets and validate the complete OCaml-to-
+  native command/event path using the public API.
+- Expand OTP-specific hidden/modal/list/window lifecycle and retained-load checks;
+  validate layout/theme/scale/masking visually and external OS input as appropriate.
+- Complete local macOS acceptance and consolidated required macOS/Linux checks
+  before advertising the capability or completing OCH-34. Linux desktop GUI
+  acceptance remains tracked separately under OCH-17.

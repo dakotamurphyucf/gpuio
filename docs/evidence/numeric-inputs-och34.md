@@ -1054,3 +1054,64 @@ introduced to hide future protocol additions.
 
 The complete `cargo test --locked -p gpuio-protocol -j 2` regression suite
 and `cargo fmt --all --check` also pass through the isolated wrapper.
+
+
+## OTP native segmented adapter
+
+`otp_input_view.rs` and `otp_input_paint.rs` now connect the retained state owner to
+one GPUI EntityInputHandler. Accepted text uses segmented cells; active Unicode
+preedit is shaped continuously with a marked underline. Paint, caret, pointer
+selection and IME candidate positions share layout, clipping and horizontal scroll.
+The host integrates native focus/commands, managed-list retention and cleanup.
+Native event routing uses the atomic completion transport method; terminally
+overloaded windows reject further text input. No synchronous OCaml callback or
+permanent caret/animation timer is introduced.
+
+Local macOS validation through the isolated project environment:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-native --test native_otp_input --test native_number_input --features native-tests --no-run -j 2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-native --lib --tests -j 2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --all-targets --features native-tests -j 2 -- -D warnings
+```
+
+The built OTP and numeric native executables were run separately with a 60-second
+owned-process-group timeout and TERM/KILL cleanup. Both pass and close their
+windows normally. The OTP harness reports `GPUIO_OTP_NATIVE_OK` and covers:
+
+- Stable mount/configuration, native full-width insertion and exact ordered
+  Changed/Complete publication; no mount-time completion.
+- GPUI keyboard dispatch for directional selection, replacement, undo/redo and
+  paste distribution, plus actual system clipboard copy and read-only copying.
+- Actual macOS NSTextInputClient marked/committed text, normalized commit, invalid
+  joined-emoji rollback and preserved accepted state during preedit/config updates.
+- UTF-16 range/text/candidate queries; a maximum 4,096-byte preedit inside an
+  80-pixel field keeps its caret query in bounds. Oversized preedit leaves it intact.
+- Pointer capture across repaint and selection outside the field, followed by
+  verified capture release.
+- Actual AppKit accessible value, SetValue normalization, enabled state and secure
+  text-field subrole/redacted value. Masked copy preserves the system clipboard.
+- Disable during composition, focus release, entity disposal, remount with another
+  alphabet, and a saturated mailbox fault without partial completion. Further
+  platform insertion cannot mutate the terminal owner.
+
+The first fixture allocated slot 1 before slot 0 and was corrected to the valid
+arena sequence. Initial accessibility queries also ran before lazy AccessKit
+activation; the fixture now queries once, waits for painted frames and then
+asserts the actual tree, matching existing numeric acceptance practice. Neither
+failure was addressed by relaxing component validation.
+
+The existing numeric native regression still passes its AppKit, hidden/modal,
+repeat/capture/window and three 256-editor cleanup workloads. All 270 native unit
+and non-graphical integration tests pass, as does all-target native Clippy.
+The CI workflow now builds and runs the OTP native harness alongside the other
+component checks; hosted execution has not occurred yet.
+
+This is initial native-adapter acceptance. Public command/result correlation,
+mounted Bonsai/Eio controllers/examples, external OS shortcut delivery, expanded
+OTP-specific lifecycle/workload tests and inspected light/dark/scale screenshots
+remain pending. No OCH-34 capability, completed ticket, Linux GUI validation or
+milestone completion is claimed.
+
+The full isolated `dune build -j 2 @all @fmt` also passes at this checkpoint,
+and Ruby successfully parses the updated workflow YAML.

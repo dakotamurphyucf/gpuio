@@ -418,6 +418,10 @@ impl Session {
     pub fn tree(&self, id: WindowId) -> Option<&Tree> {
         self.window(id).ok().map(|w| &w.tree)
     }
+    /// Closed or terminally overloaded windows must not accept further input.
+    pub fn accepts_input(&self, id: WindowId) -> bool {
+        self.window(id).is_ok_and(|window| !window.overloaded)
+    }
     pub fn retained_bytes(&self) -> usize {
         self.retained_bytes
     }

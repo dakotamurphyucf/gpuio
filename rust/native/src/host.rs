@@ -82,6 +82,8 @@ mod menu;
 mod menu_platform;
 #[path = "number_input_view.rs"]
 pub(super) mod number_input_view;
+#[path = "otp_input_view.rs"]
+pub(super) mod otp_input_view;
 #[path = "overlay.rs"]
 mod overlay;
 #[path = "palette.rs"]
@@ -156,6 +158,7 @@ struct View {
     ratings: BTreeMap<NodeId, Rc<RefCell<rating::State>>>,
     sliders: BTreeMap<NodeId, slider_view::Shared>,
     numbers: BTreeMap<NodeId, number_input_view::Instance>,
+    otps: BTreeMap<NodeId, otp_input_view::Instance>,
     tooltips: BTreeMap<NodeId, tooltip::State>,
     tooltip_last_closed: Option<std::time::Instant>,
     command_subscription: Option<gpui::Subscription>,
@@ -378,6 +381,7 @@ impl View {
             ratings: BTreeMap::new(),
             sliders: BTreeMap::new(),
             numbers: BTreeMap::new(),
+            otps: BTreeMap::new(),
             tooltips: BTreeMap::new(),
             tooltip_last_closed: None,
             command_subscription: None,
@@ -423,6 +427,7 @@ impl View {
         self.sync_splits(window, cx);
         self.sync_sliders(dirty, window, cx);
         self.sync_numbers(dirty, window, cx);
+        self.sync_otps(dirty, window, cx);
         // An unselected query branch is hidden even before the first layout.
         // Do not count time waiting for its first visible paint as active motion.
         self.suspend_hidden_animations();
@@ -604,6 +609,12 @@ impl View {
                 .text_color(rgba(0xe8ad36ff))
                 .focus(|style| style.border_color(rgba(0x6688ffff)));
         }
+        if let Some(otp) = &node.otp_input {
+            element = element
+                .min_w(px(40.))
+                .w(px(otp.config.policy.length() as f32 * 37. - 5.))
+                .h(px(40.));
+        }
         if node.number_input.is_some() {
             element = element.min_w(px(80.)).w(px(180.)).min_h(px(40.));
         }
@@ -718,6 +729,7 @@ impl View {
                 .number_input
                 .as_ref()
                 .is_some_and(|n| n.config.disabled)
+            || node.otp_input.as_ref().is_some_and(|n| n.config.disabled)
             || node.rating.as_ref().is_some_and(|config| config.disabled)
             || node
                 .slider
@@ -859,6 +871,10 @@ impl View {
                 if editor.focus_handle(cx).is_focused(window) {
                     element.style().refine(&style);
                 }
+            } else if let Some(otp) = self.otps.get(&id) {
+                if otp.focus_handle(cx).is_focused(window) {
+                    element.style().refine(&style);
+                }
             } else if let Some(number) = self.numbers.get(&id) {
                 if number.focus_handle(cx).is_focused(window) {
                     element.style().refine(&style);
@@ -949,6 +965,9 @@ impl View {
                 window,
                 cx,
             );
+        } else if let Some(otp) = self.otps.get(&id) {
+            self.visited.insert(id);
+            element = otp.element(element, interaction.pointer, cx);
         } else if let Some(number) = self.numbers.get(&id) {
             self.visited.insert(id);
             element = number.element(element, interaction.pointer, cx);
@@ -1154,6 +1173,7 @@ impl View {
             && node.rating.is_none()
             && node.slider.is_none()
             && node.number_input.is_none()
+            && node.otp_input.is_none()
             && node.overlay.is_none()
             && node.pointer.is_none()
             && node.image.is_none()
@@ -1212,6 +1232,7 @@ impl View {
             .get(&id)
             .map(|editor| editor.focus_handle(cx))
             .or_else(|| self.numbers.get(&id).map(|number| number.focus_handle(cx)))
+            .or_else(|| self.otps.get(&id).map(|otp| otp.focus_handle(cx)))
             .or_else(|| self.buttons.get(&id).map(|button| button.focus.clone()))
             .or_else(|| {
                 self.selections
@@ -1338,7 +1359,10 @@ impl View {
         let id = node.id;
         let element = crate::semantics::State {
             hidden: !self.focus.borrow().visible(node.id),
-            metadata: if node.editor.is_none() && node.number_input.is_none() {
+            metadata: if node.editor.is_none()
+                && node.number_input.is_none()
+                && node.otp_input.is_none()
+            {
                 node.accessibility.clone()
             } else {
                 None
@@ -1350,6 +1374,7 @@ impl View {
                 .number_input
                 .as_ref()
                 .is_some_and(|n| n.config.read_only)
+                || node.otp_input.as_ref().is_some_and(|n| n.config.read_only)
                 || node.rating.as_ref().is_some_and(|config| config.read_only)
                 || node
                     .slider
@@ -1500,6 +1525,7 @@ impl Render for View {
         self.hide_unvisited_canvases(window);
         self.hide_unvisited_sliders(window, cx);
         self.hide_unvisited_numbers(window, cx);
+        self.hide_unvisited_otps(window, cx);
         self.buttons.retain(|id, _| self.visited.contains(id));
         self.radios.retain(|id, _| self.visited.contains(id));
         self.ratings.retain(|id, _| self.visited.contains(id));
@@ -1544,6 +1570,10 @@ impl Render for View {
                     .numbers
                     .values()
                     .any(|number| number.focus_handle(cx).is_focused(window))
+                || self
+                    .otps
+                    .values()
+                    .any(|otp| otp.focus_handle(cx).is_focused(window))
                 || self.sliders.values().any(|state| {
                     state
                         .borrow()

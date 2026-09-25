@@ -200,3 +200,8 @@ pub mod slider_state;
 pub fn run_native_number_input_test() {
     host::number_input_view::test::run();
 }
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_otp_input_test() {
+    host::otp_input_view::test::run();
+}
