@@ -315,6 +315,41 @@ pub(super) async fn exercise(
             upper: 8.
         }
     );
+    let preview = snapshot(cx, handle);
+    let command = |cx: &mut gpui::AsyncApp, command| {
+        handle
+            .update(cx, |v, w, cx| v.slider_command(node(1), command, w, cx))
+            .unwrap()
+    };
+    assert_eq!(
+        command(cx, s::Command::ReadSnapshot),
+        s::Response::Applied(preview)
+    );
+    assert_eq!(
+        command(
+            cx,
+            s::Command::Replace {
+                value: initial(),
+                if_revision: Some(0)
+            }
+        ),
+        s::Response::Failed(s::Error::StaleRevision)
+    );
+    assert_eq!(
+        command(
+            cx,
+            s::Command::Replace {
+                value: s::Value::Single(1.),
+                if_revision: None
+            }
+        ),
+        s::Response::Failed(s::Error::WrongMode)
+    );
+    assert_eq!(
+        snapshot(cx, handle),
+        preview,
+        "rejected commands must not cancel or mutate dragging"
+    );
     key(cx, handle, "escape");
     assert_eq!(snapshot(cx, handle).value, snapshot(cx, handle).committed);
     assert_eq!(snapshot(cx, handle).dragging, None);
@@ -340,6 +375,23 @@ pub(super) async fn exercise(
     assert!(matches!(
         events(transport).last(),
         Some(s::Event::Committed(s::Source::Pointer, _))
+    ));
+    frame(cx, handle).await;
+    let at_lower = position(cx, handle, 0.1);
+    mouse(cx, handle, at_lower, true);
+    assert!(matches!(
+        command(cx, s::Command::CancelDrag),
+        s::Response::Applied(s::Snapshot { dragging: None, .. })
+    ));
+    assert!(
+        handle
+            .update(cx, |_, w, _| w.captured_hitbox().is_none())
+            .unwrap()
+    );
+    mouse(cx, handle, at_lower, false);
+    assert!(matches!(
+        events(transport).last(),
+        Some(s::Event::Cancelled(s::CancelReason::Programmatic, _))
     ));
     // A bound update cancels using the old domain, then publishes its normalization.
     frame(cx, handle).await;

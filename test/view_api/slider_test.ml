@@ -111,6 +111,58 @@ let events_bytes events =
   Bin_prot.Utils.bin_dump [%bin_writer: Wire.Event.t list] events |> Bigstring.to_string
 ;;
 
+let%expect_test "slider commands and correlated results agree with independent fixtures" =
+  let command =
+    W.Command.Replace { value = Range { lower = 0.; upper = 6. }; if_revision = Some 7L }
+  in
+  let request correlation =
+    Wire.Message.Slider_command (correlation, window, node, command)
+  in
+  let snapshot =
+    { W.Snapshot.revision = 8L
+    ; value = Range { lower = 0.; upper = 6. }
+    ; committed = Range { lower = 0.; upper = 6. }
+    ; dragging = None
+    }
+  in
+  let events =
+    [ Wire.Event.Slider_result (7L, window, node, Applied snapshot)
+    ; Slider_result (8L, window, node, Failed Stale_revision)
+    ]
+  in
+  let bytes = events_bytes events in
+  Eio_main.run (fun env ->
+    List.iter
+      [ "slider-command-request.hex", Wire.Message.encode (request 7L) |> ok
+      ; "slider-command-events.hex", bytes
+      ]
+      ~f:(fun (name, bytes) ->
+        assert (
+          String.equal
+            (hex bytes)
+            (Eio.Path.load Eio.Path.(Eio.Stdenv.fs env / name) |> String.strip))));
+  assert (List.equal Wire.Event.equal events (Wire.Event.decode bytes |> ok));
+  List.iter [ 0L; -1L ] ~f:(fun correlation ->
+    assert (Result.is_error (Wire.Message.encode (request correlation)));
+    assert (
+      Result.is_error
+        (Wire.Event.decode
+           (events_bytes [ Slider_result (correlation, window, node, Applied snapshot) ]))));
+  for length = 0 to String.length bytes - 1 do
+    assert (Result.is_error (Wire.Event.decode (String.prefix bytes length)))
+  done;
+  assert (Result.is_error (Wire.Event.decode (bytes ^ "\000")));
+  assert (
+    Result.is_error
+      (Wire.Event.decode
+         (events_bytes
+            [ Slider_result (7L, window, node, Applied { snapshot with revision = -1L }) ])));
+  print_endline
+    "guarded command and typed result envelopes, strict consumption and validation";
+  [%expect
+    {| guarded command and typed result envelopes, strict consumption and validation |}]
+;;
+
 let%expect_test "slider retained request and event envelopes have independent fixtures" =
   let request =
     Wire.Message.encode

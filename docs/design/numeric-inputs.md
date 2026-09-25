@@ -154,3 +154,38 @@ stops. Arrows step, Page Up/Down step ten times, Home/End go to the available bo
 and Escape cancels an active drag. Vertical values increase upward. Mapping is
 computed in f64 and converted to bounded fractions before native pixel geometry;
 logarithmic mapping must avoid ratio overflow and loss of narrow positive spans.
+
+## Public slider controller and correlated commands
+
+`Gpuio_eio.Slider.create window ~config ~initial graph` creates one Bonsai-owned
+controller key; `Slider.view` places it once. Rust owns the changing values and
+active gesture. `snapshot` is the last observation, not a controlled value prop.
+Optional `on_event` receives ordered native lifecycle events. Configuration can
+vary reactively; `initial` only seeds a new native placement.
+
+`read_snapshot`, `replace`, `replace_if_unchanged`, `cancel_drag` and `focus thumb`
+return Bonsai effects with a typed result and exact native snapshot. The transport
+appends Message Slider_command tag 14 and Event Slider_result tag 45. Each request
+carries a positive correlation plus exact window/node generations; each response
+is Applied snapshot or Failed error. Native_failure is appended to the error
+variants. No callback or borrowed Rust object crosses the bridge.
+
+The application bounds pending slider requests to 64. Responses use reserved
+mailbox capacity independently of input pressure and keep a window slot occupied
+until drained. Closing/shutdown completes pending requests with Closed and late
+replies cannot complete them again. The controller applies a reply observation
+only when its expected lease is still current; older revisions cannot roll state
+back. A saved controller never silently retargets a remounted owner.
+
+Read_snapshot is non-mutating and works for hidden, read-only or disabled owners.
+Replace normalizes and preserves mode, optionally checks the native revision,
+and cancels an active drag before its Observed event. It also works while hidden,
+read-only or disabled. Rejected commands leave a drag untouched. Cancel_drag
+restores committed values, releases capture and reports Programmatic cancellation;
+when idle it succeeds without incrementing the revision. Focus validates the
+requested thumb and current disabled/visibility/modal policy. Replies update the
+controller's snapshot but do not duplicate the user lifecycle callback.
+
+The runnable `examples/numeric` application uses only public Core/Bonsai/Eio APIs.
+Its self-test deliberately keeps an old controller through unmount/remount and
+checks both stale native revisions and stale placement identity.

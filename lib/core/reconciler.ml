@@ -1752,6 +1752,7 @@ let dispatch t = function
   | Animation_endpoint _
   | Animation_program_event _
   | Rating_requested _
+  | Slider_result _
   | Slider_event _
   | Container_selected _
   | List_retained _

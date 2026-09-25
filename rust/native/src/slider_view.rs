@@ -6,7 +6,7 @@ use gpui::{prelude::*, *};
 use gpuio_protocol::{
     NodeId,
     numeric::Direction,
-    slider::{Axis, CancelReason, Event, Source, Thumb, Value},
+    slider::{Axis, CancelReason, Command, Error, Event, Response, Snapshot, Source, Thumb, Value},
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -22,6 +22,66 @@ pub(super) struct State {
     closed: bool,
 }
 impl State {
+    fn command(
+        &mut self,
+        command: Command,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Result<Snapshot, Error> {
+        if self.closed
+            || !self
+                .route
+                .session
+                .borrow()
+                .tree(self.route.window)
+                .and_then(|tree| tree.get(self.route.node))
+                .is_some_and(|node| {
+                    node.slider.is_some() && node.handler == Some(self.route.handler)
+                })
+        {
+            return Err(Error::StaleSlider);
+        }
+        if !self.current() {
+            return Err(Error::Busy);
+        }
+        if !command.is_valid() {
+            return Err(Error::InvalidValue);
+        }
+        match command {
+            Command::ReadSnapshot => (),
+            Command::Focus(thumb) => {
+                let focus = self
+                    .focus
+                    .iter()
+                    .find(|(t, _)| *t == thumb)
+                    .ok_or(Error::WrongThumb)?
+                    .1
+                    .clone();
+                if self.model.config().disabled {
+                    return Err(Error::Disabled);
+                }
+                if !self.allowed(false) {
+                    return Err(Error::FocusBlocked);
+                }
+                window.focus(&focus, cx);
+            }
+            Command::Replace { value, if_revision } => {
+                let events = self.model.replace(value, if_revision)?;
+                self.release_capture(window);
+                self.emit(events);
+                window.refresh();
+            }
+            Command::CancelDrag => {
+                let event = self.model.cancel(CancelReason::Programmatic)?;
+                self.release_capture(window);
+                if let Some(event) = event {
+                    self.emit([event]);
+                    window.refresh();
+                }
+            }
+        }
+        Ok(self.model.snapshot())
+    }
     fn emit(&self, events: impl IntoIterator<Item = Event>) {
         for event in events {
             let routed = self.route.session.borrow().slider_event(
@@ -220,6 +280,23 @@ impl State {
     }
 }
 impl View {
+    pub(super) fn slider_command(
+        &self,
+        node: NodeId,
+        command: Command,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Response {
+        let result = self
+            .sliders
+            .get(&node)
+            .ok_or(Error::StaleSlider)
+            .and_then(|state| state.borrow_mut().command(command, window, cx));
+        match result {
+            Ok(snapshot) => Response::Applied(snapshot),
+            Err(error) => Response::Failed(error),
+        }
+    }
     pub(super) fn sync_sliders(
         &mut self,
         dirty: &[NodeId],

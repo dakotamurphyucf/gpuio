@@ -3,6 +3,7 @@ open Gpuio_protocol
 module Guard = Gpuio_runtime_core.Domain_guard
 module Driver = Gpuio_runtime_core.Window_driver
 module Input = Gpuio.Text_input
+module Slider = Gpuio.Slider
 module Dialog = Gpuio.File_dialog
 module Native_window = Gpuio.Window
 
@@ -12,6 +13,12 @@ type editor_request =
   { window : Window_id.t
   ; node : Node_id.t
   ; complete : editor_result -> unit
+  }
+
+type slider_request =
+  { window : Window_id.t
+  ; node : Node_id.t
+  ; complete : (Slider.Snapshot.t, Slider.Command_error.t) Result.t -> unit
   }
 
 type window_result = (Native_window.Snapshot.t, Native_window.Error.t) Result.t
@@ -59,6 +66,7 @@ type t =
   ; mutable closes : Window_id.t Int64.Map.t
   ; mutable frames : (Window_id.t * (revision:int64 -> unit Bonsai.Effect.t)) Int64.Map.t
   ; mutable editors : editor_request Int64.Map.t
+  ; mutable sliders : slider_request Int64.Map.t
   ; mutable dialogs : dialog_request Int64.Map.t
   ; mutable window_requests : window_request Int64.Map.t
   ; mutable window_capabilities : Native_window.Capabilities.t option
@@ -282,6 +290,12 @@ let release_window window =
         Window_id.equal request.window window.id)
     in
     window.app.editors <- remaining;
+    let cancelled_sliders, remaining_sliders =
+      Map.partition_tf window.app.sliders ~f:(fun request ->
+        Window_id.equal request.window window.id)
+    in
+    window.app.sliders <- remaining_sliders;
+    Map.iter cancelled_sliders ~f:(fun request -> request.complete (Error Closed));
     Map.iter cancelled ~f:(fun request -> request.complete (Error Closed));
     let cancelled_dialogs, remaining_dialogs =
       Map.partition_tf window.app.dialogs ~f:(fun request ->
@@ -456,6 +470,28 @@ module Window = struct
       Bonsai.Effect.map
         (file_dialog_raw t Capabilities)
         ~f:Dialog.Expert.capabilities_of_wire
+    ;;
+
+    let slider_command t snapshot command =
+      Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+        check t.app;
+        if is_closed t || t.app.stopping
+        then callback (Error Slider.Command_error.Closed)
+        else if not (Window_id.equal t.id (Slider.Expert.window snapshot))
+        then callback (Error Stale_slider)
+        else if Map.length t.app.sliders >= 64
+        then callback (Error Busy)
+        else (
+          let request = correlation t.app in
+          let node = Slider.Expert.node snapshot in
+          t.app.sliders
+          <- Map.set
+               t.app.sliders
+               ~key:request
+               ~data:{ window = t.id; node; complete = callback };
+          queue
+            t.app
+            (Slider_command (request, t.id, node, Slider.Expert.command_to_wire command))))
     ;;
 
     let editor_command t snapshot command =
@@ -753,6 +789,20 @@ let process t = function
        in
        pending.complete result
      | Some _ | None -> ())
+  | Slider_result (request, id, node, result) ->
+    (match Map.find t.sliders request with
+     | Some pending
+       when Window_id.equal pending.window id && Node_id.equal pending.node node ->
+       t.sliders <- Map.remove t.sliders request;
+       let result =
+         match result with
+         | Failed error -> Error (Slider.Expert.error_of_wire error)
+         | Applied snapshot ->
+           Slider.Expert.snapshot_of_wire ~window:id ~node snapshot
+           |> Result.map_error ~f:(fun _ -> Slider.Command_error.Native_failure)
+       in
+       pending.complete result
+     | Some _ | None -> ())
   | Editor_result (request, id, node, result) ->
     (match Map.find t.editors request with
      | Some pending
@@ -812,6 +862,24 @@ let process t = function
         Native_failure
     in
     pending.complete (Wire.File_dialog.Result.Failed error)
+  | Failed (request, code) when Map.mem t.sliders request ->
+    let pending = Map.find_exn t.sliders request in
+    t.sliders <- Map.remove t.sliders request;
+    let error : Slider.Command_error.t =
+      match code with
+      | Closed -> Closed
+      | Stale_handle -> Stale_slider
+      | Busy | Overloaded -> Busy
+      | Limit_exceeded -> Limit_exceeded
+      | Unsupported_version
+      | Unsupported_capability
+      | Malformed
+      | Not_ready
+      | Invalid_revision
+      | Invalid_tree
+      | Native_failure -> Native_failure
+    in
+    pending.complete (Error error)
   | Failed (request, code) when Map.mem t.editors request ->
     let pending = Map.find_exn t.editors request in
     t.editors <- Map.remove t.editors request;
@@ -1003,6 +1071,7 @@ let worker native read ~tick_hz ~max_tasks ~motion initialize =
         ; closes = Int64.Map.empty
         ; frames = Int64.Map.empty
         ; editors = Int64.Map.empty
+        ; sliders = Int64.Map.empty
         ; dialogs = Int64.Map.empty
         ; window_requests = Int64.Map.empty
         ; window_capabilities = None

@@ -632,6 +632,7 @@ pub enum Message {
     WindowCommand(i64, WindowId, crate::window::Command),
     OpenConfigured(i64, WindowId, crate::window::Config),
     Canvas(i64, crate::canvas_resource::Request),
+    SliderCommand(i64, WindowId, NodeId, crate::slider::Command),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -759,4 +760,5 @@ pub enum Event {
     ),
     RatingRequested(WindowId, NodeId, HandlerId, i64, crate::rating::Request),
     SliderEvent(WindowId, NodeId, HandlerId, i64, crate::slider::Event),
+    SliderResult(i64, WindowId, NodeId, crate::slider::Response),
 }

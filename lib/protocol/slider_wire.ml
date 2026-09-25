@@ -188,5 +188,18 @@ module Error = struct
     | Invalid_config
     | Limit_exceeded
     | Read_only
+    | Native_failure
   [@@deriving bin_io, equal, sexp_of]
+end
+
+module Response = struct
+  type t =
+    | Applied of Snapshot.t
+    | Failed of Error.t
+  [@@deriving bin_io, equal, sexp_of]
+
+  let valid = function
+    | Applied snapshot -> Snapshot.valid snapshot
+    | Failed _ -> true
+  ;;
 end

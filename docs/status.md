@@ -94,7 +94,8 @@ and draft classification, with independent OCaml/Rust fixtures and boundary test
 Slider contracts, bounded codec and native interaction state now pass local
 checks. Retained slider views, tree admission and observation routing are implemented;
 native single/range rendering and initial macOS pointer/keyboard/AX checks now pass.
-Command transport, expanded slider acceptance and number/OTP integration remain pending; no capability
+Correlated commands and the public Bonsai/Eio slider controller/example pass local integration.
+Expanded slider acceptance and number/OTP integration remain pending; no capability
 is advertised.
 See [numeric design](design/numeric-inputs.md) and
 [foundation evidence](evidence/numeric-inputs-och34.md).

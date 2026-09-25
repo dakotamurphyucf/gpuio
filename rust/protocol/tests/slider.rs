@@ -292,3 +292,62 @@ fn retained_envelopes_match_independent_fixtures_and_reject_malformed_requests()
     bad.label.clear();
     assert!(decode(&encode(&message(bad, snapshot().committed))).is_err());
 }
+
+#[test]
+fn correlated_commands_and_results_match_independent_envelopes() {
+    use gpuio_protocol::{NodeId, WindowId, decode, v1};
+    let window = WindowId::from_parts(0, 1).unwrap();
+    let node = NodeId::from_parts(0, 1).unwrap();
+    let value = Value::Range {
+        lower: 0.,
+        upper: 6.,
+    };
+    let request =
+        |correlation, command| v1::Message::SliderCommand(correlation, window, node, command);
+    let command = Command::Replace {
+        value,
+        if_revision: Some(7),
+    };
+    let message = request(7, command);
+    let bytes = encode(&message);
+    assert_eq!(
+        hex(&bytes),
+        include_str!("../../../test/fixtures/slider-command-request.hex").trim()
+    );
+    assert_eq!(decode(&bytes), Ok(message));
+    for end in 0..bytes.len() {
+        assert!(decode(&bytes[..end]).is_err());
+    }
+    let mut extra = bytes;
+    extra.push(0);
+    assert!(decode(&extra).is_err());
+    for correlation in [0, -1] {
+        assert!(decode(&encode(&request(correlation, command))).is_err());
+    }
+    for command in [
+        Command::Replace {
+            value: Value::Single(f64::NAN),
+            if_revision: None,
+        },
+        Command::Replace {
+            value,
+            if_revision: Some(-1),
+        },
+    ] {
+        assert!(decode(&encode(&request(7, command))).is_err());
+    }
+    let snapshot = Snapshot {
+        revision: 8,
+        value,
+        committed: value,
+        dragging: None,
+    };
+    let events = vec![
+        v1::Event::SliderResult(7, window, node, Response::Applied(snapshot)),
+        v1::Event::SliderResult(8, window, node, Response::Failed(Error::StaleRevision)),
+    ];
+    assert_eq!(
+        hex(&encode(&events)),
+        include_str!("../../../test/fixtures/slider-command-events.hex").trim()
+    );
+}

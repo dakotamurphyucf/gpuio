@@ -860,6 +860,7 @@ module Message = struct
     | Window_command of int64 * Window_id.t * Window.Command.t
     | Open_configured of int64 * Window_id.t * Window.Config.t
     | Canvas of int64 * Canvas.Request.t
+    | Slider_command of int64 * Window_id.t * Node_id.t * Slider.Command.t
   [@@deriving bin_io, equal, sexp_of]
 
   let encode t =
@@ -872,6 +873,8 @@ module Message = struct
         || not
              (Window.valid_title config.title
               && Window.valid_size config.width config.height)
+      | Slider_command (correlation, _, _, command) ->
+        Int64.(correlation <= 0L) || not (Slider.Command.valid command)
       | Canvas (correlation, request) ->
         Int64.(correlation <= 0L)
         ||
@@ -1006,6 +1009,7 @@ module Event = struct
     | Rating_requested of
         Window_id.t * Node_id.t * Handler_id.t * int64 * Rating.Request.t
     | Slider_event of Window_id.t * Node_id.t * Handler_id.t * int64 * Slider.Event.t
+    | Slider_result of int64 * Window_id.t * Node_id.t * Slider.Response.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1064,6 +1068,8 @@ module Event = struct
       Int64.(revision > 0L) && Or_error.is_ok (List_wire.Retained.validate_all notices)
     | List_viewport (_, _, _, revision, viewport) ->
       Int64.(revision >= 0L) && Or_error.is_ok (List_wire.Viewport.validate viewport)
+    | Slider_result (request, _, _, result) ->
+      Int64.(request > 0L) && Slider.Response.valid result
     | Slider_event (_, _, _, revision, event) ->
       Int64.(revision >= 0L) && Slider.Event.valid event
     | Rating_requested (_, _, _, revision, request) ->

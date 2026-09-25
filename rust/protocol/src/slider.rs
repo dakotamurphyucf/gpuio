@@ -286,4 +286,11 @@ pub enum Error {
     InvalidConfig,
     LimitExceeded,
     ReadOnly,
+    NativeFailure,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
+pub enum Response {
+    Applied(Snapshot),
+    Failed(Error),
 }

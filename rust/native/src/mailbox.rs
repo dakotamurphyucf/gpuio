@@ -302,6 +302,7 @@ impl Mailbox {
             | Event::PointerEvent(id, ..)
             | Event::PaletteDismissed(id, ..)
             | Event::ComboboxSelected(id, ..)
+            | Event::SliderResult(_, id, ..)
             | Event::EditorResult(_, id, ..)
             | Event::FileDialogResult(_, id, ..)
             | Event::Overloaded(id) => id.slot() == window_slot,

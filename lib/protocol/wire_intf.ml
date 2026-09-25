@@ -829,6 +829,7 @@ module type S = sig
       | Window_command of int64 * Window_id.t * Window.Command.t
       | Open_configured of int64 * Window_id.t * Window.Config.t
       | Canvas of int64 * Canvas.Request.t
+      | Slider_command of int64 * Window_id.t * Node_id.t * Slider.Command.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Bounded outgoing encoding. Native decoding additionally validates all
@@ -940,6 +941,7 @@ module type S = sig
       | Rating_requested of
           Window_id.t * Node_id.t * Handler_id.t * int64 * Rating.Request.t
       | Slider_event of Window_id.t * Node_id.t * Handler_id.t * int64 * Slider.Event.t
+      | Slider_result of int64 * Window_id.t * Node_id.t * Slider.Response.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

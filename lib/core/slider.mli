@@ -142,6 +142,7 @@ module Command_error : sig
     | Invalid_config
     | Limit_exceeded
     | Read_only
+    | Native_failure
   [@@deriving equal, sexp_of]
 end
 

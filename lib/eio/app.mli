@@ -77,6 +77,13 @@ module Window : sig
       -> Gpuio.Text_input.Command.t
       -> (Gpuio.Text_input.Snapshot.t, Gpuio.Text_input.Command_error.t) Result.t
            Bonsai.Effect.t
+
+    (** Correlated slider commands bound to the exact observed window/node lease. *)
+    val slider_command
+      :  t
+      -> Gpuio.Slider.Snapshot.t
+      -> Gpuio.Slider.Command.t
+      -> (Gpuio.Slider.Snapshot.t, Gpuio.Slider.Command_error.t) Result.t Bonsai.Effect.t
   end
 end
 

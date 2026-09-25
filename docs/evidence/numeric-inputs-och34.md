@@ -5,7 +5,8 @@
 OCH-34 is In Progress. Shared numeric domain/draft rules and slider contracts/codec/native state are
 implemented, along with retained slider views, tree admission and observation routing.
 Mounted slider rendering and initial native interaction tests also pass locally.
-Slider command transport/public controller, expanded acceptance, numeric input/stepper and OTP integration
+Correlated slider commands and the public Bonsai/Eio controller/example also pass
+local integration. Expanded acceptance, numeric input/stepper and OTP integration
 remain pending. No OCH-34
 capability is advertised and no new native GUI acceptance is claimed.
 
@@ -206,3 +207,44 @@ regression suite), exited zero, and were reaped. Slider emits
 presentation/AppKit/IME regressions also pass. These regression binaries used
 `native-tests`, so optional `native-image-tests` pixel assertions are not claimed
 from this run. No owned test windows/processes remain.
+
+## Correlated commands and public Bonsai/Eio controller
+
+`Gpuio_eio.Slider` now provides create/view/snapshot, read_snapshot, replace,
+replace_if_unchanged, cancel_drag and focus thumb. Native command handling shares
+the mounted model and capture state. The App adapter reserves at most 64 pending
+requests, correlates exact window/node generations, handles typed replies/failures
+and closes pending requests with their window. Controller reply observations are
+lease-checked and monotonically ordered; they do not duplicate lifecycle callbacks.
+
+Independent command/result fixtures match between OCaml and Rust. Tests reject
+nonpositive correlations, invalid guards/values, malformed result snapshots,
+truncation and trailing data. Native mailbox regression verifies a reserved
+slider response survives a full input lane and prevents window-slot reuse until
+it is drained. The native window suite additionally passes reading a live drag,
+rejecting stale/wrong-mode commands without altering it, and explicit programmatic
+cancellation releasing capture.
+
+The public `examples/numeric/main.exe --self-test` passes through the actual
+OCaml/Rust bridge: initial observation, exact read, guarded replacement, stale
+revision, wrong-mode/thumb failures, focus, idle cancellation, disabled replacement,
+unmount, remount with fresh initial values, old-controller rejection, cross-lease
+guarded replacement rejection and closed-window failure. It exits zero and emits
+`GPUIO_SLIDER_PUBLIC_OK`; the native suite also exits zero. Both processes/windows
+are reaped. The example remains interactive without `--self-test`.
+
+Final local macOS arm64 checks pass with `GPUIO_JOBS=2`:
+
+```sh
+./scripts/gpuio exec dune build -j 2 @all @test/view_api/runtest @fmt
+./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-protocol
+./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-protocol -p gpuio-native --test slider
+./scripts/gpuio exec cargo clippy --locked -j 2 --workspace --all-targets --features gpuio-native/native-image-tests,gpuio-native/native-canvas-tests -- -D warnings
+./scripts/gpuio exec cargo fmt --all
+```
+
+The native executable was built using `native-tests`; GUI subprocesses used a
+45-second timeout. The new public example is wired into the future macOS CI run.
+Hosted macOS/Linux checks remain pending. Expanded slider style/theme/pixel/scale,
+idle/deactivation/lifetime/workload and public external-AX coverage remain, as do
+numeric editor/stepper and OTP implementation. No OCH-34 capability is advertised.

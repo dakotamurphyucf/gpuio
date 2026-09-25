@@ -124,26 +124,36 @@ pub fn decode_slider_event(bytes: &[u8]) -> Result<Event, DecodeError> {
         Err(DecodeError::Malformed)
     }
 }
+impl Decoder<'_> {
+    pub(super) fn slider_command(&mut self) -> Result<Command, DecodeError> {
+        let command = match self.tag()? {
+            0 => Command::Replace {
+                value: self.slider_value()?,
+                if_revision: match self.tag()? {
+                    0 => None,
+                    1 => Some(self.int()?),
+                    _ => return Err(DecodeError::Malformed),
+                },
+            },
+            1 => Command::CancelDrag,
+            2 => Command::Focus(self.slider_thumb()?),
+            3 => Command::ReadSnapshot,
+            _ => return Err(DecodeError::Malformed),
+        };
+        if command.is_valid() {
+            Ok(command)
+        } else {
+            Err(DecodeError::Malformed)
+        }
+    }
+}
 pub fn decode_slider_command(bytes: &[u8]) -> Result<Command, DecodeError> {
     if bytes.len() > 32 {
         return Err(DecodeError::LimitExceeded);
     }
     let mut d = Decoder(Cursor::new(bytes));
-    let command = match d.tag()? {
-        0 => Command::Replace {
-            value: d.slider_value()?,
-            if_revision: match d.tag()? {
-                0 => None,
-                1 => Some(d.int()?),
-                _ => return Err(DecodeError::Malformed),
-            },
-        },
-        1 => Command::CancelDrag,
-        2 => Command::Focus(d.slider_thumb()?),
-        3 => Command::ReadSnapshot,
-        _ => return Err(DecodeError::Malformed),
-    };
-    if command.is_valid() && d.remaining() == 0 {
+    let command = d.slider_command()?;
+    if d.remaining() == 0 {
         Ok(command)
     } else {
         Err(DecodeError::Malformed)

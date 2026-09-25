@@ -1754,6 +1754,15 @@ pub fn run(transport: Arc<Transport>) {
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),
                             }
                         }
+                        Message::SliderCommand(correlation, id, node, command) => {
+                            use gpuio_protocol::slider::{Error, Response};
+                            let result = windows.get(&id)
+                                .and_then(|handle| handle.update(cx, |view, window, cx| {
+                                    view.slider_command(node, command, window, cx)
+                                }).ok())
+                                .unwrap_or(Response::Failed(Error::Closed));
+                            transport.respond(Event::SliderResult(correlation, id, node, result));
+                        }
                         Message::EditorCommand(correlation, id, node, command) => {
                             let result = match windows.get(&id) {
                                 None => EditorResult::Failed(EditorError::Closed),

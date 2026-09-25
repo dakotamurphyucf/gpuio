@@ -381,3 +381,29 @@ fn coalescing_respects_owners_revisions_thumbs_committed_values_and_capacity() {
     mailbox.input(commit.clone()).unwrap();
     assert_eq!(mailbox.drain(128), [commit]);
 }
+
+#[test]
+fn command_responses_survive_full_input_lane_and_fence_window_reuse_until_drained() {
+    let mut mailbox = Mailbox::default();
+    let snapshot = s::Snapshot {
+        value: value(),
+        dragging: None,
+        ..snapshot(1)
+    };
+    for _ in 0..MAX_INPUT_EVENTS {
+        mailbox.input(event(s::Event::Observed(snapshot))).unwrap();
+    }
+    mailbox
+        .submit(
+            Message::SliderCommand(7, window(), node(), s::Command::ReadSnapshot),
+            12,
+        )
+        .unwrap();
+    assert!(matches!(mailbox.pop(), Some(Message::SliderCommand(7, ..))));
+    let response = Event::SliderResult(7, window(), node(), s::Response::Applied(snapshot));
+    mailbox.respond(response.clone());
+    assert_eq!(mailbox.drain(MAX_INPUT_EVENTS).len(), MAX_INPUT_EVENTS);
+    assert!(mailbox.has_window_output(window().slot()));
+    assert_eq!(mailbox.drain(1), [response]);
+    assert!(!mailbox.has_window_output(window().slot()));
+}

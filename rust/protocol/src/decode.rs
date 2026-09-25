@@ -1215,6 +1215,13 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
             }
             Message::OpenConfigured(correlation, id, config)
         }
+        14 => {
+            let correlation = d.int()?;
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::SliderCommand(correlation, d.window()?, d.node()?, d.slider_command()?)
+        }
         13 => {
             let correlation = d.int()?;
             if correlation <= 0 {
