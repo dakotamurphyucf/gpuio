@@ -24,6 +24,9 @@ ocaml-interop = { git = "https://github.com/tizoc/ocaml-interop.git", rev = "9f9
 binprot = { git = "https://github.com/LaurentMazare/binprot-rs.git", rev = "165b4d64d8f2a580af453f1e60deba41c28cd6df" }
 async-channel = "2"
 unicode-segmentation = "1"
+ropey = { version = "=2.0.0-beta.1", features = ["metric_chars", "metric_lines_lf", "metric_utf16"] }
+syntect = { version = "=5.3.0", default-features = false, features = ["parsing", "default-themes", "regex-fancy"] }
+two-face = { version = "=0.5.2", default-features = false, features = ["syntect-fancy"] }
 libc = "0.2"
 raw-window-handle = "0.6.2"
 futures-lite = "2"
@@ -134,5 +137,26 @@ required-features = ["native-image-tests"]
 [[test]]
 name = "native_list"
 path = "tests/native_list.rs"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_document"
+path = "tests/native_document.rs"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_window"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_tabs"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_split"
 harness = false
 required-features = ["native-tests"]

@@ -182,6 +182,8 @@ module Command = struct
     | Focus
     | Undo
     | Redo
+    | Submit
+    | Read_snapshot
   [@@deriving equal, sexp_of]
 end
 
@@ -309,6 +311,8 @@ module Expert = struct
     | Focus -> Focus
     | Undo -> Undo
     | Redo -> Redo
+    | Submit -> Submit
+    | Read_snapshot -> Read_snapshot
   ;;
 
   let error_of_wire : Gpuio_protocol.Wire.Editor.Error.t -> Command_error.t = function

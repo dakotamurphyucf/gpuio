@@ -3,6 +3,10 @@ pub mod asset_cache;
 pub mod asset_decode;
 pub mod asset_store;
 pub mod asset_svg;
+mod document_highlight;
+pub mod document_host;
+pub mod document_jobs;
+pub mod document_store;
 mod ffi;
 pub mod file_dialog;
 mod host;
@@ -102,4 +106,32 @@ pub fn run_native_image_view_test() {
 #[cfg(feature = "native-tests")]
 pub fn run_native_list_test() {
     host::list_test::run();
+}
+
+pub mod document_diff;
+
+pub mod document_markdown;
+
+pub mod document_editor;
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_document_test() {
+    host::document_view::test::run();
+}
+
+pub mod document_search;
+
+#[cfg(all(feature = "native-tests", target_os = "macos"))]
+pub fn run_native_window_test() {
+    host::window_test::run();
+}
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_tabs_test() {
+    host::control_test::run_tabs();
+}
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_split_test() {
+    host::control_test::run_splits();
 }

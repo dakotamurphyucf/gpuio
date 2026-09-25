@@ -89,10 +89,19 @@ let worker native notification_read =
         assert (Window_id.equal w (window 1L));
         other_closed := true;
         finish ()
+      | Close_requested window -> send (Close (4L, window))
+      | Quit_requested -> send Shutdown
       | Stopped ->
         assert (Int64.equal !painted 50L && !other_closed && !rollback && !containment);
         stopped := true
       | Failed _ | Rejected _ | Overloaded _ -> failwith "unexpected bridge failure"
+      | Reopen_requested
+      | Document_response _
+      | Document_navigation _
+      | Window_changed _
+      | Window_response _
+      | Window_capabilities _
+      | Split_resized _
       | Press _
       | Editor_event _
       | Image_state _

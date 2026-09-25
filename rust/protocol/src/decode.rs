@@ -175,6 +175,81 @@ impl Decoder<'_> {
         }
         Ok(config)
     }
+    fn document_config(&mut self) -> Result<crate::document::Config, DecodeError> {
+        use crate::document::{Config, Layout, Mode};
+        let config = Config {
+            source: self.option(Self::resource)?,
+            mode: match self.tag()? {
+                0 => Mode::Markdown,
+                1 => Mode::Code(self.bounded_text(64)?),
+                2 => Mode::Diff,
+                _ => return Err(DecodeError::Malformed),
+            },
+            dark: self.boolean()?,
+            layout: match self.tag()? {
+                0 => Layout::Flow,
+                1 => Layout::Viewport(self.float()?),
+                _ => return Err(DecodeError::Malformed),
+            },
+            label: self.bounded_text(1024)?,
+            path: self.option(|d| d.bounded_text(4096))?,
+            line_numbers: self.boolean()?,
+            initially_collapsed: self.boolean()?,
+            search: self.bounded_text(4096)?,
+            images: self.list(128, |d| {
+                let url = d.bounded_text(4096)?;
+                let source = match d.tag()? {
+                    0 => ImageSource::Reference(d.resource()?),
+                    1 => ImageSource::Unavailable(d.image_error()?),
+                    _ => return Err(DecodeError::Malformed),
+                };
+                Ok((url, source))
+            })?,
+        };
+        if !config.is_valid() {
+            return Err(DecodeError::Malformed);
+        }
+        Ok(config)
+    }
+    fn document(&mut self) -> Result<crate::document::Request, DecodeError> {
+        use crate::document::{MAX_CHUNK_BYTES, Request, Status, Update};
+        Ok(match self.tag()? {
+            0 => Request::Create,
+            1 => Request::Begin(Update {
+                id: self.resource()?,
+                base: self.int()?,
+                revision: self.int()?,
+                generation: self.int()?,
+                from_byte: self.int()?,
+                suffix_bytes: self.int()?,
+                status: match self.tag()? {
+                    0 => Status::Streaming,
+                    1 => Status::Complete,
+                    2 => Status::Cancelled,
+                    _ => return Err(DecodeError::Malformed),
+                },
+            }),
+            2 => {
+                let id = self.resource()?;
+                let revision = self.int()?;
+                let offset = self.int()?;
+                let length = self.count(MAX_CHUNK_BYTES)?;
+                let start = self.0.position() as usize;
+                let data = self.0.get_ref()[start..start + length].to_vec();
+                self.0.set_position((start + length) as u64);
+                Request::Chunk(
+                    id,
+                    revision,
+                    offset,
+                    crate::asset::Chunk::new(data).map_err(|_| DecodeError::LimitExceeded)?,
+                )
+            }
+            3 => Request::Publish(self.resource()?, self.int()?),
+            4 => Request::Abort(self.resource()?, self.int()?),
+            5 => Request::Release(self.resource()?),
+            _ => return Err(DecodeError::Malformed),
+        })
+    }
     fn asset(&mut self) -> Result<crate::asset::Request, DecodeError> {
         use crate::asset::{Chunk, Format, MAX_CHUNK_BYTES, Request};
         Ok(match self.tag()? {
@@ -712,6 +787,10 @@ impl Decoder<'_> {
                     23 => Kind::Icon,
                     24 => Kind::Animated,
                     25 => Kind::VirtualList,
+                    26 => Kind::DocumentView,
+                    27 => Kind::TabBar,
+                    28 => Kind::TabPanel,
+                    29 => Kind::SplitPane,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -779,6 +858,28 @@ impl Decoder<'_> {
                 },
             ),
             26 => Op::SetImage(self.node()?, self.image_config()?),
+            33 => Op::SetDocument(self.node()?, self.document_config()?),
+            34 => {
+                let id = self.node()?;
+                let config = crate::split::Config {
+                    label: self.text()?,
+                    axis: match self.tag()? {
+                        0 => crate::split::Axis::Horizontal,
+                        1 => crate::split::Axis::Vertical,
+                        _ => return Err(DecodeError::Malformed),
+                    },
+                    initial_first: self.float()?,
+                    minimum_first: self.float()?,
+                    maximum_first: self.float()?,
+                    minimum_second: self.float()?,
+                    keyboard_step: self.float()?,
+                    reset_generation: self.int()?,
+                };
+                if !config.is_valid() {
+                    return Err(DecodeError::Malformed);
+                }
+                Op::SetSplit(id, config)
+            }
             27 => Op::SetAnimation(self.node()?, self.animation_config()?),
             28 => Op::SetListConfig(self.node()?, self.list_config()?),
             29 => Op::SetListOrder(self.node()?, self.list_order()?),
@@ -957,6 +1058,8 @@ impl Decoder<'_> {
             2 => EditorCommand::Focus,
             3 => EditorCommand::Undo,
             4 => EditorCommand::Redo,
+            5 => EditorCommand::Submit,
+            6 => EditorCommand::ReadSnapshot,
             _ => return Err(DecodeError::Malformed),
         })
     }
@@ -1002,6 +1105,52 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
             2 => crate::animation::Preference::Full,
             _ => return Err(DecodeError::Malformed),
         }),
+        10 => {
+            let correlation = d.int()?;
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::Document(correlation, d.document()?)
+        }
+        11 => {
+            use crate::window::Command;
+            let correlation = d.int()?;
+            let id = d.window()?;
+            let command = match d.tag()? {
+                0 => Command::Observe,
+                1 => Command::SetTitle(d.text()?),
+                2 => Command::Resize(d.float()?, d.float()?),
+                3 => Command::Activate,
+                4 => Command::Zoom,
+                5 => Command::ToggleFullscreen,
+                6 => Command::SetEdited(d.boolean()?),
+                _ => return Err(DecodeError::Malformed),
+            };
+            if correlation <= 0 || !command.is_valid() {
+                return Err(DecodeError::Malformed);
+            }
+            Message::WindowCommand(correlation, id, command)
+        }
+        12 => {
+            let correlation = d.int()?;
+            let id = d.window()?;
+            let config = crate::window::Config {
+                title: d.text()?,
+                width: d.float()?,
+                height: d.float()?,
+                focus: d.boolean()?,
+                chrome: match d.tag()? {
+                    0 => crate::window::Chrome::Standard,
+                    1 => crate::window::Chrome::Hidden,
+                    _ => return Err(DecodeError::Malformed),
+                },
+                resizable: d.boolean()?,
+            };
+            if correlation <= 0 || !config.is_valid() {
+                return Err(DecodeError::Malformed);
+            }
+            Message::OpenConfigured(correlation, id, config)
+        }
         _ => return Err(DecodeError::Malformed),
     };
     if d.remaining() != 0 {

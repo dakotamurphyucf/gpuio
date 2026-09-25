@@ -8,6 +8,8 @@ fn allows_children(kind: Kind) -> bool {
     matches!(
         kind,
         Kind::Container
+            | Kind::TabPanel
+            | Kind::SplitPane
             | Kind::VirtualList
             | Kind::Animated
             | Kind::Button
@@ -41,6 +43,8 @@ pub struct Node {
     pub palette: Option<Arc<PaletteConfig>>,
     pub progress: Option<Arc<ProgressConfig>>,
     pub image: Option<Arc<ImageConfig>>,
+    pub split: Option<Arc<gpuio_protocol::split::Config>>,
+    pub document: Option<Arc<gpuio_protocol::document::Config>>,
     pub animation: Option<Arc<gpuio_protocol::animation::Config>>,
     pub list_config: Option<Arc<gpuio_protocol::list::Config>>,
     pub list_order: Option<Arc<gpuio_protocol::list::Order>>,
@@ -63,6 +67,10 @@ pub struct Node {
 impl Node {
     fn payload_bytes(&self) -> usize {
         self.text.len()
+            + self
+                .split
+                .as_ref()
+                .map_or(0, |config| config.label.len() + 128)
             + self.list_order.as_ref().map_or(0, |order| {
                 // Admission units include expanded indexing and GPUI measurement
                 // metadata, not merely the compact serialized runs. This is a
@@ -95,6 +103,10 @@ impl Node {
             + self.toast_stack.as_ref().map_or(0, |config| {
                 std::mem::size_of::<ToastStackConfig>() + config.label.len()
             })
+            + self
+                .document
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
             + self.image.as_ref().map_or(0, |config| {
                 std::mem::size_of::<ImageConfig>() + config.label.as_ref().map_or(0, String::len)
             })
@@ -323,7 +335,10 @@ impl Tree {
                     return Err(ErrorCode::InvalidTree.into());
                 }
                 if node.choice.is_some()
-                    && !matches!(node.kind, Kind::RadioGroup | Kind::Select | Kind::Combobox)
+                    && !matches!(
+                        node.kind,
+                        Kind::RadioGroup | Kind::TabBar | Kind::Select | Kind::Combobox
+                    )
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
@@ -409,6 +424,21 @@ impl Tree {
                             || !node.children.is_empty()
                             || node.control.is_some()
                             || node.choice.is_some()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::SplitPane) != node.split.is_some()
+                    || node
+                        .split
+                        .as_ref()
+                        .is_some_and(|config| !config.is_valid() || node.children.len() != 2)
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::DocumentView) != node.document.is_some()
+                    || node.document.as_ref().is_some_and(|config| {
+                        !config.is_valid() || !node.text.is_empty() || !node.children.is_empty()
                     })
                 {
                     return Err(ErrorCode::InvalidTree.into());
@@ -513,6 +543,9 @@ impl Tree {
                     | Kind::CommandPalette
                     | Kind::Progress
                     | Kind::Image
+                    | Kind::TabPanel
+                    | Kind::SplitPane
+                    | Kind::DocumentView
                     | Kind::Icon
                     | Kind::Animated
                     | Kind::VirtualList
@@ -531,7 +564,7 @@ impl Tree {
                             return Err(ErrorCode::InvalidTree.into());
                         }
                     }
-                    Kind::RadioGroup | Kind::Select => {
+                    Kind::RadioGroup | Kind::TabBar | Kind::Select => {
                         let config = node.choice.as_ref().ok_or(ErrorCode::InvalidTree)?;
                         if !config.is_valid()
                             || node.editor.is_some()
@@ -832,6 +865,8 @@ impl Plan<'_> {
             | Op::InvalidateListRows(id, ..)
             | Op::ScrollList(id, ..)
             | Op::SetImage(id, ..)
+            | Op::SetDocument(id, ..)
+            | Op::SetSplit(id, ..)
             | Op::SetProgress(id, ..)
             | Op::SetToast(id, ..)
             | Op::SetToastStack(id, ..)
@@ -906,6 +941,8 @@ impl Plan<'_> {
                             palette: None,
                             progress: None,
                             image: None,
+                            split: None,
+                            document: None,
                             animation: None,
                             list_config: None,
                             list_order: None,
@@ -1060,6 +1097,25 @@ impl Plan<'_> {
                 }
                 self.node_mut(*id)?.image = Some(Arc::new(config.clone()));
             }
+            Op::SetSplit(id, config) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::SplitPane
+                    || !config.is_valid()
+                    || node
+                        .split
+                        .as_ref()
+                        .is_some_and(|old| config.reset_generation < old.reset_generation)
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.split = Some(Arc::new(config.clone()));
+            }
+            Op::SetDocument(id, config) => {
+                if self.node(*id)?.kind != Kind::DocumentView || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.document = Some(Arc::new(config.clone()));
+            }
             Op::SetProgress(id, config) => {
                 if self.node(*id)?.kind != Kind::Progress || !config.is_valid() {
                     return Err(ErrorCode::InvalidTree);
@@ -1146,7 +1202,7 @@ impl Plan<'_> {
             Op::SetChoice(id, config) => {
                 if !matches!(
                     self.node(*id)?.kind,
-                    Kind::RadioGroup | Kind::Select | Kind::Combobox
+                    Kind::RadioGroup | Kind::TabBar | Kind::Select | Kind::Combobox
                 ) || !config.is_valid()
                 {
                     return Err(ErrorCode::InvalidTree);

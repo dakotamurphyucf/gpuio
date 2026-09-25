@@ -12,6 +12,16 @@ head and merge. CI run 36056171245 also passes X11 list checks; Wayland stops
 at the existing combobox clipboard failure before reaching them. Final review
 adds a second complete OCaml 100,000-row traversal, also passing locally.
 
+Milestone04 is implemented in [PR #12](https://github.com/dakotamurphyucf/gpuio/pull/12): revisioned
+streaming documents and native Markdown/code/diff; independent windows, retained
+tabs and split panes; and a polished agent-chat reference application. The app's
+public integration and external macOS AX/keyboard/picker scenarios pass locally.
+See the [M4 evidence ledger](evidence/agent-workspace-m4.md),
+[ownership design](design/agent-workspace.md), and [runnable demo](../examples/agent_chat/README.md).
+The full consolidated local build, suites, native regressions, Clippy and format
+checks pass. The evidence ledger records hosted results; PR #12 records the final
+checked head and merge status. Full Linux GUI acceptance remains OCH-17.
+
 The [milestone acceptance ledger](evidence/milestones-01-02.md) maps every ticket
 to its implementation and evidence. The first consolidated hosted run passed all
 macOS checks and Linux build/unit tests; one Linux-only native-test lint issue was

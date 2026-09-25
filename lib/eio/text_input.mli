@@ -53,3 +53,20 @@ val clear_if_unchanged
   -> Gpuio.Text_input.Submission.t
   -> (Gpuio.Text_input.Snapshot.t, Gpuio.Text_input.Command_error.t) Result.t
        Bonsai.Effect.t
+
+(** Ask the native editor for an exact submission snapshot, then invoke the
+    [on_submit] handler supplied to [create]. Unlike [snapshot], this waits for
+    the native command and cannot submit an older Bonsai observation. Active
+    composition and unavailable/hidden editors fail without invoking the handler.
+    Success means the handler completed; it does not imply an external send
+    was accepted. Use [clear_if_unchanged] after application acceptance. *)
+val submit : t -> (unit, Gpuio.Text_input.Command_error.t) Result.t Bonsai.Effect.t
+
+(** Read current native text, selection and composition without editing, focusing
+    or submitting. Unlike the last observed [snapshot], this is asynchronous and
+    works for hidden/disabled editors, including active IME composition. Useful
+    for close decisions and saving drafts. Native lease checks still apply. *)
+val read_snapshot
+  :  t
+  -> (Gpuio.Text_input.Snapshot.t, Gpuio.Text_input.Command_error.t) Result.t
+       Bonsai.Effect.t

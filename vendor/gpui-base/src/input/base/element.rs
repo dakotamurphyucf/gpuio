@@ -987,7 +987,7 @@ impl<M: InputModeKind> TextElement<M> {
         style: &TextStyle,
         window: &mut Window,
     ) -> (Pixels, usize) {
-        let total_lines = text.lines_len();
+        let total_lines = text.lines_len().saturating_add(state.line_number_offset);
         // One extra column beyond the widest line number, so right-aligned
         // numbers keep a gap from the left edge.
         let line_number_len = total_lines.max(1).ilog10() as usize + 2;
@@ -2095,8 +2095,12 @@ impl<M: InputModeKind> Element for TextElement<M> {
                 .iter()
                 .zip(last_layout.visible_buffer_lines.iter())
             {
-                let line_no: SharedString =
-                    format!("{:>width$}", buffer_line + 1, width = line_number_len).into();
+                let line_no: SharedString = format!(
+                    "{:>width$}",
+                    buffer_line + 1 + state.line_number_offset,
+                    width = line_number_len
+                )
+                .into();
 
                 let runs = if current_row == Some(buffer_line) {
                     &current_line_runs

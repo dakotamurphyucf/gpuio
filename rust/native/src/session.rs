@@ -32,6 +32,7 @@ pub struct Session {
     slots: Vec<Slot>,
     retained_bytes: usize,
     assets: crate::asset_store::Store,
+    documents: crate::document_store::Store,
 }
 
 impl Session {
@@ -159,6 +160,46 @@ impl Session {
             revision,
             image_state,
         ))
+    }
+
+    pub fn document_request(
+        &mut self,
+        request: gpuio_protocol::document::Request,
+    ) -> gpuio_protocol::document::Response {
+        use gpuio_protocol::document::{Error, Request, Response};
+        if let Err(error) = self.check_ready() {
+            return Response::Failed(if error == ErrorCode::Closed {
+                Error::Closed
+            } else {
+                Error::NotReady
+            });
+        }
+        let result = match request {
+            Request::Create => {
+                return match self.documents.create() {
+                    Ok(id) => Response::Created(id),
+                    Err(error) => Response::Failed(error),
+                };
+            }
+            Request::Begin(update) => self.documents.begin(update),
+            Request::Chunk(id, revision, offset, bytes) => usize::try_from(offset)
+                .map_err(|_| Error::InvalidRange)
+                .and_then(|offset| self.documents.chunk(id, revision, offset, bytes.as_bytes())),
+            Request::Publish(id, revision) => self.documents.publish(id, revision),
+            Request::Abort(id, revision) => self.documents.abort(id, revision),
+            Request::Release(id) => self.documents.release(id),
+        };
+        match result {
+            Ok(()) => Response::Ack,
+            Err(error) => Response::Failed(error),
+        }
+    }
+
+    pub fn document(
+        &self,
+        id: gpuio_protocol::ResourceId,
+    ) -> Result<crate::document_store::Lease, gpuio_protocol::document::Error> {
+        self.documents.acquire(id)
     }
 
     pub fn asset_request(
@@ -607,6 +648,7 @@ impl Session {
 
     pub fn shutdown(&mut self) -> Vec<Event> {
         self.assets.close();
+        self.documents.close();
         let mut events = Vec::new();
         for slot in &mut self.slots {
             if let Some(window) = slot.window.take()

@@ -1,7 +1,4 @@
-use std::{
-    ops::{Deref, Range},
-    rc::Rc,
-};
+use std::{ops::Range, rc::Rc};
 
 use gpui::{
     Along, AnyElement, App, AppContext, Axis, Bounds, Context, Element, ElementId, Empty, Entity,
@@ -19,7 +16,9 @@ pub enum ResizablePanelEvent {
 }
 
 #[derive(Clone)]
-pub(crate) struct DragPanel;
+pub(crate) struct DragPanel {
+    _lease: Option<Rc<()>>,
+}
 impl Render for DragPanel {
     fn render(&mut self, _: &mut Window, _: &mut Context<'_, Self>) -> impl IntoElement {
         Empty
@@ -36,6 +35,7 @@ pub struct ResizablePanelGroup {
     children: Vec<ResizablePanel>,
     on_resize: Rc<dyn Fn(&Entity<ResizableState>, &mut Window, &mut App)>,
     handle_appearance: Option<ResizeHandleRenderer>,
+    pointer_resizing: bool,
 }
 
 impl ResizablePanelGroup {
@@ -49,6 +49,7 @@ impl ResizablePanelGroup {
             size: None,
             on_resize: Rc::new(|_, _, _| {}),
             handle_appearance: None,
+            pointer_resizing: true,
         }
     }
 
@@ -58,6 +59,13 @@ impl ResizablePanelGroup {
     /// returns `None` for a given handle leaves the built-in line on it.
     pub fn with_handle_appearance(mut self, appearance: ResizeHandleRenderer) -> Self {
         self.handle_appearance = Some(appearance);
+        self
+    }
+
+    /// Enable pointer dragging without removing the handle's custom keyboard
+    /// or accessibility content. Child panels keep their own pointer policy.
+    pub fn pointer_resizing(mut self, enabled: bool) -> Self {
+        self.pointer_resizing = enabled;
         self
     }
 
@@ -169,6 +177,7 @@ impl RenderOnce for ResizablePanelGroup {
                         panel.axis = self.axis;
                         panel.state = Some(state.clone());
                         panel.handle_appearance = self.handle_appearance.clone();
+                        panel.pointer_resizing = self.pointer_resizing;
                         panel
                     }),
             )
@@ -247,6 +256,7 @@ pub struct ResizablePanel {
     visible: bool,
     style: StyleRefinement,
     handle_appearance: Option<ResizeHandleRenderer>,
+    pointer_resizing: bool,
 }
 
 impl ResizablePanel {
@@ -262,6 +272,7 @@ impl ResizablePanel {
             visible: true,
             style: StyleRefinement::default(),
             handle_appearance: None,
+            pointer_resizing: true,
         }
     }
 
@@ -367,13 +378,20 @@ impl RenderOnce for ResizablePanel {
                         .when_some(self.handle_appearance.clone(), |handle, appearance| {
                             handle.with_appearance(appearance)
                         })
-                        .on_drag(DragPanel, move |drag_panel, _, _, cx| {
-                            cx.stop_propagation();
-                            // Set current resizing panel ix
-                            state.update(cx, |state, _| {
-                                state.resizing_panel_ix = Some(ix);
-                            });
-                            cx.new(|_| drag_panel.deref().clone())
+                        .when(self.pointer_resizing, |handle| {
+                            handle.on_drag(DragPanel { _lease: None }, move |_, _, _, cx| {
+                                cx.stop_propagation();
+                                // Set current resizing panel ix
+                                let lease = Rc::new(());
+                                state.update(cx, |state, cx| {
+                                    state.resizing_panel_ix = Some(ix);
+                                    state.resizing_drag = Rc::downgrade(&lease);
+                                    cx.notify();
+                                });
+                                cx.new(|_| DragPanel {
+                                    _lease: Some(lease),
+                                })
+                            })
                         }),
                 )
             })
@@ -436,17 +454,21 @@ impl Element for ResizePanelGroupElement {
         _: &mut Self::RequestLayoutState,
         _: &mut Self::PrepaintState,
         window: &mut Window,
-        cx: &mut App,
+        _cx: &mut App,
     ) {
         window.on_mouse_event({
             let state = self.state.clone();
             let axis = self.axis;
-            let current_ix = state.read(cx).resizing_panel_ix;
             move |e: &MouseMoveEvent, phase, window, cx| {
                 if !phase.bubble() {
                     return;
                 }
-                let Some(ix) = current_ix else { return };
+                if !state.read(cx).is_resizing() {
+                    return;
+                }
+                let Some(ix) = state.read(cx).resizing_panel_ix else {
+                    return;
+                };
 
                 state.update(cx, |state, cx| {
                     let panel = state.panels.get(ix).expect("BUG: invalid panel index");
@@ -473,10 +495,10 @@ impl Element for ResizePanelGroupElement {
         // When any mouse up, stop dragging
         window.on_mouse_event({
             let state = self.state.clone();
-            let current_ix = state.read(cx).resizing_panel_ix;
             let on_resize = self.on_resize.clone();
             move |_: &MouseUpEvent, phase, window, cx| {
-                if current_ix.is_none() {
+                if !state.read(cx).is_resizing() {
+                    state.update(cx, |state, _| state.resizing_panel_ix = None);
                     return;
                 }
                 if phase.bubble() {

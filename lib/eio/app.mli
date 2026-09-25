@@ -20,7 +20,30 @@ module Window : sig
   type t
 
   val scope : t -> Scope.t
+
+  (** Force-close; bypasses the application close decision and cancels the
+      window scope. Use [request_close] for ordinary user commands. *)
   val close : t -> unit
+
+  (** Coalesced asynchronous decision. Force-close invalidates a delayed answer.
+      Window work remains live while a decision is pending. Default is Allow. *)
+  val request_close : t -> unit
+
+  val set_close_handler
+    :  t
+    -> (Gpuio.Window.Close_reason.t -> Gpuio.Window.Close_decision.t Bonsai.Effect.t)
+    -> unit
+
+  val snapshot : t -> Gpuio.Window.Snapshot.t option
+  val on_change : t -> (Gpuio.Window.Snapshot.t -> unit Bonsai.Effect.t) -> unit
+
+  (** Acknowledges current observed state. Resizing/fullscreen may complete later;
+      listen to [on_change]. Requests use the exact window generation. *)
+  val command
+    :  t
+    -> Gpuio.Window.Command.t
+    -> (Gpuio.Window.Snapshot.t, Gpuio.Window.Error.t) Result.t Bonsai.Effect.t
+
   val is_closed : t -> bool
   val set_theme : t -> Gpuio.Theme.t -> unit
 
@@ -58,6 +81,20 @@ module Window : sig
 end
 
 module Expert : sig
+  (** Internal correlated document-resource lane. Bounded to 64 requests.
+      Public applications use the scoped document adapter. *)
+  val document
+    :  t
+    -> Gpuio_protocol.Wire.Document.Request.t
+    -> Gpuio_protocol.Wire.Document.Response.t Bonsai.Effect.t
+
+  val register_document
+    :  t
+    -> scope:Scope.t
+    -> Gpuio.Text_source.t
+    -> (Document_registry.Registration.t, Gpuio_protocol.Wire.Document.Error.t) Result.t
+         Bonsai.Effect.t
+
   (** Correlated raw registration protocol, bounded to 63 pending requests;
       a separate lane is reserved for scoped upload/cleanup.
       This is not the scoped public asset API: callers own release/late-reply
@@ -76,7 +113,16 @@ end
 
 val scope : t -> Scope.t
 val stats : t -> Stats.t
+
+(** Force application cleanup, bypassing decisions. *)
 val shutdown : t -> unit
+
+(** Ask all live windows before destroying any of them. A denial keeps the
+    application open. New windows are rejected during a pending quit decision. *)
+val request_quit : t -> unit
+
+val window_capabilities : t -> Gpuio.Window.Capabilities.t option
+val on_reopen : t -> (unit -> unit Bonsai.Effect.t) -> unit
 
 (** Application-wide native motion policy. [System] follows available platform
     preferences and defaults to full motion when no preference is available.
@@ -92,9 +138,19 @@ val set_motion : t -> Gpuio.Animation.Preference.t -> unit
 val open_window
   :  t
   -> ?theme:Gpuio.Theme.t
+  -> ?focus:bool
+  -> ?chrome:Gpuio.Window.Chrome.t
+  -> ?resizable:bool
   -> title:string
   -> width:float
   -> height:float
+  -> (Window.t -> unit Bonsai.Effect.t Gpuio.View.t Bonsai.Computation.t)
+  -> Window.t Or_error.t
+
+val open_window_config
+  :  t
+  -> ?theme:Gpuio.Theme.t
+  -> Gpuio.Window.Config.t
   -> (Window.t -> unit Bonsai.Effect.t Gpuio.View.t Bonsai.Computation.t)
   -> Window.t Or_error.t
 

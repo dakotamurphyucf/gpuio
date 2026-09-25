@@ -29,6 +29,10 @@ module Kind = struct
     | Icon
     | Animated
     | Virtual_list
+    | Document_view
+    | Tab_bar
+    | Tab_panel
+    | Split_pane
   [@@deriving equal, sexp_of]
 end
 
@@ -126,6 +130,16 @@ type 'action animation =
   ; on_event : (Animation.Event.t -> 'action) option
   }
 
+type 'action split_pane =
+  { config : Split_pane.Config.t
+  ; on_resize : (Split_pane.Snapshot.t -> 'action) option
+  }
+
+type 'action document =
+  { config : Document.Config.t
+  ; on_navigate : (Document.Navigation.t -> 'action) option
+  }
+
 type 'action image =
   { config : Image.Config.t
   ; on_change : (Image.State.t -> 'action) option
@@ -164,6 +178,8 @@ type 'action t =
   ; progress : Progress.Config.t option
   ; animation : 'action animation option
   ; image : 'action image option
+  ; split_pane : 'action split_pane option
+  ; document : 'action document option
   ; palette : 'action palette option
   ; menu : menu option
   ; focus_scope : Focus_scope.t option
@@ -194,6 +210,8 @@ let text ?key ?(style = Style.empty) text =
   ; progress = None
   ; animation = None
   ; image = None
+  ; split_pane = None
+  ; document = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -213,6 +231,13 @@ let animate ?key ?(style = Style.empty) ?on_event config children =
 
 let image ?key ?(style = Style.empty) ?on_change config =
   { (text ?key ~style "") with kind = Image; image = Some { config; on_change } }
+;;
+
+let document ?key ?(style = Style.empty) ?on_navigate config =
+  { (text ?key ~style "") with
+    kind = Document_view
+  ; document = Some { config; on_navigate }
+  }
 ;;
 
 let icon ?key ?style ?on_change config =
@@ -240,6 +265,8 @@ let container ?key ?(style = Style.empty) defaults children =
   ; progress = None
   ; animation = None
   ; image = None
+  ; split_pane = None
+  ; document = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -330,6 +357,8 @@ let button
   ; progress = None
   ; animation = None
   ; image = None
+  ; split_pane = None
+  ; document = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -392,6 +421,8 @@ let toggle
   ; progress = None
   ; animation = None
   ; image = None
+  ; split_pane = None
+  ; document = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -438,6 +469,8 @@ let focus_scope ?key ?style ~config children =
   ; progress = None
   ; animation = None
   ; image = None
+  ; split_pane = None
+  ; document = None
   ; palette = None
   ; menu = None
   ; focus_scope = Some config
@@ -562,12 +595,30 @@ let tooltip ?key ?(style = Style.empty) ~config ?on_open_change ~anchor ~content
   }
 ;;
 
+let split_pane ?key ?(style = Style.empty) ?on_resize ~config ~first ~second () =
+  { (container ?key ~style [] [ first; second ]) with
+    kind = Split_pane
+  ; split_pane = Some { config; on_resize }
+  }
+;;
+
 let row ?key ?style children =
   container ?key ?style [ Display Flex; Direction Row ] children
 ;;
 
 let column ?key ?style children =
   container ?key ?style [ Display Flex; Direction Column ] children
+;;
+
+let tab_panel ~key ~label ~active ?(style = Style.empty) children =
+  let style =
+    Style.merge
+      [ style
+      ; Style.create_exn [ Accessible_name label ]
+      ; (if active then Style.empty else Style.create_exn [ Display Hidden ])
+      ]
+  in
+  { (column ~key ~style children) with kind = Tab_panel; text = label }
 ;;
 
 let make_virtual_list
@@ -676,6 +727,8 @@ let text_input
   ; progress = None
   ; animation = None
   ; image = None
+  ; split_pane = None
+  ; document = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -707,12 +760,18 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; progress = None
   ; animation = None
   ; image = None
+  ; split_pane = None
+  ; document = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
   ; virtual_list = None
   ; children = []
   }
+;;
+
+let tab_bar ?key ?style ~config ~on_select () =
+  { (radio_group ?key ?style ~config ~on_select ()) with kind = Tab_bar }
 ;;
 
 let select
@@ -760,6 +819,8 @@ let combobox
   ; progress = None
   ; animation = None
   ; image = None
+  ; split_pane = None
+  ; document = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -876,6 +937,16 @@ module Expert = struct
     ; on_event : (Animation.Event.t -> 'action) option
     }
 
+  type nonrec 'action split_pane = 'action split_pane =
+    { config : Split_pane.Config.t
+    ; on_resize : (Split_pane.Snapshot.t -> 'action) option
+    }
+
+  type nonrec 'action document = 'action document =
+    { config : Document.Config.t
+    ; on_navigate : (Document.Navigation.t -> 'action) option
+    }
+
   type nonrec 'action image = 'action image =
     { config : Image.Config.t
     ; on_change : (Image.State.t -> 'action) option
@@ -968,6 +1039,8 @@ module Expert = struct
     ; progress : Progress.Config.t option
     ; animation : 'action animation option
     ; image : 'action image option
+    ; split_pane : 'action split_pane option
+    ; document : 'action document option
     ; palette : 'action palette option
     ; menu : menu option
     ; focus_scope : Focus_scope.t option

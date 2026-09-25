@@ -20,6 +20,12 @@ use std::{
     sync::Arc,
 };
 
+#[path = "window_host.rs"]
+mod window_host;
+#[cfg(target_os = "macos")]
+#[path = "window_macos.rs"]
+mod window_macos;
+
 type SharedSession = Rc<RefCell<Session>>;
 #[path = "choice.rs"]
 mod choice;
@@ -29,6 +35,8 @@ mod choice_popup;
 mod combobox;
 #[path = "command.rs"]
 mod command;
+#[path = "document_view.rs"]
+pub(crate) mod document_view;
 #[path = "drag_drop.rs"]
 mod drag_drop;
 #[path = "editor.rs"]
@@ -70,6 +78,8 @@ mod scroll;
 pub(super) mod scroll_test;
 #[path = "select.rs"]
 mod select;
+#[path = "split_view.rs"]
+mod split_view;
 #[path = "toast.rs"]
 mod toast;
 #[path = "toast_clock.rs"]
@@ -99,9 +109,13 @@ impl Default for Interaction {
 
 struct View {
     id: WindowId,
+    window_title: String,
     session: SharedSession,
     transport: Arc<Transport>,
     images: BTreeMap<NodeId, image_view::State>,
+    documents: BTreeMap<NodeId, document_view::State>,
+    splits: BTreeMap<NodeId, split_view::State>,
+    split_activation: Option<gpui::Subscription>,
     buttons: BTreeMap<NodeId, Rc<ButtonState>>,
     selections: BTreeMap<NodeId, Rc<RefCell<crate::selection::State>>>,
     editors: BTreeMap<NodeId, editor::Instance>,
@@ -287,10 +301,14 @@ impl View {
     fn new(id: WindowId, session: SharedSession, transport: Arc<Transport>) -> Self {
         Self {
             id,
+            window_title: String::new(),
             focus: focus::Manager::new(id, session.clone()),
             session,
             transport,
             images: BTreeMap::new(),
+            documents: BTreeMap::new(),
+            splits: BTreeMap::new(),
+            split_activation: None,
             buttons: BTreeMap::new(),
             selections: BTreeMap::new(),
             editors: BTreeMap::new(),
@@ -325,10 +343,12 @@ impl View {
         self.install_menu_observers(window, cx);
         self.sync_lists(dirty, cx);
         self.sync_images(dirty, window, cx);
+        self.sync_documents(dirty, window, cx);
         self.sync_animations(dirty, cx);
         self.sync_palettes(window, cx);
         self.sync_toasts(cx);
         self.sync_tooltips(window, cx);
+        self.sync_splits(window, cx);
         let nodes = {
             let session = self.session.borrow();
             let Some(tree) = session.tree(self.id) else {
@@ -374,6 +394,9 @@ impl View {
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let node = tree.get(id).expect("validated retained node");
+        if node.kind == Kind::DocumentView {
+            return self.document_element(tree, node, interaction, window, cx);
+        }
         if node.kind == Kind::VirtualList {
             return self.list_element(tree, node, interaction, window, cx);
         }
@@ -420,6 +443,11 @@ impl View {
             }
         }
         let mut element = div().id(("gpuio-node", identity));
+        if node.kind == Kind::Text && !interaction.selectable && !node.text.is_empty() {
+            element = element
+                .role(gpui::Role::Label)
+                .aria_label(node.text.clone());
+        }
         if let Some(description) = tree.tooltip_description(id) {
             element = element.aria_description(description.to_owned());
         }
@@ -427,9 +455,11 @@ impl View {
             node.kind,
             Kind::Container
                 | Kind::Animated
+                | Kind::TabPanel
                 | Kind::FocusScope
                 | Kind::CommandScope
                 | Kind::RadioGroup
+                | Kind::TabBar
                 | Kind::PointerArea
                 | Kind::DragSource
                 | Kind::DropTarget
@@ -548,6 +578,7 @@ impl View {
                 | Kind::Checkbox
                 | Kind::Switch
                 | Kind::RadioGroup
+                | Kind::TabBar
                 | Kind::Select
         ) {
             self.visited.insert(id);
@@ -583,10 +614,11 @@ impl View {
                     Kind::Checkbox => gpui::Role::CheckBox,
                     Kind::Switch => gpui::Role::Switch,
                     Kind::RadioGroup => gpui::Role::RadioGroup,
+                    Kind::TabBar => gpui::Role::TabList,
                     Kind::Select => gpui::Role::ComboBox,
                     _ => gpui::Role::Button,
                 })
-                .aria_label(accessible_name);
+                .aria_label(accessible_name.clone());
             if command
                 .as_ref()
                 .is_some_and(|route| route.config.checked.is_some())
@@ -603,6 +635,14 @@ impl View {
             if interaction.pointer && !disabled {
                 element = element.cursor_pointer();
             }
+        }
+        if node.kind == Kind::TabBar {
+            element = element.flex_row();
+        }
+        if node.kind == Kind::TabPanel {
+            element = element
+                .role(gpui::Role::TabPanel)
+                .aria_label(accessible_name);
         }
         let animation = self.animation_frame(node, window, cx);
         let styles = animation
@@ -749,6 +789,7 @@ impl View {
                 element = radio::element(
                     element,
                     radio::Render {
+                        tabs: node.kind == Kind::TabBar,
                         config,
                         state,
                         focus,
@@ -818,7 +859,7 @@ impl View {
             {
                 element = element.child(self.element(tree, *trailing, interaction, window, cx));
             }
-        } else if !label.is_empty() {
+        } else if !label.is_empty() && node.kind != Kind::TabPanel {
             element = element.child(gpui::SharedString::from(label));
         }
         for child in node.children.iter() {
@@ -837,13 +878,18 @@ impl View {
                 );
             }
         }
-        element = element.children(
-            node.children
-                .iter()
-                .filter(|_| !matches!(node.kind, Kind::Button | Kind::CommandButton))
-                .map(|id| self.element(tree, *id, interaction, window, cx))
-                .collect::<Vec<_>>(),
-        );
+        if node.split.is_some() {
+            element = element.child(self.split_element(tree, node, interaction, window, cx));
+        } else {
+            element = element.children(
+                node.children
+                    .iter()
+                    .filter(|_| !matches!(node.kind, Kind::Button | Kind::CommandButton))
+                    .map(|id| self.element(tree, *id, interaction, window, cx))
+                    .collect::<Vec<_>>(),
+            );
+        }
+
         if let Some(route) = command.filter(|_| !disabled) {
             let accessible = route.clone();
             let owner = cx.weak_entity();
@@ -873,6 +919,7 @@ impl View {
             && node.pointer.is_none()
             && node.image.is_none()
             && node.animation.is_none()
+            && node.split.is_none()
             && !disabled
         {
             let window = self.id;
@@ -1107,6 +1154,11 @@ impl Render for View {
         let begin_focus = self.focus.clone();
         let drag_window = self.id;
         let mut root = drag_drop::root(div(), self.id, cx)
+            .capture_key_down(cx.listener(|view, event: &gpui::KeyDownEvent, window, cx| {
+                if event.keystroke.key == "escape" && view.cancel_split_drag(window, cx) {
+                    cx.stop_propagation();
+                }
+            }))
             .on_action(
                 cx.listener(|view, action: &menu_platform::Invoke, window, cx| {
                     view.platform_menu_action(action, window, cx)
@@ -1153,6 +1205,11 @@ impl Render for View {
         } else {
             0
         };
+        for (id, state) in &mut self.documents {
+            if !self.visited.contains(id) && !state.retained(window, cx) {
+                state.presentation = None;
+            }
+        }
         self.buttons.retain(|id, _| self.visited.contains(id));
         self.radios.retain(|id, _| self.visited.contains(id));
         self.selects.retain(|id, _| self.visited.contains(id));
@@ -1180,7 +1237,15 @@ impl Render for View {
                     .toasts
                     .values()
                     .any(|state| state.close_focus.is_focused(window))
+                || self
+                    .splits
+                    .values()
+                    .any(|state| state.focus.is_focused(window))
                 || self.focus.borrow().contains_focus(window)
+                || self
+                    .documents
+                    .values()
+                    .any(|state| state.focused(window, cx))
                 || root_focus.is_focused(window)
                 || self
                     .buttons
@@ -1232,7 +1297,16 @@ pub fn run(transport: Arc<Transport>) {
         assert_eq!(gpui::guess_compositor(), expected);
     }
     let stopping = Rc::new(Cell::new(false));
-    gpui_platform::application().run(move |cx: &mut App| {
+    let platform = gpui_platform::current_platform(false);
+    let application = gpui::Application::with_platform(platform.clone());
+    let reopen_transport = transport.clone();
+    application.on_reopen(move |_| window_host::control(&reopen_transport, Event::ReopenRequested));
+    application.run(move |cx: &mut App| {
+        // GPUI on_quit is cleanup-only on both platforms. AppKit's separate
+        // applicationShouldTerminate hook supplies the asynchronous decision.
+        #[cfg(target_os="macos")]
+        window_macos::install(cx,transport.clone());
+        window_host::control(&transport,Event::WindowCapabilities(window_host::capabilities()));
         gpui_base::init(cx);
         crate::image_host::init(cx);
         let motion = crate::motion_preference::init(cx);
@@ -1269,44 +1343,11 @@ pub fn run(transport: Arc<Transport>) {
                     motion.borrow_mut().take();
                     dialogs.clear().wait().await;
                     crate::image_host::shutdown(cx).await;
+                            crate::document_host::shutdown(cx).await;
                     if !stopping.replace(true) {
                         cx.update(stop_application);
                     }
                     return;
-                }
-                loop {
-                    let id = transport
-                        .mailbox
-                        .lock()
-                        .expect("mailbox poisoned")
-                        .pop_close();
-                    let Some(id) = id else {
-                        break;
-                    };
-                    dialogs.close(id).wait().await;
-                    let closed = session.borrow_mut().close(id);
-                    if let Ok(pending) = closed {
-                        if let Some(correlation) = pending {
-                            transport.respond(Event::Failed(correlation, ErrorCode::Closed));
-                        }
-                        transport
-                            .mailbox
-                            .lock()
-                            .expect("mailbox poisoned")
-                            .native_closed(id);
-                        transport.wake_ocaml();
-                        if let Some(window) = windows.remove(&id) {
-                            let _ = window.update(cx, |view, window, cx| {
-                                drag_drop::cancel(
-                                    view.id,
-                                    gpuio_protocol::drag_drop::CancelReason::WindowClosed,
-                                    window,
-                                    cx,
-                                );
-                                window.remove_window();
-                            });
-                        }
-                    }
                 }
                 // Bound work per wake; yield to native input/paint between batches.
                 for _ in 0..crate::mailbox::MAX_COMMANDS {
@@ -1314,11 +1355,17 @@ pub fn run(transport: Arc<Transport>) {
                     let Some(message) = message else {
                         break;
                     };
+                    let message = match message {
+                        Message::Open(correlation,id,title,width,height) => Message::OpenConfigured(correlation,id,gpuio_protocol::window::Config{title,width,height,focus:true,chrome:gpuio_protocol::window::Chrome::Standard,resizable:true}),
+                        message=>message,
+                    };
                     match message {
                         Message::Hello(version, caps) => {
                             failed(&transport, 0, session.borrow_mut().hello(version, caps))
                         }
-                        Message::Open(correlation, id, title, width, height) => {
+                        Message::Open(..)=>unreachable!("normalized above"),
+                        Message::OpenConfigured(correlation,id,config)=> {
+                            let gpuio_protocol::window::Config {title,width,height,focus,chrome,resizable}=config;
                             let validation = if transport
                                 .mailbox
                                 .lock()
@@ -1342,25 +1389,21 @@ pub fn run(transport: Arc<Transport>) {
                                 cx.open_window(
                                     WindowOptions {
                                         window_bounds: Some(WindowBounds::Windowed(bounds)),
-                                        titlebar: Some(gpui::TitlebarOptions {
+                                        focus,
+                                        is_resizable:resizable,
+                                        titlebar: (chrome==gpuio_protocol::window::Chrome::Standard).then(|| gpui::TitlebarOptions {
                                             title: Some(title.clone().into()),
                                             ..Default::default()
                                         }),
                                         ..Default::default()
                                     },
                                     |window, cx| {
-                                        let close_transport = transport.clone();
-                                        window.on_window_should_close(cx, move |_, _| {
-                                            close_transport
-                                                .mailbox
-                                                .lock()
-                                                .expect("mailbox poisoned")
-                                                .request_close(id);
-                                            let _ = close_transport.tx.try_send(());
-                                            false
-                                        });
-                                        cx.new(|_| {
-                                            View::new(id, session.clone(), transport.clone())
+                                        window.set_window_title(&title);
+                                        cx.new(|cx| {
+                                            let mut view=View::new(id, session.clone(), transport.clone());
+                                            view.window_title=title.clone();
+                                            window_host::watch(&view,window,cx);
+                                            view
                                         })
                                     },
                                 )
@@ -1379,7 +1422,7 @@ pub fn run(transport: Arc<Transport>) {
                                             height,
                                         ),
                                     );
-                                    cx.update(|cx| cx.activate(true));
+                                    if focus {cx.update(|cx| cx.activate(true));}
                                 }
                                 Err(_) => transport
                                     .respond(Event::Failed(correlation, ErrorCode::NativeFailure)),
@@ -1470,15 +1513,32 @@ pub fn run(transport: Arc<Transport>) {
                                     transport.respond(Event::Closed(correlation, id));
                                     if let Some(window) = windows.remove(&id) {
                                         let _ = window
-                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); window.remove_window(); });
+                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); view.cancel_split_drag(window, cx); window.remove_window(); });
                                     }
                                 }
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),
                             }
                         }
+                        Message::WindowCommand(correlation,id,command)=>{
+                            let result=match windows.get(&id) {
+                                Some(handle)=>handle.update(cx,|view,window,cx| {let result=window_host::command(view,&command,window);window_host::observe(view,window);cx.notify();result}).unwrap_or(gpuio_protocol::window::Response::Failed(gpuio_protocol::window::Error::Closed)),
+                                None=>gpuio_protocol::window::Response::Failed(gpuio_protocol::window::Error::Closed),
+                            };
+                            transport.respond(Event::WindowResponse(correlation,id,result));
+                        }
                         Message::Asset(correlation, request) => {
                             let response = session.borrow_mut().asset_request(request);
                             transport.respond(Event::AssetResponse(correlation, response));
+                        }
+                        Message::Document(correlation, request) => {
+                            let published = match &request { gpuio_protocol::document::Request::Publish(id,_) => Some(*id), _ => None };
+                            let response = session.borrow_mut().document_request(request);
+                            if matches!(response, gpuio_protocol::document::Response::Ack) && let Some(source) = published {
+                                for handle in windows.values() {
+                                    let _ = handle.update(cx,|view,_,cx| view.document_changed(source,cx));
+                                }
+                            }
+                            transport.respond(Event::DocumentResponse(correlation, response));
                         }
                         Message::SetMotion(preference) => {
                             match session.borrow().check_ready() {
@@ -1490,6 +1550,7 @@ pub fn run(transport: Arc<Transport>) {
                             motion.borrow_mut().take();
                             dialogs.clear().wait().await;
                             crate::image_host::shutdown(cx).await;
+                            crate::document_host::shutdown(cx).await;
                             for event in session.borrow_mut().shutdown() {
                                 transport.respond(event);
                             }
@@ -1522,6 +1583,7 @@ pub(crate) fn stop_application(cx: &mut App) {
     };
     drag_drop::shutdown(cx);
     crate::image_host::finish_before_quit(cx);
+    crate::document_host::finish_before_quit(cx);
     cx.shutdown();
     // Embedded runtime must regain control instead of NSApplication.terminate.
     unsafe {
@@ -1535,6 +1597,7 @@ pub(crate) fn stop_application(cx: &mut App) {
 pub(crate) fn stop_application(cx: &mut App) {
     drag_drop::shutdown(cx);
     crate::image_host::finish_before_quit(cx);
+    crate::document_host::finish_before_quit(cx);
     cx.quit();
 }
 
@@ -1545,3 +1608,7 @@ pub(crate) mod native_test;
 #[cfg(feature = "native-tests")]
 #[path = "control_test.rs"]
 pub(crate) mod control_test;
+
+#[cfg(all(feature = "native-tests", target_os = "macos"))]
+#[path = "window_test.rs"]
+pub(super) mod window_test;

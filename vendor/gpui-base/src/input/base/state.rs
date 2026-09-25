@@ -427,6 +427,7 @@ pub struct InputBaseState<M: InputModeKind> {
     /// is rebuilt at the top of every render, which is what keeps it current
     /// when the palette changes after the state was built.
     pub(super) editor_style: InputEditorStyle,
+    pub(super) line_number_offset: usize,
     /// What a consumer projected, kept verbatim so that resolution never
     /// consumes its own output: resolving in place would fill the unset
     /// colours once and then never see them as unset again, which is the same
@@ -752,6 +753,7 @@ impl<M: InputModeKind> InputBaseState<M> {
             mask_pattern: MaskPattern::default(),
             mask_pattern_set: false,
             editor_style: InputEditorStyle::default(),
+            line_number_offset: 0,
             projected_editor_style: InputEditorStyle::default(),
             diagnostic_popover: None,
             context_menu_handler: None,
@@ -9572,6 +9574,12 @@ impl InputBaseState<crate::input::EditorMode> {
     }
 
     /// Set line number.
+    /// Zero-based source line origin for a read-only document page.
+    pub fn set_line_number_offset(&mut self, offset: usize, cx: &mut Context<Self>) {
+        self.line_number_offset = offset.min(i32::MAX as usize);
+        cx.notify();
+    }
+
     pub fn set_line_number(&mut self, line_number: bool, _: &mut Window, cx: &mut Context<Self>) {
         if let LayoutMode::CodeEditor { line_number: l, .. } = &mut self.mode {
             *l = line_number;

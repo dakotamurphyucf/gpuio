@@ -12,3 +12,9 @@ harness. Build the example/harness first; local accessibility access is required
 It verifies actual selection through the bridge followed by explicit Eio file
 I/O, and cleans up its child on failure. See
 `docs/evidence/native-file-dialogs-och11.md` for the commands.
+
+`test_agent_chat.py` launches the agent-workspace example and targets only its
+child PID through macOS AX/keyboard APIs. Build the example first and provide
+Accessibility access. It validates real Send/Return, picker/Eio attachment,
+retained tabs, independent windows, themes/palette and OS close decisions. It
+requires a post-`App.run` marker and reaps its child on every exit path.

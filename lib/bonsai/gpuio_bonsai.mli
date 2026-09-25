@@ -17,6 +17,14 @@ module View : sig
     -> t list
     -> t
 
+  (** Revisioned native documents; register source with [Gpuio_eio.Document]. *)
+  val document
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?on_navigate:(Gpuio.Document.Navigation.t -> unit Bonsai.Effect.t)
+    -> Gpuio.Document.Config.t
+    -> t
+
   (** Pure image placement; register encoded bytes with [Gpuio_eio.Asset]. *)
   val image
     :  ?key:Gpuio.Key.t
@@ -204,6 +212,32 @@ module View : sig
     -> t
 
   val row : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> t list -> t
+
+  val split_pane
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?on_resize:(Gpuio.Split_pane.Snapshot.t -> unit Bonsai.Effect.t)
+    -> config:Gpuio.Split_pane.Config.t
+    -> first:t
+    -> second:t
+    -> unit
+    -> t
+
+  val tab_bar
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Choice.Config.t
+    -> on_select:(Gpuio.Choice.Id.t -> unit Bonsai.Effect.t)
+    -> unit
+    -> t
+
+  val tab_panel
+    :  key:Gpuio.Key.t
+    -> label:string
+    -> active:bool
+    -> ?style:Gpuio.Style.t
+    -> t list
+    -> t
 
   val radio_group
     :  ?key:Gpuio.Key.t

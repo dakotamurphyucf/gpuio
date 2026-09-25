@@ -5,6 +5,15 @@ type 'action t
 
 val text : ?key:Key.t -> ?style:Style.t -> string -> 'action t
 
+(** Native Markdown/code/unified-diff display, backed by a scoped document
+    resource. Parsing, selection and copy are native; navigation is asynchronous. *)
+val document
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?on_navigate:(Document.Navigation.t -> 'action)
+  -> Document.Config.t
+  -> 'action t
+
 (** An explicit accessible name must be nonempty and at most 1024 bytes;
     invalid names raise, as with literal styles built with [Style.create_exn]. *)
 val button
@@ -204,6 +213,41 @@ val radio_group
   -> unit
   -> 'action t
 
+(** A native-owned divider between two retained children. Give the parent a
+    bounded size. Pointer resizing stays in Rust; the optional callback reports
+    completed resizes. Keyboard and accessibility actions share native limits. *)
+val split_pane
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?on_resize:(Split_pane.Snapshot.t -> 'action)
+  -> config:Split_pane.Config.t
+  -> first:'action t
+  -> second:'action t
+  -> unit
+  -> 'action t
+
+(** Native tab-list roles, one keyboard focus stop, automatic selection with
+    arrows/Home/End and pointer/accessibility activation. The caller owns the
+    selected ID and panel lifetimes. Disabled tabs are skipped. *)
+val tab_bar
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Choice.Config.t
+  -> on_select:(Choice.Id.t -> 'action)
+  -> unit
+  -> 'action t
+
+(** Retained panel with native tab-panel semantics. Inactive panels are hidden,
+    preserving native editor/list state while remaining mounted. Bound the number
+    of retained panels in the application; unmounting is explicit. *)
+val tab_panel
+  :  key:Key.t
+  -> label:string
+  -> active:bool
+  -> ?style:Style.t
+  -> 'action t list
+  -> 'action t
+
 (** A native select with a bounded, scrollable option popup. Focus remains on
     the trigger. Arrows move the open popup highlight without changing the
     application value; Enter requests the highlighted ID, Escape cancels, and
@@ -359,6 +403,16 @@ module Expert : sig
     ; on_event : (Animation.Event.t -> 'action) option
     }
 
+  type 'action split_pane =
+    { config : Split_pane.Config.t
+    ; on_resize : (Split_pane.Snapshot.t -> 'action) option
+    }
+
+  type 'action document =
+    { config : Document.Config.t
+    ; on_navigate : (Document.Navigation.t -> 'action) option
+    }
+
   type 'action image =
     { config : Image.Config.t
     ; on_change : (Image.State.t -> 'action) option
@@ -412,6 +466,10 @@ module Expert : sig
       | Icon
       | Animated
       | Virtual_list
+      | Document_view
+      | Tab_bar
+      | Tab_panel
+      | Split_pane
     [@@deriving equal, sexp_of]
   end
 
@@ -495,6 +553,8 @@ module Expert : sig
     ; progress : Progress.Config.t option
     ; animation : 'action animation option
     ; image : 'action image option
+    ; split_pane : 'action split_pane option
+    ; document : 'action document option
     ; palette : 'action palette option
     ; menu : menu option
     ; focus_scope : Focus_scope.t option

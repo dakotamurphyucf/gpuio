@@ -104,3 +104,8 @@ val reset
 
 (** Streaming updates preserve collection order and do not cancel page loads. *)
 val set : ('key, 'data, _) t -> key:'key -> data:'data -> unit Or_error.t
+
+(** Append newly created rows at a known latest boundary ([After = End]).
+    Preserves generation, scroll identity and pending older-history requests.
+    Duplicate keys or an unknown latest boundary fail without changing state. *)
+val append : ('key, 'data, _) t -> ('key * 'data) list -> unit Or_error.t

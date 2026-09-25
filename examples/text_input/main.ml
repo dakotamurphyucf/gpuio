@@ -12,6 +12,7 @@ let component ~self_test ~completed ~mode window graph =
   let shown, set_shown = B.state true graph in
   let sleep = B.Clock.sleep graph in
   let started = ref false in
+  let submissions = ref [] in
   let config =
     Input.Config.create
       ~mode
@@ -23,7 +24,12 @@ let component ~self_test ~completed ~mode window graph =
   in
   let on_submit =
     let%arr set_submission = set_submission in
-    fun value -> set_submission ("Submitted: " ^ Input.Submission.text value)
+    fun value ->
+      E.Many
+        [ E.of_thunk (fun () ->
+            submissions := Input.Submission.text value :: !submissions)
+        ; set_submission ("Submitted: " ^ Input.Submission.text value)
+        ]
   in
   let editor = Controller.create window ~config:(B.return config) ~on_submit graph in
   let observed = B.map editor ~f:Controller.snapshot in
@@ -76,6 +82,12 @@ let component ~self_test ~completed ~mode window graph =
              E.of_thunk (fun () ->
                let start = Input.Selection.create ~anchor:0 ~head:0 |> Or_error.ok_exn in
                assert (Input.Selection.equal (Input.Snapshot.selection redone) start))
+           in
+           let%bind submitted = Controller.submit editor in
+           let%bind () =
+             E.of_thunk (fun () ->
+               assert (Result.is_ok submitted);
+               assert (List.equal String.equal !submissions [ "changed" ]))
            in
            let%bind stale =
              Controller.replace

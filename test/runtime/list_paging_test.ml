@@ -290,3 +290,24 @@ let%expect_test
     Bonsai_driver.Expert.invalidate_observers driver);
   [%expect {| |}]
 ;;
+
+let%expect_test "append during queued older history preserves scoped completion" =
+  with_scope (fun scope inbox ->
+    let t =
+      P.create ~scope (empty ()) ~before:(More None) ~after:End ~load:(fun _ ->
+        Ok { P.Page.rows = [ 1, "history" ]; next = End })
+      |> Or_error.ok_exn
+    in
+    P.request t Before |> Or_error.ok_exn;
+    Eio.Fiber.yield ();
+    P.append t [ 2, "live" ] |> Or_error.ok_exn;
+    drain inbox;
+    print_s [%sexp (C.to_alist (P.items t) : (int * string) list)];
+    P.close t;
+    print_s [%sexp (Result.is_error (P.append t [ 3, "late" ]) : bool)]);
+  [%expect
+    {|
+    ((1 history) (2 live))
+    true
+    |}]
+;;

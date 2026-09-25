@@ -22,7 +22,7 @@ type t =
   ; mutable cycles : int
   }
 
-let create ?asset_owner window ~start ~theme component =
+let create ?asset_owner ?document_owner window ~start ~theme component =
   let active = B.Expert.Var.create true in
   let computation graph =
     let open B.Let_syntax in
@@ -37,7 +37,7 @@ let create ?asset_owner window ~start ~theme component =
   ; driver = Bonsai_driver.create ~clock ~action_history:Release_after_flush computation
   ; active
   ; clock
-  ; reconciler = R.create ?asset_owner window
+  ; reconciler = R.create ?asset_owner ?document_owner window
   ; theme
   ; pending = None
   ; closed = false

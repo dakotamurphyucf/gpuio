@@ -744,3 +744,796 @@
              )
          }
      }
+--- a/src/input/base/element.rs
++++ b/src/input/base/element.rs
+@@ -987,7 +987,7 @@
+         style: &TextStyle,
+         window: &mut Window,
+     ) -> (Pixels, usize) {
+-        let total_lines = text.lines_len();
++        let total_lines = text.lines_len().saturating_add(state.line_number_offset);
+         // One extra column beyond the widest line number, so right-aligned
+         // numbers keep a gap from the left edge.
+         let line_number_len = total_lines.max(1).ilog10() as usize + 2;
+@@ -2095,8 +2095,12 @@
+                 .iter()
+                 .zip(last_layout.visible_buffer_lines.iter())
+             {
+-                let line_no: SharedString =
+-                    format!("{:>width$}", buffer_line + 1, width = line_number_len).into();
++                let line_no: SharedString = format!(
++                    "{:>width$}",
++                    buffer_line + 1 + state.line_number_offset,
++                    width = line_number_len
++                )
++                .into();
+ 
+                 let runs = if current_row == Some(buffer_line) {
+                     &current_line_runs
+--- a/src/input/base/state.rs
++++ b/src/input/base/state.rs
+@@ -427,6 +427,7 @@
+     /// is rebuilt at the top of every render, which is what keeps it current
+     /// when the palette changes after the state was built.
+     pub(super) editor_style: InputEditorStyle,
++    pub(super) line_number_offset: usize,
+     /// What a consumer projected, kept verbatim so that resolution never
+     /// consumes its own output: resolving in place would fill the unset
+     /// colours once and then never see them as unset again, which is the same
+@@ -752,6 +753,7 @@
+             mask_pattern: MaskPattern::default(),
+             mask_pattern_set: false,
+             editor_style: InputEditorStyle::default(),
++            line_number_offset: 0,
+             projected_editor_style: InputEditorStyle::default(),
+             diagnostic_popover: None,
+             context_menu_handler: None,
+@@ -9572,6 +9574,12 @@
+     }
+ 
+     /// Set line number.
++    /// Zero-based source line origin for a read-only document page.
++    pub fn set_line_number_offset(&mut self, offset: usize, cx: &mut Context<Self>) {
++        self.line_number_offset = offset.min(i32::MAX as usize);
++        cx.notify();
++    }
++
+     pub fn set_line_number(&mut self, line_number: bool, _: &mut Window, cx: &mut Context<Self>) {
+         if let LayoutMode::CodeEditor { line_number: l, .. } = &mut self.mode {
+             *l = line_number;
+--- a/src/resizable/mod.rs
++++ b/src/resizable/mod.rs
+@@ -1,4 +1,4 @@
+-use std::ops::Range;
++use std::{ops::Range, rc::Weak};
+ 
+ use gpui::{
+     Along, App, Axis, Bounds, Context, ElementId, EventEmitter, IsZero, Pixels, Window, px,
+@@ -36,6 +36,7 @@
+     panels: Vec<ResizablePanelState>,
+     sizes: Vec<Pixels>,
+     resizing_panel_ix: Option<usize>,
++    resizing_drag: Weak<()>,
+     bounds: Bounds<Pixels>,
+ }
+ 
+@@ -46,12 +47,31 @@
+             panels: vec![],
+             sizes: vec![],
+             resizing_panel_ix: None,
++            resizing_drag: Weak::new(),
+             bounds: Bounds::default(),
+         }
+     }
+ }
+ 
+ impl ResizableState {
++    /// Whether this group owns an in-progress native divider drag.
++    pub fn is_resizing(&self) -> bool {
++        self.resizing_panel_ix.is_some() && self.resizing_drag.upgrade().is_some()
++    }
++
++    /// Cancel this group's drag on hide, disposal or Escape. Keep the current
++    /// geometry without emitting a completed-resize event. An inactive group
++    /// must not cancel another control's native drag.
++    pub fn cancel_resize(&mut self, window: &mut Window, cx: &mut Context<Self>) {
++        let owns_drag = self.is_resizing();
++        self.resizing_panel_ix = None;
++        self.resizing_drag = Weak::new();
++        if owns_drag {
++            cx.stop_active_drag(window);
++            cx.notify();
++        }
++    }
++
+     /// Get the size of the panels.
+     pub fn sizes(&self) -> &Vec<Pixels> {
+         &self.sizes
+--- a/src/resizable/panel.rs
++++ b/src/resizable/panel.rs
+@@ -1,7 +1,4 @@
+-use std::{
+-    ops::{Deref, Range},
+-    rc::Rc,
+-};
++use std::{ops::Range, rc::Rc};
+ 
+ use gpui::{
+     Along, AnyElement, App, AppContext, Axis, Bounds, Context, Element, ElementId, Empty, Entity,
+@@ -19,7 +16,9 @@
+ }
+ 
+ #[derive(Clone)]
+-pub(crate) struct DragPanel;
++pub(crate) struct DragPanel {
++    _lease: Option<Rc<()>>,
++}
+ impl Render for DragPanel {
+     fn render(&mut self, _: &mut Window, _: &mut Context<'_, Self>) -> impl IntoElement {
+         Empty
+@@ -36,6 +35,7 @@
+     children: Vec<ResizablePanel>,
+     on_resize: Rc<dyn Fn(&Entity<ResizableState>, &mut Window, &mut App)>,
+     handle_appearance: Option<ResizeHandleRenderer>,
++    pointer_resizing: bool,
+ }
+ 
+ impl ResizablePanelGroup {
+@@ -49,6 +49,7 @@
+             size: None,
+             on_resize: Rc::new(|_, _, _| {}),
+             handle_appearance: None,
++            pointer_resizing: true,
+         }
+     }
+ 
+@@ -58,6 +59,13 @@
+     /// returns `None` for a given handle leaves the built-in line on it.
+     pub fn with_handle_appearance(mut self, appearance: ResizeHandleRenderer) -> Self {
+         self.handle_appearance = Some(appearance);
++        self
++    }
++
++    /// Enable pointer dragging without removing the handle's custom keyboard
++    /// or accessibility content. Child panels keep their own pointer policy.
++    pub fn pointer_resizing(mut self, enabled: bool) -> Self {
++        self.pointer_resizing = enabled;
+         self
+     }
+ 
+@@ -169,6 +177,7 @@
+                         panel.axis = self.axis;
+                         panel.state = Some(state.clone());
+                         panel.handle_appearance = self.handle_appearance.clone();
++                        panel.pointer_resizing = self.pointer_resizing;
+                         panel
+                     }),
+             )
+@@ -247,6 +256,7 @@
+     visible: bool,
+     style: StyleRefinement,
+     handle_appearance: Option<ResizeHandleRenderer>,
++    pointer_resizing: bool,
+ }
+ 
+ impl ResizablePanel {
+@@ -262,6 +272,7 @@
+             visible: true,
+             style: StyleRefinement::default(),
+             handle_appearance: None,
++            pointer_resizing: true,
+         }
+     }
+ 
+@@ -367,13 +378,20 @@
+                         .when_some(self.handle_appearance.clone(), |handle, appearance| {
+                             handle.with_appearance(appearance)
+                         })
+-                        .on_drag(DragPanel, move |drag_panel, _, _, cx| {
+-                            cx.stop_propagation();
+-                            // Set current resizing panel ix
+-                            state.update(cx, |state, _| {
+-                                state.resizing_panel_ix = Some(ix);
+-                            });
+-                            cx.new(|_| drag_panel.deref().clone())
++                        .when(self.pointer_resizing, |handle| {
++                            handle.on_drag(DragPanel { _lease: None }, move |_, _, _, cx| {
++                                cx.stop_propagation();
++                                // Set current resizing panel ix
++                                let lease = Rc::new(());
++                                state.update(cx, |state, cx| {
++                                    state.resizing_panel_ix = Some(ix);
++                                    state.resizing_drag = Rc::downgrade(&lease);
++                                    cx.notify();
++                                });
++                                cx.new(|_| DragPanel {
++                                    _lease: Some(lease),
++                                })
++                            })
+                         }),
+                 )
+             })
+@@ -436,17 +454,21 @@
+         _: &mut Self::RequestLayoutState,
+         _: &mut Self::PrepaintState,
+         window: &mut Window,
+-        cx: &mut App,
++        _cx: &mut App,
+     ) {
+         window.on_mouse_event({
+             let state = self.state.clone();
+             let axis = self.axis;
+-            let current_ix = state.read(cx).resizing_panel_ix;
+             move |e: &MouseMoveEvent, phase, window, cx| {
+                 if !phase.bubble() {
+                     return;
+                 }
+-                let Some(ix) = current_ix else { return };
++                if !state.read(cx).is_resizing() {
++                    return;
++                }
++                let Some(ix) = state.read(cx).resizing_panel_ix else {
++                    return;
++                };
+ 
+                 state.update(cx, |state, cx| {
+                     let panel = state.panels.get(ix).expect("BUG: invalid panel index");
+@@ -473,10 +495,10 @@
+         // When any mouse up, stop dragging
+         window.on_mouse_event({
+             let state = self.state.clone();
+-            let current_ix = state.read(cx).resizing_panel_ix;
+             let on_resize = self.on_resize.clone();
+             move |_: &MouseUpEvent, phase, window, cx| {
+-                if current_ix.is_none() {
++                if !state.read(cx).is_resizing() {
++                    state.update(cx, |state, _| state.resizing_panel_ix = None);
+                     return;
+                 }
+                 if phase.bubble() {
+--- a/src/text/format/markdown.rs
++++ b/src/text/format/markdown.rs
+@@ -18,6 +18,68 @@
+     markdown::to_mdast(&source, &options)
+         .map(|n| ast_to_document(source, n, cx))
+         .map_err(|e| e.to_string().into())
++}
++
++/// Bounded full-document entry for externally scheduled native display jobs.
++/// Unlike the streaming tail parser, definitions can affect earlier blocks.
++pub(crate) fn parse_bounded(
++    source: &str,
++    cx: &mut NodeContext,
++) -> Result<ParsedDocument, SharedString> {
++    if source.len() > 64 * 1024 || source.lines().any(|line| line.len() > 16 * 1024) {
++        return Err("rich document input limit exceeded".into());
++    }
++    let mut ast = markdown::to_mdast(source, &cx.markdown_extensions.parse_options())
++        .map_err(|error| SharedString::from(error.to_string()))?;
++    let mut pending = vec![(&ast, 0usize)];
++    let mut nodes = 0;
++    while let Some((node, depth)) = pending.pop() {
++        nodes += 1;
++        if nodes > 4096 || depth > 32 {
++            return Err("rich document structural limit exceeded".into());
++        }
++        if let Some(children) = node.children() {
++            pending.extend(children.iter().map(|child| (child, depth + 1)));
++        }
++    }
++    if ast.children().is_some_and(|children| children.len() > 256) {
++        return Err("rich document block limit exceeded".into());
++    }
++    let mut definitions = std::collections::HashMap::new();
++    let mut pending = vec![&ast];
++    while let Some(node) = pending.pop() {
++        if let Node::Definition(definition) = node {
++            definitions
++                .entry(definition.identifier.clone())
++                .or_insert_with(|| (definition.url.clone(), definition.title.clone()));
++        }
++        if let Some(children) = node.children() {
++            pending.extend(children.iter().rev());
++        }
++    }
++    resolve_image_references(&mut ast, &definitions);
++    Ok(ast_to_document(source, ast, cx))
++}
++
++fn resolve_image_references(
++    node: &mut Node,
++    definitions: &std::collections::HashMap<String, (String, Option<String>)>,
++) {
++    if let Node::ImageReference(reference) = node
++        && let Some((url, title)) = definitions.get(&reference.identifier)
++    {
++        *node = Node::Image(mdast::Image {
++            position: reference.position.clone(),
++            alt: reference.alt.clone(),
++            url: url.clone(),
++            title: title.clone(),
++        });
++    }
++    if let Some(children) = node.children_mut() {
++        for child in children {
++            resolve_image_references(child, definitions);
++        }
++    }
+ }
+ 
+ fn parse_table_row(source: &str, table: &mut Table, node: &mdast::TableRow, cx: &mut NodeContext) {
+--- a/src/text/node.rs
++++ b/src/text/node.rs
+@@ -3656,3 +3656,123 @@
+         assert_ne!(first, second);
+     }
+ }
++
++// Transfer logical selection ranges into a fully reparsed immutable snapshot.
++// Rendering/layout state is never shared between different mounted views.
++fn transfer_inline_selection(
++    old: &Arc<Mutex<InlineState>>,
++    new: &Arc<Mutex<InlineState>>,
++    old_text: &str,
++    new_text: &str,
++    all: bool,
++) -> bool {
++    let selected = old.lock().ok().and_then(|state| state.selection);
++    let selected = if all {
++        (!old_text.is_empty()).then(|| crate::input::Selection::new(0, old_text.len()))
++    } else {
++        selected
++    };
++    let Some(selected) = selected else {
++        return true;
++    };
++    if old_text
++        .get(..selected.end)
++        .is_none_or(|prefix| Some(prefix) != new_text.get(..selected.end))
++    {
++        return false;
++    }
++    if let Ok(mut state) = new.lock() {
++        state.text = new_text.to_string().into();
++        state.selection = Some(selected);
++    }
++    true
++}
++impl Paragraph {
++    /// Match the renderer's text runs: atomic objects flush the preceding
++    /// text into their node state; the trailing run uses paragraph state.
++    fn selection_runs(&self) -> Vec<(Arc<Mutex<InlineState>>, String)> {
++        let mut runs = Vec::new();
++        let mut text = String::new();
++        for node in &self.children {
++            if node.custom.is_none() {
++                text.push_str(&node.text);
++            }
++            if node.custom.is_some() || node.image.is_some() {
++                runs.push((node.state.clone(), std::mem::take(&mut text)));
++            }
++        }
++        runs.push((self.state.clone(), text));
++        runs
++    }
++    fn transfer_selection(&self, old: &Self, all: bool) -> bool {
++        let new_runs = self.selection_runs();
++        let mut valid = true;
++        for (index, (state, text)) in old.selection_runs().iter().enumerate() {
++            if let Some((new, new_text)) = new_runs.get(index) {
++                valid &= transfer_inline_selection(state, new, text, new_text, all);
++            } else if all && !text.is_empty()
++                || state.lock().is_ok_and(|state| state.selection.is_some())
++            {
++                valid = false;
++            }
++        }
++        for (index, old_node) in old
++            .children
++            .iter()
++            .enumerate()
++            .filter(|(_, node)| node.custom.is_some())
++        {
++            let selected = all || old_node.custom_selection.lock().is_ok_and(|value| *value);
++            if selected {
++                if let Some(new_node) = self
++                    .children
++                    .get(index)
++                    .filter(|new| new.custom == old_node.custom)
++                {
++                    if let Ok(mut value) = new_node.custom_selection.lock() {
++                        *value = true;
++                    }
++                } else {
++                    valid = false;
++                }
++            }
++        }
++        valid
++    }
++}
++
++impl BlockNode {
++    pub(super) fn transfer_selection(&self, old: &Self, all: bool) -> bool {
++        match (self, old) {
++            (Self::Paragraph(new), Self::Paragraph(old))
++            | (Self::Heading { children: new, .. }, Self::Heading { children: old, .. }) => {
++                new.transfer_selection(old, all)
++            }
++            (Self::Custom(new), Self::Custom(old)) => new.as_text().starts_with(old.as_text()),
++            (Self::CodeBlock(new), Self::CodeBlock(old)) => {
++                transfer_inline_selection(&old.state, &new.state, &old.code(), &new.code(), all)
++            }
++            (Self::Table(new), Self::Table(old)) => {
++                old.children.iter().enumerate().all(|(r, old)| {
++                    new.children.get(r).is_some_and(|new| {
++                        old.children.iter().enumerate().all(|(c, old)| {
++                            new.children.get(c).is_some_and(|new| {
++                                new.children.transfer_selection(&old.children, all)
++                            })
++                        })
++                    })
++                })
++            }
++            (Self::Root { children: new, .. }, Self::Root { children: old, .. })
++            | (Self::Blockquote { children: new, .. }, Self::Blockquote { children: old, .. })
++            | (Self::List { children: new, .. }, Self::List { children: old, .. })
++            | (Self::ListItem { children: new, .. }, Self::ListItem { children: old, .. }) => {
++                old.iter().enumerate().all(|(i, old)| {
++                    new.get(i)
++                        .is_some_and(|new| new.transfer_selection(old, all))
++                })
++            }
++            _ => self == old || (!all && !old.has_selection()),
++        }
++    }
++}
+--- a/src/text/state.rs
++++ b/src/text/state.rs
+@@ -111,6 +111,7 @@
+     pub(super) preserve_inline_selection: bool,
+     multi_click_selection: Option<TextViewMultiClickSelection>,
+     selected_text_override: Option<String>,
++    prepared_source_selection: Option<String>,
+     select_all: bool,
+     pub(super) auto_scroll: AutoScroll,
+     pub(super) selection_adapter: TextViewSelectionAdapter,
+@@ -126,72 +127,140 @@
+     layout_text_style: Option<(gpui::TextStyle, Pixels)>,
+     parsed_error: Option<SharedString>,
+     tx: Sender<UpdateOptions>,
+-    _parse_task: Task<()>,
+-    _receive_task: Task<()>,
++    _parse_task: Option<Task<()>>,
++    _receive_task: Option<Task<()>>,
+ }
+ 
+ impl TextViewState {
++    /// Install a single-use snapshot from an externally bounded worker. No
++    /// parser work or source queue is started by this operation. The caller
++    /// rejects stale document generations/revisions before calling it.
++    /// Unchanged selected blocks can retain their logical inline ranges.
++    pub fn set_prepared(
++        &mut self,
++        mut prepared: PreparedMarkdown,
++        unchanged_prefix: Option<usize>,
++        cx: &mut Context<Self>,
++    ) {
++        let all = self.select_all;
++        let selected_plain = all.then(|| self.parsed_content.document.text());
++        let selected_source = all.then(|| self.parsed_content.document.source.to_string());
++        let mut preserve = unchanged_prefix.is_some();
++        let append_only = prepared
++            .content
++            .document
++            .source
++            .starts_with(self.parsed_content.document.source.as_ref());
++        let new_blocks = Arc::make_mut(&mut prepared.content.document.blocks);
++        for (index, old) in self.parsed_content.document.blocks.iter().enumerate() {
++            if !append_only && (all || old.has_selection()) {
++                preserve &= old
++                    .span()
++                    .is_some_and(|span| unchanged_prefix.is_some_and(|prefix| span.end <= prefix));
++            }
++            if let Some(new) = new_blocks.get(index) {
++                preserve &= new.transfer_selection(old, all);
++            } else if all || old.has_selection() {
++                preserve = false;
++            }
++        }
++        if !preserve {
++            self.reset_selection_and_adapter(cx);
++            for block in new_blocks.iter() {
++                block.clear_selection();
++            }
++        } else if all {
++            self.select_all = false;
++            self.selected_text_override = selected_plain;
++            self.prepared_source_selection = selected_source;
++        }
++        self.revision = self
++            .revision
++            .checked_add(1)
++            .expect("text view revision exhausted");
++        if !preserve {
++            self.selection_revision = self.selection_revision.wrapping_add(1);
++        }
++        self.text = prepared.content.document.source.to_string();
++        self.markdown_extensions = prepared.content.node_cx.markdown_extensions.clone();
++        self.parsed_content = prepared.content;
++        self.parsed_error = None;
++        self.preserve_inline_selection = preserve;
++        self.compatible_layout_update = preserve;
++        self.invalidate_measured_heights();
++        cx.notify();
++    }
++
+     /// Create a Markdown TextViewState.
+     pub fn markdown(text: &str, cx: &mut Context<Self>) -> Self {
+-        Self::new(TextViewFormat::Markdown, text, cx)
++        Self::new(TextViewFormat::Markdown, text, false, cx)
+     }
+ 
+     /// Create a HTML TextViewState.
+     pub fn html(text: &str, cx: &mut Context<Self>) -> Self {
+-        Self::new(TextViewFormat::Html, text, cx)
++        Self::new(TextViewFormat::Html, text, false, cx)
+     }
+ 
+     /// Create a new TextViewState.
+-    fn new(format: TextViewFormat, text: &str, cx: &mut Context<Self>) -> Self {
++    pub fn externally_prepared(cx: &mut Context<Self>) -> Self {
++        Self::new(TextViewFormat::Markdown, "", true, cx)
++    }
++
++    fn new(format: TextViewFormat, text: &str, external: bool, cx: &mut Context<Self>) -> Self {
+         let focus_handle = cx.focus_handle();
+         let selection_adapter = TextViewSelectionAdapter::new(cx.entity().downgrade(), cx);
+ 
+         let (tx, rx) = unbounded::<UpdateOptions>();
+         let (tx_result, rx_result) = unbounded::<ParsedUpdate>();
+-        let _receive_task = cx.spawn({
+-            async move |weak_self, cx| {
+-                while let Ok(parsed_update) = rx_result.recv().await {
+-                    _ = weak_self.update(cx, |state, cx| {
+-                        if parsed_update.revision != state.revision {
+-                            return;
+-                        }
+-                        if parsed_update.baseline_ack {
+-                            debug_assert!(parsed_update.full_parse);
+-                            return;
+-                        }
+-
+-                        match parsed_update.result {
+-                            Ok(content) => {
+-                                state.parsed_content = content;
+-                                state.parsed_error = None;
+-                                state.compatible_layout_update = parsed_update.selection_compatible;
+-                                if parsed_update.full_parse {
+-                                    state.invalidate_measured_heights();
++        let _receive_task = (!external).then(|| {
++            cx.spawn({
++                async move |weak_self, cx| {
++                    while let Ok(parsed_update) = rx_result.recv().await {
++                        _ = weak_self.update(cx, |state, cx| {
++                            if parsed_update.revision != state.revision {
++                                return;
++                            }
++                            if parsed_update.baseline_ack {
++                                debug_assert!(parsed_update.full_parse);
++                                return;
++                            }
++
++                            match parsed_update.result {
++                                Ok(content) => {
++                                    state.parsed_content = content;
++                                    state.parsed_error = None;
++                                    state.compatible_layout_update =
++                                        parsed_update.selection_compatible;
++                                    if parsed_update.full_parse {
++                                        state.invalidate_measured_heights();
++                                    }
++                                }
++                                Err(err) => {
++                                    state.parsed_error = Some(err);
+                                 }
+                             }
+-                            Err(err) => {
+-                                state.parsed_error = Some(err);
++                            // Don't interrupt an active drag-selection; the stored
++                            // positions remain valid for append-only updates and will
++                            // self-correct on the next mouse-move event.
++                            if !parsed_update.selection_compatible && !state.is_selecting {
++                                state.reset_selection_and_adapter(cx);
+                             }
+-                        }
+-                        // Don't interrupt an active drag-selection; the stored
+-                        // positions remain valid for append-only updates and will
+-                        // self-correct on the next mouse-move event.
+-                        if !parsed_update.selection_compatible && !state.is_selecting {
+-                            state.reset_selection_and_adapter(cx);
+-                        }
+-                        cx.notify();
+-                    });
++                            cx.notify();
++                        });
++                    }
+                 }
+-            }
+-        });
+-
+-        let _parse_task = cx.background_spawn(UpdateFuture::new(format, rx, tx_result));
++            })
++        });
++
++        let _parse_task =
++            (!external).then(|| cx.background_spawn(UpdateFuture::new(format, rx, tx_result)));
+ 
+         let mut this = Self {
+             focus_handle,
+             bounds: Bounds::default(),
+             multi_click_selection: None,
+             selected_text_override: None,
++            prepared_source_selection: None,
+             select_all: false,
+             selectable: false,
+             selection_format: SelectionFormat::default(),
+@@ -226,7 +295,9 @@
+             _parse_task,
+             _receive_task,
+         };
+-        this.increment_update(&text, false, cx);
++        if !external {
++            this.increment_update(&text, false, cx);
++        }
+         this
+     }
+ 
+@@ -325,6 +396,17 @@
+     }
+ 
+     /// Return the selected text, in the view's [`SelectionFormat`].
++    pub fn has_local_selection(&self) -> bool {
++        self.select_all
++            || self.selected_text_override.is_some()
++            || self
++                .parsed_content
++                .document
++                .blocks
++                .iter()
++                .any(|block| block.has_selection())
++    }
++
+     pub fn selected_text(&self) -> String {
+         self.selected_text_in(None)
+     }
+@@ -353,6 +435,11 @@
+     /// [`ParsedDocument::selected_text`](crate::text::document::ParsedDocument).
+     pub(super) fn selected_text_in(&self, blocks: Option<RangeInclusive<usize>>) -> String {
+         let format = self.effective_format();
++        if format == SelectionFormat::Source
++            && let Some(source) = &self.prepared_source_selection
++        {
++            return source.clone();
++        }
+ 
+         if self.select_all {
+             if format == SelectionFormat::Source {
+@@ -524,6 +611,7 @@
+         self.preserve_inline_selection = false;
+         self.multi_click_selection = None;
+         self.selected_text_override = None;
++        self.prepared_source_selection = None;
+         self.select_all = false;
+         self.is_selecting = false;
+         self.auto_scroll.stop();
+@@ -556,6 +644,7 @@
+     pub fn select_all(&mut self, cx: &mut Context<Self>) {
+         self.multi_click_selection = None;
+         self.selected_text_override = None;
++        self.prepared_source_selection = None;
+         self.select_all = true;
+         self.is_selecting = false;
+         self.auto_scroll.stop();
+@@ -579,6 +668,7 @@
+             line_bounds: None,
+         });
+         self.selected_text_override = Some(selected_text);
++        self.prepared_source_selection = None;
+         self.select_all = false;
+         self.is_selecting = false;
+         self.auto_scroll.stop();
+@@ -593,6 +683,7 @@
+             cx,
+         );
+         self.selected_text_override = None;
++        self.prepared_source_selection = None;
+         let offset = self.bounds.origin + self.scroll_offset();
+         if let Some(selection) = self.multi_click_selection.as_mut() {
+             selection.line_bounds = Some(Bounds::new(bounds.origin - offset, bounds.size));
+@@ -769,6 +860,57 @@
+     pub(crate) node_cx: node::NodeContext,
+ }
+ 
++/// A single-use full Markdown parse prepared outside the native UI thread.
++/// This deliberately does not implement Clone: parsed inline nodes contain
++/// mutable selection/layout state and must not be shared between mounted views.
++pub struct PreparedMarkdown {
++    content: ParsedContent,
++}
++
++impl PreparedMarkdown {
++    /// Admission bounds: 64 KiB source, 16 KiB per line, 4096 AST nodes, depth32
++    /// and 256 top-level blocks. Call from a bounded background scheduler.
++    /// Failure means the caller should offer its source/large-document view.
++    pub fn parse(source: &str, extensions: MarkdownExtensions) -> Result<Self, SharedString> {
++        let mut node_cx = NodeContext {
++            markdown_extensions: Arc::new(extensions),
++            ..NodeContext::default()
++        };
++        let document = format::markdown::parse_bounded(source, &mut node_cx)?;
++        Ok(Self {
++            content: ParsedContent { document, node_cx },
++        })
++    }
++
++    pub fn source(&self) -> SharedString {
++        self.content.document.source.clone()
++    }
++    pub fn plain_text(&self) -> String {
++        self.content.document.text()
++    }
++    pub fn block_count(&self) -> usize {
++        self.content.document.blocks.len()
++    }
++
++    /// Read code blocks during the same background job, before installing this
++    /// single-use document. The clones are not independent mounted views.
++    pub fn code_blocks(&self) -> Vec<node::CodeBlock> {
++        let mut blocks = Vec::new();
++        let mut pending: Vec<_> = self.content.document.blocks.iter().collect();
++        while let Some(block) = pending.pop() {
++            match block {
++                node::BlockNode::CodeBlock(code) => blocks.push(code.clone()),
++                node::BlockNode::Root { children, .. }
++                | node::BlockNode::Blockquote { children, .. }
++                | node::BlockNode::List { children, .. }
++                | node::BlockNode::ListItem { children, .. } => pending.extend(children),
++                _ => (),
++            }
++        }
++        blocks
++    }
++}
++
+ struct UpdateFuture {
+     format: TextViewFormat,
+     content: ParsedContent,
+--- a/src/text/text_view.rs
++++ b/src/text/text_view.rs
+@@ -19,7 +19,7 @@
+ pub(crate) type CodeBlockActionsFn =
+     dyn Fn(&CodeBlock, &mut Window, &mut App) -> AnyElement + Send + Sync;
+ 
+-pub(crate) type CodeBlockHighlighterFn =
++pub type CodeBlockHighlighterFn =
+     dyn Fn(&CodeBlock) -> Vec<(Range<usize>, gpui::HighlightStyle)> + Send + Sync;
+ 
+ /// Application-wide defaults for TextViews that do not provide explicit
+@@ -303,6 +303,16 @@
+         F: Fn(&CodeBlock) -> Vec<(Range<usize>, gpui::HighlightStyle)> + Send + Sync + 'static,
+     {
+         self.code_block_highlighter = Some(Arc::new(highlighter));
++        self
++    }
++
++    /// Reuse a prepared highlighter identity across frames so fenced-code
++    /// style caches remain valid until the source or theme actually changes.
++    pub fn code_block_highlighter_shared(
++        mut self,
++        highlighter: Arc<CodeBlockHighlighterFn>,
++    ) -> Self {
++        self.code_block_highlighter = Some(highlighter);
+         self
+     }
+ 

@@ -4,6 +4,9 @@ module type S = sig
   module Asset = Asset_wire
   module Image = Image_wire
   module Animation = Animation_wire
+  module Document = Document_wire
+  module Window = Window_wire
+  module Split = Split_wire
   module Drag_and_drop = Drag_and_drop_wire
 
   val version : int64
@@ -38,6 +41,10 @@ module type S = sig
       | Icon
       | Animated
       | Virtual_list
+      | Document_view
+      | Tab_bar
+      | Tab_panel
+      | Split_pane
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -443,6 +450,8 @@ module type S = sig
         | Focus
         | Undo
         | Redo
+        | Submit
+        | Read_snapshot
       [@@deriving bin_io, equal, sexp_of]
     end
 
@@ -684,6 +693,8 @@ module type S = sig
       | Set_list_rows of Node_id.t * List_wire.Row.t list
       | Invalidate_list_rows of Node_id.t * int64 list
       | Scroll_list of Node_id.t * List_wire.Scroll_request.t
+      | Set_document of Node_id.t * Document.Config.t
+      | Set_split of Node_id.t * Split.Config.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -787,6 +798,9 @@ module type S = sig
       | File_dialog of int64 * Window_id.t * File_dialog.Config.t
       | Asset of int64 * Asset.Request.t
       | Set_motion of Animation.Preference.t
+      | Document of int64 * Document.Request.t
+      | Window_command of int64 * Window_id.t * Window.Command.t
+      | Open_configured of int64 * Window_id.t * Window.Config.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Bounded outgoing encoding. Native decoding additionally validates all
@@ -862,6 +876,23 @@ module type S = sig
       | List_viewport of
           Window_id.t * Node_id.t * Handler_id.t * int64 * List_wire.Viewport.t
       | List_retained of Window_id.t * int64 * List_wire.Retained.t list
+      | Document_response of int64 * Document.Response.t
+      | Document_navigation of
+          Window_id.t
+          * Node_id.t
+          * Handler_id.t
+          * int64
+          * Resource_id.t
+          * int64
+          * Document.Navigation.t
+      | Close_requested of Window_id.t
+      | Quit_requested
+      | Reopen_requested
+      | Window_changed of Window_id.t * Window.Snapshot.t
+      | Window_response of int64 * Window_id.t * Window.Response.t
+      | Window_capabilities of Window.Capabilities.t
+      | Split_resized of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * int64 * Split.Snapshot.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

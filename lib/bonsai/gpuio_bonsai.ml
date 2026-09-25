@@ -12,6 +12,7 @@ module View = struct
   let toast_stack = Gpuio.View.toast_stack
   let icon = Gpuio.View.icon
   let animate = Gpuio.View.animate
+  let document = Gpuio.View.document
   let image = Gpuio.View.image
   let text = Gpuio.View.text
 
@@ -80,6 +81,9 @@ module View = struct
   let menu_bar = Gpuio.View.menu_bar
   let command_button = Gpuio.View.command_button
   let tooltip = Gpuio.View.tooltip
+  let split_pane = Gpuio.View.split_pane
+  let tab_bar = Gpuio.View.tab_bar
+  let tab_panel = Gpuio.View.tab_panel
   let radio_group = Gpuio.View.radio_group
   let select = Gpuio.View.select
   let combobox = Gpuio.View.combobox

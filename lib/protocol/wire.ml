@@ -2,9 +2,12 @@ open Core
 module Asset = Asset_wire
 module Image = Image_wire
 module Animation = Animation_wire
+module Document = Document_wire
+module Window = Window_wire
+module Split = Split_wire
 
 let version = 1L
-let capabilities = 134217727L
+let capabilities = 536870911L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -35,6 +38,10 @@ module Kind = struct
     | Icon
     | Animated
     | Virtual_list
+    | Document_view
+    | Tab_bar
+    | Tab_panel
+    | Split_pane
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -439,6 +446,8 @@ module Editor = struct
       | Focus
       | Undo
       | Redo
+      | Submit
+      | Read_snapshot
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -682,6 +691,8 @@ module Op = struct
     | Set_list_rows of Node_id.t * List_wire.Row.t list
     | Invalidate_list_rows of Node_id.t * int64 list
     | Scroll_list of Node_id.t * List_wire.Scroll_request.t
+    | Set_document of Node_id.t * Document.Config.t
+    | Set_split of Node_id.t * Split.Config.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -818,11 +829,27 @@ module Message = struct
     | File_dialog of int64 * Window_id.t * File_dialog.Config.t
     | Asset of int64 * Asset.Request.t
     | Set_motion of Animation.Preference.t
+    | Document of int64 * Document.Request.t
+    | Window_command of int64 * Window_id.t * Window.Command.t
+    | Open_configured of int64 * Window_id.t * Window.Config.t
   [@@deriving bin_io, equal, sexp_of]
 
   let encode t =
     let invalid_asset =
       match t with
+      | Window_command (correlation, _, command) ->
+        Int64.(correlation <= 0L) || Result.is_error (Window.Command.validate command)
+      | Open_configured (correlation, _, config) ->
+        Int64.(correlation <= 0L)
+        || not
+             (Window.valid_title config.title
+              && Window.valid_size config.width config.height)
+      | Document (correlation, request) ->
+        Int64.(correlation <= 0L)
+        ||
+          (match request with
+          | Chunk (_, _, _, data) -> String.length data > Document.max_chunk_bytes
+          | Create | Begin _ | Publish _ | Abort _ | Release _ -> false)
       | Asset (correlation, request) ->
         Int64.(correlation <= 0L)
         ||
@@ -909,6 +936,23 @@ module Event = struct
     | List_viewport of
         Window_id.t * Node_id.t * Handler_id.t * int64 * List_wire.Viewport.t
     | List_retained of Window_id.t * int64 * List_wire.Retained.t list
+    | Document_response of int64 * Document.Response.t
+    | Document_navigation of
+        Window_id.t
+        * Node_id.t
+        * Handler_id.t
+        * int64
+        * Resource_id.t
+        * int64
+        * Document.Navigation.t
+    | Close_requested of Window_id.t
+    | Quit_requested
+    | Reopen_requested
+    | Window_changed of Window_id.t * Window.Snapshot.t
+    | Window_response of int64 * Window_id.t * Window.Response.t
+    | Window_capabilities of Window.Capabilities.t
+    | Split_resized of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * int64 * Split.Snapshot.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -928,6 +972,25 @@ module Event = struct
   ;;
 
   let rec valid_event = function
+    | Split_resized (_, _, _, revision, generation, snapshot) ->
+      Int64.(revision >= 0L && generation >= 0L) && Split.Snapshot.valid snapshot
+    | Window_changed (_, snapshot) | Window_response (_, _, Observed snapshot) ->
+      Window.Snapshot.valid snapshot
+    | Window_response (_, _, Failed _)
+    | Window_capabilities _ | Close_requested _ | Quit_requested | Reopen_requested ->
+      true
+    | Document_navigation (_, _, _, revision, _, generation, navigation) ->
+      let valid text =
+        String.length text <= 4096
+        && Stdlib.String.is_valid_utf_8 text
+        && not (String.contains text '\000')
+      in
+      Int64.(revision >= 0L && generation > 0L)
+      &&
+        (match navigation with
+        | Link url -> (not (String.is_empty url)) && valid url
+        | Line (path, _, line) ->
+          Int64.(line > 0L && line <= 2_147_483_647L) && Option.for_all path ~f:valid)
     | List_retained (_, revision, notices) ->
       Int64.(revision > 0L) && Or_error.is_ok (List_wire.Retained.validate_all notices)
     | List_viewport (_, _, _, revision, viewport) ->
@@ -948,7 +1011,8 @@ module Event = struct
             && frames > 0L
             && frames <= 120L
             && width_px * height_px * 4L * frames <= 67108864L))
-    | Asset_response (correlation, _) -> Int64.(correlation > 0L)
+    | Asset_response (correlation, _) | Document_response (correlation, _) ->
+      Int64.(correlation > 0L)
     | File_dialog_result (request, _, Selected paths) ->
       Int64.(request > 0L)
       && (not (List.is_empty paths))

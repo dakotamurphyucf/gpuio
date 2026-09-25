@@ -6,7 +6,11 @@ type 'action t
 
 type 'action update
 
-val create : ?asset_owner:Asset.Expert.Owner.t -> Gpuio_protocol.Window_id.t -> 'action t
+val create
+  :  ?asset_owner:Asset.Expert.Owner.t
+  -> ?document_owner:Text_source.Expert.Owner.t
+  -> Gpuio_protocol.Window_id.t
+  -> 'action t
 
 (** Prepare against acknowledged state. Preparation has no published effects and
     may be discarded if submission fails. Only one update may be in flight per

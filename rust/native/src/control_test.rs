@@ -13,6 +13,8 @@ mod palette_test;
 mod pointer_test;
 #[path = "progress_test.rs"]
 mod progress_test;
+#[path = "split_test.rs"]
+mod split_test;
 #[path = "toast_test.rs"]
 mod toast_test;
 #[path = "tooltip_test.rs"]
@@ -58,7 +60,13 @@ fn choices(transport: &Transport) -> Vec<String> {
         .collect()
 }
 
-async fn radio(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport: &Transport) {
+async fn radio(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    transport: &Transport,
+    kind: Kind,
+    slot: i64,
+) {
     let mut config = ChoiceConfig {
         label: "Mode".into(),
         selected: Some("fast".into()),
@@ -81,17 +89,17 @@ async fn radio(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport: &
         handle,
         vec![
             Op::Create(
-                node(5),
-                Kind::RadioGroup,
+                node(slot),
+                kind,
                 "".into(),
-                Some(gpuio_protocol::HandlerId::from_parts(5, 1).unwrap()),
+                Some(gpuio_protocol::HandlerId::from_parts(slot, 1).unwrap()),
             ),
-            Op::SetChoice(node(5), config.clone()),
+            Op::SetChoice(node(slot), config.clone()),
             Op::SetStyle(
-                node(5),
+                node(slot),
                 vec![Style::Fields(vec![Field::Width(Length::Px(300.))])],
             ),
-            Op::Splice(node(0), 4, 0, vec![node(5)]),
+            Op::Splice(node(0), 4, 0, vec![node(slot)]),
         ],
     );
     frame(cx, handle).await;
@@ -103,7 +111,10 @@ async fn radio(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport: &
     frame(cx, handle).await;
     key(cx, handle, "tab");
     frame(cx, handle).await;
-    assert!(focused(cx, handle, node(5)), "radio group is one Tab stop");
+    assert!(
+        focused(cx, handle, node(slot)),
+        "radio group is one Tab stop"
+    );
     choices(transport);
     key(cx, handle, "down");
     key(cx, handle, "down");
@@ -122,7 +133,7 @@ async fn radio(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport: &
                     .borrow()
                     .tree(view.id)
                     .unwrap()
-                    .get(node(5))
+                    .get(node(slot))
                     .unwrap()
                     .choice
                     .as_ref()
@@ -134,7 +145,7 @@ async fn radio(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport: &
         })
         .unwrap();
     config.items.reverse();
-    apply(cx, handle, vec![Op::SetChoice(node(5), config.clone())]);
+    apply(cx, handle, vec![Op::SetChoice(node(slot), config.clone())]);
     frame(cx, handle).await;
     key(cx, handle, "space");
     assert_eq!(
@@ -174,7 +185,7 @@ async fn radio(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport: &
         );
     }
     config.items.retain(|item| item.id != "deep");
-    apply(cx, handle, vec![Op::SetChoice(node(5), config.clone())]);
+    apply(cx, handle, vec![Op::SetChoice(node(slot), config.clone())]);
     frame(cx, handle).await;
     key(cx, handle, "space");
     assert_eq!(
@@ -183,10 +194,10 @@ async fn radio(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport: &
         "removed active option falls back to a valid value"
     );
     config.disabled = true;
-    apply(cx, handle, vec![Op::SetChoice(node(5), config.clone())]);
+    apply(cx, handle, vec![Op::SetChoice(node(slot), config.clone())]);
     frame(cx, handle).await;
     assert!(
-        !focused(cx, handle, node(5)),
+        !focused(cx, handle, node(slot)),
         "disabled group releases focus"
     );
     key(cx, handle, "space");
@@ -199,13 +210,16 @@ async fn radio(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport: &
     frame(cx, handle).await;
     key(cx, handle, "tab");
     frame(cx, handle).await;
-    assert!(!focused(cx, handle, node(5)), "disabled group is skipped");
+    assert!(
+        !focused(cx, handle, node(slot)),
+        "disabled group is skipped"
+    );
     config.disabled = false;
-    apply(cx, handle, vec![Op::SetChoice(node(5), config)]);
+    apply(cx, handle, vec![Op::SetChoice(node(slot), config)]);
     frame(cx, handle).await;
     handle
         .update(cx, |view, window, cx| {
-            window.focus(&view.buttons[&node(5)].focus, cx)
+            window.focus(&view.buttons[&node(slot)].focus, cx)
         })
         .unwrap();
     frame(cx, handle).await;
@@ -218,20 +232,108 @@ async fn radio(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport: &
     apply(
         cx,
         handle,
-        vec![Op::Remove(node(5)), Op::Splice(node(0), 4, 1, vec![])],
+        vec![Op::Remove(node(slot)), Op::Splice(node(0), 4, 1, vec![])],
     );
     frame(cx, handle).await;
     handle
         .update(cx, |view, _, _| assert!(view.radios.is_empty()))
         .unwrap();
     println!(
-        "GPUIO_RADIO_NATIVE_OK: stable choices, arrow navigation, disabled options/groups, reorder, single Tab stop and disposal"
+        "GPUIO_CHOICE_NATIVE_OK kind={kind:?}: stable choices, arrow navigation, disabled options/groups, reorder, single Tab stop and disposal"
     );
     #[cfg(target_os = "macos")]
     println!(
-        "GPUIO_RADIO_MACOS_AX_OK: option roles, checked values, disabled state and activation"
+        "GPUIO_CHOICE_MACOS_AX_OK kind={kind:?}: option roles, checked values, disabled state and activation"
     );
 }
+async fn retained_tab_panel(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
+    let config = handle
+        .update(cx, |view, _, _| {
+            view.session
+                .borrow()
+                .tree(view.id)
+                .unwrap()
+                .get(node(4))
+                .unwrap()
+                .editor
+                .clone()
+                .unwrap()
+        })
+        .unwrap();
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Create(node(6), Kind::TabPanel, "Draft panel".into(), None),
+            Op::Create(
+                node(7),
+                Kind::Input,
+                "Draft λ 👨‍👩‍👧‍👦".into(),
+                Some(gpuio_protocol::HandlerId::from_parts(7, 1).unwrap()),
+            ),
+            Op::SetEditor(node(7), (*config).clone()),
+            Op::Splice(node(6), 0, 0, vec![node(7)]),
+            Op::Splice(node(0), 4, 0, vec![node(6)]),
+        ],
+    );
+    frame(cx, handle).await;
+    let (before, focus) = handle
+        .update(cx, |view, window, cx| {
+            let editor = view.editors.get_mut(&node(7)).unwrap();
+            let result = editor.command(
+                &EditorCommand::Select(EditorSelection { anchor: 6, head: 8 }),
+                window,
+                cx,
+            );
+            assert!(matches!(result, EditorResult::Applied(_)));
+            window.focus(&editor.focus_handle(cx), cx);
+            (editor.snapshot(window, cx), editor.focus_handle(cx))
+        })
+        .unwrap();
+    apply(
+        cx,
+        handle,
+        vec![Op::SetStyle(
+            node(6),
+            vec![Style::Fields(vec![Field::Display(3)])],
+        )],
+    );
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, window, cx| {
+            assert!(!view.editors[&node(7)].focus_handle(cx).is_focused(window));
+            let read = view.editors.get_mut(&node(7)).unwrap().command(
+                &EditorCommand::ReadSnapshot,
+                window,
+                cx,
+            );
+            assert!(
+                matches!(read, EditorResult::Applied(ref snapshot) if snapshot.text == before.text)
+            );
+            assert!(matches!(
+                view.editors
+                    .get_mut(&node(7))
+                    .unwrap()
+                    .command(&EditorCommand::Focus, window, cx),
+                EditorResult::Failed(EditorError::FocusBlocked)
+            ));
+        })
+        .unwrap();
+    apply(cx, handle, vec![Op::SetStyle(node(6), vec![])]);
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, window, cx| {
+            let after = view.editors[&node(7)].snapshot(window, cx);
+            assert_eq!(before.text, after.text);
+            assert_eq!(before.selection, after.selection);
+            assert!(focus == view.editors[&node(7)].focus_handle(cx));
+        })
+        .unwrap();
+    eprintln!(
+        "GPUIO_TAB_PANEL_NATIVE_OK: hiding releases focus while preserving native draft, selection and native focus identity"
+    );
+}
+
 async fn select_control(
     cx: &mut gpui::AsyncApp,
     handle: WindowHandle<View>,
@@ -1185,6 +1287,8 @@ enum AccessibilityRequest<'a> {
     Press,
     Focus,
     SetValue(&'a str),
+    Increment,
+    Decrement,
 }
 #[cfg(target_os = "macos")]
 fn accessible_with_role(
@@ -1253,6 +1357,14 @@ fn accessible_request(
                     }
                     AccessibilityRequest::Focus => {
                         let _: () = msg_send![object, setAccessibilityFocused: true];
+                    }
+                    AccessibilityRequest::Increment => {
+                        let accepted: Bool = msg_send![object, accessibilityPerformIncrement];
+                        assert!(accepted.as_bool());
+                    }
+                    AccessibilityRequest::Decrement => {
+                        let accepted: Bool = msg_send![object, accessibilityPerformDecrement];
+                        assert!(accepted.as_bool());
                     }
                     AccessibilityRequest::SetValue(value) => {
                         let value = NSString::from_str(value);
@@ -1404,7 +1516,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
             })
         );
     }
-    radio(cx, handle, &transport).await;
+    radio(cx, handle, &transport, Kind::RadioGroup, 5).await;
     select_control(cx, handle, &transport).await;
     combobox_control(cx, handle, &transport).await;
     focus_scopes(cx, handle, &transport).await;
@@ -1471,6 +1583,8 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Suite {
     Controls,
+    Tabs,
+    Splits,
     Menus,
     Palette,
     Progress,
@@ -1480,6 +1594,12 @@ enum Suite {
 }
 pub fn run() {
     run_suite(Suite::Controls);
+}
+pub fn run_splits() {
+    run_suite(Suite::Splits);
+}
+pub fn run_tabs() {
+    run_suite(Suite::Tabs);
 }
 pub fn run_menus() {
     run_suite(Suite::Menus);
@@ -1578,7 +1698,7 @@ fn run_suite(suite: Suite) {
             Op::Splice(node(0), 0, 0, vec![node(1), node(2), node(3), node(4)]),
             Op::SetRoot(Some(node(0))),
         ]);
-        if suite != Suite::Controls {
+        if suite != Suite::Controls && suite != Suite::Tabs && suite != Suite::Splits {
             // Reserve the same generational slots used by preceding component
             // fixtures, without exercising those unrelated windows/interactions.
             let end = match suite {
@@ -1588,7 +1708,7 @@ fn run_suite(suite: Suite) {
                 Suite::Toast => 61,
                 Suite::Pointer => 82,
                 Suite::DragDrop => 90,
-                Suite::Controls => unreachable!(),
+                Suite::Controls | Suite::Tabs | Suite::Splits => unreachable!(),
             };
             for slot in 5..end {
                 operations.push(Op::Create(node(slot), Kind::Text, String::new(), None));
@@ -1631,6 +1751,11 @@ fn run_suite(suite: Suite) {
                 if suite != Suite::Controls {
                     frame(cx, handle).await;
                     match suite {
+                        Suite::Splits => split_test::exercise(cx, handle, &transport).await,
+                        Suite::Tabs => {
+                            radio(cx, handle, &transport, Kind::TabBar, 5).await;
+                            retained_tab_panel(cx, handle).await;
+                        }
                         Suite::Menus => menu_test::exercise(cx, handle, &transport).await,
                         Suite::Palette => palette_test::exercise(cx, handle, &transport).await,
                         Suite::Progress => progress_test::exercise(cx, handle, &transport).await,

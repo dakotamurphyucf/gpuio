@@ -211,3 +211,15 @@ let set t ~key ~data =
   let%map items = List_collection.set t.items ~key ~data in
   t.items <- items
 ;;
+
+let append t rows =
+  match t.after with
+  | Ready _ | Loading _ | Failed _ ->
+    Or_error.error_string "append requires a known latest boundary"
+  | End ->
+    let open Or_error.Let_syntax in
+    let%map items =
+      List_collection.splice t.items ~at:(List_collection.length t.items) ~remove:0 rows
+    in
+    t.items <- items
+;;

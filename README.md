@@ -4,8 +4,9 @@ Native OCaml applications built with Jane Street Bonsai and Zed's GPUI.
 OCaml owns application state; Rust owns native rendering, input and UI resources.
 The bridge exchanges versioned bin_prot commands and events.
 
-**Status:** milestones 1 and 2 are merged. Milestone 3 adds managed virtual
-lists, paging and long-conversation retention. See the current implementation
+**Status:** milestones 1–3 are merged. Milestone 4 implements streaming documents,
+windows/tabs/splits and a polished, runnable agent-chat workspace in
+[PR #12](https://github.com/dakotamurphyucf/gpuio/pull/12). See the current implementation
 status and its validation limits below. This is an experimental framework with
 no stable API release yet.
 
@@ -15,6 +16,8 @@ Dune 3.24.2 and Rust 1.97.1. macOS and Linux (Wayland and X11) are v1 targets.
 ## Start here
 
 - [Current implementation status](docs/status.md)
+- [Run the agent workspace](examples/agent_chat/README.md)
+- [Documents](docs/design/documents.md) and [windows/tabs/splits](docs/design/windows.md)
 - [Contributor guide](CONTRIBUTING.md)
 - [OCaml engineering standards](docs/design/engineering-standards.md)
 - [Managed lists and paging](docs/design/managed-lists.md) and [runnable example](examples/virtual_list/README.md)

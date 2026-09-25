@@ -5,6 +5,7 @@ pub mod animation;
 pub mod asset;
 mod command;
 mod decode;
+pub mod document;
 pub mod drag_drop;
 pub mod file_dialog;
 pub mod file_path;
@@ -23,3 +24,7 @@ pub mod progress;
 pub mod toast;
 
 pub mod pointer;
+
+pub mod window;
+
+pub mod split;

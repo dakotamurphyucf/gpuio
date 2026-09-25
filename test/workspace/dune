@@ -1,0 +1,6 @@
+(library
+ (name gpuio_workspace_tests)
+ (libraries core gpuio gpuio.protocol)
+ (inline_tests)
+ (preprocess
+  (pps ppx_jane)))

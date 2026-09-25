@@ -219,3 +219,13 @@ let controls t =
         check t;
         if current ~generation then cancel t direction))
 ;;
+
+let append t rows =
+  check t;
+  if t.closed || not (Scope.is_active t.scope)
+  then Or_error.error_string "list paging controller closed"
+  else
+    let open Or_error.Let_syntax in
+    let%map () = P.append t.state rows in
+    notify t
+;;

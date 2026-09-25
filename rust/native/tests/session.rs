@@ -142,17 +142,15 @@ fn window_close_and_terminal_stop_are_delivered_under_full_queues() {
         let id = WindowId::from_parts((i % 2) as i64, 1).unwrap();
         mailbox.input(Event::Rendered(id, 0)).unwrap();
     }
-    mailbox.request_close(window(1));
-    mailbox.request_close(window(1));
-    assert_eq!(mailbox.pop_close(), Some(window(1)));
-    assert_eq!(mailbox.pop_close(), None);
-    mailbox.native_closed(window(1));
+    mailbox.control(Event::CloseRequested(window(1)));
+    mailbox.control(Event::CloseRequested(window(1)));
+
     mailbox.close();
     assert!(mailbox.pop().is_none());
     let events = mailbox.drain(256);
     assert_eq!(
         &events[events.len() - 2..],
-        &[Event::Closed(0, window(1)), Event::Stopped]
+        &[Event::CloseRequested(window(1)), Event::Stopped]
     );
     mailbox.close();
     assert!(mailbox.drain(256).is_empty());
