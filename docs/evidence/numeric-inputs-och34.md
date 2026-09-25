@@ -248,3 +248,39 @@ The native executable was built using `native-tests`; GUI subprocesses used a
 Hosted macOS/Linux checks remain pending. Expanded slider style/theme/pixel/scale,
 idle/deactivation/lifetime/workload and public external-AX coverage remain, as do
 numeric editor/stepper and OTP implementation. No OCH-34 capability is advertised.
+
+## Slider appearance and public mode coverage
+
+The native rail/thumb artwork now resolves `Style.Foreground` during paint. The
+host supplies its default accent before application refinements. Focus-state
+styles apply to either focused thumb; a separate geometric ring identifies that
+thumb. Disabled appearance uses the existing host opacity. This removes the
+previous hardcoded child colors without changing ownership, commands or wire data.
+The public numeric example now includes horizontal single/range linear controls
+and vertical single/range logarithmic controls, with live observed values.
+
+Local `native_slider` with `native-image-tests` checks actual rendered RGBA
+pixels for light/dark palettes, selected/unselected rails, both thumb centers,
+focus color and geometric ring, both axes and synthetic 1x/1.5x/2x density. It
+also verifies disabled dimming and constrained 24/32/56px layouts without value
+reset. Screenshots were inspected locally. These are component appearance
+fixtures, not a claim that the polished milestone-05 chat showcase is complete.
+
+The density harness draws synchronously immediately after setting the test scale:
+an intervening AppKit bounds notification can otherwise restore physical density
+between awaited frames. Early failures also corrected the fixture's focus-state
+wire index and moved a ring sample off the antialiased outer edge. None required
+an upstream GPUI patch. The existing native keyboard/pointer/AppKit accessibility
+suite passes with the new artwork. Expanded workload/window lifecycle acceptance
+and numeric editor/stepper/OTP work remain pending.
+
+Validation at this checkpoint (local macOS):
+
+- `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @test/view_api/runtest @fmt` — passed.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-image-tests --test native_slider --no-run` — passed; the resulting executable ran directly under a 45-second subprocess timeout and passed. This includes the idle render-count assertion after settling the visible slider.
+- `_build/default/examples/numeric/main.exe --self-test` — passed with the expanded four-control example mounted, including the original range controller's lease/revision/close checks. Other mode controls are interactive examples; this self-test does not itself prove external keyboard/AX coverage of each one.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 --workspace --all-targets --features gpuio-native/native-image-tests,gpuio-native/native-canvas-tests -- -D warnings` — passed.
+
+Owned GUI processes exited and were reaped. CI now explicitly prebuilds the slider
+image-test variant on both platforms; hosted execution/merge remains pending.
+No Linux GUI coverage or completion of OCH-34 is claimed.

@@ -365,7 +365,11 @@ val icon
 (** Native-owned single/range slider. [controller] identifies one mounted owner;
     [initial] seeds it only on mount. Use a new controller key to change between
     single and range mode. Observations do not reset the native drag or value.
-    Disabled/read-only owners still report programmatic observations. *)
+    Disabled/read-only owners still report programmatic observations.
+    [Style.Foreground] controls the selected rail, thumbs and native focus ring;
+    the unselected rail uses the same color at 25% opacity. Focus state styles
+    apply while either thumb is focused. Width/height set the available travel;
+    background and border styles decorate the outer control. *)
 val slider
   :  ?style:Style.t
   -> controller:Key.t

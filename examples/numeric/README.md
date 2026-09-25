@@ -3,8 +3,9 @@
 Build with `GPUIO_JOBS=2 ./scripts/gpuio build examples/numeric/main.exe`, then
 run `_build/default/examples/numeric/main.exe`.
 
-The initial example demonstrates a native-owned range slider through the public
-Bonsai/Eio controller: drag or keyboard-step either thumb, reset values, read
+The example demonstrates single and range sliders, horizontal and vertical axes,
+and linear and logarithmic scales through the public Bonsai/Eio controller. The
+horizontal range includes lifecycle and command controls: drag or keyboard-step either thumb, reset values, read
 native state, disable it, and unmount/remount it. Observations never feed an
 implicit replacement back to Rust. Numeric editors/steppers and OTP will extend
 this example as OCH-34 continues.

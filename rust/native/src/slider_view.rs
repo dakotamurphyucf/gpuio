@@ -443,25 +443,6 @@ pub(super) fn element(
         .right(px(10.))
         .top(px(10.))
         .bottom(px(10.));
-    let bar = match axis {
-        Axis::Horizontal => div()
-            .absolute()
-            .left_0()
-            .right_0()
-            .top(relative(0.5))
-            .mt(px(-2.))
-            .h(px(4.)),
-        Axis::Vertical => div()
-            .absolute()
-            .top_0()
-            .bottom_0()
-            .left(relative(0.5))
-            .ml(px(-2.))
-            .w(px(4.)),
-    }
-    .rounded(px(2.))
-    .bg(rgba(0x71809650));
-    track = track.child(bar);
     let (low, high) = match state.model.snapshot().value {
         Value::Single(v) => (0., config.fraction(v).unwrap()),
         Value::Range { lower, upper } => (
@@ -469,25 +450,43 @@ pub(super) fn element(
             config.fraction(upper).unwrap(),
         ),
     };
-    let fill = match axis {
-        Axis::Horizontal => div()
-            .absolute()
-            .left(relative(low as f32))
-            .w(relative((high - low) as f32))
-            .top(relative(0.5))
-            .mt(px(-2.))
-            .h(px(4.)),
-        Axis::Vertical => div()
-            .absolute()
-            .bottom(relative(low as f32))
-            .h(relative((high - low) as f32))
-            .left(relative(0.5))
-            .ml(px(-2.))
-            .w(px(4.)),
-    }
-    .rounded(px(2.))
-    .bg(rgba(if disabled { 0x71809670 } else { 0x6688ffff }));
-    track = track.child(fill);
+    track = track.child(
+        canvas(
+            |_, _, _| (),
+            move |bounds, _, window, _| {
+                let color = window.text_style().color;
+                let bar = match axis {
+                    Axis::Horizontal => Bounds::new(
+                        point(bounds.left(), bounds.center().y - px(2.)),
+                        size(bounds.size.width, px(4.)),
+                    ),
+                    Axis::Vertical => Bounds::new(
+                        point(bounds.center().x - px(2.), bounds.top()),
+                        size(px(4.), bounds.size.height),
+                    ),
+                };
+                let selected = match axis {
+                    Axis::Horizontal => Bounds::new(
+                        point(bar.left() + bar.size.width * low as f32, bar.top()),
+                        size(bar.size.width * (high - low) as f32, bar.size.height),
+                    ),
+                    Axis::Vertical => Bounds::new(
+                        point(bar.left(), bar.bottom() - bar.size.height * high as f32),
+                        size(bar.size.width, bar.size.height * (high - low) as f32),
+                    ),
+                };
+                for (bounds, color) in [(bar, color.opacity(0.25)), (selected, color)] {
+                    if bounds.size.width > px(0.) && bounds.size.height > px(0.) {
+                        let mut quad = fill(bounds, color);
+                        quad.corner_radii = px(2.).into();
+                        window.paint_quad(quad);
+                    }
+                }
+            },
+        )
+        .absolute()
+        .size_full(),
+    );
     for (part, (thumb, focus)) in state.focus.iter().enumerate() {
         let thumb = *thumb;
         let value = state.thumb_value(thumb);
@@ -506,11 +505,7 @@ pub(super) fn element(
         let mut child = div()
             .id(part)
             .absolute()
-            .size(px(16.))
-            .rounded(px(8.))
-            .border_2()
-            .border_color(rgba(0x6688ffff))
-            .bg(rgba(if disabled { 0x718096ff } else { 0xf4f7ffff }))
+            .size(px(20.))
             .role(Role::Slider)
             .aria_label(label.clone())
             .aria_numeric_value(value)
@@ -525,20 +520,37 @@ pub(super) fn element(
             Axis::Horizontal => child
                 .left(relative(fraction))
                 .top(relative(0.5))
-                .ml(px(-8.))
-                .mt(px(-8.)),
+                .ml(px(-10.))
+                .mt(px(-10.)),
             Axis::Vertical => child
                 .bottom(relative(fraction))
                 .left(relative(0.5))
-                .mb(px(-8.))
-                .ml(px(-8.)),
+                .mb(px(-10.))
+                .ml(px(-10.)),
         };
         if focusable {
             child = child.track_focus(focus).tab_index(0);
         }
-        if focus.is_focused(window) {
-            child = child.border_color(rgba(0xf0b85aff));
-        }
+        let focused = focusable && focus.is_focused(window);
+        child = child.child(
+            canvas(
+                |_, _, _| (),
+                move |bounds, _, window, _| {
+                    let color = window.text_style().color;
+                    let mut thumb = fill(bounds.dilate(px(-4.)), color);
+                    thumb.corner_radii = px(6.).into();
+                    window.paint_quad(thumb);
+                    if focused {
+                        let mut ring = outline(bounds, color, BorderStyle::Solid);
+                        ring.corner_radii = px(10.).into();
+                        ring.border_widths = px(2.).into();
+                        window.paint_quad(ring);
+                    }
+                },
+            )
+            .absolute()
+            .size_full(),
+        );
         if pointer && focusable && !read_only {
             let down = shared.clone();
             child = child.cursor_pointer().on_mouse_down(

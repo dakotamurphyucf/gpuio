@@ -138,6 +138,212 @@ fn accessible(
     }
 }
 
+#[cfg(feature = "native-image-tests")]
+async fn appearance(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
+    use gpuio_protocol::v1::Field as F;
+    let original_scale = handle.update(cx, |_, w, _| w.scale_factor()).unwrap();
+    // The same native owner survives palette, density, axis, focus and policy
+    // changes. None of these style changes should reset its numeric value.
+    for (name, background, foreground) in [
+        ("light", 0xffffffff, 0x2244aaff),
+        ("dark", 0x161b22ff, 0x88bbffff),
+    ] {
+        for axis in [s::Axis::Horizontal, s::Axis::Vertical] {
+            for scale in [1., 1.5, 2.] {
+                handle
+                    .update(cx, |_, w, _| w.set_scale_factor(scale))
+                    .unwrap();
+                let vertical = axis == s::Axis::Vertical;
+                apply(
+                    cx,
+                    handle,
+                    vec![
+                        Op::SetStyle(node(0), vec![Style::Background(Color::Rgba(background))]),
+                        Op::SetStyle(
+                            node(1),
+                            vec![
+                                Style::Width(Length::Px(if vertical { 24. } else { 160. })),
+                                Style::Height(Length::Px(if vertical { 160. } else { 24. })),
+                                Style::Foreground(Color::Rgba(foreground)),
+                                Style::State(1, vec![F::Foreground(Color::Rgba(0x228866ff))]),
+                            ],
+                        ),
+                        Op::SetSlider(node(1), s::Config { axis, ..config() }, initial()),
+                    ],
+                );
+                frame(cx, handle).await;
+                for focused in [false, true] {
+                    handle
+                        .update(cx, |v, w, cx| {
+                            let focus = if focused {
+                                v.sliders[&node(1)].borrow().focus[0].1.clone()
+                            } else {
+                                v.root_focus.clone().unwrap()
+                            };
+                            w.focus(&focus, cx);
+                        })
+                        .unwrap();
+                    frame(cx, handle).await;
+                    // AppKit can deliver a bounds notification between awaited
+                    // frames and restore physical density. Draw the synthetic
+                    // density synchronously, outside the borrowed root entity.
+                    cx.update_window(handle.into(), |_, w, cx| {
+                        w.set_scale_factor(scale);
+                        w.draw(cx).clear(cx);
+                    })
+                    .unwrap();
+                    let accent = if focused { 0x228866ff } else { foreground };
+                    handle.update(cx, |v, w, _| {
+                        let bounds = v.probes.borrow()[&node(1)].bounds;
+                        let point_at = |fraction: f32| {
+                            if vertical {
+                                gpui::point(bounds.center().x,
+                                    bounds.bottom() - px(10.) - (bounds.size.height - px(20.)) * fraction)
+                            } else {
+                                gpui::point(bounds.left() + px(10.) + (bounds.size.width - px(20.)) * fraction,
+                                    bounds.center().y)
+                            }
+                        };
+                        let image = w.render_to_image().unwrap();
+                        let rgba = |color: i64| [(color >> 24) as u8, (color >> 16) as u8,
+                            (color >> 8) as u8, color as u8];
+                        let assert_color = |position: gpui::Point<gpui::Pixels>, expected: [u8; 4]| {
+                            let x = (f32::from(position.x) * scale) as u32;
+                            let y = (f32::from(position.y) * scale) as u32;
+                            let actual = image.get_pixel(x, y).0;
+                            assert!(actual.iter().zip(expected).all(|(a, b)| a.abs_diff(b) <= 2),
+                                "{name} {axis:?} scale={scale} focus={focused} ({x},{y}): {actual:?} != {expected:?}");
+                        };
+                        // Selected rail, both thumb centers, and unselected rail.
+                        for fraction in [0.4, 0.65, 0.9] {
+                            assert_color(point_at(fraction), rgba(accent));
+                        }
+                        let fg = rgba(accent);
+                        let bg = rgba(background);
+                        let muted = std::array::from_fn(|i| if i == 3 { 255 } else {
+                            (fg[i] as f32 * 0.25 + bg[i] as f32 * 0.75).round() as u8
+                        });
+                        assert_color(point_at(0.15), muted);
+                        // Focus is geometric, not just a different color. At the
+                        // outer ring perpendicular to the rail, unfocused is empty.
+                        let ring = point_at(0.4) + if vertical {
+                            gpui::point(px(8.), px(0.))
+                        } else { gpui::point(px(0.), px(8.)) };
+                        assert_color(ring, if focused { rgba(accent) } else { bg });
+                        if !vertical && scale == 2. && focused
+                            && let Ok(directory) = std::env::var("GPUIO_SLIDER_SCREENSHOTS") {
+                            image.save(std::path::Path::new(&directory).join(format!("slider-{name}.png"))).unwrap();
+                        }
+                    }).unwrap();
+                    assert_eq!(snapshot(cx, handle).value, initial());
+                }
+            }
+        }
+    }
+    // Disabled appearance remains derived from the selected accent, with no
+    // active focus ring. Sample away from overlapping thumb/rail primitives.
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::SetStyle(node(0), vec![Style::Background(Color::Rgba(0xffffffff))]),
+            Op::SetStyle(node(1), vec![Style::Foreground(Color::Rgba(0x2244aaff))]),
+            Op::SetSlider(
+                node(1),
+                s::Config {
+                    disabled: true,
+                    ..config()
+                },
+                initial(),
+            ),
+        ],
+    );
+    frame(cx, handle).await;
+    handle
+        .update(cx, |v, w, _| {
+            let scale = w.scale_factor();
+            let bounds = v.probes.borrow()[&node(1)].bounds;
+            let image = w.render_to_image().unwrap();
+            let x = (f32::from(bounds.left() + px(10.) + (bounds.size.width - px(20.)) * 0.65)
+                * scale) as u32;
+            let y = (f32::from(bounds.center().y) * scale) as u32;
+            let actual = image.get_pixel(x, y).0;
+            // The muted rail also lies beneath the selected rail; GPUI opacity
+            // multiplies primitive alpha, including that underlying rail.
+            assert!(
+                actual[0] > 100 && actual[0] < 155 && actual[2] > 195,
+                "disabled rail must visibly dim the accent over white: {actual:?}"
+            );
+        })
+        .unwrap();
+    for axis in [s::Axis::Horizontal, s::Axis::Vertical] {
+        for length in [24., 32., 56.] {
+            let vertical = axis == s::Axis::Vertical;
+            apply(
+                cx,
+                handle,
+                vec![
+                    Op::SetSlider(node(1), s::Config { axis, ..config() }, initial()),
+                    Op::SetStyle(
+                        node(1),
+                        vec![
+                            Style::Width(Length::Px(if vertical { 24. } else { length })),
+                            Style::Height(Length::Px(if vertical { length } else { 24. })),
+                            Style::Foreground(Color::Rgba(0x2244aaff)),
+                        ],
+                    ),
+                ],
+            );
+            frame(cx, handle).await;
+            handle
+                .update(cx, |v, w, _| {
+                    let bounds = v.probes.borrow()[&node(1)].bounds;
+                    assert_eq!(
+                        bounds.size,
+                        gpui::size(
+                            px(if vertical { 24. } else { length as f32 }),
+                            px(if vertical { length as f32 } else { 24. })
+                        )
+                    );
+                    let scale = w.scale_factor();
+                    let image = w.render_to_image().unwrap();
+                    let center = bounds.center();
+                    let color = image
+                        .get_pixel(
+                            (f32::from(center.x) * scale) as u32,
+                            (f32::from(center.y) * scale) as u32,
+                        )
+                        .0;
+                    assert!(
+                        color[2] > color[0] + 60,
+                        "constrained slider remains painted: {color:?}"
+                    );
+                })
+                .unwrap();
+            assert_eq!(snapshot(cx, handle).value, initial());
+        }
+    }
+    handle
+        .update(cx, |v, w, cx| {
+            w.set_scale_factor(original_scale);
+            w.focus(v.root_focus.as_ref().unwrap(), cx);
+        })
+        .unwrap();
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::SetStyle(node(0), vec![]),
+            Op::SetStyle(node(1), vec![]),
+            Op::SetSlider(node(1), config(), initial()),
+        ],
+    );
+    frame(cx, handle).await;
+    eprintln!(
+        "GPUIO_SLIDER_GPU_OK: light/dark foreground, selected/muted rails, both thumbs, focus style/ring, horizontal/vertical at 1x/1.5x/2x, disabled and constrained paint"
+    );
+}
+
 pub(super) async fn exercise(
     cx: &mut gpui::AsyncApp,
     handle: WindowHandle<View>,
@@ -174,6 +380,20 @@ pub(super) async fn exercise(
         events(transport).as_slice(),
         [s::Event::Observed(s::Snapshot { revision: 0, .. })]
     ));
+    #[cfg(feature = "native-image-tests")]
+    {
+        appearance(cx, handle).await;
+        events(transport);
+    }
+    let idle_count = handle.update(cx, |v, _, _| v.render_count).unwrap();
+    cx.background_executor()
+        .timer(std::time::Duration::from_millis(150))
+        .await;
+    assert_eq!(
+        handle.update(cx, |v, _, _| v.render_count).unwrap(),
+        idle_count,
+        "stationary sliders must not request idle frames"
+    );
     let owner = handle
         .update(cx, |v, _, _| Rc::downgrade(&v.sliders[&node(1)]))
         .unwrap();

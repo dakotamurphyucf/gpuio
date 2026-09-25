@@ -600,7 +600,11 @@ impl View {
                 .focus(|style| style.border_color(rgba(0x6688ffff)));
         }
         if let Some(slider) = &node.slider {
-            element = element.relative().min_w(px(24.)).min_h(px(24.));
+            element = element
+                .relative()
+                .min_w(px(24.))
+                .min_h(px(24.))
+                .text_color(rgba(0x6688ffff));
             element = match slider.config.axis {
                 gpuio_protocol::slider::Axis::Horizontal => element.w(px(180.)).h(px(24.)),
                 gpuio_protocol::slider::Axis::Vertical => element.w(px(24.)).h(px(180.)),
@@ -841,6 +845,15 @@ impl View {
         if let Some(style) = focused {
             if let Some(editor) = self.editors.get(&id) {
                 if editor.focus_handle(cx).is_focused(window) {
+                    element.style().refine(&style);
+                }
+            } else if let Some(slider) = self.sliders.get(&id) {
+                if slider
+                    .borrow()
+                    .focus
+                    .iter()
+                    .any(|(_, focus)| focus.is_focused(window))
+                {
                     element.style().refine(&style);
                 }
             } else {

@@ -95,7 +95,10 @@ Slider contracts, bounded codec and native interaction state now pass local
 checks. Retained slider views, tree admission and observation routing are implemented;
 native single/range rendering and initial macOS pointer/keyboard/AX checks now pass.
 Correlated commands and the public Bonsai/Eio slider controller/example pass local integration.
-Expanded slider acceptance and number/OTP integration remain pending; no capability
+Slider foreground/focus styling now passes local GPU pixel checks for both axes,
+light/dark palettes, display densities and constrained layouts. The public example
+shows single/range and linear/logarithmic modes. Expanded slider acceptance and
+number/OTP integration remain pending; no capability
 is advertised.
 See [numeric design](design/numeric-inputs.md) and
 [foundation evidence](evidence/numeric-inputs-och34.md).

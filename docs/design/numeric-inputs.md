@@ -189,3 +189,20 @@ controller's snapshot but do not duplicate the user lifecycle callback.
 The runnable `examples/numeric` application uses only public Core/Bonsai/Eio APIs.
 Its self-test deliberately keeps an old controller through unmount/remount and
 checks both stale native revisions and stale placement identity.
+
+### Slider appearance
+
+`Style.Foreground` is the slider accent: selected rail, thumb fill and native
+focus ring all use the resolved foreground at paint time. The unselected rail
+uses that same color at 25% opacity. The default accent is `#6688ff`; applications
+can override it with their theme tokens and ordinary hover/focus/disabled style
+rules. Focus styles apply when either thumb is focused; a separate outer ring
+identifies the particular focused thumb without relying only on a color change.
+The host's standard disabled opacity applies once to the whole control. Read-only
+sliders retain their appearance and focusability while rejecting user mutation.
+
+Background, border and layout styles decorate the outer control. Geometry is in
+logical pixels: 4px rail, 12px solid thumb, 20px thumb target/focus ring, 10px endpoint
+inset, and a default minimum of 24px on each axis. Width/height change the available
+travel, not the domain. The native renderer scales these with the display density.
+Painting uses a constant number of primitives per slider and has no idle timer.

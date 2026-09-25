@@ -42,6 +42,35 @@ let component ~self_test ~completed window graph =
     |> ok
   in
   let slider = Controller.create window ~config ~initial:(range 2. 7.) graph in
+  let single =
+    Controller.create
+      window
+      ~config:(B.return (S.Config.create ~domain ~label:"Single linear value" () |> ok))
+      ~initial:(S.Value.single 3. |> ok)
+      graph
+  in
+  let logarithmic_domain =
+    Gpuio.Numeric.Domain.create ~min:1. ~max:1000. ~step:1. |> ok
+  in
+  let logarithmic_config label =
+    S.Config.create ~domain:logarithmic_domain ~label ~axis:Vertical ~scale:Logarithmic ()
+    |> ok
+    |> B.return
+  in
+  let vertical_single =
+    Controller.create
+      window
+      ~config:(logarithmic_config "Logarithmic value")
+      ~initial:(S.Value.single 32. |> ok)
+      graph
+  in
+  let vertical_range =
+    Controller.create
+      window
+      ~config:(logarithmic_config "Logarithmic interval")
+      ~initial:(range 10. 100.)
+      graph
+  in
   let observed = B.map slider ~f:Controller.snapshot in
   let sleep = B.Clock.sleep graph in
   (* Test-only references keep the deliberate old lease while new observations
@@ -128,7 +157,10 @@ let component ~self_test ~completed window graph =
   and disabled = disabled
   and set_disabled = set_disabled
   and status = status
-  and set_status = set_status in
+  and set_status = set_status
+  and single = single
+  and vertical_single = vertical_single
+  and vertical_range = vertical_range in
   let report pending =
     let open E.Let_syntax in
     let%bind result = pending in
@@ -143,6 +175,23 @@ let component ~self_test ~completed window graph =
   let value =
     Option.value_map snapshot ~default:"Waiting for native mount" ~f:(fun snapshot ->
       Sexp.to_string (S.Value.sexp_of_t (S.Snapshot.value snapshot)))
+  in
+  let mode_view title controller =
+    let description =
+      Option.value_map
+        (Controller.snapshot controller)
+        ~default:"Mounting"
+        ~f:(fun snapshot ->
+          Sexp.to_string (S.Value.sexp_of_t (S.Snapshot.value snapshot)))
+    in
+    View.column
+      ~style:(Gpuio.Style.create_exn [ Gap (Gpuio.Length.px_exn 8.) ])
+      [ View.text title
+      ; Controller.view
+          ~style:(Gpuio.Style.create_exn [ Foreground (Gpuio.Color.rgb_exn 0x48b5a0) ])
+          controller
+      ; View.text description
+      ]
   in
   View.column
     ~style:
@@ -180,6 +229,12 @@ let component ~self_test ~completed window graph =
                ~on_click:(E.of_thunk (fun () -> App.Window.close window))
                "Close"
            ]
+       ; mode_view "Single · linear · horizontal" single
+       ; View.row
+           ~style:(Gpuio.Style.create_exn [ Gap (Gpuio.Length.px_exn 40.) ])
+           [ mode_view "Single · logarithmic · vertical" vertical_single
+           ; mode_view "Range · logarithmic · vertical" vertical_range
+           ]
        ])
 ;;
 
@@ -191,8 +246,8 @@ let () =
       (App.open_window
          app
          ~title:"GPUIO numeric controls"
-         ~width:580.
-         ~height:360.
+         ~width:720.
+         ~height:720.
          (component ~self_test ~completed)
        |> ok
        : App.Window.t));
