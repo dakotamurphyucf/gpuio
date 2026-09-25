@@ -215,3 +215,37 @@ This checkpoint does not yet connect the configuration to `View.canvas`, native
 painting, input, accessibility or command execution. The design records those
 contracts and the ownership reason for a dedicated view configuration. OCH-24
 remains in progress.
+
+
+## Bounded native geometry and worker preparation
+
+`canvas_mesh` implements cancellable local-space fills/strokes, including
+rectangles, ellipses, quadratic/cubic curves and even-odd holes. Local anchors
+preserve small translated shapes, and tessellating strokes before affine
+transformation preserves their local-width contract. The native crate explicitly
+depends on the already locked Lyon 1.0.19; both root and independent-consumer lock
+changes add only that dependency edge, without upgrading packages.
+
+Six mesh tests cover affine/reflected stroke area, subpixel shapes near the world
+coordinate limit, holes/curves, ellipse accuracy, extreme flattening admission,
+cancellation/invalid input and pre-growth vertex/index limits. Five scene-plan
+tests cover normalized sharing, stroke/accuracy cache identity, unique-mesh and
+expanded-output admission, partial-plan cleanup and retained-reader quota lifetime.
+Four job tests cover 1,000 superseding updates, the 128-handle/two-worker bounds,
+round-robin scheduling, stale completion/drop/shutdown fences and real off-thread
+execution without UI/runtime access.
+
+The local debug preparation workload of 20,000 translated rectangles uses one
+shared mesh and accounts for 120,000 expanded draw vertices. It holds 804,784
+charged bytes, prepares in approximately 23 ms (one recorded run 23.344875 ms),
+and returns its accounting charge to zero on disposal. This is preparation plus
+validation, not GPU rendering, frame latency or RSS. A shared-ellipse workload
+exceeding the expanded draw budget is rejected and releases partial resources.
+
+Local `cargo test --locked -j2 -p gpuio-native --lib` passes all 82 tests, including
+24 canvas tests. Native all-target Clippy with `native-tests` and warnings denied
+passes. Full isolated `dune build -j2` (including the independent extension
+consumer backend) and `./scripts/gpuio check-fmt` also pass.
+No graphical window was opened for these checks. Mounted host scheduling,
+painting, font/image integration, input/accessibility and native application
+acceptance remain outstanding.

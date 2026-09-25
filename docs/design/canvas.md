@@ -158,6 +158,55 @@ responses survive input mailbox pressure. Raw callers own release and late-reply
 cleanup. Successful publication schedules native redraw without calling OCaml
 synchronously. App stop completes pending raw requests with Closed.
 
+## Native geometry preparation
+
+`canvas_mesh`, `canvas_plan` and `canvas_jobs` now implement the bounded geometry
+and work-queue foundation. Connecting these to the GPUI host, text/image painting
+and mounted view remains in progress.
+
+Geometry is tessellated in local coordinates before applying the item's affine
+transform. This preserves stroke width semantics under nonuniform scale, shear
+and reflection. Fills use even-odd; strokes use butt caps and miter joins with
+miter limit four. Rectangles, ellipses and path curves share the same mesh output.
+A local f64 anchor avoids losing subpixel detail solely because an object is
+translated near the coordinate-domain edge. Tessellation uses the same locked
+Lyon 1.0.19 package already used by GPUI, now an explicit native dependency.
+
+Lazy f64 curve flattening is capped at 16,384 input events/segments per mesh;
+ellipse chord-error admission computes its required segment count before
+allocation. A custom Lyon output builder checks 65,536 vertices and 196,608
+triangle indices before growth, checks cancellation and finite geometry, and
+never exposes a partial mesh. Working allocations within Lyon are distinct from
+the retained output quota; input/output and worker counts bound separate parts of
+the workload, not a process RSS or wall-clock guarantee.
+
+A scene plan caches at most 4,096 unique meshes and admits at most 1,048,576
+expanded draw vertices across all referenced meshes. Shared geometry therefore
+cannot bypass frame-work admission. Rectangles/ellipses normalize their local
+origin so translated equal-size shapes share geometry. Path keys include resource
+identity/generation; stroke width and curve accuracy are part of mesh identity.
+Accuracy uses a conservative affine stretch bound and a downward-rounded
+power-of-two tolerance derived from zoom and actual device scale. Zoom remains
+0.05..64; admitted device scale is 0.25..16. This controls flattening accuracy,
+not a guarantee of exact floating-point rasterization.
+
+All plans in one job pool share a 128 MiB retained-mesh accounting quota, separate
+from the native scene registry and OCaml adapter quotas. Charges include vector
+capacities, plan metadata and conservative cache/Arc allowances; externally held
+mesh readers keep their charge until their final drop. A mesh under construction
+and bounded preparation indexes are transient workspace, not silently included
+in the retained charge. Text shaping, decoded image and GPUI frame/cache budgets
+remain separate integration requirements.
+
+The job pool admits 128 mounted-view handles, two running workers and only one
+latest desired request per handle. Superseded work is cancelled and obsolete
+completions are discarded. Snapshot/quality identity suppresses redundant jobs;
+publication, zoom or device-scale changes can request preparation, while ordinary
+paint/pan/translation does not require rebuilding the same geometry. Work is
+Send and can run entirely off the UI thread, with no OCaml callback. Closing the
+pool prevents new work and cancels pending/running work; retained external readers
+remain charged until released.
+
 ## Coordinates and drawing vocabulary
 
 World and local coordinates are logical pixels. A matrix `(a,b,c,d,tx,ty)` maps
@@ -181,7 +230,8 @@ another Move before further drawing. Open paths are valid for strokes; fills
 require every contour explicitly closed. The pinned GPUI builder implements
 quadratic curves through `curve_to(endpoint, control)` and cubic curves through
 `cubic_bezier_to`. Encoded command bounds alone do not bound tessellation work;
-the native adapter still needs expanded-output admission limits.
+the native mesh/plan admission above bounds expanded geometry. The mounted host
+must also apply the admitted plan and separately bound its frame/font/image caches.
 
 The initial vocabulary includes rectangles, ellipses, filled/stroked paths,
 native-shaped single-line text and managed images. Paths contain move, line,
@@ -263,6 +313,8 @@ Start with a 4 MiB encoded scene limit, 20,000 items, 4,096 drawing resources,
 within the bridge envelope. Bound concurrent staging, total live scene bytes,
 tessellation vertices, decoded/shaped caches and accessibility nodes separately;
 serialized byte bounds do not bound those expanded resources by themselves.
+Geometry preparation and worker bounds are now implemented as described above;
+font/image/frame integration still needs its own validation.
 
 The version-1 immutable scene schema now enforces those wire limits, a maximum
 of eight world clip rectangles per item and 2,048 interactive items per scene.
