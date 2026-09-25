@@ -101,3 +101,52 @@ were reviewed. No GUI or Linux result is claimed from this checkpoint.
 
 The full isolated `dune build -j 2 @all @runtest` also passes with the new exported
 types and timeline code. All validation processes exited; none opened GUI windows.
+
+## Retained owner, shared clocks and deterministic lifecycle
+
+The local native primitives now implement paint-confirmed stage/terminal delivery,
+pause/resume, hidden/reduced policy, cancellation, restart and repeat evaluation.
+This checkpoint is still not GPUI rendering acceptance: the session/view/event
+adapter, aggregate admission and actual native/public examples remain required.
+
+Fourteen owner tests prove ordered bounded stage prefixes; duplicate/stale paint
+rejection; unchanged run identity across playback updates; overlapping hidden/pause
+intervals; reduced-motion skips; terminal cancellation/restart; painted spring
+velocity on retarget; integer repeat phase after long uptime; unequal reverse
+interval durations; initial versus repeated stage delays; late shared phase;
+clock-policy/disposal fences; invalid-update rollback and compiled-data disposal. A delayed wake remains valid after a newer paint,
+while obsolete prepared paints cannot rewind a subsequent retarget.
+Constant repeats request no wake, including on their first sample. Physical cycles
+with zero effective settling time remain idle. Retained samples contain frame data
+and validity tokens, and do not keep obsolete compiled timelines alive.
+
+Six registry tests cover pause/reduced overlap, logical windows joining a shared
+group, cross-window schedule conflict rollback, independent application/group
+pause, 128-group and 1,024-member saturation, 256 creation/removal cycles without
+name tombstones, close invalidation and generation exhaustion. These use logical
+window identifiers; they do not open or test actual OS windows.
+
+One local debug run of 16 create/retarget/dispose cycles with 32 spring stages and
+all 11 properties took 36.396791 ms. Maximum accounted retained data was 161,720
+bytes for one owner after retarget (about 158 KiB). Each owner was dropped before
+the next cycle, with a weak reference proving compiled data was released. This is
+configuration compilation/lifecycle timing, not frame latency or process RSS.
+Aggregate memory admission must still be connected before rendering is enabled.
+
+Final local commands use the isolated jobs=2 wrapper:
+
+```sh
+./scripts/gpuio exec cargo test --locked -p gpuio-native --lib motion -j 2 -- --nocapture
+./scripts/gpuio exec cargo test --locked -p gpuio-native --test motion --test animations -j 2
+./scripts/gpuio exec cargo clippy --locked -p gpuio-native --all-targets --features native-tests -j 2 -- -D warnings
+./scripts/gpuio check-fmt
+./scripts/gpuio exec dune build -j 2 @all @runtest
+```
+
+These pass: 34 motion-related unit tests, nine baseline motion tests, the atomic
+animation tree lifecycle test, Clippy, formatting and full Dune build/expect tests.
+An overly strict floating-point equality in a new reverse-interval test was changed
+to a 1e-9 logical-unit tolerance after inspecting its 3e-14 rounding difference.
+A test-only Clippy suggestion was also fixed. No production behavior was relaxed.
+All processes exited; no GUI windows opened. Hosted/Linux and full ticket acceptance
+remain pending.

@@ -1,10 +1,10 @@
 # Spring, sequence and shared-repeat motion (OCH-25)
 
 Status: implementation design. The OCH-12 duration-based API remains supported.
-Spring parameters, the typed program representation, bounded codec and compiled
-finite timeline are implemented. Retained playback/paint ownership, group clocks
-and view/event transport remain in progress; the expanded rendering pipeline is
-not yet available.
+Spring parameters, typed programs, bounded decoding, compiled timelines and the
+retained motion/clock primitives are implemented and pass deterministic tests.
+Session admission, GPUI rendering and public view/event transport remain in
+progress; the expanded rendering pipeline is not yet available.
 Acceptance remains the complete live OCH-25 ticket, followed by integrated chat
 showcase OCH-46. Linux GUI follows the existing OCH-17 platform policy.
 
@@ -164,3 +164,61 @@ boundary without frame polling. Timed stages clear inherited spring velocity;
 new properties use declared initial values. It accounts for retained segment and
 spring-array storage. The owner still needs to enforce aggregate admission,
 paint epochs, cancellation, hidden/reduced policy and repeating clocks.
+
+## Retained owner and clock primitives
+
+`motion_program::State` now owns the admitted configuration, run generation, last
+painted frame, completed-stage watermark, monotone time, pause interval and an
+opaque paint epoch. Preview samples cannot change position, velocity or delivery.
+Paint rejects replaced epochs, older timestamps and invalid shared-clock samples.
+Only an accepted paint commits the completed prefix and terminal observation.
+Wake validity deliberately ignores paint timestamps: a newer unrelated paint must
+not cancel a still-current deadline. It still checks the run/epoch, visibility,
+playback and shared-clock validity. The adapter must also match its current
+deadline and rearm it if the captured wake token was invalidated.
+Played means that normal active time passed a stage, confirmed by this paint;
+it does not promise a separate visible frame for every stage on a slow display.
+
+Playback-only snapshots advance configuration admission without changing the run
+ID. Overlapping hidden, explicit pause and reduced-motion intervals are excluded
+from independent active time. Explicit pause holds the painted frame even while
+reduced motion is selected; resume then applies the current motion policy. Reduced
+finite runs mark only their remaining stages Reduced_motion and finish at the
+final target. Finished runs do not replay when full motion returns.
+
+Cancellation freezes the painted position, clears velocity and emits one Requested
+terminal signal. Running alone does not revive a cancelled run. A program first
+mounted as Cancelled is dormant and emits no fabricated cancellation. Increasing
+the restart token starts from declared initial values. Decreasing the token for
+an unchanged program is rejected; a newly constructed, different program may use
+its default token and retarget from the painted frame. This preserves ordinary
+target changes after an earlier explicit restart.
+
+Repeats use precompiled forward/reverse intervals and integer duration modulo.
+A reversed interval retains its own duration and stage delay. The global initial
+delay occurs once; per-stage delays occur each cycle. Repeats emit no stage/cycle
+observations. Constant cycles and physical cycles whose settling time collapses
+to zero stay idle rather than polling frames or dividing by zero.
+
+`motion_clock::Registry` atomically replaces a logical window's shared membership.
+It checks the complete cross-window schedules and the 128-group/1,024-member
+limits before changing clocks or membership. Group IDs include a positive i64
+lifetime generation; exhaustion rejects admission instead of wrapping. Existing
+groups preserve phase, late members join that phase, and removing the final member
+releases the named clock. A later same-name group gets a new identity; old controls
+cannot pause it. Application-clock phase persists for the application lifetime.
+
+Shared clocks contain no timer. Group/application pause and reduced motion freeze
+elapsed time. Source snapshots include a validity token, invalidated by policy
+changes or clock disposal, so an already prepared frame cannot commit an obsolete
+phase. A named-group program rejects an application-clock snapshot. Names share
+immutable storage; sampling does not allocate a new name string. Individual hidden
+or paused members hold their painted frame and rejoin shared phase when resumed.
+
+These are native state-machine primitives, not yet mounted widget acceptance.
+The adapter must admit a bounded batch of stage signals atomically, use one owned
+cancellable deadline for Wait, and release state on unmount/window close. Session
+integration must validate group declarations and aggregate compiled-memory limits
+before committing a tree. `State::retained_bytes` supplies accounting; it does not
+by itself enforce an application-wide memory quota. Rendering currently holds an
+immutable Session borrow, so clock mutation must use a separately borrowed store.

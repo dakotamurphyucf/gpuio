@@ -51,7 +51,7 @@ pub struct Timeline {
     segments: Vec<Segment>,
     duration: Duration,
 }
-fn rest(values: Values) -> Frame {
+pub(crate) fn rest(values: Values) -> Frame {
     let mut velocity = Values::empty();
     // Property indices are stable protocol tags; no unchecked enum casts.
     for property in PROPERTIES {
@@ -164,6 +164,12 @@ impl Timeline {
             final_frame: from,
             segments,
             duration: cursor,
+        })
+    }
+    pub fn is_static(&self) -> bool {
+        self.segments.iter().all(|segment| {
+            segment.from.values == segment.target.values
+                && segment.from.velocity == rest(segment.from.values).velocity
         })
     }
     pub fn duration(&self) -> Duration {
