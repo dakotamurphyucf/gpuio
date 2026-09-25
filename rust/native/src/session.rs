@@ -497,6 +497,7 @@ impl Session {
             && window.tree.get(node).is_some_and(|node| {
                 node.image.is_none()
                     && node.slider.is_none()
+                    && node.number_input.is_none()
                     && !node.control.is_some_and(Control::disabled)
             })
             && window.tree.accepts_handler(node, handler))
@@ -520,6 +521,24 @@ impl Session {
             && event.is_valid()
             && slider.initial.same_mode(event.snapshot().value))
         .then_some(Event::SliderEvent(id, node, handler, revision, event))
+    }
+
+    pub fn number_input_event(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        event: gpuio_protocol::number_input::Event,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        window.tree.get(node)?.number_input.as_ref()?;
+        (!window.overloaded
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && window.tree.accepts_handler(node, handler)
+            && event.is_valid())
+        .then_some(Event::NumberInputEvent(id, node, handler, revision, event))
     }
 
     pub fn request_rating(

@@ -741,6 +741,7 @@ let process t = function
     | Press (id, _, _, _)
     | Editor_event (id, _, _, _, _, _)
     | Slider_event (id, _, _, _, _)
+    | Number_input_event (id, _, _, _, _)
     | Rating_requested (id, _, _, _, _)
     | Choice (id, _, _, _, _)
     | Combobox_selected (id, _, _, _, _, _)

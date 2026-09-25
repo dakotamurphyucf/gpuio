@@ -108,6 +108,8 @@ independent cross-language fixtures and semantic validation tests pass locally.
 The native numeric policy model now validates commit/cancel/step, pending-edit
 guards, composition/configuration preservation and revision/fault behavior with
 deterministic state tests. Its editor callbacks remain to be connected to GPUI.
+Retained numeric view descriptions, strict tree admission, owner/revision event
+routing and byte-accounted change coalescing now pass local bridge tests.
 Native numeric editor/stepper and OTP integration remains pending; no capability
 is advertised.
 See [numeric design](design/numeric-inputs.md) and

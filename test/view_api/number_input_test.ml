@@ -303,3 +303,177 @@ let%expect_test "numeric command conversion preserves all variants and guards" =
     (Step Decrease)
     Read_snapshot |}]
 ;;
+
+module Wire = Gpuio_protocol.Wire
+
+let handler = Gpuio_protocol.Handler_id.create ~slot:0L ~generation:1L |> ok
+let events_bytes events = encode [%bin_writer: Wire.Event.t list] events
+
+let%expect_test
+    "numeric retained envelopes have independent fixtures and strict event validation"
+  =
+  let request =
+    Wire.Message.Apply
+      { window
+      ; base = 0L
+      ; revision = 1L
+      ; operations =
+          [ Create (node, Number_input, "", Some handler)
+          ; Set_number_input (node, N.Expert.config_to_wire config, Number 1.5)
+          ; Set_root (Some node)
+          ]
+      }
+  in
+  let event =
+    Wire.Event.Number_input_event (window, node, handler, 1L, Observed snapshot)
+  in
+  let bytes = events_bytes [ event ] in
+  Eio_main.run (fun env ->
+    let fs = Eio.Stdenv.fs env in
+    assert (
+      String.equal
+        (hex (Wire.Message.encode request |> ok))
+        (Eio.Path.load Eio.Path.(fs / "number-input-request.hex") |> String.strip));
+    assert (
+      String.equal
+        (hex bytes)
+        (Eio.Path.load Eio.Path.(fs / "number-input-events.hex") |> String.strip)));
+  assert (List.equal Wire.Event.equal (Wire.Event.decode bytes |> ok) [ event ]);
+  for length = 0 to String.length bytes - 1 do
+    assert (Result.is_error (Wire.Event.decode (String.prefix bytes length)))
+  done;
+  assert (Result.is_error (Wire.Event.decode (bytes ^ "\000")));
+  List.iter
+    [ -1L, W.Event.Observed snapshot
+    ; 1L, Changed { snapshot with revision = 0L }
+    ; 1L, Committed (Keyboard, snapshot)
+    ; 1L, Observed { snapshot with selection = { anchor = 1L; head = 2L } }
+    ; 1L, Observed { snapshot with draft = String.make 4097 'a' }
+    ]
+    ~f:(fun (revision, event) ->
+      assert (
+        Result.is_error
+          (Wire.Event.decode
+             (events_bytes
+                [ Number_input_event (window, node, handler, revision, event) ]))));
+  print_endline
+    "independent retained envelopes; full consumption, bounded drafts, UTF-8 and \
+     semantic validation";
+  [%expect
+    {| independent retained envelopes; full consumption, bounded drafts, UTF-8 and semantic validation |}]
+;;
+
+let%expect_test "numeric reconciliation keeps owner identity and historical observations" =
+  let reconciler = Reconciler.create window in
+  let controller = Key.of_string_exn "number" in
+  let view
+        ?(controller = controller)
+        ?(config = config)
+        ?(initial = N.Value.of_float 1.5 |> ok)
+        callback
+    =
+    View.number_input ~controller ~config ~initial ~on_event:callback ()
+  in
+  let commit view =
+    let update = Reconciler.prepare reconciler ~theme:Theme.default view |> ok in
+    Reconciler.accept reconciler update |> ok;
+    match Reconciler.message update with
+    | Some (Apply { operations; _ }) -> operations
+    | None -> []
+    | Some _ -> assert false
+  in
+  let identity operations =
+    List.find_map_exn operations ~f:(function
+      | Wire.Op.Create (node, Number_input, "", Some handler) -> Some (node, handler)
+      | _ -> None)
+  in
+  let node, handler = identity (commit (Some (view (fun _ -> 1)))) in
+  let event
+        ?(window = window)
+        ?(node = node)
+        ?(handler = handler)
+        ?(tree_revision = 1L)
+        revision
+    =
+    Wire.Event.Number_input_event
+      (window, node, handler, tree_revision, Observed { snapshot with revision })
+  in
+  let dispatch = Reconciler.dispatch reconciler in
+  assert (Option.equal Int.equal (dispatch (event 0L)) (Some 1));
+  assert (List.is_empty (commit (Some (view (fun _ -> 2)))));
+  assert (Option.is_none (dispatch (event 0L)));
+  assert (Option.equal Int.equal (dispatch (event 1L)) (Some 2));
+  List.iter
+    [ event ~tree_revision:99L 2L
+    ; event ~tree_revision:(-1L) 2L
+    ; event ~window:(Gpuio_protocol.Window_id.create ~slot:0L ~generation:2L |> ok) 2L
+    ; event ~node:(Gpuio_protocol.Node_id.create ~slot:0L ~generation:2L |> ok) 2L
+    ; event ~handler:(Gpuio_protocol.Handler_id.create ~slot:0L ~generation:2L |> ok) 2L
+    ; Number_input_event
+        (window, node, handler, 1L, Committed (Keyboard, { snapshot with revision = 99L }))
+    ]
+    ~f:(fun event -> assert (Option.is_none (dispatch event)));
+  assert (Option.equal Int.equal (dispatch (event 2L)) (Some 2));
+  let updated =
+    N.Config.create
+      ~domain:(Numeric.Domain.create ~min:0. ~max:1. ~step:0.1 |> ok)
+      ~label:"Updated"
+      ~disabled:true
+      ~read_only:true
+      ()
+    |> ok
+  in
+  let operations =
+    commit (Some (view ~config:updated ~initial:N.Value.empty (fun _ -> 3)))
+  in
+  assert (
+    List.for_all operations ~f:(function
+      | Wire.Op.Set_number_input _ -> true
+      | _ -> false));
+  let old =
+    Wire.Event.Number_input_event
+      (window, node, handler, 1L, Committed (Keyboard, { settled with revision = 3L }))
+  in
+  (* This event belongs to the old domain and must reach the latest callback,
+     including after disabled/read-only configuration changes. *)
+  assert (Option.equal Int.equal (dispatch old) (Some 3));
+  let pending =
+    Reconciler.prepare
+      reconciler
+      ~theme:Theme.default
+      (Some (view ~config:updated (fun _ -> 4)))
+    |> ok
+  in
+  assert (Option.equal Int.equal (dispatch (event 4L)) (Some 3));
+  Reconciler.accept reconciler pending |> ok;
+  assert (Option.is_none (dispatch (event 4L)));
+  assert (Option.equal Int.equal (dispatch (event 5L)) (Some 4));
+  let duplicate =
+    View.column
+      [ View.column ~key:(Key.of_int 1) [ view (fun _ -> 99) ]
+      ; View.column ~key:(Key.of_int 2) [ view (fun _ -> 99) ]
+      ]
+  in
+  assert (
+    Result.is_error (Reconciler.prepare reconciler ~theme:Theme.default (Some duplicate)));
+  assert (Option.equal Int.equal (dispatch (event 6L)) (Some 4));
+  ignore (commit None : Wire.Op.t list);
+  assert (Option.is_none (dispatch (event 7L)));
+  let new_node, new_handler = identity (commit (Some (view (fun _ -> 5)))) in
+  assert (not (Gpuio_protocol.Node_id.equal new_node node));
+  assert (Option.is_none (dispatch (event 8L)));
+  assert (
+    Option.equal
+      Int.equal
+      (dispatch (event ~node:new_node ~handler:new_handler ~tree_revision:5L 0L))
+      (Some 5));
+  Reconciler.close reconciler;
+  assert (
+    Option.is_none
+      (dispatch (event ~node:new_node ~handler:new_handler ~tree_revision:5L 1L)));
+  print_endline
+    "latest callbacks, history domain, monotonic revisions, atomic duplicate failure, \
+     remount and close fences";
+  [%expect
+    {| latest callbacks, history domain, monotonic revisions, atomic duplicate failure, remount and close fences |}]
+;;

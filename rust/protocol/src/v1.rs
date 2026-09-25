@@ -132,6 +132,7 @@ pub enum Kind {
     Avatar,
     Rating,
     Slider,
+    NumberInput,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -606,6 +607,11 @@ pub enum Op {
     SetAvatar(NodeId, crate::avatar::Config),
     SetRating(NodeId, crate::rating::Config),
     SetSlider(NodeId, crate::slider::Config, crate::slider::Value),
+    SetNumberInput(
+        NodeId,
+        crate::number_input::Config,
+        crate::number_input::Value,
+    ),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -761,4 +767,5 @@ pub enum Event {
     RatingRequested(WindowId, NodeId, HandlerId, i64, crate::rating::Request),
     SliderEvent(WindowId, NodeId, HandlerId, i64, crate::slider::Event),
     SliderResult(i64, WindowId, NodeId, crate::slider::Response),
+    NumberInputEvent(WindowId, NodeId, HandlerId, i64, crate::number_input::Event),
 }

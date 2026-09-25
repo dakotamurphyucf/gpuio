@@ -32,6 +32,7 @@ fn event_bytes(event: &Event) -> usize {
         | Event::CommandInvoked(_, _, _, _, id, _, _)
         | Event::PaletteDismissed(_, _, _, _, PaletteDismissal::Selected(id)) => id.len(),
         Event::ComboboxSelected(_, _, _, _, id, snapshot) => id.len() + snapshot.text.len(),
+        Event::NumberInputEvent(_, _, _, _, event) => event.snapshot().draft.len(),
         Event::EditorEvent(_, _, _, _, _, snapshot)
         | Event::EditorResult(_, _, _, EditorResult::Applied(snapshot)) => snapshot.text.len(),
         _ => 0,
@@ -210,6 +211,35 @@ impl Mailbox {
             return Ok(());
         }
         let bytes = event_bytes(&event);
+        if let Event::NumberInputEvent(
+            window,
+            node,
+            handler,
+            revision,
+            gpuio_protocol::number_input::Event::Changed(snapshot),
+        ) = &event
+            && let Some(last) = self.events.back_mut()
+            && let Event::NumberInputEvent(
+                w,
+                n,
+                h,
+                r,
+                gpuio_protocol::number_input::Event::Changed(previous),
+            ) = &last.event
+            && (window, node, handler, revision) == (w, n, h, r)
+            && matches!(last.class, Class::Input)
+            && snapshot.domain == previous.domain
+            && snapshot.committed == previous.committed
+            && snapshot.revision > previous.revision
+        {
+            let next_bytes = self.input_bytes - event_bytes(&last.event) + bytes;
+            if next_bytes > MAX_INPUT_BYTES {
+                return Err(Box::new(event));
+            }
+            last.event = event;
+            self.input_bytes = next_bytes;
+            return Ok(());
+        }
         if let Event::ListViewport(window, node, handler, revision, viewport) = &event
             && let Some(last) = self.events.back_mut()
             && let Event::ListViewport(w, n, h, r, previous) = &last.event
@@ -283,6 +313,7 @@ impl Mailbox {
             | Event::EditorEvent(id, ..)
             | Event::RatingRequested(id, ..)
             | Event::SliderEvent(id, ..)
+            | Event::NumberInputEvent(id, ..)
             | Event::Choice(id, ..)
             | Event::OverlayDismissed(id, ..)
             | Event::TooltipOpenChanged(id, ..)

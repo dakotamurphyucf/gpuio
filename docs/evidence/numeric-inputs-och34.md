@@ -474,3 +474,59 @@ Local macOS checks passed:
 
 No GUI process was started. Retained numeric views/envelopes, mounted editor and
 stepper, public controller, OTP, hosted checks and ticket completion remain open.
+
+## Retained numeric descriptions and observation bridge
+
+Core/Bonsai `View.number_input` now reconciles a stable controller/config/initial
+seed and callback through Kind 38 and Set_number_input operation 44. Numeric
+observations use Event 46. These tags append to the existing protocol. Native
+tree admission enforces the leaf/configuration/handler contract and accounts for
+all four configuration strings; invalid updates roll back without changing the
+published revision or retained bytes. Removing a node releases its config and
+returns payload accounting to zero.
+
+Native and OCaml routing reject stale generations, wrong owners/handlers,
+negative/future tree revisions and malformed numeric events. They retain a
+queued observation's original domain even after bounds/disabled/read-only changes.
+Reconciliation preserves the latest callback and numeric revision fence across
+pending updates, rejects duplicate controllers atomically, and fences unmount,
+remount and close. Generic Press cannot invoke a numeric callback.
+
+The mailbox coalesces only adjacent ordinary Changed events with matching routed
+identity, domain and committed value. Tests preserve observed/committed/rejected/
+cancelled and response boundaries. A 10,000-change burst retains its final change
+between discrete boundaries. Capacity tests cover replacement at the event-count
+limit, rejection of discrete input when full, draft-byte growth during coalescing,
+retention of the old queued event after rejected growth, bounded drain batches,
+and accounting recovery after drain. Numeric draft bytes count both on admission
+and when estimating outgoing batches. Undrained numeric output keeps its window
+slot marked in use.
+
+The initial byte-pressure fixture used repeated editor Changed events as filler;
+those events coalesced, leaving only about 258 KB rather than filling the 4 MiB
+input budget. Temporary accounting diagnostics identified the fixture mistake.
+The corrected test uses discrete editor Submitted events and asserts that another
+small event is refused before testing numeric-event growth. Diagnostics were
+removed. The passing test now exercises actual queue pressure; its expected
+rejection was not weakened.
+
+Two additional independent bin_prot fixtures cover a 93-byte retained request and
+56-byte observation envelope. Both language encoders agree; decoding tests cover
+all truncated prefixes, trailing data and semantic failures. The first OCaml test
+compile needed the list writer for a batch (the individual event writer was the
+wrong test helper). Whole-repository compilation also identified two low-level
+example event matches that needed the new ignored event case; exhaustiveness
+warnings remain enabled.
+
+Passed locally on macOS:
+
+- `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @test/view_api/runtest @fmt`
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-protocol -p gpuio-native --lib --tests`
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-protocol -p gpuio-native --all-targets -- -D warnings`
+- Rustfmt and diff whitespace checks.
+
+No GUI window was opened for this bridge checkpoint. A retained description is
+not a mounted numeric editor: native InputState/stepper rendering, command/result
+envelopes, Eio controller and actual editing/IME/AX/lifetime acceptance remain
+pending, followed by OTP. No OCH-34 capability, ticket completion, hosted gates or
+Linux GUI acceptance is claimed.

@@ -87,6 +87,7 @@ type 'a callback =
   | Choice of Choice.Config.t * (Choice.Id.t -> 'a)
   | Rating of Rating.Config.t * (Rating.Request.t -> 'a)
   | Slider of Slider.Value.t * int64 ref * (Slider.Event.t -> 'a)
+  | Number_input of int64 ref * (Number_input.Event.t -> 'a)
   | Combobox of Combobox.Config.t * (Combobox.Event.t -> 'a)
 
 type 'a binding =
@@ -107,6 +108,7 @@ type 'a mounted =
   ; container_query : Wire.Container_query.Config.t option
   ; query_seen : int64 ref
   ; slider_seen : int64 ref
+  ; number_input_seen : int64 ref
   ; list_identity : List_identity.t option
   ; choice_appearance : Wire.Choice_appearance.t option
   ; children : 'a mounted list
@@ -243,6 +245,7 @@ let kind = function
   | Avatar -> Avatar
   | Rating -> Rating
   | Slider -> Slider
+  | Number_input -> Number_input
   | Virtual_list -> Virtual_list
   | Canvas_view -> Canvas_view
   | Document_view -> Document_view
@@ -322,6 +325,9 @@ let rec mount builder ~depth previous view =
       match previous with
       | Some mounted -> mounted.id
       | None -> new_node builder
+    in
+    let number_input_seen =
+      Option.value_map previous ~default:(ref (-1L)) ~f:(fun old -> old.number_input_seen)
     in
     let slider_seen =
       Option.value_map previous ~default:(ref (-1L)) ~f:(fun old -> old.slider_seen)
@@ -469,6 +475,12 @@ let rec mount builder ~depth previous view =
       | Some slider, None -> Some (Slider (slider.initial, slider_seen, slider.on_event))
       | None, callback -> callback
       | Some _, Some _ -> fail "slider cannot combine another handler"
+    in
+    let callback =
+      match description.number_input, callback with
+      | Some input, None -> Some (Number_input (number_input_seen, input.on_event))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "numeric input cannot combine another handler"
     in
     let callback =
       match description.rating, callback with
@@ -859,6 +871,23 @@ let rec mount builder ~depth previous view =
              ( id
              , Slider.Expert.config_to_wire slider.config
              , Slider.Expert.value_to_wire slider.initial )));
+    Option.iter description.number_input ~f:(fun number_input ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          (View.Expert.describe mounted.view).number_input)
+      in
+      if
+        not
+          (Option.exists old ~f:(fun old ->
+             Number_input.Config.equal old.config number_input.config
+             && Number_input.Value.equal old.initial number_input.initial))
+      then
+        emit
+          builder
+          (Set_number_input
+             ( id
+             , Number_input.Expert.config_to_wire number_input.config
+             , Number_input.Expert.value_to_wire number_input.initial )));
     Option.iter description.rating ~f:(fun rating ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -1109,11 +1138,17 @@ let rec mount builder ~depth previous view =
     let controllers =
       let own =
         let controller =
-          match description.editor, description.combobox, description.slider with
-          | Some editor, None, None -> Some editor.controller
-          | None, Some combo, None -> Some combo.controller
-          | None, None, Some slider -> Some slider.controller
-          | None, None, None -> None
+          match
+            ( description.editor
+            , description.combobox
+            , description.slider
+            , description.number_input )
+          with
+          | Some editor, None, None, None -> Some editor.controller
+          | None, Some combo, None, None -> Some combo.controller
+          | None, None, Some slider, None -> Some slider.controller
+          | None, None, None, Some input -> Some input.controller
+          | None, None, None, None -> None
           | _ -> fail "incompatible controller descriptions"
         in
         Option.value_map controller ~default:String.Set.empty ~f:(fun key ->
@@ -1171,6 +1206,7 @@ let rec mount builder ~depth previous view =
     ; container_query
     ; query_seen
     ; slider_seen
+    ; number_input_seen
     ; list_identity
     ; choice_appearance
     ; children
@@ -1493,6 +1529,7 @@ let dispatch t = function
         | Editor _
         | Rating _
         | Slider _
+        | Number_input _
         | Choice _
         | Combobox _
         | Dismiss _
@@ -1534,6 +1571,27 @@ let dispatch t = function
        then None
        else (
          match Slider.Expert.event_of_wire ~window ~node event with
+         | Error _ -> None
+         | Ok event ->
+           seen := snapshot.revision;
+           Some (callback event))
+     | Some _ | None -> None)
+  | Number_input_event (window, node, handler, revision, event)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Number_input (seen, callback)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       let snapshot = Wire.Number_input.Event.snapshot event in
+       if Int64.(snapshot.revision <= !seen)
+       then None
+       else (
+         match Number_input.Expert.event_of_wire ~window ~node event with
          | Error _ -> None
          | Ok event ->
            seen := snapshot.revision;
@@ -1754,6 +1812,7 @@ let dispatch t = function
   | Rating_requested _
   | Slider_result _
   | Slider_event _
+  | Number_input_event _
   | Container_selected _
   | List_retained _
   | List_viewport _

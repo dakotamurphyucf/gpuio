@@ -487,3 +487,54 @@ fn admission_limits_accept_maximum_valid_payloads_and_reject_oversize_or_invalid
     bad[0..8].copy_from_slice(&f64::NAN.to_le_bytes());
     assert!(decode_number_input_config(&bad).is_err());
 }
+
+#[test]
+fn retained_envelopes_match_independent_fixtures_and_validate_configuration() {
+    use gpuio_protocol::{HandlerId, NodeId, WindowId, decode, v1};
+    let window = WindowId::from_parts(0, 1).unwrap();
+    let node = NodeId::from_parts(0, 1).unwrap();
+    let handler = HandlerId::from_parts(0, 1).unwrap();
+    let request = |config, initial| {
+        v1::Message::Apply(v1::Transaction {
+            window,
+            base: 0,
+            revision: 1,
+            operations: vec![
+                v1::Op::Create(node, v1::Kind::NumberInput, "".into(), Some(handler)),
+                v1::Op::SetNumberInput(node, config, initial),
+                v1::Op::SetRoot(Some(node)),
+            ],
+        })
+    };
+    fixture(
+        request(config(), Value::Number(1.5)),
+        include_str!("../../../test/fixtures/number-input-request.hex"),
+        decode,
+    );
+    let events = vec![v1::Event::NumberInputEvent(
+        window,
+        node,
+        handler,
+        1,
+        Event::Observed(snapshot()),
+    )];
+    let hex: String = encode(&events).iter().map(|b| format!("{b:02x}")).collect();
+    assert_eq!(
+        hex,
+        include_str!("../../../test/fixtures/number-input-events.hex").trim()
+    );
+    for initial in [Value::Number(f64::NAN), Value::Number(f64::INFINITY)] {
+        assert!(decode(&encode(&request(config(), initial))).is_err());
+    }
+    let bad = Config {
+        label: "".into(),
+        ..config()
+    };
+    assert!(decode(&encode(&request(bad, Value::Empty))).is_err());
+    // Empty/finite out-of-domain initial values are legal; the native owner
+    // normalizes a seed at mount. They are not snapshot committed values.
+    for initial in [Value::Empty, Value::Number(99.)] {
+        let request = request(config(), initial);
+        assert_eq!(decode(&encode(&request)), Ok(request));
+    }
+}

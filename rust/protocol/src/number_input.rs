@@ -48,6 +48,12 @@ pub struct Config {
     pub auto_focus: bool,
 }
 impl Config {
+    pub fn retained_bytes(&self) -> usize {
+        128 + self.label.len()
+            + self.placeholder.len()
+            + self.increment_label.len()
+            + self.decrement_label.len()
+    }
     pub fn is_valid(&self) -> bool {
         let label = |s: &str| {
             valid_text(s)

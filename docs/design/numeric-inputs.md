@@ -218,8 +218,9 @@ The following refines the accepted draft/value contract for OCH-34. The Core
 `Number_input` types and standalone OCaml/Rust wire contracts are implemented
 and tested. The independent native policy owner also implements commit/cancel,
 stepping, configuration updates and command/observation revision rules. Retained
-views, actual native editor/stepper integration, event routing and
-the Eio controller remain implementation targets; these contracts alone do not
+view descriptions, tree admission and event routing are connected. Actual native
+editor/stepper mounting, correlated command routing and the Eio controller remain
+implementation targets; these contracts alone do not
 provide a usable numeric widget.
 
 ### Ownership and public shape
@@ -349,8 +350,9 @@ Standalone native decoders cap configuration at 16,480 bytes, events/responses
 at 4,300 and commands at 4,200, including bin_prot overhead. They reject invalid
 tags/Booleans/UTF-8, malformed state, trailing bytes, truncation and invalid
 guards. Raw OCaml bin_prot readers are representation readers; the wire validity
-checks and Core Expert conversions provide semantic validation. Top-level bridge
-envelopes are not wired yet. No OCH-34 capability is advertised by this checkpoint.
+checks and Core Expert conversions provide semantic validation. Retained-view
+and event envelopes are wired; correlated command envelopes await the mounted
+native adapter. No OCH-34 capability is advertised by this checkpoint.
 
 The six `test/fixtures/number-input-*.hex` fixtures were constructed independently
 from field order, integer tags and little-endian IEEE-754 doubles. They cover
@@ -403,3 +405,38 @@ using the cached old state. A config-update failure after retained configuration
 publication likewise requires the adapter to fault rather than leave two live
 configurations. Tests use explicit editor-result stubs for these policy rules;
 they do not establish actual InputState history, IME or mounted-widget acceptance.
+
+### Retained numeric view and observations
+
+`View.number_input` provides the Core/Bonsai description with a stable controller
+key, configuration, initial value and event callback. It participates in the
+per-window registry shared with editors, comboboxes and sliders, so duplicate
+placements fail preparation atomically. Updating callbacks preserves identity
+and delivers subsequent observations to the latest callback. The reconciler
+retains its monotonic numeric-revision fence across pending updates, rejects
+invalid events without advancing that fence, and clears ownership on removal
+or window close. A later placement uses a fresh native generation.
+
+Wire tags append Kind 38, Set_number_input operation 44 and Number_input_event
+46. Existing tags and capabilities are unchanged. The native retained node stores
+shared validated configuration and a finite/empty initial seed. Number inputs are
+leaves with a required handler and no generic text, control or choice payload;
+failed admission leaves the published tree and payload accounting unchanged.
+The initial seed may be outside the domain and is normalized when the native
+owner is created. An initial-value property update is not a command to reset a
+live editor. Native mounting remains pending at this checkpoint.
+
+Both native and OCaml routing validate window/node/handler identity and the
+originating tree revision. Numeric snapshot validity uses the snapshot's own
+domain. A queued event is therefore not dropped just because a newer config has
+different bounds or is disabled/read-only. Generic Press does not address a
+numeric owner. The Eio window event pump passes numeric observations through the
+same reconciler; a dedicated controller and command replies are still pending.
+
+The mailbox coalesces adjacent Changed events only for the same routed owner,
+tree revision, domain and committed value, with increasing numeric revisions.
+Observed, committed, rejected, cancelled and response events are boundaries.
+Draft bytes count toward queue capacity and response-batch size, including growth
+when replacing a coalesced event. An oversized replacement fails admission while
+preserving the prior queued event. Undrained numeric output also prevents window
+slot reuse, following the existing output-lifetime rule.

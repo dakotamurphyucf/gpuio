@@ -379,6 +379,19 @@ val slider
   -> unit
   -> 'action t
 
+(** Native numeric editor placement. The stable controller identifies one native
+    owner. [initial] seeds it once; observations never reset draft/selection.
+    Explicit commands update live state. Configuration changes preserve the
+    draft and normalize the committed value in the new domain. *)
+val number_input
+  :  ?style:Style.t
+  -> controller:Key.t
+  -> config:Number_input.Config.t
+  -> initial:Number_input.Value.t
+  -> on_event:(Number_input.Event.t -> 'action)
+  -> unit
+  -> 'action t
+
 (** Controlled integer rating. Apply each request against the latest application
     state with [Rating.Config.apply_request]. Hover stays native; keyboard and
     accessibility report ordered requests without a second committed model. *)
@@ -535,6 +548,13 @@ module Expert : sig
     ; on_event : Slider.Event.t -> 'action
     }
 
+  type 'action number_input =
+    { controller : Key.t
+    ; config : Number_input.Config.t
+    ; initial : Number_input.Value.t
+    ; on_event : Number_input.Event.t -> 'action
+    }
+
   type 'action rating =
     { config : Rating.Config.t
     ; on_request : Rating.Request.t -> 'action
@@ -605,6 +625,7 @@ module Expert : sig
       | Avatar
       | Rating
       | Slider
+      | Number_input
     [@@deriving equal, sexp_of]
   end
 
@@ -690,6 +711,7 @@ module Expert : sig
     ; avatar : Avatar.Config.t option
     ; rating : 'action rating option
     ; slider : 'action slider option
+    ; number_input : 'action number_input option
     ; animation : 'action animation option
     ; animation_program : 'action animation_program option
     ; container_query : 'action container_query option

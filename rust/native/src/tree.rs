@@ -35,6 +35,12 @@ pub struct SliderMount {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct NumberInputMount {
+    pub config: Arc<gpuio_protocol::number_input::Config>,
+    pub initial: gpuio_protocol::number_input::Value,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct Node {
     pub id: NodeId,
     pub kind: Kind,
@@ -55,6 +61,7 @@ pub struct Node {
     pub avatar: Option<Arc<gpuio_protocol::avatar::Config>>,
     pub rating: Option<Arc<gpuio_protocol::rating::Config>>,
     pub slider: Option<SliderMount>,
+    pub number_input: Option<NumberInputMount>,
     pub extension: Option<Arc<gpuio_protocol::extension::Config>>,
     pub extension_command: Option<Arc<gpuio_protocol::extension::Command>>,
     pub split: Option<Arc<gpuio_protocol::split::Config>>,
@@ -84,9 +91,13 @@ pub struct Node {
 
 impl Node {
     fn payload_bytes(&self) -> usize {
-        self.slider
+        self.number_input
             .as_ref()
             .map_or(0, |s| s.config.retained_bytes())
+            + self
+                .slider
+                .as_ref()
+                .map_or(0, |s| s.config.retained_bytes())
             + self.rating.as_ref().map_or(0, |c| c.retained_bytes())
             + self.avatar.as_ref().map_or(0, |c| c.retained_bytes())
             + self.loading.as_ref().map_or(0, |c| c.retained_bytes())
@@ -560,6 +571,19 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
+                if (node.kind == Kind::NumberInput) != node.number_input.is_some()
+                    || node.number_input.as_ref().is_some_and(|number_input| {
+                        !number_input.config.is_valid()
+                            || !number_input.initial.is_valid()
+                            || !node.text.is_empty()
+                            || !node.children.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                            || node.handler.is_none()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 if (node.kind == Kind::Rating) != node.rating.is_some()
                     || node.rating.as_ref().is_some_and(|config| {
                         !config.is_valid()
@@ -733,6 +757,7 @@ impl Tree {
                     | Kind::Avatar
                     | Kind::Rating
                     | Kind::Slider
+                    | Kind::NumberInput
                     | Kind::TabPanel
                     | Kind::SplitPane
                     | Kind::Extension
@@ -1091,6 +1116,7 @@ impl Plan<'_> {
             | Op::SetAvatar(id, ..)
             | Op::SetRating(id, ..)
             | Op::SetSlider(id, ..)
+            | Op::SetNumberInput(id, ..)
             | Op::SetListConfig(id, ..)
             | Op::SetListOrder(id, ..)
             | Op::SetListRows(id, ..)
@@ -1191,6 +1217,7 @@ impl Plan<'_> {
                             avatar: None,
                             rating: None,
                             slider: None,
+                            number_input: None,
                             extension: None,
                             extension_command: None,
                             split: None,
@@ -1400,6 +1427,18 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.slider = Some(SliderMount {
+                    config: Arc::new(config.clone()),
+                    initial: *initial,
+                });
+            }
+            Op::SetNumberInput(id, config, initial) => {
+                if self.node(*id)?.kind != Kind::NumberInput
+                    || !config.is_valid()
+                    || !initial.is_valid()
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.number_input = Some(NumberInputMount {
                     config: Arc::new(config.clone()),
                     initial: *initial,
                 });

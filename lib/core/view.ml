@@ -41,6 +41,7 @@ module Kind = struct
     | Avatar
     | Rating
     | Slider
+    | Number_input
   [@@deriving equal, sexp_of]
 end
 
@@ -82,6 +83,13 @@ type 'action slider =
   ; config : Slider.Config.t
   ; initial : Slider.Value.t
   ; on_event : Slider.Event.t -> 'action
+  }
+
+type 'action number_input =
+  { controller : Key.t
+  ; config : Number_input.Config.t
+  ; initial : Number_input.Value.t
+  ; on_event : Number_input.Event.t -> 'action
   }
 
 type 'action rating =
@@ -220,6 +228,7 @@ type 'action t =
   ; avatar : Avatar.Config.t option
   ; rating : 'action rating option
   ; slider : 'action slider option
+  ; number_input : 'action number_input option
   ; animation : 'action animation option
   ; animation_program : 'action animation_program option
   ; container_query : 'action container_query option
@@ -261,6 +270,7 @@ let text ?key ?(style = Style.empty) text =
   ; avatar = None
   ; rating = None
   ; slider = None
+  ; number_input = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -301,7 +311,8 @@ let with_accessibility t accessibility =
         | Radio_group
         | Select
         | Rating
-        | Slider ) ) -> true
+        | Slider
+        | Number_input ) ) -> true
     | None, Some Link, (Button | Command_button) -> true
     | ( None
       , Some
@@ -330,7 +341,8 @@ let with_accessibility t accessibility =
         | Radio_group
         | Select
         | Rating
-        | Slider ) ) -> true
+        | Slider
+        | Number_input ) ) -> true
     | _ -> false
   in
   if supported
@@ -388,6 +400,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; avatar = None
   ; rating = None
   ; slider = None
+  ; number_input = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -489,6 +502,7 @@ let button
   ; avatar = None
   ; rating = None
   ; slider = None
+  ; number_input = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -562,6 +576,7 @@ let toggle
   ; avatar = None
   ; rating = None
   ; slider = None
+  ; number_input = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -619,6 +634,7 @@ let focus_scope ?key ?style ~config children =
   ; avatar = None
   ; rating = None
   ; slider = None
+  ; number_input = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -931,6 +947,7 @@ let text_input
   ; avatar = None
   ; rating = None
   ; slider = None
+  ; number_input = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -973,6 +990,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; avatar = None
   ; rating = None
   ; slider = None
+  ; number_input = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -1041,6 +1059,7 @@ let combobox
   ; avatar = None
   ; rating = None
   ; slider = None
+  ; number_input = None
   ; animation = None
   ; animation_program = None
   ; container_query = None
@@ -1082,6 +1101,13 @@ let slider ?(style = Style.empty) ~controller ~config ~initial ~on_event () =
   { (text ~key:controller ~style "") with
     kind = Slider
   ; slider = Some { controller; config; initial; on_event }
+  }
+;;
+
+let number_input ?(style = Style.empty) ~controller ~config ~initial ~on_event () =
+  { (text ~key:controller ~style "") with
+    kind = Number_input
+  ; number_input = Some { controller; config; initial; on_event }
   }
 ;;
 
@@ -1227,6 +1253,13 @@ module Expert = struct
     ; on_event : Slider.Event.t -> 'action
     }
 
+  type nonrec 'action number_input = 'action number_input =
+    { controller : Key.t
+    ; config : Number_input.Config.t
+    ; initial : Number_input.Value.t
+    ; on_event : Number_input.Event.t -> 'action
+    }
+
   type nonrec 'action rating = 'action rating =
     { config : Rating.Config.t
     ; on_request : Rating.Request.t -> 'action
@@ -1326,6 +1359,7 @@ module Expert = struct
     ; avatar : Avatar.Config.t option
     ; rating : 'action rating option
     ; slider : 'action slider option
+    ; number_input : 'action number_input option
     ; animation : 'action animation option
     ; animation_program : 'action animation_program option
     ; container_query : 'action container_query option
