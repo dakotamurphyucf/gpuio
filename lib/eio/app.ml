@@ -66,6 +66,7 @@ type t =
   ; mutable on_reopen : unit -> unit Bonsai.Effect.t
   ; asset_registry : Asset_registry.t
   ; document_registry : Document_registry.t
+  ; canvas_registry : Canvas_registry.t
   ; mutable assets : (Wire.Asset.Response.t -> unit) Int64.Map.t
   ; mutable documents : (Wire.Document.Response.t -> unit) Int64.Map.t
   ; mutable canvases : (Wire.Canvas.Response.t -> unit) Int64.Map.t
@@ -178,6 +179,14 @@ module Expert = struct
   ;;
 
   let document t request = document_request t ~limit:63 request
+
+  let register_canvas t ~scope scene =
+    Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+      check t;
+      if t.stopping
+      then callback (Error (Canvas_registry.Error.Native Closed))
+      else Canvas_registry.register t.canvas_registry ~scope scene ~on_result:callback)
+  ;;
 
   let register_document t ~scope source =
     Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
@@ -299,6 +308,7 @@ let shutdown t =
     t.stopping <- true;
     Asset_registry.close t.asset_registry;
     Document_registry.close t.document_registry;
+    Canvas_registry.close t.canvas_registry;
     Scope.cancel t.scope;
     queue t Shutdown)
 ;;
@@ -834,6 +844,7 @@ let process t = function
     t.stopping <- true;
     Asset_registry.close t.asset_registry;
     Document_registry.close t.document_registry;
+    Canvas_registry.close t.canvas_registry;
     let assets = t.assets in
     t.assets <- Int64.Map.empty;
     Map.iter assets ~f:(fun complete -> complete (Wire.Asset.Response.Failed Closed));
@@ -922,6 +933,13 @@ let step t =
           (Bonsai.Effect.map
              (Expert.document_request t ~limit:64 request)
              ~f:(Document_registry.complete t.document_registry)));
+    if t.welcomed && not t.stopping
+    then
+      Option.iter (Canvas_registry.next_request t.canvas_registry) ~f:(fun request ->
+        Bonsai.Effect.Expert.handle
+          (Bonsai.Effect.map
+             (Expert.canvas_request t ~limit:64 request)
+             ~f:(Canvas_registry.complete t.canvas_registry)));
     submit_commands t;
     if not t.stopping
     then (
@@ -951,6 +969,9 @@ let worker native read ~tick_hz ~max_tasks ~motion initialize =
         Time_ns.of_span_since_epoch
           (Time_ns.Span.of_sec (Eio.Time.now (Eio.Stdenv.clock env)))
       in
+      let asset_registry =
+        Asset_registry.create ~scope ~wake:(fun () -> Inbox.wake inbox)
+      in
       let app =
         { guard = Guard.create ()
         ; native
@@ -969,9 +990,14 @@ let worker native read ~tick_hz ~max_tasks ~motion initialize =
         ; window_capabilities = None
         ; quit_pending = None
         ; on_reopen = (fun () -> Bonsai.Effect.Ignore)
-        ; asset_registry = Asset_registry.create ~scope ~wake:(fun () -> Inbox.wake inbox)
+        ; asset_registry
         ; document_registry =
             Document_registry.create ~scope ~wake:(fun () -> Inbox.wake inbox)
+        ; canvas_registry =
+            Canvas_registry.create
+              ~scope
+              ~asset_owner:(Asset_registry.Expert.owner asset_registry)
+              ~wake:(fun () -> Inbox.wake inbox)
         ; assets = Int64.Map.empty
         ; documents = Int64.Map.empty
         ; canvases = Int64.Map.empty
@@ -988,6 +1014,7 @@ let worker native read ~tick_hz ~max_tasks ~motion initialize =
         ~finally:(fun () ->
           Asset_registry.close app.asset_registry;
           Document_registry.close app.document_registry;
+          Canvas_registry.close app.canvas_registry;
           Scope.cancel scope;
           Map.iter app.windows ~f:release_window;
           app.assets <- Int64.Map.empty;

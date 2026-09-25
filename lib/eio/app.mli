@@ -97,6 +97,12 @@ module Expert : sig
     -> Gpuio_protocol.Wire.Document.Request.t
     -> Gpuio_protocol.Wire.Document.Response.t Bonsai.Effect.t
 
+  val register_canvas
+    :  t
+    -> scope:Scope.t
+    -> Gpuio.Canvas_scene.t
+    -> (Canvas_registry.Registration.t, Canvas_registry.Error.t) Result.t Bonsai.Effect.t
+
   val register_document
     :  t
     -> scope:Scope.t

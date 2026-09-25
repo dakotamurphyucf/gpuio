@@ -116,4 +116,8 @@ module Expert : sig
   val encode : t -> asset_owner:Asset.Expert.Owner.t -> string Or_error.t
 
   val assets_belong_to : t -> asset_owner:Asset.Expert.Owner.t -> bool
+
+  (** Conservative adapter retention charge including boxed scene data,
+      canonical resources and one upload buffer; not an RSS measurement. *)
+  val retained_bytes : t -> int
 end

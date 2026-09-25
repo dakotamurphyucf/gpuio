@@ -222,6 +222,7 @@ type t =
   { wire : Wire.t
   ; resources : Resource.Expert.packed list
   ; encoded_bytes : int
+  ; retained_bytes : int
   }
 
 let equal = phys_equal
@@ -295,7 +296,31 @@ let create ~description ?(theme = Theme.default) items =
         let encoded_bytes = Wire.bin_size_t wire in
         if encoded_bytes > Wire.max_bytes
         then Or_error.error_string "canvas encoded scene exceeds 4 MiB"
-        else Ok { wire; resources; encoded_bytes })))
+        else (
+          (* Conservative logical charge for boxed geometry, list cells, records,
+             resource canonical strings and one encoded upload buffer. Count
+             shared resources once per scene; cross-scene sharing is deliberately
+             overcharged. This bounds adapter-owned retention, not GC/RSS. *)
+          let geometry =
+            List.sum
+              (module Int)
+              wire_items
+              ~f:(fun item ->
+                (128 * List.length item.clips)
+                + Option.value_map item.interaction ~default:0 ~f:(fun interaction ->
+                  match interaction.hit_region with
+                  | Rectangle _ | Ellipse _ -> 128
+                  | Polygon points -> 128 * List.length points))
+          in
+          let retained_bytes =
+            4096
+            + (4 * encoded_bytes)
+            + (512 * List.length wire_items)
+            + (512 * List.length resources)
+            + (256 * path_commands)
+            + geometry
+          in
+          Ok { wire; resources; encoded_bytes; retained_bytes }))))
 ;;
 
 module Owner = struct
@@ -317,6 +342,7 @@ end
 module Expert = struct
   module Owner = Owner
 
+  let retained_bytes t = t.retained_bytes
   let handle ~owner id = { Handle.owner; id }
   let belongs_to (handle : Handle.t) ~owner = Owner.equal handle.owner owner
   let native_id (handle : Handle.t) = handle.id

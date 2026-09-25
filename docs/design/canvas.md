@@ -10,9 +10,9 @@ scene wire schema, bounded Rust decoder, reference/geometry admission and pure
 topmost hit testing are implemented. The native session also owns a tested staged
 scene registry, connected through the bridge and the raw Eio expert request lane.
 `Canvas_resource` and `Canvas_scene` provide pure typed construction and owner-aware
-encoding. The scoped registration adapter, native rendering and canvas interaction
-remain in progress;
-these pure modules do not yet expose a rendered canvas widget.
+encoding. `Gpuio_eio.Canvas` now provides scoped publication, coalesced updates,
+explicit reset and release. Native rendering and canvas interaction remain in
+progress; registration does not yet expose a rendered canvas widget.
 
 ## OCaml construction
 
@@ -64,6 +64,46 @@ atomic publication, following the existing asset/document ownership model. A
 partial upload never becomes visible. Releasing registration prevents new binds;
 existing views own leases until they unmount. Old snapshots remain charged while
 retained, and cancellation releases staging reservations.
+
+### Scoped publication
+
+`Gpuio_eio.Canvas.create app ~scope scene` completes its effect only after the
+first successful native publication. The application owns the registration;
+`handle` returns its borrowed identity. All adapter operations run on the UI
+domain. Cancelling the scope suppresses late completion and retires even an ID
+allocated while cancellation was in flight. Initial publication failure reports
+an error and releases the registration. Foreign image owners and unrelated scopes
+are rejected locally before allocation.
+
+`set` accepts an immutable desired snapshot. The current upload finishes, while
+unstarted replacements coalesce to the latest snapshot. `reset` additionally
+requests a new scene generation: coalesced resets consume just one native
+generation; another reset during that upload advances one more generation after
+its acknowledgment. No reset can skip the native registry's one-step rule.
+The borrowed handle remains stable. Uploads occur on explicit changes, not frames.
+
+An update rejected during Begin/Chunk/Publish preserves the last accepted scene.
+The adapter aborts any staged bytes, records the typed error, and does not retry
+the rejected intent automatically. A newer desired snapshot or explicit `set`/
+`reset` can recover. Successful publication clears the error. Closed/stale/native
+failure responses retire the registration; an abort failure is also terminal.
+`is_published` compares desired and acknowledged scene/reset identity; it reports
+native acceptance, not presentation. `scene` is the desired snapshot, not a query
+of the last painted frame.
+
+The scheduler has one correlated request in flight and at most four staged
+uploads, with round-robin progress and cleanup priority. It admits 256 entries and
+64 MiB of conservatively charged OCaml snapshots/upload buffers. Each registration
+holds at most desired, accepted and uploading snapshots, deduplicated by immutable
+scene identity within that registration. Cross-registration/shared-object storage
+is deliberately overcharged. The scene's cached charge includes boxed geometry,
+list/record metadata, resource canonical strings and an encoded buffer. Fixed
+registration metadata is separately bounded by 256 entries; transient encoding
+uses at most a 4 MiB Bigstring, and the one pending chunk is at most 256 KiB.
+These are logical retention bounds, not a GC/RSS or native painting-cache limit.
+Local setter admission failure leaves its previous desired scene unchanged.
+
+### Planned mounted component
 
 The canvas itself is a built-in native component using the extension SDK's
 instance lifecycle and event delivery. Its small properties reference a registered
@@ -197,8 +237,8 @@ UTF-8, a bounded font-family name, size 4..256 logical pixels and weight 100..90
 Resources have positive 64-bit IDs/generations; item IDs are positive and distinct
 within the snapshot. Path, text and image references require matching resource
 kind and exact generation. Images reference an existing native asset handle;
-application/liveness checks belong to the still-pending registry publication.
-Cross-publication resource generation history remains part of that registry work.
+application/liveness checks occur in the implemented adapter and native registry
+publication. Cross-publication resource generation history is enforced there.
 
 The decoder checks nested and aggregate counts before allocating lists/strings,
 checks the complete 4 MiB envelope, validates UTF-8/finiteness and requires exact

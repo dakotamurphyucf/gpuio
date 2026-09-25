@@ -151,3 +151,44 @@ Commands: isolated `dune runtest -j2 test/canvas`,
 `cargo test -j2 -p gpuio-protocol --test canvas_scene`, protocol Clippy with warnings
 denied and project format checks pass. The [design](../design/canvas.md) includes
 a small construction example. No new native GUI behavior is claimed here.
+
+
+## Scoped Eio publication
+
+`Gpuio_eio.Canvas` adds scoped creation, stable borrowed handles, coalesced setters,
+explicit scene-generation reset, error inspection and release. Initial creation
+completes only after native publication. Cancellation suppresses late callbacks
+and releases late allocations; native update rejection retains the prior accepted
+scene and permits explicit recovery. The scheduler has one request in flight,
+four staged uploads and a 256-entry/64 MiB conservative OCaml retention budget.
+
+Eleven runtime expect tests cover 1,000 coalesced setters, reset ordering while
+another reset is in flight, rejection/abort/retry, Begin admission failure,
+cancellation at every upload boundary, initial failure/shutdown, foreign images
+and scopes, a chunked 20,000-item scene, quota rollback, four-stage concurrent
+progress, registration-count limits, cleanup priority, and reverting while an
+older publication remains pending. Accounting returns to zero after disposal.
+The logical charge includes scene representation and upload buffers; it is not an
+RSS measurement.
+
+The actual windowless `canvas_upload` check additionally passes public-API
+publication, recovery from native resource-history rejection, 1,000 coalesced
+resets checked against the native revision/generation, image reuse after asset
+retirement, rejection of new image acquisitions, scope cancellation, 270 repeated
+registrations/releases, reserved-lane progress beside 63 raw requests, and shutdown.
+One local run completed in 3.904 seconds with zero UI commits/frames. This is a
+transport/lifecycle workload, not a rendered-scene performance result.
+
+Test iteration corrected two harness assumptions: retired asset generations
+remain valid for existing leases (retirement is idempotent), and the last async
+cleanup must drain before asserting an initially empty raw request lane. Stage
+markers now identify the active integration check. The app has a 60-second
+internal deadline and a 90-second external CI deadline. No window was opened.
+
+Local isolated `dune build -j2`, full `dune runtest -j2`, and
+`./scripts/gpuio check-fmt` pass. The existing macOS CI step runs this expanded
+windowless integration check; hosted execution of the change is pending.
+
+Native rendering, gesture/AX behavior, mesh/cache budgets, the interactive OCaml
+example and Linux graphical evidence remain outstanding. Hosted M5 CI is still
+pending; do not mark OCH-24 complete from this checkpoint.
