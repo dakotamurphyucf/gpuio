@@ -9,9 +9,50 @@ The current implementation provides validated `Canvas_geometry` and
 scene wire schema, bounded Rust decoder, reference/geometry admission and pure
 topmost hit testing are implemented. The native session also owns a tested staged
 scene registry, connected through the bridge and the raw Eio expert request lane.
-The ergonomic public scene API, scoped registration adapter, native rendering
-and canvas interaction remain in progress;
+`Canvas_resource` and `Canvas_scene` provide pure typed construction and owner-aware
+encoding. The scoped registration adapter, native rendering and canvas interaction
+remain in progress;
 these pure modules do not yet expose a rendered canvas widget.
+
+## OCaml construction
+
+`Canvas_resource` uses phantom kinds for path, text and image resources, with
+distinct resource IDs and positive generations. `Canvas_scene` provides item IDs,
+paint/stroke values, drawing constructors, interaction policies and immutable
+snapshots. A scene collects its resources from the items, deduplicates exact
+identity/data matches and rejects conflicts under the same resource ID. The
+comparison includes exact canonical float bytes and image application identity.
+Path bounds and closure are cached at resource construction; sharing one large
+path across many items does not traverse its commands for every item.
+
+Colors resolve against the supplied theme during scene construction. Ownership
+remains attached to image references until encoding checks the application's asset
+owner. Scene handles have a separate application lifetime identity; equal native
+slot/generation numbers from different applications do not compare equal.
+Scene equality is immutable snapshot identity for reactive cutoffs. Publishing a
+new scene, retaining its registration and resetting its native generation belong
+to the Eio adapter, not to these pure constructors.
+
+For example, this constructs one interactive rectangle; it does not open a window:
+
+```ocaml
+let scene () =
+  let open Core.Or_error.Let_syntax in
+  let module G = Gpuio.Canvas_geometry in
+  let module S = Gpuio.Canvas_scene in
+  let%bind bounds = G.Rect.create ~x:0. ~y:0. ~width:160. ~height:64. in
+  let%bind paint = S.Paint.create ~fill:(Gpuio.Color.rgb_exn 0x8b5cf6) () in
+  let%bind interaction =
+    S.Interaction.create
+      ~label:"Task"
+      ~hit_region:(G.Hit_region.rectangle bounds)
+      ~draggable:true
+      ()
+  in
+  let%bind id = S.Item_id.of_int64 1L in
+  let%bind item = S.Item.create ~id ~interaction (S.Drawing.rectangle bounds ~paint) in
+  S.create ~description:"A task diagram" [ item ]
+```
 
 ## Ownership and updates
 

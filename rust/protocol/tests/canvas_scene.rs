@@ -38,6 +38,7 @@ fn domain_rejects_duplicates_stale_references_wrong_kinds_and_invalid_geometry()
     let cases: Vec<InvalidCase> = vec![
         (UnsupportedVersion, |s| s.version = 2),
         (InvalidText, |s| s.description = " ".into()),
+        (InvalidText, |s| s.description = "\u{b}".into()),
         (InvalidIdentity, |s| s.items[0].id = 0),
         (DuplicateIdentity, |s| s.items[1].id = 1),
         (DuplicateIdentity, |s| s.resources[1].key.id = 1),

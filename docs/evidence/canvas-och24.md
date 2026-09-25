@@ -60,8 +60,8 @@ Source: `lib/protocol/canvas_scene_wire.ml`, `rust/protocol/src/canvas_scene.rs`
 See the registry and bridge checkpoints below for native resource ownership and
 raw transport; the scoped registration adapter and widget are still pending.
 
-Ergonomic public scene/item/resource constructors, OCaml application-owner checks,
-scoped Eio registration, native painting/tessellation/cache budgets,
+Scoped Eio registration and integration of scene-handle ownership with views,
+native painting/tessellation/cache budgets,
 rendered images/text, accessible native selection/dragging/pan/zoom, an OCaml
 diagram/plot example, measured rendered-scene/repeated-widget-disposal workloads
 and the integrated chat showcase remain unimplemented. No native canvas
@@ -127,3 +127,27 @@ FFI, beyond the pure session shutdown test. Full local `dune build -j2`,
 with `--features gpuio-native/native-tests --all-targets -- -D warnings`, and
 format checks pass. The runtime check uses a 45-second external deadline and
 exits normally; no GUI acceptance is inferred from its windowless execution.
+
+## Public immutable scene API
+
+`Canvas_resource` and `Canvas_scene` now expose abstract, typed OCaml construction:
+distinct resource/item IDs, phantom path/text/image kinds, paint/stroke values,
+interaction policies, validated affine items, immutable scene snapshots and
+application-bound native handles. Scene creation collects resources automatically,
+checks exact identity conflicts and aggregate limits, and resolves theme colors.
+Encoding rejects images belonging to another application. This is pure construction;
+scoped native registration and the rendered widget remain pending.
+
+Six expect tests in `test/canvas/scene_api_test.ml` pass, including exact agreement
+with the independently constructed Rust scene fixture; invalid constructors and
+unsupported transforms; owner/handle separation; canonical signed-zero identity;
+theme resolution; 20,000 items sharing a 4,096-command path; and independent encoded,
+resource, path-command, text and interaction limits. Resource bounds and canonical
+bytes are cached once, while repeated use of the same immutable resource has a
+constant-time identity fast path. Native label validation was aligned with Core's
+ASCII whitespace rules and its vertical-tab rejection is tested.
+
+Commands: isolated `dune runtest -j2 test/canvas`,
+`cargo test -j2 -p gpuio-protocol --test canvas_scene`, protocol Clippy with warnings
+denied and project format checks pass. The [design](../design/canvas.md) includes
+a small construction example. No new native GUI behavior is claimed here.

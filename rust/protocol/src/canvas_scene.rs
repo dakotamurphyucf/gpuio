@@ -104,7 +104,9 @@ fn color(value: i64) -> bool {
     (0..=0xffff_ffff).contains(&value)
 }
 fn label(value: &str, maximum: usize) -> bool {
-    !value.trim_ascii().is_empty() && value.len() <= maximum && !value.contains('\0')
+    value.bytes().any(|byte| !matches!(byte, 9..=13 | 32))
+        && value.len() <= maximum
+        && !value.contains('\0')
 }
 impl Paint {
     pub fn is_valid(self) -> bool {
