@@ -192,3 +192,26 @@ windowless integration check; hosted execution of the change is pending.
 Native rendering, gesture/AX behavior, mesh/cache budgets, the interactive OCaml
 example and Linux graphical evidence remain outstanding. Hosted M5 CI is still
 pending; do not mark OCH-24 complete from this checkpoint.
+
+
+## Mounted configuration and observation vocabulary
+
+The pure `Gpuio.Canvas` interface now specifies viewport, bounded zoom policy,
+selection/drag/pan controls, stable scene handles, theme-resolved selection color,
+monotone commands and generation-stamped semantic observations. The matched
+`Canvas_view_wire`/Rust `canvas_view` configuration has a bounded native decoder.
+A foreign application owner becomes an unavailable source; it cannot leak its
+native ID through generic extension properties.
+
+Three OCaml expect tests and three Rust protocol tests pass. Both independently
+construct the same 91-byte cross-language configuration fixture, including an
+image-independent scene ID, UTF-8 label, nondefault viewport/limits/color and
+command. Native checks reject every truncation, trailing bytes, oversized envelope
+and label, invalid UTF-8, invalid geometry/zoom/color/command values. Typed event
+conversion rejects malformed item IDs, transforms and publication identities;
+pre-acquisition failure alone permits a zero revision/generation pair.
+
+This checkpoint does not yet connect the configuration to `View.canvas`, native
+painting, input, accessibility or command execution. The design records those
+contracts and the ownership reason for a dedicated view configuration. OCH-24
+remains in progress.

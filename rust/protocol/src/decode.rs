@@ -3,7 +3,9 @@ use binprot::BinProtRead;
 use std::io::{Cursor, Read};
 
 mod canvas;
+mod canvas_view;
 pub use canvas::decode_canvas_scene;
+pub use canvas_view::decode_canvas_view_config;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DecodeError {

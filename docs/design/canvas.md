@@ -105,9 +105,12 @@ Local setter admission failure leaves its previous desired scene unchanged.
 
 ### Planned mounted component
 
-The canvas itself is a built-in native component using the extension SDK's
-instance lifecycle and event delivery. Its small properties reference a registered
-scene instead of embedding the entire scene in the SDK's 64 KiB property envelope.
+The canvas uses a dedicated typed view configuration so application ownership
+survives until reconciliation; it must not hide a scene ID inside arbitrary
+extension bytes before that check. The native view will use the existing scene
+lease and the extension SDK's guarded/revocable event contract. It does not add a
+process-global scene store or require a static extension factory to capture
+non-Send UI state. Its small configuration references a registered scene.
 Scene data changes cross the bridge; ordinary paint, native dragging and pan/zoom
 do not require scene re-upload or a synchronous OCaml callback.
 
@@ -205,6 +208,38 @@ are separate: a thin line can deliberately have a larger usable hit target.
 Polygons admit 3..256 points, require non-collinear geometry, and use even-odd
 containment independently of winding. Self-intersections are permitted under
 that rule; this does not imply arbitrary-path clipping support.
+
+## Mounted configuration contract
+
+`Gpuio.Canvas` now defines the pure mounted-view configuration and semantic event
+vocabulary. This is the interface/codec stage: mounting, command execution and
+native interaction are still being implemented and are not advertised as working
+capabilities. `Gpuio_eio.Canvas` continues to own registration independently.
+
+A viewport stores the world point at the top-left and positive zoom; local pixels
+are `(world - origin) * zoom`, before GPUI device scaling. Zoom is within
+0.05..64 and configurable ordered limits contain the initial viewport. Native
+pan/zoom preserves that mapping on resize. Initial viewport applies on mount or
+scene-generation reset; explicit commands can select/deselect an item, set/reset
+the viewport or clear native position overrides. Positive monotone command
+sequences prevent replay across ordinary scene publications/resets. A new mounted
+node or source starts a fresh command history.
+
+Selection is single-item and stable by item ID. Native drag preview reports one
+completed `Moved` observation with the resulting local-to-world transform.
+Overrides survive same-generation publications while that item's source transform
+is unchanged. Updating its source transform accepts/replaces the override;
+removal, scene reset or `Reset_positions` clears it. Cancelling a gesture restores
+its previous completed position, and does not commit an interrupted preview.
+Dragging changes translation only, preserving the admitted linear transform.
+
+Observations include selection, activation, completed movement, viewport change,
+command completion and typed failure. Each identifies the scene revision and
+generation; only a failure before acquiring a scene may use zero for both.
+Missing/foreign application ownership encodes an unavailable source instead of an
+unchecked native ID. Labels and theme-resolved selection color are validated.
+The native configuration decoder limits its standalone envelope to 2 KiB and the
+label to 1 KiB, validates nested values and rejects trailing or truncated data.
 
 ## Native interaction and accessibility
 

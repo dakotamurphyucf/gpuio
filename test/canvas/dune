@@ -4,8 +4,11 @@
  (inline_tests
   (deps
    (sandbox preserve_file_kind)
-   canvas-v1-scene.hex))
+   canvas-v1-scene.hex
+   canvas-v1-view.hex))
  (preprocess
   (pps ppx_jane ppx_expect)))
 
 (copy_files ../fixtures/canvas-v1-scene.hex)
+
+(copy_files ../fixtures/canvas-v1-view.hex)

@@ -6,6 +6,7 @@ pub mod asset;
 pub mod canvas;
 pub mod canvas_resource;
 pub mod canvas_scene;
+pub mod canvas_view;
 mod command;
 mod decode;
 pub mod document;
@@ -20,7 +21,7 @@ mod menu;
 mod palette;
 pub mod v1;
 
-pub use decode::{DecodeError, decode, decode_canvas_scene};
+pub use decode::{DecodeError, decode, decode_canvas_scene, decode_canvas_view_config};
 pub use id::{HandlerId, NodeId, ResourceId, WindowId};
 
 pub mod progress;
