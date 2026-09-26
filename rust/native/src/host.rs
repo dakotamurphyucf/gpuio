@@ -48,6 +48,8 @@ type SharedSession = Rc<RefCell<Session>>;
 mod avatar;
 #[path = "calendar_view.rs"]
 pub(super) mod calendar_view;
+#[path = "carousel_view.rs"]
+mod carousel;
 #[path = "choice.rs"]
 mod choice;
 #[path = "choice_popup.rs"]
@@ -188,6 +190,8 @@ struct View {
     lists: BTreeMap<NodeId, Rc<RefCell<list_view::State>>>,
     animations: BTreeMap<NodeId, Rc<RefCell<animation::State>>>,
     navigation: BTreeMap<NodeId, Rc<RefCell<navigation::State>>>,
+    carousels: BTreeMap<NodeId, Rc<RefCell<carousel::State>>>,
+    carousel_activation: Option<gpui::Subscription>,
     animation_programs: BTreeMap<NodeId, Rc<RefCell<animation_program::State>>>,
     container_queries: BTreeMap<NodeId, container_query::State>,
     #[cfg(feature = "native-tests")]
@@ -415,6 +419,8 @@ impl View {
             lists: Default::default(),
             animations: Default::default(),
             navigation: Default::default(),
+            carousels: Default::default(),
+            carousel_activation: None,
             animation_programs: Default::default(),
             container_queries: Default::default(),
             #[cfg(feature = "native-tests")]
@@ -436,6 +442,7 @@ impl View {
         self.sync_palettes(window, cx);
         self.sync_toasts(cx);
         self.sync_tooltips(window, cx);
+        self.sync_carousels(window, cx);
         self.sync_canvases(dirty, window, cx);
         self.sync_splits(window, cx);
         self.sync_sliders(dirty, window, cx);
@@ -916,6 +923,9 @@ impl View {
                         cx.stop_propagation();
                     }
                 });
+        }
+        if node.carousel.is_some() {
+            element = self.carousel_element(element, node, cx);
         }
         let animation = self.animation_frame(node, window, cx);
         let program = self.program_frame(node, window, cx);
@@ -1606,6 +1616,7 @@ impl Render for View {
                     move |_, _, window, cx| {
                         begin_focus.borrow_mut().begin_frame();
                         let _ = program_begin.update(cx, |view, _| {
+                            view.begin_carousel_paint();
                             view.begin_program_paint();
                             view.begin_query_paint();
                         });
@@ -1691,6 +1702,10 @@ impl Render for View {
                     .any(|state| state.focus.is_focused(window))
                 || self.focus.borrow().contains_focus(window)
                 || self
+                    .carousels
+                    .values()
+                    .any(|state| state.borrow().focused(window))
+                || self
                     .numbers
                     .values()
                     .any(|number| number.focus_handle(cx).is_focused(window))
@@ -1756,6 +1771,7 @@ impl Render for View {
                         .update(cx, |view, _| {
                             !view.animation_programs.is_empty()
                                 || !view.container_queries.is_empty()
+                                || !view.carousels.is_empty()
                         })
                         .unwrap_or(false)
                     {
@@ -1763,6 +1779,7 @@ impl Render for View {
                             let _ = program_finish.update(cx, |view, cx| {
                                 view.finish_query_paint(window, cx);
                                 view.finish_program_paint();
+                                view.schedule_carousels(window, cx);
                             });
                         });
                     }

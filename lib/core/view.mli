@@ -369,8 +369,12 @@ val navigation_stack
     them to supply application controls outside the component. Requests must be
     reduced against the latest model using [Carousel.apply_request].
 
-    The adapter is under implementation: pointer gestures, automatic scheduling
-    and native keyboard/accessibility acceptance are not yet complete. *)
+    The focusable carousel surface and its ordinary controls handle Home/End and
+    arrows on the selected axis; child editors and other native widgets keep their
+    own keys. Optional auto-advance runs on native deadlines after settled visible
+    paint, pausing for interaction, hidden/inactive windows and reduced motion.
+    Pointer drag/wheel gestures and full accessibility acceptance remain under
+    implementation. *)
 val carousel
   :  'data Carousel.t
   -> ?key:Key.t

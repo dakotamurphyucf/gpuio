@@ -38,7 +38,7 @@ module Auto_advance : sig
       milliseconds. Native timing starts after settled visible paint. Hover,
       focus, drag, inactive/hidden window, hidden ancestors and reduced motion
       pause it. Resuming starts a full interval, without catching up missed ticks.
-      This specifies the carousel adapter under implementation. *)
+      One pending proposal waits for a changed application revision. *)
   val create : ?interval:Time_ns.Span.t -> unit -> t Or_error.t
 
   val interval : t -> Time_ns.Span.t

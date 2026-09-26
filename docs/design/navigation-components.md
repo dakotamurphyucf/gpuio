@@ -521,8 +521,8 @@ the same revision; presentation-only changes do not create a new selection owner
 The pure native clock owns one immutable epoch ticket and a bounded schedule of
 revision, generational source/target node IDs and interval. Redraws preserve its
 absolute deadline. Old tickets, early wakes, disposal and unacknowledged proposals
-cannot generate a second tick. The future host adapter must recheck eligibility
-before waking and own/cancel the actual task through a weak, generational host.
+cannot generate a second tick. The native host rechecks eligibility before waking
+and owns/cancels the actual task through a weak, generational host.
 
 `View.carousel` in Core and Bonsai wraps a keyed native NavigationStack viewport
 and optional ordinary controls. `show_controls` defaults to true; first/previous,
@@ -559,10 +559,31 @@ restoration runs only when focus was in the departing page; controls and the
 surrounding application keep focus during selection changes. Native hidden-page
 input rejection, retained editors and immediate disposal are unchanged.
 
+The native carousel has a focusable Region and a window-owned focus handle. Home/
+End and axis-aligned arrows are handled when the Region itself or an ordinary
+button in its controls area has focus. Modifiers and the other axis are ignored.
+Child editors and other native widgets keep their keys, even when they propagate
+an unbound event. Active modal scopes also gate carousel keyboard requests.
+
+Automatic timing is now integrated with one cancellable native task per owner,
+two weak focus subscriptions and one activation subscription per window. Paint
+bookkeeping clears eligibility before each real frame; the viewport marks itself
+eligible only after settled paint intersects its content mask and visible viewport.
+The end-of-paint pass cancels clocks for missing or clipped surfaces. Every wake
+rechecks admitted identity/revision, window activation, modal visibility, reduced
+motion, hover, contained focus and native pointer capture/drag state. It never calls
+OCaml synchronously. Pointer capture or native drag pauses automatic advancement;
+there is no timer loop or animation-frame request while awaiting an application
+response. Removing/disconnecting an owner drops its task and subscriptions.
+
+Window activation alone does not force auto-advance to resume: the pointer or focus
+may still be inside the carousel. Once all conditions allow it, resuming starts a
+fresh interval. Configuration changes first invalidate painted eligibility, so the
+next deadline cannot start before the accepted destination transition settles.
+
 Implementation status: Core/Bonsai constructors, paired envelopes, admission,
-request dispatch and mounted horizontal/vertical page presentation are implemented.
-Local macOS tests cover presentation/focus/retained editor behavior. Keyboard/drag/
-wheel input, host task/eligibility integration for the tested pure automatic clock,
-public Navigation Lab scenarios and full acceptance remain pending. No carousel
-capability is advertised. The full target still includes axis-locked pointer drag,
-snapping and wheel gestures; these have not been replaced by the default buttons.
+request dispatch, horizontal/vertical page presentation, keyboard and native
+automatic scheduling are implemented and locally tested on macOS. Axis-locked
+pointer drag/snapping, wheel gestures, public Navigation Lab scenarios and full
+accessibility/family acceptance remain pending. No carousel capability is advertised;
+the gesture scope has not been replaced by the default buttons.

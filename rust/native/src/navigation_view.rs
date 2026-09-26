@@ -144,6 +144,10 @@ impl View {
             };
             pages.push(page.child(body).into_any_element());
         }
+        let carousel = node
+            .parent
+            .and_then(|parent| self.carousels.get(&parent))
+            .map(Rc::downgrade);
         let gate = self.focus.clone();
         let owner = node.id;
         let state = Rc::downgrade(&state);
@@ -155,7 +159,7 @@ impl View {
             .child(
                 canvas(
                     |_, _, _| (),
-                    move |_, _, window, cx| {
+                    move |bounds, _, window, cx| {
                         let Some(state) = state.upgrade() else { return };
                         let mut state = state.borrow_mut();
                         if !gate.borrow().visible(owner) || cx.reduce_motion() {
@@ -164,8 +168,15 @@ impl View {
                             return;
                         }
                         let needs_frame = sample.needs_frame;
-                        if state.motion.painted(sample) && needs_frame {
-                            window.request_animation_frame();
+                        if state.motion.painted(sample) {
+                            if let Some(carousel) =
+                                carousel.as_ref().and_then(std::rc::Weak::upgrade)
+                            {
+                                carousel.borrow_mut().painted(bounds, !needs_frame, window);
+                            }
+                            if needs_frame {
+                                window.request_animation_frame();
+                            }
                         }
                     },
                 )

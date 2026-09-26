@@ -1,6 +1,6 @@
 //! Carousel presentation checks; gestures and native timing receive separate coverage.
 use super::*;
-use gpuio_protocol::carousel::{Axis, Config, Direction};
+use gpuio_protocol::carousel::{Axis, Config, Direction, Request};
 fn config(revision: i64, selected: i64, axis: Axis, direction: Direction) -> Config {
     Config {
         revision,
@@ -25,6 +25,7 @@ pub(super) async fn exercise(
     cx: &mut gpui::AsyncApp,
     handle: WindowHandle<View>,
     editor: EditorConfig,
+    transport: &Transport,
 ) {
     let mut operations = vec![];
     for (id, kind, label) in [
@@ -227,6 +228,367 @@ pub(super) async fn exercise(
         focused(cx, handle, node(468)),
         "controls retain focus across selection"
     );
+    // Native keyboard routing is local to the owner and its ordinary controls.
+    let requests = |transport: &Transport| {
+        transport
+            .mailbox
+            .lock()
+            .unwrap()
+            .drain(128)
+            .into_iter()
+            .filter_map(|event| match event {
+                Event::CarouselRequested(_, owner, _, _, request) if owner == node(462) => {
+                    Some(request)
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+    };
+    requests(transport);
+    for name in ["left", "home", "right", "end"] {
+        key(cx, handle, name);
+    }
+    frame(cx, handle).await;
+    assert_eq!(
+        requests(transport),
+        vec![
+            Request::Previous,
+            Request::First,
+            Request::Next,
+            Request::Last
+        ]
+    );
+    handle
+        .update(cx, |v, w, cx| {
+            w.focus(&v.carousels[&node(462)].borrow().focus_handle(), cx)
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    key(cx, handle, "down");
+    key(cx, handle, "alt-right");
+    key(cx, handle, "left");
+    frame(cx, handle).await;
+    assert_eq!(requests(transport), vec![Request::Previous]);
+    handle
+        .update(cx, |v, w, cx| {
+            w.focus(&v.editors[&node(470)].focus_handle(cx), cx)
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    for name in ["left", "right", "home", "end"] {
+        key(cx, handle, name);
+    }
+    frame(cx, handle).await;
+    assert!(
+        requests(transport).is_empty(),
+        "editor navigation does not escape to carousel"
+    );
+
+    let automatic = |revision, selected| {
+        let mut value = config(revision, selected, Axis::Horizontal, Direction::Direct);
+        value.auto_advance_ms = Some(1000);
+        Op::SetCarousel(node(462), value)
+    };
+    let outside = handle
+        .update(cx, |v, _, _| v.probes.borrow()[&node(461)].bounds.center())
+        .unwrap();
+    let inside = handle
+        .update(cx, |v, _, _| v.probes.borrow()[&node(463)].bounds.center())
+        .unwrap();
+    handle
+        .update(cx, |v, w, cx| w.focus(&v.buttons[&node(461)].focus, cx))
+        .unwrap();
+    super::super::native_test::move_mouse(cx, handle, outside, false);
+    apply(
+        cx,
+        handle,
+        vec![
+            automatic(4, 0),
+            Op::SetNavigationStack(node(463), presentation(0, 0)),
+        ],
+    );
+    frame(cx, handle).await;
+    handle
+        .update(cx, |v, w, cx| {
+            let state = v.carousels[&node(462)].borrow();
+            assert!(state.has_timer(), "{}", state.diagnostics(w, cx));
+        })
+        .unwrap();
+    cx.background_executor()
+        .timer(std::time::Duration::from_millis(1100))
+        .await;
+    frame(cx, handle).await;
+    assert_eq!(
+        requests(transport),
+        vec![Request::AutoNext {
+            revision: 4,
+            from: "a".into(),
+            target: "b".into()
+        }]
+    );
+    handle
+        .update(cx, |v, _, _| {
+            let state = v.carousels[&node(462)].borrow();
+            assert!(state.pending() && !state.has_timer());
+        })
+        .unwrap();
+    let idle_renders = handle.update(cx, |v, _, _| v.render_count).unwrap();
+    cx.background_executor()
+        .timer(std::time::Duration::from_millis(1100))
+        .await;
+    assert!(
+        requests(transport).is_empty(),
+        "unacknowledged automatic request does not repeat"
+    );
+    assert_eq!(
+        handle.update(cx, |v, _, _| v.render_count).unwrap(),
+        idle_renders,
+        "pending auto-advance must not poll or request idle frames"
+    );
+
+    // The next deadline starts only after the accepted transition settles.
+    apply(
+        cx,
+        handle,
+        vec![
+            automatic(5, 1),
+            Op::SetNavigationStack(node(463), presentation(1, 2000)),
+        ],
+    );
+    frame(cx, handle).await;
+    assert!(
+        !handle
+            .update(cx, |v, _, _| v.carousels[&node(462)].borrow().has_timer())
+            .unwrap()
+    );
+    apply(
+        cx,
+        handle,
+        vec![Op::SetNavigationStack(node(463), presentation(1, 0))],
+    );
+    frame(cx, handle).await;
+    assert!(
+        handle
+            .update(cx, |v, _, _| v.carousels[&node(462)].borrow().has_timer())
+            .unwrap()
+    );
+    super::super::native_test::move_mouse(cx, handle, inside, false);
+    frame(cx, handle).await;
+    assert!(
+        !handle
+            .update(cx, |v, _, _| v.carousels[&node(462)].borrow().has_timer())
+            .unwrap()
+    );
+    cx.background_executor()
+        .timer(std::time::Duration::from_millis(1100))
+        .await;
+    assert!(requests(transport).is_empty(), "hover pauses deadline");
+    super::super::native_test::move_mouse(cx, handle, outside, false);
+    frame(cx, handle).await;
+    cx.background_executor()
+        .timer(std::time::Duration::from_millis(200))
+        .await;
+    assert!(
+        requests(transport).is_empty(),
+        "resume waits a fresh full interval"
+    );
+    handle
+        .update(cx, |v, w, cx| {
+            w.focus(&v.editors[&node(470)].focus_handle(cx), cx)
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    assert!(
+        !handle
+            .update(cx, |v, _, _| v.carousels[&node(462)].borrow().has_timer())
+            .unwrap()
+    );
+    cx.background_executor()
+        .timer(std::time::Duration::from_millis(1100))
+        .await;
+    assert!(
+        requests(transport).is_empty(),
+        "editor focus pauses deadline"
+    );
+    handle
+        .update(cx, |v, w, cx| w.focus(&v.buttons[&node(461)].focus, cx))
+        .unwrap();
+    frame(cx, handle).await;
+    cx.update(|cx| cx.set_reduce_motion(true));
+    frame(cx, handle).await;
+    assert!(
+        !handle
+            .update(cx, |v, _, _| v.carousels[&node(462)].borrow().has_timer())
+            .unwrap()
+    );
+    cx.background_executor()
+        .timer(std::time::Duration::from_millis(1100))
+        .await;
+    assert!(
+        requests(transport).is_empty(),
+        "reduced motion pauses deadline"
+    );
+    cx.update(|cx| cx.set_reduce_motion(false));
+    frame(cx, handle).await;
+    assert!(
+        handle
+            .update(cx, |v, _, _| v.carousels[&node(462)].borrow().has_timer())
+            .unwrap()
+    );
+    apply(
+        cx,
+        handle,
+        vec![Op::SetStyle(
+            node(460),
+            vec![Style::Fields(vec![Field::Display(3)])],
+        )],
+    );
+    frame(cx, handle).await;
+    assert!(
+        !handle
+            .update(cx, |v, _, _| v.carousels[&node(462)].borrow().has_timer())
+            .unwrap()
+    );
+    cx.background_executor()
+        .timer(std::time::Duration::from_millis(1100))
+        .await;
+    assert!(
+        requests(transport).is_empty(),
+        "hidden ancestor cancels deadline"
+    );
+    apply(cx, handle, vec![Op::SetStyle(node(460), vec![])]);
+    frame(cx, handle).await;
+    // Restored focus may choose the carousel; move it outside to rearm.
+    handle
+        .update(cx, |v, w, cx| w.focus(&v.buttons[&node(461)].focus, cx))
+        .unwrap();
+    frame(cx, handle).await;
+    assert!(
+        handle
+            .update(cx, |v, _, _| v.carousels[&node(462)].borrow().has_timer())
+            .unwrap()
+    );
+
+    // A fully clipped viewport is not eligible merely because its owner is mounted.
+    apply(
+        cx,
+        handle,
+        vec![Op::SetStyle(
+            node(462),
+            vec![Style::Fields(vec![
+                Field::Width(Length::Px(320.)),
+                Field::Height(Length::Px(240.)),
+                Field::Position(1),
+                Field::Top(Length::Px(5000.)),
+            ])],
+        )],
+    );
+    frame(cx, handle).await;
+    assert!(
+        !handle
+            .update(cx, |v, _, _| v.carousels[&node(462)].borrow().has_timer())
+            .unwrap()
+    );
+    cx.background_executor()
+        .timer(std::time::Duration::from_millis(1100))
+        .await;
+    assert!(
+        requests(transport).is_empty(),
+        "clipped viewport cancels deadline"
+    );
+    apply(
+        cx,
+        handle,
+        vec![Op::SetStyle(
+            node(462),
+            vec![Style::Fields(vec![
+                Field::Width(Length::Px(320.)),
+                Field::Height(Length::Px(240.)),
+            ])],
+        )],
+    );
+    frame(cx, handle).await;
+    assert!(
+        handle
+            .update(cx, |v, _, _| v.carousels[&node(462)].borrow().has_timer())
+            .unwrap()
+    );
+    // Actual native window activation must cancel immediately, without repainting
+    // or waiting for the old deadline to wake and discover the inactive window.
+    let other = cx
+        .update(|cx| {
+            cx.open_window(
+                WindowOptions {
+                    window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
+                        None,
+                        size(px(160.), px(100.)),
+                        cx,
+                    ))),
+                    ..Default::default()
+                },
+                |_, cx| cx.new(|_| gpui::Empty),
+            )
+        })
+        .unwrap();
+    other.update(cx, |_, w, _| w.activate_window()).unwrap();
+    for _ in 0..100 {
+        if !handle.update(cx, |_, w, _| w.is_window_active()).unwrap() {
+            break;
+        }
+        cx.background_executor()
+            .timer(std::time::Duration::from_millis(10))
+            .await;
+    }
+    assert!(!handle.update(cx, |_, w, _| w.is_window_active()).unwrap());
+    assert!(
+        !handle
+            .update(cx, |v, _, _| v.carousels[&node(462)].borrow().has_timer())
+            .unwrap()
+    );
+    cx.background_executor()
+        .timer(std::time::Duration::from_millis(1100))
+        .await;
+    assert!(
+        requests(transport).is_empty(),
+        "inactive window cancels deadline"
+    );
+    other.update(cx, |_, w, _| w.remove_window()).unwrap();
+    handle.update(cx, |_, w, _| w.activate_window()).unwrap();
+    for _ in 0..100 {
+        if handle.update(cx, |_, w, _| w.is_window_active()).unwrap() {
+            break;
+        }
+        cx.background_executor()
+            .timer(std::time::Duration::from_millis(10))
+            .await;
+    }
+    frame(cx, handle).await;
+    handle
+        .update(cx, |v, w, cx| {
+            eprintln!(
+                "CAROUSEL_REACTIVATED {}",
+                v.carousels[&node(462)].borrow().diagnostics(w, cx)
+            );
+        })
+        .unwrap();
+    // Activation can publish the real OS pointer position. Establish the same
+    // outside-hover condition as the initial automatic-advance test.
+    super::super::native_test::move_mouse(cx, handle, outside, false);
+    frame(cx, handle).await;
+    handle
+        .update(cx, |v, w, cx| {
+            let state = v.carousels[&node(462)].borrow();
+            assert!(state.has_timer(), "{}", state.diagnostics(w, cx));
+        })
+        .unwrap();
+    cx.background_executor()
+        .timer(std::time::Duration::from_millis(200))
+        .await;
+    assert!(
+        requests(transport).is_empty(),
+        "activation restarts a full interval"
+    );
+
     apply(
         cx,
         handle,
@@ -237,11 +599,55 @@ pub(super) async fn exercise(
     frame(cx, handle).await;
     handle
         .update(cx, |v, _, _| {
-            assert!(v.editors.is_empty() && v.buttons.is_empty() && v.navigation.is_empty());
+            assert!(
+                v.editors.is_empty()
+                    && v.buttons.is_empty()
+                    && v.navigation.is_empty()
+                    && v.carousels.is_empty()
+            );
+            assert!(v.carousel_activation.is_none());
             assert_eq!(v.session.borrow().retained_bytes(), 0);
         })
         .unwrap();
-    println!(
-        "GPUIO_CAROUSEL_PRESENTATION_OK: vertical GPU transition, retained editor, hidden focus rejection, outside/control focus preservation, page focus handoff and disposal; gestures/timers pending"
+    cx.background_executor()
+        .timer(std::time::Duration::from_millis(1100))
+        .await;
+    assert!(
+        requests(transport).is_empty(),
+        "unmount cancels the last deadline"
     );
+    println!(
+        "GPUIO_CAROUSEL_PRESENTATION_OK: vertical GPU transition, retained editor, hidden focus rejection, outside/control focus preservation, page focus handoff and disposal; keyboard, editor key isolation, one pending automatic proposal, settled paint, hover/focus/reduced/hidden/clipped/inactive pause, idle frame count and timer disposal; drag/wheel pending"
+    );
+}
+
+pub(super) async fn standalone(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    transport: &Transport,
+) {
+    let config = handle
+        .update(cx, |view, _, _| {
+            view.session
+                .borrow()
+                .tree(view.id)
+                .unwrap()
+                .get(node(4))
+                .unwrap()
+                .editor
+                .as_ref()
+                .unwrap()
+                .as_ref()
+                .clone()
+        })
+        .unwrap();
+    apply(
+        cx,
+        handle,
+        std::iter::once(Op::SetRoot(None))
+            .chain((0..=4).map(|i| Op::Remove(node(i))))
+            .collect(),
+    );
+    frame(cx, handle).await;
+    exercise(cx, handle, config, transport).await;
 }

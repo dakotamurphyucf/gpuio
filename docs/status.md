@@ -62,7 +62,9 @@ Carousel now has a tested Core selection model, paired envelopes, Core/Bonsai
 constructors, bounded default pagination and native admission/request dispatch.
 Mounted horizontal/vertical presentation reuses retained pages; local macOS checks
 cover GPU transition geometry, retained editors and focus preservation/handoff.
-Its pure clock is tested, but native scheduling/gestures and full acceptance remain.
+Native keyboard and auto-advance scheduling now pass local tests for child-editor
+key isolation, pause/resume, clipping/window activation, one pending proposal,
+no idle frames and teardown. Drag/wheel gestures and full acceptance remain.
 Remaining scope includes completing carousel,
 expanded public examples, broader acceptance and hosted gates.
 See [navigation design](design/navigation-components.md) and

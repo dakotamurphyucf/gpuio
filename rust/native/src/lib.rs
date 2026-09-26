@@ -229,3 +229,8 @@ pub fn run_native_navigation_test() {
 pub fn run_native_hover_card_test() {
     host::control_test::run_hover_cards();
 }
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_carousel_test() {
+    host::control_test::run_carousel();
+}

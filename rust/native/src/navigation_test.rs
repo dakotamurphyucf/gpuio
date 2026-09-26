@@ -316,7 +316,6 @@ pub(super) async fn exercise(
     inert_drag_cleanup(cx, handle, (*config).clone()).await;
     super::navigation_stack_test::exercise(cx, handle, transport, (*config).clone()).await;
     super::navigation_lifecycle_test::exercise(cx, handle, transport, (*config).clone()).await;
-    super::carousel_view_test::exercise(cx, handle, (*config).clone()).await;
     println!(
         "GPUIO_DISCLOSURE_NATIVE_OK: header traversal, single activation, nested collapse/unmount focus, retained editors, hidden scopes and disposal"
     );

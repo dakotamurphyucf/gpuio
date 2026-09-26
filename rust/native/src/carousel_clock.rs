@@ -28,6 +28,11 @@ pub struct Ticket {
     deadline: Duration,
     epoch: Arc<()>,
 }
+impl Ticket {
+    pub(crate) fn same_as(&self, other: &Self) -> bool {
+        self.deadline == other.deadline && Arc::ptr_eq(&self.epoch, &other.epoch)
+    }
+}
 #[derive(Clone, Debug)]
 pub enum Plan {
     Idle,

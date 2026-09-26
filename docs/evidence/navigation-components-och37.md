@@ -772,3 +772,62 @@ Scratch logs: `carousel-view-test-final.log`, `carousel-view-format-final.log`,
 `carousel-mounted-clippy-final.log`. No hosted/Linux GUI results are claimed.
 Existing required CI builds/runs the expanded navigation target; consolidated M5
 hosted gates and merge remain pending.
+
+## Carousel native keyboard and automatic scheduling — 2026-09-26
+
+The carousel now owns a native focus handle and one weak, cancellable deadline
+task. Region/controls keyboard requests use the existing event bridge; child
+editors retain their keys. Automatic timing uses the tested pure clock and actual
+settled, clipped paint, plus focus/hover/window/motion eligibility. This checkpoint
+still leaves axis-locked drag/snapping, wheel, public examples and full family/AX
+acceptance pending.
+
+Local macOS `native_carousel` passes:
+
+- Ordered controls Home/End/axis arrows; owner focus survives a redraw and receives
+  keys; the other axis and modified keys do not navigate. Editor arrows/Home/End
+  remain local to the editor and produce no carousel requests.
+- Exactly one revision/source/target automatic proposal after its deadline. An
+  unacknowledged proposal produces no further events or render-count increments
+  during a further interval; there is no idle timer/frame loop.
+- The next deadline starts after the accepted transition settles. Hover and native
+  editor focus cancel it. Resumption waits a fresh interval. Reduced motion, a
+  hidden ancestor and a fully clipped viewport cancel the deadline without events.
+- Activating a second real native window immediately cancels the first window's
+  deadline. Reactivation respects hover rather than forcibly resuming. A fresh
+  outside pointer event makes it eligible again, with a full interval.
+- Unmount cancels the last pending task. After waiting past its old deadline there
+  are no events; carousel/editor/button/navigation maps and retained bytes are zero,
+  and the activation subscription is removed. Both test windows close.
+- Existing carousel GPU orientation/settling, retained editor identity, hidden
+  focus denial, outside/control focus preservation and destination handoff checks
+  continue to pass in this dedicated target.
+
+The first root-keyboard run exposed the host fallback overlooking the new carousel
+focus handle; it moved focus away during redraw. The host now recognizes that
+handle. A later reactivation assertion exposed a fixture assumption: diagnostics
+showed `painted=true hovered=true focused=false active=true reduced=false`, so the
+runtime correctly remained paused at the real OS pointer position. The scenario
+now establishes outside-hover eligibility explicitly after native reactivation.
+Neither issue was bypassed by weakening the pause contract.
+
+Commands:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-image-tests --test native_carousel
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native --all-targets --features native-image-tests -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @fmt
+git diff --check
+```
+
+Scratch evidence: `carousel-controller-window-final.log`,
+`carousel-controller-clippy-final.log`, `carousel-controller-format.log`.
+The modal-scope request guard also uses the existing focus eligibility check;
+broader nested carousel/overlay acceptance remains pending. Native capture and
+GPUI drag state suppress automatic eligibility; full carousel gesture validation
+follows implementation of drag/wheel behavior.
+
+The expanded scenario moved from `native_navigation` to `native_carousel` to keep
+iteration focused. Required CI builds the target on macOS/Linux and executes it
+on macOS. No hosted CI, Linux GUI, physical IME, VoiceOver speech or OS minimization
+acceptance is claimed by this checkpoint. Consolidated M5 gates and merge remain.
