@@ -891,3 +891,73 @@ the GPU-enabled tree suite; hosted macOS/Linux gates have not run for this chang
 Full native large/deep traversal/revisit and broader tree drag lifecycle acceptance
 remain. These example/presentation checks do not close OCH-38 or advertise its
 capability, and do not establish Linux GUI acceptance.
+
+## Full tree traversal and revisit (2026-09-26)
+
+The Bonsai tree-row workload now constructs the full 100,000-node forest as
+chains of depth 128, selects all nodes and expands all branches. It visits every
+row twice with a 256-row active limit. Each activation creates a non-default
+2-KiB row model. Weak references after major collection show no more than 256
+live payloads during traversal and zero after clearing the viewport. The test
+counts all 200,000 activations and bounds retained OCaml heap growth after eviction
+to fewer than 200,000 words; the loaded forest and 100,000 selection preferences
+remain available. This exercises the actual Bonsai tree adapter/managed rows,
+using injected viewport observations rather than a native window.
+
+The complementary native test runs production GPUI layout/paint across all
+100,000 logical rows twice, with tree input, drag descriptors, selected metadata
+and depth values through 128. Only 256 TreeItem containers and text children are
+mounted per batch. It checks exact mapping/focus-handle/text-selection counts,
+absence of selection-only focus pins and absence of active gesture leases. Weak
+probes verify old selection objects die after eviction and the list state dies
+on unmount. Native session nodes remain exactly one list plus two per active row.
+The O(100,000) logical index is measured separately from this mounted budget.
+
+GPUI's recent text cache retains some evicted payloads, bounded in this workload
+to 512. The observed peak before adding the current batch was 352; 512 cached
+payloads remained immediately after unmount. Closing the window then released
+all of them, checked by weak references. This distinction avoids claiming that
+row eviction synchronously empties the window's text-shaping cache.
+
+The native suite log reports:
+
+```
+GPUIO_TREE_HISTORY_OK: visits=200000 logical_rows=100000 max_depth=128 active_rows=256 peak_cached_payloads=352 after_unmount_cached=512; evicted selections and list state released
+```
+
+Initial harness failures were corrected without changing production admission or
+budgets: the first setup skipped native arena slots; the next omitted consumption
+of viewport/frame observations and correctly triggered bounded mailbox overload.
+The final harness allocates sequential generational slots and drains observations
+between batches, as a receiving OCaml loop would.
+
+A separate GPU rerun exposed interference from real desktop pointer motion between
+synthetic hover and awaited display frames. Diagnostics showed the window remained
+active but the pointer had moved outside the target; the absent cue was correct.
+Synthetic hover and exact GPU capture now occur in the same UI turn, including
+explicit exit/return assertions. The separate public AppKit gesture test remains
+the real system-input evidence. No production rendering behavior was changed.
+
+On local macOS arm64, `cargo test -p gpuio-native --features native-image-tests
+--test native_tree --locked -j2` passes both the existing interaction/focus/GPU
+suite and the new resource workload, including zero text retention after window
+closure. Compile plus execution took about 79 seconds locally; its CI timeout is
+now 300 seconds to accommodate the full traversal on hosted machines.
+`dune build -j2 @test/virtual_list/runtest` passes the new deep-tree expect test
+and existing virtual-list tests. All-target native-image Clippy passes. Commands
+use `GPUIO_JOBS=2 ./scripts/gpuio exec` and serialized Cargo/Dune builds.
+
+Scratch logs: `tree-history-native-5.log`, `tree-history-bonsai-1.log` and
+`tree-history-clippy.log` in `scratch/agents/root-20260925-resumed/`.
+The native test exited and its window closed. Explicit draw calls isolate resource
+measurement from desktop occlusion; this is not physical input, Linux GUI, or one
+end-to-end public application traversing the full 100,000-node forest.
+
+Broader drag source-reorder/window lifecycle and public loading/cancellation checks
+remain before final OCH-38 acceptance and capability advertisement. Hosted
+macOS/Linux gates and milestone merge are still pending.
+
+Final aggregate `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest
+@fmt` and `git diff --check` pass (`tree-history-dune-final.log`). This slice adds
+validation and test-harness fixes; the production implementation is unchanged
+from the preceding locally validated checkpoint.

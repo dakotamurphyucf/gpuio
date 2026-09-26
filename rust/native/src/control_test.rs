@@ -31,6 +31,8 @@ mod toast_test;
 mod tooltip_test;
 #[path = "tree_focus_test.rs"]
 mod tree_focus_test;
+#[path = "tree_history_test.rs"]
+mod tree_history_test;
 #[path = "tree_view_test.rs"]
 mod tree_view_test;
 use super::editor_test::{frame, key};
@@ -1839,6 +1841,14 @@ fn run_suite(suite: Suite) {
                         Suite::Trees => {
                             tree_view_test::exercise(cx, handle).await;
                             tree_focus_test::exercise(cx, handle).await;
+                            let cached_text = tree_history_test::exercise(cx, handle).await;
+                            handle
+                                .update(cx, |_, window, _| window.remove_window())
+                                .unwrap();
+                            assert!(
+                                cached_text.iter().all(|weak| weak.strong_count() == 0),
+                                "closed tree window retained text cache"
+                            );
                         }
                         Suite::Tabs => {
                             radio(cx, handle, &transport, Kind::TabBar, 5).await;
@@ -1856,7 +1866,7 @@ fn run_suite(suite: Suite) {
                         Suite::Pointer => pointer_test::exercise(cx, handle, &transport).await,
                         Suite::Controls => unreachable!(),
                     }
-                    if suite != Suite::Extensions {
+                    if !matches!(suite, Suite::Extensions | Suite::Trees) {
                         handle
                             .update(cx, |_, window, _| window.remove_window())
                             .unwrap();

@@ -712,16 +712,25 @@ fn assert_tree_pixel(
     expected: [u8; 4],
     label: &str,
 ) {
-    let image = cx
+    let (image, active, mouse, dragging) = cx
         .update_window(handle.into(), |_, window, cx| {
             window.set_scale_factor(1.);
             window.draw(cx).clear(cx);
-            window.render_to_image().unwrap()
+            (
+                window.render_to_image().unwrap(),
+                window.is_window_active(),
+                window.mouse_position(),
+                cx.has_active_drag(),
+            )
         })
         .unwrap();
     let x = f32::from(point.x).floor() as u32;
     let y = f32::from(point.y).floor() as u32;
-    assert_eq!(image.get_pixel(x, y).0, expected, "{label} at {x},{y}");
+    assert_eq!(
+        image.get_pixel(x, y).0,
+        expected,
+        "{label} at {x},{y}: active={active}, mouse={mouse:?}, dragging={dragging}"
+    );
 }
 
 async fn exercise_moves(
@@ -778,6 +787,9 @@ async fn exercise_moves(
             } else {
                 gpui::point(rect.right() - px(8.), rect.bottom() - px(4.))
             };
+            // A real platform move can arrive while awaiting a display frame.
+            // Keep synthetic hover dispatch and GPU capture in one UI turn.
+            super::super::native_test::move_mouse(cx, handle, point, true);
             assert_tree_pixel(
                 cx,
                 handle,
@@ -785,13 +797,8 @@ async fn exercise_moves(
                 [102, 255, 136, 255],
                 "drop cue above opaque content",
             );
-            super::super::native_test::move_mouse(
-                cx,
-                handle,
-                gpui::point(rect.right() - px(8.), rect.bottom() + px(50.)),
-                true,
-            );
-            frame(cx, handle).await;
+            let outside = gpui::point(rect.right() - px(8.), rect.bottom() + px(50.));
+            super::super::native_test::move_mouse(cx, handle, outside, true);
             assert_tree_pixel(
                 cx,
                 handle,
@@ -800,8 +807,15 @@ async fn exercise_moves(
                 "leaving a target clears its cue during the same gesture",
             );
             super::super::native_test::move_mouse(cx, handle, point, true);
-            frame(cx, handle).await;
+            assert_tree_pixel(
+                cx,
+                handle,
+                sample,
+                [102, 255, 136, 255],
+                "return restores drop cue",
+            );
         }
+        super::super::native_test::move_mouse(cx, handle, point, true);
         super::super::native_test::mouse(cx, handle, point, false);
         frame(cx, handle).await;
     }

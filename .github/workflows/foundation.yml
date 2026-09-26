@@ -197,7 +197,7 @@ jobs:
         run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_navigation"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-navigation-native.log
       - name: macOS native managed tree semantics
         if: runner.os == 'macOS'
-        run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_tree"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-tree-native.log
+        run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_tree"], check=True, timeout=300)' 2>&1 | tee .cache/ci/macos-tree-native.log
       - name: macOS public managed trees and approved moves
         if: runner.os == 'macOS'
         run: |

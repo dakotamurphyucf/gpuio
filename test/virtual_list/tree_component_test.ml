@@ -685,3 +685,112 @@ let%expect_test "queued Unicode search requests reduce the latest prefix and cur
   Bonsai_driver.Expert.invalidate_observers driver;
   [%expect {| |}]
 ;;
+
+let%expect_test "deep 100000-node tree traversal and revisit release transient models" =
+  let count = 100_000 in
+  let page_size = 256 in
+  let nodes =
+    List.init count ~f:(fun index ->
+      let name = Int.to_string index in
+      let children =
+        if index mod T.max_depth < T.max_depth - 1 && index + 1 < count
+        then T.Children.Branch { ids = [ id (Int.to_string (index + 1)) ]; next = End }
+        else Leaf
+      in
+      id name, T.Node.create ~label:name ~children name |> ok)
+  in
+  let roots =
+    List.filter_mapi nodes ~f:(fun index (id, _) ->
+      Option.some_if (index mod T.max_depth = 0) id)
+  in
+  let expanded =
+    List.filter_map nodes ~f:(fun (id, node) ->
+      match T.Node.children node with
+      | Branch _ -> Some id
+      | Leaf -> None)
+  in
+  let tree = T.create ~roots nodes |> ok in
+  assert (T.metadata_bytes tree <= T.max_metadata_bytes);
+  let state =
+    S.create tree ~mode:Multiple ~selected:(List.map nodes ~f:fst) ~expanded () |> ok
+  in
+  let snapshot = L.create tree |> L.snapshot in
+  let config =
+    Gpuio.Virtual_list.Config.create ~max_active:page_size ~height:(Fixed 24.) () |> ok
+  in
+  let weak = Stdlib.Weak.create count in
+  let allocations = ref 0 in
+  let driver =
+    create (fun graph ->
+      V.component
+        (B.return snapshot)
+        ~state:(B.return state)
+        ~config
+        ~render_row:(fun ~key:_ ~data ~lifetime:_ graph ->
+          let model, set_model = B.state_opt graph in
+          let open B.Let_syntax in
+          let on_activate =
+            let%arr data = data
+            and set_model = set_model in
+            match data with
+            | Boundary _ -> assert false
+            | Item item ->
+              let index = T.Id.to_string item.id |> Int.of_string in
+              let open E.Let_syntax in
+              let%bind payload =
+                E.of_thunk (fun () ->
+                  Int.incr allocations;
+                  let payload = Bytes.create 2048 in
+                  Stdlib.Weak.set weak index (Some payload);
+                  payload)
+              in
+              set_model (Some payload)
+          in
+          B.Edge.lifecycle ~on_activate graph;
+          let%arr model = model in
+          View.text
+            (Option.value_map model ~default:"cold" ~f:(fun bytes ->
+               Int.to_string (Bytes.length bytes))))
+        graph)
+  in
+  ignore (result driver : _ V.Output.t);
+  display driver;
+  Gc.full_major ();
+  let baseline = (Gc.stat ()).live_words in
+  let live () =
+    let total = ref 0 in
+    for index = 0 to count - 1 do
+      if Stdlib.Weak.check weak index then Int.incr total
+    done;
+    !total
+  in
+  for _pass = 1 to 2 do
+    for visit = 0 to (count - 1) / page_size do
+      let first = visit * page_size in
+      let last = Int.min count (first + page_size) in
+      observe driver ~first ~last ();
+      assert (V.Output.active_rows (result driver) = last - first);
+      display driver;
+      if visit mod 20 = 19
+      then (
+        Gc.full_major ();
+        assert (live () <= page_size))
+    done
+  done;
+  assert (!allocations = 2 * count);
+  observe driver ~first:0 ~last:0 ();
+  ignore (result driver : _ V.Output.t);
+  display driver;
+  Gc.full_major ();
+  assert (live () = 0);
+  let growth = (Gc.stat ()).live_words - baseline in
+  assert (growth < 200_000);
+  assert (List.length (S.selected (R.state (projection driver))) = count);
+  assert (T.length (L.Snapshot.tree snapshot) = count);
+  Bonsai_driver.Expert.invalidate_observers driver;
+  print_endline
+    "100k tree nodes, depth 128, all selected; visited twice with 256 active rows; \
+     transient payloads released; retained heap growth below 200k words";
+  [%expect
+    {| 100k tree nodes, depth 128, all selected; visited twice with 256 active rows; transient payloads released; retained heap growth below 200k words |}]
+;;

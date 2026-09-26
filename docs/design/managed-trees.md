@@ -16,8 +16,10 @@ widget now owns preferences, ordered reduction and deferred reveal, with a local
 tested Eio filesystem example. Opt-in native drag now emits typed move proposals
 with endpoint validation and cancellation. An editable outline demonstrates
 application approval and context actions through actual AppKit input. Native GPU
-checks cover focus and drop indicators above opaque row content. Full native
-large/deep workload acceptance remains. No tree capability is advertised.
+checks cover focus and drop indicators above opaque row content. Core/Bonsai and
+native full traversal/revisit now pass at 100,000 rows with depth 128 and bounded
+transient resources. Broader drag and public loading lifecycle acceptance remains.
+No tree capability is advertised.
 This document preserves the full live ticket scope; semantic getters alone do not
 establish interactive native widget acceptance.
 
@@ -638,6 +640,32 @@ selected row. Focus/composition/active interaction pins are bounded and released
 on teardown. Cached row content must remain bounded across a full traversal and
 revisit, following the existing managed-row reset and `Lifetime.guard` contract.
 No capability bit is added until public and native acceptance pass.
+
+### Full traversal and revisit evidence
+
+A Bonsai tree workload constructs 100,000 nodes in chains of maximum depth 128,
+expands every branch and selects every node. It visits the entire projection twice
+with a 256-row active limit. Each activation owns a fresh 2-KiB transient model;
+weak probes after collection show at most 256 live models during traversal and
+zero after eviction. All 200,000 activations occur. Retained heap growth after
+eviction is below 200,000 OCaml words while the application forest and persistent
+selection remain alive. This is measured separately from native rendering.
+
+The native workload likewise visits/revisits 100,000 logical rows, with TreeItem
+depth metadata through 128, all selected and native input/drag enabled. Every
+batch runs production GPUI layout/paint for its 256 mounted row containers and
+text children. Native row mappings/focus handles and selection objects stay within
+that bound; weak probes show evicted selections released. GPUI's recent shaped
+text cache is separately bounded to 512 retained payloads, and window closure
+releases all remaining text. No selection-only focus pins or active drag lease
+appear. Removing the tree releases its list state. Logical order metadata stays
+O(100,000), separate from mounted rows.
+
+Explicit native draw calls make this resource check independent of desktop
+occlusion; it does not claim physical input or an end-to-end 100,000-node public
+application traversal. Existing public examples and native interaction suites
+cover those integration boundaries separately. The harness consumes bounded
+viewport/frame observations between batches, as an OCaml event loop would.
 
 ## Required implementation and acceptance sequence
 

@@ -130,8 +130,10 @@ Core/Bonsai endpoint validation. Local GPUI tests cover all placements, cancella
 preview cleanup and embedded-editor isolation. The public editable outline passes
 actual AppKit drag, confirmation and context-menu moves. Native GPU checks cover
 actual focus/blur and all drop indicators above opaque rows, including changed
-foreground and hover exit. Full native large/deep workload and broader drag
-lifecycle acceptance remain; no tree capability is advertised. See the
+foreground and hover exit. Full traversal and revisit now pass separately through
+Bonsai and native GPUI at 100,000 rows/depth 128, with 256 transient rows and weak
+probes proving model/resource release. Broader drag and public loading lifecycle
+acceptance remain; no tree capability is advertised. See the
 [managed-tree design](design/managed-trees.md).
 
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
