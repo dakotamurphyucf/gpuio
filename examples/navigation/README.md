@@ -26,7 +26,7 @@ completes data work while content is hidden, and verifies scoped shutdown. It
 closes the window on completion or a reported failure. Native tests separately
 cover actual Tab/Enter/AX activation and AppKit description readback.
 
-This example covers implemented navigation/disclosure and modal overlay adapters. Carousel and broader acceptance remain part of OCH-37;
+This example covers implemented navigation/disclosure, carousel and modal overlay adapters. Broader acceptance remains part of OCH-37;
 Linux GUI validation remains OCH-17.
 
 The lab also includes the initial `Sidebar` composition: grouped nested links,
@@ -98,3 +98,45 @@ state machine. `Hover_card.Open_state.Managed` is also available for native-only
 transient visibility. The public self-test checks closed focus rejection,
 open focus eligibility and retained text. `native_hover_card` independently tests
 real input, native delays, accessibility roles and timer disposal.
+
+## Project carousel
+
+Run `_build/default/examples/navigation/main.exe --carousel` for a focused gallery,
+or use the gallery inside the full Navigation Lab. Draft, Review and Deliver have
+independent page styling, a native draft editor, a shared Bonsai star counter, and
+standard first/previous/numbered/next/last controls. Drag an open area or use the
+carousel surface's axis arrows/Home/End. Child editors keep their own keys and
+pointer gestures. Wheel navigation respects the selected axis.
+
+Direction, looping, disabled state and optional four-second auto-advance are
+interactive. Auto-advance pauses for hover, contained focus, dragging, hidden or
+inactive windows and reduced motion; it does not queue ticks while paused. Remove
+the selected delivery page to see selection clamp by the application model, then
+restore the collection without replacing the mounted model's revision lineage.
+
+**Content: retain** preserves the draft's native buffer and lease. Switching to
+**Content: unmount**, leaving Draft, and returning creates a fresh native editor
+with its initial text. This is an explicit demonstration of native resource
+lifetime: the shared Bonsai stars and the workspace's Eio data scope keep living.
+An application that needs drafts to survive native unmount should store those
+values under its own data owner. Native visibility is not a persistence policy.
+
+The typed state/actions and page descriptions live in `carousel_lab.ml` with an
+explicit interface in `carousel_lab.mli`. Native requests go through the public
+Eio event dispatcher and the ordinary Bonsai reducer; Rust never calls the page
+builder synchronously. `--self-test` verifies retained snapshots, old-lease
+rejection after unmount, initial-text remount, queued intents, axis/loop/shrink,
+disabled requests and independent Bonsai/data lifetimes.
+
+On macOS, `python3 scripts/test_carousel.py` additionally runs real AX/keyboard
+interaction against its owned public app. It checks native carousel requests
+through FFI/Eio/Bonsai, current-item help, child editor key precedence, modal
+isolation, both axes, looping, disabled controls, explicit unmount and a native
+auto-advance proposal. The harness forces full motion for its automation check;
+normal application usage follows the system. Add `--images PATH` to capture settled
+page screenshots. It closes and reaps the child on success or failure.
+
+![Public carousel with retained draft](../../docs/images/navigation-carousel.png)
+
+These checks complement the native GPU/pointer suites; broader OCH-37 family
+acceptance and consolidated hosted gates remain tracked in Linear.

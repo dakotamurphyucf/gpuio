@@ -69,7 +69,9 @@ momentum fencing after accepted selection, missing-end fallback, nested scrollin
 reduced-motion input and disposal checks. Native pointer/GPU checks now cover
 axis locking, two-page preview, capture/rebinding, snap/accepted retargeting,
 in-flight grabs, child-control priority and lifecycle/foreign-capture cancellation.
-Public carousel scenarios and full family acceptance remain.
+The public Navigation Lab now verifies native requests through Eio/Bonsai, AX/current
+metadata, native auto-advance and explicit unmount leases while Bonsai/data remain
+alive. Expanded IME/family acceptance and consolidated gates remain.
 Remaining scope includes completing carousel,
 expanded public examples, broader acceptance and hosted gates.
 See [navigation design](design/navigation-components.md) and

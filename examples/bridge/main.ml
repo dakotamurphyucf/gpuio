@@ -129,6 +129,11 @@ let worker native notification_read =
       | Number_input_event _
       | Otp_input_event _
       | Rating_requested _
+      | Calendar_event _
+      | Calendar_result _
+      | Color_input_event _
+      | Color_input_result _
+      | Carousel_requested _
       | Container_selected _
       | Animation_program_event _
       | Animation_endpoint _

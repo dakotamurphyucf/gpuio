@@ -149,6 +149,8 @@ end
 
 let component
       ~sidebar_side
+      ~gallery_observed
+      ~carousel_only
       ~motion_test
       ~set_motion
       ~icon
@@ -174,6 +176,7 @@ let component
            (Text_input.Config.create ~mode:Single_line ~label:"Retained draft" () |> ok))
       graph
   in
+  let gallery = Carousel_lab.component ~observed:gallery_observed window graph in
   let open B.Let_syntax in
   let route_editor =
     Input.create
@@ -230,6 +233,7 @@ let component
   and route_editor = route_editor
   and preview_editor = preview_editor
   and lazy_view = lazy_view
+  and gallery = gallery
   and loaded = loaded
   and icon = icon in
   let page = Option.value (Pagination.current model.pages) ~default:0 in
@@ -377,160 +381,177 @@ let component
            ; Background (Background.solid (Color.token_exn "background"))
            ; Foreground (Color.token_exn "foreground")
            ])
-      [ UI.row
-          ~style:(style [ Gap (px 8.); Wrap Wrap ])
-          ([ Sidebar.toggle
-               model.sidebar
-               ~on_request:(fun request -> inject (Sidebar request))
-               ()
-           ; UI.button ~on_click:(inject (Collapse_mode Icon)) "Icon mode"
-           ; UI.button ~on_click:(inject (Collapse_mode Offcanvas)) "Offcanvas mode"
-           ]
-           @
-           if motion_test
-           then
-             [ UI.button
-                 ~on_click:(set_motion Animation.Preference.Reduce)
-                 "Reduce motion"
+      (if carousel_only
+       then
+         [ UI.text
+             ~style:(style [ Font_size 30.; Font_weight 700 ])
+             "Your work, in motion."
+         ; gallery
+         ; UI.button ~on_click:(inject (Open_drawer Right)) "Gallery details"
+         ; UI.text
+             (if loaded
+              then "Workspace data ready · independent of the visible page"
+              else "Loading workspace data…")
+         ]
+       else
+         [ UI.row
+             ~style:(style [ Gap (px 8.); Wrap Wrap ])
+             ([ Sidebar.toggle
+                  model.sidebar
+                  ~on_request:(fun request -> inject (Sidebar request))
+                  ()
+              ; UI.button ~on_click:(inject (Collapse_mode Icon)) "Icon mode"
+              ; UI.button ~on_click:(inject (Collapse_mode Offcanvas)) "Offcanvas mode"
+              ]
+              @
+              if motion_test
+              then
+                [ UI.button
+                    ~on_click:(set_motion Animation.Preference.Reduce)
+                    "Reduce motion"
+                ]
+              else [])
+         ; UI.text ("Selected destination: " ^ selected)
+         ; UI.text
+             (if model.inspected
+              then "Destination inspected"
+              else "Use Shift-F10 on a destination for its context menu.")
+         ; UI.text
+             ~style:
+               (style
+                  [ Font_size 12.; Foreground (Color.rgb_exn 0xa0b7ed); Font_weight 600 ])
+             "GPUIO / NAVIGATION LAB"
+         ; UI.text
+             ~style:(style [ Font_size 30.; Font_weight 700 ])
+             "A place for every detail."
+         ; gallery
+         ; UI.row
+             ~style:(style [ Gap (px 8.); Wrap Wrap ])
+             (List.map
+                [ Sheet.Edge.Left, "Left"; Right, "Right"; Top, "Top"; Bottom, "Bottom" ]
+                ~f:(fun (edge, label) ->
+                  UI.button ~on_click:(inject (Open_drawer edge)) (label ^ " drawer")))
+         ; UI.hover_card
+             ~key:(Key.of_string_exn "contributor-preview")
+             ~config:
+               (Hover_card.Config.create
+                  ~label:"Contributor preview"
+                  ~open_state:(Controlled model.preview_open)
+                  ()
+                |> ok)
+             ~on_open_change:(fun open_ -> inject (Preview_open open_))
+             ~anchor:(UI.button ~on_click:(E.return ()) "Contributor preview")
+             ~content:
+               (UI.column
+                  ~style:(style [ Gap (px 12.) ])
+                  [ UI.text
+                      ~style:(style [ Font_size 18.; Font_weight 600 ])
+                      "Avery · Design engineer"
+                  ; UI.text
+                      "Hover or focus the trigger to preview. Tab enters this card \
+                       without trapping focus."
+                  ; Input.view
+                      ~style:(style [ Width full; Height (px 40.) ])
+                      preview_editor
+                  ; UI.button ~on_click:(inject (Preview_open false)) "Close preview"
+                  ])
+             ()
+         ; Navigation.breadcrumbs
+             crumbs
+             ~label:"Archive path"
+             ~current_description:"Current location"
+             ~on_navigate:(fun _ -> inject Home)
+             ()
+           |> ok
+         ; card
+             [ UI.text
+                 ~style:(style [ Font_size 19.; Font_weight 600 ])
+                 (sprintf "Archive · page %d" page)
+             ; UI.text
+                 (if loaded
+                  then
+                    "Archive metadata loaded. Data tasks are independent of visible \
+                     content."
+                  else "Loading archive metadata…")
+             ; Navigation.pagination
+                 model.pages
+                 ~on_request:(fun request -> inject (Page request))
+                 ()
+               |> ok
+             ; UI.row
+                 ~style:(style [ Gap (px 8.); Wrap Wrap ])
+                 [ UI.button ~on_click:(inject (Total 3)) "Shrink to 3 pages"
+                 ; UI.button
+                     ~on_click:(inject (Total Pagination.max_pages))
+                     "Restore billion-page archive"
+                 ]
              ]
-           else [])
-      ; UI.text ("Selected destination: " ^ selected)
-      ; UI.text
-          (if model.inspected
-           then "Destination inspected"
-           else "Use Shift-F10 on a destination for its context menu.")
-      ; UI.text
-          ~style:
-            (style
-               [ Font_size 12.; Foreground (Color.rgb_exn 0xa0b7ed); Font_weight 600 ])
-          "GPUIO / NAVIGATION LAB"
-      ; UI.text
-          ~style:(style [ Font_size 30.; Font_weight 700 ])
-          "A place for every detail."
-      ; UI.row
-          ~style:(style [ Gap (px 8.); Wrap Wrap ])
-          (List.map
-             [ Sheet.Edge.Left, "Left"; Right, "Right"; Top, "Top"; Bottom, "Bottom" ]
-             ~f:(fun (edge, label) ->
-               UI.button ~on_click:(inject (Open_drawer edge)) (label ^ " drawer")))
-      ; UI.hover_card
-          ~key:(Key.of_string_exn "contributor-preview")
-          ~config:
-            (Hover_card.Config.create
-               ~label:"Contributor preview"
-               ~open_state:(Controlled model.preview_open)
-               ()
-             |> ok)
-          ~on_open_change:(fun open_ -> inject (Preview_open open_))
-          ~anchor:(UI.button ~on_click:(E.return ()) "Contributor preview")
-          ~content:
-            (UI.column
-               ~style:(style [ Gap (px 12.) ])
-               [ UI.text
-                   ~style:(style [ Font_size 18.; Font_weight 600 ])
-                   "Avery · Design engineer"
-               ; UI.text
-                   "Hover or focus the trigger to preview. Tab enters this card without \
-                    trapping focus."
-               ; Input.view ~style:(style [ Width full; Height (px 40.) ]) preview_editor
-               ; UI.button ~on_click:(inject (Preview_open false)) "Close preview"
-               ])
-          ()
-      ; Navigation.breadcrumbs
-          crumbs
-          ~label:"Archive path"
-          ~current_description:"Current location"
-          ~on_navigate:(fun _ -> inject Home)
-          ()
-        |> ok
-      ; card
-          [ UI.text
-              ~style:(style [ Font_size 19.; Font_weight 600 ])
-              (sprintf "Archive · page %d" page)
-          ; UI.text
-              (if loaded
-               then
-                 "Archive metadata loaded. Data tasks are independent of visible content."
-               else "Loading archive metadata…")
-          ; Navigation.pagination
-              model.pages
-              ~on_request:(fun request -> inject (Page request))
-              ()
-            |> ok
-          ; UI.row
-              ~style:(style [ Gap (px 8.); Wrap Wrap ])
-              [ UI.button ~on_click:(inject (Total 3)) "Shrink to 3 pages"
-              ; UI.button
-                  ~on_click:(inject (Total Pagination.max_pages))
-                  "Restore billion-page archive"
-              ]
-          ]
-      ; card
-          [ UI.text
-              ~style:(style [ Font_size 19.; Font_weight 600 ])
-              "Native route transitions"
-          ; UI.row
-              ~style:(style [ Gap (px 8.) ])
-              [ UI.button
-                  ~disabled:(not (Navigation_stack.can_pop model.routes))
-                  ~on_click:(inject Route_back)
-                  "Back to draft"
-              ; UI.button
-                  ~disabled:(not (Navigation_stack.can_forward model.routes))
-                  ~on_click:(inject Route_forward)
-                  "Open preview"
-              ; UI.button ~on_click:(inject Route_replace) "Replace route"
-              ]
-          ; UI.navigation_stack
-              model.routes
-              ~label:"Workspace routes"
-              ~hidden:Retain
-              ~style:(style [ Width full; Height (px 130.); Shrink 0. ])
-              ~page_style:
-                (style [ Width full; Height full; Padding (px 12.); Gap (px 10.) ])
-              ~content:(fun entry ->
-                let label = Navigation_stack.Entry.label entry in
-                [ UI.text ~style:(style [ Font_weight 600 ]) label
-                ; (if String.equal label "Draft"
-                   then
-                     Input.view
-                       ~style:(style [ Width full; Height (px 40.) ])
-                       route_editor
-                   else UI.text (Navigation_stack.Entry.data entry))
-                ; UI.text
-                    "Route selection changes immediately; presentation and focus stay \
-                     native."
-                ])
-              ()
-          ]
-      ; UI.disclosure
-          ~key:(Key.of_string_exn "draft")
-          ~label:"Retained draft"
-          ~expanded:model.details
-          ~hidden:Retain
-          ~on_toggle:(inject Toggle_details)
-          [ card
-              [ Input.view ~style:(style [ Width full; Height (px 40.) ]) editor
-              ; UI.text
-                  "Collapsing this panel keeps the editor and its Bonsai computation \
-                   alive."
-              ]
-          ]
-      ; card
-          [ UI.row
-              ~style:(style [ Gap (px 12.); Align_items Center ])
-              [ UI.button
-                  ~on_click:(inject Toggle_lazy)
-                  (if model.lazy_content
-                   then "Deactivate lazy content"
-                   else "Activate lazy content")
-              ; lazy_view
-              ]
-          ; UI.text
-              "This switch changes a Bonsai branch. It does not cancel the archive data \
-               scope."
-          ]
-      ]
+         ; card
+             [ UI.text
+                 ~style:(style [ Font_size 19.; Font_weight 600 ])
+                 "Native route transitions"
+             ; UI.row
+                 ~style:(style [ Gap (px 8.) ])
+                 [ UI.button
+                     ~disabled:(not (Navigation_stack.can_pop model.routes))
+                     ~on_click:(inject Route_back)
+                     "Back to draft"
+                 ; UI.button
+                     ~disabled:(not (Navigation_stack.can_forward model.routes))
+                     ~on_click:(inject Route_forward)
+                     "Open preview"
+                 ; UI.button ~on_click:(inject Route_replace) "Replace route"
+                 ]
+             ; UI.navigation_stack
+                 model.routes
+                 ~label:"Workspace routes"
+                 ~hidden:Retain
+                 ~style:(style [ Width full; Height (px 130.); Shrink 0. ])
+                 ~page_style:
+                   (style [ Width full; Height full; Padding (px 12.); Gap (px 10.) ])
+                 ~content:(fun entry ->
+                   let label = Navigation_stack.Entry.label entry in
+                   [ UI.text ~style:(style [ Font_weight 600 ]) label
+                   ; (if String.equal label "Draft"
+                      then
+                        Input.view
+                          ~style:(style [ Width full; Height (px 40.) ])
+                          route_editor
+                      else UI.text (Navigation_stack.Entry.data entry))
+                   ; UI.text
+                       "Route selection changes immediately; presentation and focus stay \
+                        native."
+                   ])
+                 ()
+             ]
+         ; UI.disclosure
+             ~key:(Key.of_string_exn "draft")
+             ~label:"Retained draft"
+             ~expanded:model.details
+             ~hidden:Retain
+             ~on_toggle:(inject Toggle_details)
+             [ card
+                 [ Input.view ~style:(style [ Width full; Height (px 40.) ]) editor
+                 ; UI.text
+                     "Collapsing this panel keeps the editor and its Bonsai computation \
+                      alive."
+                 ]
+             ]
+         ; card
+             [ UI.row
+                 ~style:(style [ Gap (px 12.); Align_items Center ])
+                 [ UI.button
+                     ~on_click:(inject Toggle_lazy)
+                     (if model.lazy_content
+                      then "Deactivate lazy content"
+                      else "Activate lazy content")
+                 ; lazy_view
+                 ]
+             ; UI.text
+                 "This switch changes a Bonsai branch. It does not cancel the archive \
+                  data scope."
+             ]
+         ])
   in
   let content =
     UI.with_accessibility
@@ -558,6 +579,8 @@ let () =
     then Sidebar.Side.Right
     else Left
   in
+  let carousel_only = Array.exists (Sys.get_argv ()) ~f:(String.equal "--carousel") in
+  let gallery_observed = ref None in
   let observed = ref None
   and lazy_activations = ref 0
   and lazy_deactivations = ref 0 in
@@ -581,6 +604,8 @@ let () =
            ~height:760.
            (component
               ~sidebar_side
+              ~gallery_observed
+              ~carousel_only
               ~motion_test
               ~set_motion:(fun policy -> E.of_thunk (fun () -> App.set_motion app policy))
               ~icon
@@ -764,6 +789,107 @@ let () =
                     Sidebar.is_expanded (model ()).sidebar (Model.sidebar_id "Archive"));
                   assert (
                     String.equal (Text_input.Snapshot.text (read ())) "Preserved draft 👩🏽‍💻");
+                  let gallery () = Option.value_exn !gallery_observed in
+                  let gallery_model () = (gallery ()).model in
+                  let gallery_send action = on_ui ((gallery ()).inject action) in
+                  let gallery_read () =
+                    match on_ui (Input.read_snapshot (gallery ()).editor) with
+                    | Ok snapshot -> snapshot
+                    | Error error -> raise_s [%sexp (error : Text_input.Command_error.t)]
+                  in
+                  let await_gallery label =
+                    await (fun () ->
+                      String.equal
+                        (Carousel_lab.Model.selected_label (gallery_model ()))
+                        label)
+                  in
+                  await (fun () ->
+                    Option.exists !gallery_observed ~f:(fun observation ->
+                      Option.is_some (Input.snapshot observation.editor)));
+                  let old_controller = (gallery ()).editor in
+                  (match
+                     on_ui
+                       (Input.replace
+                          old_controller
+                          ~selection:End
+                          ~undo:Record
+                          "Carousel draft 👩🏽‍💻")
+                   with
+                   | Ok _ -> ()
+                   | Error error -> raise_s [%sexp (error : Text_input.Command_error.t)]);
+                  let gallery_before = gallery_read () in
+                  on_ui
+                    (E.Many
+                       (List.init 3 ~f:(fun _ ->
+                          (gallery ()).inject Carousel_lab.Action.Increment)));
+                  gallery_send (Navigate Carousel.Request.next);
+                  await_gallery "Review";
+                  assert (Text_input.Snapshot.equal gallery_before (gallery_read ()));
+                  assert (Result.is_error (on_ui (Input.focus (gallery ()).editor)));
+                  gallery_send Toggle_axis;
+                  await (fun () ->
+                    Carousel.Axis.equal
+                      (Carousel_lab.Model.axis (gallery_model ()))
+                      Vertical);
+                  gallery_send (Navigate Carousel.Request.next);
+                  await_gallery "Deliver";
+                  gallery_send (Navigate Carousel.Request.next);
+                  await_gallery "Draft";
+                  assert (Carousel_lab.Model.requests (gallery_model ()) = 3);
+                  assert (Text_input.Snapshot.equal gallery_before (gallery_read ()));
+                  gallery_send Toggle_looping;
+                  gallery_send (Navigate Carousel.Request.last);
+                  await_gallery "Deliver";
+                  gallery_send Trim;
+                  await_gallery "Review";
+                  gallery_send Restore;
+                  gallery_send (Navigate Carousel.Request.first);
+                  await_gallery "Draft";
+                  assert (Text_input.Snapshot.equal gallery_before (gallery_read ()));
+                  gallery_send Toggle_lifetime;
+                  await (fun () ->
+                    Content_policy.equal
+                      (Carousel_lab.Model.hidden (gallery_model ()))
+                      Unmount);
+                  gallery_send (Navigate Carousel.Request.next);
+                  await_gallery "Review";
+                  assert (
+                    Result.equal
+                      Text_input.Snapshot.equal
+                      Text_input.Command_error.equal
+                      (on_ui (Input.read_snapshot old_controller))
+                      (Error Stale_editor));
+                  assert (Carousel_lab.Model.counter (gallery_model ()) = 3);
+                  assert (Scope.is_active data_scope && not !data_cancelled);
+                  gallery_send (Navigate Carousel.Request.first);
+                  await_gallery "Draft";
+                  await (fun () ->
+                    Option.exists (Input.snapshot (gallery ()).editor) ~f:(fun snapshot ->
+                      String.equal
+                        (Text_input.Snapshot.text snapshot)
+                        Carousel_lab.initial_draft));
+                  assert (
+                    String.equal
+                      (Text_input.Snapshot.text (gallery_read ()))
+                      Carousel_lab.initial_draft);
+                  assert (
+                    Result.equal
+                      Text_input.Snapshot.equal
+                      Text_input.Command_error.equal
+                      (on_ui (Input.read_snapshot old_controller))
+                      (Error Stale_editor));
+                  assert (Carousel_lab.Model.counter (gallery_model ()) = 3);
+                  gallery_send Toggle_lifetime;
+                  gallery_send Toggle_disabled;
+                  gallery_send (Navigate Carousel.Request.next);
+                  await (fun () -> Carousel_lab.Model.requests (gallery_model ()) = 8);
+                  assert (
+                    String.equal
+                      (Carousel_lab.Model.selected_label (gallery_model ()))
+                      "Draft");
+                  gallery_send Toggle_disabled;
+                  gallery_send Toggle_axis;
+                  assert (Scope.is_active data_scope && not !data_cancelled);
                   await (fun () -> Option.is_some (B.Expert.Var.get icon));
                   completed := true))
               ~on_result:(fun result ->
@@ -778,5 +904,7 @@ let () =
     assert (!lazy_activations = 2 && !lazy_deactivations = 2);
     Eio.traceln
       "GPUIO_NAVIGATION_PUBLIC_OK: bounded pages, queued intents, shrink, retained \
-       draft, lazy lifecycle, independent Eio data and scoped teardown")
+       draft, lazy lifecycle, independent Eio data and scoped teardown; carousel queued \
+       requests, axis/loop/shrink, retained draft, explicit unmount leases and \
+       independent Bonsai/data lifetime")
 ;;

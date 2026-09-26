@@ -635,6 +635,7 @@ before dropping the owner, including when old frame listeners still retain it.
 Implementation status: Core/Bonsai constructors, paired envelopes, admission,
 request dispatch, horizontal/vertical page presentation, keyboard, bounded wheel
 input, pointer drag/snapping and native automatic scheduling are implemented and
-locally tested on macOS. Public Navigation Lab carousel scenarios and full
-accessibility/family acceptance remain pending. No carousel capability is advertised;
+locally tested on macOS. The public Navigation Lab additionally verifies keyboard/AX,
+native auto-advance, explicit unmount leases and independent Bonsai/Eio lifetimes.
+Expanded IME/nested-family acceptance and consolidated gates remain pending. No carousel capability is advertised;
 the gesture scope has not been replaced by the default buttons.

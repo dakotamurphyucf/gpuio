@@ -936,3 +936,55 @@ physical trackpad, touchscreen, VoiceOver speech or Linux GUI acceptance. Public
 carousel scenarios, expanded AX/IME/nested-family and unmount-policy composition
 acceptance remain before OCH-37 completion. No hosted CI/merge is claimed; the full
 milestone scope and consolidated macOS/Linux gates remain active.
+
+## Public carousel and native event dispatch — 2026-09-26
+
+`examples/navigation/carousel_lab.ml/.mli` now provides an application-owned
+Bonsai model and styled Draft/Review/Deliver pages with a native editor. Direction,
+looping, auto-advance, disabled state, explicit content policy and collection shrink
+are interactive. The shared star count and workspace data scope demonstrate
+application lifetimes independently of native visibility. `--carousel` presents a
+focused gallery; the default Navigation Lab composes it with the existing families.
+
+Building the public application exposed a missing `Carousel_requested` arm in the
+Eio dispatcher. It now follows the ordinary window/driver dispatch route. The
+aggregate build also found stale exhaustive matches in the two lower-level bridge
+examples; calendar/color/carousel variants are explicitly listed there. No catch-all
+was added to conceal future protocol changes.
+
+Local macOS public evidence:
+
+- `main.exe --self-test` passes queued carousel intents, axis/loop, collection shrink,
+  Retain snapshot equality, hidden focus rejection, native Unmount old-lease errors,
+  initial-text remount and independent Bonsai stars/Eio data scope. Existing route,
+  disclosure, hover-card, drawer, sidebar and lifecycle checks also pass.
+- `scripts/test_carousel.py` passes real AX focus and native arrow/Home/End delivery
+  to the carousel Region. Unlike a direct reducer test or AXPress on a default
+  button, those keys emit `Carousel_requested` through Rust/FFI/Eio/Bonsai and then
+  receive the accepted application update. A four-second native auto-advance proposal
+  independently completes the same path with its revision/source/target payload.
+- Current numbered button help reads **Current item**. Inactive draft AX content
+  disappears; editor arrows stay inside the editor; retained Unicode text survives.
+  A modal drawer prevents background navigation. Disabled controls expose disabled
+  state; removing the selected delivery page selects Review.
+- Explicit Unmount recreates the native draft with initial text while the shared
+  Bonsai star remains. The harness forces full motion for the clock test, uses only
+  its owned process, and closes/reaps it on completion or failure.
+- Settled page screenshots were inspected. The retained draft image is stored at
+  `docs/images/navigation-carousel.png`; extra page captures stay in scratch.
+- Aggregate Dune `@all @runtest @fmt` passes after the dispatcher and example fixes.
+
+Commands:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @runtest @fmt
+_build/default/examples/navigation/main.exe --self-test
+python3 scripts/test_carousel.py --images scratch/agents/root-20260925-resumed/carousel-public-images
+git diff --check
+```
+
+Logs: `carousel-public-dune-all-final.log`, `carousel-public-self-test-final.log`,
+`carousel-public-ax-final.log`. The CI workflow now includes the public carousel AX
+check alongside the native gesture suite and existing public navigation check.
+No hosted run, Linux GUI or completed OCH-37/milestone acceptance is claimed here;
+expanded IME/nested-family acceptance and consolidated platform gates remain.

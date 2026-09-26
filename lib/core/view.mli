@@ -373,8 +373,11 @@ val navigation_stack
     arrows on the selected axis; child editors and other native widgets keep their
     own keys. Optional auto-advance runs on native deadlines after settled visible
     paint, pausing for interaction, hidden/inactive windows and reduced motion.
-    Pointer drag/wheel gestures and full accessibility acceptance remain under
-    implementation. *)
+    Pointer dragging previews the accepted and adjacent pages natively, emitting
+    one request on release. Ignored requests snap back; accepted updates retarget
+    from painted geometry. Child native controls keep input precedence. Wheel
+    input respects the configured axis and groups momentum into bounded bursts.
+    Full component accessibility acceptance remains under implementation. *)
 val carousel
   :  'data Carousel.t
   -> ?key:Key.t
