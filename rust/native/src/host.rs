@@ -52,6 +52,8 @@ pub(super) mod calendar_view;
 mod choice;
 #[path = "choice_popup.rs"]
 mod choice_popup;
+#[path = "color_input_view.rs"]
+pub(super) mod color_input_view;
 #[path = "combobox.rs"]
 mod combobox;
 #[path = "command.rs"]
@@ -162,6 +164,7 @@ struct View {
     numbers: BTreeMap<NodeId, number_input_view::Instance>,
     otps: BTreeMap<NodeId, otp_input_view::Instance>,
     calendars: BTreeMap<NodeId, calendar_view::Instance>,
+    color_inputs: BTreeMap<NodeId, color_input_view::Instance>,
     tooltips: BTreeMap<NodeId, tooltip::State>,
     tooltip_last_closed: Option<std::time::Instant>,
     command_subscription: Option<gpui::Subscription>,
@@ -386,6 +389,7 @@ impl View {
             numbers: BTreeMap::new(),
             otps: BTreeMap::new(),
             calendars: BTreeMap::new(),
+            color_inputs: BTreeMap::new(),
             tooltips: BTreeMap::new(),
             tooltip_last_closed: None,
             command_subscription: None,
@@ -433,6 +437,7 @@ impl View {
         self.sync_numbers(dirty, window, cx);
         self.sync_otps(dirty, window, cx);
         self.sync_calendars(dirty, window, cx);
+        self.sync_color_inputs(dirty, window, cx);
         // An unselected query branch is hidden even before the first layout.
         // Do not count time waiting for its first visible paint as active motion.
         self.suspend_hidden_animations();
@@ -614,6 +619,9 @@ impl View {
                 .text_color(rgba(0xe8ad36ff))
                 .focus(|style| style.border_color(rgba(0x6688ffff)));
         }
+        if node.color_input.is_some() {
+            element = element.w(px(296.)).min_w(px(0.)).text_size(px(13.));
+        }
         if node.calendar.is_some() {
             element = element
                 .w(px(296.))
@@ -743,6 +751,7 @@ impl View {
                 .is_some_and(|n| n.config.disabled)
             || node.otp_input.as_ref().is_some_and(|n| n.config.disabled)
             || node.calendar.as_ref().is_some_and(|n| n.config.disabled)
+            || node.color_input.as_ref().is_some_and(|n| n.config.disabled)
             || node.rating.as_ref().is_some_and(|config| config.disabled)
             || node
                 .slider
@@ -884,6 +893,10 @@ impl View {
                 if editor.focus_handle(cx).is_focused(window) {
                     element.style().refine(&style);
                 }
+            } else if let Some(color) = self.color_inputs.get(&id) {
+                if color.focused(window, cx) {
+                    element.style().refine(&style);
+                }
             } else if let Some(calendar) = self.calendars.get(&id) {
                 if calendar.focus_handle(cx).is_focused(window) {
                     element.style().refine(&style);
@@ -982,6 +995,9 @@ impl View {
                 window,
                 cx,
             );
+        } else if let Some(color) = self.color_inputs.get(&id) {
+            self.visited.insert(id);
+            element = color.element(element, interaction.pointer, cx);
         } else if let Some(calendar) = self.calendars.get(&id) {
             self.visited.insert(id);
             element = calendar.element(element, interaction.pointer, cx);
@@ -1195,6 +1211,7 @@ impl View {
             && node.number_input.is_none()
             && node.otp_input.is_none()
             && node.calendar.is_none()
+            && node.color_input.is_none()
             && node.overlay.is_none()
             && node.pointer.is_none()
             && node.image.is_none()
@@ -1389,6 +1406,7 @@ impl View {
                 && node.number_input.is_none()
                 && node.otp_input.is_none()
                 && node.calendar.is_none()
+                && node.color_input.is_none()
             {
                 node.accessibility.clone()
             } else {
@@ -1478,7 +1496,11 @@ impl Render for View {
         let mut root = drag_drop::root(div(), self.id, cx)
             .capture_key_down(cx.listener(|view, event: &gpui::KeyDownEvent, window, cx| {
                 if event.keystroke.key == "escape"
-                    && (view.cancel_split_drag(window, cx)
+                    && (view.cancel_color_inputs(
+                        gpuio_protocol::color_input::CancelReason::Escape,
+                        window,
+                        cx,
+                    ) | view.cancel_split_drag(window, cx)
                         | view.cancel_slider_drags(
                             gpuio_protocol::slider::CancelReason::Escape,
                             window,
@@ -1554,6 +1576,7 @@ impl Render for View {
         self.hide_unvisited_numbers(window, cx);
         self.hide_unvisited_otps(window, cx);
         self.hide_unvisited_calendars(window, cx);
+        self.hide_unvisited_color_inputs(window, cx);
         self.buttons.retain(|id, _| self.visited.contains(id));
         self.radios.retain(|id, _| self.visited.contains(id));
         self.ratings.retain(|id, _| self.visited.contains(id));
@@ -1606,6 +1629,10 @@ impl Render for View {
                     .calendars
                     .values()
                     .any(|calendar| calendar.focus_handle(cx).is_focused(window))
+                || self
+                    .color_inputs
+                    .values()
+                    .any(|state| state.focused(window, cx))
                 || self.sliders.values().any(|state| {
                     state
                         .borrow()
@@ -1943,7 +1970,7 @@ pub fn run(transport: Arc<Transport>) {
                                     transport.respond(Event::Closed(correlation, id));
                                     if let Some(window) = windows.remove(&id) {
                                         let _ = window
-                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); view.cancel_split_drag(window, cx); view.extensions.clear(); for state in view.canvases.values() { state.borrow_mut().close(window); } view.canvases.clear(); window.remove_window(); });
+                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); view.close_color_inputs(window, cx); view.cancel_split_drag(window, cx); view.extensions.clear(); for state in view.canvases.values() { state.borrow_mut().close(window); } view.canvases.clear(); window.remove_window(); });
                                     }
                                 }
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),

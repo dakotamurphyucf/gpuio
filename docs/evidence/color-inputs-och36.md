@@ -132,3 +132,44 @@ checkpoint in Linear. No native window was opened; this is bridge acceptance,
 not mounted color-widget acceptance. Native controls, correlated runtime commands,
 popup/example, actual macOS interaction/AX/GPU/lifetime checks, capability
 advertisement and consolidated hosted gates remain pending.
+
+## Initial mounted channel/palette checkpoint — 2026-09-25
+
+`native_color_input` now opens a real macOS GPUI window and dispatches native
+keyboard/pointer events. It passes arrow adjustment, continuous unsnapped hue
+preview (134.64 degrees), captured dragging across paints, Escape restoration,
+pointer completion with nearest-byte alpha rounding, palette Enter activation,
+Tab traversal into Clear, Clear activation, restrictive configuration during a
+drag with cancellation/capture release, late release suppression, handler rebinding during a captured drag without
+faulting the owner, historical alpha validity, disabled input/focus isolation and entity disposal after removal.
+The test checks ordered native observations and protects application shutdown
+on assertion failure. This is GPUI-dispatched input, not external OS keyboard or
+IME acceptance.
+
+The first pointer test caught a real routing issue: a child canvas hitbox blocked
+the parent div's mouse-down handler. The callback now belongs to the painted
+track hitbox. A visual readback also prompted replacing a banded sampled rail
+with at most six smooth GPU gradients. Light/dark readbacks use explicit inherited
+foreground/background styles; full appearance/scale/constrained-layout acceptance
+is still pending.
+
+All existing native slider tests pass after widening focus-part IDs to u16:
+GPU styles/scales, native AppKit values/actions, capture/minimize/window lifetimes
+and three 1,024-owner workload/disposal cycles. Core form metadata now accepts
+color inputs. Native calendar metadata admission was corrected to match its
+existing Core API; both calendar/color native metadata update/invalid-role
+rollback regressions pass. The four bridge suites total 24 passing tests.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @test/view_api/runtest @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --test color_input --test calendar --test otp_input --test slider
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-image-tests --test native_color_input --test native_slider
+```
+
+Final native all-target Clippy and format checks pass. Light/dark readbacks were
+visually reviewed for legible labels/values, smooth ramps and contrasting thumbs.
+The CI workflow now builds this test on both platforms and runs it on macOS;
+that hosted run remains pending. Checkpoint details also appear in Linear.
+Native text editors, runtime commands, popup/example, actual OS AX/IME input, full
+color lifecycle/workload tests, capability advertisement, required hosted gates
+and merge remain pending. No full OCH-36 or milestone acceptance is claimed.

@@ -161,11 +161,15 @@ that their AX Increment/Decrement handlers call `set_value`, which notifies the
 entity without emitting a SliderEvent, and their private drag flag has no public
 cancel method. Direct event subscription alone therefore cannot satisfy the
 color owner contract. GPUIO's existing slider adapter already implements capture
-loss, keyboard/AX input and gate handling; a private reusable presentation/input
-boundary is being evaluated. No public slider API change or upstream patch has
-been made. Base ColorSwatch provides a useful controlled radio/toggled
-presentation and native focus; actual keyboard and accessibility acceptance is
-still required. These are source findings, not mounted color-control acceptance.
+loss, keyboard/AX input and gate handling. The initial color adapter follows
+those capture/input gates directly over the color policy. Reusing the standalone slider model would introduce a second,
+step-quantized channel value, so color channels retain their unquantized HSLA
+values in one owner. No public slider API change or upstream patch has been made.
+Base ColorSwatch provides controlled radio/toggled presentation, but owns a
+private keyed focus handle. GPUIO uses the corresponding GPUI radio/toggled
+primitives with explicit retained handles so palette parts join its modal and
+managed-list focus registry. Mounted channel/palette keyboard and pointer checks
+now pass; full OS accessibility and text-editor acceptance remain pending.
 
 The planned owner retains native channel editors/sliders, hue memory, draft,
 baseline and revision. Preserve editing hue when a gesture becomes achromatic;
@@ -174,8 +178,8 @@ preview updates and paint must not depend on a Bonsai round trip. Preview events
 may coalesce within an interaction; commits/cancellations remain discrete
 ordering boundaries. Cancel restores the complete baseline, and Set/Reset fences
 late callbacks from the old interaction. Existing editor, focus, overlay and
-ownership adapters should be reused. A mounted adapter experiment will select
-the smallest safe integration boundary before exposing control interfaces.
+ownership adapters should be reused. The native adapter now renders channels
+and palette/clear controls directly from that owner. Text editors and public runtime controllers are next.
 
 Mounted lifecycle behavior and public runtime controllers remain to be
 implemented and validated. An eyedropper remains capability-specific
@@ -208,3 +212,29 @@ not composing. Admission checks both queue count and bytes before replacing any
 previous preview. On failure the queue remains unchanged. Coalescing is limited
 to adjacent previews in the same route, interaction and committed baseline;
 commit, cancel, command-result and render events remain ordering barriers.
+
+## Initial mounted channels and palette
+
+`color_input_view.rs` retains one native policy and explicit focus handles for four
+channels, up to 256 palette entries and Clear. `color_input_channels.rs` handles
+continuous pointer fractions without integer-step quantization. Arrow and AX
+increment/decrement actions use one degree/percentage point; Page Up/Down use ten.
+Home/End select channel endpoints (hue 360 canonically wraps to zero). The ramps
+use at most six native gradient segments; repaint never waits for OCaml.
+
+Pointer start and final preview/commit observations use atomic color batches.
+Capture is retained across stable paints, released on cancel/configuration changes
+and denied while disabled/read-only or outside the native input gate. Restricted
+alpha controls and incompatible palette entries are disabled. Palette/clear
+activation goes through GPUI's native click/keyboard routing. Configuration can
+retire focus handles and clears focus from newly unavailable parts.
+
+Host hooks cover Escape, visibility/modal exclusion, window deactivation, native
+close and managed-list retention. These hooks are implemented; only the scenarios
+listed in the evidence ledger are currently validated. Native form metadata is
+admitted without overriding the control's role/actions. Internal focus-part IDs
+are u16, allowing all 256 palette entries plus other controls without aliasing.
+
+The initial mounted test covers channels and palette. Hex/channel text editing,
+correlated runtime commands, popup composition, public example, comprehensive
+AX/IME/lifecycle/workload validation and capability advertisement remain pending.

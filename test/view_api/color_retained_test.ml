@@ -210,3 +210,26 @@ let%expect_test
   [%expect
     {| stable seed, callback-only refresh, pending updates, duplicate owners and stale leases fenced |}]
 ;;
+
+let%expect_test "color input form metadata uses the retained owner's native role" =
+  let view =
+    View.color_input
+      ~controller:(Key.of_string_exn "accent")
+      ~config
+      ~initial
+      ~on_event:Fn.id
+      ()
+  in
+  let field =
+    Accessibility.Field.create ~label:"Accent" ~help:"Choose a color" ~required:true ()
+    |> ok
+  in
+  let view = View.with_accessibility view (Accessibility.field field) |> ok in
+  let reconciler = Reconciler.create window in
+  let update = Reconciler.prepare reconciler ~theme:Theme.default (Some view) |> ok in
+  assert (Option.is_some (Reconciler.message update));
+  let invalid = Accessibility.create ~role:Accessibility.Role.Link () |> ok in
+  assert (Result.is_error (View.with_accessibility view invalid));
+  print_endline "Form metadata accepted; native color role cannot be overridden";
+  [%expect {| Form metadata accepted; native color role cannot be overridden |}]
+;;

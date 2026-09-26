@@ -71,6 +71,8 @@ impl Config {
                         | Kind::Slider
                         | Kind::NumberInput
                         | Kind::OtpInput
+                        | Kind::Calendar
+                        | Kind::ColorInput
                         | Kind::RadioGroup
                         | Kind::Select
                 );
@@ -104,6 +106,8 @@ impl Config {
                     | Kind::Slider
                     | Kind::NumberInput
                     | Kind::OtpInput
+                    | Kind::Calendar
+                    | Kind::ColorInput
                     | Kind::RadioGroup
                     | Kind::Select
             ),

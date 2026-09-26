@@ -29,7 +29,7 @@ pub(super) struct Manager {
     scopes: BTreeMap<NodeId, Scope>,
     entries: Vec<Entry>,
     surfaces: BTreeMap<NodeId, Vec<Rc<Cell<Bounds<Pixels>>>>>,
-    seen: BTreeSet<(NodeId, u8)>,
+    seen: BTreeSet<(NodeId, u16)>,
     active: Option<NodeId>,
     hidden: BTreeSet<NodeId>,
     query_hidden: BTreeSet<NodeId>,
@@ -148,6 +148,7 @@ impl Manager {
                 .is_some_and(|n| n.config.disabled)
             || item.otp_input.as_ref().is_some_and(|n| n.config.disabled)
             || item.calendar.as_ref().is_some_and(|n| n.config.disabled)
+            || item.color_input.as_ref().is_some_and(|n| n.config.disabled)
             || item.choice.as_ref().is_some_and(|config| config.disabled)
             || item.rating.as_ref().is_some_and(|config| config.disabled)
             || item
@@ -388,7 +389,7 @@ impl Manager {
     pub(super) fn record_part(
         &mut self,
         node: NodeId,
-        part: u8,
+        part: u16,
         handle: FocusHandle,
         tab_stop: bool,
         focused: bool,

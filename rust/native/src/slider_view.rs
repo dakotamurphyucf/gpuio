@@ -651,7 +651,7 @@ pub(super) fn element(
                     {
                         gate.borrow_mut().record_part(
                             node,
-                            part as u8,
+                            part as u16,
                             record.clone(),
                             focusable,
                             record.is_focused(window),

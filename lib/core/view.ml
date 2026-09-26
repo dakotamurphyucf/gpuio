@@ -345,7 +345,8 @@ let with_accessibility t accessibility =
         | Slider
         | Number_input
         | Otp_input
-        | Calendar ) ) -> true
+        | Calendar
+        | Color_input ) ) -> true
     | None, Some Link, (Button | Command_button) -> true
     | ( None
       , Some
@@ -377,7 +378,8 @@ let with_accessibility t accessibility =
         | Slider
         | Number_input
         | Otp_input
-        | Calendar ) ) -> true
+        | Calendar
+        | Color_input ) ) -> true
     | _ -> false
   in
   if supported

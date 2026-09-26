@@ -481,3 +481,52 @@ fn batch_byte_admission_keeps_the_previous_tail_and_drain_is_bounded() {
         [preview(3), pair(4)[0].clone(), pair(4)[1].clone()]
     );
 }
+
+#[test]
+fn form_metadata_updates_preserve_the_retained_seed_and_reject_role_overrides() {
+    use gpuio_protocol::accessibility as a;
+    let mut s = session();
+    mount(&mut s);
+    let metadata = a::Config {
+        role: None,
+        label: None,
+        description: None,
+        live: a::Live::Off,
+        field: Some(a::Field {
+            label: "Selection".into(),
+            help: Some("Choose a value".into()),
+            error: Some("Required by this form".into()),
+            required: true,
+        }),
+    };
+    s.apply(&tx(
+        1,
+        vec![Op::SetAccessibility(node(), Some(metadata.clone()))],
+    ))
+    .unwrap();
+    assert_eq!(
+        s.tree(window())
+            .unwrap()
+            .get(node())
+            .unwrap()
+            .accessibility
+            .as_deref(),
+        Some(&metadata)
+    );
+    let mut invalid = metadata.clone();
+    invalid.role = Some(a::Role::Link);
+    assert!(
+        s.apply(&tx(2, vec![Op::SetAccessibility(node(), Some(invalid))]))
+            .is_err()
+    );
+    assert_eq!(s.tree(window()).unwrap().revision(), 2);
+    assert_eq!(
+        s.tree(window())
+            .unwrap()
+            .get(node())
+            .unwrap()
+            .accessibility
+            .as_deref(),
+        Some(&metadata)
+    );
+}

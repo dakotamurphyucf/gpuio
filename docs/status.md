@@ -168,8 +168,10 @@ stale callbacks, configuration history and revision/fault lifetimes. Core contro
 contracts and bounded standalone Rust/OCaml codecs now pass independent byte
 fixtures and malformed/maximum-payload checks. Retained descriptions, tree seed/
 history semantics, revision-checked routing and atomic bounded event batches now
-pass local bridge tests. Mounted color controls, runtime controllers and public
-example remain in progress. See [color design](design/color-inputs.md)
+pass local bridge tests. Initial mounted channel/palette checks now pass native
+keyboard/Tab, pointer preview/commit/Escape, configuration-during-drag, disabled
+isolation and disposal. Text editors, runtime controllers, public example and
+full native color acceptance remain in progress. See [color design](design/color-inputs.md)
 and [foundation evidence](evidence/color-inputs-och36.md).
 No milestone-05 completion or hosted acceptance is claimed yet.
 

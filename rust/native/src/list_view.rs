@@ -154,6 +154,11 @@ impl View {
             .chain(self.otps.iter().filter_map(|(id, otp)| {
                 (otp.is_composing(cx) || otp.focus_handle(cx).is_focused(window)).then_some(*id)
             }))
+            .chain(
+                self.color_inputs
+                    .iter()
+                    .filter_map(|(id, input)| input.retained(window, cx).then_some(*id)),
+            )
             .chain(self.calendars.iter().filter_map(|(id, calendar)| {
                 calendar.focus_handle(cx).is_focused(window).then_some(*id)
             }))
