@@ -1,3 +1,4 @@
+pub mod clipboard;
 mod column;
 mod data_table;
 mod delegate;

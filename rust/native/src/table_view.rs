@@ -128,6 +128,57 @@ impl TableDelegate for Delegate {
         self.route.emit(event_request(event));
     }
 
+    fn copy_selection(&self, selected: &Selection, _: &App) -> Option<String> {
+        use gpuio_table_adapter::table::clipboard::{MAX_COPY_BYTES, tsv};
+        if !self.route.enabled() {
+            return None;
+        }
+        let session = self.route.session.borrow();
+        let tree = session.tree(self.route.window)?;
+        if tree.get(self.route.node)?.list_index.as_ref()?.revision() != self.index.revision() {
+            return None;
+        }
+        let cell = |row: RowKey, column: &str| -> Option<&str> {
+            self.index.position(row.0 as i64)?;
+            let column_index = self
+                .config
+                .schema
+                .columns
+                .iter()
+                .position(|col| col.id == column)?;
+            let id = self.rows.get(&(row.0 as i64))?.get(column_index)?;
+            let metadata = tree.get(*id)?.table_cell.as_ref()?;
+            (metadata.column == column).then_some(metadata.copy_text.as_str())
+        };
+        match selected {
+            Selection::Empty => None,
+            Selection::Cell { row, column } => {
+                let text = cell(*row, column)?;
+                (text.len() <= MAX_COPY_BYTES).then(|| text.to_owned())
+            }
+            Selection::Row(row) => {
+                // Display order may optimistically differ from admitted schema order.
+                let cells = self
+                    .schema
+                    .columns
+                    .iter()
+                    .map(|col| cell(*row, &col.id))
+                    .collect::<Option<Vec<_>>>()?;
+                tsv([cells])
+            }
+            Selection::Column(column) => {
+                // A column is all logical rows, never just the viewport subset.
+                if self.index.len() > self.rows.len() {
+                    return None;
+                }
+                let cells = (0..self.index.len())
+                    .map(|index| Some([cell(RowKey(self.index.id(index)? as u64), column)?]))
+                    .collect::<Option<Vec<_>>>()?;
+                tsv(cells)
+            }
+        }
+    }
+
     fn appearance(&self) -> gpuio_table_adapter::Appearance {
         use gpuio_protocol::v1::{Field, Fill, Style};
         let mut appearance = gpuio_table_adapter::Appearance::default();
@@ -370,8 +421,10 @@ fn event_request(event: &TableEvent) -> wire::Request {
         TableEvent::SelectColumn(column) => R::Select(S::Column(column.to_string())),
         TableEvent::SelectCell(row, column) => R::Select(S::Cell(row.0 as i64, column.to_string())),
         TableEvent::ClearSelection => R::Select(S::Empty),
-        TableEvent::DoubleClickedRow(row) => R::Activate(row.0 as i64, None),
-        TableEvent::DoubleClickedCell(row, column) => {
+        TableEvent::Copy(value) => R::Copy(selection(value)),
+        TableEvent::ContextSelection(value) => R::Context(selection(value)),
+        TableEvent::ActivatedRow(row) => R::Activate(row.0 as i64, None),
+        TableEvent::ActivatedCell(row, column) => {
             R::Activate(row.0 as i64, Some(column.to_string()))
         }
         TableEvent::RightClickedRow(row) => {
@@ -400,6 +453,23 @@ fn event_request(event: &TableEvent) -> wire::Request {
     }
 }
 impl State {
+    pub(super) fn owns_focus(&self, window: &Window, cx: &App) -> bool {
+        self.native.focus_handle(cx).is_focused(window)
+    }
+    pub(super) fn command_available(
+        &self,
+        action: gpuio_protocol::v1::NativeCommand,
+        cx: &App,
+    ) -> bool {
+        let native = self.native.read(cx);
+        action == gpuio_protocol::v1::NativeCommand::Copy
+            && native.delegate().route.enabled()
+            && *native.selection() != Selection::Empty
+    }
+    pub(super) fn invoke_copy(&self, window: &mut Window, cx: &mut App) -> bool {
+        self.native.focus_handle(cx).focus(window, cx);
+        self.native.update(cx, |native, cx| native.copy(window, cx))
+    }
     pub(super) fn focused(&self, window: &Window, cx: &App) -> bool {
         self.native.focus_handle(cx).contains_focused(window, cx)
     }

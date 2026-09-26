@@ -6,7 +6,7 @@ use crate::{
         Cancel, SelectDown, SelectFirst, SelectLast, SelectNextColumn, SelectPageDown,
         SelectPageUp, SelectPrevColumn, SelectUp,
     },
-    table::{TableDelegate, TableState},
+    table::{ActivateSelection, ContextSelection, TableDelegate, TableState},
 };
 use gpui::{
     App, Edges, Entity, Focusable, InteractiveElement, IntoElement, KeyBinding, ParentElement,
@@ -26,8 +26,18 @@ pub(super) fn init(cx: &mut App) {
         KeyBinding::new("end", SelectLast, Some(CONTEXT)),
         KeyBinding::new("pageup", SelectPageUp, Some(CONTEXT)),
         KeyBinding::new("pagedown", SelectPageDown, Some(CONTEXT)),
-        KeyBinding::new("tab", SelectNextColumn, Some(CONTEXT)),
-        KeyBinding::new("shift-tab", SelectPrevColumn, Some(CONTEXT)),
+        KeyBinding::new("enter", ActivateSelection, Some(CONTEXT)),
+        KeyBinding::new("shift-f10", ContextSelection, Some(CONTEXT)),
+        KeyBinding::new("menu", ContextSelection, Some(CONTEXT)),
+        KeyBinding::new(
+            if cfg!(target_os = "macos") {
+                "cmd-c"
+            } else {
+                "ctrl-c"
+            },
+            gpui_base::input::Copy,
+            Some(CONTEXT),
+        ),
     ]);
 }
 
@@ -71,7 +81,7 @@ impl Default for TableOptions {
 /// - Click on cells to select them
 /// - A row header column appears on the left for selecting entire rows
 ///   (use [`TableState::row_header()`] to hide it)
-/// - Keyboard navigation (arrow keys, Tab, Home, End, PageUp, PageDown) works at cell level
+/// - Keyboard navigation (arrow keys, Home, End, PageUp, PageDown) works at cell level
 /// - Right-click and double-click events are supported
 ///
 /// See [`TableState`] for more details on cell selection.
@@ -159,6 +169,9 @@ where
             .key_context(CONTEXT)
             .track_focus(&focus_handle)
             .on_action(window.listener_for(&self.state, TableState::action_cancel))
+            .on_action(window.listener_for(&self.state, TableState::action_activate))
+            .on_action(window.listener_for(&self.state, TableState::action_context))
+            .on_action(window.listener_for(&self.state, TableState::action_copy))
             .on_action(window.listener_for(&self.state, TableState::action_select_next))
             .on_action(window.listener_for(&self.state, TableState::action_select_prev))
             .on_action(window.listener_for(&self.state, TableState::action_select_next_col))

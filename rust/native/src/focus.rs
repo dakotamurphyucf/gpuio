@@ -63,7 +63,7 @@ pub(super) struct Manager {
     active: Option<NodeId>,
     hidden: BTreeSet<NodeId>,
     query_hidden: BTreeSet<NodeId>,
-    last_editor: Option<NodeId>,
+    last_command_target: Option<NodeId>,
     order: u64,
     enter: Option<NodeId>,
     pending: bool,
@@ -82,7 +82,7 @@ impl Manager {
             active: None,
             hidden: BTreeSet::new(),
             query_hidden: BTreeSet::new(),
-            last_editor: None,
+            last_command_target: None,
             order: 0,
             enter: None,
             pending: false,
@@ -213,7 +213,10 @@ impl Manager {
             let Some(item) = tree.get(id) else {
                 return false;
             };
-            if style_hidden(item) || navigation_hidden(tree, item) {
+            if style_hidden(item)
+                || navigation_hidden(tree, item)
+                || item.table.as_ref().is_some_and(|config| config.disabled)
+            {
                 return false;
             }
             cursor = item.parent;
@@ -539,13 +542,13 @@ impl Manager {
             .iter()
             .any(|entry| &entry.handle == handle && self.eligible(entry.node))
     }
-    pub(super) fn remember_editor(&mut self, node: NodeId) {
+    pub(super) fn remember_command_target(&mut self, node: NodeId) {
         if self.eligible(node) {
-            self.last_editor = Some(node);
+            self.last_command_target = Some(node);
         }
     }
-    pub(super) fn last_editor(&self) -> Option<NodeId> {
-        self.last_editor.filter(|node| self.eligible(*node))
+    pub(super) fn last_command_target(&self) -> Option<NodeId> {
+        self.last_command_target.filter(|node| self.eligible(*node))
     }
     pub(super) fn record(
         &mut self,
@@ -573,10 +576,13 @@ impl Manager {
                 .tree(self.window)
                 .and_then(|tree| tree.get(node))
                 .is_some_and(|node| {
-                    node.editor.is_some() || node.number_input.is_some() || node.otp_input.is_some()
+                    node.editor.is_some()
+                        || node.number_input.is_some()
+                        || node.otp_input.is_some()
+                        || node.table.is_some()
                 })
         {
-            self.last_editor = Some(node);
+            self.last_command_target = Some(node);
         }
         if self.seen.insert((node, part)) {
             let (disclosure_path, navigation_path) = {

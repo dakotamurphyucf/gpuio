@@ -402,6 +402,46 @@ The [Table Lab](../../examples/table/README.md) exercises the public path. Nativ
 keyboard/copy/context/accessibility and the rest of the full OCH-39 acceptance
 remain required; the public presenter is not a claim that those gates passed.
 
+## Native table input and clipboard
+
+Pointer selection of a row, header or cell gives the table keyboard focus.
+Arrows, Home/End and PageUp/PageDown navigate the native selection. Tab and
+Shift-Tab use shared window traversal; the table does not trap them for column
+movement. Enter activates a selected row/cell; Shift-F10 or the Menu key sends
+its keyed context request. Column selection supports context and copy, without
+inventing a row activation. Empty context means clearing the context target.
+
+Native child controls own their pointer and keyboard input. The shared pointer
+barrier used by managed trees also protects table children, without intercepting
+wheel propagation. Table keyboard handlers require exact table focus. Disabling
+or hiding a table gates its retained descendants as well as the root, including
+callbacks installed by the previous painted frame.
+
+Primary-C and the existing native Copy command use retained `Table.Cell.copy_text`.
+The host never invokes OCaml to format or fetch clipboard content. A cell copies
+its exact UTF-8 text. Rows follow displayed column order; columns follow logical
+row order. Multi-cell exports use TSV, quoting fields containing tabs, line breaks
+or quotes and doubling internal quotes. There is no trailing newline. Output is
+bounded to 1 MiB including separators and escaping.
+
+Copy requires the **complete** selection to be retained. A partly materialized
+column, missing cell, or oversized output leaves the OS clipboard unchanged; it
+never exports a silently truncated viewport. A keyed Copy intent is queued in
+both success and unavailable cases; it is not a clipboard-write acknowledgement.
+Applications may implement larger exports using their owned data and I/O scope.
+There is no hidden synchronous fetch or unbounded clipboard cache.
+
+The shared command manager remembers one native command target per window.
+Table focus replaces the previous editor target; an embedded editor takes priority
+when it owns focus. A Copy toolbar/menu command can restore that remembered table
+focus. Cut, Paste, SelectAll, Undo and Redo remain unavailable for the read-only
+table itself. This does not change embedded editors' own commands.
+
+Local tests now cover GPUI pointer/key dispatch, actual OS clipboard contents,
+Tab exit, toolbar command routing, retained child editors and current hidden/
+disabled policy. These are distinct from physical AppKit input and accessibility
+acceptance, which remain required alongside broader OCH-39 validation.
+
 ## Remaining acceptance
 
 The model tests are one foundation, not a replacement for these gates:

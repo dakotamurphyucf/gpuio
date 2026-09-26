@@ -96,7 +96,11 @@ end
 module Request : sig
   (** Native proposals use stable identities. Sorting never mutates data. Context
       Empty clears the context target; it does not open an empty-area menu.
-      Copy requests do not acknowledge an OS clipboard write. *)
+      Native Copy writes complete retained selections up to 1 MiB: a cell is
+      verbatim; rows and columns use quoted TSV in display/logical order. Missing
+      data or oversized output preserves the clipboard and still emits Copy.
+      Copy requests are intents, not acknowledgements of an OS clipboard write;
+      applications may handle exports requiring data outside the retained cells. *)
   type 'row t =
     | Select of 'row Selection.t
     | Activate of 'row * Table_column.Id.t option

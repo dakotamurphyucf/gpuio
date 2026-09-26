@@ -25,8 +25,10 @@ def main():
     print(output, end="", flush=True)
     if process.returncode:
         raise SystemExit(process.returncode)
-    if "GPUIO_NATIVE_TABLE_HOST_OK" not in output:
-        raise SystemExit("native table host exited without its completion marker")
+    for marker in ("GPUIO_TABLE_COMMAND_FOCUS_OK", "GPUIO_TABLE_INPUT_OK",
+                   "GPUIO_NATIVE_TABLE_HOST_OK"):
+        if marker not in output:
+            raise SystemExit(f"native table host exited without completing {marker}")
 
 
 if __name__ == "__main__":

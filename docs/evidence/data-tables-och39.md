@@ -502,3 +502,52 @@ presentation/style and lifecycle acceptance, full-history native cache checks,
 resize/reorder/sort during paging, and the remaining public interactions. The chat
 showcase, consolidated platform gates and merge remain milestone deliverables.
 No table capability bit is advertised yet.
+
+## Native keyboard, clipboard and shared command targets (2026-09-26)
+
+The retained host test now injects GPUI pointer/key events into the rendered
+100,000-row table, reads the actual OS clipboard and checks queued input envelopes.
+It verifies pointer-acquired table focus, arrow navigation, ordered keyed Enter/
+Shift-F10/Copy events, and Unicode including a joined family emoji, combining
+accent, tabs, quotes and a newline. One cell copies verbatim; row and complete
+12-row column exports use quoted TSV. Copying an unmaterialized cell or a column
+with 100,000 logical rows and only 12 retained rows preserves the previous
+clipboard and emits the keyed intent.
+
+A real command-button composition verifies that Tab leaves the table and toolbar
+Copy restores the remembered table target. A native editor inside a cell keeps
+pointer focus, navigation/submit/context keys and clipboard commands. This test
+found and fixed ancestor cell-click focus theft by reusing the managed-tree
+pointer barrier for table descendants. Disabling the table blocks the retained
+editor's command/input gates immediately. Hidden-table callbacks from an older
+visible frame also refuse input and preserve the clipboard. The harness restores
+the original clipboard and closes its window on success or assertion failure.
+
+The TSV encoder separately tests UTF-8 byte limits, quoting overhead and separators
+at the 1 MiB boundary. It returns no partial output. Copy reads retained metadata
+only, without a synchronous OCaml call or history-sized export allocation.
+
+Local passing checks:
+
+- `GPUIO_JOBS=2 python3 scripts/test_table_host.py` — native input/command markers
+  plus existing retained View, keyed command/anchor, empty-source and release checks.
+- `GPUIO_JOBS=2 python3 scripts/test_table_adapter.py` — sampled virtualization,
+  native column/selection/anchor regression and verified failing-process cleanup.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --workspace --locked -j2`.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --workspace --locked -j2 --all-targets --features gpuio-native/native-tests,gpuio-table-adapter/native-tests -- -D warnings`.
+
+This is real GPUI dispatch and OS clipboard evidence in a background macOS window,
+not physical AppKit keyboard, IME or accessibility acceptance. Context request
+identity is covered; application context-menu presentation still needs a public
+interaction flow. Style forwarding, native full-history cache measurements,
+resize/reorder/sort during paging and remaining OCH-39 acceptance are still open.
+No hosted results or table capability advertisement are claimed.
+
+The existing `native_controls` and `native_tree` regression suites also pass
+locally with `cargo test --locked -j2 -p gpuio-native --features native-image-tests
+--test native_controls --test native_tree` through the isolated wrapper. Controls
+include menus/palette, editor clipboard, native focus/AX and IME scenarios. Trees
+include two complete 100,000-row traversals and existing child-editor, selection,
+move and disposal checks. This is regression evidence for shared focus/command
+changes; it does not transfer those widgets' AX/IME acceptance to the table.
+The final table host rerun passes after clipboard-restoration cleanup.

@@ -594,7 +594,7 @@ impl View {
             }
         }
         let mut element = div().id(("gpuio-node", identity));
-        // Native controls inside a tree row own pointer input. The input widget
+        // Native controls inside a tree/table row own pointer input. The input widget
         // may focus on mouse-down without consuming mouse-up; block the row's
         // ancestor click hitbox while preserving wheel propagation to the list.
         if (node.editor.is_some()
@@ -607,7 +607,7 @@ impl View {
             || node.calendar.is_some()
             || node.color_input.is_some()
             || (node.kind == Kind::Text && interaction.selectable))
-            && tree_input::within_input_tree(tree, id)
+            && tree_input::within_input_collection(tree, id)
         {
             element = element.block_mouse_except_scroll();
         }

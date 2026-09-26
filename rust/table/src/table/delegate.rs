@@ -9,7 +9,7 @@ use gpui::{
 
 use crate::{
     Appearance, Size, h_flex,
-    table::{Column, ColumnGroup, RowKey, TableEvent, TableState},
+    table::{Column, ColumnGroup, RowKey, Selection, TableEvent, TableState},
 };
 
 /// A delegate trait for providing data and rendering for a table.
@@ -27,6 +27,14 @@ pub trait TableDelegate: Sized + 'static {
     /// Called at native event creation, before deferred GPUI subscribers. Hosts
     /// can capture a route generation and enqueue input here; never call OCaml.
     fn table_event(&self, _event: &TableEvent, _cx: &mut Context<TableState<Self>>) {}
+
+    /// Complete text for a selection from retained native metadata only. Missing
+    /// data or an oversized result returns None, preserving the OS clipboard.
+    /// Never fetch/format through a host-language callback. The Copy event is
+    /// emitted independently so the application can handle unavailable exports.
+    fn copy_selection(&self, _selection: &Selection, _cx: &App) -> Option<String> {
+        None
+    }
 
     /// Retained, per-table styling. Must not call a host language.
     fn appearance(&self) -> Appearance {

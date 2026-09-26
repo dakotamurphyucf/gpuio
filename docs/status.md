@@ -176,8 +176,11 @@ The public Bonsai presenter and Eio paging controls now connect bounded cell
 lifetimes, membership-aware commands, query resets and current selection. Local
 tests traverse all 100,000 rows twice and release retired cell payloads. The public
 Table Lab passes native keyed scrolling/anchors, streaming, query retirement,
-failure/retry and window cleanup. Clipboard/keyboard/accessibility, broader native
-full-history/paging interactions and final acceptance remain; no
+failure/retry and window cleanup. Native pointer/key dispatch and OS clipboard
+checks now pass exact Unicode/quoted TSV, unavailable-selection preservation,
+Tab exit, toolbar Copy, child-editor priority and hidden/disabled gating.
+Physical keyboard/accessibility, style forwarding, broader native full-history/
+paging interactions and final acceptance remain; no
 table capability is advertised.
 See [table design](design/data-tables.md) and
 [evidence](evidence/data-tables-och39.md).

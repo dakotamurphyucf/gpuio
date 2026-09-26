@@ -53,3 +53,10 @@ native transport input; no synchronous OCaml call is permitted. The host's actua
 painted-body viewport observation handles empty/single-row demand independently of
 the upstream visible-range measurement callback. Public widgets and full native
 acceptance remain separate from this extraction/integration evidence.
+
+GPUIO input adaptation now focuses pointer selections, leaves Tab to the host,
+and binds Enter/context/Copy to keyed intents. `ActivatedRow`/`ActivatedCell`
+unify double-click and keyboard activation. Copy uses a retained-only delegate
+hook and a bounded quoted-TSV encoder; missing complete selections preserve the
+clipboard. Exact table focus is required so embedded editors retain their keys.
+See the host acceptance ledger for native clipboard/command policy coverage.

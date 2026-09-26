@@ -115,6 +115,10 @@ impl View {
         }));
     }
     pub(super) fn command_editor(&self, window: &Window, cx: &App) -> Option<NodeId> {
+        self.command_target_node(window, cx)
+            .filter(|node| !self.tables.contains_key(node))
+    }
+    fn command_target_node(&self, window: &Window, cx: &App) -> Option<NodeId> {
         self.editors
             .iter()
             .find(|(_, editor)| editor.focus_handle(cx).is_focused(window))
@@ -137,12 +141,19 @@ impl View {
                     .find(|(_, color)| color.editing(window, cx))
                     .map(|(node, _)| *node)
             })
-            .or_else(|| self.focus.borrow().last_editor())
+            .or_else(|| {
+                self.tables
+                    .iter()
+                    .find(|(_, table)| table.borrow().owns_focus(window, cx))
+                    .map(|(node, _)| *node)
+            })
+            .or_else(|| self.focus.borrow().last_command_target())
             .filter(|node| {
                 (self.editors.contains_key(node)
                     || self.numbers.contains_key(node)
                     || self.otps.contains_key(node)
-                    || self.color_inputs.contains_key(node))
+                    || self.color_inputs.contains_key(node)
+                    || self.tables.contains_key(node))
                     && self.focus.borrow().allows(*node)
             })
     }
@@ -158,10 +169,12 @@ impl View {
         let CommandTarget::Native(action) = config.target else {
             return true;
         };
-        let Some(editor) = self.command_editor(window, cx) else {
+        let Some(editor) = self.command_target_node(window, cx) else {
             return false;
         };
-        if let Some(otp) = self.otps.get(&editor) {
+        if let Some(table) = self.tables.get(&editor) {
+            table.borrow().command_available(action, cx)
+        } else if let Some(otp) = self.otps.get(&editor) {
             otp.command_available(action, cx)
         } else if let Some(number) = self.numbers.get(&editor) {
             number.command_available(action, cx)
@@ -228,9 +241,12 @@ impl View {
                 true
             }
             Some(CommandTarget::Native(action)) => {
-                let Some(editor) = self.command_editor(window, cx) else {
+                let Some(editor) = self.command_target_node(window, cx) else {
                     return false;
                 };
+                if let Some(table) = self.tables.get(&editor) {
+                    return table.borrow().invoke_copy(window, cx);
+                }
                 // Toolbar/button activation may have moved focus. Native edit
                 // actions deliberately return it to the retained editing target.
                 let focus = self

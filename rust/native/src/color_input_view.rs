@@ -260,7 +260,7 @@ impl ColorInput {
                 {
                     let mut gate = gate.borrow_mut();
                     if editor && focus.is_focused(window) {
-                        gate.remember_editor(node);
+                        gate.remember_command_target(node);
                     }
                     gate.record_part(node, part, focus.clone(), enabled, focus.is_focused(window));
                 }

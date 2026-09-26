@@ -1,5 +1,7 @@
 //! Real retained host table rendering and asynchronous demand, not an isolated delegate.
 use super::*;
+#[path = "table_host_test/input.rs"]
+mod input;
 use gpuio_protocol::{
     list::{IdRun, Order, Row},
     v1::*,
@@ -133,16 +135,19 @@ fn apply(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>, operations: 
     window
         .update(cx, |view, window, cx| {
             let base = view.session.borrow().tree(view.id).unwrap().revision();
+            let transaction = Transaction {
+                window: view.id,
+                base,
+                revision: base + 1,
+                operations,
+            };
             let applied = view
                 .session
                 .borrow_mut()
-                .apply(&Transaction {
-                    window: view.id,
-                    base,
-                    revision: base + 1,
-                    operations,
-                })
-                .unwrap();
+                .apply(&transaction)
+                .unwrap_or_else(|error| {
+                    panic!("table test transaction rejected: {error:?}: {transaction:?}")
+                });
             view.update_editors(&applied.dirty, window, cx);
             view.table_actions(&applied.tables, window, cx);
             cx.notify();
@@ -212,6 +217,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
             state.native.downgrade()
         })
         .unwrap();
+    input::exercise(cx, window).await;
     for enabled in [false, true] {
         apply(
             cx,
@@ -352,7 +358,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
         vec![
             Op::SetTable(node(0), reset),
             Op::Bind(node(0), Some(HandlerId::from_parts(0, 2).unwrap())),
-            Op::SetListOrder(node(0), order(2, 1)),
+            Op::SetListOrder(node(0), order(4, 1)),
             Op::SetListRows(node(0), vec![]),
             Op::Splice(node(0), 0, 12, vec![]),
         ]
@@ -371,7 +377,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
     let single = viewport(cx, window);
     assert_eq!((single.visible_first, single.visible_last), (0, 1));
     assert_eq!(single.requested, vec![1]);
-    apply(cx, window, vec![Op::SetListOrder(node(0), order(3, 0))]);
+    apply(cx, window, vec![Op::SetListOrder(node(0), order(5, 0))]);
     frame(cx, window).await;
     let empty = viewport(cx, window);
     assert!(empty.requested.is_empty() && empty.anchor.is_none());
@@ -407,6 +413,7 @@ pub(super) fn run() {
     let transport = Arc::new(Transport::new(write.as_raw_fd()).unwrap());
     gpui_platform::application().run(move |cx| {
         cx.set_quit_mode(gpui::QuitMode::Explicit);
+        let clipboard = cx.read_from_clipboard();
         gpui_base::init(cx);
         gpuio_table_adapter::init(cx);
         let session = Rc::new(RefCell::new(crate::session::Session::default()));
@@ -434,7 +441,12 @@ pub(super) fn run() {
             let result = super::super::native_test::protect(exercise(cx, window)).await;
             let _ = window.update(cx, |_, window, _| window.remove_window());
             *task_failure.borrow_mut() = result.err();
-            cx.update(super::super::stop_application);
+            cx.update(|cx| {
+                cx.write_to_clipboard(
+                    clipboard.unwrap_or_else(|| gpui::ClipboardItem::new_string(String::new())),
+                );
+                super::super::stop_application(cx);
+            });
         })
         .detach();
     });

@@ -184,10 +184,9 @@ pub(super) fn exercise(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
     click(cx, handle, position, MouseButton::Left, 2);
     click(cx, handle, position, MouseButton::Right, 1);
     assert!(
-        events.borrow().contains(&TableEvent::DoubleClickedCell(
-            RowKey(198),
-            "event-0".into()
-        )),
+        events
+            .borrow()
+            .contains(&TableEvent::ActivatedCell(RowKey(198), "event-0".into())),
         "double click: {:?}",
         events.borrow()
     );

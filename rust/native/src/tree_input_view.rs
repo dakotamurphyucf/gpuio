@@ -8,13 +8,13 @@ use gpuio_protocol::{
     tree_input::{Navigation, Request, Selection},
 };
 
-pub(super) fn within_input_tree(tree: &crate::tree::Tree, id: NodeId) -> bool {
+pub(super) fn within_input_collection(tree: &crate::tree::Tree, id: NodeId) -> bool {
     let mut current = tree.get(id).and_then(|node| node.parent);
     while let Some(id) = current {
         let Some(node) = tree.get(id) else {
             return false;
         };
-        if node.tree_input {
+        if node.tree_input || node.table.is_some() {
             return true;
         }
         current = node.parent;

@@ -25,6 +25,8 @@ use super::*;
 
 mod source_update;
 
+gpui::actions!(gpuio_table, [ActivateSelection, ContextSelection]);
+
 /// How far behind the pointer a resize drag trails the column edge.
 const HANDLE_SIZE: Pixels = px(2.);
 
@@ -63,10 +65,10 @@ impl SelectionMode {
 #[derive(Clone, Debug, PartialEq)]
 pub enum TableEvent {
     SelectRow(RowKey),
-    DoubleClickedRow(RowKey),
+    ActivatedRow(RowKey),
     SelectColumn(SharedString),
     SelectCell(RowKey, SharedString),
-    DoubleClickedCell(RowKey, SharedString),
+    ActivatedCell(RowKey, SharedString),
     /// Widths are keyed, never interpreted against a later column order.
     ColumnWidthsChanged(Vec<(SharedString, Pixels)>),
     /// Final placement before a stable column, or at the end for `None`.
@@ -79,6 +81,8 @@ pub enum TableEvent {
     RightClickedRow(Option<RowKey>),
     RightClickedCell(RowKey, SharedString),
     ClearSelection,
+    ContextSelection(Selection),
+    Copy(Selection),
 }
 
 /// Identity of the retained layout inputs. Old callbacks and drags cannot act
@@ -130,7 +134,7 @@ impl TableVisibleRange {
 /// - Click on cells to select them
 /// - Right-click on cells to mark them for context menus
 /// - Double-click on cells to trigger actions
-/// - Navigate between cells using keyboard (arrow keys, Home, End, PageUp, PageDown, Tab)
+/// - Navigate between cells using keyboard (arrow keys, Home, End, PageUp, PageDown)
 ///
 /// When in cell selection mode, a row header column appears on the left side,
 /// allowing users to select entire rows by clicking on it.
@@ -139,7 +143,7 @@ impl TableVisibleRange {
 ///
 /// The table emits the following events related to cell selection:
 /// - [`TableEvent::SelectCell`]: Emitted when a cell is selected
-/// - [`TableEvent::DoubleClickedCell`]: Emitted when a cell is double-clicked
+/// - [`TableEvent::ActivatedCell`]: Emitted when a cell is double-clicked or activated with Enter
 /// - [`TableEvent::RightClickedCell`]: Emitted when a cell is right-clicked
 ///
 /// # Example
@@ -157,8 +161,8 @@ impl TableVisibleRange {
 ///         TableEvent::SelectCell(row_ix, col_ix) => {
 ///             println!("Selected cell: ({:?}, {})", row_ix, col_ix);
 ///         }
-///         TableEvent::DoubleClickedCell(row_ix, col_ix) => {
-///             println!("Double-clicked cell: ({}, {})", row_ix, col_ix);
+///         TableEvent::ActivatedCell(row_ix, col_ix) => {
+///             println!("Activated cell: ({:?}, {})", row_ix, col_ix);
 ///         }
 ///         _ => {}
 ///     }
@@ -353,7 +357,7 @@ where
     /// - Individual cells become selectable by clicking
     /// - A row header column appears on the left side (can be hidden via [`Self::row_header`])
     /// - Keyboard navigation operates at the cell level
-    /// - Cell-specific events (SelectCell, DoubleClickedCell, RightClickedCell) are emitted
+    /// - Cell-specific events (SelectCell, ActivatedCell, RightClickedCell) are emitted
     ///
     /// # Example
     ///
@@ -925,7 +929,7 @@ where
         &mut self,
         e: &ClickEvent,
         row_ix: usize,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         if !self.row_selectable {
@@ -935,14 +939,15 @@ where
         let Some(key) = self.delegate.row_key(row_ix, cx) else {
             return;
         };
+        window.focus(&self.focus_handle, cx);
         self.set_selected_row(row_ix, cx);
 
         if e.click_count() == 2 {
-            self.emit_event(TableEvent::DoubleClickedRow(key), cx);
+            self.emit_event(TableEvent::ActivatedRow(key), cx);
         }
     }
 
-    fn on_col_head_click(&mut self, col_ix: usize, _: &mut Window, cx: &mut Context<Self>) {
+    fn on_col_head_click(&mut self, col_ix: usize, window: &mut Window, cx: &mut Context<Self>) {
         if !self.col_selectable {
             return;
         }
@@ -955,6 +960,7 @@ where
             return;
         }
 
+        window.focus(&self.focus_handle, cx);
         self.set_selected_col(col_ix, cx)
     }
 
@@ -963,13 +969,14 @@ where
         e: &ClickEvent,
         row_ix: usize,
         col_ix: usize,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         if !self.cell_selectable {
             return;
         }
 
+        window.focus(&self.focus_handle, cx);
         cx.stop_propagation();
 
         let is_double_click = e.click_count() == 2;
@@ -977,7 +984,7 @@ where
         // When the row header column is hidden, a single click on the
         // already-selected cell escalates the selection to the entire row —
         // giving users a way to pick rows without the dedicated header column.
-        // Double-clicks are passed through to `DoubleClickedCell` and never
+        // Double-clicks are passed through to `ActivatedCell` and never
         // trigger the escalation.
         let is_reselect =
             self.selection_mode.is_cell() && self.selected_cell == Some((row_ix, col_ix));
@@ -997,7 +1004,7 @@ where
         self.set_selected_cell(row_ix, col_ix, cx);
 
         if is_double_click {
-            self.emit_event(TableEvent::DoubleClickedCell(row, column), cx);
+            self.emit_event(TableEvent::ActivatedCell(row, column), cx);
         }
     }
 
@@ -1008,6 +1015,70 @@ where
 
     fn has_selection(&self) -> bool {
         self.selected_row.is_some() || self.selected_col.is_some() || self.selected_cell.is_some()
+    }
+
+    /// Returns whether this table owns the command. Unavailable retained text
+    /// still emits a Copy intent, without replacing the clipboard with a subset.
+    pub fn copy(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        if !self.delegate.input_enabled(cx)
+            || !self.focus_handle.is_focused(window)
+            || self.selection == Selection::Empty
+        {
+            return false;
+        }
+        if let Some(text) = self.delegate.copy_selection(&self.selection, cx)
+            && text.len() <= super::clipboard::MAX_COPY_BYTES
+        {
+            cx.write_to_clipboard(gpui::ClipboardItem::new_string(text));
+        }
+        self.emit_event(TableEvent::Copy(self.selection.clone()), cx);
+        true
+    }
+
+    pub(super) fn action_copy(
+        &mut self,
+        _: &gpui_base::input::Copy,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.copy(window, cx) {
+            cx.propagate();
+        }
+    }
+
+    pub(super) fn action_activate(
+        &mut self,
+        _: &ActivateSelection,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.delegate.input_enabled(cx) || !self.focus_handle.is_focused(window) {
+            cx.propagate();
+            return;
+        }
+        match self.selection.clone() {
+            Selection::Row(row) => self.emit_event(TableEvent::ActivatedRow(row), cx),
+            Selection::Cell { row, column } => {
+                self.emit_event(TableEvent::ActivatedCell(row, column), cx)
+            }
+            Selection::Empty | Selection::Column(_) => cx.propagate(),
+        }
+    }
+
+    pub(super) fn action_context(
+        &mut self,
+        _: &ContextSelection,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.delegate.input_enabled(cx)
+            || !self.focus_handle.is_focused(window)
+            || self.selection == Selection::Empty
+        {
+            cx.propagate();
+            return;
+        }
+        self.emit_event(TableEvent::ContextSelection(self.selection.clone()), cx);
     }
 
     pub(super) fn action_cancel(
