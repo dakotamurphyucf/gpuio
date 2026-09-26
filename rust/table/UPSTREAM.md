@@ -70,3 +70,11 @@ clipping, root state precedence and preserved pinned-column painting.
 Selection fills now paint behind row/cell content; transparent outlines remain
 above it. Actual GPU tests caught opaque extracted overlays hiding selected text
 and now require that text to stay visible for both cell and whole-row selection.
+
+GPUIO now gives painted rows/cells/headers logical accessibility positions,
+selection and idempotent selection/focus actions. A native focus-owning Group
+supports selected-descendant accessibility focus; cell/header identities use
+stable column keys. Retained accessible cell values are supplied by an optional
+delegate hook, without a host-language callback. Sorting has a separate accessible
+button. The shared Cocoa adapter changes are tracked separately under
+`vendor/accesskit-macos/table-state.patch` with original adapter provenance.

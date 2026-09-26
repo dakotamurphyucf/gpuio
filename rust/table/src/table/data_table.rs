@@ -10,7 +10,7 @@ use crate::{
 };
 use gpui::{
     App, Edges, Entity, Focusable, InteractiveElement, IntoElement, KeyBinding, ParentElement,
-    RenderOnce, Styled, Window, div, prelude::FluentBuilder,
+    RenderOnce, StatefulInteractiveElement as _, Styled, Window, div, prelude::FluentBuilder,
 };
 use gpui_base::TestSupportExt as _;
 
@@ -173,6 +173,7 @@ where
 
         div()
             .id("table")
+            .role(gpui::Role::Group)
             .test_support()
             .size_full()
             .key_context(CONTEXT)

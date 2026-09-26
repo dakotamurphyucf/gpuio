@@ -73,7 +73,10 @@ module Config : sig
 end
 
 module Cell : sig
-  (** Copy text is retained separately from its View: at most 65536 UTF-8 bytes,
+  (** The retained [copy_text] is also the native cell's accessibility value.
+      Provide a readable textual equivalent for custom visual content. Native
+      controls inside the cell retain their own accessibility semantics.
+      Copy text is retained separately from its View: at most 65536 UTF-8 bytes,
       without NUL. Empty copy text is valid. No formatting callback is retained. *)
   type t [@@deriving equal, sexp_of]
 

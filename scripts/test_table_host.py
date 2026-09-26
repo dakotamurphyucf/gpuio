@@ -2,6 +2,7 @@
 """Run the real retained table host with bounded lifetime and completion evidence."""
 import os
 import signal
+import sys
 import subprocess
 from pathlib import Path
 
@@ -25,6 +26,8 @@ def main():
     print(output, end="", flush=True)
     if process.returncode:
         raise SystemExit(process.returncode)
+    if sys.platform == "darwin" and "GPUIO_TABLE_AX_OK" not in output:
+        raise SystemExit("native table host exited without completing GPUIO_TABLE_AX_OK")
     for marker in ("GPUIO_TABLE_STYLE_OK", "GPUIO_TABLE_COMMAND_FOCUS_OK", "GPUIO_TABLE_INPUT_OK",
                    "GPUIO_NATIVE_TABLE_HOST_OK"):
         if marker not in output:

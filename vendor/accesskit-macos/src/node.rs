@@ -1067,7 +1067,7 @@ declare_class!(
         fn is_selected(&self) -> bool {
             self.resolve(|node| {
                 let wrapper = NodeWrapper(node);
-                wrapper.is_item_like()
+                (wrapper.is_item_like() || table_item(node))
                     && node.is_selectable()
                     && node.is_selected().unwrap_or(false)
             })
@@ -1077,7 +1077,10 @@ declare_class!(
         #[method(setAccessibilitySelected:)]
         fn set_selected(&self, selected: bool) {
             self.resolve_with_context(|node, tree, context| {
-                if supports_tree_selection(node) {
+                if supports_tree_selection(node) || supports_table_selection(node) {
+                    let (select, deselect) = if supports_tree_selection(node) {
+                        (TREE_SELECT, TREE_DESELECT)
+                    } else { (TABLE_SELECT, TABLE_DESELECT) };
                     if let Some((target_node, target_tree)) = tree.state().locate_node(node.id()) {
                         // Always queue desired state, including equal snapshots: a
                         // preceding opposite setter may still await application reduction.
@@ -1085,7 +1088,7 @@ declare_class!(
                             action: Action::CustomAction,
                             target_tree,
                             target_node,
-                            data: Some(ActionData::CustomAction(if selected { TREE_SELECT } else { TREE_DESELECT })),
+                            data: Some(ActionData::CustomAction(if selected { select } else { deselect })),
                         });
                     }
                     return;
@@ -1125,10 +1128,47 @@ declare_class!(
             .flatten()
         }
 
+        #[method(accessibilityRowCount)]
+        fn row_count(&self) -> NSInteger {
+            self.resolve(|node| node.data().row_count().unwrap_or(0) as NSInteger).unwrap_or(0)
+        }
+        #[method(accessibilityColumnCount)]
+        fn column_count(&self) -> NSInteger {
+            self.resolve(|node| node.data().column_count().unwrap_or(0) as NSInteger).unwrap_or(0)
+        }
+        #[method(accessibilityIndex)]
+        fn index(&self) -> NSInteger {
+            self.resolve(|node| node.data().row_index().unwrap_or(0) as NSInteger).unwrap_or(0)
+        }
+        #[method(accessibilityRowIndexRange)]
+        fn row_index_range(&self) -> NSRange {
+            self.resolve(|node| NSRange::new(node.data().row_index().unwrap_or(0), node.data().row_span().unwrap_or(1)))
+                .unwrap_or(NSRange::new(0, 0))
+        }
+        #[method(accessibilityColumnIndexRange)]
+        fn column_index_range(&self) -> NSRange {
+            self.resolve(|node| NSRange::new(node.data().column_index().unwrap_or(0), node.data().column_span().unwrap_or(1)))
+                .unwrap_or(NSRange::new(0, 0))
+        }
+        #[method(accessibilitySortDirection)]
+        fn sort_direction(&self) -> NSAccessibilitySortDirection {
+            self.resolve(|node| match node.data().sort_direction() {
+                Some(accesskit::SortDirection::Ascending) => NSAccessibilitySortDirection::Ascending,
+                Some(accesskit::SortDirection::Descending) => NSAccessibilitySortDirection::Descending,
+                _ => NSAccessibilitySortDirection::Unknown,
+            }).unwrap_or(NSAccessibilitySortDirection::Unknown)
+        }
+
         #[method_id(accessibilityRows)]
         fn rows(&self) -> Option<Id<NSArray<PlatformNode>>> {
             self.resolve_with_context(|node, _, context| {
                 let wrapper = NodeWrapper(node);
+                if table_container(node) {
+                    let platform_nodes = node.filtered_children(table_row_filter)
+                                                .map(|child| context.get_or_create_platform_node(child.id()))
+                        .collect::<Vec<Id<PlatformNode>>>();
+                    return Some(NSArray::from_vec(platform_nodes));
+                }
                 if !wrapper.is_container_with_selectable_children() {
                     return None;
                 }
@@ -1145,6 +1185,13 @@ declare_class!(
         fn selected_rows(&self) -> Option<Id<NSArray<PlatformNode>>> {
             self.resolve_with_context(|node, _, context| {
                 let wrapper = NodeWrapper(node);
+                if table_container(node) {
+                    let platform_nodes = node.filtered_children(table_row_filter)
+                        .filter(|row| row.is_selected() == Some(true))
+                        .map(|child| context.get_or_create_platform_node(child.id()))
+                        .collect::<Vec<Id<PlatformNode>>>();
+                    return Some(NSArray::from_vec(platform_nodes));
+                }
                 if !wrapper.is_container_with_selectable_children() {
                     return None;
                 }
@@ -1301,17 +1348,31 @@ declare_class!(
                 if selector == sel!(accessibilityDisclosureLevel) {
                     return node.role() == Role::TreeItem && node.data().level().is_some();
                 }
+                if selector == sel!(accessibilityRowCount) { return table_container(node); }
+                if selector == sel!(accessibilityColumnCount) {
+                    return table_container(node) && node.data().column_count().is_some();
+                }
+                if selector == sel!(accessibilityIndex) {
+                    return node.role() == Role::Row && node.data().row_index().is_some();
+                }
+                if selector == sel!(accessibilityRowIndexRange) {
+                    return table_item(node) && node.data().row_index().is_some();
+                }
+                if selector == sel!(accessibilityColumnIndexRange) {
+                    return table_item(node) && node.data().column_index().is_some();
+                }
+                if selector == sel!(accessibilitySortDirection) { return node.role() == Role::ColumnHeader; }
                 if selector == sel!(isAccessibilitySelected) {
                     let wrapper = NodeWrapper(node);
-                    return wrapper.is_item_like();
+                    return wrapper.is_item_like() || table_item(node);
                 }
                 if selector == sel!(accessibilityRows)
                     || selector == sel!(accessibilitySelectedRows)
                 {
                     let wrapper = NodeWrapper(node);
-                    return wrapper.is_container_with_selectable_children()
+                    return wrapper.is_container_with_selectable_children() || table_container(node)
                 }
-                if selector == sel!(setAccessibilitySelected:) && supports_tree_selection(node) {
+                if selector == sel!(setAccessibilitySelected:) && (supports_tree_selection(node) || supports_table_selection(node)) {
                     return true;
                 }
                 if selector == sel!(setAccessibilitySelected:) || selector == sel!(accessibilityPerformPick)
@@ -1368,6 +1429,28 @@ declare_class!(
 
 // Private opt-in contract with GPUIO tree rows. Generic Click semantics and
 // unrelated TreeItems remain unchanged; both declared custom IDs are required.
+const TABLE_SELECT: i32 = 0x4750_0011;
+const TABLE_DESELECT: i32 = 0x4750_0012;
+fn table_item(node: &Node) -> bool {
+    matches!(node.role(), Role::Row | Role::Cell | Role::ColumnHeader)
+}
+fn table_container(node: &Node) -> bool {
+    node.role() == Role::Table && node.data().row_count().is_some()
+}
+fn table_row_filter(node: &Node) -> FilterResult {
+    match filter(node) {
+        FilterResult::ExcludeSubtree => FilterResult::ExcludeSubtree,
+        _ if node.role() == Role::Row => FilterResult::Include,
+        _ if matches!(node.role(), Role::Table | Role::Grid | Role::Tree | Role::TreeGrid) => FilterResult::ExcludeSubtree,
+        _ => FilterResult::ExcludeNode,
+    }
+}
+fn supports_table_selection(node: &Node) -> bool {
+    table_item(node) && node.is_selectable()
+        && node.supports_action(Action::CustomAction, &filter)
+        && [TABLE_SELECT, TABLE_DESELECT].iter().all(|id| node.data().custom_actions().iter().any(|a| a.id == *id))
+}
+
 const TREE_SELECT: i32 = 0x4750_0001;
 const TREE_DESELECT: i32 = 0x4750_0002;
 

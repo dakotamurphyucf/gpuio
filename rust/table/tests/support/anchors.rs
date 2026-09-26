@@ -1,5 +1,5 @@
 //! Keyed native viewport position, tested after actual layout/paint.
-use super::events::{bounds, draw};
+use super::events::{bounds, column_bounds, draw};
 use super::*;
 
 fn positions(delegate: &mut Delegate) {
@@ -64,7 +64,7 @@ pub(super) fn exercise(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
         .unwrap();
     draw(cx, handle);
     let before_row = bounds(cx, handle, ("row", 12_345usize));
-    let before_col = bounds(cx, handle, ("col-header", 12usize));
+    let before_col = column_bounds(cx, handle, 12);
     handle
         .update(cx, |view, _, cx| {
             view.table.update(cx, |table, cx| {
@@ -78,7 +78,7 @@ pub(super) fn exercise(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
         .unwrap();
     draw(cx, handle);
     let after_row = bounds(cx, handle, ("row", 87_654usize));
-    let after_col = bounds(cx, handle, ("col-header", 53usize));
+    let after_col = column_bounds(cx, handle, 53);
     same_pixel(
         after_row.origin.y,
         before_row.origin.y,
@@ -113,7 +113,7 @@ pub(super) fn exercise(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
         "prepend page anchor",
     );
     same_pixel(
-        bounds(cx, handle, ("col-header", 53usize)).origin.x,
+        column_bounds(cx, handle, 53).origin.x,
         before_col.origin.x,
         "unchanged columns on prepend",
     );
@@ -129,7 +129,7 @@ pub(super) fn exercise(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
         .unwrap();
     draw(cx, handle);
     same_pixel(
-        bounds(cx, handle, ("col-header", 53usize)).origin.x,
+        column_bounds(cx, handle, 53).origin.x,
         before_col.origin.x,
         "removed column anchor fallback",
     );
@@ -142,7 +142,7 @@ pub(super) fn exercise(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
         .unwrap();
     draw(cx, handle);
     same_pixel(
-        bounds(cx, handle, ("col-header", 53usize)).origin.x,
+        column_bounds(cx, handle, 53).origin.x,
         before_col.origin.x,
         "pinned column reveal leaves horizontal scroll alone",
     );

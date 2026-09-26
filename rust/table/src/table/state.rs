@@ -23,6 +23,7 @@ use gpui::{
 
 use super::*;
 
+mod accessibility;
 mod source_update;
 
 gpui::actions!(gpuio_table, [ActivateSelection, ContextSelection]);
@@ -1886,6 +1887,7 @@ where
         Some(
             div()
                 .id(("icon-sort", col_ix))
+                .map(|button| self.accessible_sort(button, col_ix, cx))
                 .test_support()
                 .p(px(2.))
                 .rounded(theme.radius / 2.)
@@ -1924,7 +1926,7 @@ where
             .h_full()
             .child(
                 self.render_cell(None, col_ix, window, cx)
-                    .id(("col-header", col_ix))
+                    .id(format!("col-header:{}", col_group.column.key))
                     .test_support()
                     .on_click(self.layout_listener(cx, move |this, _, window, cx| {
                         this.on_col_head_click(col_ix, window, cx);
@@ -1983,7 +1985,8 @@ where
                             }
                             _ => this,
                         }
-                    }),
+                    })
+                    .map(|header| self.accessible_header(header, col_ix, cx)),
             )
             // resize handle cell right side
             .child(self.render_resize_handle(col_ix, window, cx))
@@ -2323,8 +2326,6 @@ where
             let style = tr.style().clone();
 
             tr.test_support()
-                .role(gpui::Role::Row)
-                .aria_selected(is_selected)
                 .h_flex()
                 .w_full()
                 .h(row_height)
@@ -2363,7 +2364,10 @@ where
                                         self.render_col_wrap(Some(row_ix), col_ix, window, cx)
                                             .child(
                                                 self.render_cell(Some(row_ix), col_ix, window, cx)
-                                                    .id(format!("table-cell:{}:{}", row_ix, col_ix))
+                                                    .id(format!(
+                                                        "table-cell:{}",
+                                                        self.col_groups[col_ix].column.key
+                                                    ))
                                                     .relative()
                                                     .child(self.measure_render_td(
                                                         row_ix, col_ix, window, cx,
@@ -2415,6 +2419,11 @@ where
                                                                     );
                                                                 },
                                                             ),
+                                                        )
+                                                    })
+                                                    .map(|cell| {
+                                                        self.accessible_cell(
+                                                            cell, row_ix, col_ix, cx,
                                                         )
                                                     }),
                                             ),
@@ -2485,8 +2494,8 @@ where
                                                             cx,
                                                         )
                                                         .id(format!(
-                                                            "table-cell-{}:{}",
-                                                            row_ix, col_ix
+                                                            "table-cell:{}",
+                                                            table.col_groups[col_ix].column.key
                                                         ))
                                                         .relative()
                                                         .child(table.measure_render_td(
@@ -2543,6 +2552,11 @@ where
                                                                         );
                                                                     },
                                                                 ),
+                                                            )
+                                                        })
+                                                        .map(|cell| {
+                                                            table.accessible_cell(
+                                                                cell, row_ix, col_ix, cx,
                                                             )
                                                         }),
                                                 );
@@ -2604,6 +2618,7 @@ where
                 .on_click(self.layout_listener(cx, move |this, e, window, cx| {
                     this.on_row_left_click(e, row_ix, window, cx);
                 }))
+                .map(|row| self.accessible_row(row, row_ix, cx))
                 .into_any_element()
         } else {
             // Render fake rows to fill the rest table space

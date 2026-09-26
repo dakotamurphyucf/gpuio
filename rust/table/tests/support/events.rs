@@ -32,6 +32,19 @@ pub(super) fn bounds(
         })
         .unwrap()
 }
+pub(super) fn column_bounds(
+    cx: &mut AsyncApp,
+    handle: WindowHandle<Probe>,
+    index: usize,
+) -> Bounds<Pixels> {
+    let key = handle
+        .update(cx, |view, _, cx| {
+            view.table.read(cx).delegate().columns[index].key.clone()
+        })
+        .unwrap();
+    bounds(cx, handle, format!("col-header:{key}"))
+}
+
 fn mouse(
     window: &mut Window,
     cx: &mut App,
@@ -145,7 +158,7 @@ pub(super) fn exercise(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
         .unwrap();
     draw(cx, handle);
     let row = bounds(cx, handle, ("row", 2usize));
-    let column = bounds(cx, handle, ("col-header", 0usize));
+    let column = column_bounds(cx, handle, 0);
     let position = point(column.center().x, row.center().y);
     click(cx, handle, position, MouseButton::Left, 1);
     assert!(
@@ -179,7 +192,7 @@ pub(super) fn exercise(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
     );
     draw(cx, handle);
     let row = bounds(cx, handle, ("row", 2usize));
-    let column = bounds(cx, handle, ("col-header", 0usize));
+    let column = column_bounds(cx, handle, 0);
     let position = point(column.center().x, row.center().y);
     click(cx, handle, position, MouseButton::Left, 2);
     click(cx, handle, position, MouseButton::Right, 1);
@@ -289,7 +302,7 @@ pub(super) fn exercise(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
         .unwrap();
     draw(cx, handle);
     assert!(
-        bounds(cx, handle, ("col-header", 2usize)).size.width > px(120.),
+        column_bounds(cx, handle, 2).size.width > px(120.),
         "row page must preserve preview width"
     );
 
@@ -318,7 +331,7 @@ pub(super) fn exercise(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
         })
         .unwrap();
     draw(cx, handle);
-    assert!(bounds(cx, handle, ("col-header", 2usize)).size.width > px(120.));
+    assert!(column_bounds(cx, handle, 2).size.width > px(120.));
     events.borrow_mut().clear();
     handle
         .update(cx, |view, _, cx| {
@@ -326,18 +339,15 @@ pub(super) fn exercise(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
         })
         .unwrap();
     draw(cx, handle);
-    assert_eq!(
-        bounds(cx, handle, ("col-header", 2usize)).size.width,
-        px(120.)
-    );
+    assert_eq!(column_bounds(cx, handle, 2).size.width, px(120.));
     assert!(
         events.borrow().is_empty(),
         "explicit schema reconciliation must not echo input events"
     );
     draw(cx, handle);
     events.borrow_mut().clear();
-    let source = bounds(cx, handle, ("col-header", 2usize)).center();
-    let target = bounds(cx, handle, ("col-header", 3usize));
+    let source = column_bounds(cx, handle, 2).center();
+    let target = column_bounds(cx, handle, 3);
     let destination = point(target.right() - px(8.), target.center().y);
     handle
         .update(cx, |_, window, cx| {
@@ -393,8 +403,8 @@ pub(super) fn exercise(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
             })
         })
         .unwrap();
-    let source = bounds(cx, handle, ("col-header", 2usize)).center();
-    let target = bounds(cx, handle, ("col-header", 3usize));
+    let source = column_bounds(cx, handle, 2).center();
+    let target = column_bounds(cx, handle, 3);
     let destination = point(target.right() - px(8.), target.center().y);
     handle
         .update(cx, |_, window, cx| {

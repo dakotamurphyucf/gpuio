@@ -180,6 +180,18 @@ impl TableDelegate for Delegate {
         }
     }
 
+    fn cell_accessibility_value(
+        &self,
+        row: usize,
+        column: usize,
+        cx: &App,
+    ) -> Option<gpui::SharedString> {
+        let row = self.row_key(row, cx)?;
+        let column = self.schema.columns.get(column)?.id.clone().into();
+        self.copy_selection(&Selection::Cell { row, column }, cx)
+            .map(Into::into)
+    }
+
     fn appearance(&self) -> gpuio_table_adapter::Appearance {
         use gpuio_protocol::v1::{Field, Fill, Style};
         let mut appearance = gpuio_table_adapter::Appearance::default();
@@ -351,7 +363,6 @@ impl TableDelegate for Delegate {
                 }
                 div()
                     .id(("table-cell", cell.slot()))
-                    .role(gpui::Role::Cell)
                     .size_full()
                     .child(view.element(tree, cell, interaction, window, cx))
                     .into_any_element()
@@ -743,6 +754,8 @@ impl View {
                 .id(("gpuio-table", node.id.slot()))
                 .role(gpui::Role::Table)
                 .aria_label(config.label.clone())
+                .aria_row_count(native.read(cx).delegate().index.len())
+                .aria_column_count(native.read(cx).delegate().schema.columns.len())
                 .bg(gpuio_table_adapter::Appearance::default().tokens.table)
                 .text_color(appearance.foreground)
                 .border_1()

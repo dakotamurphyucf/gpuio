@@ -36,6 +36,18 @@ pub trait TableDelegate: Sized + 'static {
         None
     }
 
+    /// Optional accessible value of one painted cell from retained metadata.
+    /// None denotes unavailable data, not an empty value. Never fetch through a
+    /// host-language callback; embedded native controls keep their own semantics.
+    fn cell_accessibility_value(
+        &self,
+        _row: usize,
+        _column: usize,
+        _cx: &App,
+    ) -> Option<SharedString> {
+        None
+    }
+
     /// Retained, per-table styling. Must not call a host language.
     fn appearance(&self) -> Appearance {
         Appearance::default()

@@ -1,5 +1,8 @@
 //! Real retained host table rendering and asynchronous demand, not an isolated delegate.
 use super::*;
+#[cfg(target_os = "macos")]
+#[path = "table_host_test/accessibility.rs"]
+mod accessibility;
 #[path = "table_host_test/input.rs"]
 mod input;
 #[cfg(feature = "native-image-tests")]
@@ -223,6 +226,8 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
     input::exercise(cx, window).await;
     #[cfg(feature = "native-image-tests")]
     style::exercise(cx, window).await;
+    #[cfg(target_os = "macos")]
+    accessibility::exercise(cx, window).await;
     for enabled in [false, true] {
         apply(
             cx,

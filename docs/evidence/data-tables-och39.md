@@ -609,3 +609,60 @@ Final local checks pass after the selection fix and stronger lifecycle assertion
 
 All owned test processes/windows exited. No hosted run is claimed by these local
 results, and the full OCH-39 completion audit is still pending.
+
+## Native AppKit table semantics (2026-09-26)
+
+The retained host's actual NSAccessibility objects now pass:
+
+- 100,000 logical data rows and two columns while mounted table/row/cell/header/
+  sort-button objects stay below 70; mounted rows stay at most 16. A jump to data
+  index 50,000 reports that index, not a viewport-relative position. This is a
+  bounded sampled accessibility test, not native full-history cache acceptance.
+- Zero-based row/cell/header positions, mounted rows and selected-row enumeration,
+  column labels, exact Japanese/joined-emoji/combining-accent/tab/quote/newline
+  values, and absent values for unavailable cell data.
+- Repeated Press remains cell selection; native focus targets the addressed cell
+  through the table's active descendant. Row and column setters select their
+  keyed targets. Ordered deselect/select/deselect before repaint preserves all
+  requests; row selection also queues its documented empty-context clearing event.
+- A separately labelled sort button emits a keyed descending-sort request and
+  publishes the native optimistic sort indicator. Application reset restores the
+  retained column descriptions. Row-only/cell-only modes and disabled column
+  selection expose only their permitted selection setters; sorting stays separate.
+- PointerEvents false still permits accessibility. Retained Cocoa objects from
+  hidden/disabled tables cannot deliver application input, and the inert table
+  leaves the current accessibility tree.
+
+These tests briefly activate the window for AppKit's real focused-state getter;
+background windows correctly report unfocused. The harness retains inspected
+Cocoa objects across retirement and closes/reaps its window on success/failure.
+They are AppKit object/action evidence, not VoiceOver speech, physical keyboard/
+IME or Linux GUI acceptance. The existing table input/GPU/host cases continue to
+pass in the same test executable.
+
+The new `table-state.patch` is scoped to table metadata and explicitly opted-in
+selection actions; the existing tree custom-action IDs and behavior are preserved.
+All four patches reproduce every vendored Rust source exactly from the archive
+whose SHA256 and original source hashes match `UPSTREAM.json`. No dependency or
+wire-version change is involved. Header/cell native element IDs now use column
+keys; adapter geometry probes resolve the current displayed key.
+
+Final local validation for this change passes on macOS:
+
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native --features native-image-tests --test native_controls --test native_tree --test native_table_host` — table semantics plus shared controls/menus/palette/tree AX regressions, including the existing tree's two complete 100,000-row traversals.
+- `GPUIO_JOBS=2 python3 scripts/test_table_adapter.py` — column-key probe updates,
+  selection/input/anchor cases and intentional-failure cleanup.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --workspace --locked -j2`.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt` — both
+  native backend build paths and the full OCaml build/expect/format checks.
+- `GPUIO_JOBS=2 python3 scripts/test_table_public.py` — the public Bonsai/Eio
+  Table Lab, including streaming/query/paging/style/lifecycle scenarios.
+
+Physical table keyboard/IME, native table full-history cache/traversal and paging
+interaction coverage remain in OCH-39. Shared tree history checks do not satisfy
+the table's workload. The polished OCH-46 showcase, hosted gates and merge remain;
+no table capability or completed milestone is advertised.
+
+The final strict all-target check also passes:
+`GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --workspace --locked -j2 --all-targets --features gpuio-native/native-image-tests,gpuio-table-adapter/native-tests -- -D warnings`.
+All owned validation processes and windows have exited.

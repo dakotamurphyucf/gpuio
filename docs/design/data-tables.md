@@ -474,6 +474,39 @@ separately verify surface composition, clipping, pinned-column paint, inherited
 text and state precedence. Full table accessibility and remaining paging/history
 acceptance still apply.
 
+## Native table accessibility
+
+The outer native Table exposes the logical data-row and column counts. Only
+painted rows/cells and visible headers become accessibility nodes; an offscreen
+100,000-row history is not materialized for accessibility. Data indices are
+zero-based and exclude header bands. Native Row, Cell and ColumnHeader nodes
+carry current logical positions, and cells use column names plus the retained
+`copy_text` as their accessible value. Unavailable data has no value; it is not
+reported as an empty string. Embedded controls retain their own semantics.
+
+Accessibility Press and focus select the addressed row/cell/column, with native
+keyboard focus on the table and the selected descendant reported as focused.
+Repeated cell Press remains cell selection; it does not use pointer reselect
+escalation or activate application data. Activation stays Enter/double-click.
+Desired selection setters preserve order before the next paint; deselecting an
+unselected target leaves another selection alone. Row selection also clears the
+previous context target, consistent with ordinary input. Sort has a separately
+labelled header button and optimistic sort metadata, subject to application
+acceptance/reset. Header/cell element identities use stable column keys.
+
+Actions consult current layout identity and live input policy. PointerEvents
+suppression does not disable accessibility. Hidden/disabled tables are inert and
+leave the accessibility tree; queued old-object requests cannot change current
+application state. The renderer's focus-owning Group supplies the ancestor needed
+for GPUI's active-descendant semantics without taking focus from child editors.
+
+The vendored AccessKit macOS adapter has a fourth scoped, reproducible patch for
+counts, positions, mounted-row enumeration and opt-in desired table selection.
+See its [provenance](../../vendor/accesskit-macos/GPUIO.md). Local AppKit checks
+exercise these getters/actions, including Unicode values and logical positions
+after a 50,000-row jump. These checks do not claim VoiceOver speech, physical
+keyboard/IME acceptance or Linux graphical accessibility acceptance.
+
 ## Remaining acceptance
 
 The model tests are one foundation, not a replacement for these gates:

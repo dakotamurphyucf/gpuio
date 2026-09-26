@@ -7,6 +7,9 @@ module Request = Gpuio.Table.Request
 module Target = Gpuio.Table.Target
 
 module Cell : sig
+  (** The retained [copy_text] is also the native cell's accessibility value.
+      Provide a readable textual equivalent for custom visual content. Native
+      controls inside the cell retain their own accessibility semantics. *)
   type t
 
   (** Copy text and the child View are independent. Column identity must match

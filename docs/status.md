@@ -183,9 +183,12 @@ The public table now applies its style to one native root while separate
 source identity preserves reset semantics. GPU checks pass alpha/gradient surfaces,
 border/padding/corner clipping, inherited text, state precedence, pinned-column
 paint and readable selected cells/rows. The styled Table Lab retains selection
-and anchors through light/dark changes. Physical keyboard/accessibility, broader
-native full-history/paging interactions and final acceptance remain; no
-table capability is advertised.
+and anchors through light/dark changes. Actual macOS accessibility now passes
+logical counts/indices, Unicode cell values, selected-descendant focus, ordered
+selection setters, separate sorting, selection-mode restrictions and retired
+hidden/disabled objects. The vendored Cocoa adapter has a reproducible table
+metadata/selection patch. Physical keyboard/IME, broader native full-history/paging
+interactions and final acceptance remain; no table capability is advertised.
 See [table design](design/data-tables.md) and
 [evidence](evidence/data-tables-och39.md).
 
