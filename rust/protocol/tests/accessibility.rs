@@ -7,6 +7,7 @@ fn config() -> Config {
         label: None,
         description: None,
         live: Live::Off,
+        current: None,
         field: Some(Field {
             label: "Email".into(),
             help: Some("Private".into()),
@@ -120,6 +121,7 @@ fn semantic_role_tags_match_ocaml() {
         label: Some(label.into()),
         description: description.map(str::to_owned),
         live,
+        current: None,
         field: None,
     })
     .collect::<Vec<_>>();
@@ -138,4 +140,67 @@ fn semantic_role_tags_match_ocaml() {
 fn accepted_presentation_capability() {
     use gpuio_protocol::v1::{CAP_PRESENTATION, CAPABILITIES};
     assert_eq!(CAPABILITIES & CAP_PRESENTATION, 1_i64 << 34);
+}
+
+#[test]
+fn current_item_fixture_validation_and_placement() {
+    let value = Config {
+        role: Some(Role::Link),
+        label: Some("Inbox".into()),
+        description: Some("Current page".into()),
+        live: Live::Off,
+        field: None,
+        current: Some(Current::Page),
+    };
+    assert_eq!(
+        encode(&value)
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<String>(),
+        include_str!("../../../test/fixtures/accessibility-current.hex").trim()
+    );
+    use gpuio_protocol::v1::Kind;
+    assert!(value.supports(Kind::Button));
+    assert!(!value.supports(Kind::Container));
+    assert!(!value.supports(Kind::Checkbox));
+    for (tag, current) in [
+        Current::True,
+        Current::Page,
+        Current::Step,
+        Current::Location,
+        Current::Date,
+        Current::Time,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let config = Config {
+            current: Some(current),
+            ..value.clone()
+        };
+        let bytes = encode(&config);
+        assert_eq!(bytes.last().copied(), Some(tag as u8));
+        assert_eq!(decode_accessibility(&bytes), Ok(config));
+        for length in 0..bytes.len() {
+            assert!(decode_accessibility(&bytes[..length]).is_err());
+        }
+    }
+    let mut bad = value.clone();
+    bad.description = None;
+    assert!(decode_accessibility(&encode(&bad)).is_err());
+    let mut bytes = encode(&value);
+    *bytes.last_mut().unwrap() = 6;
+    assert!(decode_accessibility(&bytes).is_err());
+    let mut field = config();
+    field.current = Some(Current::True);
+    assert!(decode_accessibility(&encode(&field)).is_err());
+    let nav = Config {
+        role: Some(Role::Navigation),
+        current: None,
+        ..value
+    };
+    assert!(nav.supports(Kind::Container));
+    assert!(!nav.supports(Kind::Text));
+    assert_eq!(encode(&nav)[1], 11);
+    assert_eq!(decode_accessibility(&encode(&nav)), Ok(nav));
 }

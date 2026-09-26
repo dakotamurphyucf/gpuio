@@ -354,6 +354,7 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
                 label: None,
                 description: None,
                 live: a::Live::Off,
+                current: None,
                 field: Some(a::Field {
                     label: "Sampling temperature".into(),
                     help: Some("Workspace setting\nAdjust generation".into()),

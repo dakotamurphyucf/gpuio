@@ -1,6 +1,6 @@
 # Implementation status
 
-Updated 2026-09-25. Milestones 01 and 02 are merged, including native text editing,
+Updated 2026-09-26. Milestones 01 and 02 are merged, including native text editing,
 controls/interactions and declarative animations. [PR #10](https://github.com/dakotamurphyucf/gpuio/pull/10)
 merged at `17e863279bff25253edf47f449c04cd9aee5e867` after the required macOS and
 Linux checks passed. Milestone 03 / OCH-13 implements keyed collections, paging and managed virtual
@@ -30,7 +30,11 @@ Core/Bonsai panel/disclosure/accordion bindings and initial native macOS checks 
 pass keyboard/expanded accessibility state, nested focus restoration, retained and
 unmounted editors, marked-text isolation and hidden focus-scope cleanup. A small
 vendored patch to the unchanged accesskit_macos 0.26.3 exposes expanded state;
-both native backend build paths use it. Remaining navigation/overlay/carousel
+both native backend build paths use it. Public breadcrumb/pagination compositions
+now pass bounded-model/reconciliation tests and native AppKit current descriptions,
+keyboard/AX actions and focus retention. The Navigation Lab also verifies retained
+Unicode drafts, independent lazy Bonsai lifecycle and Eio data-scope cleanup.
+Remaining navigation/overlay/carousel
 components, motion, public examples, broader acceptance and hosted gates remain
 in progress. See [navigation design](design/navigation-components.md) and
 [foundation evidence](evidence/navigation-components-och37.md).

@@ -24,6 +24,7 @@
    calendar-selected.hex
    calendar-replace.hex
    animation-v1-config.hex
+   accessibility-current.hex
    accessibility-field.hex
    accessibility-request.hex
    accessibility-roles.hex
@@ -230,3 +231,5 @@
 (copy_files ../fixtures/color-*.hex)
 
 (copy_files ../fixtures/disclosure-request.hex)
+
+(copy_files ../fixtures/accessibility-current.hex)

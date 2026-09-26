@@ -4,10 +4,11 @@ use gpui::{
     A11ySubtreeBuilder, App, Bounds, Element, ElementId, GlobalElementId, InspectorElementId,
     IntoElement, LayoutId, Pixels, Window, accesskit,
 };
-use gpuio_protocol::accessibility::{Config, Live, Role};
+use gpuio_protocol::accessibility::{Config, Current, Live, Role};
 
 fn role(role: Role) -> accesskit::Role {
     match role {
+        Role::Navigation => accesskit::Role::Navigation,
         Role::Group => accesskit::Role::Group,
         Role::Label => accesskit::Role::Label,
         Role::Link => accesskit::Role::Link,
@@ -27,6 +28,16 @@ fn metadata(config: &Config, node: &mut accesskit::Node) {
     }
     if let Some(description) = &config.description {
         node.set_description(description.clone());
+    }
+    if let Some(current) = config.current {
+        node.set_aria_current(match current {
+            Current::True => accesskit::AriaCurrent::True,
+            Current::Page => accesskit::AriaCurrent::Page,
+            Current::Step => accesskit::AriaCurrent::Step,
+            Current::Location => accesskit::AriaCurrent::Location,
+            Current::Date => accesskit::AriaCurrent::Date,
+            Current::Time => accesskit::AriaCurrent::Time,
+        });
     }
     node.set_live(match config.live {
         Live::Off => accesskit::Live::Off,
@@ -220,6 +231,7 @@ mod tests {
             label: None,
             description: None,
             live: Live::Off,
+            current: None,
             field: Some(Field {
                 label: "Name".into(),
                 help: Some("Public name".into()),
@@ -248,6 +260,28 @@ mod tests {
         assert!(!next.is_required());
         assert_eq!(next.invalid(), None);
         assert_eq!(next.description(), Some("Public name"));
+    }
+    #[test]
+    fn current_item_keeps_button_actions_and_is_not_selection() {
+        let config = Config {
+            role: None,
+            label: None,
+            description: Some("Current page".into()),
+            live: Live::Off,
+            field: None,
+            current: Some(Current::Page),
+        };
+        let mut node = accesskit::Node::new(accesskit::Role::Button);
+        node.add_action(accesskit::Action::Click);
+        node.add_action(accesskit::Action::Focus);
+        metadata(&config, &mut node);
+        assert_eq!(node.aria_current(), Some(accesskit::AriaCurrent::Page));
+        assert_eq!(node.description(), Some("Current page"));
+        assert!(node.supports_action(accesskit::Action::Click));
+        assert!(node.supports_action(accesskit::Action::Focus));
+        assert_eq!(node.is_selected(), None);
+        assert_eq!(node.toggled(), None);
+        assert_eq!(role(Role::Navigation), accesskit::Role::Navigation);
     }
     #[test]
     fn notifications_preserve_polite_and_assertive_live_semantics() {

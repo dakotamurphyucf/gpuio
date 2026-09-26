@@ -23,6 +23,7 @@ fn field(error: Option<&str>, required: bool) -> Config {
         label: None,
         description: None,
         live: Live::Off,
+        current: None,
         field: Some(Field {
             label: "Email address".into(),
             help: Some("Kept private".into()),
@@ -174,6 +175,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
                     label: Some("Privacy policy".into()),
                     description: None,
                     live: Live::Off,
+                    current: None,
                     field: None,
                 }),
             ),

@@ -4,7 +4,8 @@
 type 'action t
 
 (** Preserve keyed identity while applying validated native semantics. General
-    presentation roles apply to containers/text; Link applies to buttons. Field
+    presentation roles apply to containers/text; Navigation requires a container.
+    Link applies to buttons. Current-item metadata supports text/buttons only. Field
     metadata applies to native input/textarea/combobox, checkbox/switch and
     radio/select roots. Ambiguous or unsupported placements return an error. *)
 val with_accessibility : 'action t -> Accessibility.t -> 'action t Core.Or_error.t

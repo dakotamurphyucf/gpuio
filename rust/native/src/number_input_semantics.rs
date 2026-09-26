@@ -46,6 +46,7 @@ pub(super) fn metadata(
         }
     };
     Arc::new(a::Config {
+        current: None,
         role: None,
         label: None,
         description: None,
@@ -98,6 +99,7 @@ mod tests {
             label: None,
             description: None,
             live: a::Live::Off,
+            current: None,
             field: Some(a::Field {
                 label: "Sampling temperature".into(),
                 help: Some("Workspace setting\nAdjust generation".into()),
@@ -130,6 +132,7 @@ mod tests {
             label: Some("Fallback".into()),
             description: Some("Workspace setting".into()),
             live: a::Live::Polite,
+            current: None,
             field: None,
         };
         assert!(plain.is_valid());

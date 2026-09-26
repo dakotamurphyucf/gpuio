@@ -90,7 +90,7 @@ let%expect_test "field representation matches independent bounded Rust fixture" 
     in
     assert (String.equal hex expected));
   print_endline hex;
-  [%expect {| 000000000105456d61696c0107507269766174650108526571756972656401 |}]
+  [%expect {| 000000000105456d61696c010750726976617465010852657175697265640100 |}]
 ;;
 
 let%expect_test "metadata changes preserve identity and reset independently of controls" =
@@ -192,4 +192,35 @@ let%expect_test "form layouts retain their control across optional help and erro
   assert (Result.is_error (Form.field (field ()) ~control:(View.column []) ()));
   print_endline "optional content and layout changes preserve the native control";
   [%expect {| optional content and layout changes preserve the native control |}]
+;;
+
+let%expect_test
+    "navigation current semantics are bounded, independently encoded and placed"
+  =
+  let current =
+    A.create ~role:Link ~label:"Inbox" ~description:"Current page" ~current:Page () |> ok
+  in
+  Bin_prot.Utils.bin_dump W.Config.bin_writer_t (A.Expert.to_wire current)
+  |> Bigstring.to_string
+  |> check_fixture "accessibility-current.hex";
+  assert (Result.is_error (A.create ~current:Page ()));
+  assert (Result.is_error (A.create ~current:Page ~description:"" ()));
+  assert (Result.is_error (View.with_accessibility (View.column []) current));
+  let navigation = A.create ~role:Navigation ~label:"Workspace" () |> ok in
+  assert (Result.is_ok (View.with_accessibility (View.column []) navigation));
+  assert (
+    Result.is_error (View.with_accessibility (View.text "Not a landmark") navigation));
+  let text_current =
+    A.create ~current:Location ~description:"Current location" () |> ok
+  in
+  assert (Result.is_ok (View.with_accessibility (View.text "Inbox") text_current));
+  assert (
+    Result.is_error
+      (View.with_accessibility
+         (View.checkbox ~state:Unchecked ~on_toggle:(fun () -> ()) "Inbox")
+         text_current));
+  print_endline
+    "current-page fixture matches; descriptive fallback and semantic placement enforced";
+  [%expect
+    {| current-page fixture matches; descriptive fallback and semantic placement enforced |}]
 ;;

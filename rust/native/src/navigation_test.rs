@@ -310,7 +310,193 @@ pub(super) async fn exercise(
             assert!(!v.focus.borrow_mut().take_pending());
         })
         .unwrap();
+    pagination_and_breadcrumbs(cx, handle, transport).await;
     println!(
         "GPUIO_DISCLOSURE_NATIVE_OK: header traversal, single activation, nested collapse/unmount focus, retained editors, hidden scopes and disposal"
+    );
+}
+
+#[cfg(target_os = "macos")]
+fn native_help(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    label: &str,
+) -> Option<Option<String>> {
+    use objc2::{msg_send, runtime::AnyObject};
+    use objc2_foundation::NSString;
+    unsafe fn visit(object: *mut AnyObject, label: &str, depth: usize) -> Option<Option<String>> {
+        if object.is_null() || depth > 32 {
+            return None;
+        }
+        unsafe {
+            let title: *mut NSString = msg_send![object, accessibilityTitle];
+            let role: *mut NSString = msg_send![object, accessibilityRole];
+            if !title.is_null()
+                && !role.is_null()
+                && (*title).to_string() == label
+                && ["AXButton", "AXLink"].contains(&(*role).to_string().as_str())
+            {
+                let help: *mut NSString = msg_send![object, accessibilityHelp];
+                return Some(help.as_ref().map(|s| s.to_string()));
+            }
+            let children: *mut AnyObject = msg_send![object, accessibilityChildren];
+            if children.is_null() {
+                return None;
+            }
+            let count: usize = msg_send![children, count];
+            assert!(count < 128);
+            for index in 0..count {
+                let child: *mut AnyObject = msg_send![children, objectAtIndex:index];
+                if let Some(found) = visit(child, label, depth + 1) {
+                    return Some(found);
+                }
+            }
+            None
+        }
+    }
+    let view = super::super::editor_test::native_view(cx, handle) as *mut AnyObject;
+    unsafe {
+        let window: *mut AnyObject = msg_send![view, window];
+        let content: *mut AnyObject = msg_send![window, contentView];
+        visit(content, label, 0)
+    }
+}
+
+async fn pagination_and_breadcrumbs(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    transport: &Transport,
+) {
+    use gpuio_protocol::accessibility::{Config, Current, Live, Role};
+    let metadata = |role, current, description: Option<&str>| Config {
+        role,
+        current,
+        description: description.map(str::to_owned),
+        label: None,
+        live: Live::Off,
+        field: None,
+    };
+    let mut operations = vec![
+        Op::Create(node(24), Kind::Container, "".into(), None),
+        Op::SetAccessibility(
+            node(24),
+            Some(Config {
+                label: Some("Page navigation".into()),
+                ..metadata(Some(Role::Navigation), None, None)
+            }),
+        ),
+    ];
+    for (id, label, disabled) in [
+        (25, "Previous page", true),
+        (26, "Page 1", false),
+        (27, "Page 2", false),
+        (28, "Next page", false),
+        (29, "Home route", false),
+    ] {
+        operations.push(Op::Create(
+            node(id),
+            Kind::Button,
+            label.into(),
+            Some(gpuio_protocol::HandlerId::from_parts(id, 1).unwrap()),
+        ));
+        operations.push(Op::SetControl(node(id), Control::Button(disabled)));
+    }
+    operations.extend([
+        Op::SetAccessibility(
+            node(26),
+            Some(metadata(None, Some(Current::Page), Some("Current page"))),
+        ),
+        Op::SetAccessibility(node(29), Some(metadata(Some(Role::Link), None, None))),
+        Op::Splice(node(24), 0, 0, (25..=29).map(node).collect()),
+        Op::SetRoot(Some(node(24))),
+    ]);
+    apply(cx, handle, operations);
+    frame(cx, handle).await;
+    focus(cx, handle, 26);
+    frame(cx, handle).await;
+    let retained_focus = handle
+        .update(cx, |v, _, _| v.buttons[&node(26)].focus.clone())
+        .unwrap();
+    #[cfg(target_os = "macos")]
+    {
+        let _ = native_help(cx, handle, "Page 1");
+        frame(cx, handle).await;
+        assert_eq!(
+            native_help(cx, handle, "Page 1"),
+            Some(Some("Current page".into()))
+        );
+        assert!(
+            accessible_with_role(cx, handle, "Page navigation", Some("AXGroup"), false).is_some()
+        );
+    }
+    let _ = presses(transport);
+    key(cx, handle, "enter");
+    key(cx, handle, "enter");
+    assert_eq!(
+        presses(transport),
+        vec![node(26), node(26)],
+        "no optimistic native selection or duplicate activation"
+    );
+    key(cx, handle, "tab");
+    assert!(focused(cx, handle, node(27)));
+    key(cx, handle, "shift-tab");
+    assert!(focused(cx, handle, node(26)));
+    // Application acknowledgement changes semantics, not focus or button identity.
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::SetAccessibility(node(26), Some(metadata(None, None, None))),
+            Op::SetAccessibility(
+                node(27),
+                Some(metadata(None, Some(Current::Page), Some("Page actuelle"))),
+            ),
+        ],
+    );
+    frame(cx, handle).await;
+    assert!(focused(cx, handle, node(26)));
+    handle
+        .update(cx, |v, _, _| {
+            assert!(v.buttons[&node(26)].focus == retained_focus)
+        })
+        .unwrap();
+    #[cfg(target_os = "macos")]
+    {
+        assert_eq!(native_help(cx, handle, "Page 1"), Some(None));
+        assert_eq!(
+            native_help(cx, handle, "Page 2"),
+            Some(Some("Page actuelle".into()))
+        );
+        let _ = presses(transport);
+        assert!(accessible_with_role(cx, handle, "Home route", Some("AXLink"), true).is_some());
+        frame(cx, handle).await;
+        assert_eq!(presses(transport), vec![node(29)]);
+    }
+    // The next model disables navigation at its boundary, without remounting.
+    focus(cx, handle, 28);
+    apply(
+        cx,
+        handle,
+        vec![Op::SetControl(node(28), Control::Button(true))],
+    );
+    frame(cx, handle).await;
+    let _ = presses(transport);
+    assert!(!focused(cx, handle, node(28)));
+    apply(
+        cx,
+        handle,
+        std::iter::once(Op::SetRoot(None))
+            .chain((24..=29).map(|i| Op::Remove(node(i))))
+            .collect(),
+    );
+    frame(cx, handle).await;
+    handle
+        .update(cx, |v, _, _| {
+            assert!(v.buttons.is_empty());
+            assert_eq!(v.session.borrow().retained_bytes(), 0);
+        })
+        .unwrap();
+    println!(
+        "GPUIO_NAVIGATION_SEMANTICS_OK: current-page native help updates, retained focus, queued activation, Tab, link AX press, disabled boundary and teardown"
     );
 }

@@ -101,3 +101,68 @@ GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 examples/extension_consumer/ma
 Final post-review checks and commit are recorded in Linear. No new navigation
 capability is advertised. Public component examples, broader native appearance,
 motion/lifecycle/workloads and the remaining OCH-37 families are still required.
+
+## Breadcrumbs, pagination and current-item semantics — 2026-09-26
+
+`Navigation.breadcrumbs` and `Navigation.pagination` are public stateless Core
+compositions; they also accept Bonsai effects directly. Their interfaces were
+written first. Five new expect tests cover bounded native descriptions up to a
+billion pages, current-page metadata distinct from focus, three queued Next
+requests, shrink/clamping/stale-handler rejection, overlapping keyed identity,
+whole-model disable without remounting, breadcrumb relabelling/latest callbacks,
+inert current/disabled entries and bounded/validated localization functions.
+A sixth accessibility test covers the independent current fixture and semantic
+placement/description constraints.
+
+The schema appends Navigation role 11 and an optional Current value to semantic
+Config. Both codecs match a manually constructed current-page fixture. All six
+current tags roundtrip and truncated/unknown/undescribed/field combinations are
+rejected. Existing independent field/role/request fixtures include the trailing
+option. There is no claim that old and new unreleased binary layouts interoperate.
+Existing native form metadata constructors retain their behavior with no current
+state. Both languages reject a navigation landmark on text and current state on a
+container or form control.
+
+Actual local macOS `native_navigation` passes the existing disclosure suite and:
+
+- AppKit current-page help appears, clears on the old page, and updates to a
+  localized description on the new page. Navigation is exposed as a group.
+- Selection acknowledgement preserves the focused button's native handle and
+  does not move focus to the current page. Tab/Shift-Tab and repeated Enter deliver
+  ordered button requests without another native selection model.
+- A breadcrumb Link performs one AX Press action. A newly disabled boundary
+  control loses focus eligibility. Teardown empties buttons and session accounting.
+
+AccessKit unit tests separately verify `aria_current=Page`, existing Click/Focus
+actions, and absent selected/toggled state. The native test proves AppKit help,
+not VoiceOver speech or a nonexistent platform current-page attribute.
+
+The new [Navigation Lab](../../examples/navigation/README.md) compiles/links and
+its real-window public self-test passes. It edits a Unicode draft, hides/restores
+its native panel without losing the editor, denies hidden focus, separately
+changes a lazy Bonsai branch, completes an Eio data task while the panel is hidden,
+reduces three queued Next requests, clamps count shrink, ignores a stale page
+request and cancels its data subscription on window close. Its window exits at
+completion. The CI workflow now includes the public check; hosted execution is
+still deferred to the consolidated milestone gate.
+
+Commands run in the isolated repository environment on local macOS arm64:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 lib/bonsai/gpuio_bonsai.cma @test/view_api/runtest @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-tests --lib semantics::tests --test native_navigation --test accessibility
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-protocol -p gpuio-native --lib --test accessibility
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-protocol
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native --all-targets --features native-image-tests -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 examples/navigation/main.exe
+_build/default/examples/navigation/main.exe --self-test
+```
+
+All pass. The first Cargo command's name filter selects five semantic unit tests
+and the harness-free native executable; the accessibility integration test is
+filtered there and explicitly runs in the following unfiltered command. That
+command passes 202 native unit tests, one native accessibility admission test,
+28 protocol unit tests and six protocol accessibility integration tests. The full
+protocol suite then passes as well. No dependency versions or navigation capability
+bits changed. Required hosted macOS/Linux checks/merge, full Linux GUI validation,
+broader layout/appearance acceptance and remaining OCH-37 components stay pending.

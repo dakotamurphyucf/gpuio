@@ -17,11 +17,21 @@ pub enum Role {
     Alert,
     Image,
     Heading(i64),
+    Navigation,
 }
 impl Role {
     pub fn is_valid(self) -> bool {
         !matches!(self, Self::Heading(level) if !(1..=6).contains(&level))
     }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum Current {
+    True,
+    Page,
+    Step,
+    Location,
+    Date,
+    Time,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Live {
@@ -54,10 +64,16 @@ pub struct Config {
     pub description: Option<String>,
     pub live: Live,
     pub field: Option<Field>,
+    pub current: Option<Current>,
 }
 impl Config {
     pub fn supports(&self, kind: crate::v1::Kind) -> bool {
         use crate::v1::Kind;
+        if self.current.is_some()
+            && !matches!(kind, Kind::Text | Kind::Button | Kind::CommandButton)
+        {
+            return false;
+        }
         if self.field.is_some() {
             return self.role.is_none()
                 && matches!(
@@ -78,6 +94,7 @@ impl Config {
                 );
         }
         match self.role {
+            Some(Role::Navigation) => kind == Kind::Container,
             Some(Role::Link) => matches!(kind, Kind::Button | Kind::CommandButton),
             Some(
                 Role::Group
@@ -118,8 +135,10 @@ impl Config {
         self.role.is_none_or(Role::is_valid)
             && self.label.as_deref().is_none_or(valid_text)
             && self.description.as_deref().is_none_or(valid_text)
+            && (self.current.is_none() || self.description.is_some())
             && self.field.as_ref().is_none_or(|field| {
                 field.is_valid()
+                    && self.current.is_none()
                     && self.role.is_none()
                     && self.label.is_none()
                     && self.description.is_none()

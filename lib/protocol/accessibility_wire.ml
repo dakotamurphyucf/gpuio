@@ -13,6 +13,7 @@ module Role = struct
     | Alert
     | Image
     | Heading of int
+    | Navigation
   [@@deriving bin_io, equal, sexp_of]
 
   let valid = function
@@ -26,8 +27,20 @@ module Role = struct
     | Definition
     | Status
     | Alert
-    | Image -> true
+    | Image
+    | Navigation -> true
   ;;
+end
+
+module Current = struct
+  type t =
+    | True
+    | Page
+    | Step
+    | Location
+    | Date
+    | Time
+  [@@deriving bin_io, equal, sexp_of]
 end
 
 module Live = struct
@@ -68,6 +81,7 @@ module Config = struct
     ; description : string option
     ; live : Live.t
     ; field : Field.t option
+    ; current : Current.t option
     }
   [@@deriving bin_io, equal, sexp_of]
 
@@ -75,8 +89,10 @@ module Config = struct
     Option.for_all t.role ~f:Role.valid
     && Option.for_all t.label ~f:valid_text
     && Option.for_all t.description ~f:valid_text
+    && (Option.is_none t.current || Option.is_some t.description)
     && Option.for_all t.field ~f:(fun field ->
       Field.valid field
+      && Option.is_none t.current
       && Option.is_none t.role
       && Option.is_none t.label
       && Option.is_none t.description

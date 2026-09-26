@@ -492,6 +492,7 @@ fn form_metadata_updates_preserve_the_retained_seed_and_reject_role_overrides() 
         label: None,
         description: None,
         live: a::Live::Off,
+        current: None,
         field: Some(a::Field {
             label: "Selection".into(),
             help: Some("Choose a value".into()),

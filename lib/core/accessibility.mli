@@ -14,6 +14,21 @@ module Role : sig
     | Alert
     | Image
     | Heading of int
+    | Navigation
+  [@@deriving equal, sexp_of]
+end
+
+(** Current member of a related set, distinct from selection, focus or toggled
+    state. [None] clears the property. Platforms differ in native support, so a
+    current item also requires a localized [description] such as "Current page". *)
+module Current : sig
+  type t =
+    | True
+    | Page
+    | Step
+    | Location
+    | Date
+    | Time
   [@@deriving equal, sexp_of]
 end
 
@@ -55,6 +70,7 @@ val create
   -> ?label:string
   -> ?description:string
   -> ?live:Live.t
+  -> ?current:Current.t
   -> unit
   -> t Or_error.t
 

@@ -351,6 +351,7 @@ let with_accessibility t accessibility =
         | Calendar
         | Color_input ) ) -> true
     | None, Some Link, (Button | Command_button) -> true
+    | None, Some Navigation, Container -> true
     | ( None
       , Some
           ( Group
@@ -385,7 +386,14 @@ let with_accessibility t accessibility =
         | Color_input ) ) -> true
     | _ -> false
   in
-  if supported
+  let current_supported =
+    Option.is_none metadata.current
+    ||
+    match t.kind with
+    | Text | Button | Command_button -> true
+    | _ -> false
+  in
+  if supported && current_supported
   then Ok { t with accessibility = Some accessibility }
   else Or_error.error_string "accessibility metadata is incompatible with this view kind"
 ;;

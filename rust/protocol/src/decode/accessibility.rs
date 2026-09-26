@@ -18,6 +18,7 @@ impl Decoder<'_> {
                     8 => Role::Alert,
                     9 => Role::Image,
                     10 => Role::Heading(d.int()?),
+                    11 => Role::Navigation,
                     _ => return Err(DecodeError::Malformed),
                 })
             })?,
@@ -35,6 +36,17 @@ impl Decoder<'_> {
                     help: d.option(|d| d.bounded_text(MAX_TEXT_BYTES))?,
                     error: d.option(|d| d.bounded_text(MAX_TEXT_BYTES))?,
                     required: d.boolean()?,
+                })
+            })?,
+            current: self.option(|d| {
+                Ok(match d.tag()? {
+                    0 => Current::True,
+                    1 => Current::Page,
+                    2 => Current::Step,
+                    3 => Current::Location,
+                    4 => Current::Date,
+                    5 => Current::Time,
+                    _ => return Err(DecodeError::Malformed),
                 })
             })?,
         };

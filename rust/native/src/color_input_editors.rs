@@ -402,6 +402,7 @@ fn configure_input(
                 label: None,
                 description: None,
                 live: gpuio_protocol::accessibility::Live::Off,
+                current: None,
                 field: Some(gpuio_protocol::accessibility::Field {
                     label: presentation.label.clone(),
                     help: None,

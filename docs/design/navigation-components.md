@@ -1,7 +1,8 @@
 # Disclosure, navigation and supplementary overlays (OCH-37)
 
-Status: implementation in progress. Pure application models compile and pass local expect tests;
-new native component capability and acceptance are not yet advertised. This
+Status: implementation in progress. Core models, mounted disclosure, breadcrumbs
+and pagination pass the local checks recorded in the evidence ledger. Full-family
+capability and acceptance are not yet advertised. This
 specification retains the full live OCH-37 scope, including native behavior,
 examples and platform gates.
 
@@ -103,9 +104,9 @@ OCaml callbacks. Auto-advance pauses while focus/hover interaction, ancestor/win
 visibility or reduced-motion policy requires it; at most one pending selection
 request waits for application reconciliation. Stop at teardown/window close.
 
-Extend semantic roles/expanded/current metadata and the existing overlay variants
-where needed. Preserve Dialog/Popover/Tooltip behavior and nested Escape/outside
-routing. Do not declare a component complete from a styled column or model tests.
+Navigation/current and disclosure expanded metadata are implemented below. Extend
+the existing overlay variants while preserving Dialog/Popover/Tooltip behavior and
+nested Escape/outside routing. Do not declare a component complete from a styled column or model tests.
 Paired codec fixtures are required for new wire contracts. Expect tests cover
 history, disclosure and shrink/request races; actual macOS tests must cover nested
 focus/IME, lazy/retained lifetimes, nested overlays, constrained themed layouts,
@@ -154,3 +155,50 @@ This is an initial mounted disclosure implementation, not complete OCH-37
 acceptance. Broader layout/appearance, reveal/navigation motion, public examples,
 other navigation/overlay/carousel families and full lifecycle/workload acceptance
 remain to be finished before capability advertisement.
+
+## Breadcrumb and pagination compositions
+
+`Navigation.breadcrumbs` accepts an ordered, bounded `Choice.Collection`. It keys
+wrappers by destination ID, uses native links for eligible ancestors, and exposes
+the final member as current-location text. Separators are decorative borders with
+no labels, handlers or focus stops. Labels can change without replacing an
+ancestor's button. Callbacks carry IDs for resolution against current application
+state; the helper does not capture route payloads or own a second route model.
+
+`Navigation.pagination` renders the existing `Pagination` model with native
+buttons, range-labelled inert gaps and a navigation landmark. Four boundary
+controls plus at most 13 items bound the entire component to 17 direct children,
+even with a billion pages. Empty/boundary/disabled controls have no active handler.
+The current page stays actionable and is independent of keyboard focus. Relative
+intents reach the latest application reducer; count shrink clamps selection and
+retires absent page handlers. Stable page/boundary keys preserve overlapping
+button identity. Ordinary Tab/Shift-Tab, Enter/Space and accessibility Press are
+used; no competing roving-focus or native page-selection state is introduced.
+
+`Navigation.Appearance` refines item/current/gap/separator styles and defaults to
+existing theme tokens. `Pagination_labels` supplies localized navigation/control/
+current strings and bounded pure page/range formatters; formatters run in OCaml
+only for visible items. Invalid strings return an error before reconciliation.
+
+`Accessibility.Role.Navigation` is appended as role tag 11. `Current` distinguishes
+True/Page/Step/Location/Date/Time from selection, focus, toggled and expanded state.
+An optional current field is appended to semantic Config; absent clears the
+property. Current metadata is supported on text and button/command-button nodes,
+not arbitrary containers or form fields. Navigation landmarks require containers.
+Each current item requires a localized description as well: the pinned AccessKit
+macOS and Unix adapters do not consistently map `aria_current`. GPUIO emits that
+property in AccessKit and preserves the description through native help, without
+inventing a macOS attribute or claiming screen-reader speech validation. The
+current style also uses weight and a border, so color is not the sole visual cue.
+
+This changes the unreleased metadata binary layout. Rebuild both the OCaml and
+Rust halves together, including separately composed static backends; mixing older
+semantic encodings is unsupported. Independent existing fixtures were rebuilt
+with the new trailing option, and a new current-page fixture verifies both codecs.
+No released dependency pin or component capability advertisement changes here.
+
+The [Navigation Lab](../../examples/navigation/README.md) demonstrates the public
+Bonsai/Eio usage. Native panel retention keeps an editor mounted while hidden;
+Bonsai conditional branches independently activate/deactivate lazy computation;
+a data scope outlives both visibility changes and is cancelled when its window
+closes. Lazy deactivation itself is not a promise to discard the Bonsai model.

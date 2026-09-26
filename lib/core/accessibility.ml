@@ -1,6 +1,7 @@
 open Core
 module W = Gpuio_protocol.Accessibility_wire
 module Role = W.Role
+module Current = W.Current
 module Live = W.Live
 
 module Field = struct
@@ -23,7 +24,7 @@ end
 
 type t = W.Config.t [@@deriving equal, sexp_of]
 
-let create ?role ?label ?description ?live () =
+let create ?role ?label ?description ?live ?current () =
   let live =
     Option.value
       live
@@ -41,12 +42,15 @@ let create ?role ?label ?description ?live () =
              | Term
              | Definition
              | Image
-             | Heading _ ) -> Off)
+             | Heading _
+             | Navigation ) -> Off)
   in
-  let config = { W.Config.role; label; description; live; field = None } in
+  let config = { W.Config.role; label; description; live; field = None; current } in
   if W.Config.valid config
   then Ok config
-  else Or_error.error_string "invalid accessibility text or heading level"
+  else
+    Or_error.error_string
+      "invalid accessibility text, heading level, or current item without description"
 ;;
 
 let field field =
@@ -55,6 +59,7 @@ let field field =
   ; description = None
   ; live = Off
   ; field = Some field
+  ; current = None
   }
 ;;
 

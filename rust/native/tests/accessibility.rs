@@ -23,6 +23,7 @@ fn semantic_admission_is_atomic_and_payload_is_reclaimed() {
         label: Some("Settings".into()),
         description: None,
         live: Live::Off,
+        current: None,
         field: None,
     };
     session
