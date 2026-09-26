@@ -2,7 +2,7 @@
 use super::*;
 use gpuio_table_adapter::table::ColumnSort;
 
-fn draw(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
+pub(super) fn draw(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
     for _ in 0..3 {
         let arena = cx
             .update_window(handle.into(), |_, window, cx| {
@@ -13,15 +13,21 @@ fn draw(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
         cx.update(|cx| arena.clear(cx));
     }
 }
-fn bounds(
+pub(super) fn bounds(
     cx: &mut AsyncApp,
     handle: WindowHandle<Probe>,
     id: impl Into<ElementId>,
 ) -> Bounds<Pixels> {
     handle
         .update(cx, |_, window, _| {
-            gpui_base::test_support::find(window, &[], &id.into())
-                .expect("painted native element")
+            let id = id.into();
+            gpui_base::test_support::find(window, &[], &id)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "missing painted element {id:?}; observed: {}",
+                        gpui_base::test_support::registered_paths(window)
+                    )
+                })
                 .bounds()
         })
         .unwrap()
@@ -93,7 +99,7 @@ fn reverse(table: &mut TableState<Delegate>, cx: &mut Context<TableState<Delegat
     table.refresh(cx);
     table.replace_selection(Selection::Empty, cx);
     table.scroll_to_row(0, cx);
-    table.scroll_to_col(0, cx);
+    table.scroll_to_col(2, cx);
 }
 
 pub(super) fn exercise(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
@@ -133,7 +139,7 @@ pub(super) fn exercise(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
                 table.refresh(cx);
                 table.replace_selection(Selection::Empty, cx);
                 table.scroll_to_row(0, cx);
-                table.scroll_to_col(0, cx);
+                table.scroll_to_col(2, cx);
             })
         })
         .unwrap();
@@ -210,6 +216,23 @@ pub(super) fn exercise(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
             assert_eq!(view.table.read(cx).delegate().keys[0], 200)
         })
         .unwrap();
+    // Reject an optimistic sort using the same retained schema value.
+    handle
+        .update(cx, |view, _, cx| {
+            view.table.update(cx, |table, cx| table.reset_columns(cx))
+        })
+        .unwrap();
+    draw(cx, handle);
+    events.borrow_mut().clear();
+    let sort = bounds(cx, handle, ("icon-sort", 2usize)).center();
+    click(cx, handle, sort, MouseButton::Left, 1);
+    assert!(
+        events.borrow().contains(&TableEvent::SortRequested(
+            "event-7".into(),
+            ColumnSort::Descending
+        )),
+        "explicit reset must clear optimistic sort"
+    );
     draw(cx, handle);
     events.borrow_mut().clear();
     let resize = bounds(cx, handle, ("resizable-handle", 2usize)).center();
@@ -253,6 +276,24 @@ pub(super) fn exercise(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
         })
         .unwrap();
     drag_move(cx, handle, resize + point(px(25.), px(0.)));
+    drag_move(cx, handle, resize + point(px(35.), px(0.)));
+
+    handle
+        .update(cx, |view, _, cx| {
+            view.table.update(cx, |table, cx| {
+                table.update_source(cx, |delegate| {
+                    delegate.keys.push(201);
+                    delegate.positions.insert(201, 200);
+                });
+            })
+        })
+        .unwrap();
+    draw(cx, handle);
+    assert!(
+        bounds(cx, handle, ("col-header", 2usize)).size.width > px(120.),
+        "row page must preserve preview width"
+    );
+
     drag_move(cx, handle, resize + point(px(45.), px(0.)));
     handle
         .update(cx, |_, window, cx| {
@@ -267,6 +308,33 @@ pub(super) fn exercise(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
         })
         .unwrap();
     assert!(events.borrow().iter().any(|event| matches!(event, TableEvent::ColumnWidthsChanged(widths) if widths.len() == 8 && widths[2].0 == "event-2" && widths[2].1 > px(120.))), "fresh keyed resize: {:?}", events.borrow());
+    handle
+        .update(cx, |view, _, cx| {
+            view.table.update(cx, |table, cx| {
+                table.update_source(cx, |delegate| {
+                    assert_eq!(delegate.keys.pop(), Some(201));
+                    delegate.positions.remove(&201);
+                });
+            })
+        })
+        .unwrap();
+    draw(cx, handle);
+    assert!(bounds(cx, handle, ("col-header", 2usize)).size.width > px(120.));
+    events.borrow_mut().clear();
+    handle
+        .update(cx, |view, _, cx| {
+            view.table.update(cx, |table, cx| table.reset_columns(cx))
+        })
+        .unwrap();
+    draw(cx, handle);
+    assert_eq!(
+        bounds(cx, handle, ("col-header", 2usize)).size.width,
+        px(120.)
+    );
+    assert!(
+        events.borrow().is_empty(),
+        "explicit schema reconciliation must not echo input events"
+    );
     draw(cx, handle);
     events.borrow_mut().clear();
     let source = bounds(cx, handle, ("col-header", 2usize)).center();
@@ -335,6 +403,18 @@ pub(super) fn exercise(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
         })
         .unwrap();
     drag_move(cx, handle, source + point(px(20.), px(0.)));
+    handle
+        .update(cx, |view, _, cx| {
+            view.table.update(cx, |table, cx| {
+                table.update_source(cx, |delegate| {
+                    delegate.keys.push(201);
+                    delegate.positions.insert(201, 200);
+                });
+            })
+        })
+        .unwrap();
+    draw(cx, handle);
+
     drag_move(cx, handle, destination);
     handle
         .update(cx, |_, window, cx| {
@@ -357,6 +437,6 @@ pub(super) fn exercise(cx: &mut AsyncApp, handle: WindowHandle<Probe>) {
         })
         .unwrap();
     eprintln!(
-        "TABLE_EVENT_IDENTITY_OK: fresh pointer/double/context/sort, stale frame suppression, retired resize/reorder, keyed widths/moves, selection follows moved column"
+        "TABLE_EVENT_IDENTITY_OK: fresh pointer/double/context/sort, stale frame suppression, retired resize/reorder, keyed widths/moves, row-page arrival preserves active resize/reorder and preview, selection follows moved column"
     );
 }

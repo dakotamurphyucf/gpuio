@@ -214,3 +214,48 @@ window closes and weak table-entity release still passes. These synthetic native
 pointer events are stronger than direct state calls, but do not constitute
 foreground keyboard/clipboard or macOS accessibility acceptance. Paged producer
 races, full-history cache bounds and the public bridge remain unimplemented.
+
+## Native source updates, anchors and column gestures
+
+`TableState::update_source` captures keys and pixel offsets before updating
+retained data. The native test reverses **100,000 rows and 62 unpinned columns**
+while the first visible row is clipped by seven pixels and the first scrolling
+column by seventeen pixels. After actual layout/paint, observed element origins
+remain within 0.1 logical pixels of their previous positions, and the retained
+keys are unchanged. It also verifies:
+
+- Prepending 100 rows preserves the visible row and horizontal position.
+- Removed row/column anchors use the old position as fallback; empty data/schema
+  resets both scroll offsets. Revealing a pinned column does not scroll the
+  unpinned region.
+- A pending row command follows its key across reversal, overriding the painted
+  anchor; removing its target cancels the command without selecting a neighbor.
+  A new explicit command after replacement overrides restoration.
+- Row arrival during an active native resize preserves the preview width and
+  allows completion. Row arrival during active reorder likewise allows the
+  keyed move and preserves selection. A schema replacement still rejects old
+  gestures, as covered by the preceding regression.
+- Explicitly reapplying unchanged schema clears optimistic sort/resize state
+  without emitting another input event. A following sort click starts from the
+  retained sort value, and a resized header returns to the retained width.
+
+Local macOS `GPUIO_JOBS=2 python3 scripts/test_table_adapter.py` **passes**, with
+all sample, selection, pointer, anchor and entity-release completion markers.
+The wrapper also deliberately fails an assertion after opening a window and
+requires a nonzero exit plus native entity-release evidence on the failure path.
+Timeout handling kills and reaps the wrapper's process group. CI now uses this
+wrapper; no hosted execution is claimed yet.
+
+During development, a missing painted-element assertion exposed that GPUI quit
+could terminate the process successfully before code after `Application::run`
+rethrows a stored panic. Failure handling now exits unsuccessfully after window
+cleanup inside the async callback. Earlier recorded successful runs included all
+their completion markers, but exit status alone was insufficient. The fixture
+also needed to target the first unpinned column explicitly when resetting scroll,
+and to deliver a second drag motion before asserting preview width: the first
+motion starts GPUI's drag but does not resize yet. The final run includes all new
+and existing assertions and verified failure reporting.
+
+These tests mutate retained native data during gestures; they do not establish
+end-to-end Eio producer races, the public table bridge, full-history cache bounds,
+foreground keyboard/clipboard, accessibility or Linux GUI acceptance.

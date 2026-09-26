@@ -194,12 +194,13 @@ fn exercise_keyed_selection(
     );
 }
 
+#[path = "support/anchors.rs"]
+mod anchors;
 #[path = "support/events.rs"]
 mod events;
 
 fn main() {
-    let failure = Rc::new(RefCell::new(None));
-    let outcome = failure.clone();
+    let verify_failure_exit = std::env::args().any(|arg| arg == "--verify-failure-exit");
     gpui_platform::application().run(move |cx| {
         cx.set_quit_mode(QuitMode::Explicit);
         gpui_base::init(cx);
@@ -224,6 +225,7 @@ fn main() {
         cx.spawn(async move |cx| {
             let weak = handle.update(cx, |view, _, _| view.table.downgrade()).unwrap();
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                assert!(!verify_failure_exit, "intentional native harness failure-exit check");
                 let mut peak = 0;
                 for (row, col) in [(0, 0), (50_000, 32), (99_999, 63), (0, 2)] {
                     metrics.borrow_mut().touched.clear();
@@ -253,17 +255,24 @@ fn main() {
                 eprintln!("TABLE_CANDIDATE_OK logical_rows=100000 columns=64 sampled_positions=4 peak_sample_cells={peak}");
                 exercise_keyed_selection(cx, handle, &metrics);
                 events::exercise(cx, handle);
+                anchors::exercise(cx, handle);
                 handle.update(cx, |_, window, _| window.remove_window()).unwrap();
                 cx.update(|_| ());
                 assert!(weak.upgrade().is_none(), "closed window retained native table state");
                 eprintln!("TABLE_ENTITY_RELEASE_OK");
             }));
             let _ = handle.update(cx, |_, window, _| window.remove_window());
-            *outcome.borrow_mut() = result.err();
+            if result.is_err() {
+                cx.update(|_| ());
+                if weak.upgrade().is_none() {
+                    eprintln!("TABLE_FAILURE_CLEANUP_OK");
+                }
+                // GPUI's platform quit can terminate before Application::run
+                // returns. Fail here after cleanup, never after the run loop.
+                eprintln!("TABLE_NATIVE_FAILED");
+                std::process::exit(1);
+            }
             cx.update(|cx| cx.quit());
         }).detach();
     });
-    if let Some(error) = failure.borrow_mut().take() {
-        std::panic::resume_unwind(error);
-    }
 }

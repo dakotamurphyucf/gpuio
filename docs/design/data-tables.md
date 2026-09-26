@@ -164,15 +164,31 @@ double/context clicks and column placement. Sort emits an application request;
 it never sorts the loaded subset. Column moves require the retained delegate to
 validate policy and update its order atomically before emitting the keyed move.
 
-Refresh and accepted column movement retire the previous layout identity. Old
-pointer handlers, resize/reorder drag payloads, deferred row/cell generation,
-header-bound writes and deferred page-demand work check that identity. A native
-refresh cancels its active resize/drop preview. The future host must distinguish
-retained cell-content delivery from a mapping/schema refresh, so ordinary data
-delivery does not needlessly cancel interaction. Native layout identity is not a
-substitute for mounted-handler and query generations at the wire boundary.
-Visual viewport anchors, paging/resize reconciliation and retained cell-cache
-policy still require implementation.
+Refresh and accepted column movement retire the previous row-layout identity.
+Old pointer handlers, deferred row/cell generation, header-bound writes and
+deferred page-demand work check that identity. Column gestures use a separate
+identity: unchanged column descriptions preserve native width/sort previews and
+active resize/reorder through row updates. A changed schema retires those
+gestures and applies its supplied widths. The host must still distinguish
+content-only delivery from mapping/schema refresh. Native identities do not
+replace mounted-handler and query generations at the wire boundary.
+An explicit `reset_columns` reapplies retained schema even when its value is
+unchanged, allowing the application to reject optimistic widths/sort indicators.
+It retires column gestures and preserves keyed selection/scroll without event echo.
+
+`TableState::update_source` captures scroll anchors before mutating retained
+descriptions and restores after reconciliation, within one native entity update.
+It preserves the top row's lifetime key and the first unpinned column's key,
+including their intra-item pixel offsets. Missing anchors use the nearest old
+position; native layout clamps at content edges. Empty sources reset scroll.
+A pending row command follows its target key through reorder, overriding the
+painted anchor; deleting that target cancels the command. New explicit scroll
+commands run after the update and take precedence. Revealing an already pinned
+column leaves the scrolling region unchanged.
+
+These contracts pass native layout and pointer tests, including row arrival
+during resize/reorder. The paired bridge, full Eio paging/query races and bounded
+retained cell-cache policy still require implementation and acceptance.
 
 ## Remaining acceptance
 

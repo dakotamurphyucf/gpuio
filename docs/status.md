@@ -157,8 +157,10 @@ Its macOS test reproduces the four virtualization samples, preserves selection
 through row/column reorder, clears removed selections without event echoes, and
 verifies native entity release on close. Native pointer tests now exercise keyed
 double/context/sort/resize/reorder events and suppress obsolete frame input and
-drags after schema refresh. The bridge, public widget, visual anchor
-reconciliation and full native interaction/cache/lifecycle acceptance remain.
+drags after schema refresh. Keyed pixel anchors survive native row/column reorder
+and prepend; unchanged schemas preserve resize/reorder gestures through row
+arrivals. The bridge, public widget, full paging/query reconciliation and native
+keyboard/accessibility/cache/lifecycle acceptance remain.
 See [table design](design/data-tables.md) and
 [evidence](evidence/data-tables-och39.md).
 

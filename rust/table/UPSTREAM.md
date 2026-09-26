@@ -31,11 +31,16 @@ entity. It does not establish full-history cache bounds or input acceptance.
 All emitted events now capture stable row/column keys. Sort emits an application
 request; the adapter never sorts the loaded subset. A delegate validates and
 updates retained column order atomically before the keyed move event is emitted.
-Source/schema refresh and accepted column moves retire pointer listeners and
-drag payloads from earlier layouts. Deferred cell/row generation, header bounds
-and page demand also check the layout identity.
+Source refresh retires old row listeners; schema replacement and accepted column
+moves additionally retire column drag payloads. Unchanged column descriptions
+preserve optimistic width/sort state and column gestures through row updates.
+Deferred cell/row generation, header bounds and page demand check layout identity.
 
 Native dispatch regression covers fresh clicks, double/context clicks, sort,
 resize and reorder, and rejects stale frame clicks and drags spanning refresh.
-Viewport anchors, paging/resize reconciliation, protocol/public widgets,
-accessibility and full OCH-39 acceptance remain. No table capability is advertised.
+`update_source` preserves keyed vertical/horizontal pixel anchors through native
+source updates, with nearest-position fallback on removal and keyed explicit
+command precedence. Native tests exercise reversal, prepend, removal and empty
+sources, and row arrivals during active column gestures. Full Eio paging/query
+reconciliation, protocol/public widgets, accessibility and OCH-39 acceptance
+remain. No table capability is advertised.

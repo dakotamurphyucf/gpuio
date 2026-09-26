@@ -8,7 +8,7 @@ use gpui::{
 use crate::Appearance;
 
 /// Represents a column in a table, used for initializing table columns.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Column {
     /// The unique key of the column.
     ///
@@ -51,7 +51,7 @@ pub struct Column {
 }
 
 /// A column group can be used to group multiple columns under a single header.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ColumnGroup {
     pub label: SharedString,
     pub span: usize,

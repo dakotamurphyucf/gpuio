@@ -202,7 +202,7 @@ jobs:
         run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_tree"], check=True, timeout=300)' 2>&1 | tee .cache/ci/macos-tree-native.log
       - name: macOS native table adapter
         if: runner.os == 'macOS'
-        run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-table-adapter", "--features", "native-tests", "--test", "native_table"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-table-native.log
+        run: python3 scripts/test_table_adapter.py 2>&1 | tee .cache/ci/macos-table-native.log
       - name: macOS public managed trees and approved moves
         if: runner.os == 'macOS'
         run: |

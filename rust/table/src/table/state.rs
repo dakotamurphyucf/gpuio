@@ -23,6 +23,8 @@ use gpui::{
 
 use super::*;
 
+mod source_update;
+
 /// How far behind the pointer a resize drag trails the column edge.
 const HANDLE_SIZE: Pixels = px(2.);
 
@@ -175,6 +177,9 @@ pub(crate) struct HeaderCell {
 pub struct TableState<D: TableDelegate> {
     focus_handle: FocusHandle,
     layout_epoch: LayoutEpoch,
+    column_epoch: LayoutEpoch,
+    source_columns: Vec<Column>,
+    source_headers: Option<Vec<Vec<ColumnGroup>>>,
     delegate: D,
     pub(super) options: TableOptions,
     /// The bounds of the table container.
@@ -255,6 +260,9 @@ where
         let mut this = Self {
             focus_handle: cx.focus_handle().tab_stop(true),
             layout_epoch: LayoutEpoch::new(),
+            column_epoch: LayoutEpoch::new(),
+            source_columns: Vec::new(),
+            source_headers: None,
             options: TableOptions::default(),
             delegate,
             col_groups: Vec::new(),
@@ -382,7 +390,12 @@ where
     pub fn refresh(&mut self, cx: &mut Context<Self>) {
         self.invalidate_layout();
         let selection = self.selection.clone();
-        self.prepare_col_groups(cx);
+        let columns = self.read_columns(cx);
+        let headers = self.delegate.group_headers(cx);
+        if columns != self.source_columns || headers != self.source_headers {
+            self.invalidate_columns();
+            self.prepare_col_groups(cx);
+        }
         if !self.replace_selection(selection, cx) {
             self.replace_selection(Selection::Empty, cx);
         }
@@ -393,6 +406,11 @@ where
 
     fn invalidate_layout(&mut self) {
         self.layout_epoch = LayoutEpoch::new();
+        self.visible_range = TableVisibleRange::default();
+    }
+
+    fn invalidate_columns(&mut self) {
+        self.column_epoch = LayoutEpoch::new();
         self.resizing_col = None;
         self.col_drag_gap = None;
     }
@@ -405,6 +423,21 @@ where
         let epoch = self.layout_epoch.clone();
         cx.listener(move |table, event, window, cx| {
             if epoch.matches(&table.layout_epoch) {
+                f(table, event, window, cx);
+            } else {
+                cx.stop_propagation();
+            }
+        })
+    }
+
+    fn column_listener<E: ?Sized + 'static>(
+        &self,
+        cx: &Context<Self>,
+        f: impl Fn(&mut Self, &E, &mut Window, &mut Context<Self>) + 'static,
+    ) -> impl Fn(&E, &mut Window, &mut App) + 'static {
+        let epoch = self.column_epoch.clone();
+        cx.listener(move |table, event, window, cx| {
+            if epoch.matches(&table.column_epoch) {
                 f(table, event, window, cx);
             } else {
                 cx.stop_propagation();
@@ -473,7 +506,11 @@ where
 
     // Scroll to the column at the given index.
     pub fn scroll_to_col(&mut self, col_ix: usize, cx: &mut Context<Self>) {
-        let col_ix = col_ix.saturating_sub(self.fixed_left_cols_count());
+        let fixed_count = self.fixed_left_cols_count();
+        if col_ix < fixed_count || col_ix >= self.col_groups.len() {
+            return;
+        }
+        let col_ix = col_ix - fixed_count;
 
         // Resolve the offset here instead of deferring it to the virtual list.
         //
@@ -488,11 +525,19 @@ where
                 offset.x = offset_x;
                 self.horizontal_scroll_handle.set_offset(offset);
             }
-            // Before the first layout the viewport size is unknown, let the
-            // virtual list resolve the offset once it has been laid out.
-            None => self
-                .horizontal_scroll_handle
-                .scroll_to_item(col_ix, ScrollStrategy::Top),
+            // Before layout, align the requested column using retained widths.
+            // Store an offset rather than an unresolved positional command.
+            None => {
+                let left: Pixels = self
+                    .col_groups
+                    .iter()
+                    .skip(fixed_count)
+                    .take(col_ix)
+                    .map(|column| column.width)
+                    .sum();
+                self.horizontal_scroll_handle
+                    .set_offset(gpui::point(-left, px(0.)));
+            }
         }
 
         cx.notify();
@@ -737,19 +782,26 @@ where
     ///
     /// Call this after changing delegate state that affects `group_headers`.
     pub fn refresh_header_layout(&mut self, cx: &mut Context<Self>) {
-        self.update_header_layout(cx);
-        cx.notify();
+        self.refresh(cx);
+    }
+
+    fn read_columns(&self, cx: &App) -> Vec<Column> {
+        (0..self.delegate.columns_count(cx))
+            .map(|index| self.delegate.column(index, cx))
+            .collect()
     }
 
     fn prepare_col_groups(&mut self, cx: &mut Context<Self>) {
-        self.col_groups = (0..self.delegate.columns_count(cx))
-            .map(|col_ix| {
-                let column = self.delegate().column(col_ix, cx);
-                ColGroup {
-                    width: column.width,
-                    bounds: Bounds::default(),
-                    column,
-                }
+        self.source_columns = self.read_columns(cx);
+        self.source_headers = self.delegate.group_headers(cx);
+        self.col_groups = self
+            .source_columns
+            .iter()
+            .cloned()
+            .map(|column| ColGroup {
+                width: column.width,
+                bounds: Bounds::default(),
+                column,
             })
             .collect();
 
@@ -1340,8 +1392,14 @@ where
             return;
         }
         self.invalidate_layout();
+        self.invalidate_columns();
         let col_group = self.col_groups.remove(col_ix);
         self.col_groups.insert(to_ix, col_group);
+        self.source_columns = self.read_columns(cx);
+        self.source_headers = self.delegate.group_headers(cx);
+        self.update_header_layout(cx);
+        self.right_clicked_row = None;
+        self.right_clicked_cell = None;
         self.replace_selection(self.selection.clone(), cx);
 
         cx.emit(TableEvent::MoveColumn {
@@ -1603,7 +1661,7 @@ where
             .id(id)
             .occlude()
             .cursor_col_resize()
-            .on_drag_move(self.layout_listener(
+            .on_drag_move(self.column_listener(
                 cx,
                 move |view, e: &DragMoveEvent<ResizeColumn>, window, cx| {
                     let ResizeColumn {
@@ -1611,7 +1669,7 @@ where
                         index,
                         epoch,
                     } = e.drag(cx);
-                    if cx.entity_id() != *entity_id || !epoch.matches(&view.layout_epoch) {
+                    if cx.entity_id() != *entity_id || !epoch.matches(&view.column_epoch) {
                         return;
                     }
                     let index = *index;
@@ -1632,7 +1690,7 @@ where
                 ResizeColumn {
                     entity_id: cx.entity_id(),
                     index: ix,
-                    epoch: self.layout_epoch.clone(),
+                    epoch: self.column_epoch.clone(),
                 },
                 |drag, _, _, cx| {
                     cx.stop_propagation();
@@ -1641,7 +1699,7 @@ where
             )
             .on_mouse_up_out(
                 MouseButton::Left,
-                self.layout_listener(cx, |view, _, _, cx| {
+                self.column_listener(cx, |view, _, _, cx| {
                     if view.resizing_col.is_none() {
                         return;
                     }
@@ -1769,7 +1827,7 @@ where
                         this.on_drag(
                             DragColumn {
                                 entity_id,
-                                epoch: self.layout_epoch.clone(),
+                                epoch: self.column_epoch.clone(),
                                 col_ix,
                                 name,
                                 width: col_group.width,
@@ -1930,14 +1988,14 @@ where
             .bg(theme.tokens.table_head)
             .text_color(theme.table_head_foreground)
             .refine_style(&style)
-            .on_drag_move(self.layout_listener(
+            .on_drag_move(self.column_listener(
                 cx,
                 |table, e: &DragMoveEvent<DragColumn>, _, cx| {
                     let drag = e.drag(cx);
                     let (drag_entity_id, drag_col_ix) = (drag.entity_id, drag.col_ix);
 
                     let gap = if drag_entity_id == cx.entity_id()
-                        && drag.epoch.matches(&table.layout_epoch)
+                        && drag.epoch.matches(&table.column_epoch)
                         && e.bounds.contains(&e.event.position)
                     {
                         table.drag_gap_at(e.event.position.x, drag_col_ix)
@@ -1952,8 +2010,8 @@ where
                 },
             ))
             .on_drop(
-                self.layout_listener(cx, |table, drag: &DragColumn, window, cx| {
-                    if drag.entity_id != cx.entity_id() || !drag.epoch.matches(&table.layout_epoch)
+                self.column_listener(cx, |table, drag: &DragColumn, window, cx| {
+                    if drag.entity_id != cx.entity_id() || !drag.epoch.matches(&table.column_epoch)
                     {
                         return;
                     }
