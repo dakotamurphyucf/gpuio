@@ -15,6 +15,9 @@ pub enum Action {
     MoveDays(i64),
     ShowMonth(Month),
     MoveMonths(i64),
+    ChooseMonth(Month),
+    ChooseYear(i64),
+    Reveal(Date),
     SetPresentation(Presentation),
 }
 pub struct Outcome {
@@ -39,6 +42,21 @@ impl State {
             return Err(Error::InvalidConfig);
         }
         check_selection(&config, selection)?;
+        Self::from_retained(config, selection, month)
+    }
+    /// Restore a tree-admitted seed whose constraints may have changed within
+    /// the same atomic transaction before the native owner was constructed.
+    pub(crate) fn from_retained(
+        config: Arc<Config>,
+        selection: Selection,
+        month: Month,
+    ) -> Result<Self, Error> {
+        if !config.is_valid() {
+            return Err(Error::InvalidConfig);
+        }
+        if !selection.fits(config.mode) {
+            return Err(Error::WrongMode);
+        }
         let selected_date = match selection {
             Selection::Empty => None,
             Selection::Single(date) | Selection::RangeStart(date) => Some(date),
@@ -159,6 +177,20 @@ impl State {
                 self.month = Month::from_date(date);
             }
             Action::ShowMonth(month) => self.show_month(month),
+            Action::ChooseMonth(month) => {
+                self.show_month(month);
+                self.presentation = Presentation::Days;
+            }
+            Action::ChooseYear(year) => {
+                let month = Month::new(year, self.month.month()).ok_or(Error::InvalidValue)?;
+                self.show_month(month);
+                self.presentation = Presentation::Months;
+            }
+            Action::Reveal(date) => {
+                self.focused_date = date;
+                self.month = Month::from_date(date);
+                self.presentation = Presentation::Days;
+            }
             Action::MoveMonths(delta) => {
                 let month = self.month.shift(delta).ok_or(Error::InvalidValue)?;
                 self.show_month(month);

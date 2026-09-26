@@ -142,8 +142,11 @@ failure and revision exhaustion have model coverage. Gregorian-cycle, daily
 reference, malformed-wire and maximum-config checks pass locally. Retained calendar
 views, bounded tree admission, seed/history semantics, revision-checked event routes
 and atomic completion mailbox admission now pass paired-codec/Core/native tests.
-GPUI rendering, actual transport publication, correlated controllers and popup-picker
-acceptance remain in progress; no calendar capability is advertised.
+The mounted GPUI calendar now passes initial macOS day/month/year keyboard/pointer,
+single/range event ordering, retained historical state, hidden/read-only/disabled
+focus, pair-overload and disposal checks. Four initial light/dark GPU readbacks were
+visually reviewed. Public correlated controllers, popup-picker integration and full
+native acceptance remain in progress; no calendar capability is advertised.
 See [calendar design](design/calendar.md) and [model evidence](evidence/calendar-och35.md).
 No milestone-05 completion or hosted acceptance is claimed yet.
 

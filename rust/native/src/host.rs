@@ -46,6 +46,8 @@ mod window_macos;
 type SharedSession = Rc<RefCell<Session>>;
 #[path = "avatar.rs"]
 mod avatar;
+#[path = "calendar_view.rs"]
+pub(super) mod calendar_view;
 #[path = "choice.rs"]
 mod choice;
 #[path = "choice_popup.rs"]
@@ -159,6 +161,7 @@ struct View {
     sliders: BTreeMap<NodeId, slider_view::Shared>,
     numbers: BTreeMap<NodeId, number_input_view::Instance>,
     otps: BTreeMap<NodeId, otp_input_view::Instance>,
+    calendars: BTreeMap<NodeId, calendar_view::Instance>,
     tooltips: BTreeMap<NodeId, tooltip::State>,
     tooltip_last_closed: Option<std::time::Instant>,
     command_subscription: Option<gpui::Subscription>,
@@ -382,6 +385,7 @@ impl View {
             sliders: BTreeMap::new(),
             numbers: BTreeMap::new(),
             otps: BTreeMap::new(),
+            calendars: BTreeMap::new(),
             tooltips: BTreeMap::new(),
             tooltip_last_closed: None,
             command_subscription: None,
@@ -428,6 +432,7 @@ impl View {
         self.sync_sliders(dirty, window, cx);
         self.sync_numbers(dirty, window, cx);
         self.sync_otps(dirty, window, cx);
+        self.sync_calendars(dirty, window, cx);
         // An unselected query branch is hidden even before the first layout.
         // Do not count time waiting for its first visible paint as active motion.
         self.suspend_hidden_animations();
@@ -609,6 +614,9 @@ impl View {
                 .text_color(rgba(0xe8ad36ff))
                 .focus(|style| style.border_color(rgba(0x6688ffff)));
         }
+        if node.calendar.is_some() {
+            element = element.w(px(296.)).min_w(px(0.));
+        }
         if let Some(otp) = &node.otp_input {
             element = element
                 .min_w(px(40.))
@@ -730,6 +738,7 @@ impl View {
                 .as_ref()
                 .is_some_and(|n| n.config.disabled)
             || node.otp_input.as_ref().is_some_and(|n| n.config.disabled)
+            || node.calendar.as_ref().is_some_and(|n| n.config.disabled)
             || node.rating.as_ref().is_some_and(|config| config.disabled)
             || node
                 .slider
@@ -871,6 +880,10 @@ impl View {
                 if editor.focus_handle(cx).is_focused(window) {
                     element.style().refine(&style);
                 }
+            } else if let Some(calendar) = self.calendars.get(&id) {
+                if calendar.focus_handle(cx).is_focused(window) {
+                    element.style().refine(&style);
+                }
             } else if let Some(otp) = self.otps.get(&id) {
                 if otp.focus_handle(cx).is_focused(window) {
                     element.style().refine(&style);
@@ -965,6 +978,9 @@ impl View {
                 window,
                 cx,
             );
+        } else if let Some(calendar) = self.calendars.get(&id) {
+            self.visited.insert(id);
+            element = calendar.element(element, interaction.pointer, cx);
         } else if let Some(otp) = self.otps.get(&id) {
             self.visited.insert(id);
             element = otp.element(element, interaction.pointer, cx);
@@ -1234,6 +1250,11 @@ impl View {
             .map(|editor| editor.focus_handle(cx))
             .or_else(|| self.numbers.get(&id).map(|number| number.focus_handle(cx)))
             .or_else(|| self.otps.get(&id).map(|otp| otp.focus_handle(cx)))
+            .or_else(|| {
+                self.calendars
+                    .get(&id)
+                    .map(|calendar| calendar.focus_handle(cx))
+            })
             .or_else(|| self.buttons.get(&id).map(|button| button.focus.clone()))
             .or_else(|| {
                 self.selections
@@ -1528,6 +1549,7 @@ impl Render for View {
         self.hide_unvisited_sliders(window, cx);
         self.hide_unvisited_numbers(window, cx);
         self.hide_unvisited_otps(window, cx);
+        self.hide_unvisited_calendars(window, cx);
         self.buttons.retain(|id, _| self.visited.contains(id));
         self.radios.retain(|id, _| self.visited.contains(id));
         self.ratings.retain(|id, _| self.visited.contains(id));
@@ -1576,6 +1598,10 @@ impl Render for View {
                     .otps
                     .values()
                     .any(|otp| otp.focus_handle(cx).is_focused(window))
+                || self
+                    .calendars
+                    .values()
+                    .any(|calendar| calendar.focus_handle(cx).is_focused(window))
                 || self.sliders.values().any(|state| {
                     state
                         .borrow()

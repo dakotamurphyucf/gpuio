@@ -1,5 +1,79 @@
 use super::*;
 
+#[test]
+fn presentation_choices_are_single_navigation_events_and_preserve_selection() {
+    let mut s = state(Mode::Single);
+    s.native(Action::Activate(date(29)), Access::Allowed)
+        .unwrap();
+    s.native(
+        Action::SetPresentation(Presentation::Years),
+        Access::Allowed,
+    )
+    .unwrap();
+    let before = s.snapshot();
+    let events = s.native(Action::ChooseYear(2025), Access::Allowed).unwrap();
+    assert_eq!(events.len(), 1);
+    assert!(matches!(events[0], Event::Changed(_)));
+    assert_eq!(s.snapshot().revision, before.revision + 1);
+    assert_eq!(s.snapshot().selection, before.selection);
+    assert_eq!(
+        s.snapshot().focused_date,
+        Date::from_ymd(2025, 2, 28).unwrap()
+    );
+    assert_eq!(s.snapshot().presentation, Presentation::Months);
+    let before = s.snapshot();
+    assert_eq!(
+        s.native(Action::ChooseYear(10000), Access::Allowed),
+        Err(Error::InvalidValue)
+    );
+    assert_eq!(s.snapshot(), before);
+    assert_eq!(
+        s.native(
+            Action::ChooseMonth(Month::new(2025, 3).unwrap()),
+            Access::Blocked
+        ),
+        Err(Error::FocusBlocked)
+    );
+    assert_eq!(s.snapshot(), before);
+    let events = s
+        .native(
+            Action::ChooseMonth(Month::new(2025, 3).unwrap()),
+            Access::Allowed,
+        )
+        .unwrap();
+    assert_eq!(events.len(), 1);
+    assert_eq!(s.snapshot().presentation, Presentation::Days);
+    assert_eq!(s.snapshot().selection, before.selection);
+    s.native(Action::Reveal(Date::MAX), Access::Allowed)
+        .unwrap();
+    assert_eq!(s.snapshot().focused_date, Date::MAX);
+    assert_eq!(s.snapshot().selection, before.selection);
+}
+
+#[test]
+fn a_tree_admitted_historical_seed_can_survive_preconstruction_constraint_changes() {
+    let mut config = (*config(Mode::Single)).clone();
+    config.constraints = Constraints::new(
+        Date::MIN,
+        Date::MAX,
+        vec![date(29)],
+        vec![],
+        vec![],
+        RangePolicy::EveryDay,
+    )
+    .unwrap();
+    let config = Arc::new(config);
+    let selection = Selection::Single(date(29));
+    let month = Month::from_date(date(1));
+    assert!(matches!(
+        State::new(config.clone(), selection, month),
+        Err(Error::DisabledDate)
+    ));
+    let state = State::from_retained(config, selection, month).unwrap();
+    assert_eq!(state.snapshot().selection, selection);
+    assert!(!state.snapshot().selection_allowed);
+}
+
 fn date(day: i64) -> Date {
     Date::from_ymd(2024, 2, day).unwrap()
 }

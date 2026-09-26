@@ -215,3 +215,8 @@ required-features = ["native-tests"]
 name = "native_otp_input"
 harness = false
 required-features = ["native-tests"]
+
+[[test]]
+name = "native_calendar"
+harness = false
+required-features = ["native-tests"]

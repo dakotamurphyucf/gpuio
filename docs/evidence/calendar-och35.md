@@ -1,9 +1,10 @@
 # OCH-35 calendar/date-picker evidence
 
-Status: **in progress**. This records model evidence, not native widget acceptance.
+Status: **in progress**. This records incremental evidence, not completed widget acceptance.
 The milestone retains the full calendar and popup-picker scope. A retained
 `View.calendar` description and bridge admission/routing now exist. No capability
-bit, rendered native calendar or public Eio controller is claimed.
+bit or public Eio controller is claimed. The mounted native calendar now has initial
+macOS keyboard/pointer, visual and lifecycle evidence below.
 
 ## Civil model checkpoint
 
@@ -52,10 +53,10 @@ uses Core's uppercase weekday sexps. No failing behavior was promoted away.
 
 ## Still required for this ticket
 
-- Mounted GPUI ownership, transport publication and correlated command envelopes;
-  public Core/Bonsai/Eio controllers and actual widget lifetimes.
-- Native inline calendar with day/month/year navigation, focus and selection;
-  strict locale/format policy, disabled/read-only/hidden/modal behavior.
+- Correlated command envelopes and public Core/Bonsai/Eio controllers.
+- Full inline calendar acceptance: actual accessibility, modal/pointer policies,
+  civil boundaries, locale/format, scale/layout, independent windows, managed-list
+  pins, idle and bounded workload coverage beyond the initial checks below.
 - Popup date-picker integration with the existing overlay system and explicit
   confirm/cancel/partial-selection, dismissal and focus-restoration semantics.
 - Public inline/popup examples, actual macOS input/accessibility/visual checks,
@@ -146,3 +147,58 @@ converter and draining the mailbox across its bounded output batches. No failed
 expectation was promoted. No calendar GUI windows have been run. Native renderer,
 actual publication/focus/cleanup, controller/commands, picker integration and full
 OCH-35 acceptance remain outstanding; no calendar capability is advertised.
+
+
+## Initial mounted native calendar checkpoint
+
+`rust/native/src/calendar_view.rs` now owns a GPUI entity per retained placement,
+using first-party GPUI elements over the tested civil policy. Host rendering,
+focus styling/order, disabled state, managed-list focus pins, hidden cleanup and
+atomic transport publication are connected. This is initial integration, not
+complete OCH-35 acceptance or a capability advertisement.
+
+Local macOS arm64 checks pass:
+
+- The actual GPUI window test exercises autofocus, day navigation across leap-day/
+  month boundaries, single selection with ordered Changed/Selected, unchanged
+  activation, pointer activation of month/year headers, keyboard month/year choice,
+  M/Y/D mode switching and Backspace clearing.
+- Configuration changes preserve selection/navigation while updating locale and
+  reporting historical invalidity. Read-only allows navigation but rejects edits;
+  disabled calendars lose focus and ignore keyboard input.
+- Range mode reports partial and completed selections distinctly. Hide/show
+  preserves selection and prevents hidden keyboard input. Removing the first owner
+  releases its weak entity; closing the session clears retained accounting/owners.
+- A single transaction that seeds a valid range start and then disables that date
+  before GPUI owner construction preserves the historical value. Restoring the
+  constraints and clearing/selecting still work through the native widget.
+- A mounted range completion with only one free input slot cannot publish either
+  member of its two-event pair. It emits one overload notification and prevents
+  subsequent navigation. This exercises `Route` and `Transport`, beyond the prior
+  mailbox-only tests.
+- Seven native policy unit tests pass (including two new atomic presentation and
+  historical-construction tests). The four retained calendar and six OTP bridge/
+  mailbox regression tests pass. Feature-enabled all-target Clippy passes.
+- Four GPU readback images were generated and visually inspected: light day/month/
+  year views and a dark day view. Text, neighboring-month dimming, cursor/today
+  borders and mode layout are visible. These are initial visual checks, not yet
+  the scale/constrained/localized-content acceptance matrix. Black margins outside
+  the widget belong to the otherwise empty native test window.
+
+Commands:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --lib calendar_state
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --test calendar --test otp_input
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-image-tests --test native_calendar
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native --all-targets --features native-image-tests -- -D warnings
+```
+
+Set `GPUIO_CALENDAR_SCREENSHOT_DIR` to an output directory when running the native
+image-enabled test to reproduce the four screenshots. Local artifacts are under
+`scratch/agents/root-20260924-m5/calendar-render/`; they are not build inputs.
+The test uses actual GPUI windows and GPUI platform-input dispatch, not external
+physical OS keyboard automation or an AppKit accessibility audit. Owned windows
+and processes closed normally. CI definitions now compile/run the calendar test;
+no hosted results or Linux GUI acceptance are claimed. Public commands/controllers,
+popup semantics/examples and the remaining native acceptance matrix are next.

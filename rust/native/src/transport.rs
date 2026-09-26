@@ -91,6 +91,16 @@ impl Transport {
         self.wake_ocaml();
         success
     }
+    pub fn calendar_completion(&self, events: [Event; 2]) -> bool {
+        let success = self
+            .mailbox
+            .lock()
+            .expect("mailbox poisoned")
+            .calendar_completion(events)
+            .is_ok();
+        self.wake_ocaml();
+        success
+    }
     pub fn fault(&self, id: WindowId) {
         self.mailbox.lock().expect("mailbox poisoned").fault(id);
         self.wake_ocaml();

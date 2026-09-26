@@ -4,8 +4,10 @@ Status: implementation contract in progress. Civil-date models, bounded standalo
 codecs, typed locale/configuration/command/observation contracts and a native
 calendar policy owner pass local tests. Retained view descriptions, tree admission,
 revision-checked event routing and atomic completion mailbox admission are connected.
-The OCaml model also provides strict date formatting/parsing. GPUI rendering,
-public controllers, popup composition and native acceptance remain required.
+The OCaml model also provides strict date formatting/parsing. A mounted GPUI
+calendar now renders and passes initial macOS keyboard/pointer and event/lifetime
+checks. Public controllers, popup composition and full native acceptance remain
+required.
 No calendar capability is advertised yet. See the
 [foundation evidence](../evidence/calendar-och35.md).
 
@@ -15,12 +17,12 @@ Public dates are `Core.Date.t`, interpreted in the proleptic Gregorian calendar
 from 0001-01-01 through 9999-12-31, inclusive. They are never midnight timestamps.
 No implicit time zone, system clock or locale participates in selection. The
 application supplies an optional today marker and may update it using Eio.
-The wire representation will be a validated signed integer day ordinal, with
+The wire representation is a validated signed integer day ordinal, with
 0001-01-01 = 0 and 9999-12-31 = 3652058. Unsupported values fail before conversion.
 
 `Calendar.Month` is an abstract year/month, with checked offset navigation and
 a bounded 6-by-7 day grid. Cells beyond the civil-date domain are blank, not
-wrapped into another year. Month/year navigation will materialize only the
+wrapped into another year. Month/year navigation materializes only the
 current page, never an array spanning every supported year. Calendar display is
 independent of selection: navigating does not select a date.
 
@@ -48,7 +50,7 @@ New selection commands and user activations must satisfy current constraints.
 
 ## Native ownership and integration
 
-A retained Rust calendar owner will hold selection, displayed month, day focus,
+A retained Rust calendar owner holds selection, displayed month, day focus,
 day/month/year presentation and interaction state. Typed commands support
 replacement/clear, month navigation, focus/reveal and snapshot reads. Window/node
 lease and revision checks follow existing numeric controllers. Mounting seeds
@@ -148,8 +150,10 @@ coalescing is claimed. The mailbox admits a complete `Changed`/`Selected` pair
 atomically after validating matching routes, identical snapshots except for
 consecutive revisions, and the entire pair's count/byte budget. Failed admission
 preserves the old queue. Window-output accounting includes calendar observations.
-The forthcoming GPUI adapter must use this pair admission and fault the window
-on required-output loss; the mailbox helper alone does not establish that behavior.
+The GPUI adapter uses this pair admission and faults the window on required-output
+loss. A mounted-window test leaves only one input slot and verifies that native
+range completion publishes neither half, emits one overload notification, and
+blocks subsequent selection/navigation.
 
 ## Pinned upstream evaluation
 
@@ -161,14 +165,38 @@ years, and month navigation is unchecked. `Calendar::render` invokes
 `set_number_of_months`, which calls `cx.notify` unconditionally; its runtime idle
 effect has not been measured and is not claimed as a verified upstream defect.
 
-The native adapter will reuse suitable base presentation/behavior with explicit
-provenance, but cannot treat this state machine as the public contract unchanged.
-`CalendarItem::new` is private, so direct reuse of those parts would require a
-small audited vendor change or equivalent first-party GPUI elements. The base
-`DatePicker` supplies a controlled focus/open root; trigger, popup, calendar and
-placement are application responsibilities. Existing GPUIO overlays already own
-those lifetimes. Record the actual chosen adapter and compatibility evidence as
-implementation proceeds; no whole styled-library compatibility is inferred.
+The chosen inline adapter is first-party GPUI elements over `calendar_state::State`,
+in `rust/native/src/calendar_view.rs`; it does not copy or modify upstream calendar
+code or adopt the upstream state contract. The private `CalendarItem::new` is not
+called. The base `DatePicker` supplies a controlled focus/open root; trigger, popup,
+calendar and placement are application responsibilities. Existing GPUIO overlays
+already own those lifetimes; popup integration remains required. No whole styled-
+library compatibility is inferred.
+
+The native presentation materializes 42 day slots, 12 months or at most 20 years,
+with blank slots beyond the civil domain. One composite focus handle keeps the
+calendar in the application focus order and pins a focused managed-list row.
+Day arrows move by one day/week; Home/End use the configured first weekday;
+Page Up/Down move a month (Shift moves a year). Month arrows move by one/three
+months, year arrows by one/four years; their page keys move a year/20 years.
+M/Y/D switch month/year/day views; Enter/Space select the current date or confirm
+the current month/year; Backspace/Delete clear selection. Tab/Escape remain
+available to the surrounding focus/overlay system. Choosing a year opens its
+month page; choosing a month opens days. Each choice is a single navigation event
+and does not change selection. Today reveals the supplied marker without selecting.
+
+Pointer activation uses release/click; mouse-down only establishes composite
+focus. Configuration, live route, modal/visibility, pointer and edit permissions
+are checked when actions run. Initial observation is emitted once, focus changes
+are observed, and hidden/removed calendars release keyboard focus. No timer is
+installed by the calendar. Actual idle, accessibility, scale/constrained-layout,
+independent-window and managed-list acceptance still require dedicated checks.
+
+The tree may admit a valid seed and then change constraints in the same transaction
+before creating a GPUI entity. The private native `from_retained` constructor accepts
+that previously validated historical seed and reports its current validity; public
+policy construction and first tree admission still reject initially disabled seeds.
+The real mounted test covers this case as well as ordinary retained updates.
 
 ## Required acceptance
 
