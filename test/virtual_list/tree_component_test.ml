@@ -586,6 +586,11 @@ let%expect_test
   Bonsai_driver.schedule_event driver (callback (Select (target_key, Replace)));
   ignore (result driver : _ V.Output.t);
   assert (Option.equal T.Id.equal (S.active (B.Expert.Var.get state)) (Some (id "2")));
+  List.iter [ true; false; false ] ~f:(fun selected ->
+    Bonsai_driver.schedule_event driver (callback (Set_selected (target_key, selected))));
+  ignore (result driver : _ V.Output.t);
+  assert (List.is_empty (S.selected (B.Expert.Var.get state)));
+  assert (Option.equal T.Id.equal (S.active (B.Expert.Var.get state)) (Some (id "2")));
   let replacement = L.create tree in
   B.Expert.Var.set source (L.snapshot replacement);
   B.Expert.Var.set state (S.create tree () |> ok);
@@ -593,7 +598,7 @@ let%expect_test
   display driver;
   Bonsai_driver.schedule_event driver event;
   ignore (result driver : _ V.Output.t);
-  assert (!count = 3);
+  assert (!count = 6);
   assert (Option.is_none (S.active (B.Expert.Var.get state)));
   Bonsai_driver.Expert.invalidate_observers driver;
   print_endline

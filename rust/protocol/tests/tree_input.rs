@@ -127,3 +127,21 @@ fn typeahead_unicode_fixture_and_text_bounds() {
     }
     assert!(valid_typeahead_text("👨‍👩‍👧‍👦"));
 }
+
+#[test]
+fn exact_selection_fixture_preserves_desired_membership() {
+    let event = Event::TreeInput(
+        WindowId::from_parts(0, 1).unwrap(),
+        NodeId::from_parts(0, 1).unwrap(),
+        HandlerId::from_parts(0, 1).unwrap(),
+        1,
+        Request::SetSelected(42, false),
+    );
+    assert_eq!(
+        hex(&event),
+        include_str!("../../../test/fixtures/tree-selection-event.hex").trim()
+    );
+    assert_eq!(Request::SetSelected(42, false).target(), Some(42));
+    assert!(!Request::SetSelected(0, true).is_valid());
+    assert!(!Request::SetSelected(-1, false).is_valid());
+}

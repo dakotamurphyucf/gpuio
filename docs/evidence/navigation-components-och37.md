@@ -1075,3 +1075,16 @@ folder. Public self-test and all-target feature-enabled Clippy also pass.
 Native tests close their windows; no physical trackpad, VoiceOver speech or Linux
 GUI coverage is claimed. The current matrix supersedes earlier pending-family
 notes. Hosted gates, milestone merge and OCH-38/39/46 remain outstanding.
+
+## Deferred blur/timer race follow-up (2026-09-26)
+
+OCH-38's shared accessibility regression reran native navigation and reproduced
+a further drag-selection race twice: the head changed from byte 432 to 476 after
+inert admission. The earlier blur cleanup stops the timer, but GPUI delivers blur
+listeners after drawing, allowing a ready timer to run after focus is already
+gone. The vendored input tick now checks actual focus and active-window ownership
+before touching selection; failure cancels its transient drag state. The existing
+regression passes without relaxing its unchanged-selection or no-idle-render
+assertions, followed by the full native tree suite. The cumulative GPUI Base patch
+and checksum reproduce the current sources. See the OCH-38 evidence for checks
+and remaining milestone scope.

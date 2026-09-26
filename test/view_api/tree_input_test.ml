@@ -109,6 +109,44 @@ let%expect_test "tree row focus appends a scroll target without changing existin
   [%expect {| |}]
 ;;
 
+let%expect_test "exact selection fixture validates desired membership and target" =
+  let node = Gpuio_protocol.Node_id.create ~slot:0L ~generation:1L |> ok in
+  let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok in
+  let handler = Gpuio_protocol.Handler_id.create ~slot:0L ~generation:1L |> ok in
+  let event id =
+    Wire.Event.Tree_input (window, node, handler, 1L, Set_selected (id, false))
+  in
+  let bytes = fixture "tree-selection-event.hex" in
+  assert (
+    String.equal
+      bytes
+      (Bin_prot.Utils.bin_dump Wire.Event.bin_writer_t (event 42L) |> Bigstring.to_string));
+  assert (
+    List.equal Wire.Event.equal [ event 42L ] (Wire.Event.decode ("\001" ^ bytes) |> ok));
+  for length = 0 to String.length bytes - 1 do
+    assert (Or_error.is_error (Wire.Event.decode ("\001" ^ String.prefix bytes length)))
+  done;
+  assert (Or_error.is_error (Wire.Event.decode ("\001" ^ bytes ^ "\000")));
+  List.iter [ 0L; -1L ] ~f:(fun id ->
+    let bytes =
+      Bin_prot.Utils.bin_dump [%bin_writer: Wire.Event.t list] [ event id ]
+      |> Bigstring.to_string
+    in
+    assert (Or_error.is_error (Wire.Event.decode bytes)));
+  assert (
+    Or_error.is_error (Wire.Event.decode ("\001" ^ String.drop_suffix bytes 1 ^ "\002")));
+  assert (
+    Option.is_none
+      (Tree_input.Expert.of_wire (Set_selected (42L, true)) ~find_key:(fun _ -> None)));
+  print_s
+    [%sexp
+      (Tree_input.Expert.of_wire
+         (Set_selected (42L, false))
+         ~find_key:(fun _ -> Some "stable")
+       : string Tree_input.t option)];
+  [%expect {| ((Set_selected stable false)) |}]
+;;
+
 let%expect_test "bounded Unicode typeahead appends request tag seven" =
   let node = Gpuio_protocol.Node_id.create ~slot:0L ~generation:1L |> ok in
   let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok in

@@ -91,12 +91,14 @@ module Request = struct
     | Select_active of Tree_loading.Lease.t * State.Selection.t
     | Activate_active of Tree_loading.Lease.t
     | Typeahead of Tree_loading.Lease.t * Tree_typeahead.Input.t
+    | Set_selected of Target.t * bool
 
   let navigate snapshot ~selection direction =
     Navigate (Snapshot.lease snapshot, selection, direction)
   ;;
 
   let select target gesture = Select (target, gesture)
+  let set_selected target selected = Set_selected (target, selected)
   let focus target = Focus target
   let set_expanded target expanded = Set_expanded (target, expanded)
   let activate target = Activate target
@@ -170,6 +172,8 @@ let apply state snapshot request =
     else None
   | Select (target, gesture) ->
     targeted target (fun id -> cursor (State.select state tree id gesture))
+  | Set_selected (target, selected) ->
+    targeted target (fun id -> result (State.set_selected state tree id selected))
   | Focus target -> targeted target (fun id -> cursor (State.focus state tree id))
   | Set_expanded (target, expanded) ->
     targeted target (fun id ->

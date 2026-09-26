@@ -277,6 +277,23 @@ let with_mode t tree mode =
     { t with mode; selected; anchor = None })
 ;;
 
+let set_selected t tree id selected =
+  let t = reconcile t tree in
+  if not (eligible t id)
+  then t
+  else (
+    let selected =
+      if selected
+      then (
+        let incarnation = (row t id |> Option.value_exn).incarnation in
+        match t.mode with
+        | Single -> Map.singleton (module Id) id incarnation
+        | Multiple -> Map.set t.selected ~key:id ~data:incarnation)
+      else Map.remove t.selected id
+    in
+    { t with selected })
+;;
+
 let focus t tree id =
   let t = reconcile t tree in
   if eligible t id then { t with active = Some id } else t

@@ -1310,6 +1310,9 @@ enum AccessibilityRequest<'a> {
     Press,
     Focus,
     SetValue(&'a str),
+    SetSelected(bool),
+    SetExpanded(bool),
+    SetDisclosed(bool),
     Increment,
     Decrement,
 }
@@ -1392,6 +1395,21 @@ fn accessible_request(
                     AccessibilityRequest::SetValue(value) => {
                         let value = NSString::from_str(value);
                         let _: () = msg_send![object, setAccessibilityValue: &*value];
+                    }
+                    AccessibilityRequest::SetSelected(value) => {
+                        let allowed: Bool = msg_send![object, isAccessibilitySelectorAllowed:objc2::sel!(setAccessibilitySelected:)];
+                        assert!(allowed.as_bool());
+                        let _: () = msg_send![object, setAccessibilitySelected: value];
+                    }
+                    AccessibilityRequest::SetExpanded(value) => {
+                        let allowed: Bool = msg_send![object, isAccessibilitySelectorAllowed:objc2::sel!(setAccessibilityExpanded:)];
+                        assert!(allowed.as_bool());
+                        let _: () = msg_send![object, setAccessibilityExpanded: value];
+                    }
+                    AccessibilityRequest::SetDisclosed(value) => {
+                        let allowed: Bool = msg_send![object, isAccessibilitySelectorAllowed:objc2::sel!(setAccessibilityDisclosed:)];
+                        assert!(allowed.as_bool());
+                        let _: () = msg_send![object, setAccessibilityDisclosed: value];
                     }
                 }
                 return Some(Accessible {

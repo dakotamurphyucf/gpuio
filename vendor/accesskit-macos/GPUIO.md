@@ -1,7 +1,7 @@
 # GPUIO macOS expanded-state and outline-row adaptation
 
 This is the published `accesskit_macos` **0.26.3**, at AccessKit revision
-`c88605b96d04431f9c3c792464a0f2f253480e94`, with two small patches.
+`c88605b96d04431f9c3c792464a0f2f253480e94`, with three small patches.
 The upstream MIT/Apache-2.0 notices and both license texts are preserved. Source,
 archive checksum and original per-file checksums are recorded in `UPSTREAM.json`.
 Cargo uses the registry-normalized manifest, retaining its exact dependency ranges.
@@ -32,10 +32,27 @@ not advertise a disclosure state. Notifications continue through the existing
 expanded-state value-change path. No VoiceOver speech or external AX notification
 observer acceptance is claimed by these getter tests.
 
+`tree-actions.patch` adds per-row `setAccessibilityExpanded:` and
+`setAccessibilityDisclosed:` using the existing Expand/Collapse actions. Only
+enabled TreeItems with expanded metadata and both handlers advertise the setters.
+It also adapts `setAccessibilitySelected:` for opted-in GPUIO TreeItems. AccessKit
+0.24.1 has no desired-selection action, so these rows declare two CustomActions:
+`0x47500001` (select) and `0x47500002` (deselect). The adapter requires both IDs,
+the CustomAction handler and an enabled selectable TreeItem. Other roles and
+unrelated TreeItems retain upstream selection/click behavior. GPUIO reduces the
+desired membership against current Core state without implicit focus/activation.
+
+Setters queue the requested state even when the displayed snapshot already has
+that value: an earlier opposite setter can still be waiting for asynchronous
+reduction. Deduplicating against the displayed state would lose ordered
+select/deselect or expand/collapse sequences. Native/Core lifetime, disabled and
+identity checks remain authoritative; these actions introduce no native preference
+state. Actual AppKit tests cover mixed setters before the next application update.
+
 Reconstruction: download the crate archive from `UPSTREAM.json`, verify its SHA256,
 extract `Cargo.toml`, `Cargo.toml.orig`, README/CHANGELOG and `src/`, then apply
 `patch -p1 < expanded-state.patch` and then `patch -p1 < tree-state.patch` inside
-that directory. Fetch LICENSE-APACHE and
+that directory, followed by `patch -p1 < tree-actions.patch`. Fetch LICENSE-APACHE and
 LICENSE-MIT from the pinned upstream Git revision and verify their recorded hashes.
 `UPSTREAM.json`, this note and the patches are GPUIO provenance additions. The
 registry archive's Cargo.lock and Cargo cache metadata are not build inputs.

@@ -547,6 +547,16 @@ declare_class!(
             .unwrap_or(false)
         }
 
+        #[method(setAccessibilityExpanded:)]
+        fn set_expanded(&self, expanded: bool) {
+            self.set_tree_expanded(expanded);
+        }
+
+        #[method(setAccessibilityDisclosed:)]
+        fn set_disclosed(&self, expanded: bool) {
+            self.set_tree_expanded(expanded);
+        }
+
         #[method(accessibilityDisclosureLevel)]
         fn disclosure_level(&self) -> NSInteger {
             self.resolve(|node| {
@@ -1067,6 +1077,19 @@ declare_class!(
         #[method(setAccessibilitySelected:)]
         fn set_selected(&self, selected: bool) {
             self.resolve_with_context(|node, tree, context| {
+                if supports_tree_selection(node) {
+                    if let Some((target_node, target_tree)) = tree.state().locate_node(node.id()) {
+                        // Always queue desired state, including equal snapshots: a
+                        // preceding opposite setter may still await application reduction.
+                        context.do_action(ActionRequest {
+                            action: Action::CustomAction,
+                            target_tree,
+                            target_node,
+                            data: Some(ActionData::CustomAction(if selected { TREE_SELECT } else { TREE_DESELECT })),
+                        });
+                    }
+                    return;
+                }
                 let wrapper = NodeWrapper(node);
                 if !node.is_clickable(&filter)
                     || !wrapper.is_item_like()
@@ -1270,6 +1293,11 @@ declare_class!(
                 if selector == sel!(isAccessibilityDisclosed) {
                     return node.role() == Role::TreeItem && node.data().is_expanded().is_some();
                 }
+                if selector == sel!(setAccessibilityExpanded:)
+                    || selector == sel!(setAccessibilityDisclosed:)
+                {
+                    return supports_tree_expansion(node);
+                }
                 if selector == sel!(accessibilityDisclosureLevel) {
                     return node.role() == Role::TreeItem && node.data().level().is_some();
                 }
@@ -1283,8 +1311,10 @@ declare_class!(
                     let wrapper = NodeWrapper(node);
                     return wrapper.is_container_with_selectable_children()
                 }
-                if selector == sel!(setAccessibilitySelected:)
-                    || selector == sel!(accessibilityPerformPick)
+                if selector == sel!(setAccessibilitySelected:) && supports_tree_selection(node) {
+                    return true;
+                }
+                if selector == sel!(setAccessibilitySelected:) || selector == sel!(accessibilityPerformPick)
                 {
                     let wrapper = NodeWrapper(node);
                     return node.is_clickable(&filter)
@@ -1336,7 +1366,45 @@ declare_class!(
     }
 );
 
+// Private opt-in contract with GPUIO tree rows. Generic Click semantics and
+// unrelated TreeItems remain unchanged; both declared custom IDs are required.
+const TREE_SELECT: i32 = 0x4750_0001;
+const TREE_DESELECT: i32 = 0x4750_0002;
+
+fn supports_tree_selection(node: &Node) -> bool {
+    node.role() == Role::TreeItem
+        && node.is_selectable()
+        && node.supports_action(Action::CustomAction, &filter)
+        && [TREE_SELECT, TREE_DESELECT].iter().all(|id| {
+            node.data().custom_actions().iter().any(|action| action.id == *id)
+        })
+}
+
+fn supports_tree_expansion(node: &Node) -> bool {
+    node.role() == Role::TreeItem
+        && !node.is_disabled()
+        && node.data().is_expanded().is_some()
+        && node.supports_action(Action::Expand, &filter)
+        && node.supports_action(Action::Collapse, &filter)
+}
+
 impl PlatformNode {
+    fn set_tree_expanded(&self, expanded: bool) {
+        self.resolve_with_context(|node, tree, context| {
+            if !supports_tree_expansion(node) {
+                return;
+            }
+            if let Some((target_node, target_tree)) = tree.state().locate_node(node.id()) {
+                context.do_action(ActionRequest {
+                    action: if expanded { Action::Expand } else { Action::Collapse },
+                    target_tree,
+                    target_node,
+                    data: None,
+                });
+            }
+        });
+    }
+
     pub(crate) fn new(context: Weak<Context>, node_id: NodeId) -> Id<Self> {
         let this = Self::alloc().set_ivars(PlatformNodeIvars { context, node_id });
 

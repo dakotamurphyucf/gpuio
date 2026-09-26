@@ -50,11 +50,13 @@ module Request = struct
         ; reset : bool
         ; cycle : bool
         }
+    | Set_selected of int64 * bool
   [@@deriving bin_io, equal, sexp_of]
 
   let valid = function
     | Navigate _ | Select_active _ | Activate_active -> true
     | Typeahead { text; _ } -> valid_typeahead_text text
-    | Select (id, _) | Focus id | Set_expanded (id, _) | Activate id -> Int64.(id > 0L)
+    | Select (id, _) | Focus id | Set_expanded (id, _) | Activate id | Set_selected (id, _)
+      -> Int64.(id > 0L)
   ;;
 end

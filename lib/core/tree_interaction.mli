@@ -46,6 +46,10 @@ module Request : sig
     -> t
 
   val select : Target.t -> Tree_state.Selection.t -> t
+
+  (** Desired membership, without implicit focus, reveal or activation. *)
+  val set_selected : Target.t -> bool -> t
+
   val focus : Target.t -> t
   val set_expanded : Target.t -> bool -> t
   val activate : Target.t -> t

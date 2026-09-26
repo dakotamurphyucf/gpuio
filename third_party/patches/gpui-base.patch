@@ -1549,3 +1549,61 @@
 +        self.column_select_start = None;
 +        self.selected_word_range = None;
          if M::is_context_menu_open(self, cx) {
+--- a/src/input/base/state.rs
++++ b/src/input/base/state.rs
+@@ -3329,0 +3330,7 @@
++    fn cancel_drag_selection(&mut self) {
++        self.auto_scroll.stop();
++        self.selecting = false;
++        self.column_select_start = None;
++        self.selected_word_range = None;
++    }
++
+@@ -3334,4 +3341 @@
+-        self.auto_scroll.stop();
+-        self.selecting = false;
+-        self.column_select_start = None;
+-        self.selected_word_range = None;
++        self.cancel_drag_selection();
+@@ -3436,11 +3440,14 @@
+-            self.auto_scroll.set(scroll_delta, cx, |delta, state, cx| {
+-                let current = state.scroll_handle.offset();
+-                state.update_scroll_offset(Some(point(current.x, current.y + delta)), cx);
+-                if let Some(pos) = state.auto_scroll.last_drag_position {
+-                    let (offset, line_end_affinity, columns_past_line_end) =
+-                        state.resolve_mouse_position(pos);
+-                    if let Some(start) = state.column_select_start {
+-                        let end = ColumnarPoint::new(offset, columns_past_line_end);
+-                        state.build_columnar_selection(start, end, cx);
+-                    } else {
+-                        state.select_to_with_affinity(offset, line_end_affinity, cx);
++            let window_handle = window.window_handle();
++            self.auto_scroll
++                .set(scroll_delta, cx, move |delta, state, cx| {
++                    // GPUI delivers blur listeners after drawing. A ready timer can
++                    // run after Window::blur but before that notification; it must
++                    // not extend selection in the intervening frame.
++                    let focused = cx
++                        .update_window(window_handle, |_, window, _| {
++                            window.is_window_active() && state.focus_handle.is_focused(window)
++                        })
++                        .unwrap_or(false);
++                    if !focused {
++                        state.cancel_drag_selection();
++                        return;
+@@ -3448,2 +3455,13 @@
+-                }
+-            });
++                    let current = state.scroll_handle.offset();
++                    state.update_scroll_offset(Some(point(current.x, current.y + delta)), cx);
++                    if let Some(pos) = state.auto_scroll.last_drag_position {
++                        let (offset, line_end_affinity, columns_past_line_end) =
++                            state.resolve_mouse_position(pos);
++                        if let Some(start) = state.column_select_start {
++                            let end = ColumnarPoint::new(offset, columns_past_line_end);
++                            state.build_columnar_selection(start, end, cx);
++                        } else {
++                            state.select_to_with_affinity(offset, line_end_affinity, cx);
++                        }
++                    }
++                });

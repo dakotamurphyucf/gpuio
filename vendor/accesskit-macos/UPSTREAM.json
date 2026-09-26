@@ -21,7 +21,8 @@
   "crate_sha256": "ce02dc63b43f0c9296af9ac946312a2dc8814427d7a64d2d600971dac55b6076",
   "patches": [
     "expanded-state.patch",
-    "tree-state.patch"
+    "tree-state.patch",
+    "tree-actions.patch"
   ],
   "license_files_sha256": {
     "LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",

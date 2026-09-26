@@ -6,6 +6,10 @@ use gpui::{
 };
 use gpuio_protocol::accessibility::{Config, Current, Live, Role};
 
+// Paired with the role/action-guarded adaptation in accesskit-macos/tree-actions.patch.
+pub(super) const TREE_SELECT: i32 = 0x4750_0001;
+pub(super) const TREE_DESELECT: i32 = 0x4750_0002;
+
 /// Retain exact layout and paint while shielding hitboxes registered by the
 /// subtree. Focus/IME and active popup/timer policy is handled by focus::Manager.
 /// This wrapper also covers specialized renderers that bypass finish_element.
@@ -123,6 +127,18 @@ fn metadata(config: &Config, node: &mut accesskit::Node) {
                 node.set_expanded(expanded);
             }
             node.set_selected(item.selected);
+            if !item.disabled && node.supports_action(accesskit::Action::CustomAction) {
+                node.set_custom_actions([
+                    accesskit::CustomAction {
+                        id: TREE_SELECT,
+                        description: "Select item".into(),
+                    },
+                    accesskit::CustomAction {
+                        id: TREE_DESELECT,
+                        description: "Deselect item".into(),
+                    },
+                ]);
+            }
             if item.disabled {
                 node.set_disabled();
             }
@@ -340,13 +356,27 @@ mod tests {
                 disabled: false,
                 busy: false,
             })),
-            ..branch
+            ..branch.clone()
         };
         let mut next = accesskit::Node::new(role(leaf.role.unwrap()));
         metadata(&leaf, &mut next);
         assert_eq!(next.size_of_set(), Some(2));
         assert_eq!(next.is_expanded(), None);
         assert_eq!(next.is_selected(), Some(false));
+        assert!(next.custom_actions().is_empty());
+        next.add_action(accesskit::Action::CustomAction);
+        metadata(&leaf, &mut next);
+        assert_eq!(
+            next.custom_actions()
+                .iter()
+                .map(|a| a.id)
+                .collect::<Vec<_>>(),
+            vec![TREE_SELECT, TREE_DESELECT]
+        );
+        let mut disabled = accesskit::Node::new(role(branch.role.unwrap()));
+        disabled.add_action(accesskit::Action::CustomAction);
+        metadata(&branch, &mut disabled);
+        assert!(disabled.custom_actions().is_empty());
         assert!(!next.is_disabled() && !next.is_busy());
     }
     #[test]

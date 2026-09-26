@@ -119,7 +119,9 @@ Unicode typeahead now supports canonical accents, case folding, repeated-prefix
 cycling and current-label search, with an event-driven native expiry clock and
 bounded Core prefix. Codec, reducer, queued Bonsai and actual native key-dispatch
 tests pass; a 100,000-node Core benchmark is recorded separately from native
-workload acceptance. The high-level outcome adapter, full accessibility setters, drag
+workload acceptance. Per-row AppKit selection and expansion/disclosure setters now
+carry explicit desired states, preserving ordered requests before rerender. The
+high-level outcome adapter, drag
 integration and public filesystem usage remain; no tree capability is advertised. See the [managed-tree design](design/managed-trees.md).
 
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native

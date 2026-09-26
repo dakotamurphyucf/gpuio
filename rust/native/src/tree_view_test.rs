@@ -35,6 +35,8 @@ struct AxRow {
     disclosed: Option<bool>,
     selected: bool,
     enabled: bool,
+    selection_settable: bool,
+    expansion_settable: bool,
 }
 
 #[cfg(target_os = "macos")]
@@ -67,6 +69,10 @@ fn rows(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> Vec<AxRow> {
                 };
                 let selected: Bool = msg_send![object, isAccessibilitySelected];
                 let enabled: Bool = msg_send![object, isAccessibilityEnabled];
+                let selection_settable: Bool = msg_send![object, isAccessibilitySelectorAllowed:sel!(setAccessibilitySelected:)];
+                let expansion_settable: Bool = msg_send![object, isAccessibilitySelectorAllowed:sel!(setAccessibilityExpanded:)];
+                let disclosure_settable: Bool = msg_send![object, isAccessibilitySelectorAllowed:sel!(setAccessibilityDisclosed:)];
+                assert_eq!(expansion_settable.as_bool(), disclosure_settable.as_bool());
                 found.push(AxRow {
                     label: if label.is_null() {
                         String::new()
@@ -86,6 +92,8 @@ fn rows(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> Vec<AxRow> {
                     }),
                     selected: selected.as_bool(),
                     enabled: enabled.as_bool(),
+                    selection_settable: selection_settable.as_bool(),
+                    expansion_settable: expansion_settable.as_bool(),
                 });
             }
             let children: *mut AnyObject = msg_send![object, accessibilityChildren];
@@ -233,7 +241,9 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
                     expanded: Some(true),
                     disclosed: Some(true),
                     selected: true,
-                    enabled: true
+                    enabled: true,
+                    selection_settable: true,
+                    expansion_settable: true,
                 },
                 AxRow {
                     label: "Child".into(),
@@ -241,7 +251,9 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
                     expanded: None,
                     disclosed: None,
                     selected: false,
-                    enabled: false
+                    enabled: false,
+                    selection_settable: false,
+                    expansion_settable: false,
                 },
             ],
             "one native outline row per item; boundary is not an item"
@@ -351,6 +363,33 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
             "AX press selects without activation: {input:?}"
         );
         assert!(!input.contains(&Request::Activate(1)));
+        for request in [
+            AccessibilityRequest::SetSelected(true),
+            AccessibilityRequest::SetSelected(false),
+            AccessibilityRequest::SetSelected(false),
+            AccessibilityRequest::SetSelected(true),
+            AccessibilityRequest::SetExpanded(false),
+            AccessibilityRequest::SetExpanded(true),
+            AccessibilityRequest::SetDisclosed(false),
+            AccessibilityRequest::SetDisclosed(true),
+        ] {
+            assert!(accessible_request(cx, handle, "Folder", Some("AXRow"), request).is_some());
+        }
+        frame(cx, handle).await;
+        assert_eq!(
+            requests(&transport),
+            vec![
+                Request::SetSelected(1, true),
+                Request::SetSelected(1, false),
+                Request::SetSelected(1, false),
+                Request::SetSelected(1, true),
+                Request::SetExpanded(1, false),
+                Request::SetExpanded(1, true),
+                Request::SetExpanded(1, false),
+                Request::SetExpanded(1, true),
+            ],
+            "native AX setters preserve desired state and order before application rerender"
+        );
     }
     let row_point = handle
         .update(cx, |view, _, _| {
@@ -576,7 +615,9 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
             expanded: Some(false),
             disclosed: Some(false),
             selected: false,
-            enabled: true
+            enabled: true,
+            selection_settable: true,
+            expansion_settable: true,
         }]
     );
     apply(

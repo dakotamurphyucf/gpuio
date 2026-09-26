@@ -100,6 +100,12 @@ val with_mode : t -> _ Tree.t -> Mode.t -> t
     Choosing a target updates the logical active item but does not activate it. *)
 val select : t -> _ Tree.t -> Tree.Id.t -> Selection.t -> t
 
+(** Set one eligible item's selection membership idempotently, without moving
+    the cursor or range anchor. In Multiple mode other selections are preserved;
+    in Single mode selecting replaces them. Deselecting removes only the target.
+    Unlike a gesture, this preserves the desired state of queued AX setters. *)
+val set_selected : t -> _ Tree.t -> Tree.Id.t -> bool -> t
+
 val toggle_expanded : t -> _ Tree.t -> Tree.Id.t -> t
 
 (** Update only the logical cursor, with the same user eligibility rules. *)

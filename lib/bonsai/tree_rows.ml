@@ -218,6 +218,7 @@ let inner
               | Select_active selection -> R.select_active source selection
               | Activate_active -> R.activate_active source
               | Typeahead input -> R.typeahead source input
+              | Set_selected (target, selected) -> R.set_selected target selected
             in
             callback request))
   in

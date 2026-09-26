@@ -80,6 +80,50 @@ let%expect_test "ordered relative input, idempotent expansion and separate activ
     |}]
 ;;
 
+let%expect_test "exact selection setters preserve ordering, cursor and range anchor" =
+  let tree = tree () in
+  let snapshot = L.create tree |> L.snapshot in
+  List.iter [ S.Mode.Single; Multiple ] ~f:(fun mode ->
+    let state =
+      S.create tree ~mode () |> ok |> fun state -> S.select state tree (id "root") Replace
+    in
+    let set state name selected =
+      let outcome =
+        applied state snapshot (I.Request.set_selected (target snapshot name) selected)
+      in
+      assert (Option.is_none (I.Outcome.reveal outcome));
+      assert (not (I.Outcome.focus outcome));
+      (match I.Outcome.action outcome with
+       | None -> ()
+       | Activate _ | Move _ -> assert false);
+      let next = I.Outcome.state outcome in
+      assert (Option.equal T.Id.equal (S.active state) (S.active next));
+      assert (Option.equal T.Id.equal (S.anchor state) (S.anchor next));
+      next
+    in
+    let selected = set state "other" true in
+    let repeated = set selected "other" true in
+    assert (List.equal T.Id.equal (S.selected selected) (S.selected repeated));
+    show repeated;
+    let cleared = set repeated "other" false |> fun state -> set state "other" false in
+    show cleared;
+    List.iter [ "disabled"; "b" ] ~f:(fun name ->
+      assert (
+        Option.is_none
+          (I.apply cleared snapshot (I.Request.set_selected (target snapshot name) true))));
+    let foreign = L.snapshot (L.create tree) in
+    assert (
+      Option.is_none
+        (I.apply cleared foreign (I.Request.set_selected (target snapshot "root") false))));
+  [%expect
+    {|
+    ((root) (other) ())
+    ((root) () ())
+    ((root) (other root) ())
+    ((root) (root) ())
+    |}]
+;;
+
 let%expect_test
     "reveal opens ancestors without changing selection or claiming native focus"
   =

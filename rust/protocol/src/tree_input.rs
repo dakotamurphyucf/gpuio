@@ -29,6 +29,7 @@ pub enum Request {
         reset: bool,
         cycle: bool,
     },
+    SetSelected(i64, bool),
 }
 impl Request {
     pub fn target(&self) -> Option<i64> {
@@ -36,6 +37,7 @@ impl Request {
             Self::Select(id, _)
             | Self::Focus(id)
             | Self::SetExpanded(id, _)
+            | Self::SetSelected(id, _)
             | Self::Activate(id) => Some(*id),
             Self::Navigate(..)
             | Self::SelectActive(_)

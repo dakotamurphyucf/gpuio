@@ -10,8 +10,9 @@ tree accessibility metadata and actual native outline/item semantics are now
 implemented and locally tested. Opt-in native keyboard/pointer requests and
 AppKit focus/selection now reach typed Core/Bonsai handlers. The explicit reveal
 controller can hand focus to the same row after asynchronous mounting. Unicode
-typeahead now reduces native text input against current Core labels. Full
-accessibility actions, high-level outcome/controller integration, drag
+typeahead now reduces native text input against current Core labels. Per-row
+accessibility selection and expansion setters are implemented. High-level
+outcome/controller integration, drag
 integration and the public filesystem example remain. No tree capability is advertised.
 This document preserves the full live ticket scope; semantic getters alone do not
 establish interactive native widget acceptance.
@@ -282,7 +283,7 @@ exposes disclosed state only for branches. Its small reproducible patch is recor
 in `vendor/accesskit-macos/GPUIO.md`; dependency versions remain unchanged. Native
 getters, update/removal and teardown pass locally. Accessibility actions still
 require explicit input opt-in. AppKit focus and press-to-select are locally
-verified; complete expansion and selection-setter adaptation still remains.
+verified, including per-item desired expansion and selection setters.
 Metadata alone does not enable input.
 
 Native accessibility actions
@@ -313,8 +314,9 @@ ancestors as application preferences but rejects a disabled target. It performs
 no I/O and cannot discover an unloaded ID. Already-open paths inspect at most the
 128 ancestors, rather than scanning all expansion preferences; a changed path
 rebuilds the visible projection. The outcome reports a stable reveal target and
-focus flag. Native scrolling and eventual mounted OS focus remain unimplemented.
-The native adapter must recheck the same target before a delayed focus handoff.
+focus flag. The explicit managed controller provides native scrolling and eventual
+mounted focus; the high-level adapter still needs to connect these outcomes. The
+native adapter rechecks the same target before a delayed focus handoff.
 
 A Move action is an application-approved proposal with source and destination
 targets plus Before/After/Inside placement. Reduction never modifies the hierarchy.
@@ -341,8 +343,23 @@ keyboard/IME ownership; tree-row native controls block ancestor pointer clicks b
 allow wheel propagation. The root is one Tab stop; programmatically/pointer-focused
 rows remain outside the Tab sequence. Inherited pointer policy and inert/modal
 visibility still gate row requests. AppKit press selects rather than activating.
-Full accessibility setter adaptation, drag sessions and
-high-level focus/reveal behavior still need implementation and native acceptance.
+Per-row AppKit selection setters carry desired membership through nested request
+tag 8 (`Set_selected`), rather than translating it to a click/toggle. Single mode
+replaces selection when selecting and removes only that item when deselecting;
+Multiple adds/removes only that item's membership. Both preserve the logical
+cursor and range anchor, with no implicit reveal, focus or activation. The same
+current-visible-enabled/source-incarnation checks apply as for other user input.
+
+The pinned macOS adapter advertises expanded/disclosed setters only for enabled
+branch TreeItems with Expand/Collapse handlers. It uses two declared CustomAction
+IDs for desired selection because the pinned AccessKit has no SetSelected action;
+only opted-in rows with both IDs use that path. Generic Press/Click behavior and
+unrelated roles are unchanged. The adapter queues even equal desired states so
+opposite requests before the next render retain their order; Core reduction is
+idempotent. The reproducible vendor patch and native AppKit evidence document this
+private platform contract. This does not claim VoiceOver speech or external AX
+notification-observer acceptance. Drag sessions and high-level outcome/focus
+integration still need implementation and native acceptance.
 
 ### Unicode typeahead
 

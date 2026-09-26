@@ -262,6 +262,21 @@ impl View {
                 });
             });
         }
+        let weak = cx.weak_entity();
+        row = row.on_a11y_action(AccessibleAction::CustomAction, move |data, _, cx| {
+            let selected = match data {
+                Some(gpui::accesskit::ActionData::CustomAction(crate::semantics::TREE_SELECT)) => {
+                    true
+                }
+                Some(gpui::accesskit::ActionData::CustomAction(
+                    crate::semantics::TREE_DESELECT,
+                )) => false,
+                _ => return,
+            };
+            let _ = weak.update(cx, |view, _| {
+                view.tree_request(owner, Request::SetSelected(id, selected));
+            });
+        });
         if item.expanded.is_some() {
             for (action, expanded) in [
                 (AccessibleAction::Expand, true),

@@ -12,6 +12,7 @@ type 'key t =
   | Select_active of Tree_state.Selection.t
   | Activate_active
   | Typeahead of Tree_typeahead.Input.t
+  | Set_selected of 'key * bool
 [@@deriving sexp_of]
 
 (** None discards an obsolete target. Relative requests need no key lookup. *)

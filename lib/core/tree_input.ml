@@ -10,6 +10,7 @@ type 'key t =
   | Select_active of Tree_state.Selection.t
   | Activate_active
   | Typeahead of Tree_typeahead.Input.t
+  | Set_selected of 'key * bool
 [@@deriving sexp_of]
 
 let filter_map t ~f =
@@ -23,6 +24,8 @@ let filter_map t ~f =
   | Select_active selection -> Some (Select_active selection)
   | Activate_active -> Some Activate_active
   | Typeahead input -> Some (Typeahead input)
+  | Set_selected (key, selected) ->
+    Option.map (f key) ~f:(fun key -> Set_selected (key, selected))
 ;;
 
 module Expert = struct
@@ -55,6 +58,7 @@ module Expert = struct
         | Activate key -> Some (Activate key)
         | Select_active gesture -> Some (Select_active (selection gesture))
         | Activate_active -> Some Activate_active
+        | Set_selected (key, selected) -> Some (Set_selected (key, selected))
         | Typeahead { text; reset; cycle } ->
           Tree_typeahead.Input.create ~reset ~cycle text
           |> Result.ok

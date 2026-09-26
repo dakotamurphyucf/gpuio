@@ -644,3 +644,68 @@ Logs live under the implementing agent's ignored scratch folder:
 High-level integration, exact AX setters, drag/move, the public Eio filesystem
 example, full native tree workload and consolidated hosted macOS/Linux checks
 remain required. No tree capability or Linux GUI acceptance is claimed.
+
+## Exact per-item accessibility setters (2026-09-26)
+
+`Tree_state.set_selected` and `Tree_interaction.Request.set_selected` implement
+desired membership rather than a toggle/click. Single mode replaces on selection
+and removes only the target on deselection; Multiple preserves other members.
+Both preserve cursor and range anchor and request no focus, reveal or activation.
+Current visibility, enabled state, incarnation and source lease still gate input.
+The Core/Bonsai native route carries nested request tag 8, with independent
+OCaml/Rust selection-event bytes and strict target/Boolean decoding.
+
+The pinned macOS adapter adds expanded/disclosed setters for enabled branch
+TreeItems with both existing actions. Selection uses a guarded pair of declared
+CustomActions because AccessKit 0.24.1 has no SetSelected action. It queues desired
+states even if they equal the displayed snapshot, preserving opposite setters
+before asynchronous application reduction. Generic Press/Click handling and
+unrelated roles retain prior behavior. The third adapter patch is recorded in
+`vendor/accesskit-macos/tree-actions.patch`, `UPSTREAM.json` and its provenance
+note. Reconstruction from the checksum-verified cached crate, applying all three
+patches, matches every recorded source/manifest file byte for byte.
+
+Core expect tests cover idempotent Single/Multiple setters, opposite ordered
+requests, unchanged cursor/anchor, hidden/disabled targets and foreign sources.
+A real Bonsai driver queues select/deselect/deselect before recomputation and
+preserves the cursor. Native semantics advertise private actions only for opted-in
+enabled rows. Actual AppKit calls enqueue select/deselect/repeat/select and both
+forms of collapse/expand before another application update. The test checks exact
+request order and setter availability, including the disabled leaf. Existing
+native tests cover metadata changes, inert hiding, removal and teardown.
+
+The broader native controls regression passes. The navigation regression exposed
+a separate pre-existing retained-editor race twice: a drag-selection timer changed
+the head from byte 432 to 476 after inert admission but before the deferred GPUI
+blur listener. `Window::blur` changes focus immediately, while listener delivery
+waits until after drawing. The vendored input timer now checks actual window/focus
+ownership before extending selection and cancels transient drag state if lost.
+The existing regression passes with selection unchanged and no continued idle
+renders; the complete navigation and tree suites pass afterward. This is a
+production fix, not a relaxed expectation. The cumulative GPUI Base patch and
+checksum are updated; checksum-verified reconstruction matches the vendored tree
+(excluding local build artifacts). Source versions are unchanged.
+
+The native evidence is local macOS arm64 GPUI/AppKit execution. It does not claim
+physical assistive-device interaction, VoiceOver speech, external AX notifications
+or Linux GUI acceptance. High-level tree integration, drag/move, public filesystem
+usage, full native workload and consolidated hosted validation remain open.
+
+Final local checks pass using `GPUIO_JOBS=2 ./scripts/gpuio exec`:
+
+- `cargo clippy -p gpuio-native --features native-tests --all-targets --locked -j2 -- -D warnings`.
+- `cargo test --workspace --locked -j2`.
+- `cargo test -p gpuio-native --features native-tests --test native_controls --locked -j2`
+  (part of the first combined run, before navigation exposed the timer race).
+- `cargo test -p gpuio-native --features native-tests --test native_navigation --test native_tree --locked -j2`
+  after fixing the timer race.
+- `dune build -j2 @all @runtest @fmt`, language formatting and `git diff --check`.
+
+The first full Dune run found only a missing blank line between fixture stanzas;
+the corrected run passes. Logs are `tree-ax-native-final.log` (controls pass,
+initial navigation failure), `tree-ax-navigation-repeat.log` (reproduction),
+`tree-ax-native-fixed.log` (navigation/tree pass), `tree-ax-clippy.log`,
+`tree-ax-rust-all.log`, `tree-ax-dune-final.log` and `tree-ax-vendor-final.log` in
+the agent's scratch folder. Both vendor reconstructions match; GPUI Base compares
+all 226 files excluding local Cargo.lock/target artifacts. All checks exit and
+native windows close. Hosted macOS/Linux gates remain pending with milestone 5.
