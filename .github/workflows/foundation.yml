@@ -171,6 +171,8 @@ jobs:
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/numeric/number.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-number-public.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/numeric/otp.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-otp-public.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/calendar/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-calendar-public.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/calendar/picker.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-date-picker-public.log
+          python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_date_picker.py"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-date-picker-ax.log
           python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_numeric.py"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-numeric-ax.log
           python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_number_input.py"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-number-ax.log
           python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_otp_input.py"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-otp-ax.log

@@ -7,7 +7,8 @@ revision-checked event routing and atomic completion mailbox admission are conne
 The OCaml model also provides strict date formatting/parsing. A mounted GPUI
 calendar now renders and passes initial macOS keyboard/pointer and event/lifetime
 checks. The public Bonsai/Eio controller and correlated command bridge pass local
-integration tests. Popup composition and full native acceptance remain required.
+integration tests. The controlled-value popup picker is implemented with explicit
+Apply/Cancel and session/lease guards; full native acceptance remains required.
 No calendar capability is advertised yet. See the
 [foundation evidence](../evidence/calendar-och35.md).
 
@@ -63,9 +64,8 @@ callback crosses synchronously into OCaml.
 The inline calendar and popup picker share the same date model. The picker uses
 existing overlay placement, nested Escape/outside-click routing, focus restoration
 and accessible trigger behavior. Open/closed state is distinct from partial date
-selection. An explicit application-selected initial/committed value remains
-separate from any popup selection checkpoint; dismissal/confirmation semantics
-must be documented and tested with the controller before acceptance. Hidden
+selection. The application-selected committed value remains separate from the popup draft.
+Apply/Cancel and dismissal follow the concrete controller contract below. Hidden
 calendars must not remain keyboard active or schedule idle redraws.
 
 Locale data is presentation, not a second date representation: bounded month,
@@ -170,7 +170,7 @@ in `rust/native/src/calendar_view.rs`; it does not copy or modify upstream calen
 code or adopt the upstream state contract. The private `CalendarItem::new` is not
 called. The base `DatePicker` supplies a controlled focus/open root; trigger, popup,
 calendar and placement are application responsibilities. Existing GPUIO overlays
-already own those lifetimes; popup integration remains required. No whole styled-
+already own those lifetimes; the popup controller composes those existing views. No whole styled-
 library compatibility is inferred.
 
 The native presentation materializes 42 day slots, 12 months or at most 20 years,
@@ -237,5 +237,48 @@ focused dispatch node must not leave a stale `focused=true` snapshot. Focus/blur
 subscriptions also sample actual focus, making delayed cleanup idempotent.
 
 The [Calendar Lab](../../examples/calendar/README.md) exercises both selection
-modes and supplies a real-window bridge self-test. It does not yet demonstrate a
-popup picker or establish external OS keyboard/accessibility acceptance.
+modes and supplies a real-window bridge self-test. The adjacent popup example demonstrates a controlled-value date picker; its
+external macOS interaction test is documented in the evidence ledger.
+
+## Controlled-value popup picker
+
+`Gpuio_eio.Date_picker.create window ~config ~value ~initial_month ~on_change`
+accepts reactive calendar configuration and the application-owned committed value.
+`Date_picker.view ~overlay ~label picker` renders an ordinary anchored popover,
+calendar and Apply/Cancel actions. Overlay configuration controls width, placement,
+Escape and outside-pointer dismissal. Trigger/Apply/Cancel labels are application
+presentation; no editable text field, parser heuristic or ambient clock is implied.
+
+Opening captures the current committed value and gives the native draft a unique
+controller key. Repeated opening requests preserve that session. User date clicks,
+partial ranges and complete ranges update only the draft. Apply reads an actual
+native snapshot, then checks current session identity, native lease/revision,
+application value, mode, read-only policy and constraints before invoking the latest
+`on_change` callback and closing. Empty and complete selections can apply; partial
+ranges cannot. The button's `can_confirm` hint never replaces these checks.
+Programmatic draft commands also do not change the application value.
+
+Cancel, Escape and outside dismissal discard the draft without calling `on_change`.
+Cancel and Escape restore the prior eligible trigger through the existing native
+focus scope. An outside pointer click that focuses another control preserves that
+new focus; closing the popup must not steal it. Keyboard Escape propagates from
+the calendar into the overlay; calendar navigation and selection remain native.
+
+Changing the application value or calendar mode invalidates the open session.
+Disabling closes it and disables the trigger. Read-only calendars remain available
+for navigation but cannot apply. Constraint/label changes retain the current draft;
+Apply revalidates with the latest constraints. A historical committed value that
+is now disallowed is preserved in application state, while a new opening starts
+an empty native draft. Cancelling that draft never clears the historical value.
+
+Opening IDs never wrap. Old cancellation, observation and confirmation actions
+cannot affect a later opening. A confirmation read already in flight when the
+session is cancelled cannot commit. Native errors after window close preserve the
+Closed result even when the Bonsai computation is inactive.
+
+Removing/replacing only the view recreates the native calendar from that opening's
+seed. Only an event validated by the reconciler may introduce that new native
+lease; command replies cannot. This replaces the old draft observation and fences
+old in-flight reads. Deactivating the Bonsai computation cancels its open session,
+so reactivation begins closed. Pure `Gpuio.Date_picker` policy and public native
+integration tests cover these distinct lifetimes.

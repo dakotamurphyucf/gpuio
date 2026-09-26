@@ -2,9 +2,10 @@
 
 Status: **in progress**. This records incremental evidence, not completed widget acceptance.
 The milestone retains the full calendar and popup-picker scope. A retained
-`View.calendar` description and bridge admission/routing now exist. No capability
-bit or public Eio controller is claimed. The mounted native calendar now has initial
-macOS keyboard/pointer, visual and lifecycle evidence below.
+`View.calendar`, correlated Eio calendar controller and controlled-value popup
+picker are implemented. No calendar capability is advertised yet. The mounted
+calendar and picker have incremental macOS input, visual and lifecycle evidence
+below; remaining full acceptance is listed explicitly.
 
 ## Civil model checkpoint
 
@@ -56,10 +57,9 @@ uses Core's uppercase weekday sexps. No failing behavior was promoted away.
 - Full inline calendar acceptance: actual accessibility, modal/pointer policies,
   civil boundaries, locale/format, scale/layout, independent windows, managed-list
   pins, idle and bounded workload coverage beyond the initial checks below.
-- Popup date-picker integration with the existing overlay system and explicit
-  confirm/cancel/partial-selection, dismissal and focus-restoration semantics.
-- Public popup example, actual macOS input/accessibility/visual checks,
-  stale-lifetime and independent-window tests, idle/retention/disposal workloads.
+- Broader popup placement/nested-overlay and visual coverage, independent-window
+  checks, managed-list pins and idle/retention/disposal workloads beyond the public
+  popup lifecycle/input evidence below.
 - Required macOS/Linux consolidated CI, merge and Linear completion; final
   integration into OCH-46. Full Linux GUI release acceptance remains OCH-17.
 
@@ -244,3 +244,47 @@ also pass locally. Rust codec suite: 7 tests; native bridge suite: 5 tests. Publ
 The CI definition includes the public self-test; hosted checks have not run.
 Popup-picker integration and the remaining full native acceptance matrix are
 still required. No new calendar capability or completed ticket is claimed.
+
+## Controlled-value popup checkpoint
+
+Implemented `Gpuio.Date_picker` pure lifecycle/confirmation policy and
+`Gpuio_eio.Date_picker` public Bonsai/Eio controller. The application retains its
+confirmed value; one native calendar owns each open draft. Explicit Apply reads
+native state before rechecking current policy, committed value, session and native
+lease/revision. Partial ranges cannot apply. Cancel/dismiss never call on_change.
+Five new expectation tests cover confirmation, partial/empty ranges, read-only and
+constraint changes, stale sessions/revisions/native leases, external value/mode/
+disabled invalidation and historical disallowed values. A trusted reconciler event
+may introduce a newly mounted native lease; old replies cannot replace its state
+or error display.
+
+`examples/calendar/picker.exe --self-test` passes locally on macOS arm64. It checks
+partial/complete Apply, Cancel, an in-flight confirmation cancelled before reply,
+old session actions, view-only remount/reseeding, keyed Bonsai deactivation and
+reactivation closed without an old draft, external resets, read-only/disabled and
+constraint updates, historical disallowed values and window close. Closing the
+window preserves Native Closed even after the Bonsai input becomes inactive.
+No synchronous native callback into OCaml was introduced.
+
+`python3 scripts/test_date_picker.py` also passes against the final implementation:
+real AppKit AX buttons/selection, Apply disabled for a partial range, Apply/Cancel,
+actual OS Escape and day-navigation/Enter, outside pointer dismissal, clear and
+read-only/disabled policy. Escape/Cancel/Apply restore the eligible trigger focus.
+An outside pointer click preserves the newly focused outside control. The pointer
+target is checked through the system AX hit test before sending a real OS click;
+targeted CG mouse events alone did not establish this behavior. Keyboard reopening
+starts the cursor at the range's first endpoint, consistent with the native policy.
+All windows/processes closed; no hosted run is claimed.
+
+Commands (passed locally):
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 examples/calendar/picker.exe @test/view_api/runtest @fmt
+_build/default/examples/calendar/picker.exe --self-test
+python3 scripts/test_date_picker.py
+```
+
+Success markers: `GPUIO_DATE_PICKER_PUBLIC_OK`, `GPUIO_DATE_PICKER_AX_OK`.
+CI definitions include both checks. Broader calendar/picker visual, boundary,
+modal, multiple-window/list and workload acceptance remains open above. OCH-35
+and milestone 5 remain in progress, with the full milestone-05 scope unchanged.

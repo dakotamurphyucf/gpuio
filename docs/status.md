@@ -147,9 +147,11 @@ single/range event ordering, retained historical state, hidden/read-only/disable
 focus, pair-overload and disposal checks. Four initial light/dark GPU readbacks were
 visually reviewed. Public correlated controllers now pass local real-window checks
 for commands, revision/lease guards, admission limits, policy changes and close
-ordering. Hidden focus cleanup now reports actual platform focus. Popup-picker
-integration and full native acceptance remain in progress; no calendar capability
-is advertised.
+ordering. Hidden focus cleanup now reports actual platform focus. A public popup
+picker now separates application values from native drafts, with explicit
+Apply/Cancel, revision/session guards and external-value invalidation. Local
+macOS AX/OS-input checks cover popup selection, dismissal and focus behavior.
+Full native acceptance remains in progress; no calendar capability is advertised.
 See [calendar design](design/calendar.md) and [model evidence](evidence/calendar-och35.md).
 No milestone-05 completion or hosted acceptance is claimed yet.
 
