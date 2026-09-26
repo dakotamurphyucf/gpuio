@@ -684,9 +684,23 @@ let install_close_handler t window =
 let command_id text = Command.Id.of_string text |> Or_error.ok_exn
 let shortcut key modifiers = Gpuio.Shortcut.create ~key ~modifiers () |> Or_error.ok_exn
 
-let component t ~app ~open_window ~read_file ~attachment_directory window graph =
+let component t ~app ~sources ~open_window ~read_file ~attachment_directory window graph =
+  B.Edge.on_change
+    (B.Expert.Var.value t.dark)
+    ~equal:Bool.equal
+    ~callback:
+      (B.return (fun dark ->
+         E.of_thunk (fun () ->
+           App.Window.set_theme window (Palette.theme (Palette.of_dark dark)))))
+    graph;
   let inspector =
-    Inspector.component t.inspector ~app ~window ~dark:(B.Expert.Var.value t.dark) graph
+    Inspector.component
+      t.inspector
+      ~app
+      ~window
+      ~sources
+      ~dark:(B.Expert.Var.value t.dark)
+      graph
   in
   let search =
     Editor.create

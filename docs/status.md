@@ -220,6 +220,17 @@ now pass locally. The new expect tests and existing review/M4 regressions remain
 green. These are integrated flows, not completion of the full component matrix or simultaneous
 workload. See [M5 integration evidence](evidence/agent-chat-m5.md).
 
+The chat's source explorer also passes local macOS acceptance through the public
+managed-tree/Eio APIs: lazy failure/retry, keyboard range/typeahead, drag and
+context move approval/cancel, reveal, collapse cancellation, empty/reset and the
+explicit 100,000-node fixture. The last-source viewport exposes 9 native AX rows
+within its 24-row budget. Window-owned data/preferences survive inspector page
+changes; fixture construction uses an Eio worker domain. Native theme tokens now
+follow the chat palette, and all prior inspector/M4 acceptance suites remain green.
+Actual source screenshots and scoped ownership evidence are recorded in the same
+ledger. Results-table integration and all other remaining matrix rows, combined
+workload, hosted checks and merge are still required.
+
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
 components pass local acceptance; OCH-24 has validated geometry, a bounded scene
 codec, native resource ownership and a tested OCaml/Rust upload bridge. The

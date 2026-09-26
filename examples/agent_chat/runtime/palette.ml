@@ -31,3 +31,13 @@ let of_dark dark =
   ; success = c 0x287a60 0x85c6a3
   }
 ;;
+
+let theme t =
+  Gpuio.Theme.create
+    [ "background", t.surface
+    ; "foreground", t.text
+    ; "accent", t.accent_surface
+    ; "muted", t.muted
+    ]
+  |> Or_error.ok_exn
+;;

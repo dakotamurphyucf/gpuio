@@ -1,7 +1,7 @@
 # Milestone 5 agent-chat showcase
 
 Status: implementation plan for OCH-46, reconciled with the live OCH-23–26 and
-OCH-33–39 scopes on 2026-09-26. **The review inspector, run diagram and artifact history are implemented; the remaining
+OCH-33–39 scopes on 2026-09-26. **The review inspector, run diagram, artifact history and source explorer are implemented; the remaining
 flows and combined acceptance below are pending.** See [current evidence](../evidence/agent-chat-m5.md).
 Existing component examples and library tests do not establish chat integration.
 Finish OCH-39 and the integrated acceptance before closing this milestone.
@@ -66,7 +66,7 @@ exact chat source links and passing walkthrough/evidence links to every row.
 | OCH-37 alert dialog | `Alert_dialog`, `View.alert_dialog` | Confirm clearing local review/settings data; cancel preserves it and nested-modal focus stays correct. |
 | OCH-37 hover card | `Hover_card`, `View.hover_card` | Contributor/source preview reachable by pointer and keyboard, with purposeful navigation. |
 | OCH-37 carousel | `Carousel`, `View.carousel` | Attachment/artifact preview with manual navigation and opt-in tour auto-advance honoring focus, hidden state and reduced motion. |
-| OCH-38 managed tree | `Gpuio_bonsai.Tree`, Eio tree loading | Lazy in-memory workspace/source explorer, loading/failure/retry, selection/reveal/typeahead/context actions and explicit approval for proposed sample moves. No mutation of real files. |
+| OCH-38 managed tree | `Gpuio_bonsai.Tree`, Eio tree loading; [Sources](../../examples/agent_chat/runtime/sources.ml), [Source_data](../../examples/agent_chat/runtime/source_data.ml) | Implemented lazy sample explorer: native selection/range/typeahead/reveal, first-load failure/retry, collapse cancellation, drag/context move proposals with explicit approval, empty/reset and optional 100,000-node fixture. No real files are changed. [AppKit walkthrough](../../scripts/test_agent_chat_sources.py), [model tests](../../test/agent_chat_showcase/source_test.ml), [evidence](../evidence/agent-chat-m5.md). Combined streaming/tree/table/canvas workload remains pending. |
 | OCH-39 read-only table | `Gpuio_bonsai.Table`, `Gpuio_eio.Table_paging` | Run results with stable selection, resize/reorder/pinning, sorting, copy/context actions and cancelled obsolete queries. An explicit large-data action loads 100,000 rows; normal startup stays small. |
 
 ## Validation and completion evidence

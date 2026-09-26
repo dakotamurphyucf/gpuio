@@ -60,12 +60,25 @@ let run ~self_test ~native_test ~attachment_directory =
             ~title:(sprintf "GPUIO · Agent workspace %d" !window_serial)
             ~width:1180.
             ~height:820.
-            (Workspace.component
-               workspace
-               ~app
-               ~open_window
-               ~read_file
-               ~attachment_directory)
+            (fun window ->
+               let sources =
+                 Gpuio_agent_chat_runtime.Sources.create
+                   ~scope:(App.Window.scope window)
+                   ~sleep
+                   ~build_large:(fun () ->
+                     Eio.Domain_manager.run
+                       (Eio.Stdenv.domain_mgr env)
+                       Gpuio_agent_chat_runtime.Source_data.large)
+                 |> Or_error.ok_exn
+               in
+               Workspace.component
+                 workspace
+                 ~app
+                 ~sources
+                 ~open_window
+                 ~read_file
+                 ~attachment_directory
+                 window)
           |> Or_error.ok_exn
         in
         Workspace.install_close_handler workspace window;

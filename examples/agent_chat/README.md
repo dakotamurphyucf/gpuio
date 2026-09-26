@@ -105,6 +105,22 @@ Returning to the same current destination is a no-op. History keeps at most 32
 visits and shows at most four breadcrumbs; at the limit a new visit starts again
 from Workspace without discarding application state.
 
+Choose **Workspace → Explore sources** for the in-memory source explorer.
+Project sources load lazily; Research notes deliberately fail their first load
+so Retry has a reproducible purpose. Select a row, type a filename prefix, use
+Shift+arrows for range selection, or reveal the main source. Enter reads its
+sample note. Drag a source or choose Actions → Archive source to propose a move;
+the confirmation must be accepted before the hierarchy changes. Cancel leaves
+the sample unchanged. These are synthetic sources, not files in your checkout.
+
+**Load 100,000 sources** constructs a large fixture in an Eio worker domain; normal
+startup contains only three lazy collections. Reveal last source jumps to the end.
+Empty workspace shows a restore action, and Sample sources resets the demo.
+The window owns its data loader and move approval; changing pages or evicting a
+virtual row does not discard the source data. Collapsing a branch cancels its
+unfinished child load, and window closure cancels its data scope. Native source
+views follow the same app palette in both themes.
+
 Run `python3 scripts/test_agent_chat_review.py` after building for the actual
 macOS pointer/keyboard/properties/commands/events and lifetime walkthrough. Set
 `GPUIO_SCREENSHOT_DIR` to capture the dark/light views. See the
@@ -114,3 +130,8 @@ Run `python3 scripts/test_agent_chat_diagram.py` for native canvas gestures,
 keyboard pan/zoom, route replacement, breadcrumbs, state preservation and theme
 switching. It also supports `GPUIO_SCREENSHOT_DIR`. The full milestone showcase
 is not yet complete.
+
+`python3 scripts/test_agent_chat_sources.py` validates the source explorer through
+actual macOS input, including failure/retry, native drag and approval, collapse
+cancellation, large-fixture reveal and bounded accessibility rows. It supports
+the same screenshot output variable and always reaps the owned app.

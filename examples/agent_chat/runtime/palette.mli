@@ -15,3 +15,7 @@ type t =
   }
 
 val of_dark : bool -> t
+
+(** Native token colors used by composed controls. Selection backgrounds use
+    the softer accent surface so foreground text retains contrast in both themes. *)
+val theme : t -> Gpuio.Theme.t

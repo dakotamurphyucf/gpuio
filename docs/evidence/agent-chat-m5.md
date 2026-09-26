@@ -139,13 +139,78 @@ Set `GPUIO_SCREENSHOT_DIR` when running the diagram script to reproduce them.
 The hosted macOS workflow includes the new walkthrough, but this checkpoint has
 not yet run through the consolidated hosted gates or merge.
 
+## Managed source explorer
+
+**Workspace → Explore sources** uses the public `Gpuio_bonsai.Tree` and
+`Gpuio_eio.Tree_loading` APIs. [Source_data](../../examples/agent_chat/runtime/source_data.ml)
+provides pure synthetic data and validated move policy;
+[Sources](../../examples/agent_chat/runtime/sources.ml) owns the window-scoped
+loader, approval state and view. The loader is created in the window factory,
+before graph evaluation. Its data and the managed tree's preferences survive
+page changes; native views unmount independently. Row eviction does not cancel
+the data scope. Branch collapse cancels unfinished child work; window cancellation
+closes the loader and any fixture-building task.
+
+Normal startup has three collections. Project sources load three leaves; Research
+notes deliberately fail their first attempt and append two leaves after explicit
+retry. Loading uses a deterministic 300 ms scoped Eio delay, never real file I/O.
+The large fixture contains exactly 100,000 nodes: three roots and 99,997 leaves.
+Construction runs through `Eio.Domain_manager.run` in a scoped task; adopting the
+result resets the widget generation. Resetting the sample cancels a pending build
+and clears its approval dialog. The widget has fixed 34-pixel rows and a 24-row
+active budget. Large-data startup is an explicit action.
+
+Native drag and context actions propose moves. A tokened alert dialog consumes an
+approval once and rechecks the latest loader snapshot and tree preferences.
+Cancelled, reset-stale and incompletely loaded destinations cannot mutate the
+sample. IDs and payloads survive accepted moves. Enter reads a source's sample
+note; reveal controls navigate to the main source or the final generated leaf.
+An empty workspace uses the public presentation empty-state/restore composition.
+
+The native token theme now follows the chat palette through `Window.set_theme`.
+The softer accent surface keeps selected-row text legible in both themes. Actual
+captures exposed overly wide action labels; compact row-local Actions menus leave
+the source names readable. No image editing or mockups were used:
+
+- [Dark source explorer](../images/studio-sources-dark.png)
+- [Light source explorer](../images/studio-sources-light.png)
+
+Local macOS commands **PASS**:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/agent_chat/main.exe \
+  @test/agent_chat_showcase/runtest @fmt
+python3 scripts/test_agent_chat_sources.py
+python3 scripts/test_agent_chat_review.py
+python3 scripts/test_agent_chat_diagram.py
+_build/default/examples/agent_chat/main.exe --self-test
+python3 scripts/test_agent_chat.py
+```
+
+The source AppKit walkthrough covers accessible selection, native Enter, typeahead,
+Shift+Down range selection, lazy failure/retry, owner-checked native drag/cancel,
+context-menu move/approval, reveal, page/inspector state retention, 100,000-node
+loading and last-row reveal, empty/reset, collapse during loading, successful
+re-expansion, both themes, preserved composer draft and OS close/discard. It
+observed **9 native accessibility rows** at the final source in the large fixture,
+below the configured budget of 24. The script has a 150-second total deadline and
+always closes/reaps its child. Set `GPUIO_SCREENSHOT_DIR` to reproduce the captures.
+
+Expect tests cover fixture size, explicit retry after failure, stable moved-node
+identity and rejection of reset-stale/incomplete move destinations. All previous
+review, diagram and M4 public/AppKit regressions pass after the theme change. The
+latest M4 diagnostic records 3,924 ms, 1,676 turns, 236 clock ticks, 58 commits,
+37 rendered acknowledgements and 37 completed jobs. This is still the M4 regression
+workload; simultaneous streaming/tree/table/canvas/extension latency and retention
+measurements remain required. Hosted execution and merge remain pending.
+
 ## Remaining acceptance
 
 These flows cover the OCH-23 package integration, OCH-24 diagram, the OCH-37
-navigation stack/breadcrumbs and a subset of OCH-33's
+navigation stack/breadcrumbs, OCH-38 source explorer and a subset of OCH-33's
 presentation compositions. They do not complete the other component families,
-responsive/resizable inspector, motion, source tree/results
-and large fixtures, settings/input/date/color/OTP flows, other navigation families/tour, or the
+responsive/resizable inspector, motion, results table
+and its large fixture, settings/input/date/color/OTP flows, other navigation families/tour, or the
 combined streaming/input/retention/idle-traffic workload. Those all remain required
 by OCH-46, along with narrow/wide visual acceptance, the full coverage map, hosted
 macOS/Linux gates and merge. Full Linux GUI acceptance remains OCH-17.
