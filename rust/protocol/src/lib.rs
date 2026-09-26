@@ -12,6 +12,7 @@ pub mod canvas;
 pub mod canvas_resource;
 pub mod canvas_scene;
 pub mod canvas_view;
+pub mod color_value;
 mod command;
 pub mod container_query;
 mod decode;
