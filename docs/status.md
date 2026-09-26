@@ -89,8 +89,13 @@ child revisions for future lazy-load admission. `Tree_state` now adds separate
 incarnation-checked expansion/selection preferences, cached visible order, logical
 cursor repair, single/multiple/range selection and pure tree keyboard reduction.
 Tests cover hidden/disabled/reordered/reincarnated nodes, 100,000 selections and
-application-payload collection. Loader, managed rows, native tree input/accessibility,
-typeahead and public filesystem usage remain; no tree capability is advertised. See the [managed-tree design](design/managed-trees.md).
+application-payload collection. Core/Eio lazy loading now provides generation-
+checked requests, 64 queued branches, four reusable workers, atomic child pages,
+explicit retry and bounded error detail retention. Local runtime tests cover
+cancellation without concurrency overshoot, queued-result reset, inbox backpressure,
+shutdown and preservation of unrelated tasks. Managed rows, native tree input/
+accessibility, typeahead and public filesystem usage remain; no tree capability is
+advertised. See the [managed-tree design](design/managed-trees.md).
 
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
 components pass local acceptance; OCH-24 has validated geometry, a bounded scene

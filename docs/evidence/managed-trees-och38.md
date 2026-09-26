@@ -128,3 +128,89 @@ Next are generation-checked lazy loading, managed row projection and native/publ
 integration. These tests do not establish native focus/AX/IME, bounded native row
 caches across traversal, cancellation of Eio producers, or filesystem behavior.
 No tree capability, hosted validation or completed OCH-38 ticket is claimed.
+
+## Generation-checked lazy loading and Eio workers — 2026-09-26
+
+Added Core and Eio `Tree_loading` modules, with interfaces drafted before their
+implementations. The Core controller owns immutable snapshots of loaded tree data
+and request status. It bounds the FIFO to 64 queued branches and four running
+requests. Completion tokens contain controller identity, reset generation, serial,
+parent incarnation and child-list revision. Data-only or unrelated source edits
+preserve work; source reset, relevant hierarchy changes and explicit cancellation
+make late responses obsolete before their page contents are inspected.
+
+Each page is a closed forest of at most 2,048 new nodes. Roots append to the
+parent's children. Existing ID reuse, cycles/duplicate ownership, missing nodes,
+invalid cursors and combined depth/metadata overflow fail atomically. Empty pages
+must reach End or advance their cursor. Failure requires explicit retry. The
+controller retains at most 64 detailed error messages of 4,096 UTF-8 bytes each;
+evicted details leave a generic Failed marker rather than enabling automatic
+retries. Markers are bounded by loaded node count and removed with invalid parents.
+
+The Eio adapter lazily allocates up to four reusable scoped workers. A worker owns
+one request at a time and keeps that slot while cancellation unwinds. Results and
+slot release cross the existing bounded UI inbox. Idle workers wait on streams;
+there is no polling, per-node idle fiber or scheduler patch. Nested request
+cancellation is separate from outer worker/scope cancellation, allowing shutdown
+to interrupt inbox backpressure. Snapshot changes publish to Bonsai and optional
+`on_change`; no-op cancellation does not publish redundant updates. Close clears
+work/errors from the model and published snapshot and cancels only its workers.
+The latest application data and unrelated tasks in the parent scope are preserved.
+
+Passing local Core expect evidence:
+
+- FIFO ordering, 64 queued/four running admission, duplicate suppression, capacity
+  recovery, and 10,000 enqueue/cancel cycles without retained queue history.
+- Foreign, cancelled, duplicate and reset-generation completions are obsolete;
+  invalid obsolete pages are not admitted or reported as current failures.
+- Independent concurrent branches, multi-page cursors and nested child forests
+  publish atomically while historical snapshots remain unchanged.
+- Invalid current pages leave the exact previous tree unchanged and become Failed:
+  no cursor progress, missing/duplicate/existing IDs, cyclic data, oversized cursor,
+  page-node overflow and final depth overflow all reject. Explicit retry recovers.
+- Payload changes/sibling reorder preserve requests. Hidden-branch/subtree cancel,
+  parent incarnation reuse, child-boundary changes, explicit invalidation and reset
+  retire them. Backward source updates reject rather than overwriting loaded data.
+- Seventy failed branches retain only 64 error details. Eviction and cancellation
+  never turn a failure into Ready; UTF-8 truncation and invalid-message fallback
+  pass. Removing the forest clears all markers/details.
+
+Passing Eio mock-backend/runtime evidence uses actual scoped fibers and the UI
+inbox, with no wall-clock sleeps:
+
+- Producer failures and successful pages publish only on UI delivery; failed
+  branches do not retry automatically, and an explicit retry succeeds.
+- Reset after a producer finished but before UI delivery suppresses the queued
+  result. A subsequent request on the same worker can complete normally.
+- Six requests run at most four producers. Cancelling and immediately requeueing
+  one does not increase that peak; only after its exit does queued work start.
+  Close cancels every producer while an unrelated conversation task remains alive.
+- With inbox capacity one, four completed producers encounter real backpressure.
+  Scope shutdown cancels all workers without hanging, applying stale pages or
+  publishing post-close callbacks.
+- Worker admission failure under a one-task scope becomes an explicit retryable
+  failure, not a stranded queue. A freed existing worker later serves the retry.
+
+Validation:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune runtest -j 2 test/runtime test/view_api
+./scripts/gpuio exec ocamlformat --inplace lib/core/tree_loading.ml lib/core/tree_loading.mli lib/eio/tree_loading.ml lib/eio/tree_loading.mli test/view_api/tree_loading_test.ml test/runtime/tree_loading_test.ml
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @runtest @fmt
+git diff --check
+```
+
+The combined runtime/Core suites and complete Dune build/expect/format checks pass
+on local macOS arm64. The first Core compile found a shadowed helper binding,
+corrected before acceptance. The initial FIFO harness used `List.init` around a
+stateful dequeue; its evaluation order reversed the collected observations. The
+harness now explicitly sequences dequeues with a left fold and proves actual FIFO
+ordering; the production ordering contract was preserved.
+
+Final logs are `tree-loading-runtime-tests.log`, `tree-loading-eio-dune-all.log`
+and `tree-loading-final.log` in the agent's ignored scratch directory. No native
+GUI process, Rust/protocol change or new dependency pin was required. This is
+Core/Eio scheduling acceptance, not actual filesystem-provider, native tree widget,
+AX/IME or graphical full-traversal acceptance. Managed Bonsai rows, native
+input/typeahead/focus/reveal/move intents and public filesystem integration remain,
+followed by consolidated hosted gates and merge. No tree capability is advertised.

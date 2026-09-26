@@ -1,8 +1,9 @@
 # Managed trees (OCH-38)
 
 Status: the Core `Tree` collection and `Tree_state` expansion, selection, visible
-projection and logical navigation reducer are implemented. Lazy loading,
-managed row views, native tree input/semantics and the public example remain. No tree wire protocol or capability is advertised. This
+projection and logical navigation reducer are implemented. `Tree_loading` now
+provides a bounded Core paging model and scoped Eio worker adapter. Managed row
+views, native tree input/semantics and the public filesystem example remain. No tree wire protocol or capability is advertised. This
 document preserves the full live ticket scope; model tests do not establish
 native widget acceptance.
 
@@ -165,10 +166,14 @@ arrows or first IME Escape. Inline rename and editable cells are outside this ti
 
 ## Lazy children and asynchronous ownership
 
-Reuse OCH-13 paging's explicit `More cursor`/`End`, Ready/Loading/Failed status,
-explicit retry, progress checks and obsolete-completion rules. Implement a single
-scoped tree loader with bounded pending requests and at most four concurrent
-producers; do not create a live pager/fiber for every logical node. A completion
+`Gpuio.Tree_loading` and `Gpuio_eio.Tree_loading` reuse OCH-13's `More cursor`/`End`,
+explicit retry, progress and obsolete-completion rules. Status adds Queued to
+Ready/Loading/End/Failed. A controller admits up to 64 queued branches and four
+running requests, with at most one request per branch. Pages contain at most
+2,048 new nodes as a closed forest, whose roots append to that parent's children.
+Reusing an existing ID or exceeding the final combined depth/metadata budget fails
+atomically. The controller adopts updates from its latest collection lineage;
+reset is explicit and increments its independent generation. A completion
 token carries controller identity, collection generation, parent incarnation and
 request serial. Reusing a deleted public key does not resurrect its old request.
 
@@ -184,6 +189,37 @@ reset and scope close cancel affected producers and retire their tokens. An
 application can keep a separate data-service scope when it intentionally wants
 background fetches to survive visibility; native row lifetime never chooses that
 policy implicitly. In-flight data requests are independent of transient row scopes.
+
+The Eio adapter lazily allocates at most four long-lived scoped workers, each
+waiting on a one-slot request stream while idle. Every load runs in a nested
+cancellation context. Cancelling a branch immediately invalidates its token but
+keeps the worker busy until its producer has exited and returned the slot through
+the bounded UI inbox. Rapid cancellation/reopening therefore cannot exceed the
+physical producer bound. Delivery runs outside the request cancellation context
+and inside the outer scoped task, so backpressure remains cancellable at shutdown.
+No polling, timer, per-node idle fiber or scheduler-library patch is introduced.
+
+A successful load, invalid page or producer failure updates immutable snapshots
+on the UI loop; `value` publishes those through Bonsai. Actual I/O captures Eio
+capabilities in `load`. Scope/worker admission failures become retryable Failed
+snapshots. Close cancels only this controller's workers, unregisters cleanup and
+releases queued work/failure details from both model and published snapshot;
+the latest application tree remains readable. The parent scope's other tasks live
+on. Unchanged cancellation/observation does not publish another snapshot.
+
+Failure markers are bounded by loaded node count. Detailed error strings have a
+separate FIFO cache of 64 entries, each at most 4,096 UTF-8 bytes. NUL and invalid
+UTF-8 messages are sanitized. Evicted detail leaves a generic Failed status;
+scrolling must not accidentally retry an old failure. These are retained-storage
+bounds, not a bound on arbitrary application payloads or temporary error formatting.
+Historical snapshots explicitly retained by the application have its lifetime.
+
+Payload updates preserve valid loads. When application data changes the external
+parameters used by a loader, call `invalidate` explicitly; the controller does not
+compare arbitrary payloads to guess that a filesystem path or service changed.
+`cancel_hidden` reconciles the supplied `Tree_state` and applies the default
+collapse policy. Explicit prefetch may omit it. The managed component still needs
+to wire its expansion changes and viewport demand to those operations.
 
 The filesystem example receives an Eio directory capability. It loads children in
 scoped producers, uses deterministic ordering and explicit failure/retry, and does
