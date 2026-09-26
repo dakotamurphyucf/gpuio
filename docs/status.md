@@ -173,7 +173,9 @@ keyboard/Tab, pointer preview/commit/Escape, configuration-during-drag, disabled
 isolation and disposal. Native Hex/HSLA text fields now pass draft/commit/cancel,
 composition, history/configuration preservation, bounded storage and child
 disposal checks, including actual AppKit marked-text/insertion delegates. Runtime
-controllers, public example and full native color acceptance remain in progress. See [color design](design/color-inputs.md)
+controllers and a public Color Studio example now pass real-window correlated
+command, revision/lease, policy, request-limit, remount and close checks. Popup
+selection and full native color acceptance remain in progress. See [color design](design/color-inputs.md)
 and [foundation evidence](evidence/color-inputs-och36.md).
 No milestone-05 completion or hosted acceptance is claimed yet.
 

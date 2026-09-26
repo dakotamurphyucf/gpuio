@@ -4,6 +4,8 @@
  (inline_tests
   (deps
    (sandbox preserve_file_kind)
+   color-command-request.hex
+   color-command-events.hex
    color-values.tsv
    color-request.hex
    color-events.hex

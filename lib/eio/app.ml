@@ -7,6 +7,7 @@ module Slider = Gpuio.Slider
 module Number_input = Gpuio.Number_input
 module Otp_input = Gpuio.Otp_input
 module Calendar = Gpuio.Calendar
+module Color_input = Gpuio.Color_input
 module Dialog = Gpuio.File_dialog
 module Native_window = Gpuio.Window
 
@@ -44,6 +45,13 @@ type calendar_request =
   ; mode : Calendar.Mode.t
   ; minimum_revision : Calendar.Revision.t
   ; complete : (Calendar.Snapshot.t, Calendar.Command_error.t) Result.t -> unit
+  }
+
+type color_input_request =
+  { window : Window_id.t
+  ; node : Node_id.t
+  ; minimum_revision : Color_input.Revision.t
+  ; complete : (Color_input.Snapshot.t, Color_input.Command_error.t) Result.t -> unit
   }
 
 type window_result = (Native_window.Snapshot.t, Native_window.Error.t) Result.t
@@ -95,6 +103,7 @@ type t =
   ; mutable number_inputs : number_input_request Int64.Map.t
   ; mutable otp_inputs : otp_input_request Int64.Map.t
   ; mutable calendars : calendar_request Int64.Map.t
+  ; mutable color_inputs : color_input_request Int64.Map.t
   ; mutable dialogs : dialog_request Int64.Map.t
   ; mutable window_requests : window_request Int64.Map.t
   ; mutable window_capabilities : Native_window.Capabilities.t option
@@ -342,6 +351,12 @@ let release_window window =
     in
     window.app.calendars <- remaining_calendars;
     Map.iter cancelled_calendars ~f:(fun request -> request.complete (Error Closed));
+    let cancelled_color_inputs, remaining_color_inputs =
+      Map.partition_tf window.app.color_inputs ~f:(fun request ->
+        Window_id.equal request.window window.id)
+    in
+    window.app.color_inputs <- remaining_color_inputs;
+    Map.iter cancelled_color_inputs ~f:(fun request -> request.complete (Error Closed));
     Map.iter cancelled ~f:(fun request -> request.complete (Error Closed));
     let cancelled_dialogs, remaining_dialogs =
       Map.partition_tf window.app.dialogs ~f:(fun request ->
@@ -652,6 +667,32 @@ module Window = struct
                      ; complete = callback
                      };
               queue t.app (Calendar_command (request, t.id, node, command)))))
+    ;;
+
+    let color_input_command t snapshot command =
+      Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+        check t.app;
+        if is_closed t || t.app.stopping
+        then callback (Error Color_input.Command_error.Closed)
+        else if not (Window_id.equal t.id (Color_input.Expert.window snapshot))
+        then callback (Error Stale_color_input)
+        else if Map.length t.app.color_inputs >= 64
+        then callback (Error Busy)
+        else (
+          let command = Color_input.Expert.command_to_wire command in
+          let request = correlation t.app in
+          let node = Color_input.Expert.node snapshot in
+          t.app.color_inputs
+          <- Map.set
+               t.app.color_inputs
+               ~key:request
+               ~data:
+                 { window = t.id
+                 ; node
+                 ; minimum_revision = Color_input.Snapshot.revision snapshot
+                 ; complete = callback
+                 };
+          queue t.app (Color_input_command (request, t.id, node, command))))
     ;;
 
     let editor_command t snapshot command =
@@ -1023,6 +1064,25 @@ let process t = function
        in
        pending.complete result
      | Some _ | None -> ())
+  | Color_input_result (request, id, node, result) ->
+    (match Map.find t.color_inputs request with
+     | Some pending
+       when Window_id.equal pending.window id && Node_id.equal pending.node node ->
+       t.color_inputs <- Map.remove t.color_inputs request;
+       let result =
+         match result with
+         | Failed error -> Error (Color_input.Expert.error_of_wire error)
+         | Applied snapshot ->
+           (match Color_input.Expert.snapshot_of_wire ~window:id ~node snapshot with
+            | Ok snapshot
+              when Color_input.Revision.compare
+                     (Color_input.Snapshot.revision snapshot)
+                     pending.minimum_revision
+                   >= 0 -> Ok snapshot
+            | Ok _ | Error _ -> Error Color_input.Command_error.Native_failure)
+       in
+       pending.complete result
+     | Some _ | None -> ())
   | Editor_result (request, id, node, result) ->
     (match Map.find t.editors request with
      | Some pending
@@ -1143,6 +1203,24 @@ let process t = function
       match code with
       | Closed -> Closed
       | Stale_handle -> Stale_input
+      | Busy | Overloaded -> Busy
+      | Limit_exceeded -> Limit_exceeded
+      | Unsupported_version
+      | Unsupported_capability
+      | Malformed
+      | Not_ready
+      | Invalid_revision
+      | Invalid_tree
+      | Native_failure -> Native_failure
+    in
+    pending.complete (Error error)
+  | Failed (request, code) when Map.mem t.color_inputs request ->
+    let pending = Map.find_exn t.color_inputs request in
+    t.color_inputs <- Map.remove t.color_inputs request;
+    let error : Color_input.Command_error.t =
+      match code with
+      | Closed -> Closed
+      | Stale_handle -> Stale_color_input
       | Busy | Overloaded -> Busy
       | Limit_exceeded -> Limit_exceeded
       | Unsupported_version
@@ -1349,6 +1427,7 @@ let worker native read ~tick_hz ~max_tasks ~motion initialize =
         ; number_inputs = Int64.Map.empty
         ; otp_inputs = Int64.Map.empty
         ; calendars = Int64.Map.empty
+        ; color_inputs = Int64.Map.empty
         ; dialogs = Int64.Map.empty
         ; window_requests = Int64.Map.empty
         ; window_capabilities = None

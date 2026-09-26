@@ -211,3 +211,38 @@ reviewed for field borders, text legibility and alignment. The pure Core/wire
 contracts are unchanged in this checkpoint. Correlated color commands,
 public controller/popup/example, comprehensive color AX/appearance/lifecycle/
 workload acceptance and required hosted macOS/Linux gates remain pending.
+
+## Correlated commands and public controller — 2026-09-25
+
+Local macOS arm64 validation passes for appended command/result tags 18/53,
+independently assembled paired fixtures, strict malformed/truncated/guarded
+admission, result reservation and window-retirement barriers. Four Rust codec
+tests and eight native bridge tests pass; OCaml view/codec expect tests pass.
+
+Native real-window tests now cover pending platform edits before guard evaluation,
+marked-text preservation on stale Set, successful Set cancellation/unmark/history
+reset, equal-value Set after raw text commit, focus completing the previous field,
+policy failures preserving invalid drafts, read-only/disabled commands and rejection
+of reads/mutations after overload. Deferred editor notifications do not restart an
+edit after programmatic replacement. Existing native color scenarios also pass.
+
+The public `Gpuio_eio.Color_input` controller and Color Studio example pass the
+real OCaml/Rust bridge test: 64 pending requests plus one Busy result, lease/revision
+guards, historical alpha values under opaque-only policy, explicit Set/Reset/Clear,
+focus, hidden/read-only/disabled policy, native observation/reply consistency,
+remount seeding, old-controller rejection and ordered window closure. Commands
+never manufacture user commit events. This is real-window command integration,
+not external OS keyboard or full accessibility validation.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-protocol --test color_input_codec
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-image-tests --test color_input --test native_color_input
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 examples/color_input/main.exe @test/view_api/runtest @fmt
+_build/default/examples/color_input/main.exe --self-test
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native --all-targets --features native-image-tests -- -D warnings
+```
+
+The workflow now includes the public self-test on macOS. Hosted execution remains
+pending the consolidated milestone run. Popup Apply/Cancel, complete native color
+AX/appearance/lifecycle/workload acceptance, capability advertisement and required
+hosted macOS/Linux checks/merge remain outstanding.

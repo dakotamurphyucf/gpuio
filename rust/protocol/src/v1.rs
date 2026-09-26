@@ -661,6 +661,7 @@ pub enum Message {
     NumberInputCommand(i64, WindowId, NodeId, crate::number_input::Command),
     OtpInputCommand(i64, WindowId, NodeId, crate::otp_input::Command),
     CalendarCommand(i64, WindowId, NodeId, crate::calendar_input::Command),
+    ColorInputCommand(i64, WindowId, NodeId, crate::color_input::Command),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -802,4 +803,5 @@ pub enum Event {
     ),
     CalendarResult(i64, WindowId, NodeId, crate::calendar_input::Response),
     ColorInputEvent(WindowId, NodeId, HandlerId, i64, crate::color_input::Event),
+    ColorInputResult(i64, WindowId, NodeId, crate::color_input::Response),
 }

@@ -233,3 +233,59 @@ let%expect_test "color input form metadata uses the retained owner's native role
   print_endline "Form metadata accepted; native color role cannot be overridden";
   [%expect {| Form metadata accepted; native color role cannot be overridden |}]
 ;;
+
+let%expect_test "correlated color commands, independent envelopes and strict replies" =
+  let request =
+    Wire.Message.Color_input_command
+      (9L, window, node, Set { value = Color 0x11223344L; if_revision = Some 7L })
+  in
+  let response =
+    Wire.Event.Color_input_result
+      (9L, window, node, Applied (Color_input_test.snapshot ()))
+  in
+  let encoded = event_bytes [ response ] in
+  Eio_main.run (fun env ->
+    let fs = Eio.Stdenv.fs env in
+    assert (
+      String.equal
+        (Wire.Message.encode request |> ok |> hex)
+        (Eio.Path.load Eio.Path.(fs / "color-command-request.hex") |> String.strip));
+    assert (
+      String.equal
+        (hex encoded)
+        (Eio.Path.load Eio.Path.(fs / "color-command-events.hex") |> String.strip)));
+  assert (List.equal Wire.Event.equal (Wire.Event.decode encoded |> ok) [ response ]);
+  for length = 0 to String.length encoded - 1 do
+    assert (Result.is_error (Wire.Event.decode (String.prefix encoded length)))
+  done;
+  assert (Result.is_error (Wire.Event.decode (encoded ^ "\000")));
+  List.iter [ 0L; -1L; Int64.min_value ] ~f:(fun correlation ->
+    assert (
+      Result.is_error
+        (Wire.Message.encode
+           (Color_input_command (correlation, window, node, Read_snapshot))));
+    assert (
+      Result.is_error
+        (Wire.Event.decode
+           (event_bytes
+              [ Color_input_result (correlation, window, node, Applied snapshot) ]))));
+  List.iter
+    [ W.Command.Set { value = Empty; if_revision = Some (-1L) }
+    ; Reset { if_revision = Some (-1L) }
+    ]
+    ~f:(fun command ->
+      assert (
+        Result.is_error
+          (Wire.Message.encode (Color_input_command (9L, window, node, command)))));
+  assert (
+    Result.is_error
+      (Wire.Event.decode
+         (event_bytes
+            [ Color_input_result
+                (9L, window, node, Applied { snapshot with revision = -1L })
+            ])));
+  print_endline
+    "color commands: tags 18/53, exact bytes, guarded revisions and validated replies";
+  [%expect
+    {| color commands: tags 18/53, exact bytes, guarded revisions and validated replies |}]
+;;

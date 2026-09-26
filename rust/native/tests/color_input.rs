@@ -530,3 +530,48 @@ fn form_metadata_updates_preserve_the_retained_seed_and_reject_role_overrides() 
         Some(&metadata)
     );
 }
+
+#[test]
+fn correlated_color_reply_reservation_and_window_retirement_barrier() {
+    let mut mailbox = Mailbox::default();
+    let request = Message::ColorInputCommand(9, window(), node(), c::Command::ReadSnapshot);
+    mailbox.submit(request.clone(), 7).unwrap();
+    assert_eq!(mailbox.pop(), Some(request));
+    let reply = Event::ColorInputResult(
+        9,
+        window(),
+        node(),
+        c::Response::Applied(
+            State::new(config().into(), color(0x00ff00ff))
+                .unwrap()
+                .snapshot(),
+        ),
+    );
+    mailbox.input(Event::Rendered(window(), 1)).unwrap();
+    mailbox.respond(reply.clone());
+    mailbox.input(Event::Rendered(window(), 2)).unwrap();
+    assert_eq!(mailbox.drain(1), vec![Event::Rendered(window(), 1)]);
+    assert!(mailbox.has_window_output(window().slot()));
+    assert_eq!(mailbox.drain(1), vec![reply]);
+    assert!(mailbox.has_window_output(window().slot()));
+    assert_eq!(mailbox.drain(1), vec![Event::Rendered(window(), 2)]);
+    assert!(!mailbox.has_window_output(window().slot()));
+    // Pending responses alone must prevent slot reuse, including failed commands.
+    mailbox
+        .submit(
+            Message::ColorInputCommand(10, window(), node(), c::Command::Focus(c::Field::Hex)),
+            7,
+        )
+        .unwrap();
+    mailbox.pop().unwrap();
+    let failed = Event::ColorInputResult(
+        10,
+        window(),
+        node(),
+        c::Response::Failed(c::Error::FocusBlocked),
+    );
+    mailbox.respond(failed.clone());
+    assert!(mailbox.has_window_output(window().slot()));
+    assert_eq!(mailbox.drain(128), vec![failed]);
+    assert!(!mailbox.has_window_output(window().slot()));
+}

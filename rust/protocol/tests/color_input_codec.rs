@@ -443,3 +443,62 @@ fn maximum_configs_and_drafts_fit_bounded_envelopes_and_excess_lengths_reject() 
     huge.extend_from_slice(&u64::MAX.to_le_bytes());
     assert_eq!(decode_color_config(&huge), Err(DecodeError::LimitExceeded));
 }
+
+#[test]
+fn correlated_commands_use_appended_tags_and_strict_admission() {
+    use gpuio_protocol::{NodeId, WindowId, decode, v1};
+    let window = WindowId::from_parts(0, 1).unwrap();
+    let node = NodeId::from_parts(0, 1).unwrap();
+    let command = Command::Set {
+        value: color(0x11223344),
+        if_revision: Some(7),
+    };
+    let message = v1::Message::ColorInputCommand(9, window, node, command);
+    let encoded = fixture(
+        &message,
+        include_str!("../../../test/fixtures/color-command-request.hex"),
+    );
+    assert_eq!(decode(&encoded), Ok(message));
+    for length in 0..encoded.len() {
+        assert!(decode(&encoded[..length]).is_err());
+    }
+    let mut trailing = encoded;
+    trailing.push(0);
+    assert!(decode(&trailing).is_err());
+    for correlation in [0, -1, i64::MIN] {
+        assert!(
+            decode(&bytes(&v1::Message::ColorInputCommand(
+                correlation,
+                window,
+                node,
+                Command::ReadSnapshot
+            )))
+            .is_err()
+        );
+    }
+    for command in [
+        Command::Set {
+            value: color(0x11223344),
+            if_revision: Some(-1),
+        },
+        Command::Reset {
+            if_revision: Some(-1),
+        },
+    ] {
+        assert!(
+            decode(&bytes(&v1::Message::ColorInputCommand(
+                9, window, node, command
+            )))
+            .is_err()
+        );
+    }
+    fixture(
+        &vec![v1::Event::ColorInputResult(
+            9,
+            window,
+            node,
+            Response::Applied(snapshot()),
+        )],
+        include_str!("../../../test/fixtures/color-command-events.hex"),
+    );
+}

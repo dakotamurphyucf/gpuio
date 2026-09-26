@@ -298,6 +298,7 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
     );
     frame(cx, handle).await;
     frame(cx, handle).await;
+    commands(cx, handle, transport).await;
     // Restore the seed through the actual palette keyboard route for the channel suite.
     handle
         .update(cx, |v, w, cx| {
@@ -312,5 +313,178 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
     events(transport);
     eprintln!(
         "GPUIO_COLOR_EDITORS_OK: invalid/valid drafts, unsnapped channels, Enter/Escape/blur, native composition and label retention, undo/redo and synchronized fields"
+    );
+}
+
+fn command(cx: &mut AsyncApp, handle: WindowHandle<View>, command: c::Command) -> c::Response {
+    handle
+        .update(cx, |v, w, cx| {
+            v.color_inputs[&node()].command(&command, w, cx)
+        })
+        .unwrap()
+}
+fn applied(response: c::Response) -> c::Snapshot {
+    match response {
+        c::Response::Applied(snapshot) => snapshot,
+        other => panic!("{other:?}"),
+    }
+}
+async fn commands(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Transport) {
+    events(transport);
+    let green = Value::Color(Rgba::new(0, 255, 0, 255));
+    let red = Value::Color(Rgba::new(255, 0, 0, 128));
+    applied(command(cx, handle, c::Command::Reset { if_revision: None }));
+    applied(command(cx, handle, c::Command::Focus(c::Field::Hex)));
+    frame(cx, handle).await;
+    let before = applied(command(cx, handle, c::Command::ReadSnapshot));
+    let field = editor(cx, handle, 0);
+    // Invoke the command before GPUI can deliver the InputState observer.
+    handle
+        .update(cx, |v, w, cx| {
+            field.update(cx, |s, cx| {
+                let length = s.value().encode_utf16().count();
+                s.replace_and_mark_text_in_range(Some(0..length), "#ff000080", Some(0..9), w, cx);
+            });
+            assert_eq!(
+                v.color_inputs[&node()].command(
+                    &c::Command::Set {
+                        value: red,
+                        if_revision: Some(before.revision)
+                    },
+                    w,
+                    cx
+                ),
+                c::Response::Failed(c::Error::StaleRevision)
+            );
+            assert!(field.read(cx).bridge_composition().is_some());
+            assert_eq!(field.read(cx).value().as_ref(), "#ff000080");
+        })
+        .unwrap();
+    let composing = applied(command(cx, handle, c::Command::ReadSnapshot));
+    assert!(composing.draft.as_ref().unwrap().composing);
+    assert!(composing.revision > before.revision);
+    assert_eq!(composing.value, green);
+    events(transport);
+    let replaced = applied(command(
+        cx,
+        handle,
+        c::Command::Set {
+            value: red,
+            if_revision: Some(composing.revision),
+        },
+    ));
+    assert_eq!(replaced.value, red);
+    assert!(replaced.interaction.is_none());
+    assert!(matches!(
+        events(transport).as_slice(),
+        [
+            c::Event::Cancelled(c::CancelReason::Programmatic, _),
+            c::Event::Observed(_)
+        ]
+    ));
+    assert_eq!(text(cx, handle, 0), "#FF000080");
+    assert!(cx.update(|cx| field.read(cx).bridge_composition().is_none()));
+    assert_eq!(cx.update(|cx| field.read(cx).bridge_history_bytes()), 0);
+    frame(cx, handle).await;
+    assert!(
+        events(transport).is_empty(),
+        "delayed child observers must not restart edits"
+    );
+    assert_eq!(snapshot(cx, handle), replaced);
+
+    // Valid text commit retains raw spelling, but explicit equal Set retires it.
+    replace(cx, handle, 0, "#ff000080", false);
+    frame(cx, handle).await;
+    key(cx, handle, "enter");
+    frame(cx, handle).await;
+    assert_eq!(text(cx, handle, 0), "#ff000080");
+    applied(command(
+        cx,
+        handle,
+        c::Command::Set {
+            value: red,
+            if_revision: None,
+        },
+    ));
+    assert_eq!(text(cx, handle, 0), "#FF000080");
+    assert_eq!(cx.update(|cx| field.read(cx).bridge_history_bytes()), 0);
+    events(transport);
+
+    // Focus commits a valid old field before returning the new-field snapshot.
+    replace(cx, handle, 0, "#123456", false);
+    frame(cx, handle).await;
+    let focused = applied(command(
+        cx,
+        handle,
+        c::Command::Focus(c::Field::Channel(c::Channel::Hue)),
+    ));
+    assert!(focused.interaction.is_none());
+    assert_eq!(
+        focused.value,
+        Value::Color(Rgba::new(0x12, 0x34, 0x56, 255))
+    );
+    assert!(matches!(
+        events(transport).last(),
+        Some(c::Event::Committed(c::Source::Text, _))
+    ));
+    frame(cx, handle).await;
+    assert_eq!(snapshot(cx, handle), focused);
+    assert!(events(transport).is_empty());
+
+    let mut restricted = config();
+    restricted.alpha_policy = AlphaPolicy::OpaqueOnly;
+    restricted.allow_empty = false;
+    apply(cx, handle, vec![set(restricted.clone())]);
+    frame(cx, handle).await;
+    applied(command(cx, handle, c::Command::Focus(c::Field::Hex)));
+    replace(cx, handle, 0, "#12", false);
+    frame(cx, handle).await;
+    let invalid = snapshot(cx, handle);
+    assert_eq!(
+        command(
+            cx,
+            handle,
+            c::Command::Set {
+                value: red,
+                if_revision: None
+            }
+        ),
+        c::Response::Failed(c::Error::InvalidValue)
+    );
+    assert_eq!(
+        command(
+            cx,
+            handle,
+            c::Command::Focus(c::Field::Channel(c::Channel::Alpha))
+        ),
+        c::Response::Failed(c::Error::FocusBlocked)
+    );
+    assert_eq!(snapshot(cx, handle), invalid);
+    assert_eq!(text(cx, handle, 0), "#12");
+    applied(command(cx, handle, c::Command::Cancel));
+    assert!(snapshot(cx, handle).interaction.is_none());
+    assert_eq!(snapshot(cx, handle).value, focused.value);
+    events(transport);
+    restricted.read_only = true;
+    apply(cx, handle, vec![set(restricted.clone())]);
+    frame(cx, handle).await;
+    applied(command(cx, handle, c::Command::Focus(c::Field::Hex)));
+    restricted.disabled = true;
+    apply(cx, handle, vec![set(restricted)]);
+    frame(cx, handle).await;
+    assert_eq!(
+        command(cx, handle, c::Command::Focus(c::Field::Hex)),
+        c::Response::Failed(c::Error::FocusBlocked)
+    );
+    assert_eq!(
+        applied(command(cx, handle, c::Command::Reset { if_revision: None })).value,
+        green
+    );
+    applied(command(cx, handle, c::Command::ReadSnapshot));
+    apply(cx, handle, vec![set(config())]);
+    frame(cx, handle).await;
+    events(transport);
+    eprintln!(
+        "GPUIO_COLOR_COMMANDS_OK: pending platform edits, guarded Set, IME/reset/history, focus completion, policy rejection, read-only/disabled commands"
     );
 }

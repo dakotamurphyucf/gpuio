@@ -1259,6 +1259,13 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
             }
             Message::OpenConfigured(correlation, id, config)
         }
+        18 => {
+            let correlation = d.int()?;
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::ColorInputCommand(correlation, d.window()?, d.node()?, d.color_command()?)
+        }
         17 => {
             let correlation = d.int()?;
             if correlation <= 0 {

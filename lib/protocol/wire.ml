@@ -876,6 +876,7 @@ module Message = struct
     | Number_input_command of int64 * Window_id.t * Node_id.t * Number_input.Command.t
     | Otp_input_command of int64 * Window_id.t * Node_id.t * Otp_input.Command.t
     | Calendar_command of int64 * Window_id.t * Node_id.t * Calendar.Command.t
+    | Color_input_command of int64 * Window_id.t * Node_id.t * Color_input.Command.t
   [@@deriving bin_io, equal, sexp_of]
 
   let encode t =
@@ -888,6 +889,8 @@ module Message = struct
         || not
              (Window.valid_title config.title
               && Window.valid_size config.width config.height)
+      | Color_input_command (correlation, _, _, command) ->
+        Int64.(correlation <= 0L) || not (Color_input.Command.valid command)
       | Calendar_command (correlation, _, _, command) ->
         Int64.(correlation <= 0L) || not (Calendar.Command.valid command)
       | Otp_input_command (correlation, _, _, command) ->
@@ -1041,6 +1044,7 @@ module Event = struct
     | Calendar_result of int64 * Window_id.t * Node_id.t * Calendar.Response.t
     | Color_input_event of
         Window_id.t * Node_id.t * Handler_id.t * int64 * Color_input.Event.t
+    | Color_input_result of int64 * Window_id.t * Node_id.t * Color_input.Response.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1101,6 +1105,8 @@ module Event = struct
       Int64.(revision >= 0L) && Or_error.is_ok (List_wire.Viewport.validate viewport)
     | Slider_result (request, _, _, result) ->
       Int64.(request > 0L) && Slider.Response.valid result
+    | Color_input_result (request, _, _, result) ->
+      Int64.(request > 0L) && Color_input.Response.valid result
     | Calendar_result (request, _, _, result) ->
       Int64.(request > 0L) && Calendar.Response.valid result
     | Otp_input_result (request, _, _, result) ->

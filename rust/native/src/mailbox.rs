@@ -33,6 +33,12 @@ fn event_bytes(event: &Event) -> usize {
         | Event::PaletteDismissed(_, _, _, _, PaletteDismissal::Selected(id)) => id.len(),
         Event::ComboboxSelected(_, _, _, _, id, snapshot) => id.len() + snapshot.text.len(),
         Event::NumberInputEvent(_, _, _, _, event) => event.snapshot().draft.len(),
+        Event::ColorInputResult(
+            _,
+            _,
+            _,
+            gpuio_protocol::color_input::Response::Applied(snapshot),
+        ) => snapshot.draft.as_ref().map_or(0, |d| d.text.len()),
         Event::ColorInputEvent(_, _, _, _, event) => {
             event.snapshot().draft.as_ref().map_or(0, |d| d.text.len())
         }
@@ -588,6 +594,7 @@ impl Mailbox {
             | Event::SliderResult(_, id, ..)
             | Event::NumberInputResult(_, id, ..)
             | Event::CalendarResult(_, id, ..)
+            | Event::ColorInputResult(_, id, ..)
             | Event::OtpInputResult(_, id, ..)
             | Event::EditorResult(_, id, ..)
             | Event::FileDialogResult(_, id, ..)

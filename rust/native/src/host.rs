@@ -1886,6 +1886,13 @@ pub fn run(transport: Arc<Transport>) {
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),
                             }
                         }
+                        Message::ColorInputCommand(correlation, id, node, command) => {
+                            use gpuio_protocol::color_input::{Error, Response};
+                            let result = windows.get(&id).and_then(|handle| handle.update(cx, |view, window, cx| {
+                                view.color_inputs.get(&node).map(|input| input.command(&command, window, cx)).unwrap_or(Response::Failed(Error::StaleColorInput))
+                            }).ok()).unwrap_or(Response::Failed(Error::Closed));
+                            transport.respond(Event::ColorInputResult(correlation, id, node, result));
+                        }
                         Message::CalendarCommand(correlation, id, node, command) => {
                             use gpuio_protocol::calendar_input::{Error, Response};
                             let result = windows.get(&id).and_then(|handle| handle.update(cx, |view, window, cx| {

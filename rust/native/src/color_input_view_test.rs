@@ -461,9 +461,18 @@ async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Tra
         Event::ColorInputEvent(_, _, _, _, c::Event::Started(_) | c::Event::Preview(_))
     )));
     handle
-        .update(cx, |v, _, cx| {
+        .update(cx, |v, w, cx| {
             assert!(!v.session.borrow().accepts_input(v.id));
             assert!(!field.read(cx).is_editable());
+            for command in [
+                c::Command::ReadSnapshot,
+                c::Command::Reset { if_revision: None },
+            ] {
+                assert_eq!(
+                    v.color_inputs[&next].command(&command, w, cx),
+                    c::Response::Failed(c::Error::NativeFailure)
+                );
+            }
         })
         .unwrap();
     eprintln!(

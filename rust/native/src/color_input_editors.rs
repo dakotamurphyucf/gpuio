@@ -58,6 +58,55 @@ fn canonical(snapshot: &c::Snapshot, field: c::Field) -> String {
     }
 }
 impl ColorInput {
+    fn focus_field(
+        &mut self,
+        field: c::Field,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Result<(), c::Error> {
+        let index = FIELDS
+            .iter()
+            .position(|f| *f == field)
+            .expect("known color field");
+        if !self.field_enabled(index) {
+            return Err(c::Error::FocusBlocked);
+        }
+        // Complete the old field before acknowledging the new focus; its later
+        // blur notification must be an idempotent no-op.
+        for previous in 0..self.editors.fields.len() {
+            if previous != index && self.editors.fields[previous].focus.is_focused(window) {
+                self.finish_editor(previous, true, window, cx);
+            }
+        }
+        if !self.route.current(self.model.config()) {
+            return Err(c::Error::NativeFailure);
+        }
+        window.focus(&self.editors.fields[index].focus, cx);
+        if self.editors.fields[index].focus.is_focused(window) {
+            Ok(())
+        } else {
+            Err(c::Error::NativeFailure)
+        }
+    }
+    fn reset_editor_values(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        // Even an equal-value Set/Reset intentionally retires undo and marked
+        // text. Configuration observations do not take this path.
+        let snapshot = self.model.snapshot();
+        for (index, editor) in self.editors.fields.iter_mut().enumerate() {
+            let text = canonical(&snapshot, FIELDS[index]);
+            editor.state.update(cx, |input, cx| {
+                input.unmark_text(window, cx);
+                input.bridge_replace_all(
+                    text.clone().into(),
+                    (text.len(), text.len()),
+                    false,
+                    window,
+                    cx,
+                );
+                editor.seen = Stamp::read(input);
+            });
+        }
+    }
     fn field_enabled(&self, index: usize) -> bool {
         self.access(false) == Access::Allowed
             && !self.model.config().disabled
@@ -381,6 +430,73 @@ fn configure_input(
 }
 
 impl Instance {
+    pub(in crate::host) fn command(
+        &self,
+        command: &c::Command,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> c::Response {
+        self.state.update(cx, |state, cx| {
+            if state.closed {
+                return c::Response::Failed(c::Error::Closed);
+            }
+            if !state
+                .route
+                .session
+                .borrow()
+                .accepts_input(state.route.window)
+            {
+                return c::Response::Failed(c::Error::NativeFailure);
+            }
+            if !state.route.current(state.model.config()) {
+                return c::Response::Failed(c::Error::StaleColorInput);
+            }
+            // Platform edits can precede their deferred entity notification.
+            // Observe them before checking a guard or returning a snapshot.
+            for index in 0..state.editors.fields.len() {
+                state.observe_editor(index, window, cx);
+            }
+            if !state.route.current(state.model.config()) {
+                return c::Response::Failed(c::Error::NativeFailure);
+            }
+            let reset_editors =
+                matches!(command, c::Command::Set { .. } | c::Command::Reset { .. });
+            let result = match command {
+                c::Command::Set { value, if_revision } => state.model.set(*value, *if_revision),
+                c::Command::Reset { if_revision } => state.model.reset(*if_revision),
+                c::Command::Cancel => state
+                    .model
+                    .cancel(c::CancelReason::Programmatic)
+                    .map(|event| event.into_iter().collect()),
+                c::Command::ReadSnapshot => Ok(Vec::new()),
+                c::Command::Focus(field) => {
+                    state.focus_field(*field, window, cx).map(|()| Vec::new())
+                }
+            };
+            let events = match result {
+                Ok(events) => events,
+                Err(error) => {
+                    state.publish(Err(error), window, cx);
+                    return c::Response::Failed(error);
+                }
+            };
+            if reset_editors || matches!(command, c::Command::Cancel) {
+                state.release(window);
+            }
+            if reset_editors {
+                state.editors.preserved = None;
+            }
+            state.publish(Ok(events), window, cx);
+            if !state.route.current(state.model.config()) {
+                return c::Response::Failed(c::Error::NativeFailure);
+            }
+            if reset_editors {
+                state.reset_editor_values(window, cx);
+            }
+            c::Response::Applied(state.model.snapshot())
+        })
+    }
+
     fn command_field(&self, window: &Window, cx: &App) -> Option<usize> {
         let state = self.state.read(cx);
         state

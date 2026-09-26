@@ -2010,6 +2010,7 @@ let dispatch t = function
   | Rating_requested _
   | Slider_result _
   | Slider_event _
+  | Color_input_result _
   | Calendar_result _
   | Otp_input_result _
   | Number_input_result _

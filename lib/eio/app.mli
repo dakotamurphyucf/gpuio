@@ -109,6 +109,16 @@ module Window : sig
       -> (Gpuio.Calendar.Snapshot.t, Gpuio.Calendar.Command_error.t) Result.t
            Bonsai.Effect.t
 
+    (** Correlated color commands for the observed window/node lease. At most 64
+        color requests may be pending across the app. Replies cannot precede the
+        observed revision. Closing completes remaining requests with [Closed]. *)
+    val color_input_command
+      :  t
+      -> Gpuio.Color_input.Snapshot.t
+      -> Gpuio.Color_input.Command.t
+      -> (Gpuio.Color_input.Snapshot.t, Gpuio.Color_input.Command_error.t) Result.t
+           Bonsai.Effect.t
+
     (** Correlated numeric commands bound to the observed window/node lease;
         at most 64 requests pending. Closing completes them with [Closed]. *)
     val number_input_command

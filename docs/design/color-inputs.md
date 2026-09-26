@@ -1,9 +1,9 @@
 # Color selection (OCH-36)
 
-Status: value foundation, Core control contracts, paired standalone codecs and
-pure native interaction policy implemented; mounted controls, retained bridge,
-runtime controllers, popup and public example remain in progress. No color-control
-capability is advertised yet.
+Status: value models, retained native channels/editors, correlated commands and
+the public Bonsai/Eio controller/example pass local checks. Popup selection and
+full native acceptance remain in progress. No color-control capability is
+advertised yet.
 
 ## Concrete values
 
@@ -58,8 +58,8 @@ Snapshots expose the current and committed concrete values, unquantized editing
 channels, optional interaction/draft, and value-validity flags. Expert imports
 validate before constructing public snapshots. Their window/node identities stay
 separate from revisions and interaction IDs. `View.color_input` describes a retained native leaf with a stable controller key,
-a configuration, an initial seed and typed observations. Native channels, palette and text fields are mounted; correlated commands and
-the Bonsai/Eio runtime controller are still being integrated.
+a configuration, an initial seed and typed observations. Native channels, palette and text fields are mounted. `Gpuio_eio.Color_input`
+provides the Bonsai controller, with one mounted view per controller.
 
 `Color_input_wire` and Rust's bounded `decode_color_*` functions encode the same
 ordered contracts. Concrete RGBA is a nonnegative bin_prot int64 in
@@ -83,7 +83,9 @@ current configuration forbids it remains the native owner's responsibility.
 OCaml generated wire readers are internal data readers, followed by semantic
 validation when importing public values. They are not advertised as standalone
 untrusted-input entry points. The retained bridge appends kind 41, operation 47 (`Set_color_input`) and event
-52 (`Color_input_event`). Correlated command/response envelopes remain pending.
+52 (`Color_input_event`), message 18 (`Color_input_command`) and result event 53
+(`Color_input_result`). Requests have a positive correlation ID and exact
+window/node lease; responses are validated before public import.
 Dependency pins and the advertised capability set remain unchanged.
 
 ## Interaction policy
@@ -276,3 +278,38 @@ Native edit-command routing recognizes the focused field, retains the last field
 for toolbar/menu focus restoration, and respects composition and input gates.
 This is separate from the forthcoming correlated color Set/Reset/Focus commands
 and public Bonsai/Eio controller.
+
+## Correlated controller and explicit commands
+
+`Gpuio_eio.Color_input.create window ~config ~initial` yields a Bonsai controller.
+`view`, `snapshot`, `set`, `reset`, `clear`, `cancel`, `focus` and `read_snapshot`
+operate on its native lease. `set_if_unchanged` fences both lease and revision.
+An unmounted controller returns `Not_mounted`; an obsolete mounted lease returns
+`Stale_color_input`. Delayed replies cannot replace a newer native observation or
+a newly mounted lease. At most 64 color commands may be pending across an app;
+additional requests return `Busy`. Window closure completes remaining requests.
+The response lane retains its normal reservation independently of input capacity.
+Response accounting includes draft text, and undrained results prevent window-slot
+reuse until the output is consumed.
+
+Before a command reads or checks a revision guard, the native owner observes any
+pending platform editor changes. A Set based on an older snapshot therefore
+rejects rather than overwriting an edit whose GPUI notification is still queued.
+Failed guards or value-policy validation preserve the active edit. Successful
+Set/Reset cancels an active interaction, emits the replacement observation and
+canonicalizes all fields, clearing obsolete selection/composition/history even
+for equal values. Configuration-only observations preserve raw spelling/history.
+Set/Reset never emits a user `Committed` event. Reset targets the original mounted
+seed and can fail if current policy disallows it. Clear is Set Empty, governed by
+allow-empty. Read does not focus or finish edits; Cancel restores committed state.
+
+Focus targets a text field. Hidden/modal-blocked/disabled controls and opaque-only
+alpha fields reject focus; read-only fields may focus. Changing fields completes
+a valid previous text edit or cancels its invalid/composing draft before returning.
+Success checks actual native focus. Loss of a required output event faults the
+owner and returns `Native_failure`; later reads and mutations cannot claim success.
+
+The [Color Studio example](../../examples/color_input/README.md) demonstrates the
+public controller and includes a real-window OCaml/Rust command/lifecycle self-test.
+Popup Apply/Cancel composition and full color AX/appearance/workload acceptance
+remain separate work; this checkpoint does not advertise the color capability.
