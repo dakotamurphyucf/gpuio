@@ -1,8 +1,10 @@
 # Managed trees (OCH-38)
 
-Status: interface/ownership design in progress. No tree widget, tree wire protocol
-or tree capability is implemented or advertised yet. This document preserves the
-full live ticket scope; model tests alone will not establish native acceptance.
+Status: the Core `Tree` collection is implemented. Preferences, lazy-load
+controller, managed row view, native tree input/semantics and public example are
+still to implement. No tree wire protocol or capability is advertised. This
+document preserves the full live ticket scope; model tests do not establish
+native widget acceptance.
 
 ## Existing implementation and adapter choice
 
@@ -41,6 +43,8 @@ Initial implementation budgets: 100,000 loaded nodes, depth 128 (root depth 1),
 256 UTF-8 bytes per ID, 4,096 UTF-8 bytes per label, and 8 MiB aggregate IDs/labels/
 cursors. Branch cursors are opaque strings bounded to 4,096 bytes. Application
 payload memory is outside these metadata bounds and remains application-owned.
+Metadata accounting conservatively includes each node declaration and every
+root/child ID reference, even when strings are physically shared by the caller.
 Native row resources continue to obey the existing tree/session quotas. A tree
 with 100,000 logical items must not create 100,000 retained native row nodes.
 
@@ -60,7 +64,8 @@ single target. Hidden selections may remain preferences, but keyboard focus and
 range traversal use the current visible order. Selection and activation are
 separate callbacks so a context action need not open a file.
 
-The intended Core interface separates concepts (signatures are a design draft):
+The initial Core collection interface is implemented in `lib/core/tree.mli`;
+this excerpt shows its main constructors and updates:
 
 ```ocaml
 module Tree : sig
@@ -95,8 +100,11 @@ end
 Structural operations increment a checked revision and invalidate only affected
 parent load generations. Data-only updates preserve visible order and identity;
 they must not flatten the complete forest for each streamed payload fragment.
-The precise preferences/request and incremental splice interfaces will be drafted
-beside their model implementation before adding native tags.
+`Tree.Expert.incarnation` and `children_revision` expose collection-local
+versions for the future loader. They are not globally unique tokens: an Eio
+controller must pair them with its own identity/reset generation. The precise
+preferences/request and incremental splice interfaces will be drafted beside
+their model implementation before adding native tags.
 
 ## Keyboard, focus and accessibility
 

@@ -81,6 +81,14 @@ followed by final ticket completion. The chat showcase stays in OCH-46.
 See [navigation design](design/navigation-components.md) and
 [foundation evidence](evidence/navigation-components-och37.md).
 
+OCH-38 now has a pure Core `Tree` collection with stable typed IDs, validated flat
+forest topology, revisioned replacement, parent/ancestor/sibling metadata and
+O(log n) payload updates sharing topology. Expect tests exercise malformed graphs,
+100,000-node traversal/reorder, depth/metadata limits and distinct incarnation/
+child revisions for future lazy-load admission. Preferences, loader, managed rows,
+native tree input/accessibility and public filesystem usage are still to implement;
+no tree capability is advertised. See the [managed-tree design](design/managed-trees.md).
+
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
 components pass local acceptance; OCH-24 has validated geometry, a bounded scene
 codec, native resource ownership and a tested OCaml/Rust upload bridge. The
