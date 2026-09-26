@@ -60,7 +60,12 @@ let run ~self_test ~native_test ~attachment_directory =
             ~title:(sprintf "GPUIO · Agent workspace %d" !window_serial)
             ~width:1180.
             ~height:820.
-            (Workspace.component workspace ~open_window ~read_file ~attachment_directory)
+            (Workspace.component
+               workspace
+               ~app
+               ~open_window
+               ~read_file
+               ~attachment_directory)
           |> Or_error.ok_exn
         in
         Workspace.install_close_handler workspace window;

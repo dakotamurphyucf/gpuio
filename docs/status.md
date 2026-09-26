@@ -212,8 +212,12 @@ separate native counter package through its generated backend, with real propert
 event and acknowledged-command flows. Local macOS pointer/keyboard, hide/reopen,
 draft preservation and theme checks pass; both existing M4 chat acceptance suites
 remain green. The native package's duplicate Space activation was fixed. Actual
-light/dark screenshots were inspected and the controls refined. This is the first
-showcase flow, not completion of the full component matrix or simultaneous
+light/dark screenshots were inspected and the controls refined. The inspector
+also includes a lazily registered run diagram and bounded artifact history.
+Native selection/keyboard movement, pointer drag, pan/zoom/reset, stage activation,
+back/forward/replacement/breadcrumbs, preserved window state and themed screenshots
+now pass locally. The new expect tests and existing review/M4 regressions remain
+green. These are integrated flows, not completion of the full component matrix or simultaneous
 workload. See [M5 integration evidence](evidence/agent-chat-m5.md).
 
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
@@ -248,7 +252,7 @@ OCH-46 is part of milestone completion and covers feature mapping, interactive
 flows, light/dark and responsive-layout polish, accessibility, reduced motion,
 streaming/performance regression checks and updated screenshots/documentation.
 Its [component coverage and flow plan](design/agent-chat-m5-showcase.md) is
-versioned; the new showcase flows remain implementation work.
+versioned; its unimplemented rows and combined acceptance remain required work.
 OCH-25 now has validated public spring parameters, an independent OCaml/Rust
 parameter fixture and a tested analytic native spring trajectory. Typed programs,
 a bounded codec and compiled finite sequence timelines also pass local tests.

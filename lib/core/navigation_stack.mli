@@ -72,7 +72,7 @@ module Motion : sig
   (** Native presentation policy. Default is a 200 ms horizontal slide; replacement
       at the same history position fades. First placement is immediate. Reduced
       motion settles immediately. Timing never runs an OCaml callback per frame.
-      This policy is for the navigation presenter under implementation. *)
+      Used by [View.navigation_stack]; history and page state remain application-owned. *)
   type t [@@deriving equal, sexp_of]
 
   val default : t

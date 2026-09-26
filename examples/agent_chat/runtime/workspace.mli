@@ -18,6 +18,7 @@ val create : icons:Icons.t -> Conversation.t list -> selected:int -> t
 
 val component
   :  t
+  -> app:Gpuio_eio.App.t
   -> open_window:(int -> unit)
   -> read_file:(Gpuio.File_path.t -> string)
   -> attachment_directory:Gpuio.File_path.t option

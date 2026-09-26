@@ -89,10 +89,28 @@ native backend. `runtime/review` consumes only that package's public typed API;
 `runtime/inspector` owns visibility. The reset status waits for a native command
 acknowledgement rather than treating submission as completion.
 
+Choose **Workspace → Explore run diagram** (or **Diagram**) to inspect a simulated
+three-stage run. Select or drag a stage, use Shift+arrows to move it, Alt+arrows to
+pan, and +/- or Ctrl+scroll to zoom. Enter opens stage details; Next stage replaces
+the current detail visit. Back/Forward and breadcrumbs navigate the same bounded
+history. Reset view returns to the default 100% viewport. The scrollable stage
+list provides descriptions, coordinates and actions without requiring the graphic.
+No actual source files are read or modified by this simulation.
+
+`runtime/run_diagram` holds pure stage geometry; `runtime/diagram` uses the public
+scoped canvas API. One scene is registered lazily per window, retained while the
+inspector is closed and released with the window scope. Native views unmount on
+page changes; diagram positions, viewport and review progress remain window-local.
+Returning to the same current destination is a no-op. History keeps at most 32
+visits and shows at most four breadcrumbs; at the limit a new visit starts again
+from Workspace without discarding application state.
+
 Run `python3 scripts/test_agent_chat_review.py` after building for the actual
 macOS pointer/keyboard/properties/commands/events and lifetime walkthrough. Set
 `GPUIO_SCREENSHOT_DIR` to capture the dark/light views. See the
 [partial M5 evidence](../../docs/evidence/agent-chat-m5.md) and
 [complete remaining coverage plan](../../docs/design/agent-chat-m5-showcase.md).
-This review surface is the first integration; the full milestone showcase is not
-yet complete.
+Run `python3 scripts/test_agent_chat_diagram.py` for native canvas gestures,
+keyboard pan/zoom, route replacement, breadcrumbs, state preservation and theme
+switching. It also supports `GPUIO_SCREENSHOT_DIR`. The full milestone showcase
+is not yet complete.
