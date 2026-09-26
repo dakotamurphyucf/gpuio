@@ -63,6 +63,32 @@ let visible_index t id = Map.find t.indices id
 let row t id = Option.map (visible_index t id) ~f:(Array.get t.rows)
 let eligible t id = Option.exists (row t id) ~f:(fun row -> not row.Row.disabled)
 
+let fold_changed_items t ~previous ~init ~f =
+  let diff before after changed =
+    Map.fold_symmetric_diff
+      before
+      after
+      ~data_equal:Int64.equal
+      ~init:changed
+      ~f:(fun changed (id, _) -> Set.add changed id)
+  in
+  let changed =
+    Set.empty (module Id)
+    |> diff previous.selected t.selected
+    |> diff previous.expanded t.expanded
+  in
+  let changed =
+    if Option.equal Id.equal previous.active t.active
+    then changed
+    else
+      List.fold
+        (Option.to_list previous.active @ Option.to_list t.active)
+        ~init:changed
+        ~f:Set.add
+  in
+  Set.fold changed ~init ~f
+;;
+
 let branch node =
   match Tree.Node.children node with
   | Leaf -> false

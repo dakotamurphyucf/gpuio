@@ -65,6 +65,16 @@ val visible : t -> Tree.Id.t list
 
 val visible_index : t -> Tree.Id.t -> int option
 
+(** Visits each ID whose selected/expanded incarnation or logical active state
+    changed once. Uses map sharing; does not scan all selected items on a cursor
+    move. Visibility, position, mode and anchor changes are separate concerns. *)
+val fold_changed_items
+  :  t
+  -> previous:t
+  -> init:'acc
+  -> f:('acc -> Tree.Id.t -> 'acc)
+  -> 'acc
+
 (** Prune absent/reincarnated preferences and expansion of nodes now made leaves.
     Keep hidden selections. If an active node becomes hidden/disabled/deleted,
     choose its nearest surviving visible enabled ancestor; otherwise use the next

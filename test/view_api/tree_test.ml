@@ -24,6 +24,35 @@ let forest () =
 ;;
 
 let%expect_test
+    "node invalidation preserves opaque payloads and ignores position-only edits"
+  =
+  let payload () = () in
+  let a = id "a", leaf payload in
+  let b = id "b", leaf payload in
+  let tree = T.create ~roots:(ids [ "a"; "b" ]) [ a; b ] |> ok in
+  let changed previous next =
+    T.fold_changed_nodes next ~previous ~init:[] ~f:(fun acc id -> id :: acc) |> List.rev
+  in
+  let reordered = T.replace tree ~roots:(ids [ "b"; "a" ]) [ a; b ] |> ok in
+  assert (List.is_empty (changed tree reordered));
+  assert (not (phys_equal (T.preorder tree) (T.preorder reordered)));
+  let replaced = T.set_data reordered ~id:(id "a") payload |> ok in
+  print_s [%sexp (changed reordered replaced : T.Id.t list)];
+  let removed = T.replace replaced ~roots:(ids [ "b" ]) [ b ] |> ok in
+  print_s [%sexp (changed replaced removed : T.Id.t list)];
+  let inserted =
+    T.replace removed ~roots:(ids [ "b"; "c" ]) [ b; id "c", leaf payload ] |> ok
+  in
+  print_s [%sexp (changed replaced inserted : T.Id.t list)];
+  [%expect
+    {|
+    (a)
+    (a)
+    (a c)
+    |}]
+;;
+
+let%expect_test
     "ordered forest has stable typed identity and honest lazy hierarchy metadata"
   =
   let tree = forest () in

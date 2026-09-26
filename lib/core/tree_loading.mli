@@ -44,11 +44,27 @@ module Snapshot : sig
 
   val tree : 'data t -> 'data Tree.t
   val generation : _ t -> int64
+
+  (** Both controller identity and reset generation must match. Two separately
+      created controllers may expose the same numeric generation. *)
+  val same_generation : _ t -> _ t -> bool
+
   val status : _ t -> Tree.Id.t -> Status.t option
   val queued_count : _ t -> int
   val running_count : _ t -> int
   val failed_count : _ t -> int
   val error_detail_count : _ t -> int
+
+  (** Conservative invalidation of branch status, including error-detail eviction
+      and source boundary changes. Visits each candidate ID once using shared
+      maps and the bounded request/error sets; payloads are never compared.
+      Generation changes require the consumer to reset its projection. *)
+  val fold_changed_statuses
+    :  'data t
+    -> previous:'data t
+    -> init:'acc
+    -> f:('acc -> Tree.Id.t -> 'acc)
+    -> 'acc
 end
 
 (** UI-domain-owned model; no I/O, fibers, polling or native callbacks. An Eio

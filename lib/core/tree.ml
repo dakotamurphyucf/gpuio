@@ -284,6 +284,15 @@ let replace t ~roots nodes =
   admit ~revision ~previous:t.entries ~roots nodes
 ;;
 
+let fold_changed_nodes t ~previous ~init ~f =
+  Map.fold_symmetric_diff
+    previous.entries
+    t.entries
+    ~data_equal:(fun a b -> phys_equal a.Entry.node b.Entry.node)
+    ~init
+    ~f:(fun acc (id, _) -> f acc id)
+;;
+
 module Expert = struct
   let incarnation t id =
     Map.find t.entries id |> Option.map ~f:(fun entry -> entry.Entry.incarnation)

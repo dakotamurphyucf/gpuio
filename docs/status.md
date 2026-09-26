@@ -93,7 +93,11 @@ application-payload collection. Core/Eio lazy loading now provides generation-
 checked requests, 64 queued branches, four reusable workers, atomic child pages,
 explicit retry and bounded error detail retention. Local runtime tests cover
 cancellation without concurrency overshoot, queued-result reset, inbox backpressure,
-shutdown and preservation of unrelated tasks. Managed rows, native tree input/
+shutdown and preservation of unrelated tasks. `Tree_rows` now projects item and
+lazy-boundary records into keyed list data, with compact generation/incarnation-
+checked identity, point invalidation and no historical key registry. Core tests
+cover 100,000-node updates, 200,000 logical item/boundary rows, depth 128,
+collapse/reopen and old-payload collection. Managed Bonsai views, native tree input/
 accessibility, typeahead and public filesystem usage remain; no tree capability is
 advertised. See the [managed-tree design](design/managed-trees.md).
 

@@ -87,7 +87,8 @@ let boundary tree id =
 
 module Snapshot = struct
   type 'data t =
-    { tree : 'data Tree.t
+    { owner : unit ref
+    ; tree : 'data Tree.t
     ; generation : int64
     ; queued : Request.t list
     ; running : (Id.t, Request.t, Id.comparator_witness) Map.t
@@ -98,10 +99,54 @@ module Snapshot = struct
 
   let tree t = t.tree
   let generation t = t.generation
+
+  let same_generation a b =
+    phys_equal a.owner b.owner && Int64.equal a.generation b.generation
+  ;;
+
   let queued_count t = List.length t.queued
   let running_count t = Map.length t.running
   let failed_count t = Map.length t.failed
   let error_detail_count t = Map.length t.errors
+
+  let fold_changed_statuses t ~previous ~init ~f =
+    let changed =
+      Tree.fold_changed_nodes
+        t.tree
+        ~previous:previous.tree
+        ~init:(Set.empty (module Id))
+        ~f:Set.add
+    in
+    let diff before after changed =
+      Map.fold_symmetric_diff
+        before
+        after
+        ~data_equal:phys_equal
+        ~init:changed
+        ~f:(fun changed (id, _) -> Set.add changed id)
+    in
+    let changed = diff previous.running t.running changed in
+    let changed = diff previous.failed t.failed changed in
+    let changed =
+      if phys_equal previous.queued t.queued
+      then changed
+      else
+        List.fold (previous.queued @ t.queued) ~init:changed ~f:(fun changed request ->
+          Set.add changed request.Request.parent)
+    in
+    let changed =
+      Map.fold_symmetric_diff
+        previous.errors
+        t.errors
+        ~data_equal:phys_equal
+        ~init:changed
+        ~f:(fun changed (_, difference) ->
+          match difference with
+          | `Left (id, _) | `Right (id, _) -> Set.add changed id
+          | `Unequal ((before, _), (after, _)) -> Set.add (Set.add changed before) after)
+    in
+    Set.fold changed ~init ~f
+  ;;
 
   let status t id =
     Option.map (boundary t.tree id) ~f:(fun boundary ->
@@ -132,8 +177,9 @@ type 'data t =
   ; mutable closed : bool
   }
 
-let empty tree generation =
-  { Snapshot.tree
+let empty owner tree generation =
+  { Snapshot.owner
+  ; tree
   ; generation
   ; queued = []
   ; running = Map.empty (module Id)
@@ -143,7 +189,11 @@ let empty tree generation =
   }
 ;;
 
-let create tree = { owner = ref (); state = empty tree 0L; serial = 0L; closed = false }
+let create tree =
+  let owner = ref () in
+  { owner; state = empty owner tree 0L; serial = 0L; closed = false }
+;;
+
 let snapshot t = t.state
 
 let clear_failure state parent =
@@ -411,7 +461,7 @@ let reset t tree =
   else if Int64.equal t.state.generation Int64.max_value
   then Or_error.error_string "tree loader generation exhausted"
   else (
-    t.state <- empty tree (Int64.succ t.state.generation);
+    t.state <- empty t.owner tree (Int64.succ t.state.generation);
     Ok ())
 ;;
 
@@ -419,5 +469,5 @@ let close t =
   if not t.closed
   then (
     t.closed <- true;
-    t.state <- empty t.state.tree t.state.generation)
+    t.state <- empty t.owner t.state.tree t.state.generation)
 ;;

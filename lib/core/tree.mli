@@ -92,6 +92,17 @@ val ancestors : _ t -> Id.t -> Id.t list option
 val to_alist : 'data t -> (Id.t * 'data Node.t) list
 val set_data : 'data t -> id:Id.t -> 'data -> 'data t Or_error.t
 
+(** Conservative node invalidation using persistent-map sharing. Visits each
+    added/removed ID or replaced node wrapper once, without comparing payloads.
+    Point updates skip shared subtrees. Position-only changes are not reported;
+    compare [preorder] snapshots separately when projecting hierarchy metadata. *)
+val fold_changed_nodes
+  :  'data t
+  -> previous:'data t
+  -> init:'acc
+  -> f:('acc -> Id.t -> 'acc)
+  -> 'acc
+
 (** Complete atomic structural replacement. Existing IDs preserve incarnation
     even when reordered/moved. Deleted and later reintroduced IDs get a fresh
     incarnation. Changing a parent's children/boundary changes its child revision;

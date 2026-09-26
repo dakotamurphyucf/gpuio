@@ -214,3 +214,67 @@ Core/Eio scheduling acceptance, not actual filesystem-provider, native tree widg
 AX/IME or graphical full-traversal acceptance. Managed Bonsai rows, native
 input/typeahead/focus/reveal/move intents and public filesystem integration remain,
 followed by consolidated hosted gates and merge. No tree capability is advertised.
+
+## Incremental row-data projection (2026-09-26)
+
+`Tree_rows` now projects a loader snapshot and separate `Tree_state` preferences
+into OCH-13 `List_collection` records. This is the data layer for managed Bonsai
+rows, not acceptance of the native tree widget. An expanded lazy branch has one
+synthetic boundary after its loaded descendants. Item records carry hierarchy,
+selection, expansion, logical active state and loading status. Compact keys retain
+visible node identity across reorder/value changes, retire on collapse/removal/
+incarnation change, and never prepend arbitrary application IDs or hash them.
+Current identity maps and one monotonic counter replace any historical registry.
+
+Shared-map invalidation in `Tree`, `Tree_state` and loader snapshots updates only
+affected row values during streaming, selection, cursor movement and load-status
+changes. It preserves the collection order snapshot and unaffected value wrappers.
+Snapshots expose controller-aware `same_generation`; foreign controllers with
+matching numeric generations cannot update an existing projection.
+
+Local Core expect coverage:
+
+- Nested lazy boundaries appear after their own descendants, preserve unknown
+  sibling totals, and remain separate from application IDs, including maximum
+  256-byte IDs and IDs resembling the adapter's compact key strings.
+- Two coalesced payload updates invalidate those two rows; selection changes one
+  row; cursor movement changes its old/new rows. Hidden payload updates preserve
+  the exact visible collection and appear with their latest data when reopened.
+- Queued/loading/failure/retry keep keys; completing a branch retires its boundary.
+  Error-detail cache eviction invalidates the still-failed row and parent, with no
+  accidental retry. Unchanged collection keys remain physically shared.
+- Reorder retains identity. Deletion/reinsertion coalesced before projection
+  retires the old incarnation. Backward revisions, foreign controllers and reset
+  generations reject atomically and require the appropriate fresh projection.
+- 100,000 selected logical nodes still produce one row invalidation for a point
+  payload update and one for an initial cursor target. This creates data records,
+  not native views or Bonsai row computations.
+- 100,000 expanded lazy roots produce exactly 200,000 logical item/boundary rows,
+  accepted by the existing managed-order validator. Maximum-size collapse/reopen
+  preserves the bound; 1,000 small-forest cycles prove retired keys never return.
+- A 128-level lazy hierarchy places all boundaries in correct descendant order.
+  A weak-reference test collects a replaced 1 MiB payload while the current
+  projection stays live; no previous-projection reference chain retains it.
+- Direct node-diff tests use function payloads, proving no payload equality is
+  required. Position-only edits are omitted, explicit same-payload replacement is
+  invalidated, and removal/insertion IDs are reported once.
+
+Validation commands:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune runtest -j2 test/view_api
+GPUIO_JOBS=2 ./scripts/gpuio exec ocamlformat --inplace lib/core/tree.ml lib/core/tree.mli lib/core/tree_state.ml lib/core/tree_state.mli lib/core/tree_loading.ml lib/core/tree_loading.mli lib/core/tree_rows.ml lib/core/tree_rows.mli test/view_api/tree_test.ml test/view_api/tree_rows_test.ml
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt
+git diff --check
+```
+
+The final complete Dune build, expect suites, formatting and whitespace checks
+pass on local macOS arm64, including the controller-identity guard.
+Logs are `tree-rows-tests.log`, `tree-rows-budget-tests.log`,
+`tree-rows-dune-all.log` and `tree-rows-final.log` under the implementing agent's
+ignored scratch directory. The initial budget test passed 100 maximum-size
+collapse/reopen cycles; the routine suite uses two maximum-size cycles and 1,000
+small-forest cycles to keep validation efficient without losing those invariants.
+No native GUI windows, protocol/dependency changes or hosted CI were involved.
+Managed Bonsai viewport/lifetime integration, native input/AX/typeahead/reveal/move
+semantics, the Eio filesystem provider and native traversal acceptance remain.

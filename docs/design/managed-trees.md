@@ -2,8 +2,10 @@
 
 Status: the Core `Tree` collection and `Tree_state` expansion, selection, visible
 projection and logical navigation reducer are implemented. `Tree_loading` now
-provides a bounded Core paging model and scoped Eio worker adapter. Managed row
-views, native tree input/semantics and the public filesystem example remain. No tree wire protocol or capability is advertised. This
+provides a bounded Core paging model and scoped Eio worker adapter. `Tree_rows`
+projects these models into an incremental keyed list collection with distinct
+item and lazy-boundary identities. Managed Bonsai row views, native tree input/
+semantics and the public filesystem example remain. No tree wire protocol or capability is advertised. This
 document preserves the full live ticket scope; model tests do not establish
 native widget acceptance.
 
@@ -140,6 +142,41 @@ the existing snapshot. Selection and focus operations share visible metadata.
 selection gestures: it can move the cursor without changing selection, extend a
 range, or collapse/expand while preserving selection. It is a pure reducer; native
 key delivery, OS focus/reveal, typeahead and lazy-load effects are not yet wired.
+
+### Incremental managed-row data
+
+`Tree_rows` owns one current loader snapshot, reconciled preferences and an
+OCH-13 `List_collection`. Its Item records carry the node wrapper, hierarchy
+position, selected/expanded/logical-active state and branch loading status.
+An expanded incomplete branch adds one Boundary row after all its loaded
+descendants. Boundaries are loading/retry controls, never application nodes or
+members of selection ranges/sibling totals. Completed branches have no boundary.
+The maximum projection is 200,000 logical rows for 100,000 loaded nodes, within
+the existing managed-order limit. These records do not create native views.
+
+Application IDs may use the full 256-byte key allowance. Prefixing them for
+synthetic rows would overflow that allowance; hashing would require collision
+handling. Instead, compact projection keys contain loader generation and a
+checked monotonic serial. Separate item/boundary maps hold only currently visible
+IDs and their source incarnations. Reorder and data/status changes preserve keys;
+collapse, deletion and reincarnation retire them. Reappearance gets a fresh key.
+There is no historical identity map. Snapshot ownership distinguishes separate
+loaders even when both have numeric generation zero; projection updates reject
+foreign owners. A reset creates a fresh projection and
+preferences, and the managed component must reset its mounted generation too.
+Delayed commands must resolve their original key against the current projection.
+
+Hierarchy/expansion changes rebuild positional metadata. Point updates use
+`Tree.fold_changed_nodes`, `Tree_state.fold_changed_items` and
+`Tree_loading.Snapshot.fold_changed_statuses`, backed by persistent map sharing.
+They do not compare arbitrary payloads, scan all selected items on a cursor move,
+or reconstruct all visible records on a streamed payload fragment. Updated rows
+retain collection order and unaffected value wrappers; hidden payload changes
+only update the owned source snapshot. Status invalidation includes error-detail
+eviction, so a mounted failed row switches to the generic retry message when its
+detail leaves the bounded cache. Historical projections retained explicitly by
+applications retain their historical payloads; the current projection has no
+back-reference chain. Rendered rows still need the OCH-13 lifetime/viewport layer.
 
 ## Keyboard, focus and accessibility
 
