@@ -328,6 +328,19 @@ module View : sig
     -> t list
     -> t
 
+  val disclosure_with_header
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?header_style:Gpuio.Style.t
+    -> ?panel_style:Gpuio.Style.t
+    -> label:string
+    -> expanded:bool
+    -> hidden:Gpuio.Content_policy.t
+    -> header:t list
+    -> trigger:t
+    -> t list
+    -> t Or_error.t
+
   val accordion
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

@@ -306,6 +306,24 @@ val disclosure
   -> 'action t list
   -> 'action t
 
+(** Disclosure with independent header content and a dedicated toggle button.
+    [trigger] must be a plain [button]; other kinds return an error. The helper
+    assigns stable internal keys and places arbitrary header views beside it.
+    Only the toggle receives expanded semantics and collapse-focus restoration;
+    other header actions (for example a navigation link) remain independent. *)
+val disclosure_with_header
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?header_style:Style.t
+  -> ?panel_style:Style.t
+  -> label:string
+  -> expanded:bool
+  -> hidden:Content_policy.t
+  -> header:'action t list
+  -> trigger:'action t
+  -> 'action t list
+  -> 'action t Core.Or_error.t
+
 (** Ordered disclosures with stable item IDs. Up/Down/Home/End move among eligible
     headers; Enter/Space request a toggle. Content runs on the OCaml domain when
     building this description, never in native layout/paint. With [Unmount], it

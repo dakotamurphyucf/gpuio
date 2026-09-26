@@ -202,3 +202,68 @@ Bonsai/Eio usage. Native panel retention keeps an editor mounted while hidden;
 Bonsai conditional branches independently activate/deactivate lazy computation;
 a data scope outlives both visibility changes and is cancelled when its window
 closes. Lazy deactivation itself is not a promise to discard the Bonsai model.
+
+## Sidebar model and initial composition
+
+`Sidebar` owns immutable destination metadata, current ID, expanded IDs and the
+requested collapse preference. Destination IDs are unique across groups; group
+IDs have their own namespace. A destination may also contain children. Selecting
+it and toggling its children are separate requests. Requests reduce against the
+latest model: missing, hidden and disabled destinations cannot navigate; leaves
+cannot expand; icon mode ignores expansion requests whose control is hidden.
+Collapsing an ancestor preserves descendant expansion and historical selection.
+Replacing groups clears absent selection and drops missing/now-leaf expansion,
+without choosing an unrelated route. Explicit programmatic updates remain possible
+while built-in user actions are disabled.
+
+Bounds are 4,096 items, depth 16, 128 groups and 256 KiB of aggregate text/IDs.
+Subtree constructors cache validated counts so models can check aggregate limits
+without unbounded recursion. These are model bounds, not a promise that arbitrary
+custom decoration trees bypass the normal retained-tree, message or resource
+budgets. Sidebar is ordinary navigation; use managed list/tree components for
+large virtualized datasets. Models hold no route payload, native owner or task.
+
+`Sidebar.view` composes native links, separate expansion buttons, labelled regions,
+managed compact-mode tooltips and existing context menus. Header/footer callbacks
+receive compact state; suffixes disappear in icon mode; scoped SVG icons retain
+the existing icon ownership contract. A validated compact label provides an
+iconless fallback. Left/right placement selects the inner border; the application
+places the sidebar on the corresponding side of its workspace. The external
+`Sidebar.toggle` can live in an always-visible toolbar. Built-in disabled policy
+covers navigation/expansion requests; supplied slot controls and context-menu
+commands own their enabled policy.
+
+`Icon` preserves top-level link identity and names while hiding nested content,
+headings, suffixes and expansion buttons. `Offcanvas` removes the sidebar from
+layout and accessibility; `Never` ignores collapse without discarding the stored
+preference. `Content_policy.Retain | Unmount` governs native hidden descendants,
+not Bonsai computation or Eio task lifetime. Unmount skips hidden-content builder
+callbacks; retain preserves native nodes. Structural decoration changes, such as
+adding a context-menu wrapper, may replace descendants. Ordinary collapse and
+selection preserve matching keyed links. Labels and all dynamic expansion labels
+are bounded/validated; appearance refines existing tokens and state styles.
+
+This is the initial static-width composition. Native width/reveal motion,
+interrupted/reduced-motion behavior, broader workloads and final sidebar acceptance
+remain to be integrated with the navigation work; they are not silently removed
+from the OCH-37 scope.
+
+### Independent actions inside disclosure headers
+
+`View.disclosure_with_header` accepts arbitrary header content and a dedicated
+plain Button trigger. It constructs a header Container whose last child is that
+trigger, followed by the usual content Panel. The original direct Button/Panel
+shape remains supported. Native admission validates the proposed transaction's
+header shape atomically. Shared tree lookup identifies the toggle without searching
+arbitrary descendants, so a primary navigation Link does not accidentally gain
+expanded semantics or accordion arrow behavior. The dedicated toggle receives
+expanded state, accordion traversal and collapse-focus restoration. Removing the
+focused child also restores it when eligible, even if the empty panel remains
+visible; enclosing modal scope policy keeps precedence.
+
+Hidden retained tooltip/overlay owners have no active focus scope. Rendering must
+therefore avoid requiring their old anchor or mounting a deferred surface. A
+hidden tooltip retains its anchor layout/owner with no hover listeners or active
+surface; its native synchronization cancels pending timers. Hidden overlays skip
+deferred rendering, and parent containers only capture active popover anchors.
+This preserves retained ownership while keeping hidden popup content inactive.

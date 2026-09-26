@@ -166,3 +166,86 @@ command passes 202 native unit tests, one native accessibility admission test,
 protocol suite then passes as well. No dependency versions or navigation capability
 bits changed. Required hosted macOS/Linux checks/merge, full Linux GUI validation,
 broader layout/appearance acceptance and remaining OCH-37 components stay pending.
+
+## Initial sidebar and independent disclosure headers — 2026-09-26
+
+`Sidebar` now has a bounded immutable model and initial public composition:
+grouped nested destinations, separate selection/expansion requests, historical
+selection and expansion preservation, Icon/Offcanvas/Never modes, left/right inner
+border, validated widths/labels, scoped icons, header/footer/suffix slots, compact
+managed tooltips and existing command context menus. It uses explicit native
+retention policy and introduces no native selection model or callback during paint.
+Width/reveal motion and full sidebar acceptance remain pending.
+
+Six new expect tests pass. They distinguish navigation, expansion and collapse;
+reject hidden/disabled/stale/leaf-toggle requests; normalize removed selection and
+expansion; accept the 4,096-item/128-group/depth-16 model boundaries and reject
+oversized/malformed text and duplicate IDs; preserve retained native link/handler
+identity across collapse; fence unmounted handlers; skip unmounted builder callbacks;
+and validate dynamic labels/geometry. These model bounds are distinct from native
+mounted-workload acceptance. Existing global message/tree/resource quotas apply.
+
+`View.disclosure_with_header` accepts independent header content and a dedicated
+Button toggle. Native validation permits a direct Button or a Container ending in
+that Button before the Panel. It validates the proposed tree atomically, including
+rollback for a missing/nonbutton toggle. Tree lookup is shared by rendering and
+focus. Only the toggle has expanded semantics or accordion arrow navigation.
+
+Actual `native_navigation` checks pass independent Link/Toggle activation, mixed
+simple/custom header traversal, AppKit expanded state, nested editor retention,
+collapse restoration to the dedicated toggle, focused-child unmount while its
+panel stays visible, liveness disposal and complete teardown. The latter initially
+exposed a focus fallback gap, now fixed with previous focused-child eligibility.
+The full native controls suite passes after the change, including modal restoration,
+menus, tooltips, commands, progress, toast and pointer behavior.
+
+The public AX test exposed a separate retained-tooltip crash: hidden content had
+correctly lost its active focus scope, but rendering still required it. Hidden
+rendering now preserves anchor layout/ownership without hover listeners/deferred
+surfaces. Hidden overlays also skip deferred rendering; parent popover-anchor
+capture is conditional on an active scope. A native regression retains both a
+tooltip and popover inside the custom disclosure across hide/show and teardown.
+The navigation and full controls suites pass with these fixes. No GPUI/dependency
+upgrade was needed.
+
+The expanded Navigation Lab compiles/links and its self-test passes retained
+Unicode draft, lazy Bonsai lifecycle and Eio cancellation checks plus sidebar
+selection and mode changes with expansion preserved. `scripts/test_sidebar.py`
+passes through the owned macOS application's actual AX tree and keyboard delivery:
+
+- Current-destination help and disabled Link semantics.
+- Parent navigation without toggling children, independent expand/collapse, and
+  navigation to a nested child.
+- Expanded width 240 and compact width 56 logical pixels, hidden child/toggle AX
+  removal, actionable compact top-level links, offcanvas layout/AX removal and
+  restoration of saved expansion.
+- Shift-F10 context menu, Enter command invocation and clean window/process close.
+
+Owned-window screenshots of expanded, icon and offcanvas states were captured and
+visually inspected locally. They are scratch evidence, not broad theme/density/
+responsive acceptance or VoiceOver speech validation. The workflow now includes
+the public sidebar AX test; hosted checks have not run yet.
+
+Passing commands, isolated environment, local macOS arm64:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 examples/navigation/main.exe @test/view_api/runtest @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-tests --test disclosure --test native_navigation --test native_controls
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native --all-targets --features native-image-tests -- -D warnings
+_build/default/examples/navigation/main.exe --self-test
+python3 scripts/test_sidebar.py --images scratch/agents/root-20260925-resumed/sidebar-images
+```
+
+The additional unfiltered native library and `native_tabs` run passes all 202 unit
+tests and actual tab keyboard/AX, retained-panel focus/draft/selection checks:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-tests --lib --test native_tabs
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all --check
+```
+
+No new wire tags, capability bits or dependency pins changed. Required hosted
+macOS/Linux checks and merge remain pending. Next are native sidebar/navigation
+motion and focus, the supplementary overlay variants and carousel, followed by
+broader appearance/lifetime/workload acceptance, OCH-38/OCH-39 and the OCH-46 chat
+showcase. This checkpoint does not complete OCH-37 or milestone 05.

@@ -946,6 +946,58 @@ let disclosure
   { (column ?key ?style [ trigger; panel ]) with kind = Disclosure }
 ;;
 
+let disclosure_with_header
+      ?key
+      ?style
+      ?header_style
+      ?panel_style
+      ~label
+      ~expanded
+      ~hidden
+      ~header
+      ~trigger
+      children
+  =
+  if not (Gpuio_protocol.Accessibility_wire.valid_text label)
+  then Or_error.error_string "invalid disclosure region label"
+  else (
+    match trigger.kind with
+    | Button ->
+      let trigger = { trigger with key = Some (Key.of_string_exn "trigger") } in
+      let header =
+        row
+          ~key:(Key.of_string_exn "header")
+          ~style:
+            (Style.merge
+               [ Style.create_exn
+                   [ Align_items Center
+                   ; Gap (Length.px_exn 6.)
+                   ; Min_width (Length.px_exn 0.)
+                   ]
+               ; Option.value header_style ~default:Style.empty
+               ])
+          [ row
+              ~key:(Key.of_string_exn "content")
+              ~style:
+                (Style.create_exn
+                   [ Grow 1.; Min_width (Length.px_exn 0.); Align_items Center ])
+              header
+          ; trigger
+          ]
+      in
+      let panel =
+        panel
+          ~key:(Key.of_string_exn "panel")
+          ~label
+          ~active:expanded
+          ~hidden
+          ?style:panel_style
+          children
+      in
+      Ok { (column ?key ?style [ header; panel ]) with kind = Disclosure }
+    | _ -> Or_error.error_string "disclosure trigger must be a button")
+;;
+
 let accordion
       ?key
       ?style

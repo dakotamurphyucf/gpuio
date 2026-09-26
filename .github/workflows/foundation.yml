@@ -198,6 +198,9 @@ jobs:
       - name: macOS public navigation and independent content lifetimes
         if: runner.os == 'macOS'
         run: python3 -c 'import subprocess; subprocess.run(["_build/default/examples/navigation/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-navigation-public.log
+      - name: macOS public sidebar accessibility and context commands
+        if: runner.os == 'macOS'
+        run: python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_sidebar.py"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-sidebar-ax.log
       - name: macOS native tabs and retained panels
         if: runner.os == 'macOS'
         run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_tabs"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-tabs-native.log

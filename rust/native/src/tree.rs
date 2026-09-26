@@ -337,6 +337,32 @@ impl Tree {
         self.node_count == 0
     }
 
+    /// The only toggle in either supported disclosure header shape. Custom
+    /// content is independent; no arbitrary descendant search can steal a link.
+    pub fn disclosure_trigger(&self, id: NodeId) -> Option<NodeId> {
+        let disclosure = self.get(id)?;
+        if disclosure.kind != Kind::Disclosure {
+            return None;
+        }
+        let header = self.get(*disclosure.children.first()?)?;
+        let trigger = match header.kind {
+            Kind::Button => header,
+            Kind::Container => self.get(*header.children.last()?)?,
+            _ => return None,
+        };
+        (trigger.kind == Kind::Button).then_some(trigger.id)
+    }
+
+    pub fn disclosure_for_trigger(&self, id: NodeId) -> Option<&Node> {
+        let parent = self.get(self.get(id)?.parent?)?;
+        let disclosure = if parent.kind == Kind::Container {
+            self.get(parent.parent?)?
+        } else {
+            parent
+        };
+        (self.disclosure_trigger(disclosure.id) == Some(id)).then_some(disclosure)
+    }
+
     pub fn get(&self, id: NodeId) -> Option<&Node> {
         self.slots
             .get(id.slot())
@@ -1857,8 +1883,15 @@ impl Plan<'_> {
             }
             if node.kind == Kind::Disclosure
                 && (node.children.len() != 2
-                    || self.node(node.children[0])?.kind != Kind::Button
-                    || self.node(node.children[1])?.kind != Kind::Panel)
+                    || self.node(node.children[1])?.kind != Kind::Panel
+                    || {
+                        let header = self.node(node.children[0])?;
+                        !(header.kind == Kind::Button
+                            || (header.kind == Kind::Container
+                                && header.children.last().is_some_and(|id| {
+                                    self.node(*id).is_ok_and(|node| node.kind == Kind::Button)
+                                })))
+                    })
             {
                 return Err(ErrorCode::InvalidTree);
             }

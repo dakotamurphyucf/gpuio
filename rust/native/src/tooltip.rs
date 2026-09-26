@@ -333,18 +333,25 @@ impl View {
         let state = self.tooltips.get(&id).expect("mounted tooltip");
         let open = state.open && !self.focus.borrow().blocks_pointer(id);
         let panel_bounds = state.bounds.clone();
-        let handle = self
-            .focus
-            .borrow()
-            .handle(id)
-            .expect("visible tooltip scope");
-        let anchor_bounds = self
-            .focus
-            .borrow()
-            .anchor(id)
-            .expect("visible tooltip scope");
-        let bounds = anchor_bounds.clone();
         let identity = ((id.generation() as u64) << 32) | id.slot() as u64;
+        let scope = {
+            let focus = self.focus.borrow();
+            focus.handle(id).zip(focus.anchor(id))
+        };
+        let Some((handle, anchor_bounds)) = scope else {
+            // Hidden retained ancestors intentionally have no active focus scope.
+            // Preserve anchor layout/ownership without mounting hover listeners
+            // or a deferred surface. sync_tooltips cancels its outstanding timer.
+            let anchor = self.element(tree, node.children[0], interaction, window, cx);
+            let (wrapper, _) = super::apply_styles(
+                div().id(("gpuio-tooltip", identity)).child(anchor),
+                &node.style,
+                interaction,
+                false,
+            );
+            return wrapper.into_any_element();
+        };
+        let bounds = anchor_bounds.clone();
         let owner = cx.weak_entity();
         let click_owner = owner.clone();
         let escape_owner = owner.clone();

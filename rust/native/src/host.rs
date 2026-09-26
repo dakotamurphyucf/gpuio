@@ -870,10 +870,7 @@ impl View {
         if matches!(node.kind, Kind::Disclosure | Kind::Accordion) {
             element = element.role(gpui::Role::Group);
         }
-        if let Some(parent) = node.parent.and_then(|id| tree.get(id))
-            && parent.kind == Kind::Disclosure
-            && parent.children.first() == Some(&id)
-        {
+        if let Some(parent) = tree.disclosure_for_trigger(id) {
             let expanded = self.focus.borrow().visible(parent.children[1]);
             let gate = self.focus.clone();
             element = element
@@ -1192,8 +1189,8 @@ impl View {
                 .get(*child)
                 .and_then(|node| node.overlay.as_ref())
                 .is_some_and(|config| config.kind == OverlayKind::Popover)
+                && let Some(anchor) = self.focus.borrow().anchor(*child)
             {
-                let anchor = self.focus.borrow().anchor(*child).expect("mounted scope");
                 element = element.child(
                     canvas(move |bounds, _, _| anchor.set(bounds), |_, _, _, _| {})
                         .absolute()

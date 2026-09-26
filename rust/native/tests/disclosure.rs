@@ -108,3 +108,56 @@ fn repeated_visibility_updates_preserve_children_and_dispose_all_storage() {
     .unwrap();
     assert_eq!(tree.retained_bytes(), 0);
 }
+
+#[test]
+fn custom_header_has_one_dedicated_toggle_and_atomic_shape_validation() {
+    let mut tree = Tree::new(window());
+    tree.apply(&mount()).unwrap();
+    tree.apply(&tx(
+        1,
+        vec![
+            Op::Create(node(4), Kind::Container, "".into(), None),
+            Op::Create(
+                node(5),
+                Kind::Button,
+                "Independent route".into(),
+                Some(HandlerId::from_parts(5, 1).unwrap()),
+            ),
+            Op::Splice(node(1), 0, 1, vec![node(4)]),
+            Op::Splice(node(4), 0, 0, vec![node(5), node(2)]),
+        ],
+    ))
+    .unwrap();
+    assert_eq!(tree.disclosure_trigger(node(1)), Some(node(2)));
+    assert_eq!(
+        tree.disclosure_for_trigger(node(2)).map(|n| n.id),
+        Some(node(1))
+    );
+    assert!(tree.disclosure_for_trigger(node(5)).is_none());
+    let retained = tree.retained_bytes();
+    for ops in [
+        vec![
+            Op::Create(node(6), Kind::Text, "Not a toggle".into(), None),
+            Op::Splice(node(4), 1, 1, vec![node(6)]),
+            Op::Remove(node(2)),
+        ],
+        vec![
+            Op::Splice(node(4), 0, 2, vec![]),
+            Op::Remove(node(5)),
+            Op::Remove(node(2)),
+        ],
+    ] {
+        assert_eq!(tree.apply(&tx(2, ops)), Err(ErrorCode::InvalidTree));
+        assert_eq!(tree.revision(), 2);
+        assert_eq!(tree.retained_bytes(), retained);
+        assert_eq!(tree.disclosure_trigger(node(1)), Some(node(2)));
+    }
+    tree.apply(&tx(
+        2,
+        std::iter::once(Op::SetRoot(None))
+            .chain((0..=5).map(|i| Op::Remove(node(i))))
+            .collect(),
+    ))
+    .unwrap();
+    assert_eq!(tree.retained_bytes(), 0);
+}

@@ -34,8 +34,12 @@ both native backend build paths use it. Public breadcrumb/pagination composition
 now pass bounded-model/reconciliation tests and native AppKit current descriptions,
 keyboard/AX actions and focus retention. The Navigation Lab also verifies retained
 Unicode drafts, independent lazy Bonsai lifecycle and Eio data-scope cleanup.
-Remaining navigation/overlay/carousel
-components, motion, public examples, broader acceptance and hosted gates remain
+The initial sidebar adds grouped/nested destinations, independent expansion,
+icon/offcanvas modes, scoped icons, context commands and current-link semantics.
+Local public macOS AX checks and screenshots cover its collapse modes; native
+regressions also cover custom disclosure headers and retained hidden popup scopes.
+Remaining navigation/overlay/carousel components, sidebar/navigation motion,
+expanded public examples, broader acceptance and hosted gates remain
 in progress. See [navigation design](design/navigation-components.md) and
 [foundation evidence](evidence/navigation-components-och37.md).
 

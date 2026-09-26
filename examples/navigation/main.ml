@@ -19,6 +19,9 @@ module Action = struct
     | Toggle_details
     | Toggle_lazy
     | Home
+    | Sidebar of Sidebar.Request.t
+    | Collapse_mode of Sidebar.Collapse.t
+    | Inspect_sidebar
 end
 
 module Model = struct
@@ -26,12 +29,46 @@ module Model = struct
     { pages : Pagination.t
     ; details : bool
     ; lazy_content : bool
+    ; sidebar : Sidebar.t
+    ; inspected : bool
     }
+
+  let sidebar_id value = Sidebar.Id.of_string value |> ok
+
+  let sidebar =
+    let item ?(children = []) ?(disabled = false) compact_label label =
+      Sidebar.Item.create
+        ~id:(sidebar_id label)
+        ~label
+        ~compact_label
+        ~children
+        ~disabled
+        ()
+      |> ok
+    in
+    Sidebar.create
+      ~selected:(Some (sidebar_id "Inbox"))
+      ~expanded:[ sidebar_id "Archive" ]
+      ~groups:
+        [ Sidebar.Group.create
+            ~id:(sidebar_id "destinations")
+            ~label:"WORKSPACE"
+            [ item "A" "Archive" ~children:[ item "I" "Inbox"; item "S" "Starred" ]
+            ; item "G" "Settings"
+            ; item "L" "Locked" ~disabled:true
+            ]
+          |> ok
+        ]
+      ()
+    |> ok
+  ;;
 
   let initial =
     { pages = Pagination.create ~total_pages:Pagination.max_pages () |> ok
     ; details = true
     ; lazy_content = true
+    ; sidebar
+    ; inspected = false
     }
   ;;
 
@@ -41,6 +78,10 @@ module Model = struct
     | Toggle_details -> { t with details = not t.details }
     | Toggle_lazy -> { t with lazy_content = not t.lazy_content }
     | Home -> { t with pages = Pagination.apply_request t.pages Pagination.Request.first }
+    | Sidebar request -> { t with sidebar = Sidebar.apply_request t.sidebar request }
+    | Collapse_mode collapse ->
+      { t with sidebar = Sidebar.with_collapse t.sidebar collapse }
+    | Inspect_sidebar -> { t with inspected = true }
   ;;
 end
 
@@ -52,7 +93,7 @@ module Observation = struct
     }
 end
 
-let component ~loaded ~observed ~lazy_activations ~lazy_deactivations window graph =
+let component ~icon ~loaded ~observed ~lazy_activations ~lazy_deactivations window graph =
   let model, inject =
     B.state_machine0
       ~default_model:Model.initial
@@ -95,11 +136,13 @@ let component ~loaded ~observed ~lazy_activations ~lazy_deactivations window gra
      E.of_thunk (fun () -> observed := Some { Observation.model; inject; editor }))
     graph;
   let loaded = B.Expert.Var.value loaded in
+  let icon = B.Expert.Var.value icon in
   let%arr model = model
   and inject = inject
   and editor = editor
   and lazy_view = lazy_view
-  and loaded = loaded in
+  and loaded = loaded
+  and icon = icon in
   let page = Option.value (Pagination.current model.pages) ~default:0 in
   let crumbs =
     [ "workspace", "Workspace"; "archive", "Archive"; "page", sprintf "Page %d" page ]
@@ -119,78 +162,146 @@ let component ~loaded ~observed ~lazy_activations ~lazy_deactivations window gra
            ])
       children
   in
-  UI.column
-    ~style:
-      (style
-         [ Width full
-         ; Height full
-         ; Padding (px 28.)
-         ; Gap (px 20.)
-         ; Background (Background.solid (Color.token_exn "background"))
-         ; Foreground (Color.token_exn "foreground")
-         ])
-    [ UI.text
-        ~style:
-          (style [ Font_size 12.; Foreground (Color.rgb_exn 0xa0b7ed); Font_weight 600 ])
-        "GPUIO / NAVIGATION LAB"
-    ; UI.text
-        ~style:(style [ Font_size 30.; Font_weight 700 ])
-        "A place for every detail."
-    ; Navigation.breadcrumbs
-        crumbs
-        ~label:"Archive path"
-        ~current_description:"Current location"
-        ~on_navigate:(fun _ -> inject Home)
-        ()
-      |> ok
-    ; card
-        [ UI.text
-            ~style:(style [ Font_size 19.; Font_weight 600 ])
-            (sprintf "Archive · page %d" page)
-        ; UI.text
-            (if loaded
-             then
-               "Archive metadata loaded. Data tasks are independent of visible content."
-             else "Loading archive metadata…")
-        ; Navigation.pagination
-            model.pages
-            ~on_request:(fun request -> inject (Page request))
-            ()
-          |> ok
-        ; UI.row
-            ~style:(style [ Gap (px 8.); Wrap Wrap ])
-            [ UI.button ~on_click:(inject (Total 3)) "Shrink to 3 pages"
-            ; UI.button
-                ~on_click:(inject (Total Pagination.max_pages))
-                "Restore billion-page archive"
-            ]
-        ]
-    ; UI.disclosure
-        ~key:(Key.of_string_exn "draft")
-        ~label:"Retained draft"
-        ~expanded:model.details
-        ~hidden:Retain
-        ~on_toggle:(inject Toggle_details)
-        [ card
-            [ Input.view ~style:(style [ Width full; Height (px 40.) ]) editor
-            ; UI.text
-                "Collapsing this panel keeps the editor and its Bonsai computation alive."
-            ]
-        ]
-    ; card
-        [ UI.row
-            ~style:(style [ Gap (px 12.); Align_items Center ])
-            [ UI.button
-                ~on_click:(inject Toggle_lazy)
-                (if model.lazy_content
-                 then "Deactivate lazy content"
-                 else "Activate lazy content")
-            ; lazy_view
-            ]
-        ; UI.text
-            "This switch changes a Bonsai branch. It does not cancel the archive data \
-             scope."
-        ]
+  let inspect_id = Command.Id.of_string "sidebar.inspect" |> ok in
+  let menu = Menu.create ~label:"Destination actions" [ Command inspect_id ] |> ok in
+  let commands =
+    Command.Registry.create
+      [ Command.create
+          ~id:inspect_id
+          ~label:"Inspect destination"
+          ~on_invoke:(fun () -> inject Inspect_sidebar)
+          ()
+        |> ok
+      ]
+    |> ok
+  in
+  let sidebar =
+    Sidebar.view
+      model.sidebar
+      ~hidden:Retain
+      ~header:(fun ~compact ->
+        UI.text
+          ~style:(style [ Font_weight 700; Padding (px 8.) ])
+          (if compact then "A" else "ASTER"))
+      ~footer:(fun ~compact -> UI.text (if compact then "●" else "●  Local workspace"))
+      ~decorate:(fun item ->
+        let is_archive = String.equal (Sidebar.Item.label item) "Archive" in
+        Sidebar.Decoration.create
+          ?icon:(if is_archive then icon else None)
+          ?suffix:
+            (if String.equal (Sidebar.Item.label item) "Inbox"
+             then Some (UI.text "12")
+             else None)
+          ~context_menu:menu
+          ())
+      ~on_request:(fun request -> inject (Sidebar request))
+      ()
+    |> ok
+  in
+  let selected =
+    Sidebar.selected model.sidebar
+    |> Option.bind ~f:(Sidebar.find model.sidebar)
+    |> Option.value_map ~default:"None" ~f:Sidebar.Item.label
+  in
+  let content =
+    UI.column
+      ~style:
+        (style
+           [ Grow 1.
+           ; Min_width (px 0.)
+           ; Overflow_y Scroll
+           ; Height full
+           ; Padding (px 28.)
+           ; Gap (px 20.)
+           ; Background (Background.solid (Color.token_exn "background"))
+           ; Foreground (Color.token_exn "foreground")
+           ])
+      [ UI.row
+          ~style:(style [ Gap (px 8.); Wrap Wrap ])
+          [ Sidebar.toggle
+              model.sidebar
+              ~on_request:(fun request -> inject (Sidebar request))
+              ()
+          ; UI.button ~on_click:(inject (Collapse_mode Icon)) "Icon mode"
+          ; UI.button ~on_click:(inject (Collapse_mode Offcanvas)) "Offcanvas mode"
+          ]
+      ; UI.text ("Selected destination: " ^ selected)
+      ; UI.text
+          (if model.inspected
+           then "Destination inspected"
+           else "Use Shift-F10 on a destination for its context menu.")
+      ; UI.text
+          ~style:
+            (style
+               [ Font_size 12.; Foreground (Color.rgb_exn 0xa0b7ed); Font_weight 600 ])
+          "GPUIO / NAVIGATION LAB"
+      ; UI.text
+          ~style:(style [ Font_size 30.; Font_weight 700 ])
+          "A place for every detail."
+      ; Navigation.breadcrumbs
+          crumbs
+          ~label:"Archive path"
+          ~current_description:"Current location"
+          ~on_navigate:(fun _ -> inject Home)
+          ()
+        |> ok
+      ; card
+          [ UI.text
+              ~style:(style [ Font_size 19.; Font_weight 600 ])
+              (sprintf "Archive · page %d" page)
+          ; UI.text
+              (if loaded
+               then
+                 "Archive metadata loaded. Data tasks are independent of visible content."
+               else "Loading archive metadata…")
+          ; Navigation.pagination
+              model.pages
+              ~on_request:(fun request -> inject (Page request))
+              ()
+            |> ok
+          ; UI.row
+              ~style:(style [ Gap (px 8.); Wrap Wrap ])
+              [ UI.button ~on_click:(inject (Total 3)) "Shrink to 3 pages"
+              ; UI.button
+                  ~on_click:(inject (Total Pagination.max_pages))
+                  "Restore billion-page archive"
+              ]
+          ]
+      ; UI.disclosure
+          ~key:(Key.of_string_exn "draft")
+          ~label:"Retained draft"
+          ~expanded:model.details
+          ~hidden:Retain
+          ~on_toggle:(inject Toggle_details)
+          [ card
+              [ Input.view ~style:(style [ Width full; Height (px 40.) ]) editor
+              ; UI.text
+                  "Collapsing this panel keeps the editor and its Bonsai computation \
+                   alive."
+              ]
+          ]
+      ; card
+          [ UI.row
+              ~style:(style [ Gap (px 12.); Align_items Center ])
+              [ UI.button
+                  ~on_click:(inject Toggle_lazy)
+                  (if model.lazy_content
+                   then "Deactivate lazy content"
+                   else "Activate lazy content")
+              ; lazy_view
+              ]
+          ; UI.text
+              "This switch changes a Bonsai branch. It does not cancel the archive data \
+               scope."
+          ]
+      ]
+  in
+  UI.command_scope
+    ~commands
+    ~style:(style [ Width full; Height full ])
+    [ UI.row
+        ~style:(style [ Width full; Height full; Min_width (px 0.); Min_height (px 0.) ])
+        [ sidebar; content ]
     ]
 ;;
 
@@ -205,15 +316,17 @@ let () =
   App.run (fun env app ->
     let clock = Eio.Stdenv.clock env in
     let loaded = B.Expert.Var.create false in
+    let icon = B.Expert.Var.create None in
+    Sidebar_icons.load env app icon;
     let released, release = Eio.Promise.create () in
     let window =
       App.open_window
         app
         ~focus:true
         ~title:"GPUIO Navigation Lab"
-        ~width:850.
-        ~height:660.
-        (component ~loaded ~observed ~lazy_activations ~lazy_deactivations)
+        ~width:1120.
+        ~height:760.
+        (component ~icon ~loaded ~observed ~lazy_activations ~lazy_deactivations)
       |> ok
     in
     let data_scope = Scope.child (App.Window.scope window) ~name:"archive-data" |> ok in
@@ -315,6 +428,24 @@ let () =
                send Toggle_lazy;
                await (fun () -> !lazy_activations = 2);
                assert (Scope.is_active data_scope && not !data_cancelled);
+               send (Sidebar Toggle_collapsed);
+               await (fun () -> Sidebar.is_collapsed (model ()).sidebar);
+               send (Sidebar (Select (Model.sidebar_id "Inbox")));
+               send (Sidebar (Select (Model.sidebar_id "Settings")));
+               await (fun () ->
+                 Option.equal
+                   Sidebar.Id.equal
+                   (Sidebar.selected (model ()).sidebar)
+                   (Some (Model.sidebar_id "Settings")));
+               send (Collapse_mode Offcanvas);
+               await (fun () ->
+                 Sidebar.Collapse.equal (Sidebar.collapse (model ()).sidebar) Offcanvas);
+               send (Sidebar Toggle_collapsed);
+               await (fun () -> not (Sidebar.is_collapsed (model ()).sidebar));
+               assert (Sidebar.is_expanded (model ()).sidebar (Model.sidebar_id "Archive"));
+               assert (
+                 String.equal (Text_input.Snapshot.text (read ())) "Preserved draft 👩🏽‍💻");
+               await (fun () -> Option.is_some (B.Expert.Var.get icon));
                completed := true))
            ~on_result:(fun result ->
              E.of_thunk (fun () ->

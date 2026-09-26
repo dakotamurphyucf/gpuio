@@ -95,6 +95,7 @@ module View = struct
   let tab_panel = Gpuio.View.tab_panel
   let panel = Gpuio.View.panel
   let accordion = Gpuio.View.accordion
+  let disclosure_with_header = Gpuio.View.disclosure_with_header
 
   let disclosure
         ?key

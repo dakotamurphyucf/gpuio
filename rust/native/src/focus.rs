@@ -237,7 +237,12 @@ impl Manager {
     pub(super) fn sync(&mut self, window: &mut Window, cx: &mut App) {
         // Keep the previous painted ancestry: removed editor nodes are already
         // absent from the new tree. Select the first still-eligible outer trigger
-        // only when its associated content region was hidden/removed.
+        // only when its content region or previously focused child became ineligible.
+        let previous_focused = self
+            .entries
+            .iter()
+            .find(|entry| entry.handle.is_focused(window))
+            .map(|entry| entry.node);
         let disclosure_restore = self
             .entries
             .iter()
@@ -362,7 +367,10 @@ impl Manager {
         }
         if !scope_restored
             && let Some(handle) = disclosure_restore.iter().find_map(|(panel, trigger)| {
-                if self.visible(*panel) || !self.eligible(*trigger) {
+                if (self.visible(*panel)
+                    && previous_focused.is_some_and(|node| self.eligible(node)))
+                    || !self.eligible(*trigger)
+                {
                     return None;
                 }
                 self.entries
@@ -454,9 +462,11 @@ impl Manager {
                         .and_then(|node| node.parent)
                         .and_then(|id| tree.get(id))
                     {
-                        if parent.kind == Kind::Disclosure && parent.children.get(1) == Some(&child)
+                        if parent.kind == Kind::Disclosure
+                            && parent.children.get(1) == Some(&child)
+                            && let Some(trigger) = tree.disclosure_trigger(parent.id)
                         {
-                            path.push((child, parent.children[0]));
+                            path.push((child, trigger));
                         }
                         child = parent.id;
                     }
@@ -485,16 +495,9 @@ impl Manager {
         let Some(tree) = session.tree(self.window) else {
             return false;
         };
-        let Some(disclosure) = tree
-            .get(node)
-            .and_then(|node| node.parent)
-            .and_then(|id| tree.get(id))
-        else {
+        let Some(disclosure) = tree.disclosure_for_trigger(node) else {
             return false;
         };
-        if disclosure.kind != Kind::Disclosure || disclosure.children.first() != Some(&node) {
-            return false;
-        }
         let Some(accordion) = disclosure
             .parent
             .and_then(|id| tree.get(id))
@@ -511,7 +514,7 @@ impl Manager {
             .children
             .iter()
             .filter_map(|id| {
-                let trigger = *tree.get(*id)?.children.first()?;
+                let trigger = tree.disclosure_trigger(*id)?;
                 if !self.eligible(trigger) {
                     return None;
                 }

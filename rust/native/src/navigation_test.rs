@@ -311,6 +311,7 @@ pub(super) async fn exercise(
         })
         .unwrap();
     pagination_and_breadcrumbs(cx, handle, transport).await;
+    custom_disclosure_header(cx, handle, transport, (*config).clone()).await;
     println!(
         "GPUIO_DISCLOSURE_NATIVE_OK: header traversal, single activation, nested collapse/unmount focus, retained editors, hidden scopes and disposal"
     );
@@ -498,5 +499,164 @@ async fn pagination_and_breadcrumbs(
         .unwrap();
     println!(
         "GPUIO_NAVIGATION_SEMANTICS_OK: current-page native help updates, retained focus, queued activation, Tab, link AX press, disabled boundary and teardown"
+    );
+}
+
+async fn custom_disclosure_header(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    transport: &Transport,
+    config: EditorConfig,
+) {
+    use gpuio_protocol::accessibility::{Config, Live, Role};
+    let mut ops = Vec::new();
+    for (id, kind, text) in [
+        (30, Kind::Accordion, ""),
+        (31, Kind::Disclosure, ""),
+        (32, Kind::Container, ""),
+        (33, Kind::Button, "Archive route"),
+        (34, Kind::Button, "Expand archive"),
+        (35, Kind::Panel, "Archive children"),
+        (36, Kind::Input, "Draft in nested destination"),
+        (37, Kind::Disclosure, ""),
+        (38, Kind::Button, "Next disclosure"),
+        (39, Kind::Panel, "Next panel"),
+        (40, Kind::Tooltip, ""),
+        (41, Kind::Button, "Nested tooltip anchor"),
+        (42, Kind::Text, "Nested tooltip content"),
+        (43, Kind::FocusScope, ""),
+        (44, Kind::Text, "Nested popover content"),
+    ] {
+        let handler = matches!(kind, Kind::Button | Kind::Input | Kind::FocusScope)
+            .then(|| gpuio_protocol::HandlerId::from_parts(id, 1).unwrap());
+        ops.push(Op::Create(node(id), kind, text.into(), handler));
+    }
+    ops.extend([
+        Op::SetEditor(node(36), config),
+        Op::SetAccessibility(
+            node(33),
+            Some(Config {
+                role: Some(Role::Link),
+                label: None,
+                description: None,
+                live: Live::Off,
+                field: None,
+                current: None,
+            }),
+        ),
+        Op::Splice(node(32), 0, 0, vec![node(33), node(34)]),
+        Op::Splice(node(35), 0, 0, vec![node(36), node(40), node(43)]),
+        Op::SetTooltip(
+            node(40),
+            TooltipConfig {
+                label: "Retained nested tooltip".into(),
+                width: 180.,
+                open_state: TooltipOpenState::Managed(false),
+                disabled: true,
+                hoverable: false,
+                show_delay_ns: 0,
+                hide_delay_ns: 0,
+                skip_delay_ns: 0,
+            },
+        ),
+        Op::Splice(node(40), 0, 0, vec![node(41), node(42)]),
+        Op::SetFocusScope(
+            node(43),
+            FocusScopeConfig {
+                trap: false,
+                auto_focus: false,
+                restore_focus: false,
+            },
+        ),
+        Op::SetOverlay(
+            node(43),
+            Some(OverlayConfig {
+                kind: OverlayKind::Popover,
+                label: "Retained popover".into(),
+                width: 180.,
+                dismiss_on_escape: true,
+                dismiss_on_outside_pointer: true,
+            }),
+        ),
+        Op::Splice(node(43), 0, 0, vec![node(44)]),
+        Op::Splice(node(31), 0, 0, vec![node(32), node(35)]),
+        Op::Splice(node(37), 0, 0, vec![node(38), node(39)]),
+        Op::Splice(node(30), 0, 0, vec![node(31), node(37)]),
+        Op::SetRoot(Some(node(30))),
+    ]);
+    apply(cx, handle, ops);
+    frame(cx, handle).await;
+    focus(cx, handle, 33);
+    key(cx, handle, "down");
+    assert!(
+        focused(cx, handle, node(33)),
+        "navigation link must not acquire toggle arrow behavior"
+    );
+    let _ = presses(transport);
+    key(cx, handle, "enter");
+    assert_eq!(presses(transport), vec![node(33)]);
+    focus(cx, handle, 34);
+    key(cx, handle, "down");
+    assert!(
+        focused(cx, handle, node(38)),
+        "custom toggle participates in accordion traversal"
+    );
+    key(cx, handle, "home");
+    assert!(focused(cx, handle, node(34)));
+    key(cx, handle, "enter");
+    assert_eq!(presses(transport), vec![node(34)]);
+    #[cfg(target_os = "macos")]
+    {
+        let _ = expanded(cx, handle, "Expand archive");
+        frame(cx, handle).await;
+        assert_eq!(expanded(cx, handle, "Expand archive"), Some(true));
+        assert!(accessible_with_role(cx, handle, "Archive route", Some("AXLink"), false).is_some());
+    }
+    focus(cx, handle, 36);
+    frame(cx, handle).await;
+    let editor = handle
+        .update(cx, |v, _, _| v.editors[&node(36)].liveness_probe())
+        .unwrap();
+    apply(cx, handle, vec![hide(35)]);
+    frame(cx, handle).await;
+    assert!(
+        focused(cx, handle, node(34)),
+        "collapse restores the dedicated toggle, not the navigation link"
+    );
+    handle
+        .update(cx, |v, _, _| {
+            assert!(v.focus.borrow().handle(node(40)).is_none());
+            assert!(v.focus.borrow().handle(node(43)).is_none());
+        })
+        .unwrap();
+    #[cfg(target_os = "macos")]
+    assert_eq!(expanded(cx, handle, "Expand archive"), Some(false));
+    apply(cx, handle, vec![Op::SetStyle(node(35), vec![])]);
+    frame(cx, handle).await;
+    focus(cx, handle, 36);
+    apply(
+        cx,
+        handle,
+        vec![Op::Splice(node(35), 0, 1, vec![]), Op::Remove(node(36))],
+    );
+    frame(cx, handle).await;
+    assert!(focused(cx, handle, node(34)));
+    assert!(!editor());
+    apply(
+        cx,
+        handle,
+        std::iter::once(Op::SetRoot(None))
+            .chain((30..=44).filter(|i| *i != 36).map(|i| Op::Remove(node(i))))
+            .collect(),
+    );
+    frame(cx, handle).await;
+    handle
+        .update(cx, |v, _, _| {
+            assert!(v.buttons.is_empty() && v.editors.is_empty());
+            assert_eq!(v.session.borrow().retained_bytes(), 0);
+        })
+        .unwrap();
+    println!(
+        "GPUIO_CUSTOM_DISCLOSURE_OK: independent navigation/toggle, mixed header traversal, AppKit expanded state, collapse/unmount focus and disposal"
     );
 }
