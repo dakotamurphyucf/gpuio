@@ -98,7 +98,7 @@ jobs:
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_ui --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_editor --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_controls --no-run
-          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_scroll --test native_list --test native_document --test native_window --test native_tabs --test native_navigation --test native_carousel --test native_hover_card --test native_split --test native_extension --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_scroll --test native_list --test native_document --test native_window --test native_tabs --test native_navigation --test native_tree --test native_carousel --test native_hover_card --test native_split --test native_extension --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_animation --test native_animation_program --test native_presentation --test native_slider --test native_number_input --test native_otp_input --test native_calendar --test native_color_input --test native_drag_drop --test native_file_dialog --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-tests --all-targets -- -D warnings
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_images --test native_image_views --test native_container_query --test native_presentation --test native_slider --test native_number_input --test native_otp_input --test native_calendar --test native_color_input --no-run
@@ -195,6 +195,9 @@ jobs:
       - name: macOS native disclosure and navigation
         if: runner.os == 'macOS'
         run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_navigation"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-navigation-native.log
+      - name: macOS native managed tree semantics
+        if: runner.os == 'macOS'
+        run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_tree"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-tree-native.log
       - name: macOS native interactive hover cards
         if: runner.os == 'macOS'
         run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_hover_card"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-hover-card-native.log

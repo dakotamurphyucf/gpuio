@@ -102,8 +102,12 @@ mounts only viewport/pinned rows, checks source-instance/reset identity, preserv
 coalesced invalidation and retires old controller effects. Eio controls drive
 capacity-limited visible demand, explicit retry and collapse cancellation; local
 combined runtime tests distinguish view unmount from application data lifetime.
-Native tree input/accessibility, typeahead and public filesystem usage remain; no tree capability is
-advertised. See the [managed-tree design](design/managed-trees.md).
+Tree metadata now reaches the native managed-list root and one focus-owning item
+per row. Paired codec/Core/Bonsai tests and actual macOS AppKit checks cover
+hierarchy, selection, expansion, disabled state, updates/removal and teardown.
+The pinned macOS accessibility adapter adds reproducible disclosure getters.
+Native keyboard/typeahead, focus/reveal, accessibility actions, move intents and
+public filesystem usage remain; no tree capability is advertised. See the [managed-tree design](design/managed-trees.md).
 
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
 components pass local acceptance; OCH-24 has validated geometry, a bounded scene

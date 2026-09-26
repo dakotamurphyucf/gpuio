@@ -317,6 +317,12 @@ impl View {
         let generation = index.revision();
         let cap = config.max_active as usize;
         let estimated = config.estimated_height;
+        let tree_root = node.accessibility.as_ref().is_some_and(|metadata| {
+            matches!(
+                metadata.role,
+                Some(gpuio_protocol::accessibility::Role::Tree(_))
+            )
+        });
         let render_index = index.clone();
         let list = gpui::list(handle.clone(), move |ix, window, cx| {
             // Never borrow ListState here: GPUI is holding its layout borrow.
@@ -351,15 +357,37 @@ impl View {
                 {
                     return placeholder();
                 }
+                let metadata = tree.get(node).and_then(|node| {
+                    node.accessibility
+                        .as_ref()
+                        .filter(|metadata| {
+                            matches!(
+                                metadata.role,
+                                Some(gpuio_protocol::accessibility::Role::TreeItem(_))
+                            )
+                        })
+                        .cloned()
+                });
                 let child = view.element(tree, node, interaction, window, cx);
-                div()
+                let row = div()
                     .id(("list-row", id as u64))
-                    .role(gpui::Role::ListItem)
+                    .when(!tree_root && metadata.is_none(), |row| {
+                        row.role(gpui::Role::ListItem)
+                    })
                     .w_full()
                     .min_h(px(1.))
                     .track_focus(&handles[&id])
-                    .child(child)
-                    .into_any_element()
+                    .child(child);
+                crate::semantics::State {
+                    element: row,
+                    metadata,
+                    hidden: !view.focus.borrow().visible(node),
+                    disabled: false,
+                    read_only: false,
+                    modal: false,
+                    live: None,
+                }
+                .into_any_element()
             })
             .unwrap_or_else(|_| placeholder())
         })
@@ -401,7 +429,7 @@ impl View {
             root = root
                 .child(gpui_base::Scrollbar::vertical(&handle).id(("list-scrollbar", identity)));
         }
-        root.into_any_element()
+        self.finish_element(root, node, tree.revision(), false)
     }
 }
 struct Route {

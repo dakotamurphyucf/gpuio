@@ -40,6 +40,10 @@ end
     application-owned retention to the native focus/composition/selection pins.
     Pins count toward [Config.max_active]; excess pins produce an error.
 
+    [accessibility] annotates the native list root, not its layout wrapper.
+    A TreeItem-annotated row container transfers its metadata to the native row
+    wrapper, preserving one semantic row and its existing focus handle.
+
     The viewport must have a bounded height, supplied by [style] or its parent.
     The list fills its assigned area. Initial layout uses native placeholders,
     then asynchronously mounts the requested rows. No OCaml code runs in native
@@ -57,6 +61,7 @@ val component
   -> config:Config.t
   -> ?key:Gpuio.Key.t
   -> ?style:Gpuio.Style.t B.t
+  -> ?accessibility:Gpuio.Accessibility.t B.t
   -> ?generation:int64 B.t
   -> ?pinned:'key list B.t
   -> ?on_viewport:(Viewport.t -> unit Bonsai.Effect.t) B.t
@@ -101,6 +106,7 @@ val paged
   -> config:Config.t
   -> ?key:Gpuio.Key.t
   -> ?style:Gpuio.Style.t B.t
+  -> ?accessibility:Gpuio.Accessibility.t B.t
   -> ?pinned:'key list B.t
   -> ?auto_load:bool B.t
   -> ?on_viewport:(Viewport.t -> unit Bonsai.Effect.t) B.t

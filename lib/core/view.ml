@@ -360,6 +360,8 @@ let with_accessibility t accessibility =
         | Color_input ) ) -> true
     | None, Some Link, (Button | Command_button) -> true
     | None, Some Navigation, Container -> true
+    | None, Some (Tree _), Virtual_list -> true
+    | None, Some (Tree_item _), Container -> true
     | ( None
       , Some
           ( Group
@@ -376,6 +378,7 @@ let with_accessibility t accessibility =
     | ( None
       , None
       , ( Container
+        | Virtual_list
         | Text
         | Button
         | Command_button
@@ -1288,7 +1291,30 @@ let make_virtual_list
   else (
     let row_style = Virtual_list.Expert.row_style config in
     let children =
-      List.map rows ~f:(fun (key, view) -> column ~key ~style:row_style [ view ])
+      List.map rows ~f:(fun (key, view) ->
+        match
+          Option.bind view.accessibility ~f:(fun a ->
+            (Accessibility.Expert.to_wire a).role)
+        with
+        | Some (Tree_item _) ->
+          { (column ~key ~style:row_style [ { view with accessibility = None } ]) with
+            accessibility = view.accessibility
+          }
+        | None
+        | Some
+            ( Group
+            | Label
+            | Link
+            | Separator
+            | Description_list
+            | Term
+            | Definition
+            | Status
+            | Alert
+            | Image
+            | Heading _
+            | Navigation
+            | Tree _ ) -> column ~key ~style:row_style [ view ])
     in
     Ok
       { (column ?key ?style children) with

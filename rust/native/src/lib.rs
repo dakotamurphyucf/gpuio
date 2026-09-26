@@ -227,6 +227,11 @@ pub fn run_native_navigation_test() {
 }
 
 #[cfg(feature = "native-tests")]
+pub fn run_native_tree_test() {
+    host::control_test::run_trees();
+}
+
+#[cfg(feature = "native-tests")]
 pub fn run_native_hover_card_test() {
     host::control_test::run_hover_cards();
 }

@@ -50,6 +50,63 @@ let%expect_test "appended operation and role fixtures agree with Rust" =
   [%expect {| operation, reset, status, alert, heading and link fixtures match |}]
 ;;
 
+let%expect_test "tree roles preserve unknown sibling totals and match bounded Rust codec" =
+  let branch =
+    A.Tree_item.create ~level:2 ~index:4 ~expanded:false ~selected:true ~busy:true ()
+    |> ok
+  in
+  let leaf = A.Tree_item.create ~level:3 ~index:1 ~count:2 ~disabled:true () |> ok in
+  let configs =
+    [ A.create ~role:(Tree true) ~label:"Project" () |> ok
+    ; A.create ~role:(Tree_item branch) ~label:"Branch" () |> ok
+    ; A.create ~role:(Tree_item leaf) ~label:"Leaf" () |> ok
+    ]
+  in
+  Bin_prot.Utils.bin_dump
+    [%bin_writer: W.Config.t list]
+    (List.map configs ~f:A.Expert.to_wire)
+  |> Bigstring.to_string
+  |> check_fixture "accessibility-tree.hex";
+  List.iter
+    [ 0, 0, None
+    ; 129, 0, None
+    ; 1, -1, None
+    ; 1, 100_000, None
+    ; 1, 4, Some 4
+    ; 1, 4, Some 100_001
+    ; 1, 0, Some (-1)
+    ]
+    ~f:(fun (level, index, count) ->
+      assert (Result.is_error (A.Tree_item.create ~level ~index ?count ())));
+  ignore
+    (A.Tree_item.create ~level:128 ~index:99_999 ~count:100_000 () |> ok : A.Tree_item.t);
+  let row =
+    View.with_accessibility (View.column [ View.text "Branch" ]) (List.nth_exn configs 1)
+    |> ok
+  in
+  let config = Virtual_list.Config.create ~height:(Fixed 24.) () |> ok in
+  let list = View.virtual_list ~config [ Key.of_int 1, row ] |> ok in
+  let list = View.with_accessibility list (List.hd_exn configs) |> ok in
+  let envelope =
+    List.hd_exn (View.Expert.describe list).children |> View.Expert.describe
+  in
+  assert (Option.is_some envelope.accessibility);
+  let content = List.hd_exn envelope.children |> View.Expert.describe in
+  assert (Option.is_none content.accessibility);
+  assert (
+    Result.is_error
+      (View.with_accessibility (View.text "Wrong root") (List.hd_exn configs)));
+  assert (
+    Result.is_error
+      (View.with_accessibility
+         (View.button ~on_click:(fun () -> ()) "Wrong row")
+         (List.nth_exn configs 1)));
+  print_endline
+    "paired tree fixture; bounded hierarchy; row metadata belongs to managed envelope";
+  [%expect
+    {| paired tree fixture; bounded hierarchy; row metadata belongs to managed envelope |}]
+;;
+
 let%expect_test "validated semantic roles, live defaults and field text" =
   List.iter [ 0; 7; Int.max_value ] ~f:(fun level ->
     assert (Result.is_error (A.create ~role:(Heading level) ())));

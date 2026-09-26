@@ -29,6 +29,8 @@ mod split_test;
 mod toast_test;
 #[path = "tooltip_test.rs"]
 mod tooltip_test;
+#[path = "tree_view_test.rs"]
+mod tree_view_test;
 use super::editor_test::{frame, key};
 use super::*;
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
@@ -1224,24 +1226,33 @@ fn select_is_open(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> bool {
 fn apply(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, operations: Vec<Op>) {
     handle
         .update(cx, |view, window, cx| {
-            let base = view.session.borrow().tree(view.id).unwrap().revision();
-            let transaction = Transaction {
-                window: view.id,
-                base,
-                revision: base + 1,
-                operations,
-            };
-            let applied = view
-                .session
-                .borrow_mut()
-                .apply(&transaction)
-                .unwrap_or_else(|error| {
-                    panic!("native test transaction rejected: {error:?}: {transaction:?}")
-                });
-            view.update_editors(&applied.dirty, window, cx);
-            cx.notify();
+            apply_in_update(view, window, cx, operations);
         })
         .unwrap();
+}
+fn apply_in_update(
+    view: &mut View,
+    window: &mut Window,
+    cx: &mut Context<View>,
+    operations: Vec<Op>,
+) {
+    let base = view.session.borrow().tree(view.id).unwrap().revision();
+    let transaction = Transaction {
+        window: view.id,
+        base,
+        revision: base + 1,
+        operations,
+    };
+    let applied = view
+        .session
+        .borrow_mut()
+        .apply(&transaction)
+        .unwrap_or_else(|error| {
+            panic!("native test transaction rejected: {error:?}: {transaction:?}")
+        });
+    view.update_editors(&applied.dirty, window, cx);
+    view.list_actions(&applied.lists);
+    cx.notify();
 }
 fn focused(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, id: NodeId) -> bool {
     handle
@@ -1595,6 +1606,7 @@ enum Suite {
     Controls,
     Tabs,
     Navigation,
+    Trees,
     Carousel,
     HoverCards,
     Splits,
@@ -1624,6 +1636,9 @@ pub fn run_carousel() {
 }
 pub fn run_navigation() {
     run_suite(Suite::Navigation);
+}
+pub fn run_trees() {
+    run_suite(Suite::Trees);
 }
 pub fn run_tabs() {
     run_suite(Suite::Tabs);
@@ -1727,7 +1742,12 @@ fn run_suite(suite: Suite) {
         ]);
         if !matches!(
             suite,
-            Suite::Controls | Suite::Tabs | Suite::Navigation | Suite::Splits | Suite::Extensions
+            Suite::Controls
+                | Suite::Tabs
+                | Suite::Navigation
+                | Suite::Trees
+                | Suite::Splits
+                | Suite::Extensions
         ) {
             // Reserve the same generational slots used by preceding component
             // fixtures, without exercising those unrelated windows/interactions.
@@ -1743,6 +1763,7 @@ fn run_suite(suite: Suite) {
                 Suite::Controls
                 | Suite::Tabs
                 | Suite::Navigation
+                | Suite::Trees
                 | Suite::Splits
                 | Suite::Extensions => unreachable!(),
             };
@@ -1795,6 +1816,7 @@ fn run_suite(suite: Suite) {
                         Suite::Navigation => {
                             navigation_test::exercise(cx, handle, &transport).await
                         }
+                        Suite::Trees => tree_view_test::exercise(cx, handle).await,
                         Suite::Tabs => {
                             radio(cx, handle, &transport, Kind::TabBar, 5).await;
                             retained_tab_panel(cx, handle).await;

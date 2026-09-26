@@ -152,6 +152,7 @@ let inner
       source
       ~state
       ~config
+      ?accessibility
       ~pinned
       ~loading
       ~auto_load
@@ -188,6 +189,7 @@ let inner
       collection
       ~row_key:Rows.Key.to_view_key
       ~config
+      ?accessibility
       ~pinned:pins
       ~render_row
       graph
@@ -273,6 +275,7 @@ let component
       ~config
       ?key
       ?(style = B.return fill)
+      ?accessibility
       ?(pinned = B.return [])
       ?loading
       ?(auto_load = B.return true)
@@ -300,6 +303,7 @@ let component
             source
             ~state
             ~config
+            ?accessibility
             ~pinned
             ~loading
             ~auto_load

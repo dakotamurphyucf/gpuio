@@ -232,6 +232,11 @@ harness = false
 required-features = ["native-tests"]
 
 [[test]]
+name = "native_tree"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
 name = "native_hover_card"
 harness = false
 required-features = ["native-tests"]

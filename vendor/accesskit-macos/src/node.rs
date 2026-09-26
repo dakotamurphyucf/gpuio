@@ -539,6 +539,26 @@ declare_class!(
                 .unwrap_or(false)
         }
 
+        #[method(isAccessibilityDisclosed)]
+        fn is_disclosed(&self) -> bool {
+            self.resolve(|node| {
+                node.role() == Role::TreeItem && node.data().is_expanded().unwrap_or(false)
+            })
+            .unwrap_or(false)
+        }
+
+        #[method(accessibilityDisclosureLevel)]
+        fn disclosure_level(&self) -> NSInteger {
+            self.resolve(|node| {
+                if node.role() == Role::TreeItem {
+                    node.data().level().unwrap_or(1).saturating_sub(1) as NSInteger
+                } else {
+                    0
+                }
+            })
+            .unwrap_or(0)
+        }
+
         #[method_id(accessibilityValue)]
         fn value(&self) -> Option<Id<NSObject>> {
             self.resolve(|node| {
@@ -1246,6 +1266,12 @@ declare_class!(
                 }
                 if selector == sel!(isAccessibilityExpanded) {
                     return node.data().is_expanded().is_some();
+                }
+                if selector == sel!(isAccessibilityDisclosed) {
+                    return node.role() == Role::TreeItem && node.data().is_expanded().is_some();
+                }
+                if selector == sel!(accessibilityDisclosureLevel) {
+                    return node.role() == Role::TreeItem && node.data().level().is_some();
                 }
                 if selector == sel!(isAccessibilitySelected) {
                     let wrapper = NodeWrapper(node);

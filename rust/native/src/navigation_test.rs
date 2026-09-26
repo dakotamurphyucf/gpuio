@@ -379,17 +379,21 @@ async fn inert_drag_cleanup(
     );
     let selection = handle
         .update(cx, |v, w, cx| {
-            v.editors[&node(53)].snapshot(w, cx).selection
+            // Sample and apply within one UI update. Separate updates permit an
+            // auto-scroll tick between the sample and the actual blur boundary.
+            let selection = v.editors[&node(53)].snapshot(w, cx).selection;
+            apply_in_update(
+                v,
+                w,
+                cx,
+                vec![Op::SetStyle(
+                    node(52),
+                    vec![Style::Fields(vec![Field::Inert(true)])],
+                )],
+            );
+            selection
         })
         .unwrap();
-    apply(
-        cx,
-        handle,
-        vec![Op::SetStyle(
-            node(52),
-            vec![Style::Fields(vec![Field::Inert(true)])],
-        )],
-    );
     frame(cx, handle).await;
     // Drain already queued rendering before checking idle without a mouse-up.
     cx.background_executor()

@@ -5,10 +5,12 @@ projection and logical navigation reducer are implemented. `Tree_loading` now
 provides a bounded Core paging model and scoped Eio worker adapter. `Tree_rows`
 projects these models into an incremental keyed list collection with distinct
 item and lazy-boundary identities. `Gpuio_bonsai.Tree_rows` now mounts bounded
-rows and connects viewport demand/collapse policy to Eio loading controls. Native
-tree input/semantics and the public filesystem example remain. No tree wire protocol or capability is advertised. This
-document preserves the full live ticket scope; model tests do not establish
-native widget acceptance.
+rows and connects viewport demand/collapse policy to Eio loading controls. Paired
+tree accessibility metadata and actual native outline/item semantics are now
+implemented and locally tested. Native keyboard/typeahead/focus/actions, move
+intents and the public filesystem example remain. No tree capability is advertised.
+This document preserves the full live ticket scope; semantic getters alone do not
+establish interactive native widget acceptance.
 
 ## Existing implementation and adapter choice
 
@@ -186,8 +188,13 @@ layer described below.
 native tree adapter. It accepts loader snapshots, application-owned preferences,
 bounded list configuration and a row renderer. The renderer receives typed Item/
 Boundary data, a projection key and `Managed_rows.Lifetime`; its transient models
-must obey the same reset/guard contract as OCH-13. This primitive does not yet
-supply native Tree/TreeItem roles, keyboard traversal or OS focus behavior.
+must obey the same reset/guard contract as OCH-13. Optional `accessibility` reaches
+the actual native list root; `Accessibility.Role.Tree multiple` marks the tree.
+Renderers annotate their row containers with `Tree_rows.Item.accessibility`. The
+managed envelope lifts this metadata to the native row focus owner, avoiding a
+duplicate TreeItem on the inner presentation. Boundary rows remain ordinary
+status/action content, not application tree items. Keyboard traversal and OS
+focus commands still belong to the higher-level adapter.
 
 The component checkpoints its accepted projection after display. Coalesced source
 changes compare with that checkpoint, and the existing list adapter independently
@@ -259,7 +266,15 @@ A pending target never silently turns into the row now at its old numeric index.
 
 The tree root and row expose Tree/TreeItem semantics, hierarchy level, expanded,
 selected, disabled and loading state, with sibling position/count when known.
-Unknown lazy sibling totals must not be invented. Native accessibility actions
+Unknown lazy sibling totals must not be invented. The implemented metadata path
+uses validated levels 1–128, zero-based sibling indices and optional known counts.
+The pinned macOS adapter maps levels to AppKit's zero-based disclosure level and
+exposes disclosed state only for branches. Its small reproducible patch is recorded
+in `vendor/accesskit-macos/GPUIO.md`; dependency versions remain unchanged. Native
+getters, update/removal and teardown pass locally. Accessibility actions still
+require the pending interaction adapter; metadata does not implement them.
+
+Native accessibility actions
 use the same intents and generational admission as pointer/keyboard input.
 Rows may compose existing context menus and drag/drop descriptions. Child controls
 retain their own key handling; tree traversal must not steal an embedded editor's
@@ -332,8 +347,12 @@ filesystem path is treated as a native callback or ambient Rust capability.
 
 Retain OCH-13's logical order/viewport protocol and per-row admission wherever
 possible. Do not serialize the full hierarchy/payload into every visible row or
-redraw. Row hierarchy/selection semantics need a small validated native extension;
-its exact paired codec is not designed yet. Native key intents may request pure
+redraw. The implemented accessibility extension appends Role tags 12 (Tree with
+multiple-selection policy) and 13 (TreeItem with level, sibling index/optional count,
+optional expanded state, selected, disabled and busy flags). Existing tags and
+Config layout are unchanged. Independent OCaml/Rust fixtures and strict decoding
+cover bounds and malformed input. Tree metadata is supported on VirtualList roots,
+TreeItem on container rows. Native key intents may request pure
 OCaml reduction asynchronously, allowing offscreen typeahead/ancestor lookup
 without uploading a duplicate label index. Measure this path's latency under load.
 

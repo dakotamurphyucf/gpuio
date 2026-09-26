@@ -70,6 +70,8 @@ impl<E: Element> Element for Inert<E> {
 
 fn role(role: Role) -> accesskit::Role {
     match role {
+        Role::Tree(_) => accesskit::Role::Tree,
+        Role::TreeItem(_) => accesskit::Role::TreeItem,
         Role::Navigation => accesskit::Role::Navigation,
         Role::Group => accesskit::Role::Group,
         Role::Label => accesskit::Role::Label,
@@ -108,6 +110,27 @@ fn metadata(config: &Config, node: &mut accesskit::Node) {
     });
     if let Some(Role::Heading(level)) = config.role {
         node.set_level(level as usize);
+    }
+    match config.role {
+        Some(Role::Tree(true)) => node.set_multiselectable(),
+        Some(Role::TreeItem(item)) => {
+            node.set_level(item.level as usize);
+            node.set_position_in_set(item.index as usize + 1);
+            if let Some(count) = item.count {
+                node.set_size_of_set(count as usize);
+            }
+            if let Some(expanded) = item.expanded {
+                node.set_expanded(expanded);
+            }
+            node.set_selected(item.selected);
+            if item.disabled {
+                node.set_disabled();
+            }
+            if item.busy {
+                node.set_busy();
+            }
+        }
+        _ => (),
     }
     if let Some(field) = &config.field {
         node.set_label(field.label.clone());
@@ -268,6 +291,64 @@ impl<E: Element> Element for State<E> {
 mod tests {
     use super::*;
     use gpui::prelude::*;
+    #[test]
+    fn tree_metadata_preserves_unknown_totals_leaf_state_and_native_focus() {
+        use gpuio_protocol::accessibility::TreeItem;
+        let root = Config {
+            role: Some(Role::Tree(true)),
+            label: Some("Project".into()),
+            description: None,
+            live: Live::Off,
+            field: None,
+            current: None,
+        };
+        assert_eq!(role(root.role.unwrap()), accesskit::Role::Tree);
+        let mut node = accesskit::Node::new(accesskit::Role::Tree);
+        metadata(&root, &mut node);
+        assert!(node.is_multiselectable());
+        let branch = Config {
+            role: Some(Role::TreeItem(TreeItem {
+                level: 2,
+                index: 4,
+                count: None,
+                expanded: Some(false),
+                selected: true,
+                disabled: true,
+                busy: true,
+            })),
+            label: Some("Branch".into()),
+            ..root.clone()
+        };
+        let mut node = accesskit::Node::new(role(branch.role.unwrap()));
+        node.add_action(accesskit::Action::Focus);
+        metadata(&branch, &mut node);
+        assert_eq!(node.role(), accesskit::Role::TreeItem);
+        assert_eq!(node.level(), Some(2));
+        assert_eq!(node.position_in_set(), Some(5));
+        assert_eq!(node.size_of_set(), None);
+        assert_eq!(node.is_expanded(), Some(false));
+        assert_eq!(node.is_selected(), Some(true));
+        assert!(node.is_disabled() && node.is_busy());
+        assert!(node.supports_action(accesskit::Action::Focus));
+        let leaf = Config {
+            role: Some(Role::TreeItem(TreeItem {
+                level: 3,
+                index: 1,
+                count: Some(2),
+                expanded: None,
+                selected: false,
+                disabled: false,
+                busy: false,
+            })),
+            ..branch
+        };
+        let mut next = accesskit::Node::new(role(leaf.role.unwrap()));
+        metadata(&leaf, &mut next);
+        assert_eq!(next.size_of_set(), Some(2));
+        assert_eq!(next.is_expanded(), None);
+        assert_eq!(next.is_selected(), Some(false));
+        assert!(!next.is_disabled() && !next.is_busy());
+    }
     #[test]
     fn hidden_structural_roots_have_a_semantic_node_to_hide_their_children() {
         let element = State {

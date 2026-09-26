@@ -32,6 +32,7 @@
    calendar-replace.hex
    animation-v1-config.hex
    accessibility-current.hex
+   accessibility-tree.hex
    accessibility-field.hex
    accessibility-request.hex
    accessibility-roles.hex
@@ -242,6 +243,8 @@
 (copy_files ../fixtures/disclosure-request.hex)
 
 (copy_files ../fixtures/accessibility-current.hex)
+
+(copy_files ../fixtures/accessibility-tree.hex)
 
 (copy_files ../fixtures/inert-request.hex)
 

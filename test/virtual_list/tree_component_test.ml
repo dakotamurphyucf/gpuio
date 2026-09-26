@@ -93,6 +93,71 @@ let text ~key:_ ~data ~lifetime:_ _ =
     | Boundary boundary -> View.text ("boundary " ^ T.Id.to_string boundary.parent))
 ;;
 
+let%expect_test "tree accessibility reaches the native list and one envelope per item" =
+  let module A = Gpuio.Accessibility in
+  let module W = Gpuio_protocol.Accessibility_wire in
+  let tree = lazy_forest 1 in
+  let loader = L.create tree in
+  let root_metadata = A.create ~role:(Tree true) ~label:"Projects" () |> ok in
+  let driver =
+    create (fun graph ->
+      V.component
+        (B.return (L.snapshot loader))
+        ~state:
+          (B.return (S.create tree ~expanded:[ id "0" ] ~selected:[ id "0" ] () |> ok))
+        ~config
+        ~accessibility:(B.return root_metadata)
+        ~render_row:(fun ~key:_ ~data ~lifetime:_ _ ->
+          B.map data ~f:(function
+            | R.Row.Item item ->
+              View.with_accessibility
+                (View.column [ View.text (T.Node.label item.node) ])
+                (R.Item.accessibility item)
+              |> ok
+            | Boundary _ -> View.text "Load more"))
+        graph)
+  in
+  ignore (result driver : _ V.Output.t);
+  display driver;
+  observe driver ~first:0 ~last:2 ();
+  let output = result driver in
+  let list = list_view (V.Output.view output) in
+  let metadata = Option.value_exn list.accessibility |> A.Expert.to_wire in
+  assert (Option.equal W.Role.equal metadata.role (Some (Tree true)));
+  let item = List.hd_exn list.children |> View.Expert.describe in
+  let metadata = Option.value_exn item.accessibility |> A.Expert.to_wire in
+  (match metadata.role with
+   | Some (Tree_item item) ->
+     assert (item.selected && Option.value_exn item.expanded && item.level = 1);
+     assert (Option.equal Int.equal item.count (Some 1));
+     assert (not item.busy)
+   | None
+   | Some
+       ( Group
+       | Label
+       | Link
+       | Separator
+       | Description_list
+       | Term
+       | Definition
+       | Status
+       | Alert
+       | Image
+       | Heading _
+       | Navigation
+       | Tree _ ) -> assert false);
+  assert (Option.is_none (View.Expert.describe (List.hd_exn item.children)).accessibility);
+  let boundary = List.nth_exn list.children 1 |> View.Expert.describe in
+  assert (Option.is_none boundary.accessibility);
+  display driver;
+  Bonsai_driver.Expert.invalidate_observers driver;
+  print_endline
+    "Tree root on virtual list; selected expanded TreeItem on envelope; boundary not an \
+     item";
+  [%expect
+    {| Tree root on virtual list; selected expanded TreeItem on envelope; boundary not an item |}]
+;;
+
 let%expect_test "100000 selected tree nodes mount only the shared active budget" =
   let tree = forest 100_000 in
   let loader = L.create tree in

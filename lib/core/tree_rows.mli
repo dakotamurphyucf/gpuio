@@ -21,6 +21,12 @@ module Item : sig
     ; active : bool
     ; loading : Tree_loading.Status.t option
     }
+
+  (** TreeItem semantics from this validated row snapshot, including its label,
+      unknown sibling total, expansion/selection/disabled and load-busy state.
+      Apply to the row's container; the list adapter transfers it to the native
+      row wrapper so there is one accessible item per application node. *)
+  val accessibility : _ t -> Accessibility.t
 end
 
 module Boundary : sig

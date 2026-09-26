@@ -32,6 +32,28 @@ module Item = struct
     ; active : bool
     ; loading : Tree_loading.Status.t option
     }
+
+  let accessibility t =
+    let busy =
+      match t.loading with
+      | Some (Queued | Loading) -> true
+      | None | Some (Ready | End | Failed _) -> false
+    in
+    let item =
+      Accessibility.Tree_item.create
+        ~level:t.position.depth
+        ~index:t.position.index
+        ?count:t.position.sibling_count
+        ?expanded:t.expanded
+        ~selected:t.selected
+        ~disabled:(Tree.Node.is_disabled t.node)
+        ~busy
+        ()
+      |> Or_error.ok_exn
+    in
+    Accessibility.create ~role:(Tree_item item) ~label:(Tree.Node.label t.node) ()
+    |> Or_error.ok_exn
+  ;;
 end
 
 module Boundary = struct

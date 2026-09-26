@@ -19,6 +19,16 @@ impl Decoder<'_> {
                     9 => Role::Image,
                     10 => Role::Heading(d.int()?),
                     11 => Role::Navigation,
+                    12 => Role::Tree(d.boolean()?),
+                    13 => Role::TreeItem(TreeItem {
+                        level: d.int()?,
+                        index: d.int()?,
+                        count: d.option(|d| d.int())?,
+                        expanded: d.option(|d| d.boolean())?,
+                        selected: d.boolean()?,
+                        disabled: d.boolean()?,
+                        busy: d.boolean()?,
+                    }),
                     _ => return Err(DecodeError::Malformed),
                 })
             })?,

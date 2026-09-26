@@ -5,6 +5,26 @@ pub const MAX_TEXT_BYTES: usize = 4096;
 pub const MAX_CONFIG_BYTES: usize = 16384;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct TreeItem {
+    pub level: i64,
+    pub index: i64,
+    pub count: Option<i64>,
+    pub expanded: Option<bool>,
+    pub selected: bool,
+    pub disabled: bool,
+    pub busy: bool,
+}
+impl TreeItem {
+    pub fn is_valid(self) -> bool {
+        (1..=128).contains(&self.level)
+            && (0..100_000).contains(&self.index)
+            && self
+                .count
+                .is_none_or(|count| count > self.index && count <= 100_000)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Role {
     Group,
     Label,
@@ -18,10 +38,16 @@ pub enum Role {
     Image,
     Heading(i64),
     Navigation,
+    Tree(bool),
+    TreeItem(TreeItem),
 }
 impl Role {
     pub fn is_valid(self) -> bool {
-        !matches!(self, Self::Heading(level) if !(1..=6).contains(&level))
+        match self {
+            Self::Heading(level) => (1..=6).contains(&level),
+            Self::TreeItem(item) => item.is_valid(),
+            _ => true,
+        }
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -94,6 +120,8 @@ impl Config {
                 );
         }
         match self.role {
+            Some(Role::Tree(_)) => kind == Kind::VirtualList,
+            Some(Role::TreeItem(_)) => kind == Kind::Container,
             Some(Role::Navigation) => kind == Kind::Container,
             Some(Role::Link) => matches!(kind, Kind::Button | Kind::CommandButton),
             Some(
@@ -111,6 +139,7 @@ impl Config {
             None => matches!(
                 kind,
                 Kind::Container
+                    | Kind::VirtualList
                     | Kind::Text
                     | Kind::Button
                     | Kind::CommandButton

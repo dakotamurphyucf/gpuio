@@ -1,5 +1,26 @@
 open Core
 module W = Gpuio_protocol.Accessibility_wire
+
+module Tree_item = struct
+  type t = W.Tree_item.t [@@deriving equal, sexp_of]
+
+  let create
+        ~level
+        ~index
+        ?count
+        ?expanded
+        ?(selected = false)
+        ?(disabled = false)
+        ?(busy = false)
+        ()
+    =
+    let item = { W.Tree_item.level; index; count; expanded; selected; disabled; busy } in
+    if W.Tree_item.valid item
+    then Ok item
+    else Or_error.error_string "invalid tree item level, sibling index or count"
+  ;;
+end
+
 module Role = W.Role
 module Current = W.Current
 module Live = W.Live
@@ -43,7 +64,9 @@ let create ?role ?label ?description ?live ?current () =
              | Definition
              | Image
              | Heading _
-             | Navigation ) -> Off)
+             | Navigation
+             | Tree _
+             | Tree_item _ ) -> Off)
   in
   let config = { W.Config.role; label; description; live; field = None; current } in
   if W.Config.valid config

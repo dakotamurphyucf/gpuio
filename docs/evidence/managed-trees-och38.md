@@ -337,3 +337,73 @@ needed for this layer. Actual native keyboard/AX/typeahead/focus/reveal/move
 semantics, the public filesystem provider and native full-traversal/cancellation
 checks remain, followed by consolidated hosted gates and merge. No tree
 capability is advertised yet.
+
+
+## Native tree accessibility metadata (2026-09-26)
+
+The managed list can now expose a Tree root and one TreeItem per admitted row.
+Core `Tree_rows.Item.accessibility` derives label, hierarchy/sibling position,
+optional sibling count/expanded state, selection, disabled and loading metadata.
+Bonsai forwards root metadata through the existing virtual-list component. Core
+lifts row metadata to its keyed envelope; Rust applies it to the native row focus
+owner and suppresses duplicate inner metadata. Synthetic lazy boundaries remain
+ordinary content, not application tree items. Existing list semantics are retained.
+
+The paired protocol appends accessibility roles 12/13 and preserves prior tags
+and Config layout. Public constructors and Rust decode validate level 1–128 and
+sibling index/count bounds up to 100,000; unknown counts stay absent. Independent
+byte fixtures, malformed/truncated/trailing input cases and role/kind checks pass.
+AccessKit node tests verify flags, position and retained native focus actions.
+These existing focus actions are not tree activation/expansion implementation.
+
+Actual macOS production-view test `native_tree` passes:
+
+- AXOutline root and exactly two AXRow items, with no duplicate or boundary rows.
+- Root/child disclosure levels 0/1, selected and disabled/enabled state, expanded
+  and disclosed state for the branch, and absent disclosure state on the leaf.
+- Inert row hide/restore after moving metadata to the native envelope, controlled
+  collapse/selection update, child and boundary removal, then complete managed-list
+  resource disposal. The harness closes its native window.
+
+The first platform check exposed absent disclosure depth/state in the pinned
+accesskit_macos 0.26.3 adapter. `tree-state.patch` adds read-only TreeItem getters
+following the existing `expanded-state.patch`. The dependency version is unchanged.
+Reconstruction checked the original crate archive SHA256, original file hashes,
+ordered application of both patches and exact byte equality with vendored files.
+See `vendor/accesskit-macos/GPUIO.md` for provenance and platform references.
+This verifies actual AppKit getters, not VoiceOver speech or external notification
+observation. Keyboard, activation and accessibility action dispatch remain pending.
+
+Regression evidence: the ordinary native list passes its 100,000-row traversal
+and revisit with the existing 256-active-row bound and cleanup. Native navigation
+passes after making the test's selection snapshot and inert transition atomic in
+one UI update: an auto-scroll tick could previously occur between them. No editor
+production behavior was changed for that test timing correction. The navigation
+suite includes drag-idle cleanup and the existing 128-page workload. Ordinary list
+coverage is not claimed as full native tree traversal acceptance.
+
+Validation commands (local macOS arm64):
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 --workspace
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-protocol --test accessibility
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native --features native-tests --test native_tree
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native --features native-tests --test native_list --test native_navigation
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native --features native-tests --test native_navigation
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j2 -p gpuio-native --features native-tests --all-targets -- -D warnings
+```
+
+Rust workspace, protocol tests, Clippy and the final native tree/navigation runs
+pass. Logs under the agent's ignored scratch directory: `tree-semantics-rust-all.log`,
+`tree-accessibility-codec.log`, `tree-semantics-clippy.log`, `tree-native-final.log`,
+`tree-semantics-native-regressions.log` (list pass and initial navigation timing
+failure), and `tree-semantics-navigation-regression.log` (corrected suite pass).
+The CI workflow now builds this test cross-platform and runs it on macOS; hosted
+checks and Linux builds have not yet run for this checkpoint. The tree capability
+remains unadvertised until the complete interaction/public/native acceptance.
+
+Final full `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt`
+passes, including the Core fixture and real Bonsai-driver metadata propagation
+check. The focused native inert-row regression and final all-target native-test
+Clippy also pass (`tree-semantics-dune-all.log`, `tree-native-inert.log`,
+`tree-semantics-clippy-final.log`). `cargo fmt --all` and `git diff --check` pass.

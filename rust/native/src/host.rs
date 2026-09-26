@@ -1483,9 +1483,21 @@ impl View {
         disabled: bool,
     ) -> gpui::AnyElement {
         let id = node.id;
+        // The managed list row wrapper owns this metadata and the row focus
+        // handle. Rendering it again on the description would duplicate AX rows.
+        let tree_row_metadata = node
+            .parent
+            .is_some_and(|parent| self.lists.contains_key(&parent))
+            && node.accessibility.as_ref().is_some_and(|metadata| {
+                matches!(
+                    metadata.role,
+                    Some(gpuio_protocol::accessibility::Role::TreeItem(_))
+                )
+            });
         let element = crate::semantics::State {
             hidden: !self.focus.borrow().visible(node.id),
             metadata: if node.editor.is_none()
+                && !tree_row_metadata
                 && node.number_input.is_none()
                 && node.otp_input.is_none()
                 && node.calendar.is_none()

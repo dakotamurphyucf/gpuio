@@ -1,5 +1,25 @@
 open Core
 
+module Tree_item : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** Root level is 1 (maximum 128); [index] is zero-based in the loaded sibling
+      prefix (maximum 99,999). [count = None] means the total is unknown, never
+      the number currently mounted. A known count must exceed index, at most
+      100,000. Omit [expanded] for leaves; false describes a collapsed branch.
+      These are semantic properties, not native interaction ownership. *)
+  val create
+    :  level:int
+    -> index:int
+    -> ?count:int
+    -> ?expanded:bool
+    -> ?selected:bool
+    -> ?disabled:bool
+    -> ?busy:bool
+    -> unit
+    -> t Or_error.t
+end
+
 (** Semantic metadata, independent of paint styles and native resource ownership. *)
 module Role : sig
   type t =
@@ -15,6 +35,8 @@ module Role : sig
     | Image
     | Heading of int
     | Navigation
+    | Tree of bool
+    | Tree_item of Tree_item.t
   [@@deriving equal, sexp_of]
 end
 
@@ -62,7 +84,9 @@ end
 
 type t [@@deriving equal, sexp_of]
 
-(** Heading levels are 1..6. Text has the same bounds as [Field]. The default live
+(** [Tree multiple] marks a virtual-list root; [Tree_item item] marks a container
+    row. These role overrides do not implement keyboard/tree behavior by themselves.
+    Heading levels are 1..6. Text has the same bounds as [Field]. The default live
     priority is Polite for Status, Assertive for Alert and Off otherwise. A role
     changes semantics only; [View.with_accessibility] rejects incompatible views. *)
 val create

@@ -190,6 +190,7 @@ let inner
       ~row_key
       ~config
       ~style
+      ~accessibility
       ~generation
       ~pinned
       ~on_viewport
@@ -299,12 +300,13 @@ let inner
     and invalidated = invalidated
     and checkpoint = checkpoint
     and style = style
+    and accessibility = accessibility
     and generation = generation
     and observe = on_viewport in
     let open Or_error.Let_syntax in
     let%bind metadata = metadata in
     let%bind active = active in
-    let%map view =
+    let%bind view =
       Gpuio.View.Expert.managed_virtual_list
         ~key:(Key.of_string_exn (Int64.to_string generation))
         ~style
@@ -317,6 +319,11 @@ let inner
           E.Many [ inject (Observe (checkpoint.revision, viewport)); observe viewport ])
         ~on_retain:(fun keys -> inject (Retain keys))
         (Map.to_alist rows |> List.map ~f:(fun (key, view) -> row_key key, view))
+    in
+    let%map view =
+      match accessibility with
+      | None -> Ok view
+      | Some accessibility -> Gpuio.View.with_accessibility view accessibility
     in
     { Output.view
     ; controller =
@@ -354,6 +361,7 @@ let component
       ~config
       ?key
       ?(style = B.return fill)
+      ?accessibility
       ?(generation = B.return 0L)
       ?(pinned = B.return [])
       ?(on_viewport = B.return (fun _ -> E.Ignore))
@@ -361,6 +369,7 @@ let component
       graph
   =
   let open B.Let_syntax in
+  let accessibility = B.transpose_opt accessibility in
   let generations =
     let%arr generation = generation
     and source = source in
@@ -377,6 +386,7 @@ let component
           ~row_key
           ~config
           ~style:(B.return fill)
+          ~accessibility
           ~generation
           ~pinned
           ~on_viewport
@@ -430,6 +440,7 @@ let paged
       ~config
       ?key
       ?style
+      ?accessibility
       ?pinned
       ?(auto_load = B.return true)
       ?on_viewport
@@ -451,6 +462,7 @@ let paged
       ~config
       ?key
       ?style
+      ?accessibility
       ~generation
       ?pinned
       ?on_viewport

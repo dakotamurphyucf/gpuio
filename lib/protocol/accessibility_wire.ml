@@ -1,5 +1,26 @@
 open Core
 
+module Tree_item = struct
+  type t =
+    { level : int
+    ; index : int
+    ; count : int option
+    ; expanded : bool option
+    ; selected : bool
+    ; disabled : bool
+    ; busy : bool
+    }
+  [@@deriving bin_io, equal, sexp_of]
+
+  let valid t =
+    t.level >= 1
+    && t.level <= 128
+    && t.index >= 0
+    && t.index < 100_000
+    && Option.for_all t.count ~f:(fun count -> count > t.index && count <= 100_000)
+  ;;
+end
+
 module Role = struct
   type t =
     | Group
@@ -14,10 +35,13 @@ module Role = struct
     | Image
     | Heading of int
     | Navigation
+    | Tree of bool
+    | Tree_item of Tree_item.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid = function
     | Heading level -> level >= 1 && level <= 6
+    | Tree_item item -> Tree_item.valid item
     | Group
     | Label
     | Link
@@ -28,7 +52,8 @@ module Role = struct
     | Status
     | Alert
     | Image
-    | Navigation -> true
+    | Navigation
+    | Tree _ -> true
   ;;
 end
 

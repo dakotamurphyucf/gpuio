@@ -21,6 +21,107 @@ fn encode(value: &Config) -> Vec<u8> {
     value.binprot_write(&mut bytes).unwrap();
     bytes
 }
+
+fn tree_config(role: Role, label: &str) -> Config {
+    Config {
+        role: Some(role),
+        label: Some(label.into()),
+        description: None,
+        live: Live::Off,
+        field: None,
+        current: None,
+    }
+}
+
+#[test]
+fn appended_tree_roles_match_the_ocaml_fixture_and_validate_hierarchy() {
+    let branch = TreeItem {
+        level: 2,
+        index: 4,
+        count: None,
+        expanded: Some(false),
+        selected: true,
+        disabled: false,
+        busy: true,
+    };
+    let leaf = TreeItem {
+        level: 3,
+        index: 1,
+        count: Some(2),
+        expanded: None,
+        selected: false,
+        disabled: true,
+        busy: false,
+    };
+    let configs = vec![
+        tree_config(Role::Tree(true), "Project"),
+        tree_config(Role::TreeItem(branch), "Branch"),
+        tree_config(Role::TreeItem(leaf), "Leaf"),
+    ];
+    let mut bytes = vec![];
+    configs.binprot_write(&mut bytes).unwrap();
+    assert_eq!(
+        bytes.iter().map(|b| format!("{b:02x}")).collect::<String>(),
+        include_str!("../../../test/fixtures/accessibility-tree.hex").trim()
+    );
+    for config in &configs {
+        let bytes = encode(config);
+        assert_eq!(decode_accessibility(&bytes), Ok(config.clone()));
+        for length in 0..bytes.len() {
+            assert!(decode_accessibility(&bytes[..length]).is_err());
+        }
+        let mut extra = bytes;
+        extra.push(0);
+        assert!(decode_accessibility(&extra).is_err());
+    }
+    for invalid in [
+        TreeItem { level: 0, ..branch },
+        TreeItem {
+            level: 129,
+            ..branch
+        },
+        TreeItem {
+            index: -1,
+            ..branch
+        },
+        TreeItem {
+            index: 100_000,
+            ..branch
+        },
+        TreeItem {
+            count: Some(4),
+            ..branch
+        },
+        TreeItem {
+            count: Some(100_001),
+            ..branch
+        },
+        TreeItem {
+            count: Some(-1),
+            ..branch
+        },
+    ] {
+        assert!(
+            decode_accessibility(&encode(&tree_config(Role::TreeItem(invalid), "Bad"))).is_err()
+        );
+    }
+    let maximum = tree_config(
+        Role::TreeItem(TreeItem {
+            level: 128,
+            index: 99_999,
+            count: Some(100_000),
+            ..leaf
+        }),
+        "Maximum",
+    );
+    assert_eq!(decode_accessibility(&encode(&maximum)), Ok(maximum));
+    use gpuio_protocol::v1::Kind;
+    assert!(configs[0].supports(Kind::VirtualList));
+    assert!(!configs[0].supports(Kind::Container));
+    assert!(configs[1].supports(Kind::Container));
+    assert!(!configs[1].supports(Kind::Button));
+    assert!(!configs[1].supports(Kind::VirtualList));
+}
 #[test]
 fn independent_field_fixture_and_strict_decoder() {
     let value = config();
