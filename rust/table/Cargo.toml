@@ -19,4 +19,4 @@ harness = false
 required-features = ["native-tests"]
 
 [features]
-native-tests = []
+native-tests = ["gpui-base/test-support"]

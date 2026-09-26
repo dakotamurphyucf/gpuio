@@ -159,9 +159,20 @@ connected to Core row references or mounted/query generations.
 
 The local macOS test confirms sampled virtualization, selection remapping through
 row/column reorder, removal handling and native entity release on window close.
-Before integration, remaining positional events and callbacks captured by old
-layouts need stable identity or generation validation. Visual viewport anchors,
-resize reconciliation and retained cell-cache policy still require implementation.
+All emitted native events capture stable row/column keys, including widths,
+double/context clicks and column placement. Sort emits an application request;
+it never sorts the loaded subset. Column moves require the retained delegate to
+validate policy and update its order atomically before emitting the keyed move.
+
+Refresh and accepted column movement retire the previous layout identity. Old
+pointer handlers, resize/reorder drag payloads, deferred row/cell generation,
+header-bound writes and deferred page-demand work check that identity. A native
+refresh cancels its active resize/drop preview. The future host must distinguish
+retained cell-content delivery from a mapping/schema refresh, so ordinary data
+delivery does not needlessly cancel interaction. Native layout identity is not a
+substitute for mounted-handler and query generations at the wire boundary.
+Visual viewport anchors, paging/resize reconciliation and retained cell-cache
+policy still require implementation.
 
 ## Remaining acceptance
 

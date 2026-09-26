@@ -36,6 +36,20 @@ impl TableDelegate for Delegate {
     fn column(&self, col: usize, _: &App) -> Column {
         self.columns[col].clone()
     }
+    fn move_column(
+        &mut self,
+        from: usize,
+        to: usize,
+        _: &mut Window,
+        _: &mut Context<TableState<Self>>,
+    ) -> bool {
+        if from >= self.columns.len() || to >= self.columns.len() || from < 2 || to < 2 {
+            return false;
+        }
+        let column = self.columns.remove(from);
+        self.columns.insert(to, column);
+        true
+    }
     fn render_td(
         &mut self,
         row: usize,
@@ -180,6 +194,9 @@ fn exercise_keyed_selection(
     );
 }
 
+#[path = "support/events.rs"]
+mod events;
+
 fn main() {
     let failure = Rc::new(RefCell::new(None));
     let outcome = failure.clone();
@@ -235,6 +252,7 @@ fn main() {
                 }
                 eprintln!("TABLE_CANDIDATE_OK logical_rows=100000 columns=64 sampled_positions=4 peak_sample_cells={peak}");
                 exercise_keyed_selection(cx, handle, &metrics);
+                events::exercise(cx, handle);
                 handle.update(cx, |_, window, _| window.remove_window()).unwrap();
                 cx.update(|_| ());
                 assert!(weak.upgrade().is_none(), "closed window retained native table state");

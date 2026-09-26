@@ -9,7 +9,7 @@ use gpui::{
 
 use crate::{
     Appearance, Size, h_flex,
-    table::{Column, ColumnGroup, ColumnSort, RowKey, TableState},
+    table::{Column, ColumnGroup, RowKey, TableState},
 };
 
 /// A delegate trait for providing data and rendering for a table.
@@ -36,16 +36,6 @@ pub trait TableDelegate: Sized + 'static {
     ///
     /// This only call on Table prepare or refresh.
     fn column(&self, col_ix: usize, cx: &App) -> Column;
-
-    /// Perform sort on the column at the given index.
-    fn perform_sort(
-        &mut self,
-        col_ix: usize,
-        sort: ColumnSort,
-        window: &mut Window,
-        cx: &mut Context<TableState<Self>>,
-    ) {
-    }
 
     /// Render the table head row.
     fn render_header(
@@ -119,6 +109,10 @@ pub trait TableDelegate: Sized + 'static {
         cx: &mut Context<TableState<Self>>,
     ) -> impl IntoElement;
 
+    /// Atomically validate and move retained column descriptions; return false
+    /// without mutation when grouping/pinning or application policy rejects it.
+    /// This method must not call OCaml. The keyed event follows acceptance.
+    ///
     /// Move the column at the given `col_ix` so that it ends up at the index `to_ix`.
     ///
     /// e.g.: `let col = self.columns.remove(col_ix); self.columns.insert(to_ix, col);`
@@ -128,7 +122,8 @@ pub trait TableDelegate: Sized + 'static {
         to_ix: usize,
         window: &mut Window,
         cx: &mut Context<TableState<Self>>,
-    ) {
+    ) -> bool {
+        false
     }
 
     /// Return a Element to show when table is empty.

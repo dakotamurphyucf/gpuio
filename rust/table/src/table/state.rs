@@ -57,55 +57,39 @@ impl SelectionMode {
     }
 }
 
-/// The Table event.
-#[derive(Clone)]
+/// Events capture stable identity before asynchronous host delivery.
+#[derive(Clone, Debug, PartialEq)]
 pub enum TableEvent {
-    /// Single click or move to selected row.
     SelectRow(RowKey),
-    /// Double click on the row.
-    DoubleClickedRow(usize),
-    /// Selected column.
+    DoubleClickedRow(RowKey),
     SelectColumn(SharedString),
-    /// A cell has been selected (clicked or navigated to via keyboard).
-    ///
-    /// Emitted when a cell is selected in cell selection mode.
-    /// Stable row and column keys are captured at the selection change.
-    ///
-    /// This event is also emitted when navigating between cells using keyboard shortcuts.
     SelectCell(RowKey, SharedString),
-    /// A cell has been double-clicked.
-    ///
-    /// Emitted when a cell is double-clicked in cell selection mode.
-    /// The first `usize` is the row index, and the second `usize` is the column index.
-    ///
-    /// Use this event to trigger actions like opening a detail view or editing the cell content.
-    DoubleClickedCell(usize, usize),
-    /// The column widths have changed.
-    ///
-    /// The `Vec<Pixels>` contains the new widths of all columns.
-    ColumnWidthsChanged(Vec<Pixels>),
-    /// A column has been moved.
-    ///
-    /// The first `usize` is the original index of the column,
-    /// and the second `usize` is the new index of the column.
-    MoveColumn(usize, usize),
-    /// A row has been right-clicked.
-    ///
-    /// Contains the row index, or `None` if right-clicked on an empty area.
-    /// Use this event to show context menus for rows.
-    RightClickedRow(Option<usize>),
-    /// A cell has been right-clicked.
-    ///
-    /// Emitted when a cell is right-clicked in cell selection mode.
-    /// The first `usize` is the row index, and the second `usize` is the column index.
-    ///
-    /// Use this event to show context menus specific to the cell content.
-    /// The right-clicked cell is highlighted with a subtle border until another cell is clicked.
-    RightClickedCell(usize, usize),
-    /// The selection has been cleared.
-    ///
-    /// This event is emitted when the selection is cleared.
+    DoubleClickedCell(RowKey, SharedString),
+    /// Widths are keyed, never interpreted against a later column order.
+    ColumnWidthsChanged(Vec<(SharedString, Pixels)>),
+    /// Final placement before a stable column, or at the end for `None`.
+    MoveColumn {
+        column: SharedString,
+        before: Option<SharedString>,
+    },
+    /// Application owns sorting and query revision changes.
+    SortRequested(SharedString, ColumnSort),
+    RightClickedRow(Option<RowKey>),
+    RightClickedCell(RowKey, SharedString),
     ClearSelection,
+}
+
+/// Identity of the retained layout inputs. Old callbacks and drags cannot act
+/// on a replacement source/schema, even before the next native frame is drawn.
+#[derive(Clone)]
+pub(crate) struct LayoutEpoch(Rc<()>);
+impl LayoutEpoch {
+    fn new() -> Self {
+        Self(Rc::new(()))
+    }
+    fn matches(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
 }
 
 /// The visible range of the rows and columns.
@@ -190,6 +174,7 @@ pub(crate) struct HeaderCell {
 
 pub struct TableState<D: TableDelegate> {
     focus_handle: FocusHandle,
+    layout_epoch: LayoutEpoch,
     delegate: D,
     pub(super) options: TableOptions,
     /// The bounds of the table container.
@@ -269,6 +254,7 @@ where
     pub fn new(delegate: D, _: &mut Window, cx: &mut Context<Self>) -> Self {
         let mut this = Self {
             focus_handle: cx.focus_handle().tab_stop(true),
+            layout_epoch: LayoutEpoch::new(),
             options: TableOptions::default(),
             delegate,
             col_groups: Vec::new(),
@@ -309,7 +295,10 @@ where
         &self.delegate
     }
 
-    /// Returns a mutable reference to the delegate.
+    /// Returns a mutable reference to retained native descriptions.
+    /// After changing row membership/order or column schema, call `refresh`
+    /// in the same entity update before dispatching input. Cell-content-only
+    /// delivery can notify without retiring the layout. Never call OCaml here.
     pub fn delegate_mut(&mut self) -> &mut D {
         &mut self.delegate
     }
@@ -391,6 +380,7 @@ where
     /// selection by stable keys without emitting user events or scrolling to it.
     /// A removed selected row/column clears selection, never selects its neighbor.
     pub fn refresh(&mut self, cx: &mut Context<Self>) {
+        self.invalidate_layout();
         let selection = self.selection.clone();
         self.prepare_col_groups(cx);
         if !self.replace_selection(selection, cx) {
@@ -399,6 +389,27 @@ where
         self.right_clicked_row = None;
         self.right_clicked_cell = None;
         cx.notify();
+    }
+
+    fn invalidate_layout(&mut self) {
+        self.layout_epoch = LayoutEpoch::new();
+        self.resizing_col = None;
+        self.col_drag_gap = None;
+    }
+
+    fn layout_listener<E: ?Sized + 'static>(
+        &self,
+        cx: &Context<Self>,
+        f: impl Fn(&mut Self, &E, &mut Window, &mut Context<Self>) + 'static,
+    ) -> impl Fn(&E, &mut Window, &mut App) + 'static {
+        let epoch = self.layout_epoch.clone();
+        cx.listener(move |table, event, window, cx| {
+            if epoch.matches(&table.layout_epoch) {
+                f(table, event, window, cx);
+            } else {
+                cx.stop_propagation();
+            }
+        })
     }
 
     pub fn selection(&self) -> &Selection {
@@ -820,9 +831,18 @@ where
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let key = match row_ix {
+            Some(index) => {
+                let Some(key) = self.delegate.row_key(index, cx) else {
+                    return;
+                };
+                Some(key)
+            }
+            None => None,
+        };
         self.right_clicked_row = row_ix;
         self.right_clicked_cell = None;
-        cx.emit(TableEvent::RightClickedRow(row_ix));
+        cx.emit(TableEvent::RightClickedRow(key));
     }
 
     fn on_cell_right_click(
@@ -837,10 +857,16 @@ where
             return;
         }
 
+        let Some(row) = self.delegate.row_key(row_ix, cx) else {
+            return;
+        };
+        let Some(column) = self.col_groups.get(col_ix).map(|g| g.column.key.clone()) else {
+            return;
+        };
         cx.stop_propagation();
         self.right_clicked_cell = Some((row_ix, col_ix));
         self.right_clicked_row = None;
-        cx.emit(TableEvent::RightClickedCell(row_ix, col_ix));
+        cx.emit(TableEvent::RightClickedCell(row, column));
     }
 
     fn on_row_left_click(
@@ -854,10 +880,13 @@ where
             return;
         }
 
+        let Some(key) = self.delegate.row_key(row_ix, cx) else {
+            return;
+        };
         self.set_selected_row(row_ix, cx);
 
         if e.click_count() == 2 {
-            cx.emit(TableEvent::DoubleClickedRow(row_ix));
+            cx.emit(TableEvent::DoubleClickedRow(key));
         }
     }
 
@@ -907,10 +936,16 @@ where
             return;
         }
 
+        let Some(row) = self.delegate.row_key(row_ix, cx) else {
+            return;
+        };
+        let Some(column) = self.col_groups.get(col_ix).map(|g| g.column.key.clone()) else {
+            return;
+        };
         self.set_selected_cell(row_ix, col_ix, cx);
 
         if is_double_click {
-            cx.emit(TableEvent::DoubleClickedCell(row_ix, col_ix));
+            cx.emit(TableEvent::DoubleClickedCell(row, column));
         }
     }
 
@@ -1256,7 +1291,7 @@ where
         }
     }
 
-    fn perform_sort(&mut self, col_ix: usize, window: &mut Window, cx: &mut Context<Self>) {
+    fn perform_sort(&mut self, col_ix: usize, _: &mut Window, cx: &mut Context<Self>) {
         if !self.sortable {
             return;
         }
@@ -1283,7 +1318,10 @@ where
             }
         }
 
-        self.delegate_mut().perform_sort(col_ix, sort, window, cx);
+        cx.emit(TableEvent::SortRequested(
+            self.col_groups[col_ix].column.key.clone(),
+            sort,
+        ));
 
         cx.notify();
     }
@@ -1295,16 +1333,21 @@ where
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if col_ix == to_ix {
+        if col_ix == to_ix || col_ix >= self.col_groups.len() || to_ix >= self.col_groups.len() {
             return;
         }
-
-        self.delegate.move_column(col_ix, to_ix, window, cx);
+        if !self.delegate.move_column(col_ix, to_ix, window, cx) {
+            return;
+        }
+        self.invalidate_layout();
         let col_group = self.col_groups.remove(col_ix);
         self.col_groups.insert(to_ix, col_group);
         self.replace_selection(self.selection.clone(), cx);
 
-        cx.emit(TableEvent::MoveColumn(col_ix, to_ix));
+        cx.emit(TableEvent::MoveColumn {
+            column: self.col_groups[to_ix].column.key.clone(),
+            before: self.col_groups.get(to_ix + 1).map(|g| g.column.key.clone()),
+        });
         cx.notify();
     }
 
@@ -1366,9 +1409,12 @@ where
                 return;
             }
 
+            let epoch = self.layout_epoch.clone();
             self._load_more_task = cx.spawn_in(window, async move |view, window| {
                 _ = view.update_in(window, |view, window, cx| {
-                    view.delegate.load_more(window, cx);
+                    if epoch.matches(&view.layout_epoch) {
+                        view.delegate.load_more(window, cx);
+                    }
                 });
             });
         }
@@ -1511,6 +1557,7 @@ where
         let group_id = SharedString::from(format!("resizable-handle:{}", ix));
 
         self.resize_handle_band(ix, ("resizable-handle", ix).into(), cx)
+            .test_support()
             .group(group_id.clone())
             .h_full()
             .w(HANDLE_PADDING)
@@ -1556,56 +1603,56 @@ where
             .id(id)
             .occlude()
             .cursor_col_resize()
-            .on_drag_move(
-                cx.listener(move |view, e: &DragMoveEvent<ResizeColumn>, window, cx| {
-                    match e.drag(cx) {
-                        ResizeColumn((entity_id, ix)) => {
-                            if cx.entity_id() != *entity_id {
-                                return;
-                            }
-
-                            // sync col widths into real widths
-                            // TODO: Consider to remove this, this may not need now.
-                            // for (_, col_group) in view.col_groups.iter_mut().enumerate() {
-                            //     col_group.width = col_group.bounds.size.width;
-                            // }
-
-                            let ix = *ix;
-                            view.resizing_col = Some(ix);
-
-                            let col_group = view
-                                .col_groups
-                                .get(ix)
-                                .expect("BUG: invalid col index")
-                                .clone();
-
-                            view.resize_cols(
-                                ix,
-                                e.event.position.x - HANDLE_SIZE - col_group.bounds.left(),
-                                window,
-                                cx,
-                            );
-
-                            // scroll the table if the drag is near the edge
-                            view.scroll_table_by_col_resizing(e.event.position, &col_group);
-                        }
+            .on_drag_move(self.layout_listener(
+                cx,
+                move |view, e: &DragMoveEvent<ResizeColumn>, window, cx| {
+                    let ResizeColumn {
+                        entity_id,
+                        index,
+                        epoch,
+                    } = e.drag(cx);
+                    if cx.entity_id() != *entity_id || !epoch.matches(&view.layout_epoch) {
+                        return;
+                    }
+                    let index = *index;
+                    let Some(column) = view.col_groups.get(index).cloned() else {
+                        return;
                     };
-                }),
+                    view.resizing_col = Some(index);
+                    view.resize_cols(
+                        index,
+                        e.event.position.x - HANDLE_SIZE - column.bounds.left(),
+                        window,
+                        cx,
+                    );
+                    view.scroll_table_by_col_resizing(e.event.position, &column);
+                },
+            ))
+            .on_drag(
+                ResizeColumn {
+                    entity_id: cx.entity_id(),
+                    index: ix,
+                    epoch: self.layout_epoch.clone(),
+                },
+                |drag, _, _, cx| {
+                    cx.stop_propagation();
+                    cx.new(|_| drag.clone())
+                },
             )
-            .on_drag(ResizeColumn((cx.entity_id(), ix)), |drag, _, _, cx| {
-                cx.stop_propagation();
-                cx.new(|_| drag.clone())
-            })
             .on_mouse_up_out(
                 MouseButton::Left,
-                cx.listener(|view, _, _, cx| {
+                self.layout_listener(cx, |view, _, _, cx| {
                     if view.resizing_col.is_none() {
                         return;
                     }
 
                     view.resizing_col = None;
 
-                    let new_widths = view.col_groups.iter().map(|g| g.width).collect();
+                    let new_widths = view
+                        .col_groups
+                        .iter()
+                        .map(|g| (g.column.key.clone(), g.width))
+                        .collect();
                     cx.emit(TableEvent::ColumnWidthsChanged(new_widths));
                     cx.notify();
                 }),
@@ -1631,7 +1678,7 @@ where
             .table_cell_size(self.options.size)
             .when(!is_head, |this| {
                 this.when(self.row_selectable, |this| {
-                    this.on_click(cx.listener(move |table, _, _window, cx| {
+                    this.on_click(self.layout_listener(cx, move |table, _, _window, cx| {
                         table.set_selected_row(row_ix, cx);
                     }))
                 })
@@ -1661,6 +1708,7 @@ where
         Some(
             div()
                 .id(("icon-sort", col_ix))
+                .test_support()
                 .p(px(2.))
                 .rounded(theme.radius / 2.)
                 .map(|this| match is_on {
@@ -1669,9 +1717,9 @@ where
                 })
                 .hover(|this| this.bg(theme.tokens.secondary).opacity(0.7))
                 .active(|this| this.bg(theme.tokens.secondary_active).opacity(1.))
-                .on_click(
-                    cx.listener(move |table, _, window, cx| table.perform_sort(col_ix, window, cx)),
-                )
+                .on_click(self.layout_listener(cx, move |table, _, window, cx| {
+                    table.perform_sort(col_ix, window, cx)
+                }))
                 .child(
                     div()
                         .child(icon)
@@ -1700,7 +1748,7 @@ where
                 self.render_cell(None, col_ix, window, cx)
                     .id(("col-header", col_ix))
                     .test_support()
-                    .on_click(cx.listener(move |this, _, window, cx| {
+                    .on_click(self.layout_listener(cx, move |this, _, window, cx| {
                         this.on_col_head_click(col_ix, window, cx);
                     }))
                     .child(
@@ -1721,6 +1769,7 @@ where
                         this.on_drag(
                             DragColumn {
                                 entity_id,
+                                epoch: self.layout_epoch.clone(),
                                 col_ix,
                                 name,
                                 width: col_group.width,
@@ -1765,7 +1814,16 @@ where
             // to save the bounds of this col.
             .on_prepaint({
                 let view = cx.entity().clone();
-                move |bounds, _, cx| view.update(cx, |r, _| r.col_groups[col_ix].bounds = bounds)
+                let epoch = self.layout_epoch.clone();
+                move |bounds, _, cx| {
+                    view.update(cx, |r, _| {
+                        if epoch.matches(&r.layout_epoch)
+                            && let Some(column) = r.col_groups.get_mut(col_ix)
+                        {
+                            column.bounds = bounds;
+                        }
+                    })
+                }
             })
     }
 
@@ -1872,34 +1930,42 @@ where
             .bg(theme.tokens.table_head)
             .text_color(theme.table_head_foreground)
             .refine_style(&style)
-            .on_drag_move(cx.listener(|table, e: &DragMoveEvent<DragColumn>, _, cx| {
-                let drag = e.drag(cx);
-                let (drag_entity_id, drag_col_ix) = (drag.entity_id, drag.col_ix);
+            .on_drag_move(self.layout_listener(
+                cx,
+                |table, e: &DragMoveEvent<DragColumn>, _, cx| {
+                    let drag = e.drag(cx);
+                    let (drag_entity_id, drag_col_ix) = (drag.entity_id, drag.col_ix);
 
-                let gap =
-                    if drag_entity_id == cx.entity_id() && e.bounds.contains(&e.event.position) {
+                    let gap = if drag_entity_id == cx.entity_id()
+                        && drag.epoch.matches(&table.layout_epoch)
+                        && e.bounds.contains(&e.event.position)
+                    {
                         table.drag_gap_at(e.event.position.x, drag_col_ix)
                     } else {
                         None
                     };
 
-                if table.col_drag_gap != gap {
-                    table.col_drag_gap = gap;
-                    cx.notify();
-                }
-            }))
-            .on_drop(cx.listener(|table, drag: &DragColumn, window, cx| {
-                if drag.entity_id != cx.entity_id() {
-                    return;
-                }
+                    if table.col_drag_gap != gap {
+                        table.col_drag_gap = gap;
+                        cx.notify();
+                    }
+                },
+            ))
+            .on_drop(
+                self.layout_listener(cx, |table, drag: &DragColumn, window, cx| {
+                    if drag.entity_id != cx.entity_id() || !drag.epoch.matches(&table.layout_epoch)
+                    {
+                        return;
+                    }
 
-                // Insert the dragged column into the indicated gap.
-                let Some(gap) = table.col_drag_gap.take() else {
-                    return;
-                };
-                let to_ix = if drag.col_ix < gap { gap - 1 } else { gap };
-                table.move_column(drag.col_ix, to_ix, window, cx);
-            }))
+                    // Insert the dragged column into the indicated gap.
+                    let Some(gap) = table.col_drag_gap.take() else {
+                        return;
+                    };
+                    let to_ix = if drag.col_ix < gap { gap - 1 } else { gap };
+                    table.move_column(drag.col_ix, to_ix, window, cx);
+                }),
+            )
             .when(self.cell_selectable && self.row_header, |this| {
                 this.child(self.render_row_header_cell(0, true, cx))
             })
@@ -2151,7 +2217,8 @@ where
                                                         },
                                                     )
                                                     .when(self.cell_selectable, |this| {
-                                                        this.on_click(cx.listener(
+                                                        this.on_click(self.layout_listener(
+                                                            cx,
                                                             move |table, e, window, cx| {
                                                                 table.on_cell_click(
                                                                     e, row_ix, col_ix, window, cx,
@@ -2160,7 +2227,8 @@ where
                                                         ))
                                                         .on_mouse_down(
                                                             MouseButton::Right,
-                                                            cx.listener(
+                                                            self.layout_listener(
+                                                                cx,
                                                                 move |table, e, window, cx| {
                                                                     table.on_cell_right_click(
                                                                         e, row_ix, col_ix, window,
@@ -2203,7 +2271,11 @@ where
                                 Axis::Horizontal,
                                 col_sizes,
                                 {
+                                    let epoch = self.layout_epoch.clone();
                                     move |table, visible_range: Range<usize>, window, cx| {
+                                        if !epoch.matches(&table.layout_epoch) {
+                                            return Vec::new();
+                                        }
                                         table.update_visible_range_if_need(
                                             visible_range.clone(),
                                             Axis::Horizontal,
@@ -2271,7 +2343,8 @@ where
                                                             },
                                                         )
                                                         .when(table.cell_selectable, |this| {
-                                                            this.on_click(cx.listener(
+                                                            this.on_click(table.layout_listener(
+                                                                cx,
                                                                 move |table, e, window, cx| {
                                                                     cx.stop_propagation();
                                                                     table.on_cell_click(
@@ -2282,7 +2355,8 @@ where
                                                             ))
                                                             .on_mouse_down(
                                                                 MouseButton::Right,
-                                                                cx.listener(
+                                                                table.layout_listener(
+                                                                    cx,
                                                                     move |table, e, window, cx| {
                                                                         table.on_cell_right_click(
                                                                             e, row_ix, col_ix,
@@ -2343,11 +2417,11 @@ where
                 })
                 .on_mouse_down(
                     MouseButton::Right,
-                    cx.listener(move |this, e, window, cx| {
+                    self.layout_listener(cx, move |this, e, window, cx| {
                         this.on_row_right_click(e, Some(row_ix), window, cx);
                     }),
                 )
-                .on_click(cx.listener(move |this, e, window, cx| {
+                .on_click(self.layout_listener(cx, move |this, e, window, cx| {
                     this.on_row_left_click(e, row_ix, window, cx);
                 }))
                 .into_any_element()
@@ -2557,8 +2631,12 @@ where
                             uniform_list(
                                 "table-uniform-list",
                                 render_rows_count,
-                                cx.processor(
+                                cx.processor({
+                                    let epoch = self.layout_epoch.clone();
                                     move |table, visible_range: Range<usize>, window, cx| {
+                                        if !epoch.matches(&table.layout_epoch) {
+                                            return Vec::new();
+                                        }
                                         // Use `col.width` (always up-to-date) rather than
                                         // `col.bounds.size.width`, which is only set after
                                         // prepaint and is therefore zero on the first frame.
@@ -2617,8 +2695,8 @@ where
                                         });
 
                                         items
-                                    },
-                                ),
+                                    }
+                                }),
                             )
                             .flex_grow_1()
                             .size_full()
@@ -2650,7 +2728,7 @@ where
                         ))
                     })
                     .when(right_clicked_row.is_some(), |this| {
-                        this.on_mouse_down_out(cx.listener(|this, e, window, cx| {
+                        this.on_mouse_down_out(self.layout_listener(cx, |this, e, window, cx| {
                             this.on_row_right_click(e, None, window, cx);
                             cx.notify();
                         }))

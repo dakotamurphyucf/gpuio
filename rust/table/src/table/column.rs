@@ -259,6 +259,7 @@ pub(crate) struct DragColumn {
     pub(crate) name: SharedString,
     pub(crate) width: Pixels,
     pub(crate) col_ix: usize,
+    pub(crate) epoch: super::state::LayoutEpoch,
 }
 
 /// The sorting behavior of a column.
@@ -293,7 +294,11 @@ impl Render for DragColumn {
 }
 
 #[derive(Clone)]
-pub(crate) struct ResizeColumn(pub (EntityId, usize));
+pub(crate) struct ResizeColumn {
+    pub entity_id: EntityId,
+    pub index: usize,
+    pub epoch: super::state::LayoutEpoch,
+}
 impl Render for ResizeColumn {
     fn render(&mut self, _window: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         Empty

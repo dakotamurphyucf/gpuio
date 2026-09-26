@@ -155,7 +155,9 @@ survives explicit close. The selected native adapter now lives in `rust/table`,
 with upstream provenance, existing base helpers and per-instance appearance.
 Its macOS test reproduces the four virtualization samples, preserves selection
 through row/column reorder, clears removed selections without event echoes, and
-verifies native entity release on close. The bridge, public widget, visual anchor
+verifies native entity release on close. Native pointer tests now exercise keyed
+double/context/sort/resize/reorder events and suppress obsolete frame input and
+drags after schema refresh. The bridge, public widget, visual anchor
 reconciliation and full native interaction/cache/lifecycle acceptance remain.
 See [table design](design/data-tables.md) and
 [evidence](evidence/data-tables-och39.md).

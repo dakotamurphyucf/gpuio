@@ -28,7 +28,14 @@ The macOS native test samples 100,000 rows and 64 columns, tests keyed selection
 through reorder/removal, and checks that closing the window releases its table
 entity. It does not establish full-history cache bounds or input acceptance.
 
-Before host integration, positional double-click/context/column events and
-callbacks captured by older layouts need stable identity or generation fences.
-Viewport anchors, resize reconciliation, protocol/public widgets, accessibility,
-and full OCH-39 acceptance remain. No table capability is advertised yet.
+All emitted events now capture stable row/column keys. Sort emits an application
+request; the adapter never sorts the loaded subset. A delegate validates and
+updates retained column order atomically before the keyed move event is emitted.
+Source/schema refresh and accepted column moves retire pointer listeners and
+drag payloads from earlier layouts. Deferred cell/row generation, header bounds
+and page demand also check the layout identity.
+
+Native dispatch regression covers fresh clicks, double/context clicks, sort,
+resize and reorder, and rejects stale frame clicks and drags spanning refresh.
+Viewport anchors, paging/resize reconciliation, protocol/public widgets,
+accessibility and full OCH-39 acceptance remain. No table capability is advertised.

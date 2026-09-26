@@ -189,3 +189,28 @@ those hosted jobs have not yet been executed for this change.
 The local workspace `cargo test --workspace --locked -j2`, Dune
 `build -j2 @all @runtest @fmt`, and `./scripts/gpuio lint` also pass. These
 checks do not rerun every native GUI suite or establish Linux runtime support.
+
+## Stable native events and obsolete layout input
+
+The same native test now runs `tests/support/events.rs` through GPUI's real
+window event dispatcher. Painted bounds come from the base's existing optional
+test observation feature. It verifies:
+
+- A fresh cell click captures its row/column keys. Replacing row and column
+  order, then dispatching double/context clicks **before repaint**, emits no
+  event and leaves selection empty. Previously captured events retain old keys.
+- Fresh double/context clicks after repaint report the new row's stable key.
+- Clicking the sort indicator emits a keyed sort request and does not reorder
+  retained data locally.
+- A native resize drag is active before source/schema refresh. After repaint,
+  continuing/releasing that old drag emits no width update. A fresh resize emits
+  widths paired with the correct column keys.
+- An active column-reorder drag is likewise retired by refresh. A fresh reorder
+  emits stable source/destination keys, updates retained order and remaps the
+  selected cell to the moved column's new position.
+
+The native run and feature-enabled Clippy **pass locally on macOS**. Its test
+window closes and weak table-entity release still passes. These synthetic native
+pointer events are stronger than direct state calls, but do not constitute
+foreground keyboard/clipboard or macOS accessibility acceptance. Paged producer
+races, full-history cache bounds and the public bridge remain unimplemented.
