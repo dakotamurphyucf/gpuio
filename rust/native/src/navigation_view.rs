@@ -100,7 +100,9 @@ impl View {
         let sample = {
             let mut state = state.borrow_mut();
             let now = state.origin.elapsed();
-            if cx.reduce_motion() || !self.focus.borrow().visible(node.id) {
+            if (cx.reduce_motion() && !state.motion.previewing())
+                || !self.focus.borrow().visible(node.id)
+            {
                 state.motion.settle(now);
             }
             state.motion.sample(now)
@@ -151,7 +153,7 @@ impl View {
         let gate = self.focus.clone();
         let owner = node.id;
         let state = Rc::downgrade(&state);
-        div()
+        let element = div()
             .relative()
             .size_full()
             .overflow_hidden()
@@ -159,10 +161,10 @@ impl View {
             .child(
                 canvas(
                     |_, _, _| (),
-                    move |bounds, _, window, cx| {
+                    move |bounds, _, window, _| {
                         let Some(state) = state.upgrade() else { return };
                         let mut state = state.borrow_mut();
-                        if !gate.borrow().visible(owner) || cx.reduce_motion() {
+                        if !gate.borrow().visible(owner) {
                             let now = state.origin.elapsed();
                             state.motion.settle(now);
                             return;
@@ -185,6 +187,20 @@ impl View {
                 .left_0()
                 .size_full(),
             )
+            .into_any_element();
+        if let Some(parent) = node.parent
+            && let Some(carousel) = self.carousels.get(&parent)
+        {
+            carousel::input::Region {
+                element,
+                state: carousel.clone(),
+                owner: cx.weak_entity(),
+                node: parent,
+                enabled: interaction.pointer,
+            }
             .into_any_element()
+        } else {
+            element
+        }
     }
 }

@@ -64,7 +64,9 @@ Mounted horizontal/vertical presentation reuses retained pages; local macOS chec
 cover GPU transition geometry, retained editors and focus preservation/handoff.
 Native keyboard and auto-advance scheduling now pass local tests for child-editor
 key isolation, pause/resume, clipping/window activation, one pending proposal,
-no idle frames and teardown. Drag/wheel gestures and full acceptance remain.
+no idle frames and teardown. Native wheel bursts now pass axis/cancellation,
+momentum fencing after accepted selection, missing-end fallback, nested scrolling,
+reduced-motion input and disposal checks. Pointer drag and full acceptance remain.
 Remaining scope includes completing carousel,
 expanded public examples, broader acceptance and hosted gates.
 See [navigation design](design/navigation-components.md) and

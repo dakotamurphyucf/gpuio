@@ -1,12 +1,16 @@
 //! Native carousel interaction and deadlines. Application selection remains in
 //! the admitted tree; all requests cross the existing asynchronous mailbox.
 use super::*;
+#[path = "carousel_input.rs"]
+pub(super) mod input;
 use crate::carousel_clock::{Clock, Plan, Schedule, Ticket};
 use gpuio_protocol::carousel::{Axis, Config, Request};
 use std::time::{Duration, Instant};
 
 pub(super) struct State {
     config: Arc<Config>,
+    handler: Option<gpuio_protocol::HandlerId>,
+    input: input::Input,
     viewport: NodeId,
     pages: Arc<[NodeId]>,
     origin: Instant,
@@ -19,6 +23,13 @@ pub(super) struct State {
     _subscriptions: Vec<gpui::Subscription>,
 }
 impl State {
+    fn dispose(&mut self) {
+        self.timer = None;
+        self.ticket = None;
+        self.clock.dispose();
+        self.input.interrupt(self.origin.elapsed());
+        self._subscriptions.clear();
+    }
     fn schedule(&self) -> Option<Schedule> {
         let target = self.config.target(&Request::Next)?;
         Some(Schedule {
@@ -32,7 +43,8 @@ impl State {
         let visible = bounds
             .intersect(&window.content_mask().bounds)
             .intersect(&window.fully_visible_bounds());
-        self.painted = settled && visible.size.width > px(0.) && visible.size.height > px(0.);
+        self.input.visible = visible.size.width > px(0.) && visible.size.height > px(0.);
+        self.painted = settled && self.input.visible;
     }
     pub(super) fn focused(&self, window: &Window) -> bool {
         self.focus.is_focused(window)
@@ -59,6 +71,10 @@ impl State {
         self.timer.is_some()
     }
     #[cfg(feature = "native-tests")]
+    pub(super) fn wheel_timer(&self) -> bool {
+        self.input.has_timer()
+    }
+    #[cfg(feature = "native-tests")]
     pub(super) fn pending(&self) -> bool {
         self.clock.pending()
     }
@@ -73,9 +89,14 @@ impl View {
         let nodes = {
             let session = self.session.borrow();
             let tree = session.tree(self.id);
-            self.carousels.retain(|id, _| {
-                tree.and_then(|tree| tree.get(*id))
-                    .is_some_and(|node| node.carousel.is_some())
+            self.carousels.retain(|id, state| {
+                let keep = tree
+                    .and_then(|tree| tree.get(*id))
+                    .is_some_and(|node| node.carousel.is_some());
+                if !keep {
+                    state.borrow_mut().dispose();
+                }
+                keep
             });
             let mut nodes = vec![];
             if let Some(tree) = tree {
@@ -84,7 +105,13 @@ impl View {
                     let node = tree.get(id).expect("admitted tree");
                     if let Some(config) = &node.carousel {
                         let viewport = tree.get(node.children[0]).expect("admitted viewport");
-                        nodes.push((id, config.clone(), viewport.id, viewport.children.clone()));
+                        nodes.push((
+                            id,
+                            node.handler,
+                            config.clone(),
+                            viewport.id,
+                            viewport.children.clone(),
+                        ));
                     }
                     stack.extend(node.children.iter().copied());
                 }
@@ -93,10 +120,16 @@ impl View {
         };
         let present = nodes
             .iter()
-            .map(|(id, _, _, _)| *id)
+            .map(|(id, _, _, _, _)| *id)
             .collect::<std::collections::BTreeSet<_>>();
-        self.carousels.retain(|id, _| present.contains(id));
-        for (id, config, viewport, pages) in nodes {
+        self.carousels.retain(|id, state| {
+            let keep = present.contains(id);
+            if !keep {
+                state.borrow_mut().dispose();
+            }
+            keep
+        });
+        for (id, handler, config, viewport, pages) in nodes {
             let state = self.carousels.entry(id).or_insert_with(|| {
                 let focus = cx.focus_handle();
                 let owner = cx.weak_entity();
@@ -109,6 +142,8 @@ impl View {
                 });
                 Rc::new(RefCell::new(State {
                     config: config.clone(),
+                    handler,
+                    input: input::Input::default(),
                     viewport,
                     pages: pages.clone(),
                     origin: Instant::now(),
@@ -122,7 +157,14 @@ impl View {
                 }))
             });
             let mut state = state.borrow_mut();
-            if state.config != config || state.viewport != viewport || state.pages != pages {
+            if state.config != config
+                || state.viewport != viewport
+                || state.pages != pages
+                || state.handler != handler
+            {
+                let now = state.origin.elapsed();
+                state.input.interrupt(now);
+                state.handler = handler;
                 state.painted = false;
                 state.timer = None;
                 state.ticket = None;
@@ -143,12 +185,15 @@ impl View {
     }
     pub(super) fn begin_carousel_paint(&self) {
         for state in self.carousels.values() {
-            state.borrow_mut().painted = false;
+            let mut state = state.borrow_mut();
+            state.painted = false;
+            state.input.visible = false;
         }
     }
     pub(super) fn schedule_carousels(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let ids = self.carousels.keys().copied().collect::<Vec<_>>();
         for id in ids {
+            self.schedule_carousel_wheel(id, window, cx);
             self.schedule_carousel(id, window, cx);
         }
     }
@@ -157,7 +202,8 @@ impl View {
             return;
         };
         let mut state = state.borrow_mut();
-        let eligible = state.painted
+        let eligible = !state.input.active()
+            && state.painted
             && !state.hovered
             && !state.config.disabled
             && window.is_window_active()
@@ -326,6 +372,7 @@ impl View {
         let enabled = !state.borrow().config.disabled;
         let gate = self.focus.clone();
         let recorded = focus.clone();
+        let owner = cx.weak_entity();
         element
             .track_focus(&focus.clone().tab_stop(enabled))
             .on_key_down(
@@ -333,16 +380,30 @@ impl View {
                     view.carousel_key(id, event, window, cx)
                 }),
             )
-            .on_hover(cx.listener(move |view, hover: &bool, window, cx| {
-                if let Some(state) = view.carousels.get(&id) {
-                    state.borrow_mut().hovered = *hover;
-                }
-                view.schedule_carousel(id, window, cx);
-            }))
             .child(
                 canvas(
                     |_, _, _| (),
-                    move |_, _, window, _| {
+                    move |bounds, _, window, _| {
+                        let visible = bounds
+                            .intersect(&window.content_mask().bounds)
+                            .intersect(&window.fully_visible_bounds());
+                        // Hover includes native child hitboxes, not just the
+                        // parent's own hit target. Otherwise a child editor or
+                        // gesture region could accidentally resume auto-advance.
+                        state.borrow_mut().hovered = visible.contains(&window.mouse_position());
+                        window.on_mouse_event(
+                            move |event: &gpui::MouseMoveEvent, phase, window, cx| {
+                                if phase.capture() {
+                                    let _ = owner.update(cx, |view, cx| {
+                                        if let Some(state) = view.carousels.get(&id) {
+                                            state.borrow_mut().hovered =
+                                                visible.contains(&event.position);
+                                        }
+                                        view.schedule_carousel(id, window, cx);
+                                    });
+                                }
+                            },
+                        );
                         if gate.borrow().visible(id) {
                             gate.borrow_mut().record(
                                 id,

@@ -831,3 +831,53 @@ The expanded scenario moved from `native_navigation` to `native_carousel` to kee
 iteration focused. Required CI builds the target on macOS/Linux and executes it
 on macOS. No hosted CI, Linux GUI, physical IME, VoiceOver speech or OS minimization
 acceptance is claimed by this checkpoint. Consolidated M5 gates and merge remain.
+
+## Carousel wheel routing and gesture foundations — 2026-09-26
+
+Local macOS `native_carousel` passes actual GPUI wheel dispatch through the
+production retained view. This is native dispatch evidence, not a physical
+trackpad or Linux GUI run. The new checks cover:
+
+- Horizontal and vertical precise input, wrong-axis rejection, no per-sample
+  application requests, one Ended request, Cancelled without a request, ordinary
+  line-wheel burst suppression and quiet fallback when Ended is missing.
+- A later sample extends the deadline: the first task wakes, rechecks and schedules
+  only the remainder. No early proposal and no retained task after completion.
+- Accepted application selection during momentum, followed by 100 more deltas,
+  produces no additional requests or tasks. A new Started event remains usable.
+- A nested native horizontal scroller changes its actual ScrollHandle offset while
+  the carousel emits nothing. Reduced motion permits deliberate wheel navigation.
+- Disabling, hiding or pointer-disabling the owner cancels a pending burst. Unmount
+  with a live deadline emits nothing past its old deadline. Both deadline handles
+  are empty even with a test-held retired owner; old listeners release that owner.
+- Existing carousel GPU, retained-editor, focus, keyboard, automatic timing,
+  clipping, inactivity and idle-frame regressions continue to pass.
+
+The first run exposed the viewport's new hitbox shielding the parent's ordinary
+hover listener. Hover eligibility now uses visible owner bounds so native children
+cannot accidentally resume auto-advance. A separate fixture fix dispatches wheel
+input through AsyncApp.update_window; dispatching from a View.update closure held
+the view borrowed and caused reentrant entity updates. No production callback was
+made synchronous with OCaml to avoid that fixture error.
+
+Pure gesture tests additionally cover drag axis locking, reversal, edge resistance,
+finite/bounded geometry, 10,000 samples, wheel thresholds/cancellation/momentum and
+selection-replacement fences. Navigation motion tests cover two-layer preview,
+paint-confirmed snap and accepted-selection retargeting. These are foundations:
+native pointer capture/drag/snapping, broader carousel AX/IME/nesting and the public
+Navigation Lab remain pending; OCH-37 is still In Progress.
+
+Commands:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --lib
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-image-tests --test native_carousel
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native --all-targets --features native-image-tests -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all --check
+git diff --check
+```
+
+Logs in the implementing agent's scratch directory: `carousel-wheel-unit.log`,
+`carousel-wheel-window-final.log`, `carousel-wheel-clippy-final.log`. Test windows
+close at completion. Hosted macOS/Linux gates and merge remain consolidated at the
+end of the milestone; no new hosted or Linux GUI result is claimed.

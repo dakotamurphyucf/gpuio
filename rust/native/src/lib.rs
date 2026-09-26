@@ -29,6 +29,7 @@ pub fn run_native_animation_program_test() {
     host::animation_program_test::run();
 }
 pub mod carousel_clock;
+pub mod carousel_gesture;
 pub mod image_host;
 pub mod list_index;
 pub mod list_state;

@@ -229,21 +229,6 @@ pub(super) async fn exercise(
         "controls retain focus across selection"
     );
     // Native keyboard routing is local to the owner and its ordinary controls.
-    let requests = |transport: &Transport| {
-        transport
-            .mailbox
-            .lock()
-            .unwrap()
-            .drain(128)
-            .into_iter()
-            .filter_map(|event| match event {
-                Event::CarouselRequested(_, owner, _, _, request) if owner == node(462) => {
-                    Some(request)
-                }
-                _ => None,
-            })
-            .collect::<Vec<_>>()
-    };
     requests(transport);
     for name in ["left", "home", "right", "end"] {
         key(cx, handle, name);
@@ -589,6 +574,11 @@ pub(super) async fn exercise(
         "activation restarts a full interval"
     );
 
+    wheel_input::exercise(cx, handle, transport).await;
+    let retired_carousel = handle
+        .update(cx, |view, _, _| view.carousels[&node(462)].clone())
+        .unwrap();
+
     apply(
         cx,
         handle,
@@ -616,8 +606,15 @@ pub(super) async fn exercise(
         requests(transport).is_empty(),
         "unmount cancels the last deadline"
     );
+    assert!(!retired_carousel.borrow().has_timer());
+    assert!(!retired_carousel.borrow().wheel_timer());
+    assert_eq!(
+        Rc::strong_count(&retired_carousel),
+        1,
+        "retired input handlers release owner"
+    );
     println!(
-        "GPUIO_CAROUSEL_PRESENTATION_OK: vertical GPU transition, retained editor, hidden focus rejection, outside/control focus preservation, page focus handoff and disposal; keyboard, editor key isolation, one pending automatic proposal, settled paint, hover/focus/reduced/hidden/clipped/inactive pause, idle frame count and timer disposal; drag/wheel pending"
+        "GPUIO_CAROUSEL_PRESENTATION_OK: vertical GPU transition, retained editor, hidden focus rejection, outside/control focus preservation, page focus handoff and disposal; keyboard, editor key isolation, one pending automatic proposal, settled paint, hover/focus/reduced/hidden/clipped/inactive pause, idle frame count and timer disposal; wheel dispatch and teardown; pointer drag pending"
     );
 }
 
@@ -651,3 +648,22 @@ pub(super) async fn standalone(
     frame(cx, handle).await;
     exercise(cx, handle, config, transport).await;
 }
+
+fn requests(transport: &Transport) -> Vec<Request> {
+    transport
+        .mailbox
+        .lock()
+        .unwrap()
+        .drain(128)
+        .into_iter()
+        .filter_map(|event| match event {
+            Event::CarouselRequested(_, owner, _, _, request) if owner == node(462) => {
+                Some(request)
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+}
+
+#[path = "carousel_wheel_test.rs"]
+mod wheel_input;

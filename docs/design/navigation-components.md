@@ -581,9 +581,35 @@ may still be inside the carousel. Once all conditions allow it, resuming starts 
 fresh interval. Configuration changes first invalidate painted eligibility, so the
 next deadline cannot start before the accepted destination transition settles.
 
+Wheel input uses the viewport's actual native hit testing and respects its axis;
+vertical deltas are not silently translated into horizontal navigation. Child
+scroll views get first refusal. Precise trackpad samples accumulate bounded native
+state, then request at most one relative step at Ended or after 150 ms of quiet
+when the platform omits Ended. The directional threshold is 32 logical pixels;
+ordinary line-wheel input requests immediately and shares the same burst fence.
+A new platform Started event starts a new gesture. Subsequent momentum extends a
+quiet fence without events or tasks, including after OCaml accepts a new selection.
+Cancelled input discards the pending request. Modifiers, capture, active native
+drag, disabled/pointer-disabled/hidden/blocked owners and inactive windows do not
+start wheel navigation. Reduced motion still permits deliberate wheel input.
+
+One weak-generation deadline task exists only for an unfinished precise burst.
+New samples extend its deadline without allocating another task per sample. Early
+wakes reschedule the remainder. Reconfiguration, handler replacement, unmount,
+hiding and pointer-policy changes cancel unfinished work. The end-of-paint pass
+rechecks availability; removal explicitly disposes tasks and focus subscriptions
+even if an old painted listener temporarily retains the owner. Hover pausing uses
+the visible owner bounds, including native child hitboxes and controls.
+
+The pure drag model and two-layer preview/snap math are tested foundations only;
+pointer capture, native gesture routing and its actual GPU acceptance still need
+implementation. Preview leaves accepted selection unchanged, keeps an adjacent
+page inert, and retargets from accepted painted geometry when the application
+accepts a selection. These pure results alone do not advertise drag support.
+
 Implementation status: Core/Bonsai constructors, paired envelopes, admission,
-request dispatch, horizontal/vertical page presentation, keyboard and native
-automatic scheduling are implemented and locally tested on macOS. Axis-locked
-pointer drag/snapping, wheel gestures, public Navigation Lab scenarios and full
+request dispatch, horizontal/vertical page presentation, keyboard, bounded wheel
+input and native automatic scheduling are implemented and locally tested on macOS.
+Axis-locked pointer drag/snapping, public Navigation Lab scenarios and full
 accessibility/family acceptance remain pending. No carousel capability is advertised;
 the gesture scope has not been replaced by the default buttons.

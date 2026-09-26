@@ -56,12 +56,14 @@ struct Transition {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {
     InvalidPages,
+    InvalidPreview,
 }
 
 pub struct State {
     config: Config,
     selected: Option<NodeId>,
     transition: Option<Transition>,
+    preview: Option<(Layer, Option<Layer>)>,
     painted: Sample,
     epoch: Arc<()>,
 }
@@ -81,6 +83,7 @@ impl State {
             config,
             selected,
             transition: None,
+            preview: None,
             painted: Sample {
                 current: selected.map(Layer::settled),
                 outgoing: None,
@@ -121,6 +124,12 @@ impl State {
             || config.retain != self.config.retain;
         if selected == self.selected {
             self.config = config;
+            if self.preview.as_ref().is_some_and(|(_, neighbor)| {
+                neighbor.is_some_and(|layer| !pages.contains(&layer.page))
+            }) {
+                self.preview = None;
+                self.epoch = Arc::new(());
+            }
             if policy_changed {
                 self.settle(now);
             } else if let Some(transition) = &mut self.transition
@@ -180,6 +189,7 @@ impl State {
                 }),
             }
         });
+        self.preview = None;
         self.selected = selected;
         self.config = config;
         self.epoch = Arc::new(());
@@ -192,9 +202,66 @@ impl State {
     /// Hidden presenters and reduced-motion policy settle; becoming visible again
     /// does not replay old navigation. No polling or elapsed hidden time is needed.
     pub fn settle(&mut self, now: Duration) {
+        self.preview = None;
         self.transition = None;
         self.epoch = Arc::new(());
         self.painted = self.sample(now);
+    }
+
+    pub fn previewing(&self) -> bool {
+        self.preview.is_some()
+    }
+
+    /// Direct manipulation never changes selected identity. At most one adjacent
+    /// page paints; the adapter keeps it inert until application acceptance.
+    pub fn preview(&mut self, offset: f32, neighbor: Option<NodeId>) -> Result<(), Error> {
+        let Some(page) = self.selected else {
+            return Err(Error::InvalidPreview);
+        };
+        if !offset.is_finite() || !(-1.0..=1.).contains(&offset) || neighbor == Some(page) {
+            return Err(Error::InvalidPreview);
+        }
+        self.transition = None;
+        self.preview = Some((
+            Layer {
+                page,
+                offset,
+                opacity: 1.,
+            },
+            neighbor.map(|page| Layer {
+                page,
+                offset: offset - offset.signum(),
+                opacity: 1.,
+            }),
+        ));
+        self.epoch = Arc::new(());
+        Ok(())
+    }
+
+    /// Releasing returns toward the accepted page. If the application accepts a
+    /// request during this snap, update retargets from the last painted geometry.
+    pub fn finish_preview(&mut self, now: Duration, immediate: bool) {
+        if self.preview.take().is_none() {
+            return;
+        }
+        self.epoch = Arc::new(());
+        if immediate || self.config.motion == Motion::Immediate || self.config.duration_ms == 0 {
+            self.settle(now);
+            return;
+        }
+        self.transition = self.painted.current.map(|incoming| Transition {
+            start: now,
+            incoming,
+            outgoing: self.painted.outgoing.map(|from| {
+                (
+                    from,
+                    Layer {
+                        offset: if from.offset < 0. { -1. } else { 1. },
+                        ..from
+                    },
+                )
+            }),
+        });
     }
 
     pub fn sample(&self, now: Duration) -> Sample {
@@ -213,6 +280,11 @@ impl State {
                     .outgoing
                     .map(|(from, to)| from.interpolate(to, eased));
             }
+        }
+        if let Some((selected, neighbor)) = self.preview {
+            current = Some(selected);
+            outgoing = neighbor;
+            needs_frame = false;
         }
         Sample {
             current,
@@ -414,5 +486,37 @@ mod tests {
         assert!(state.painted(state.sample(ms(302))));
         state.update(&pages, config(Some(0)), ms(303)).unwrap();
         assert_eq!(state.sample(ms(303)).current.unwrap().offset, -1.);
+    }
+
+    #[test]
+    fn drag_preview_snap_and_application_acceptance_use_painted_geometry() {
+        let pages = [page(0), page(1)];
+        let mut state = State::new(&pages, config(Some(0)), ms(0)).unwrap();
+        assert_eq!(state.preview(f32::NAN, None), Err(Error::InvalidPreview));
+        state.preview(-0.4, Some(page(1))).unwrap();
+        let drag = state.sample(ms(10));
+        assert_eq!(state.selected(), Some(page(0)));
+        assert!(!drag.needs_frame);
+        assert_eq!(drag.current.unwrap().offset, -0.4);
+        assert_eq!(drag.outgoing.unwrap().offset, 0.6);
+        assert!(state.painted(drag.clone()));
+        state.preview(-0.8, Some(page(1))).unwrap(); // Never painted.
+        state.finish_preview(ms(20), false);
+        let snap = state.sample(ms(20));
+        assert_eq!(snap.current, drag.current);
+        assert_eq!(snap.outgoing, drag.outgoing);
+        assert!(snap.needs_frame);
+        state.update(&pages, config(Some(1)), ms(21)).unwrap();
+        let accepted = state.sample(ms(21));
+        assert_eq!(accepted.current, drag.outgoing);
+        assert_eq!(accepted.outgoing, drag.current);
+        assert!(!state.painted(snap));
+        state.settle(ms(30));
+        state.preview(0.3, Some(page(0))).unwrap();
+        state.painted(state.sample(ms(31)));
+        state.finish_preview(ms(32), true);
+        assert!(!state.previewing());
+        assert_eq!(state.sample(ms(32)).current.unwrap().offset, 0.);
+        assert!(state.sample(ms(32)).outgoing.is_none());
     }
 }
