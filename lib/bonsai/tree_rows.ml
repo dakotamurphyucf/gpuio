@@ -153,6 +153,7 @@ let inner
       ~state
       ~config
       ?accessibility
+      ?on_request
       ~pinned
       ~loading
       ~auto_load
@@ -183,6 +184,37 @@ let inner
     | Error _ -> []
     | Ok rows -> List.filter_map pinned ~f:(Rows.item_key rows)
   in
+  let peek = B.peek projection graph in
+  let on_tree_input =
+    Option.map on_request ~f:(fun callback ->
+      let%arr callback = callback
+      and peek = peek
+      and lifetime = lifetime in
+      fun input ->
+        with_current lifetime peek ~f:(fun rows ->
+          let source = Rows.source rows in
+          let target key =
+            match Rows.find rows key with
+            | None | Some (Boundary _) -> None
+            | Some (Item item) ->
+              Gpuio.Tree_interaction.Target.capture source item.id |> Result.ok
+          in
+          match Gpuio.Tree_input.filter_map input ~f:target with
+          | None -> E.Ignore
+          | Some input ->
+            let module R = Gpuio.Tree_interaction.Request in
+            let request =
+              match input with
+              | Navigate (direction, selection) -> R.navigate source ~selection direction
+              | Select (target, selection) -> R.select target selection
+              | Focus target -> R.focus target
+              | Set_expanded (target, expanded) -> R.set_expanded target expanded
+              | Activate target -> R.activate target
+              | Select_active selection -> R.select_active source selection
+              | Activate_active -> R.activate_active source
+            in
+            callback request))
+  in
   let list =
     V.component
       (module Rows.Key)
@@ -190,11 +222,11 @@ let inner
       ~row_key:Rows.Key.to_view_key
       ~config
       ?accessibility
+      ?on_tree_input
       ~pinned:pins
       ~render_row
       graph
   in
-  let peek = B.peek projection graph in
   let output =
     let%arr projection = projection
     and list = list
@@ -276,6 +308,7 @@ let component
       ?key
       ?(style = B.return fill)
       ?accessibility
+      ?on_request
       ?(pinned = B.return [])
       ?loading
       ?(auto_load = B.return true)
@@ -304,6 +337,7 @@ let component
             ~state
             ~config
             ?accessibility
+            ?on_request
             ~pinned
             ~loading
             ~auto_load

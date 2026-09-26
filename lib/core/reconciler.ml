@@ -651,18 +651,29 @@ let rec mount builder ~depth previous view =
     let callback =
       match description.virtual_list, list_identity, callback with
       | Some list, Some identity, None ->
-        if Option.is_some list.on_viewport || Option.is_some list.on_retain
+        if
+          Option.is_some list.on_viewport
+          || Option.is_some list.on_retain
+          || Option.is_some list.on_tree_input
         then Some (Virtual_list (identity, list))
         else None
       | None, None, callback -> callback
       | _ -> fail "incompatible virtual list callback"
     in
     let rotate_handler =
-      (match description.extension, previous with
-       | Some item, Some mounted ->
-         Option.exists (View.Expert.describe mounted.view).extension ~f:(fun old ->
-           not (Wire.Extension.Config.equal old.config item.config))
+      (match description.virtual_list, previous with
+       | Some list, Some mounted ->
+         let old =
+           Option.exists (View.Expert.describe mounted.view).virtual_list ~f:(fun list ->
+             Option.is_some list.on_tree_input)
+         in
+         not (Bool.equal old (Option.is_some list.on_tree_input))
        | None, _ | Some _, None -> false)
+      || (match description.extension, previous with
+          | Some item, Some mounted ->
+            Option.exists (View.Expert.describe mounted.view).extension ~f:(fun old ->
+              not (Wire.Extension.Config.equal old.config item.config))
+          | None, _ | Some _, None -> false)
       || (match description.split_pane, previous with
           | Some item, Some mounted ->
             Option.exists (View.Expert.describe mounted.view).split_pane ~f:(fun old ->
@@ -829,6 +840,38 @@ let rec mount builder ~depth previous view =
       emit
         builder
         (Set_accessibility (id, Option.map accessibility ~f:Accessibility.Expert.to_wire));
+    let tree_input description =
+      Option.exists description.View.Expert.virtual_list ~f:(fun list ->
+        Option.is_some list.on_tree_input)
+    in
+    let input = tree_input description in
+    if
+      input
+      && not
+           (Option.exists description.accessibility ~f:(fun metadata ->
+              match (Accessibility.Expert.to_wire metadata).role with
+              | Some (Tree _) -> true
+              | None
+              | Some
+                  ( Group
+                  | Label
+                  | Link
+                  | Separator
+                  | Description_list
+                  | Term
+                  | Definition
+                  | Status
+                  | Alert
+                  | Image
+                  | Heading _
+                  | Navigation
+                  | Tree_item _ ) -> false))
+    then fail "native tree input requires Tree accessibility on its managed list root";
+    let old_input =
+      Option.exists previous ~f:(fun mounted ->
+        tree_input (View.Expert.describe mounted.view))
+    in
+    if not (Bool.equal input old_input) then emit builder (Set_tree_input (id, input));
     let carousel = Option.map description.carousel ~f:fst in
     let old_carousel =
       Option.bind previous ~f:(fun mounted ->
@@ -1575,6 +1618,21 @@ let dispatch t = function
                  (Text_source.Expert.native_id expected_source) ->
        Document.Expert.navigation navigation |> Result.ok |> Option.map ~f:callback
      | Some _ | None -> None)
+  | Wire.Event.Tree_input (window, node, handler, revision, request)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Virtual_list (identity, list)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       Tree_input.Expert.of_wire request ~find_key:(List_identity.key identity)
+       |> Option.bind ~f:(fun input ->
+         Option.map list.on_tree_input ~f:(fun callback -> callback input))
+     | Some _ | None -> None)
   | Wire.Event.List_viewport (window, node, handler, revision, viewport)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -2061,6 +2119,7 @@ let dispatch t = function
   | Animation_program_event _
   | Rating_requested _
   | Carousel_requested _
+  | Tree_input _
   | Slider_result _
   | Slider_event _
   | Color_input_result _

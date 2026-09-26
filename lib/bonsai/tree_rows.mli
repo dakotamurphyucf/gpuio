@@ -58,9 +58,12 @@ module Output : sig
 end
 
 (** Managed row primitive for tree adapters. This is not yet the native tree
-    widget: renderers provide row presentation and actions; keyboard traversal
-    and OS focus belong to the higher-level adapter. [accessibility] decorates the
+    widget: renderers provide row presentation. Optional native input emits
+    requests; the application owns reduction and eventual focus/reveal commands. [accessibility] decorates the
     actual native list root, so [Role.Tree multiple] can give it tree semantics.
+    [on_request] explicitly enables native tree input and requires a Tree role.
+    Delivery resolves current projection identity and checks mounted lifetime;
+    applications reduce requests against their latest loader snapshot/state.
     A renderer can annotate its container with [Rows.Item.accessibility]; the
     native adapter exposes one TreeItem per row, with no duplicate list item.
 
@@ -88,6 +91,7 @@ val component
   -> ?key:Gpuio.Key.t
   -> ?style:Gpuio.Style.t B.t
   -> ?accessibility:Gpuio.Accessibility.t B.t
+  -> ?on_request:(Gpuio.Tree_interaction.Request.t -> unit Bonsai.Effect.t) B.t
   -> ?pinned:Gpuio.Tree.Id.t list B.t
   -> ?loading:Loading.t B.t
   -> ?auto_load:bool B.t

@@ -539,3 +539,66 @@ let%expect_test "unmount and remount of the same source retires controller effec
   [%expect
     {| old controller stays inactive after remount; application loader is still alive |}]
 ;;
+
+let%expect_test
+    "native input resolves current projection and rejects an old mounted source"
+  =
+  let module I = Gpuio.Tree_interaction in
+  let tree = forest 3 in
+  let loader = L.create tree in
+  let source = B.Expert.Var.create (L.snapshot loader) in
+  let state = B.Expert.Var.create (S.create tree () |> ok) in
+  let count = ref 0 in
+  let on_request request =
+    E.of_thunk (fun () ->
+      match I.apply (B.Expert.Var.get state) (B.Expert.Var.get source) request with
+      | None -> ()
+      | Some outcome ->
+        Int.incr count;
+        B.Expert.Var.set state (I.Outcome.state outcome))
+  in
+  let metadata =
+    Gpuio.Accessibility.create ~role:(Tree false) ~label:"Projects" () |> ok
+  in
+  let driver =
+    create (fun graph ->
+      V.component
+        (B.Expert.Var.value source)
+        ~state:(B.Expert.Var.value state)
+        ~config
+        ~accessibility:(B.return metadata)
+        ~on_request:(B.return on_request)
+        ~render_row:text
+        graph)
+  in
+  display driver;
+  observe driver ~first:0 ~last:3 ();
+  let initial = result driver in
+  display driver;
+  let callback = Option.value_exn (payload initial).on_tree_input in
+  let event = callback (Navigate (Next, Some Replace)) in
+  Bonsai_driver.schedule_event driver event;
+  Bonsai_driver.schedule_event driver event;
+  ignore (result driver : _ V.Output.t);
+  assert (Option.equal T.Id.equal (S.active (B.Expert.Var.get state)) (Some (id "1")));
+  assert (!count = 2);
+  let target_key = key (V.Output.projection initial) "2" |> R.Key.to_view_key in
+  Bonsai_driver.schedule_event driver (callback (Select (target_key, Replace)));
+  ignore (result driver : _ V.Output.t);
+  assert (Option.equal T.Id.equal (S.active (B.Expert.Var.get state)) (Some (id "2")));
+  let replacement = L.create tree in
+  B.Expert.Var.set source (L.snapshot replacement);
+  B.Expert.Var.set state (S.create tree () |> ok);
+  ignore (result driver : _ V.Output.t);
+  display driver;
+  Bonsai_driver.schedule_event driver event;
+  ignore (result driver : _ V.Output.t);
+  assert (!count = 3);
+  assert (Option.is_none (S.active (B.Expert.Var.get state)));
+  Bonsai_driver.Expert.invalidate_observers driver;
+  print_endline
+    "ordered requests reduce latest state; native keys resolve item identity; retired \
+     source callback ignored";
+  [%expect
+    {| ordered requests reduce latest state; native keys resolve item identity; retired source callback ignored |}]
+;;

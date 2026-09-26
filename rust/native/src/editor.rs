@@ -301,6 +301,14 @@ pub(super) struct Instance {
 }
 impl Instance {
     #[cfg(feature = "native-tests")]
+    pub(super) fn input_bounds(&self, cx: &App) -> gpui::Bounds<gpui::Pixels> {
+        match &self.state {
+            State::Input(state) => state.read(cx).input_bounds(),
+            State::Textarea(state) => state.read(cx).input_bounds(),
+        }
+    }
+
+    #[cfg(feature = "native-tests")]
     pub(super) fn liveness_probe(&self) -> Box<dyn Fn() -> bool> {
         match &self.state {
             State::Input(state) => {

@@ -49,6 +49,8 @@ module Request : sig
   val focus : Target.t -> t
   val set_expanded : Target.t -> bool -> t
   val activate : Target.t -> t
+  val select_active : _ Tree_loading.Snapshot.t -> Tree_state.Selection.t -> t
+  val activate_active : _ Tree_loading.Snapshot.t -> t
 
   (** Programmatic reveal expands loaded ancestors, preserves selection/anchor
       and optionally updates the logical cursor. Disabled targets are ignored;

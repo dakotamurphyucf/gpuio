@@ -41,6 +41,9 @@ end
     Pins count toward [Config.max_active]; excess pins produce an error.
 
     [accessibility] annotates the native list root, not its layout wrapper.
+    [on_tree_input] opts into native tree input and requires a Tree root role.
+    Events contain collection keys and must be reduced against current data;
+    obsolete native row IDs are discarded before delivery.
     A TreeItem-annotated row container transfers its metadata to the native row
     wrapper, preserving one semantic row and its existing focus handle.
 
@@ -62,6 +65,7 @@ val component
   -> ?key:Gpuio.Key.t
   -> ?style:Gpuio.Style.t B.t
   -> ?accessibility:Gpuio.Accessibility.t B.t
+  -> ?on_tree_input:('key Gpuio.Tree_input.t -> unit Bonsai.Effect.t) B.t
   -> ?generation:int64 B.t
   -> ?pinned:'key list B.t
   -> ?on_viewport:(Viewport.t -> unit Bonsai.Effect.t) B.t
@@ -107,6 +111,7 @@ val paged
   -> ?key:Gpuio.Key.t
   -> ?style:Gpuio.Style.t B.t
   -> ?accessibility:Gpuio.Accessibility.t B.t
+  -> ?on_tree_input:('key Gpuio.Tree_input.t -> unit Bonsai.Effect.t) B.t
   -> ?pinned:'key list B.t
   -> ?auto_load:bool B.t
   -> ?on_viewport:(Viewport.t -> unit Bonsai.Effect.t) B.t

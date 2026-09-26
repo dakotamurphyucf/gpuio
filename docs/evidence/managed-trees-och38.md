@@ -445,3 +445,77 @@ The first test compile used a weak-pointer module outside Core; it was replaced
 with the repository's existing Stdlib.Weak test pattern. The first execution
 needed only reviewed multiline expectation whitespace corrections. No native GUI
 run or hosted CI is claimed for this pure layer. `git diff --check` passes.
+
+## Opt-in native input bridge (2026-09-26)
+
+Tree input now has a separate explicit opt-in operation (tag 50) and ordered
+input event (tag 55). Accessibility metadata alone preserves its prior behavior.
+Native admission requires a VirtualList with Tree semantics and a handler; targeted
+requests additionally require a current admitted enabled TreeItem. Expansion of
+a leaf rejects. Existing transaction/event tags are unchanged.
+
+Core translates native row IDs through the current monotonic list identity map.
+Bonsai Virtual_list reuses its existing collection-key map, and Tree_rows checks
+mounted lifetime/current projection before constructing Tree_interaction requests.
+Relative requests reduce against the latest logical cursor in delivery order.
+Disabling/re-enabling input rotates the handler; old requests do not revive.
+No duplicate hierarchy, label index or per-node task was added to Rust.
+
+Local evidence collected for this bridge:
+
+- Independent OCaml/Rust fixtures cover all seven request forms, operation/event
+  tags, malformed target IDs, truncation and trailing bytes. Existing protocol
+  fixtures remain unchanged.
+- Native session/mailbox tests cover opt-in/role/handler guards, future revision,
+  missing/disabled row, leaf expansion, atomic rejection, disabling input and
+  ordered non-coalesced relative requests with pending-window accounting.
+- Reconciler tests preserve target identity through reorder, reject a removed and
+  reintroduced key's old row ID, rotate input handler epochs and reject on close.
+- An actual Bonsai driver reduces queued navigation against latest state, resolves
+  native keys to application items and ignores a captured old source callback.
+- The macOS production-view test dispatches native GPUI key events for repeated
+  Down, Shift-End, Left, Space and Enter. Actual AppKit Focus/Press delegates emit
+  focus and selection requests without conflating selection with activation.
+- A real text input inside a row keeps its editing keys, marked text and first
+  Escape. Its pointer click retains editor focus without emitting row selection.
+  The marked-text check enters through macOS NSTextInputClient. GPUI key/mouse
+  dispatch is not reported as physical system-keyboard/mouse automation.
+
+The native test found two adapter integration errors and verified their fixes:
+render-time fallback focus did not yet recognize the tree surface; and a row
+click reclaimed editor focus on mouse-up after the editor had focused on down.
+The host now recognizes opted-in tree focus. Native controls within those trees
+block ancestor pointer hitboxes while preserving scroll propagation. Keyboard
+ClickEvent synthesis is ignored by row pointer handlers because the tree's own
+key handler emits the intended request. Root focus is a Tab stop; row handles
+retain their existing non-Tab-stop policy. A test-only editor bounds accessor
+lets the pointer scenario use actual laid-out input geometry.
+
+This is tested bridge infrastructure, not a completed high-level tree widget.
+No public filesystem app or combined native/OCaml example is claimed yet. Delayed
+native focus/reveal, Unicode typeahead, drag/move integration and the full native
+tree workload still remain. AccessKit Expand/Collapse handlers are registered,
+but the pinned macOS adapter currently has no disclosure setters; its generic
+selected-state setter also needs a precise true/false contract. Complete external
+AX expansion/selection-setter acceptance is therefore still pending. No tree
+capability is advertised, and hosted macOS/Linux gates remain deferred with M5.
+
+Final validation for this bridge passes on local macOS arm64 using the isolated
+repository toolchain (`GPUIO_JOBS=2 ./scripts/gpuio exec`):
+
+- `cargo test --workspace --locked -j2`.
+- `cargo clippy -p gpuio-native --features native-tests --all-targets --locked -j2 -- -D warnings`.
+- `cargo test -p gpuio-native --features native-tests --test native_tree --test native_list --locked -j2`.
+- `dune build -j2 @all @runtest @fmt`.
+- `cargo fmt --all --check` and `git diff --check`.
+
+The complete OCaml build initially caught two exhaustive raw-event matches in
+`examples/bridge` and `examples/view_api`; both now explicitly ignore Tree_input,
+as those examples do not opt in. The rerun passes. Native list regression traverses
+and revisits all 100,000 ordinary list rows with a 256-active-view cap and bounded
+caches; this validates shared-list behavior, not the still-pending full tree workload.
+Native tree checks also pass ordinary row selection, Enter/Space synthetic-click
+deduplication and inherited pointer disabling/restoration. All owned validation
+processes have exited. Local logs are `tree-input-rust-all.log`,
+`tree-input-clippy-final.log`, `tree-input-native-final.log` and
+`tree-input-dune-all-final.log` under the implementing agent's scratch directory.

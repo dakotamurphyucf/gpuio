@@ -1,0 +1,82 @@
+open Core
+open Gpuio
+module W = Gpuio_protocol.Tree_input_wire
+module Wire = Gpuio_protocol.Wire
+
+let ok = Or_error.ok_exn
+
+let fixture name =
+  Eio_main.run (fun env ->
+    let hex = Eio.Path.load Eio.Path.(Eio.Stdenv.fs env / name) |> String.strip in
+    String.init
+      (String.length hex / 2)
+      ~f:(fun i ->
+        Char.of_int_exn (Int.of_string ("0x" ^ String.sub hex ~pos:(i * 2) ~len:2))))
+;;
+
+let%expect_test "paired native input fixtures preserve ordered relative and keyed intent" =
+  let requests =
+    W.Request.
+      [ Navigate (Next, Some (Range { extend = true }))
+      ; Select (42L, Toggle)
+      ; Focus 42L
+      ; Set_expanded (42L, true)
+      ; Activate 42L
+      ; Select_active Replace
+      ; Activate_active
+      ]
+  in
+  let bytes =
+    Bin_prot.Utils.bin_dump [%bin_writer: W.Request.t list] requests
+    |> Bigstring.to_string
+  in
+  assert (String.equal bytes (fixture "tree-input-requests.hex"));
+  let node = Gpuio_protocol.Node_id.create ~slot:0L ~generation:1L |> ok in
+  let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok in
+  let handler = Gpuio_protocol.Handler_id.create ~slot:0L ~generation:1L |> ok in
+  let encoded =
+    Wire.Message.encode
+      (Apply
+         { window
+         ; base = 0L
+         ; revision = 1L
+         ; operations = [ Set_tree_input (node, true) ]
+         })
+    |> ok
+  in
+  assert (String.equal encoded (fixture "tree-input-transaction.hex"));
+  let event = Wire.Event.Tree_input (window, node, handler, 1L, List.hd_exn requests) in
+  let bytes = fixture "tree-input-event.hex" in
+  assert (
+    String.equal
+      bytes
+      (Bin_prot.Utils.bin_dump Wire.Event.bin_writer_t event |> Bigstring.to_string));
+  assert (List.equal Wire.Event.equal [ event ] (Wire.Event.decode ("\001" ^ bytes) |> ok));
+  for length = 0 to String.length bytes - 1 do
+    assert (Result.is_error (Wire.Event.decode ("\001" ^ String.prefix bytes length)))
+  done;
+  assert (Result.is_error (Wire.Event.decode ("\001" ^ bytes ^ "\000")));
+  let bad = Wire.Event.Tree_input (window, node, handler, 1L, Focus 0L) in
+  let bad =
+    Bin_prot.Utils.bin_dump [%bin_writer: Wire.Event.t list] [ bad ]
+    |> Bigstring.to_string
+  in
+  assert (Result.is_error (Wire.Event.decode bad));
+  let mapped =
+    List.filter_map requests ~f:(fun request ->
+      Tree_input.Expert.of_wire request ~find_key:(fun id ->
+        if Int64.equal id 42L then Some "stable" else None))
+  in
+  print_s [%sexp (mapped : string Tree_input.t list)];
+  let obsolete =
+    List.filter_map requests ~f:(fun request ->
+      Tree_input.Expert.of_wire request ~find_key:(fun _ -> None))
+  in
+  assert (List.length obsolete = 3);
+  [%expect
+    {|
+    ((Navigate Next ((Range (extend true)))) (Select stable Toggle)
+     (Focus stable) (Set_expanded stable true) (Activate stable)
+     (Select_active Replace) Activate_active)
+    |}]
+;;

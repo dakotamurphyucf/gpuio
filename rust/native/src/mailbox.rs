@@ -574,6 +574,7 @@ impl Mailbox {
             | Event::Press(id, ..)
             | Event::EditorEvent(id, ..)
             | Event::RatingRequested(id, ..)
+            | Event::TreeInput(id, ..)
             | Event::CarouselRequested(id, ..)
             | Event::SliderEvent(id, ..)
             | Event::NumberInputEvent(id, ..)

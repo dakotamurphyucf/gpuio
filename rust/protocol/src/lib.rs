@@ -53,6 +53,7 @@ pub use id::{HandlerId, NodeId, ResourceId, WindowId};
 pub mod progress;
 
 pub mod toast;
+pub mod tree_input;
 
 pub mod pointer;
 

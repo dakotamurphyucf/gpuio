@@ -30,6 +30,7 @@ pub(super) struct State {
     rows: Arc<[Row]>,
     mapping: Arc<BTreeMap<i64, NodeId>>,
     handles: BTreeMap<i64, gpui::FocusHandle>,
+    pub(super) tree_focus: Option<gpui::FocusHandle>,
     bound: Option<i64>,
     extra_pins: BTreeSet<i64>,
     width: Option<Pixels>,
@@ -53,6 +54,7 @@ impl State {
             rows: Arc::from([]),
             mapping: Arc::default(),
             handles: BTreeMap::new(),
+            tree_focus: None,
             bound: None,
             extra_pins: BTreeSet::new(),
             width: None,
@@ -81,6 +83,11 @@ impl State {
         self.bound = row;
     }
     fn update(&mut self, node: &Node, dirty: &BTreeSet<NodeId>, cx: &mut App) {
+        if node.tree_input {
+            self.tree_focus.get_or_insert_with(|| cx.focus_handle());
+        } else {
+            self.tree_focus = None;
+        }
         let index = node.list_index.as_ref().expect("validated list index");
         if self.native.index().revision() != index.revision() {
             self.bind(None);
@@ -113,6 +120,15 @@ impl State {
         for row in self.rows.iter().filter(|row| dirty.contains(&row.node)) {
             self.native.invalidate_rows(&[row.id]);
         }
+    }
+    pub(super) fn owns_tree_focus(&self, window: &Window) -> bool {
+        self.tree_focus
+            .as_ref()
+            .is_some_and(|handle| handle.is_focused(window))
+            || self
+                .handles
+                .values()
+                .any(|handle| handle.is_focused(window))
     }
     pub(super) fn focused(&self, window: &Window, cx: &App) -> Vec<i64> {
         self.handles
@@ -317,6 +333,8 @@ impl View {
         let generation = index.revision();
         let cap = config.max_active as usize;
         let estimated = config.estimated_height;
+        let tree_input = node.tree_input;
+        let owner_node = node.id;
         let tree_root = node.accessibility.as_ref().is_some_and(|metadata| {
             matches!(
                 metadata.role,
@@ -369,7 +387,7 @@ impl View {
                         .cloned()
                 });
                 let child = view.element(tree, node, interaction, window, cx);
-                let row = div()
+                let mut row = div()
                     .id(("list-row", id as u64))
                     .when(!tree_root && metadata.is_none(), |row| {
                         row.role(gpui::Role::ListItem)
@@ -378,6 +396,21 @@ impl View {
                     .min_h(px(1.))
                     .track_focus(&handles[&id])
                     .child(child);
+                if tree_input
+                    && let Some(item) = metadata.as_ref().and_then(|metadata| match metadata.role {
+                        Some(gpuio_protocol::accessibility::Role::TreeItem(item)) => Some(item),
+                        _ => None,
+                    })
+                {
+                    row = view.tree_row_input(
+                        row,
+                        owner_node,
+                        Row { id, node },
+                        handles[&id].clone(),
+                        item,
+                        cx,
+                    );
+                }
                 crate::semantics::State {
                     element: row,
                     metadata,
@@ -423,6 +456,9 @@ impl View {
         );
         if let Some(style) = states[1].clone() {
             root = root.hover(move |r| r.refine_style(&style));
+        }
+        if node.tree_input {
+            root = self.tree_root_input(root, node.id, cx);
         }
         root = root.child(frame);
         if config.scrollbar {

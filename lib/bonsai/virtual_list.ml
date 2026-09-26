@@ -191,6 +191,7 @@ let inner
       ~config
       ~style
       ~accessibility
+      ~on_tree_input
       ~generation
       ~pinned
       ~on_viewport
@@ -302,7 +303,8 @@ let inner
     and style = style
     and accessibility = accessibility
     and generation = generation
-    and observe = on_viewport in
+    and observe = on_viewport
+    and on_tree_input = on_tree_input in
     let open Or_error.Let_syntax in
     let%bind metadata = metadata in
     let%bind active = active in
@@ -318,6 +320,14 @@ let inner
         ~on_viewport:(fun viewport ->
           E.Many [ inject (Observe (checkpoint.revision, viewport)); observe viewport ])
         ~on_retain:(fun keys -> inject (Retain keys))
+        ?on_tree_input:
+          (Option.map on_tree_input ~f:(fun callback input ->
+             match
+               Gpuio.Tree_input.filter_map input ~f:(fun key ->
+                 Map.find metadata.by_wire (Key.to_string key))
+             with
+             | None -> E.Ignore
+             | Some input -> callback input))
         (Map.to_alist rows |> List.map ~f:(fun (key, view) -> row_key key, view))
     in
     let%map view =
@@ -362,6 +372,7 @@ let component
       ?key
       ?(style = B.return fill)
       ?accessibility
+      ?on_tree_input
       ?(generation = B.return 0L)
       ?(pinned = B.return [])
       ?(on_viewport = B.return (fun _ -> E.Ignore))
@@ -370,6 +381,7 @@ let component
   =
   let open B.Let_syntax in
   let accessibility = B.transpose_opt accessibility in
+  let on_tree_input = B.transpose_opt on_tree_input in
   let generations =
     let%arr generation = generation
     and source = source in
@@ -387,6 +399,7 @@ let component
           ~config
           ~style:(B.return fill)
           ~accessibility
+          ~on_tree_input
           ~generation
           ~pinned
           ~on_viewport
@@ -441,6 +454,7 @@ let paged
       ?key
       ?style
       ?accessibility
+      ?on_tree_input
       ?pinned
       ?(auto_load = B.return true)
       ?on_viewport
@@ -463,6 +477,7 @@ let paged
       ?key
       ?style
       ?accessibility
+      ?on_tree_input
       ~generation
       ?pinned
       ?on_viewport

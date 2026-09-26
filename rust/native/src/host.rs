@@ -123,6 +123,8 @@ mod toast;
 mod toast_clock;
 #[path = "tooltip.rs"]
 mod tooltip;
+#[path = "tree_input_view.rs"]
+mod tree_input;
 #[path = "typeahead.rs"]
 mod typeahead;
 struct ButtonState {
@@ -577,6 +579,24 @@ impl View {
             }
         }
         let mut element = div().id(("gpuio-node", identity));
+        // Native controls inside a tree row own pointer input. The input widget
+        // may focus on mouse-down without consuming mouse-up; block the row's
+        // ancestor click hitbox while preserving wheel propagation to the list.
+        if (node.editor.is_some()
+            || node.control.is_some()
+            || node.choice.is_some()
+            || node.rating.is_some()
+            || node.slider.is_some()
+            || node.number_input.is_some()
+            || node.otp_input.is_some()
+            || node.calendar.is_some()
+            || node.color_input.is_some()
+            || (node.kind == Kind::Text && interaction.selectable))
+            && tree_input::within_input_tree(tree, id)
+        {
+            element = element.block_mouse_except_scroll();
+        }
+
         if node.kind == Kind::Text && !interaction.selectable && !node.text.is_empty() {
             element = element
                 .role(gpui::Role::Label)
@@ -1713,6 +1733,10 @@ impl Render for View {
                     .splits
                     .values()
                     .any(|state| state.focus.is_focused(window))
+                || self.lists.values().any(|state| {
+                    let state = state.borrow();
+                    state.tree_focus.is_some() && state.owns_tree_focus(window)
+                })
                 || self.focus.borrow().contains_focus(window)
                 || self
                     .carousels

@@ -7,8 +7,10 @@ projects these models into an incremental keyed list collection with distinct
 item and lazy-boundary identities. `Gpuio_bonsai.Tree_rows` now mounts bounded
 rows and connects viewport demand/collapse policy to Eio loading controls. Paired
 tree accessibility metadata and actual native outline/item semantics are now
-implemented and locally tested. Native keyboard/typeahead/focus/actions, move
-intents and the public filesystem example remain. No tree capability is advertised.
+implemented and locally tested. Opt-in native keyboard/pointer requests and
+AppKit focus/selection now reach typed Core/Bonsai handlers. Typeahead, full
+accessibility actions, delayed focus/reveal, drag integration and the public
+filesystem example remain. No tree capability is advertised.
 This document preserves the full live ticket scope; semantic getters alone do not
 establish interactive native widget acceptance.
 
@@ -193,8 +195,11 @@ the actual native list root; `Accessibility.Role.Tree multiple` marks the tree.
 Renderers annotate their row containers with `Tree_rows.Item.accessibility`. The
 managed envelope lifts this metadata to the native row focus owner, avoiding a
 duplicate TreeItem on the inner presentation. Boundary rows remain ordinary
-status/action content, not application tree items. Keyboard traversal and OS
-focus commands still belong to the higher-level adapter.
+status/action content, not application tree items. `on_request` explicitly enables
+native input and receives identity-checked `Tree_interaction.Request` values;
+applications reduce them against their latest snapshot/state. The managed primitive
+does not apply preferences implicitly. Delayed OS focus/reveal still belongs to
+the pending higher-level adapter.
 
 The component checkpoints its accepted projection after display. Coalesced source
 changes compare with that checkpoint, and the existing list adapter independently
@@ -272,7 +277,9 @@ The pinned macOS adapter maps levels to AppKit's zero-based disclosure level and
 exposes disclosed state only for branches. Its small reproducible patch is recorded
 in `vendor/accesskit-macos/GPUIO.md`; dependency versions remain unchanged. Native
 getters, update/removal and teardown pass locally. Accessibility actions still
-require the pending interaction adapter; metadata does not implement them.
+require explicit input opt-in. AppKit focus and press-to-select are locally
+verified; complete expansion and selection-setter adaptation still remains.
+Metadata alone does not enable input.
 
 Native accessibility actions
 use the same intents and generational admission as pointer/keyboard input.
@@ -313,13 +320,25 @@ recheck identity, visibility and topology immediately before the application
 constructs a validated `Tree.replace`. Collapsing or deleting an endpoint therefore
 cannot redirect an old proposal to a different item.
 
-This module supplies no native key listeners, typeahead prefix/search, drag session
-or high-level widget yet. Those adapters will translate native row IDs through the
-existing monotonic list identity mapping; numeric positions are never public IDs.
-Relative intents must remain ordered in the bounded input mailbox. Targeted
-requests must retain identity across event delivery instead of resolving a stale
-index against the newest order. These remain implementation requirements, not
-claims of completed interactive native behavior.
+Native input now appends operation tag 50 (`Set_tree_input`) and event tag 55
+(`Tree_input`) without changing existing tags. Opt-in requires a VirtualList node,
+Tree metadata and a live handler. Reconciliation rotates the handler when enabling
+or disabling input, so a queued event cannot revive after disable/re-enable.
+The event path translates monotonic native row IDs through current `List_identity`
+and the Bonsai list's existing key map. Tree rows then check mounted lifetime and
+the latest projection before capturing the application target. Removed/recreated
+rows cannot inherit an old event; relative requests remain ordered in the bounded
+input mailbox and reduce against the latest logical cursor.
+
+The exact root/row focus handles own arrows, Home/End, Space and Enter. Shift
+requests a range, the platform toggle modifier supports union or cursor-only
+movement, and Enter requests activation separately. Embedded native widgets keep
+keyboard/IME ownership; tree-row native controls block ancestor pointer clicks but
+allow wheel propagation. The root is one Tab stop; programmatically/pointer-focused
+rows remain outside the Tab sequence. Inherited pointer policy and inert/modal
+visibility still gate row requests. AppKit press selects rather than activating.
+Full accessibility setter adaptation, typeahead prefix/search, drag sessions and
+high-level focus/reveal behavior still need implementation and native acceptance.
 
 ## Lazy children and asynchronous ownership
 

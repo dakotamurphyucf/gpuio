@@ -233,6 +233,7 @@ type 'action virtual_list =
   ; scroll : Virtual_list.Scroll_request.t option
   ; on_viewport : (Virtual_list.Viewport.t -> 'action) option
   ; on_retain : (Key.t list -> 'action) option
+  ; on_tree_input : (Key.t Tree_input.t -> 'action) option
   }
 
 type 'action t =
@@ -1275,6 +1276,7 @@ let make_virtual_list
       ~scroll
       ~on_viewport
       ~on_retain
+      ~on_tree_input
       rows
   =
   let keys = List.map rows ~f:(fun (key, _) -> Key.to_string key) in
@@ -1329,6 +1331,7 @@ let make_virtual_list
             ; scroll
             ; on_viewport
             ; on_retain
+            ; on_tree_input
             }
       })
 ;;
@@ -1347,6 +1350,7 @@ let virtual_list ?key ?style ?on_viewport ?scroll ~config rows =
     ~scroll
     ~on_viewport
     ~on_retain:None
+    ~on_tree_input:None
     rows
 ;;
 
@@ -1675,6 +1679,7 @@ module Expert = struct
     ; scroll : Virtual_list.Scroll_request.t option
     ; on_viewport : (Virtual_list.Viewport.t -> 'action) option
     ; on_retain : (Key.t list -> 'action) option
+    ; on_tree_input : (Key.t Tree_input.t -> 'action) option
     }
 
   let managed_virtual_list
@@ -1687,6 +1692,7 @@ module Expert = struct
         ~order
         ~on_viewport
         ~on_retain
+        ?on_tree_input
         rows
     =
     make_virtual_list
@@ -1700,6 +1706,7 @@ module Expert = struct
       ~scroll
       ~on_viewport:(Some on_viewport)
       ~on_retain:(Some on_retain)
+      ~on_tree_input
       rows
   ;;
 

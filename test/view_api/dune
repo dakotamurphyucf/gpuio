@@ -32,6 +32,9 @@
    calendar-replace.hex
    animation-v1-config.hex
    accessibility-current.hex
+   tree-input-requests.hex
+   tree-input-transaction.hex
+   tree-input-event.hex
    accessibility-tree.hex
    accessibility-field.hex
    accessibility-request.hex
@@ -257,3 +260,5 @@
 (copy_files ../fixtures/hover-card-request.hex)
 
 (copy_files ../fixtures/carousel-*.hex)
+
+(copy_files ../fixtures/tree-input-*.hex)

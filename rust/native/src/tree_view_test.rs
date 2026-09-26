@@ -2,6 +2,7 @@
 use super::*;
 use gpuio_protocol::accessibility::{Config as Metadata, Live, Role, TreeItem};
 use gpuio_protocol::list::{Config, IdRun, Order, Row, ScrollPolicy};
+use gpuio_protocol::tree_input::{Navigation, Request, Selection};
 
 fn metadata(role: Role, label: &str) -> Metadata {
     Metadata {
@@ -109,7 +110,25 @@ fn rows(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> Vec<AxRow> {
     found
 }
 
+fn requests(transport: &Transport) -> Vec<Request> {
+    transport
+        .mailbox
+        .lock()
+        .unwrap()
+        .drain(128)
+        .into_iter()
+        .filter_map(|event| match event {
+            Event::TreeInput(_, owner, _, _, request) if owner == node(5) => Some(request),
+            _ => None,
+        })
+        .collect()
+}
+
 pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
+    let transport = handle
+        .update(cx, |view, _, _| view.transport.clone())
+        .unwrap();
+
     let mut operations = vec![Op::SetRoot(None)];
     operations.extend((0..=4).map(|id| Op::Remove(node(id))));
     operations.extend([
@@ -145,6 +164,7 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
             ])],
         ),
         Op::SetAccessibility(node(5), Some(metadata(Role::Tree(true), "Projects"))),
+        Op::SetTreeInput(node(5), true),
         Op::Create(node(6), Kind::Container, String::new(), None),
         Op::SetAccessibility(
             node(6),
@@ -227,6 +247,229 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
             "one native outline row per item; boundary is not an item"
         );
     }
+    handle
+        .update(cx, |view, window, cx| {
+            let focus = view.lists[&node(5)].borrow().tree_focus.clone().unwrap();
+            window.focus(&focus, cx);
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, window, _| {
+            assert!(
+                view.lists[&node(5)]
+                    .borrow()
+                    .tree_focus
+                    .as_ref()
+                    .unwrap()
+                    .is_focused(window),
+                "tree root focus survives paint"
+            );
+            assert!(view.focus.borrow().allows(node(5)));
+            assert!(
+                view.session
+                    .borrow()
+                    .tree_input(
+                        view.id,
+                        node(5),
+                        gpuio_protocol::HandlerId::from_parts(5, 1).unwrap(),
+                        view.session.borrow().tree(view.id).unwrap().revision(),
+                        Request::ActivateActive
+                    )
+                    .is_some()
+            );
+        })
+        .unwrap();
+    requests(&transport);
+    for input in ["down", "down", "shift-end", "left", "space", "enter"] {
+        key(cx, handle, input);
+    }
+    assert_eq!(
+        requests(&transport),
+        vec![
+            Request::Navigate(Navigation::Next, Some(Selection::Replace)),
+            Request::Navigate(Navigation::Next, Some(Selection::Replace)),
+            Request::Navigate(Navigation::Last, Some(Selection::Range { extend: false })),
+            Request::Navigate(Navigation::Parent, Some(Selection::Replace)),
+            Request::SelectActive(Selection::Toggle),
+            Request::ActivateActive,
+        ]
+    );
+    #[cfg(target_os = "macos")]
+    {
+        assert!(accessible_with_role(cx, handle, "Folder", Some("AXRow"), true).is_some());
+        frame(cx, handle).await;
+        let input = requests(&transport);
+        assert!(
+            input.contains(&Request::Focus(1)),
+            "AppKit focus uses tree input: {input:?}"
+        );
+        assert!(
+            input.contains(&Request::Select(1, Selection::Replace)),
+            "AX press selects without activation: {input:?}"
+        );
+        assert!(!input.contains(&Request::Activate(1)));
+    }
+    let row_point = handle
+        .update(cx, |view, _, _| {
+            view.lists[&node(5)]
+                .borrow()
+                .native
+                .handle()
+                .bounds_for_item(0)
+                .unwrap()
+                .center()
+        })
+        .unwrap();
+    requests(&transport);
+    super::super::native_test::move_mouse(cx, handle, row_point, false);
+    frame(cx, handle).await;
+    super::super::native_test::mouse(cx, handle, row_point, true);
+    super::super::native_test::mouse(cx, handle, row_point, false);
+    frame(cx, handle).await;
+    assert_eq!(
+        requests(&transport),
+        vec![Request::Select(1, Selection::Replace)]
+    );
+    key(cx, handle, "enter");
+    key(cx, handle, "space");
+    assert_eq!(
+        requests(&transport),
+        vec![
+            Request::ActivateActive,
+            Request::SelectActive(Selection::Toggle)
+        ],
+        "native on_click keyboard synthesis must not duplicate tree key requests"
+    );
+    for enabled in [false, true] {
+        apply(
+            cx,
+            handle,
+            vec![Op::SetStyle(
+                node(5),
+                vec![Style::Fields(vec![
+                    Field::Width(Length::Px(380.)),
+                    Field::Height(Length::Px(180.)),
+                    Field::PointerEvents(enabled),
+                ])],
+            )],
+        );
+        frame(cx, handle).await;
+        requests(&transport);
+        super::super::native_test::move_mouse(cx, handle, row_point, false);
+        frame(cx, handle).await;
+        super::super::native_test::mouse(cx, handle, row_point, true);
+        super::super::native_test::mouse(cx, handle, row_point, false);
+        assert_eq!(
+            requests(&transport).len(),
+            usize::from(enabled),
+            "tree row honors inherited pointer policy"
+        );
+    }
+    // A real native text input inside a tree row retains all editing keys,
+    // including keys which it deliberately propagates to its ancestors.
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Create(
+                node(11),
+                Kind::Input,
+                "draft".into(),
+                Some(gpuio_protocol::HandlerId::from_parts(11, 1).unwrap()),
+            ),
+            Op::SetEditor(
+                node(11),
+                EditorConfig {
+                    label: "Tree draft".into(),
+                    placeholder: String::new(),
+                    read_only: false,
+                    disabled: false,
+                    submit_on_enter: true,
+                    auto_focus: false,
+                    min_rows: 1,
+                    max_rows: 1,
+                },
+            ),
+            Op::Splice(node(6), 1, 0, vec![node(11)]),
+            Op::SetStyle(
+                node(6),
+                vec![Style::Fields(vec![
+                    Field::Height(Length::Px(80.)),
+                    Field::Shrink(0.),
+                ])],
+            ),
+        ],
+    );
+    frame(cx, handle).await;
+    let point = handle
+        .update(cx, |view, _, cx| {
+            view.editors[&node(11)].input_bounds(cx).center()
+        })
+        .unwrap();
+    requests(&transport);
+    super::super::native_test::move_mouse(cx, handle, point, false);
+    frame(cx, handle).await;
+    super::super::native_test::mouse(cx, handle, point, true);
+    super::super::native_test::mouse(cx, handle, point, false);
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, window, cx| {
+            assert!(
+                view.editors[&node(11)].focus_handle(cx).is_focused(window),
+                "pointer focuses child editor"
+            );
+        })
+        .unwrap();
+    assert!(
+        requests(&transport).is_empty(),
+        "child editor click must not select its tree row"
+    );
+    requests(&transport);
+    for input in [
+        "left", "right", "up", "down", "home", "end", "space", "enter",
+    ] {
+        key(cx, handle, input);
+    }
+    assert!(
+        requests(&transport).is_empty(),
+        "child editor keys must not select/navigate tree"
+    );
+    #[cfg(target_os = "macos")]
+    {
+        super::super::editor_test::native_text(cx, handle, "仮入力", true);
+        frame(cx, handle).await;
+        handle
+            .update(cx, |view, window, cx| {
+                assert!(
+                    view.editors[&node(11)]
+                        .snapshot(window, cx)
+                        .composition
+                        .is_some()
+                )
+            })
+            .unwrap();
+        requests(&transport);
+        key(cx, handle, "escape");
+        frame(cx, handle).await;
+        assert!(requests(&transport).is_empty());
+        handle
+            .update(cx, |view, window, cx| {
+                assert!(
+                    view.editors[&node(11)]
+                        .snapshot(window, cx)
+                        .composition
+                        .is_none()
+                )
+            })
+            .unwrap();
+    }
+    apply(
+        cx,
+        handle,
+        vec![Op::Splice(node(6), 1, 1, vec![]), Op::Remove(node(11))],
+    );
+    frame(cx, handle).await;
     // Metadata moved to the native row envelope must still obey the logical
     // row's inert visibility gate; hiding only its inner content would leak AXRow.
     for inert in [true, false] {
@@ -309,6 +552,6 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
         .update(cx, |view, _, _| assert!(view.lists.is_empty()))
         .unwrap();
     eprintln!(
-        "GPUIO_TREE_SEMANTICS_OK: mounted outline/item hierarchy, selection/expanded/disabled, no duplicate/boundary items, update/removal and teardown; keyboard remains separate"
+        "GPUIO_TREE_SEMANTICS_OK: mounted outline/item hierarchy, selection/expanded/disabled, no duplicate/boundary items, update/removal and teardown; ordered keyboard, AppKit focus/select and child editor/IME isolation"
     );
 }

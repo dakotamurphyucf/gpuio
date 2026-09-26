@@ -130,6 +130,7 @@ let worker native notification_read ~self_test =
       | Carousel_requested _
       | Container_selected _
       | Animation_program_event _
+      | Tree_input _
       | Animation_endpoint _
       | File_dialog_result _ -> ()
     in

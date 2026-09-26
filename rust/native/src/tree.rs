@@ -99,6 +99,7 @@ pub struct Node {
     pub animation_program: Option<Arc<gpuio_protocol::animation_program::Config>>,
     pub navigation_stack: Option<gpuio_protocol::navigation_stack::Config>,
     pub carousel: Option<Arc<gpuio_protocol::carousel::Config>>,
+    pub tree_input: bool,
     pub container_query: Option<Arc<gpuio_protocol::container_query::Config>>,
     pub accessibility: Option<Arc<gpuio_protocol::accessibility::Config>>,
     pub list_config: Option<Arc<gpuio_protocol::list::Config>>,
@@ -859,6 +860,18 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
+                if node.tree_input
+                    && (node.kind != Kind::VirtualList
+                        || node.handler.is_none()
+                        || !node.accessibility.as_ref().is_some_and(|metadata| {
+                            matches!(
+                                metadata.role,
+                                Some(gpuio_protocol::accessibility::Role::Tree(_))
+                            )
+                        }))
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 if (node.kind == Kind::Carousel) != node.carousel.is_some()
                     || node.carousel.as_ref().is_some_and(|config| {
                         !config.is_valid()
@@ -1299,6 +1312,7 @@ impl Plan<'_> {
             | Op::SetAnimation(id, ..)
             | Op::SetAnimationProgram(id, ..)
             | Op::SetNavigationStack(id, ..)
+            | Op::SetTreeInput(id, ..)
             | Op::SetCarousel(id, ..)
             | Op::SetContainerQuery(id, ..)
             | Op::SetAccessibility(id, ..)
@@ -1423,6 +1437,7 @@ impl Plan<'_> {
                             animation_program: None,
                             navigation_stack: None,
                             carousel: None,
+                            tree_input: false,
                             container_query: None,
                             accessibility: None,
                             list_config: None,
@@ -1511,6 +1526,12 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.toast_stack = Some(Arc::new(config.clone()));
+            }
+            Op::SetTreeInput(id, enabled) => {
+                if self.node(*id)?.kind != Kind::VirtualList {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.tree_input = *enabled;
             }
             Op::SetCarousel(id, config) => {
                 let node = self.node(*id)?;

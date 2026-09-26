@@ -88,6 +88,8 @@ module Request = struct
     | Activate of Target.t
     | Reveal of Target.t * bool
     | Move of Move.t
+    | Select_active of Tree_loading.Lease.t * State.Selection.t
+    | Activate_active of Tree_loading.Lease.t
 
   let navigate snapshot ~selection direction =
     Navigate (Snapshot.lease snapshot, selection, direction)
@@ -97,6 +99,8 @@ module Request = struct
   let focus target = Focus target
   let set_expanded target expanded = Set_expanded (target, expanded)
   let activate target = Activate target
+  let select_active snapshot selection = Select_active (Snapshot.lease snapshot, selection)
+  let activate_active snapshot = Activate_active (Snapshot.lease snapshot)
   let reveal target ~focus = Reveal (target, focus)
   let move ~source ~destination placement = Move { source; destination; placement }
 end
@@ -144,6 +148,17 @@ let apply state snapshot request =
   | Request.Navigate (lease, selection, direction) ->
     if Tree_loading.Lease.equal lease (Snapshot.lease snapshot)
     then cursor (State.navigate state tree ~selection direction)
+    else None
+  | Select_active (lease, gesture) ->
+    if Tree_loading.Lease.equal lease (Snapshot.lease snapshot)
+    then
+      Option.bind (State.active state) ~f:(fun id ->
+        cursor (State.select state tree id gesture))
+    else None
+  | Activate_active lease ->
+    if Tree_loading.Lease.equal lease (Snapshot.lease snapshot)
+    then
+      Option.bind (State.active state) ~f:(fun id -> result ~action:(Activate id) state)
     else None
   | Select (target, gesture) ->
     targeted target (fun id -> cursor (State.select state tree id gesture))

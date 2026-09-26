@@ -132,6 +132,45 @@ impl Session {
         self.assets.acquire(id).map_err(|_| ImageError::Released)
     }
 
+    pub fn tree_input(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: gpuio_protocol::HandlerId,
+        revision: i64,
+        request: gpuio_protocol::tree_input::Request,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let current = state.tree.get(node)?;
+        if state.overloaded
+            || !current.tree_input
+            || !request.is_valid()
+            || !state.tree.accepts_handler(node, handler)
+            || revision < 0
+            || revision > state.tree.revision()
+        {
+            return None;
+        }
+        if let Some(target) = request.target() {
+            let row = current.list_rows.iter().find(|row| row.id == target)?;
+            let item = state.tree.get(row.node)?;
+            let Some(gpuio_protocol::accessibility::Role::TreeItem(metadata)) =
+                item.accessibility.as_ref()?.role
+            else {
+                return None;
+            };
+            if metadata.disabled
+                || (matches!(
+                    request,
+                    gpuio_protocol::tree_input::Request::SetExpanded(..)
+                ) && metadata.expanded.is_none())
+            {
+                return None;
+            }
+        }
+        Some(Event::TreeInput(window, node, handler, revision, request))
+    }
+
     pub fn list_viewport(
         &self,
         window: WindowId,
