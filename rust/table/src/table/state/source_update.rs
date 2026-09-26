@@ -1,5 +1,6 @@
 //! Keyed scroll preservation around atomic retained-source updates.
 use super::*;
+use crate::Size;
 use gpui::{DeferredScrollToItem, point};
 
 struct RowAnchor {
@@ -49,8 +50,19 @@ impl<D: TableDelegate> TableState<D> {
         cx: &mut Context<Self>,
         update: impl FnOnce(&mut D) -> R,
     ) -> R {
+        self.update_source_with_size(self.options.size, cx, update)
+    }
+
+    /// Preserve row identity and intra-row offset when fixed row height changes.
+    pub fn update_source_with_size<R>(
+        &mut self,
+        size: Size,
+        cx: &mut Context<Self>,
+        update: impl FnOnce(&mut D) -> R,
+    ) -> R {
         let anchors = self.capture_anchors(cx);
         let result = update(&mut self.delegate);
+        self.options.size = size;
         self.refresh(cx);
         self.restore_anchors(anchors, cx);
         result

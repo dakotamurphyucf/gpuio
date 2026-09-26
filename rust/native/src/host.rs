@@ -150,6 +150,9 @@ impl Default for Interaction {
     }
 }
 
+#[path = "table_view.rs"]
+pub(super) mod table_view;
+
 struct View {
     id: WindowId,
     window_title: String,
@@ -194,6 +197,7 @@ struct View {
     loading_probes: BTreeMap<NodeId, loading::Probe>,
     scrolls: BTreeMap<NodeId, Rc<scroll::State>>,
     lists: BTreeMap<NodeId, Rc<RefCell<list_view::State>>>,
+    tables: BTreeMap<NodeId, Rc<RefCell<table_view::State>>>,
     tree_drag: std::rc::Weak<tree_drag::Lease>,
     animations: BTreeMap<NodeId, Rc<RefCell<animation::State>>>,
     navigation: BTreeMap<NodeId, Rc<RefCell<navigation::State>>>,
@@ -424,6 +428,7 @@ impl View {
             loading_probes: Default::default(),
             scrolls: Default::default(),
             lists: Default::default(),
+            tables: Default::default(),
             tree_drag: Default::default(),
             animations: Default::default(),
             navigation: Default::default(),
@@ -442,6 +447,7 @@ impl View {
         self.sync_container_queries(dirty);
         self.sync_navigation(dirty);
         self.sync_lists(dirty, cx);
+        self.sync_tables(dirty, window, cx);
         self.sync_images(dirty, window, cx);
         self.sync_documents(dirty, window, cx);
         self.sync_extensions(dirty, window, cx);
@@ -538,6 +544,9 @@ impl View {
         }
         if node.kind == Kind::DocumentView {
             return self.document_element(tree, node, interaction, window, cx);
+        }
+        if node.table.is_some() {
+            return self.table_element(tree, node, interaction, window, cx);
         }
         if node.kind == Kind::VirtualList {
             return self.list_element(tree, node, interaction, window, cx);
@@ -1740,6 +1749,10 @@ impl Render for View {
                     .splits
                     .values()
                     .any(|state| state.focus.is_focused(window))
+                || self
+                    .tables
+                    .values()
+                    .any(|state| state.borrow().focused(window, cx))
                 || self.lists.values().any(|state| {
                     let state = state.borrow();
                     state.tree_focus.is_some() && state.owns_tree_focus(window)
@@ -1871,6 +1884,7 @@ pub fn run(transport: Arc<Transport>) {
         window_macos::install(cx,transport.clone());
         window_host::control(&transport,Event::WindowCapabilities(window_host::capabilities()));
         gpui_base::init(cx);
+        gpuio_table_adapter::init(cx);
         crate::image_host::init(cx);
         let motion = crate::motion_preference::init(cx);
         // GPUI defaults to last-window exit on Linux. Our explicit lifecycle
@@ -2004,6 +2018,7 @@ pub fn run(transport: Arc<Transport>) {
                                         let _ = window.update(cx, |view, window, cx| {
                                             view.update_editors(&applied.dirty, window, cx);
                                             view.list_actions(&applied.lists, window, cx);
+                                            view.table_actions(&applied.tables, window, cx);
                                             cx.notify();
                                         });
                                     }

@@ -9,12 +9,25 @@ use gpui::{
 
 use crate::{
     Appearance, Size, h_flex,
-    table::{Column, ColumnGroup, RowKey, TableState},
+    table::{Column, ColumnGroup, RowKey, TableEvent, TableState},
 };
 
 /// A delegate trait for providing data and rendering for a table.
 #[allow(unused)]
 pub trait TableDelegate: Sized + 'static {
+    /// Live host policy, checked before native input side effects.
+    fn input_enabled(&self, _cx: &App) -> bool {
+        true
+    }
+    /// Pointer policy may be narrower than keyboard eligibility.
+    fn pointer_enabled(&self, cx: &App) -> bool {
+        self.input_enabled(cx)
+    }
+
+    /// Called at native event creation, before deferred GPUI subscribers. Hosts
+    /// can capture a route generation and enqueue input here; never call OCaml.
+    fn table_event(&self, _event: &TableEvent, _cx: &mut Context<TableState<Self>>) {}
+
     /// Retained, per-table styling. Must not call a host language.
     fn appearance(&self) -> Appearance {
         Appearance::default()

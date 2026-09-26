@@ -129,6 +129,11 @@ pub fn run_native_list_test() {
     host::list_test::run();
 }
 
+#[cfg(feature = "native-tests")]
+pub fn run_native_table_host_test() {
+    host::table_view::run_test();
+}
+
 pub mod document_diff;
 
 pub mod document_markdown;

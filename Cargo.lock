@@ -2492,6 +2492,7 @@ dependencies = [
  "gpuio-extension-sdk",
  "gpuio-portal",
  "gpuio-protocol",
+ "gpuio-table-adapter",
  "gpuio-wayland",
  "image",
  "libc",

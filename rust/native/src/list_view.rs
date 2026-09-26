@@ -189,6 +189,11 @@ impl View {
                 )
             })
             .collect();
+        for (id, state) in &self.tables {
+            pins.entry(*id)
+                .or_default()
+                .extend(state.borrow().pins(window, cx));
+        }
         let session = self.session.borrow();
         let Some(tree) = session.tree(self.id) else {
             return vec![];
@@ -249,7 +254,16 @@ impl View {
         for state in self.lists.values() {
             state.borrow_mut().extra_pins.clear();
         }
+        for state in self.tables.values() {
+            state.borrow_mut().extra_pins.clear();
+        }
         for pins in self.list_pins(window, cx) {
+            if let Some(state) = self.tables.get(&pins.node) {
+                state
+                    .borrow_mut()
+                    .extra_pins
+                    .extend(pins.rows.iter().copied());
+            }
             if let Some(state) = self.lists.get(&pins.node) {
                 state.borrow_mut().extra_pins.extend(pins.rows);
             }
@@ -265,12 +279,13 @@ impl View {
         };
         self.lists.retain(|id, _| {
             tree.get(*id)
-                .is_some_and(|node| node.kind == Kind::VirtualList)
+                .is_some_and(|node| node.kind == Kind::VirtualList && node.table.is_none())
         });
         let dirty: BTreeSet<_> = dirty.iter().copied().collect();
         for id in &dirty {
             if let Some(node) = tree.get(*id)
                 && node.kind == Kind::VirtualList
+                && node.table.is_none()
             {
                 let state = self
                     .lists

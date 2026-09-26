@@ -422,7 +422,7 @@ where
     ) -> impl Fn(&E, &mut Window, &mut App) + 'static {
         let epoch = self.layout_epoch.clone();
         cx.listener(move |table, event, window, cx| {
-            if epoch.matches(&table.layout_epoch) {
+            if epoch.matches(&table.layout_epoch) && table.delegate.pointer_enabled(cx) {
                 f(table, event, window, cx);
             } else {
                 cx.stop_propagation();
@@ -437,7 +437,7 @@ where
     ) -> impl Fn(&E, &mut Window, &mut App) + 'static {
         let epoch = self.column_epoch.clone();
         cx.listener(move |table, event, window, cx| {
-            if epoch.matches(&table.column_epoch) {
+            if epoch.matches(&table.column_epoch) && table.delegate.pointer_enabled(cx) {
                 f(table, event, window, cx);
             } else {
                 cx.stop_propagation();
@@ -609,8 +609,8 @@ where
                 },
             );
         }
-        cx.emit(TableEvent::SelectRow(key));
-        cx.emit(TableEvent::RightClickedRow(None));
+        self.emit_event(TableEvent::SelectRow(key), cx);
+        self.emit_event(TableEvent::RightClickedRow(None), cx);
         cx.notify();
     }
 
@@ -647,7 +647,7 @@ where
         if let Some(col_ix) = self.selected_col {
             self.scroll_to_col(col_ix, cx);
         }
-        cx.emit(TableEvent::SelectColumn(column_key));
+        self.emit_event(TableEvent::SelectColumn(column_key), cx);
         cx.notify();
     }
 
@@ -706,7 +706,7 @@ where
             .scroll_to_item(row_ix, ScrollStrategy::Center);
         self.scroll_to_col(col_ix, cx);
 
-        cx.emit(TableEvent::SelectCell(row, column_key));
+        self.emit_event(TableEvent::SelectCell(row, column_key), cx);
         cx.notify();
     }
 
@@ -717,7 +717,7 @@ where
         self.selected_row = None;
         self.selected_col = None;
         self.selected_cell = None;
-        cx.emit(TableEvent::ClearSelection);
+        self.emit_event(TableEvent::ClearSelection, cx);
         cx.notify();
     }
 
@@ -894,7 +894,7 @@ where
         };
         self.right_clicked_row = row_ix;
         self.right_clicked_cell = None;
-        cx.emit(TableEvent::RightClickedRow(key));
+        self.emit_event(TableEvent::RightClickedRow(key), cx);
     }
 
     fn on_cell_right_click(
@@ -918,7 +918,7 @@ where
         cx.stop_propagation();
         self.right_clicked_cell = Some((row_ix, col_ix));
         self.right_clicked_row = None;
-        cx.emit(TableEvent::RightClickedCell(row, column));
+        self.emit_event(TableEvent::RightClickedCell(row, column), cx);
     }
 
     fn on_row_left_click(
@@ -938,7 +938,7 @@ where
         self.set_selected_row(row_ix, cx);
 
         if e.click_count() == 2 {
-            cx.emit(TableEvent::DoubleClickedRow(key));
+            self.emit_event(TableEvent::DoubleClickedRow(key), cx);
         }
     }
 
@@ -997,15 +997,29 @@ where
         self.set_selected_cell(row_ix, col_ix, cx);
 
         if is_double_click {
-            cx.emit(TableEvent::DoubleClickedCell(row, column));
+            self.emit_event(TableEvent::DoubleClickedCell(row, column), cx);
         }
+    }
+
+    fn emit_event(&self, event: TableEvent, cx: &mut Context<Self>) {
+        self.delegate.table_event(&event, cx);
+        cx.emit(event);
     }
 
     fn has_selection(&self) -> bool {
         self.selected_row.is_some() || self.selected_col.is_some() || self.selected_cell.is_some()
     }
 
-    pub(super) fn action_cancel(&mut self, _: &Cancel, _: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn action_cancel(
+        &mut self,
+        _: &Cancel,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.delegate.input_enabled(cx) || !self.focus_handle.is_focused(window) {
+            cx.propagate();
+            return;
+        }
         if self.has_selection() {
             self.clear_selection(cx);
             return;
@@ -1016,9 +1030,13 @@ where
     pub(super) fn action_select_prev(
         &mut self,
         _: &SelectUp,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if !self.delegate.input_enabled(cx) || !self.focus_handle.is_focused(window) {
+            cx.propagate();
+            return;
+        }
         let rows_count = self.delegate.rows_count(cx);
         if rows_count < 1 {
             return;
@@ -1061,9 +1079,13 @@ where
     pub(super) fn action_select_next(
         &mut self,
         _: &SelectDown,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if !self.delegate.input_enabled(cx) || !self.focus_handle.is_focused(window) {
+            cx.propagate();
+            return;
+        }
         let rows_count = self.delegate.rows_count(cx);
         if rows_count < 1 {
             return;
@@ -1109,9 +1131,13 @@ where
     pub(super) fn action_select_first_column(
         &mut self,
         _: &SelectFirst,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if !self.delegate.input_enabled(cx) || !self.focus_handle.is_focused(window) {
+            cx.propagate();
+            return;
+        }
         // Cell selection mode: move to first cell in current row
         if self.selection_mode.is_cell() {
             if let Some((row_ix, _)) = self.selected_cell {
@@ -1130,9 +1156,13 @@ where
     pub(super) fn action_select_last_column(
         &mut self,
         _: &SelectLast,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if !self.delegate.input_enabled(cx) || !self.focus_handle.is_focused(window) {
+            cx.propagate();
+            return;
+        }
         let columns_count = self.delegate.columns_count(cx);
 
         // Cell selection mode: move to last cell in current row
@@ -1153,9 +1183,13 @@ where
     pub(super) fn action_select_page_up(
         &mut self,
         _: &SelectPageUp,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if !self.delegate.input_enabled(cx) || !self.focus_handle.is_focused(window) {
+            cx.propagate();
+            return;
+        }
         let step = self.page_item_count();
 
         // Cell selection mode: move up by page within the same column
@@ -1182,9 +1216,13 @@ where
     pub(super) fn action_select_page_down(
         &mut self,
         _: &SelectPageDown,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if !self.delegate.input_enabled(cx) || !self.focus_handle.is_focused(window) {
+            cx.propagate();
+            return;
+        }
         let rows_count = self.delegate.rows_count(cx);
         if rows_count == 0 {
             return;
@@ -1218,9 +1256,13 @@ where
     pub(super) fn action_select_prev_col(
         &mut self,
         _: &SelectPrevColumn,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if !self.delegate.input_enabled(cx) || !self.focus_handle.is_focused(window) {
+            cx.propagate();
+            return;
+        }
         let columns_count = self.delegate.columns_count(cx);
 
         // Cell selection mode: move left within the same row
@@ -1256,9 +1298,13 @@ where
     pub(super) fn action_select_next_col(
         &mut self,
         _: &SelectNextColumn,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if !self.delegate.input_enabled(cx) || !self.focus_handle.is_focused(window) {
+            cx.propagate();
+            return;
+        }
         let columns_count = self.delegate.columns_count(cx);
 
         // Cell selection mode: move right within the same row
@@ -1370,10 +1416,10 @@ where
             }
         }
 
-        cx.emit(TableEvent::SortRequested(
-            self.col_groups[col_ix].column.key.clone(),
-            sort,
-        ));
+        self.emit_event(
+            TableEvent::SortRequested(self.col_groups[col_ix].column.key.clone(), sort),
+            cx,
+        );
 
         cx.notify();
     }
@@ -1402,10 +1448,13 @@ where
         self.right_clicked_cell = None;
         self.replace_selection(self.selection.clone(), cx);
 
-        cx.emit(TableEvent::MoveColumn {
-            column: self.col_groups[to_ix].column.key.clone(),
-            before: self.col_groups.get(to_ix + 1).map(|g| g.column.key.clone()),
-        });
+        self.emit_event(
+            TableEvent::MoveColumn {
+                column: self.col_groups[to_ix].column.key.clone(),
+                before: self.col_groups.get(to_ix + 1).map(|g| g.column.key.clone()),
+            },
+            cx,
+        );
         cx.notify();
     }
 
@@ -1711,7 +1760,7 @@ where
                         .iter()
                         .map(|g| (g.column.key.clone(), g.width))
                         .collect();
-                    cx.emit(TableEvent::ColumnWidthsChanged(new_widths));
+                    view.emit_event(TableEvent::ColumnWidthsChanged(new_widths), cx);
                     cx.notify();
                 }),
             )

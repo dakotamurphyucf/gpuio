@@ -165,8 +165,12 @@ Paired bounded table payload codecs and the pure Core `Table.Config` now pass
 independent byte fixtures and invalid-input/budget tests. Transaction/event
 envelopes now feed native tree admission, cell/schema byte accounting, ordered
 command admission and live session input validation. Query resets retire viewport
-handlers, and dirty cell edits revalidate table ownership. Native host rendering,
-command execution and public View/Bonsai dispatch remain to be connected; no
+handlers, and dirty cell edits revalidate table ownership. The retained native
+host now renders real cell Views, publishes bounded viewport demand, executes
+commands, shares focus retention and captures input routes at event creation.
+A local background-window test passes a sparse 100,000-row source, row-height
+anchor changes, single/empty data and entity release. Public View/Bonsai dispatch,
+clipboard/keyboard/accessibility and full-history/paging acceptance remain; no
 table capability is advertised.
 See [table design](design/data-tables.md) and
 [evidence](evidence/data-tables-och39.md).

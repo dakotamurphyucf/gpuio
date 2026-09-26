@@ -2475,6 +2475,7 @@ dependencies = [
  "gpuio-extension-sdk",
  "gpuio-portal",
  "gpuio-protocol",
+ "gpuio-table-adapter",
  "gpuio-wayland",
  "image",
  "libc",
@@ -2508,6 +2509,14 @@ name = "gpuio-protocol"
 version = "0.0.0"
 dependencies = [
  "binprot",
+]
+
+[[package]]
+name = "gpuio-table-adapter"
+version = "0.0.0"
+dependencies = [
+ "gpui",
+ "gpui-base",
 ]
 
 [[package]]

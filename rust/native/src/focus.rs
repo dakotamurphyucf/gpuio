@@ -169,7 +169,8 @@ impl Manager {
         let Some(item) = tree.get(node) else {
             return false;
         };
-        if item.carousel.as_ref().is_some_and(|config| config.disabled)
+        if item.table.as_ref().is_some_and(|config| config.disabled)
+            || item.carousel.as_ref().is_some_and(|config| config.disabled)
             || item.canvas.as_ref().is_some_and(|config| config.disabled)
             || item
                 .extension

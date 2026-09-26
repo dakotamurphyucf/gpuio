@@ -20,6 +20,7 @@ x11 = ["gpui/x11", "gpui_platform/x11"]
 gpuio-extension-sdk = { path = "../extension-sdk" }
 gpui-base = { path = "../../vendor/gpui-base" }
 gpuio-protocol = { path = "../protocol" }
+gpuio-table-adapter = { path = "../table" }
 gpui = { git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b", default-features = false }
 gpui_platform = { git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b", features = ["font-kit", "runtime_shaders"] }
 ocaml-interop = { git = "https://github.com/tizoc/ocaml-interop.git", rev = "9f941c63b8a9dcd652c6535da196f48d7a4dcc75", features = ["no-caml-startup"] }
@@ -243,5 +244,11 @@ required-features = ["native-tests"]
 
 [[test]]
 name = "native_carousel"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_table_host"
+path = "tests/native_table_host.rs"
 harness = false
 required-features = ["native-tests"]

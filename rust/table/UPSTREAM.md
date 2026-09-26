@@ -44,3 +44,12 @@ command precedence. Native tests exercise reversal, prepend, removal and empty
 sources, and row arrivals during active column gestures. Full Eio paging/query
 reconciliation, protocol/public widgets, accessibility and OCH-39 acceptance
 remain. No table capability is advertised.
+
+The retained native host now uses this adapter through a local crate dependency.
+Additional adaptation: per-delegate live input eligibility, keyboard focus checks,
+a native event hook before deferred subscribers (capturing host route generations),
+and anchor preservation across configured row-height changes. The hook only queues
+native transport input; no synchronous OCaml call is permitted. The host's actual
+painted-body viewport observation handles empty/single-row demand independently of
+the upstream visible-range measurement callback. Public widgets and full native
+acceptance remain separate from this extraction/integration evidence.

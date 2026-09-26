@@ -1,6 +1,7 @@
 # Read-only data tables (OCH-39)
 
-Status: column/data/paging foundations and initial extracted native adapter implemented.
+Status: column/data/paging, native admission and retained host renderer implemented;
+public Core/Bonsai component and full native acceptance remain.
 This document does not advertise a table capability or claim ticket acceptance.
 
 ## Ownership and scope
@@ -21,9 +22,9 @@ reconciled with application acceptance and explicit replacement commands.
 The ticket includes row/cell selection, keyboard navigation, Unicode copy,
 context actions, column resizing/reordering/left pinning/sort requests, grouped
 headers, empty/loading/error states and bounded paging. It does not include
-editable grid transactions. The public widget and native host renderer remain
-to be connected; paired wire descriptions and retained admission are implemented. The Core and Eio resources below are implemented, but are not
-yet connected to the native table or a Bonsai table component.
+editable grid transactions. The public widget remains to be connected; paired wire descriptions, retained
+admission and the native host renderer are implemented. The Core and Eio resources below are implemented, but are not
+yet connected through a public Core/Bonsai table component.
 
 ## Column schema
 
@@ -187,8 +188,8 @@ commands run after the update and take precedence. Revealing an already pinned
 column leaves the scrolling region unchanged.
 
 These contracts pass native layout and pointer tests, including row arrival
-during resize/reorder. The native host renderer, full Eio paging/query races and bounded
-retained cell-cache policy still require implementation and acceptance.
+during resize/reorder. Full Eio paging/query races and full-history bounded cache acceptance remain
+after the initial retained host integration below.
 
 ## Paired bridge descriptions and public configuration
 
@@ -224,16 +225,15 @@ bytes. Both languages match independent schema/cell/command/request byte
 fixtures. The combined fixture covers every command and request tag. Validators
 check pin boundaries, nested header refinement and cell budgets.
 These payload types are connected to transaction/event envelopes and native
-session admission. The host renderer, public `View` constructors and Bonsai table
-component remain to be connected. Declaring a Copy request does not establish
+session admission and the host renderer. Public `View` constructors and the Bonsai
+table component remain to be connected. Declaring a Copy request does not establish
 clipboard behavior.
 
 ## Retained transaction and input contract
 
 An internal `Virtual_list` node with `Set_table` metadata specializes the shared
-logical row index and active row mapping. It needs a separate native table
-renderer; the ordinary GPUI variable-height list renderer is not the table
-implementation. Its managed-list configuration must exactly match the table's
+logical row index and active row mapping. A separate native table renderer owns
+its GPUI entity; it does not allocate ordinary variable-height list state. Its managed-list configuration must exactly match the table's
 fixed row height, overscan, active-row limit and scrollbar setting, with
 `Keep_position` anchoring. Table and tree input modes cannot share a root.
 
@@ -273,8 +273,49 @@ but application callback dispatch still awaits the public mounted adapter.
 
 The new operation/event tags append to the under-development protocol without
 changing existing tags. No table capability is advertised from admission alone.
-Actual rendering, command execution, clipboard effects, current native focus
-pins and public event dispatch still require integration and native acceptance.
+Rendering, command execution and native focus pins are now integrated. Clipboard
+effects and public event dispatch still require integration; broader native
+keyboard/accessibility/cache/lifecycle acceptance remains.
+
+## Retained native host
+
+The host keeps one native table entity per admitted root. Its delegate shares the
+current row index, config and bounded active child-node references. Cell rendering
+uses a weak parent View reference to render retained Rust descriptions. No row
+formatter, comparison, producer or OCaml callback runs during GPUI layout/paint.
+Missing cells paint placeholders until the UI delivers the requested rows.
+
+A frame wrapper observes actual UniformList body bounds and scroll offset after
+prepaint. It clips to the current viewport, reserves focus/composition pins, then
+requests visible and overscan rows within the active budget. This handles empty
+and single-row data without treating measurement callbacks as visible demand.
+The ordinary viewport envelope carries the current handler and logical order.
+The table's root focus target is recorded during paint, after the shared focus
+manager begins the frame. Selected rows with table focus and focused materialized
+rows join the existing live retention checks.
+
+Accepted source or configuration changes preserve keyed anchors through
+`update_source_with_size`, including a change to fixed row height. Cell content
+updates replace bounded mappings and repaint without resetting column gestures.
+Schema/query rebinding and explicit reset commands reapply accepted columns.
+Admitted selection, reveal, offset, column, end and reset commands execute after
+tree synchronization. Explicit offset commands clear older deferred scrolls.
+
+The adapter invokes a native delegate event hook at event creation, before GPUI's
+deferred subscribers. The hook validates and enqueues the captured route; a later
+query update cannot relabel already-created input. Existing GPUI subscribers
+still receive keyed events. Live input eligibility guards pointer changes and
+keyboard navigation; navigation requires the table itself to own focus, leaving
+child-control keys with their controls. Pointer-event styles are resolved against
+the current retained ancestry. `Context Empty` means clearing the context target,
+including the upstream reset emitted after row selection; it is not an instruction
+to open an empty context menu.
+
+Root background/foreground, border, hover, focus-highlight and radius styles have
+native table equivalents. This is initial presentation integration, not a claim
+that every style refinement or accessibility contract has passed acceptance.
+The local host test drives actual GPUI layout/paint in a background window; it is
+not foreground keyboard, clipboard or IME acceptance.
 
 ## Remaining acceptance
 

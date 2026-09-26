@@ -349,3 +349,61 @@ The full build also caught two exhaustive event matches in the low-level bridge
 and View examples; both now explicitly ignore table events they do not register.
 No additional native windows were needed for this checkpoint. Hosted macOS/Linux
 validation and merge remain part of the full milestone gate.
+
+
+## Retained native host rendering
+
+`rust/native/src/table_view.rs` connects admitted table roots to the extracted
+GPUI table entity. The delegate reads current Rust cell Views and logical row
+indices; the ordinary list state is not allocated for table roots. The native
+host executes admitted commands and publishes viewport demand from real body
+bounds after prepaint. Shared retention guards include table focus and active
+row handles. Native input captures its route through a delegate hook before
+GPUI defers subscriber delivery.
+
+`GPUIO_JOBS=2 python3 scripts/test_table_host.py` passes a real background-window
+host scenario:
+
+- 100,000 logical rows, 12 materialized rows, two columns including a left-pinned
+  column and horizontal overflow. A retained text View actually paints through
+  the production host; active cell descriptions stay bounded.
+- Initial viewport demand and scrolling to row 50,001 at a seven-pixel offset;
+  missing rows are requested and then materialized using the bounded node pool.
+- Admitted keyed cell selection and row/column reveal. Changing fixed row height
+  from 32 to 48 preserves row 50,001 and its seven-pixel intra-row offset.
+- Focus registration after the shared frame begins, selected-row retention and
+  immediate native input captured with the current query. A saved old route is
+  rejected after query/handler replacement.
+- Live pointer and disabled policy changes reject input immediately before the
+  next paint, including enabling input again after a policy change.
+- Single-row and empty sources publish correct viewport ranges without depending
+  on upstream measurement callbacks. Removing the root releases the native entity
+  and returns retained-tree accounting to zero.
+
+The first background run timed out waiting for a display-link frame. It closed
+its window and returned a failing process. The harness now explicitly drives
+actual GPUI `window.draw` layout/paint, matching the existing extracted-adapter
+harness; this keeps the window in the background. It does not establish foreground
+keyboard/IME/clipboard behavior. The wrapper bounds process lifetime, kills and
+reaps its process group on timeout, and requires an explicit completion marker.
+
+`GPUIO_JOBS=2 python3 scripts/test_table_adapter.py` also passes all existing
+sampled virtualization, keyed selection, pointer/column events, scroll anchors
+and entity-release checks, plus its intentional failure-exit/cleanup test. The
+new native delegate hook preserves existing GPUI event subscription behavior.
+
+The native Cargo dependency and both workspace/example lockfiles add only the
+local `gpuio-table-adapter` edge/package; upstream dependency pins are unchanged.
+The macOS CI workflow includes the host harness for the later consolidated run.
+No hosted execution is claimed yet. Public Core/Bonsai views and callback dispatch,
+clipboard/context UI, foreground keyboard, native accessibility, full-history
+cache and end-to-end Eio paging acceptance remain outstanding; no table capability
+is advertised.
+
+Final local host-integration checks pass: the full Rust workspace tests, workspace
+all-target Clippy with warnings denied, Dune `@all @runtest @fmt` (including the
+locked external extension consumer), `cargo fmt --all --check`, and the final
+expanded native host harness. The external-consumer lockfile initially lacked
+the new local adapter dependency and Clippy caught a unit-valued prepaint binding;
+both were corrected before those final checks. These checks establish this native
+host checkpoint, not the remaining public widget or full OCH-39 acceptance.
