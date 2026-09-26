@@ -2152,6 +2152,7 @@ let dispatch t = function
   | Rating_requested _
   | Carousel_requested _
   | Tree_input _
+  | Table_input _
   | Slider_result _
   | Slider_event _
   | Color_input_result _

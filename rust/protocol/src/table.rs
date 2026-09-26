@@ -291,3 +291,177 @@ impl Request {
         }
     }
 }
+
+impl Schema {
+    /// Retained admission units include containers and repeated group strings.
+    pub fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + self.columns.len() * std::mem::size_of::<Column>()
+            + self
+                .columns
+                .iter()
+                .map(|c| c.id.len() + c.label.len())
+                .sum::<usize>()
+            + self.headers.len() * std::mem::size_of::<Vec<Group>>()
+            + self
+                .headers
+                .iter()
+                .flatten()
+                .map(|g| {
+                    std::mem::size_of::<Group>()
+                        + g.label.len()
+                        + g.columns.len() * std::mem::size_of::<String>()
+                        + g.columns.iter().map(String::len).sum::<usize>()
+                })
+                .sum::<usize>()
+    }
+
+    /// Reorder keyed groups together with their members, preserving their sets.
+    /// A move that splits a group or pinned prefix has no valid result.
+    pub fn moved(&self, column: &str, before: Option<&str>) -> Option<Self> {
+        let from = self
+            .columns
+            .iter()
+            .position(|c| c.id == column && c.movable)?;
+        if before == Some(column)
+            || before.is_some_and(|id| !self.columns.iter().any(|c| c.id == id))
+        {
+            return None;
+        }
+        let mut next = self.clone();
+        let moved = next.columns.remove(from);
+        let target = before
+            .and_then(|id| next.columns.iter().position(|c| c.id == id))
+            .unwrap_or(next.columns.len());
+        next.columns.insert(target, moved);
+        let positions = next
+            .columns
+            .iter()
+            .enumerate()
+            .map(|(i, c)| (c.id.as_str(), i))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        for level in &mut next.headers {
+            for group in level.iter_mut() {
+                group
+                    .columns
+                    .sort_by_key(|id| positions.get(id.as_str()).copied());
+            }
+            level.sort_by_key(|group| {
+                group
+                    .columns
+                    .first()
+                    .and_then(|id| positions.get(id.as_str()))
+                    .copied()
+            });
+        }
+        next.is_valid().then_some(next)
+    }
+}
+impl Config {
+    pub fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + self.schema.retained_bytes()
+            + self.label.len()
+            + self.sort.as_ref().map_or(0, |sort| sort.column.len())
+    }
+    pub fn list_config(&self) -> crate::list::Config {
+        crate::list::Config {
+            estimated_height: self.row_height,
+            overscan: self.overscan,
+            max_active: self.max_active_rows,
+            scroll_policy: crate::list::ScrollPolicy::KeepPosition,
+            scrollbar: self.scrollbar,
+            managed: true,
+        }
+    }
+    pub fn has_column(&self, id: &str) -> bool {
+        self.schema.columns.iter().any(|column| column.id == id)
+    }
+    pub fn allows_selection(
+        &self,
+        selection: &Selection,
+        row_exists: impl Fn(i64) -> bool,
+    ) -> bool {
+        match selection {
+            Selection::Empty => true,
+            Selection::Row(row) => self.selection_mode != SelectionMode::Cells && row_exists(*row),
+            Selection::Column(column) => self.column_selection && self.has_column(column),
+            Selection::Cell(row, column) => {
+                self.selection_mode != SelectionMode::Rows
+                    && row_exists(*row)
+                    && self.has_column(column)
+            }
+        }
+    }
+    pub fn allows_target(&self, target: &Target, row_exists: impl Fn(i64) -> bool) -> bool {
+        match target {
+            Target::SetSelection(selection) => self.allows_selection(selection, row_exists),
+            Target::Reveal(row, column) => {
+                row_exists(*row) && column.as_ref().is_none_or(|id| self.has_column(id))
+            }
+            Target::ScrollTo(row, offset) => row_exists(*row) && *offset < self.row_height,
+            Target::ScrollToColumn(column) => self.has_column(column),
+            Target::ScrollToEnd | Target::ResetColumns => true,
+        }
+    }
+    pub fn allows_request(&self, request: &Request, row_exists: impl Fn(i64) -> bool) -> bool {
+        if self.disabled || !request.is_valid() {
+            return false;
+        }
+        match request {
+            Request::Select(selection) | Request::Context(selection) => {
+                self.allows_selection(selection, row_exists)
+            }
+            Request::Copy(selection) => {
+                *selection != Selection::Empty && self.allows_selection(selection, row_exists)
+            }
+            Request::Activate(row, column) => {
+                row_exists(*row) && column.as_ref().is_none_or(|id| self.has_column(id))
+            }
+            Request::Resize(widths) => widths.iter().all(|(id, width)| {
+                self.schema.columns.iter().any(|c| {
+                    c.id == *id
+                        && (c.min_width..=c.max_width).contains(width)
+                        && (c.resizable || c.width == *width)
+                })
+            }),
+            Request::Move(column, before) => self.schema.moved(column, before.as_deref()).is_some(),
+            Request::Sort(column, _) => self
+                .schema
+                .columns
+                .iter()
+                .any(|c| c.id == *column && c.sortable),
+        }
+    }
+}
+impl Cell {
+    pub fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>() + self.column.len() + self.copy_text.len()
+    }
+}
+impl Request {
+    /// Conservative encoded size contribution, including per-item framing.
+    pub fn payload_bytes(&self) -> usize {
+        match self {
+            Self::Select(s) | Self::Context(s) | Self::Copy(s) => match s {
+                Selection::Column(c) | Selection::Cell(_, c) => c.len() + 16,
+                Selection::Empty | Selection::Row(_) => 16,
+            },
+            Self::Activate(_, c) => c.as_ref().map_or(0, String::len) + 32,
+            Self::Resize(widths) => widths.iter().map(|(c, _)| c.len() + 32).sum(),
+            Self::Move(c, before) => c.len() + before.as_ref().map_or(0, String::len) + 32,
+            Self::Sort(c, _) => c.len() + 16,
+        }
+    }
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct Input {
+    pub schema_revision: i64,
+    pub query_generation: i64,
+    pub request: Request,
+}
+impl Input {
+    pub fn is_valid(&self) -> bool {
+        self.schema_revision > 0 && self.query_generation >= 0 && self.request.is_valid()
+    }
+}

@@ -1,3 +1,5 @@
+#[path = "table_tree.rs"]
+mod table;
 use gpuio_protocol::{HandlerId, NodeId, WindowId, v1::*};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -99,6 +101,9 @@ pub struct Node {
     pub animation_program: Option<Arc<gpuio_protocol::animation_program::Config>>,
     pub navigation_stack: Option<gpuio_protocol::navigation_stack::Config>,
     pub carousel: Option<Arc<gpuio_protocol::carousel::Config>>,
+    pub table: Option<Arc<gpuio_protocol::table::Config>>,
+    pub table_cell: Option<Arc<gpuio_protocol::table::Cell>>,
+    pub table_serial: i64,
     pub tree_input: bool,
     pub tree_moves: bool,
     pub container_query: Option<Arc<gpuio_protocol::container_query::Config>>,
@@ -123,9 +128,17 @@ pub struct Node {
 
 impl Node {
     fn payload_bytes(&self) -> usize {
-        self.carousel
+        self.table
             .as_ref()
             .map_or(0, |config| config.retained_bytes())
+            + self
+                .table_cell
+                .as_ref()
+                .map_or(0, |cell| cell.retained_bytes())
+            + self
+                .carousel
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
             + self
                 .color_input
                 .as_ref()
@@ -313,6 +326,7 @@ pub struct Applied {
     pub validated_nodes: usize,
     pub dirty: Vec<NodeId>,
     pub lists: Vec<ListAction>,
+    pub tables: Vec<(NodeId, gpuio_protocol::table::Command)>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -478,12 +492,19 @@ impl Tree {
             budget: budget.min(MAX_RETAINED_BYTES),
             structural: false,
             lists: Vec::new(),
+            tables: Vec::new(),
         };
         let mut extension_updates = BTreeSet::new();
         let mut canvas_updates = BTreeSet::new();
         let mut program_updates = BTreeSet::new();
         let mut query_updates = BTreeSet::new();
+        let mut table_updates = BTreeSet::new();
         for op in &tx.operations {
+            if let Op::SetTable(id, _) = op
+                && !table_updates.insert(*id)
+            {
+                return Err(ErrorCode::InvalidTree.into());
+            }
             if let Op::SetContainerQuery(id, _) = op
                 && !query_updates.insert(*id)
             {
@@ -1017,9 +1038,13 @@ impl Tree {
         }
         for id in &dirty {
             plan.validate_button_icons(*id)?;
+            plan.validate_table(plan.node(*id)?)?;
         }
         if let Some(root) = plan.root {
             dirty.insert(root);
+        }
+        for (node, command) in plan.tables.clone() {
+            plan.validate_table_command(node, &command)?;
         }
         let touched_records = plan.changes.len();
         for action in &plan.lists {
@@ -1082,6 +1107,7 @@ impl Tree {
             canvas_count,
             retained_bytes,
             lists,
+            tables,
             ..
         } = plan;
         // All validation has succeeded. Reserve before mutating semantic state.
@@ -1105,6 +1131,7 @@ impl Tree {
             validated_nodes,
             dirty: dirty.into_iter().collect(),
             lists,
+            tables,
         })
     }
 }
@@ -1147,6 +1174,7 @@ struct Plan<'a> {
     budget: usize,
     structural: bool,
     lists: Vec<ListAction>,
+    tables: Vec<(NodeId, gpuio_protocol::table::Command)>,
 }
 
 impl Plan<'_> {
@@ -1210,6 +1238,9 @@ impl Plan<'_> {
                 }
             }
             ListAction::Scroll(_, request) => {
+                if node.table.is_some() {
+                    return Err(ErrorCode::InvalidTree);
+                }
                 use gpuio_protocol::list::ScrollTarget;
                 if request.serial < 1 {
                     return Err(ErrorCode::InvalidTree);
@@ -1323,6 +1354,9 @@ impl Plan<'_> {
             | Op::SetAnimationProgram(id, ..)
             | Op::SetNavigationStack(id, ..)
             | Op::SetTreeInput(id, ..)
+            | Op::SetTable(id, ..)
+            | Op::SetTableCell(id, ..)
+            | Op::TableCommand(id, ..)
             | Op::SetTreeMoves(id, ..)
             | Op::SetCarousel(id, ..)
             | Op::SetContainerQuery(id, ..)
@@ -1448,6 +1482,9 @@ impl Plan<'_> {
                             animation_program: None,
                             navigation_stack: None,
                             carousel: None,
+                            table: None,
+                            table_cell: None,
+                            table_serial: 0,
                             tree_input: false,
                             tree_moves: false,
                             container_query: None,
@@ -1538,6 +1575,37 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.toast_stack = Some(Arc::new(config.clone()));
+            }
+            Op::SetTable(id, config) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::VirtualList
+                    || !config.is_valid()
+                    || node.table.as_ref().is_some_and(|old| {
+                        config.schema_revision < old.schema_revision
+                            || config.query_generation < old.query_generation
+                            || ((config.schema != old.schema || config.sort != old.sort)
+                                && config.schema_revision <= old.schema_revision)
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.table = Some(Arc::new(config.clone()));
+            }
+            Op::SetTableCell(id, cell) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::Container
+                    || !cell.is_valid()
+                    || node
+                        .table_cell
+                        .as_ref()
+                        .is_some_and(|old| old.column != cell.column)
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.table_cell = Some(Arc::new(cell.clone()));
+            }
+            Op::TableCommand(id, command) => {
+                self.tables.push((*id, command.clone()));
             }
             Op::SetTreeInput(id, enabled) => {
                 if self.node(*id)?.kind != Kind::VirtualList {

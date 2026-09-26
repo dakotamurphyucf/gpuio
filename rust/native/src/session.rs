@@ -132,6 +132,29 @@ impl Session {
         self.assets.acquire(id).map_err(|_| ImageError::Released)
     }
 
+    pub fn table_input(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        input: gpuio_protocol::table::Input,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let current = state.tree.get(node)?;
+        let config = current.table.as_ref()?;
+        let index = current.list_index.as_ref()?;
+        (!state.overloaded
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision()
+            && input.is_valid()
+            && input.schema_revision == config.schema_revision
+            && input.query_generation == config.query_generation
+            && config.allows_request(&input.request, |row| index.position(row).is_some()))
+        .then_some(Event::TableInput(window, node, handler, revision, input))
+    }
+
     pub fn tree_input(
         &self,
         window: WindowId,

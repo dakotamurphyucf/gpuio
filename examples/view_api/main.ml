@@ -131,6 +131,7 @@ let worker native notification_read ~self_test =
       | Container_selected _
       | Animation_program_event _
       | Tree_input _
+      | Table_input _
       | Animation_endpoint _
       | File_dialog_result _ -> ()
     in

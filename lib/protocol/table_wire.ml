@@ -290,3 +290,16 @@ module Request = struct
     | Sort (column, _) -> valid_id column
   ;;
 end
+
+module Input = struct
+  type t =
+    { schema_revision : int64
+    ; query_generation : int64
+    ; request : Request.t
+    }
+  [@@deriving bin_io, equal, sexp_of]
+
+  let valid t =
+    Int64.(t.schema_revision > 0L && t.query_generation >= 0L) && Request.valid t.request
+  ;;
+end

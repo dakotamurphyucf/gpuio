@@ -11,6 +11,7 @@ module Number_input = Number_input_wire
 module Otp_input = Otp_wire
 module Calendar = Calendar_wire
 module Color_input = Color_input_wire
+module Table = Table_wire
 module Tree_input = Tree_input_wire
 module Carousel = Carousel_wire
 module Navigation_stack = Navigation_stack_wire
@@ -751,6 +752,9 @@ module Op = struct
     | Set_carousel of Node_id.t * Carousel.Config.t
     | Set_tree_input of Node_id.t * bool
     | Set_tree_moves of Node_id.t * bool
+    | Set_table of Node_id.t * Table.Config.t
+    | Set_table_cell of Node_id.t * Table.Cell.t
+    | Table_command of Node_id.t * Table.Command.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -1067,6 +1071,7 @@ module Event = struct
     | Carousel_requested of
         Window_id.t * Node_id.t * Handler_id.t * int64 * Carousel.Request.t
     | Tree_input of Window_id.t * Node_id.t * Handler_id.t * int64 * Tree_input.Request.t
+    | Table_input of Window_id.t * Node_id.t * Handler_id.t * int64 * Table.Input.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1145,6 +1150,8 @@ module Event = struct
       Int64.(revision >= 0L) && Number_input.Event.valid event
     | Slider_event (_, _, _, revision, event) ->
       Int64.(revision >= 0L) && Slider.Event.valid event
+    | Table_input (_, _, _, revision, input) ->
+      Int64.(revision >= 0L) && Table.Input.valid input
     | Tree_input (_, _, _, revision, request) ->
       Int64.(revision >= 0L) && Tree_input.Request.valid request
     | Carousel_requested (_, _, _, revision, request) ->

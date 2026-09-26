@@ -137,6 +137,7 @@ let worker native notification_read =
       | Container_selected _
       | Animation_program_event _
       | Tree_input _
+      | Table_input _
       | Animation_endpoint _
       | Command_invoked _ -> ()
     in

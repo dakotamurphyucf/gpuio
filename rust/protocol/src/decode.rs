@@ -982,6 +982,9 @@ impl Decoder<'_> {
             49 => Op::SetCarousel(self.node()?, self.carousel_config()?),
             50 => Op::SetTreeInput(self.node()?, self.boolean()?),
             51 => Op::SetTreeMoves(self.node()?, self.boolean()?),
+            52 => Op::SetTable(self.node()?, self.table_config()?),
+            53 => Op::SetTableCell(self.node()?, self.table_cell()?),
+            54 => Op::TableCommand(self.node()?, self.table_command()?),
             47 => Op::SetColorInput(
                 self.node()?,
                 Box::new(self.color_config()?),

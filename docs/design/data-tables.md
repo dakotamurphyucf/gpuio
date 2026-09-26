@@ -21,8 +21,8 @@ reconciled with application acceptance and explicit replacement commands.
 The ticket includes row/cell selection, keyboard navigation, Unicode copy,
 context actions, column resizing/reordering/left pinning/sort requests, grouped
 headers, empty/loading/error states and bounded paging. It does not include
-editable grid transactions. The public widget and paired wire contracts remain
-to be implemented. The Core and Eio resources below are implemented, but are not
+editable grid transactions. The public widget and native host renderer remain
+to be connected; paired wire descriptions and retained admission are implemented. The Core and Eio resources below are implemented, but are not
 yet connected to the native table or a Bonsai table component.
 
 ## Column schema
@@ -187,7 +187,7 @@ commands run after the update and take precedence. Revealing an already pinned
 column leaves the scrolling region unchanged.
 
 These contracts pass native layout and pointer tests, including row arrival
-during resize/reorder. The paired bridge, full Eio paging/query races and bounded
+during resize/reorder. The native host renderer, full Eio paging/query races and bounded
 retained cell-cache policy still require implementation and acceptance.
 
 ## Paired bridge descriptions and public configuration
@@ -206,7 +206,7 @@ selection, command and request data. `Table_column.Expert` converts schemas usin
 the same validated constructors as application code. Bridge schema revisions and
 query generations belong to the mounted adapter, and logical row order retains
 the existing list-order revision. Commands carry increasing serials and query
-generation; the future host must validate those against its live mount and data.
+generation; native transaction admission validates these against the final live data.
 Requests carry stable row IDs and column keys, never callbacks or borrowed data.
 
 The hard description budget is **16,384 active cells**, with
@@ -215,16 +215,66 @@ cells in active rows even when horizontal painting visits fewer cells. Copy text
 is a separate retained UTF-8 string, at most **65,536 bytes per cell**, without NUL;
 empty text is valid. Counts do not replace byte limits: native admission must also
 account for copy strings and schema metadata within the existing 1 MiB message
-and 64 MiB retained-tree budgets. That native accounting is not implemented yet.
+and 64 MiB retained-tree budgets. Native transaction admission now charges schema
+containers/text and cell copy strings to that existing retained-tree quota.
 
 Rust decoders bound counts and aggregate schema text before allocation, reject
 invalid enum tags, nonfinite numbers, malformed UTF-8, truncation and trailing
 bytes. Both languages match independent schema/cell/command/request byte
 fixtures. The combined fixture covers every command and request tag. Validators
 check pin boundaries, nested header refinement and cell budgets.
-These payload types are not yet connected to transaction/event envelopes, the
-native session, public `View` constructors or a Bonsai table component. In
-particular, declaring a Copy request does not establish clipboard behavior.
+These payload types are connected to transaction/event envelopes and native
+session admission. The host renderer, public `View` constructors and Bonsai table
+component remain to be connected. Declaring a Copy request does not establish
+clipboard behavior.
+
+## Retained transaction and input contract
+
+An internal `Virtual_list` node with `Set_table` metadata specializes the shared
+logical row index and active row mapping. It needs a separate native table
+renderer; the ordinary GPUI variable-height list renderer is not the table
+implementation. Its managed-list configuration must exactly match the table's
+fixed row height, overscan, active-row limit and scrollbar setting, with
+`Keep_position` anchoring. Table and tree input modes cannot share a root.
+
+Each active row maps to an inert Container. Its children follow schema order,
+with one inert Container per column, `Set_table_cell` metadata and exactly one
+ordinary child View. Cell metadata fixes the wrapper's column identity; changing
+that identity requires a replacement wrapper. The wrapper hierarchy is internal,
+not an application API. Final structure and all dirty table ancestors are checked,
+so a cell-only edit cannot bypass row/schema ownership validation. Unmounted cell
+copy text is released without deleting the logical row index.
+
+A schema revision cannot decrease. Changed columns, groups or accepted sort must
+advance it; increasing it with equal values is allowed. Other configuration
+changes, such as geometry or disabled state, do not require a schema revision.
+Query generation cannot decrease. Advancing it requires replacing the mounted
+handler even when row order stays unchanged: ordinary viewport envelopes carry
+that handler and therefore cannot cross a query reset. These checks apply to the
+final transaction snapshot, independently of Bind/config operation order.
+
+`Table_command` actions are ordered and ephemeral. Each serial must strictly
+increase over earlier commands for the same node lifetime, including earlier
+commands in the transaction. Query generation, logical row membership, column
+membership and selection policy are checked against the final snapshot. A scroll
+offset must be less than the configured row height. A failed action rolls back
+all serials and other transaction changes. Accepted actions appear in
+`Applied.tables`; no historical command retains a row or prevents later removal.
+Programmatic commands can operate while user input is disabled.
+
+`Table_input` captures schema and query generations alongside window, node,
+handler and tree revision. The native session rejects obsolete routes and checks
+logical row membership, live columns, selection mode, resize limits and locks,
+move/group/pin policy, sortable flags and disabled state. Offscreen logical rows
+are valid targets even when their cell descriptions are absent. Requests remain
+ordered in the bounded mailbox; resize column strings count toward its byte
+budget and message-sized drains. The OCaml event envelope validates payloads,
+but application callback dispatch still awaits the public mounted adapter.
+
+The new operation/event tags append to the under-development protocol without
+changing existing tags. No table capability is advertised from admission alone.
+Actual rendering, command execution, clipboard effects, current native focus
+pins and public event dispatch still require integration and native acceptance.
 
 ## Remaining acceptance
 

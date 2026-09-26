@@ -947,6 +947,7 @@ let process t = function
     | Color_input_event (id, _, _, _, _)
     | Calendar_event (id, _, _, _, _)
     | Rating_requested (id, _, _, _, _)
+    | Table_input (id, _, _, _, _)
     | Tree_input (id, _, _, _, _)
     | Carousel_requested (id, _, _, _, _)
     | Choice (id, _, _, _, _)

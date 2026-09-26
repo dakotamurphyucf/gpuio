@@ -13,6 +13,7 @@ module type S = sig
   module Otp_input = Otp_wire
   module Calendar = Calendar_wire
   module Color_input = Color_input_wire
+  module Table = Table_wire
   module Tree_input = Tree_input_wire
   module Carousel = Carousel_wire
   module Navigation_stack = Navigation_stack_wire
@@ -753,6 +754,9 @@ module type S = sig
       | Set_carousel of Node_id.t * Carousel.Config.t
       | Set_tree_input of Node_id.t * bool
       | Set_tree_moves of Node_id.t * bool
+      | Set_table of Node_id.t * Table.Config.t
+      | Set_table_cell of Node_id.t * Table.Cell.t
+      | Table_command of Node_id.t * Table.Command.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -993,6 +997,7 @@ module type S = sig
           Window_id.t * Node_id.t * Handler_id.t * int64 * Carousel.Request.t
       | Tree_input of
           Window_id.t * Node_id.t * Handler_id.t * int64 * Tree_input.Request.t
+      | Table_input of Window_id.t * Node_id.t * Handler_id.t * int64 * Table.Input.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

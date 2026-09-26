@@ -15,6 +15,7 @@ pub const MAX_INPUT_BYTES: usize = 4 * MAX_MESSAGE_BYTES;
 // Drain includes those prefixes when fitting a response batch into 1 MiB.
 fn event_bytes(event: &Event) -> usize {
     256 + match event {
+        Event::TableInput(_, _, _, _, input) => input.request.payload_bytes(),
         Event::TreeInput(
             _,
             _,
@@ -581,6 +582,7 @@ impl Mailbox {
             | Event::Press(id, ..)
             | Event::EditorEvent(id, ..)
             | Event::RatingRequested(id, ..)
+            | Event::TableInput(id, ..)
             | Event::TreeInput(id, ..)
             | Event::CarouselRequested(id, ..)
             | Event::SliderEvent(id, ..)
@@ -708,6 +710,55 @@ mod tree_typeahead_tests {
         mailbox.input(event.clone()).unwrap();
         assert_eq!(mailbox.input_bytes, 1024);
         assert_eq!(mailbox.drain(128), vec![event.clone(), event]);
+        assert_eq!(mailbox.input_bytes, 0);
+    }
+}
+
+#[cfg(test)]
+mod table_input_tests {
+    use super::*;
+    #[test]
+    fn table_requests_remain_ordered_and_charge_every_column_string() {
+        use binprot::BinProtWrite;
+        use gpuio_protocol::{
+            HandlerId, NodeId,
+            table::{Input, Request},
+        };
+        let request = Request::Resize(
+            (0..64)
+                .map(|i| (format!("{i:03}{}", "x".repeat(253)), 160.))
+                .collect(),
+        );
+        let input = Input {
+            schema_revision: 1,
+            query_generation: 0,
+            request,
+        };
+        assert!(input.is_valid());
+        let event = Event::TableInput(
+            WindowId::from_parts(0, 1).unwrap(),
+            NodeId::from_parts(0, 1).unwrap(),
+            HandlerId::from_parts(0, 1).unwrap(),
+            1,
+            input,
+        );
+        let mut bytes = Vec::new();
+        event.binprot_write(&mut bytes).unwrap();
+        assert!(event_bytes(&event) >= bytes.len());
+        assert!(event_bytes(&event) > 64 * 256);
+        let mut mailbox = Mailbox::default();
+        for _ in 0..MAX_INPUT_EVENTS {
+            mailbox.input(event.clone()).unwrap();
+        }
+        assert!(mailbox.input(event.clone()).is_err());
+        assert!(mailbox.has_window_output(0));
+        let mut drained = Vec::new();
+        while mailbox.has_window_output(0) {
+            let batch = mailbox.drain(128);
+            assert!(!batch.is_empty());
+            drained.extend(batch);
+        }
+        assert_eq!(drained, vec![event; MAX_INPUT_EVENTS]);
         assert_eq!(mailbox.input_bytes, 0);
     }
 }

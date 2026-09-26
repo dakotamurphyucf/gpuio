@@ -162,9 +162,12 @@ and prepend; unchanged schemas preserve resize/reorder gestures through row
 arrivals. The bridge, public widget, full paging/query reconciliation and native
 keyboard/accessibility/cache/lifecycle acceptance remain.
 Paired bounded table payload codecs and the pure Core `Table.Config` now pass
-independent byte fixtures and invalid-input/budget tests. Envelopes, native
-session accounting/rendering and the public View/Bonsai component are not yet
-connected to those types.
+independent byte fixtures and invalid-input/budget tests. Transaction/event
+envelopes now feed native tree admission, cell/schema byte accounting, ordered
+command admission and live session input validation. Query resets retire viewport
+handlers, and dirty cell edits revalidate table ownership. Native host rendering,
+command execution and public View/Bonsai dispatch remain to be connected; no
+table capability is advertised.
 See [table design](design/data-tables.md) and
 [evidence](evidence/data-tables-och39.md).
 

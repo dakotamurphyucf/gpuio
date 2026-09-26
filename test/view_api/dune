@@ -4,6 +4,8 @@
  (inline_tests
   (deps
    (sandbox preserve_file_kind)
+   table-transaction.hex
+   table-event.hex
    table-intents.hex
    table-config.hex
    table-cell.hex
@@ -290,3 +292,7 @@
 (copy_files ../fixtures/table-request.hex)
 
 (copy_files ../fixtures/table-intents.hex)
+
+(copy_files ../fixtures/table-transaction.hex)
+
+(copy_files ../fixtures/table-event.hex)

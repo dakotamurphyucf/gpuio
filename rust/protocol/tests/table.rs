@@ -314,3 +314,108 @@ fn every_command_request_and_text_limit() {
         );
     }
 }
+
+#[test]
+fn transaction_and_event_envelopes_match_ocaml() {
+    use gpuio_protocol::{HandlerId, NodeId, WindowId, v1::*};
+    let window = WindowId::from_parts(0, 1).unwrap();
+    let node = |slot| NodeId::from_parts(slot, 1).unwrap();
+    let message = Message::Apply(Transaction {
+        window,
+        base: 0,
+        revision: 1,
+        operations: vec![
+            Op::SetTable(node(0), config()),
+            Op::SetTableCell(
+                node(1),
+                Cell {
+                    column: "β".into(),
+                    copy_text: "日本語👨‍👩‍👧‍👦".into(),
+                },
+            ),
+            Op::TableCommand(
+                node(0),
+                Command {
+                    serial: 9,
+                    query_generation: 3,
+                    target: Target::SetSelection(Selection::Cell(42, "β".into())),
+                },
+            ),
+        ],
+    });
+    fixture(
+        &message,
+        include_str!("../../../test/fixtures/table-transaction.hex"),
+    );
+    let encoded = bytes(&message);
+    assert_eq!(gpuio_protocol::decode(&encoded), Ok(message));
+    for end in 0..encoded.len() {
+        assert!(gpuio_protocol::decode(&encoded[..end]).is_err());
+    }
+    let event = Event::TableInput(
+        window,
+        node(0),
+        HandlerId::from_parts(0, 1).unwrap(),
+        1,
+        Input {
+            schema_revision: 7,
+            query_generation: 3,
+            request: Request::Resize(vec![("a".into(), 160.), ("β".into(), 240.)]),
+        },
+    );
+    fixture(
+        &event,
+        include_str!("../../../test/fixtures/table-event.hex"),
+    );
+}
+
+#[test]
+fn column_moves_preserve_group_membership_and_input_policy() {
+    let columns = ["a", "b", "c", "d"]
+        .into_iter()
+        .map(|id| column(id, Pin::Unpinned))
+        .collect();
+    let schema = Schema {
+        columns,
+        headers: vec![vec![
+            Group {
+                label: "First".into(),
+                columns: vec!["a".into(), "b".into()],
+            },
+            Group {
+                label: "Second".into(),
+                columns: vec!["c".into(), "d".into()],
+            },
+        ]],
+    };
+    let moved = schema.moved("b", Some("a")).unwrap();
+    assert_eq!(
+        moved
+            .columns
+            .iter()
+            .map(|c| c.id.as_str())
+            .collect::<Vec<_>>(),
+        ["b", "a", "c", "d"]
+    );
+    assert_eq!(moved.headers[0][0].columns, ["b", "a"]);
+    assert!(schema.moved("a", Some("d")).is_none());
+    assert!(schema.moved("c", Some("b")).is_none());
+    assert!(schema.moved("a", Some("a")).is_none());
+    let mut pinned = schema.clone();
+    pinned.columns[0].pin = Pin::Left;
+    pinned.headers.clear();
+    assert!(pinned.moved("a", None).is_none());
+    assert!(pinned.moved("b", Some("a")).is_none());
+    let mut locked = schema;
+    locked.columns[0].movable = false;
+    assert!(locked.moved("a", Some("b")).is_none());
+    let mut config = config();
+    config.schema.columns[0].resizable = false;
+    assert!(config.allows_request(&Request::Resize(vec![("a".into(), 160.)]), |_| true));
+    assert!(!config.allows_request(&Request::Resize(vec![("a".into(), 161.)]), |_| true));
+    config.selection_mode = SelectionMode::Rows;
+    assert!(!config.allows_request(&Request::Select(Selection::Cell(1, "β".into())), |_| true));
+    assert!(config.allows_request(&Request::Select(Selection::Row(1)), |_| true));
+    config.column_selection = false;
+    assert!(!config.allows_request(&Request::Select(Selection::Column("β".into())), |_| true));
+}

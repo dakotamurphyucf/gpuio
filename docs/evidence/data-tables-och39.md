@@ -295,6 +295,57 @@ combined all-intents fixture, the complete Dune gate and targeted Rust table
 suite pass again. This checkpoint required no additional native windows and
 makes no new hosted or Linux GUI validation claim.
 
-These are payload/model tests. Transaction/event envelopes, live generation
-checks, retained-byte accounting, native session rendering, public Views and the
-Bonsai table component remain outstanding. No table capability is advertised.
+At that checkpoint these were payload/model tests. The following checkpoint adds
+native transaction/session admission; host rendering, public Views and the Bonsai
+component remain outstanding. No table capability is advertised.
+
+
+## Native transaction and session admission
+
+Table configuration, cell metadata and commands now have paired transaction
+operations; native input has a paired event carrying schema/query generations.
+Independent transaction/event fixtures fix the appended tags and payload order.
+OCaml event decoding and Rust message decoding reject truncated envelopes; OCaml
+also rejects trailing event bytes and invalid generations/selections.
+
+Native tree tests construct 100,000 logical rows with one materialized row and
+four retained nodes. They exercise schema revision rules, query reset with
+handler replacement, exact list/table configuration agreement, row/cell ownership,
+copy-text byte accounting and rollback of a refused update. Dirty descendant
+edits revalidate the unchanged table root. Command tests target offscreen logical
+rows, validate against final transaction data regardless of operation order,
+require increasing serials and roll back earlier serials when a later action
+fails. Commands disappear from later transaction results.
+
+Session tests cover stale schema/query/handler revisions, unknown row/column
+identities, resize limits, sortable policy, disabled input and closed windows.
+A query reset retires old viewport handlers even when logical order is unchanged.
+Evicting active cells frees their retained copy bytes while retaining the logical
+row index; deleting the logical rows then retires their input targets. Pure column
+move tests preserve group membership and reject split groups/pins and locked
+sources. Mailbox tests check encoded-size accounting for 64 long column IDs,
+ordered non-coalesced requests, count saturation and bounded draining.
+
+The first native test run found that table parent checks ran before structural
+validation had assigned final parents. Moving ownership validation after that
+step fixed the issue; the native tests then passed. No test expectations were
+promoted. These are headless transaction/session tests, not GPUI renderer,
+clipboard, focus, accessibility, full-history cache or public Bonsai acceptance.
+The native host still needs to consume the table specialization and accepted
+commands. No new platform GUI acceptance or capability is claimed.
+
+Local macOS validation passes:
+
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --workspace --locked -j2`.
+- `GPUIO_JOBS=2 ./scripts/gpuio lint` (opam lint, full Dune build and workspace
+  Clippy with warnings denied).
+- `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt`.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all --check`.
+- The final `cargo test -p gpuio-native --test tables --locked -j2`, through the
+  same wrapper, passes all five table tests after removing redundant copy-text
+  scans from ancestor validation.
+
+The full build also caught two exhaustive event matches in the low-level bridge
+and View examples; both now explicitly ignore table events they do not register.
+No additional native windows were needed for this checkpoint. Hosted macOS/Linux
+validation and merge remain part of the full milestone gate.

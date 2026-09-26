@@ -266,3 +266,66 @@ let%expect_test
   print_endline "pure config, bounded defaults, immutable sort/schema validation";
   [%expect {| pure config, bounded defaults, immutable sort/schema validation |}]
 ;;
+
+let%expect_test "table transaction and fenced event envelopes match Rust" =
+  let module Wire = Gpuio_protocol.Wire in
+  let ok = Or_error.ok_exn in
+  let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok in
+  let node slot = Gpuio_protocol.Node_id.create ~slot ~generation:1L |> ok in
+  let handler = Gpuio_protocol.Handler_id.create ~slot:0L ~generation:1L |> ok in
+  let message =
+    Wire.Message.Apply
+      { window
+      ; base = 0L
+      ; revision = 1L
+      ; operations =
+          [ Set_table (node 0L, config ())
+          ; Set_table_cell (node 1L, { column = "β"; copy_text = "日本語👨‍👩‍👧‍👦" })
+          ; Table_command
+              ( node 0L
+              , { serial = 9L
+                ; query_generation = 3L
+                ; target = Set_selection (Cell (42L, "β"))
+                } )
+          ]
+      }
+  in
+  let input : W.Input.t =
+    { schema_revision = 7L
+    ; query_generation = 3L
+    ; request = Resize [ "a", 160.; "β", 240. ]
+    }
+  in
+  let event input = Wire.Event.Table_input (window, node 0L, handler, 1L, input) in
+  Eio_main.run (fun env ->
+    List.iter
+      [ "table-transaction.hex", hex Wire.Message.bin_writer_t message
+      ; "table-event.hex", hex Wire.Event.bin_writer_t (event input)
+      ]
+      ~f:(fun (file, actual) ->
+        let expected =
+          Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / file) |> String.strip
+        in
+        assert (String.equal actual expected)));
+  let bytes =
+    Bin_prot.Utils.bin_dump [%bin_writer: Wire.Event.t list] [ event input ]
+    |> Bigstring.to_string
+  in
+  assert (List.equal Wire.Event.equal [ event input ] (Wire.Event.decode bytes |> ok));
+  for length = 0 to String.length bytes - 1 do
+    assert (Result.is_error (Wire.Event.decode (String.prefix bytes length)))
+  done;
+  assert (Result.is_error (Wire.Event.decode (bytes ^ "\000")));
+  List.iter
+    [ { input with schema_revision = 0L }
+    ; { input with query_generation = -1L }
+    ; { input with request = Select (Row 0L) }
+    ]
+    ~f:(fun input ->
+      let bytes =
+        Bin_prot.Utils.bin_dump [%bin_writer: Wire.Event.t list] [ event input ]
+        |> Bigstring.to_string
+      in
+      assert (Result.is_error (Wire.Event.decode bytes)));
+  [%expect {| |}]
+;;

@@ -668,6 +668,9 @@ pub enum Op {
     SetCarousel(NodeId, crate::carousel::Config),
     SetTreeInput(NodeId, bool),
     SetTreeMoves(NodeId, bool),
+    SetTable(NodeId, crate::table::Config),
+    SetTableCell(NodeId, crate::table::Cell),
+    TableCommand(NodeId, crate::table::Command),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -843,4 +846,5 @@ pub enum Event {
     ColorInputResult(i64, WindowId, NodeId, crate::color_input::Response),
     CarouselRequested(WindowId, NodeId, HandlerId, i64, crate::carousel::Request),
     TreeInput(WindowId, NodeId, HandlerId, i64, crate::tree_input::Request),
+    TableInput(WindowId, NodeId, HandlerId, i64, crate::table::Input),
 }
