@@ -97,7 +97,7 @@ Existing tab bars, tab panels and resizable panes remain the workspace vocabular
 
 ### Navigation presenter contract
 
-The mounted API will be `View.navigation_stack model ~hidden ~label ~content`,
+The mounted API is `View.navigation_stack model ~hidden ~label ~content ()`,
 with optional `key`, `style`, `page_style` and `motion`. `content` receives an
 entry, so its payload remains an OCaml value. The presenter uses one keyed Panel
 wrapper per history entry, in history order, and a selected index. With `Retain`,
@@ -145,10 +145,27 @@ history must be bounded by current page membership, use weak native handles, and
 yield to a higher modal scope. A separate workspace or native route model is not
 introduced.
 
-The motion policy, independent configuration codec and deterministic transition
-state are implemented; the mounted View/transaction adapter, rendering and focus
-restoration described here are still pending. Unit tests of this state are not
-native keyboard, GPU or accessibility acceptance.
+The Core/Bonsai API, transaction adapter and native renderer are now connected.
+Kind 45 and operation 48 append the navigation node/configuration without changing
+earlier tags. Admission requires at most 128 direct labelled Panel children and a
+selected index agreeing with the child count; Unmount rejects populated inactive
+pages. Invalid changes roll back atomically. Both bridge halves must be rebuilt
+together under the existing single-release compatibility contract.
+
+The focus manager checks selected-page ancestry directly against the admitted
+tree, independently of transition progress. Outgoing scopes are therefore retired
+before widget synchronization. Remembered focus uses weak handles bounded by
+retained page membership; disabled/removed controls fall back to the destination's
+first eligible painted control. Pending destination focus retries after actual
+paint when the first incoming frame is fully clipped, without a timer or additional
+frame request. Higher modal scopes and a user focus choice already inside the
+destination take precedence. Hidden retained panels still build native elements,
+but have no paint or accessibility subtree; outgoing content uses the inert paint
+boundary. No transition endpoint crosses the bridge.
+
+Initial mounted macOS tests and the public example pass. Broader nested/modal,
+resize/layout and maximum mounted-history acceptance remain pending; these results
+do not yet establish full OCH-37 family acceptance.
 
 ## Native bridge and validation still to implement
 

@@ -288,6 +288,28 @@ val panel
   -> 'action t list
   -> 'action t
 
+(** Present application-owned history in an assigned-size native viewport.
+    Retain builds every keyed page; Unmount calls [content] only for the current
+    entry and removes inactive descendants immediately. Hiding/removing a page
+    does not cancel application Eio tasks or deactivate separately built Bonsai
+    computations. At most one retained outgoing page paints, already inert.
+    Removed pages never delay resource disposal for an exit animation.
+
+    Native timing and focus restoration follow [Navigation_stack.Motion]. The
+    container clips pages to its assigned size; give it explicit dimensions or
+    flex allocation. Label must be nonempty UTF-8 without NUL, at most 4096 bytes. *)
+val navigation_stack
+  :  'data Navigation_stack.t
+  -> ?key:Key.t
+  -> ?style:Style.t
+  -> ?page_style:Style.t
+  -> ?motion:Navigation_stack.Motion.t
+  -> hidden:Content_policy.t
+  -> label:string
+  -> content:('data Navigation_stack.Entry.t -> 'action t list)
+  -> unit
+  -> 'action t
+
 (** Controlled collapsible content with a native button trigger and labelled
     region. Enter/Space, pointer and accessibility activation emit one intent;
     reduce it against current application state. Collapsing focused content
@@ -765,6 +787,7 @@ module Expert : sig
       | Panel
       | Disclosure
       | Accordion
+      | Navigation_stack
     [@@deriving equal, sexp_of]
   end
 
@@ -856,6 +879,7 @@ module Expert : sig
     ; calendar : 'action calendar option
     ; animation : 'action animation option
     ; animation_program : 'action animation_program option
+    ; navigation_stack : Gpuio_protocol.Navigation_stack_wire.Config.t option
     ; container_query : 'action container_query option
     ; accessibility : Accessibility.t option
     ; image : 'action image option

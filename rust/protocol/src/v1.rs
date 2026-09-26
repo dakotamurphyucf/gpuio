@@ -145,6 +145,7 @@ pub enum Kind {
     Panel,
     Disclosure,
     Accordion,
+    NavigationStack,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -637,6 +638,7 @@ pub enum Op {
         Box<crate::color_input::Config>,
         crate::color_value::Value,
     ),
+    SetNavigationStack(NodeId, crate::navigation_stack::Config),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]

@@ -48,6 +48,7 @@ module Kind = struct
     | Panel
     | Disclosure
     | Accordion
+    | Navigation_stack
   [@@deriving equal, sexp_of]
 end
 
@@ -262,6 +263,7 @@ type 'action t =
   ; calendar : 'action calendar option
   ; animation : 'action animation option
   ; animation_program : 'action animation_program option
+  ; navigation_stack : Gpuio_protocol.Navigation_stack_wire.Config.t option
   ; container_query : 'action container_query option
   ; accessibility : Accessibility.t option
   ; image : 'action image option
@@ -307,6 +309,7 @@ let text ?key ?(style = Style.empty) text =
   ; calendar = None
   ; animation = None
   ; animation_program = None
+  ; navigation_stack = None
   ; container_query = None
   ; accessibility = None
   ; image = None
@@ -454,6 +457,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; calendar = None
   ; animation = None
   ; animation_program = None
+  ; navigation_stack = None
   ; container_query = None
   ; accessibility = None
   ; image = None
@@ -559,6 +563,7 @@ let button
   ; calendar = None
   ; animation = None
   ; animation_program = None
+  ; navigation_stack = None
   ; container_query = None
   ; accessibility = None
   ; image = None
@@ -636,6 +641,7 @@ let toggle
   ; calendar = None
   ; animation = None
   ; animation_program = None
+  ; navigation_stack = None
   ; container_query = None
   ; accessibility = None
   ; image = None
@@ -697,6 +703,7 @@ let focus_scope ?key ?style ~config children =
   ; calendar = None
   ; animation = None
   ; animation_program = None
+  ; navigation_stack = None
   ; container_query = None
   ; accessibility = None
   ; image = None
@@ -912,6 +919,48 @@ let panel ~key ~label ~active ~hidden ?(style = Style.empty) children =
       [ style; (if active then Style.empty else Style.create_exn [ Display Hidden ]) ]
   in
   { (column ~key ~style children) with kind = Panel; text = label }
+;;
+
+let navigation_stack
+      model
+      ?key
+      ?style
+      ?page_style
+      ?(motion = Navigation_stack.Motion.default)
+      ~hidden
+      ~label
+      ~content
+      ()
+  =
+  if not (Gpuio_protocol.Accessibility_wire.valid_text label)
+  then
+    invalid_arg "navigation label must be nonempty UTF-8 without NUL, at most 4096 bytes";
+  let selected =
+    Option.map (Navigation_stack.current model) ~f:Navigation_stack.Entry.id
+  in
+  let children =
+    List.map (Navigation_stack.entries model) ~f:(fun entry ->
+      let id = Navigation_stack.Entry.id entry in
+      let active = Option.exists selected ~f:(Navigation_stack.Id.equal id) in
+      let children =
+        match hidden with
+        | Content_policy.Retain -> content entry
+        | Unmount -> if active then content entry else []
+      in
+      panel
+        ~key:(Key.of_string_exn (Navigation_stack.Id.to_string id))
+        ~label:(Navigation_stack.Entry.label entry)
+        ~active:true
+        ~hidden:Content_policy.Retain
+        ?style:page_style
+        children)
+  in
+  { (column ?key ?style children) with
+    kind = Navigation_stack
+  ; text = label
+  ; navigation_stack =
+      Some (Navigation_stack.Expert.presentation_config model ~hidden ~motion)
+  }
 ;;
 
 let disclosure
@@ -1145,6 +1194,7 @@ let text_input
   ; calendar = None
   ; animation = None
   ; animation_program = None
+  ; navigation_stack = None
   ; container_query = None
   ; accessibility = None
   ; image = None
@@ -1191,6 +1241,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; calendar = None
   ; animation = None
   ; animation_program = None
+  ; navigation_stack = None
   ; container_query = None
   ; accessibility = None
   ; image = None
@@ -1263,6 +1314,7 @@ let combobox
   ; calendar = None
   ; animation = None
   ; animation_program = None
+  ; navigation_stack = None
   ; container_query = None
   ; accessibility = None
   ; image = None
@@ -1617,6 +1669,7 @@ module Expert = struct
     ; calendar : 'action calendar option
     ; animation : 'action animation option
     ; animation_program : 'action animation_program option
+    ; navigation_stack : Gpuio_protocol.Navigation_stack_wire.Config.t option
     ; container_query : 'action container_query option
     ; accessibility : Accessibility.t option
     ; image : 'action image option

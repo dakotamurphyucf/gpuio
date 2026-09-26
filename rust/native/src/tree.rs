@@ -12,6 +12,7 @@ fn allows_children(kind: Kind) -> bool {
             | Kind::Panel
             | Kind::Disclosure
             | Kind::Accordion
+            | Kind::NavigationStack
             | Kind::SplitPane
             | Kind::VirtualList
             | Kind::Animated
@@ -94,6 +95,7 @@ pub struct Node {
     pub canvas: Option<Arc<gpuio_protocol::canvas_view::Config>>,
     pub animation: Option<Arc<gpuio_protocol::animation::Config>>,
     pub animation_program: Option<Arc<gpuio_protocol::animation_program::Config>>,
+    pub navigation_stack: Option<gpuio_protocol::navigation_stack::Config>,
     pub container_query: Option<Arc<gpuio_protocol::container_query::Config>>,
     pub accessibility: Option<Arc<gpuio_protocol::accessibility::Config>>,
     pub list_config: Option<Arc<gpuio_protocol::list::Config>>,
@@ -138,6 +140,9 @@ impl Node {
             + self.rating.as_ref().map_or(0, |c| c.retained_bytes())
             + self.avatar.as_ref().map_or(0, |c| c.retained_bytes())
             + self.loading.as_ref().map_or(0, |c| c.retained_bytes())
+            + self.navigation_stack.map_or(0, |_| {
+                std::mem::size_of::<gpuio_protocol::navigation_stack::Config>()
+            })
             + self.text.len()
             + self
                 .accessibility
@@ -826,6 +831,25 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
+                if (node.kind == Kind::NavigationStack) != node.navigation_stack.is_some()
+                    || node.navigation_stack.is_some_and(|config| {
+                        !config.valid_children(node.children.len())
+                            || node.handler.is_some()
+                            || node.text.is_empty()
+                            || node.text.len() > 4096
+                            || node.text.contains('\0')
+                            || node.children.iter().enumerate().any(|(index, child)| {
+                                plan.node(*child).map_or(true, |child| {
+                                    child.kind != Kind::Panel
+                                        || (!config.retain
+                                            && config.selected != Some(index as i64)
+                                            && !child.children.is_empty())
+                                })
+                            })
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 if node.kind == Kind::Panel
                     && (node.text.is_empty() || node.text.len() > 4096 || node.text.contains('\0'))
                 {
@@ -871,6 +895,7 @@ impl Tree {
                     | Kind::Panel
                     | Kind::Disclosure
                     | Kind::Accordion
+                    | Kind::NavigationStack
                     | Kind::SplitPane
                     | Kind::Extension
                     | Kind::CanvasView
@@ -1222,6 +1247,7 @@ impl Plan<'_> {
             | Op::SetPalette(id, ..)
             | Op::SetAnimation(id, ..)
             | Op::SetAnimationProgram(id, ..)
+            | Op::SetNavigationStack(id, ..)
             | Op::SetContainerQuery(id, ..)
             | Op::SetAccessibility(id, ..)
             | Op::SetLoading(id, ..)
@@ -1343,6 +1369,7 @@ impl Plan<'_> {
                             canvas: None,
                             animation: None,
                             animation_program: None,
+                            navigation_stack: None,
                             container_query: None,
                             accessibility: None,
                             list_config: None,
@@ -1431,6 +1458,12 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.toast_stack = Some(Arc::new(config.clone()));
+            }
+            Op::SetNavigationStack(id, config) => {
+                if self.node(*id)?.kind != Kind::NavigationStack || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.navigation_stack = Some(*config);
             }
             Op::SetContainerQuery(id, config) => {
                 let node = self.node(*id)?;

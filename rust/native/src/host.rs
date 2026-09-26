@@ -84,6 +84,8 @@ mod loading;
 mod menu;
 #[path = "menu_platform.rs"]
 mod menu_platform;
+#[path = "navigation_view.rs"]
+mod navigation;
 #[path = "number_input_view.rs"]
 pub(super) mod number_input_view;
 #[path = "otp_input_view.rs"]
@@ -185,6 +187,7 @@ struct View {
     scrolls: BTreeMap<NodeId, Rc<scroll::State>>,
     lists: BTreeMap<NodeId, Rc<RefCell<list_view::State>>>,
     animations: BTreeMap<NodeId, Rc<RefCell<animation::State>>>,
+    navigation: BTreeMap<NodeId, Rc<RefCell<navigation::State>>>,
     animation_programs: BTreeMap<NodeId, Rc<RefCell<animation_program::State>>>,
     container_queries: BTreeMap<NodeId, container_query::State>,
     #[cfg(feature = "native-tests")]
@@ -411,6 +414,7 @@ impl View {
             scrolls: Default::default(),
             lists: Default::default(),
             animations: Default::default(),
+            navigation: Default::default(),
             animation_programs: Default::default(),
             container_queries: Default::default(),
             #[cfg(feature = "native-tests")]
@@ -422,6 +426,7 @@ impl View {
         self.install_pointer_observer(window, cx);
         self.install_menu_observers(window, cx);
         self.sync_container_queries(dirty);
+        self.sync_navigation(dirty);
         self.sync_lists(dirty, cx);
         self.sync_images(dirty, window, cx);
         self.sync_documents(dirty, window, cx);
@@ -583,6 +588,7 @@ impl View {
                 | Kind::Panel
                 | Kind::Disclosure
                 | Kind::Accordion
+                | Kind::NavigationStack
                 | Kind::FocusScope
                 | Kind::CommandScope
                 | Kind::RadioGroup
@@ -604,7 +610,7 @@ impl View {
                 .border_color(rgba(0x80808080))
                 .rounded(px(4.));
         }
-        if node.container_query.is_some() {
+        if node.container_query.is_some() || node.navigation_stack.is_some() {
             element = element.size_full();
         }
         if let Some(config) = &node.drag_source {
@@ -876,7 +882,10 @@ impl View {
         if node.kind == Kind::TabBar {
             element = element.flex_row();
         }
-        if matches!(node.kind, Kind::TabPanel | Kind::Panel) {
+        if matches!(
+            node.kind,
+            Kind::TabPanel | Kind::Panel | Kind::NavigationStack
+        ) {
             element = element
                 .role(if node.kind == Kind::TabPanel {
                     gpui::Role::TabPanel
@@ -1199,7 +1208,12 @@ impl View {
             {
                 element = element.child(self.element(tree, *trailing, interaction, window, cx));
             }
-        } else if !label.is_empty() && !matches!(node.kind, Kind::TabPanel | Kind::Panel) {
+        } else if !label.is_empty()
+            && !matches!(
+                node.kind,
+                Kind::TabPanel | Kind::Panel | Kind::NavigationStack
+            )
+        {
             element = element.child(gpui::SharedString::from(label));
         }
         for child in node.children.iter() {
@@ -1218,7 +1232,9 @@ impl View {
                 );
             }
         }
-        if node.container_query.is_some() {
+        if node.navigation_stack.is_some() {
+            element = element.child(self.navigation_element(tree, node, interaction, window, cx));
+        } else if node.container_query.is_some() {
             element = element.child(self.container_query_element(tree, node, interaction, cx));
         } else if node.split.is_some() {
             element = element.child(self.split_element(tree, node, interaction, window, cx));
@@ -1723,6 +1739,7 @@ impl Render for View {
         let session = self.session.clone();
         let transport = self.transport.clone();
         let program_finish = cx.entity().downgrade();
+        let navigation_focus = self.focus.clone();
         root.child(
             canvas(
                 |_, _, _| (),
@@ -1741,6 +1758,11 @@ impl Render for View {
                                 view.finish_query_paint(window, cx);
                                 view.finish_program_paint();
                             });
+                        });
+                    }
+                    if navigation_focus.borrow().navigation_pending() {
+                        window.defer(cx, move |window, cx| {
+                            navigation_focus.borrow_mut().finish_navigation(window, cx);
                         });
                     }
                     let events = session.borrow_mut().painted(id, revision);

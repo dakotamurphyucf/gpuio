@@ -55,3 +55,17 @@ Add `--right` to either sidebar test to exercise right-side placement. Motion
 checks with `--images PATH` capture an intermediate offcanvas frame: the content
 still paints while its AX subtree is already absent. `Style.Inert true` supplies
 that distinction; retained buffers survive, focus/pointer/IME input does not.
+## Mounted navigation pages
+
+The **Native route transitions** card uses `Gpuio_bonsai.View.navigation_stack`
+with an application-owned `Navigation_stack` model and explicit `Retain` policy.
+Open the preview, replace its route, and go back to the draft. The draft's native
+editor survives while hidden; Rust owns page motion and focus. Replacement removes
+the old native page immediately. The existing lazy-computation and Eio data-scope
+examples remain independent of route visibility.
+
+`--self-test` additionally checks forward/replacement/back, preserved editor
+snapshots and rejection of focus commands to the inactive route. Native tests
+separately exercise GPU exit pixels, actual keyboard/AX behavior, disabled focus
+fallback, Unmount and disposal. This example is an implementation lab, not complete
+OCH-37 acceptance or the final chat showcase.

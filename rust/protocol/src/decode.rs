@@ -875,6 +875,7 @@ impl Decoder<'_> {
                     42 => Kind::Panel,
                     43 => Kind::Disclosure,
                     44 => Kind::Accordion,
+                    45 => Kind::NavigationStack,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -962,6 +963,7 @@ impl Decoder<'_> {
                 }
                 Op::SetOtpInput(node, config, initial)
             }
+            48 => Op::SetNavigationStack(self.node()?, self.navigation_stack_config()?),
             47 => Op::SetColorInput(
                 self.node()?,
                 Box::new(self.color_config()?),

@@ -5,6 +5,43 @@ use gpuio_protocol::{
 };
 
 #[test]
+fn independent_transaction_fixture_covers_appended_kind_and_operation() {
+    use gpuio_protocol::{NodeId, WindowId, v1::*};
+    let id = NodeId::from_parts(0, 1).unwrap();
+    let request = Message::Apply(Transaction {
+        window: WindowId::from_parts(0, 1).unwrap(),
+        base: 0,
+        revision: 1,
+        operations: vec![
+            Op::Create(id, Kind::NavigationStack, "Routes".into(), None),
+            Op::SetNavigationStack(
+                id,
+                Config {
+                    selected: None,
+                    retain: true,
+                    motion: Motion::Slide,
+                    duration_ms: 200,
+                },
+            ),
+            Op::SetRoot(Some(id)),
+        ],
+    });
+    let mut bytes = Vec::new();
+    request.binprot_write(&mut bytes).unwrap();
+    let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+    assert_eq!(
+        hex,
+        include_str!("../../../test/fixtures/navigation-stack-request.hex").trim()
+    );
+    assert_eq!(gpuio_protocol::decode(&bytes), Ok(request));
+    for length in 0..bytes.len() {
+        assert!(gpuio_protocol::decode(&bytes[..length]).is_err());
+    }
+    bytes.push(0);
+    assert!(gpuio_protocol::decode(&bytes).is_err());
+}
+
+#[test]
 fn independent_config_fixture_and_malformed_inputs() {
     // Some index 2; retain true; slide tag 1; int16 200 milliseconds.
     let config = Config {

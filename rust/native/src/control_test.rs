@@ -7,6 +7,8 @@ mod drag_drop_test;
 mod extension_test;
 #[path = "menu_test.rs"]
 mod menu_test;
+#[path = "navigation_stack_test.rs"]
+mod navigation_stack_test;
 #[path = "navigation_test.rs"]
 mod navigation_test;
 #[path = "overlay_test.rs"]

@@ -421,3 +421,72 @@ View/transaction adapter, native rendering, focus restoration, public example an
 actual GPU/keyboard/IME/AX scenarios remain to be connected and validated. Existing
 sidebar/disclosure native evidence below is separate; no navigation-stack native
 GUI acceptance or new capability advertisement is claimed by these unit tests.
+## Mounted navigation presenter (2026-09-26)
+
+`View.navigation_stack` and its Bonsai specialization now connect application
+history to the native transition state. Retain preserves keyed page descendants;
+Unmount skips inactive content builders and immediately removes their descendants.
+The protocol appends Kind 45 and operation 48. Independent envelope/configuration
+fixtures agree in OCaml and Rust. Native admission checks selected indices,
+128-page bounds, direct Panel children, labels and inactive Unmount content, with
+atomic rejection and complete accounting cleanup. Source pins and capability
+advertisement are unchanged.
+
+The native renderer uses assigned-width offsets and clips page geometry. It builds
+hidden retained controls to preserve native identities, paints at most one inert
+outgoing page, and retires removed pages immediately. Focus gating follows admitted
+selected-page ancestry. Weak remembered controls are pruned with page membership;
+return navigation restores eligible focus or selects the first eligible control.
+Restoration waits for actual painted controls and never starts an idle poll.
+
+Local macOS arm64 evidence:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native -p gpuio-protocol --features gpuio-native/native-image-tests --lib --test navigation_stack --test native_navigation
+GPUIO_JOBS=2 ./scripts/gpuio exec dune runtest -j 2 test/view_api
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 examples/navigation/main.exe
+_build/default/examples/navigation/main.exe --self-test
+```
+
+Pass: 209 native unit tests, 28 protocol unit tests, two native admission tests,
+two independent protocol tests and the Core expect suite. The actual macOS
+navigation window verifies first/destination/back focus, native Enter activation,
+disabled remembered-control fallback, inactive editor focus denial, preserved
+editor/control identity, actual AppKit AX hiding, replacement/removal/Unmount,
+idle redraw counts and zero retained accounting. With `native-image-tests`, GPU
+readback finds the exact outgoing pink and incoming blue pixels during the same
+slow transition. No screenshot cache or OCaml frame callback implements it.
+
+Expanded native checks also pass hidden and reduced-motion idle, and disposal
+during an active run. The final command was:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-image-tests --test native_navigation
+```
+
+The shared-focus editor and controls suites pass (actual keyboard, clipboard,
+marked text, modal/overlay behavior and AX regressions). Their combined invocation
+subsequently failed only in the newly added navigation reduced-motion test: this
+controls harness does not install the application's motion-preference watcher.
+The test now sets GPUI's reduced-motion input directly; the final navigation run
+passes. The existing animation suite separately validates the application/OS
+preference watcher; these navigation results do not revalidate that watcher.
+
+An earlier focus assertion ran with a 420-pixel viewport in a 400-pixel test window;
+probe evidence showed the incoming controls were still fully clipped. The fixture
+now fits the window, and restoration remains pending until eligible controls
+actually paint. Initial test compilation also caught Fill versus Color in the
+fixture and typed error handling in the public example; both were corrected.
+These are resolved implementation/test findings, not outstanding platform blockers.
+
+The public Navigation Lab's new route card and self-test cover forward,
+replacement/back, retained draft snapshots and hidden-route focus denial, alongside
+the existing independent lazy Bonsai and Eio data lifetimes. This is initial mounted
+acceptance. Nested navigation/modal interactions, maximum mounted-history workload,
+resize/layout breadth and broader OCH-37 acceptance remain; no Linux GUI or hosted
+CI acceptance is claimed here.
+
+All-target native/protocol Clippy with `native-image-tests` and `-D warnings`, Dune
+formatting, rustfmt and the public right-sidebar AX/context-menu regression also
+pass. All owned test windows exited. The latter verifies that adding the route
+card did not break the existing sidebar flows; it is not a separate route AX test.

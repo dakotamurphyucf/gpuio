@@ -257,6 +257,7 @@ let kind = function
   | Panel -> Panel
   | Disclosure -> Disclosure
   | Accordion -> Accordion
+  | Navigation_stack -> Navigation_stack
   | Calendar -> Calendar
   | Virtual_list -> Virtual_list
   | Canvas_view -> Canvas_view
@@ -819,6 +820,15 @@ let rec mount builder ~depth previous view =
       emit
         builder
         (Set_accessibility (id, Option.map accessibility ~f:Accessibility.Expert.to_wire));
+    let navigation = description.navigation_stack in
+    let old_navigation =
+      Option.bind previous ~f:(fun mounted ->
+        (View.Expert.describe mounted.view).navigation_stack)
+    in
+    if not (Option.equal Wire.Navigation_stack.Config.equal navigation old_navigation)
+    then
+      Option.iter navigation ~f:(fun config ->
+        emit builder (Set_navigation_stack (id, config)));
     let old_query = Option.bind previous ~f:(fun mounted -> mounted.container_query) in
     if not (Option.equal Wire.Container_query.Config.equal container_query old_query)
     then

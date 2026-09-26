@@ -22,6 +22,9 @@ module Action = struct
     | Sidebar of Sidebar.Request.t
     | Collapse_mode of Sidebar.Collapse.t
     | Inspect_sidebar
+    | Route_back
+    | Route_forward
+    | Route_replace
 end
 
 module Model = struct
@@ -31,6 +34,7 @@ module Model = struct
     ; lazy_content : bool
     ; sidebar : Sidebar.t
     ; inspected : bool
+    ; routes : string Navigation_stack.t
     }
 
   let sidebar_id value = Sidebar.Id.of_string value |> ok
@@ -69,6 +73,16 @@ module Model = struct
     ; lazy_content = true
     ; sidebar
     ; inspected = false
+    ; routes =
+        Navigation_stack.create
+          (List.map [ "Draft"; "Preview" ] ~f:(fun label ->
+             Navigation_stack.Entry.create
+               ~id:(Navigation_stack.Id.of_string label |> ok)
+               ~label
+               label
+             |> ok))
+        |> ok
+        |> Navigation_stack.pop
     }
   ;;
 
@@ -82,6 +96,17 @@ module Model = struct
     | Collapse_mode collapse ->
       { t with sidebar = Sidebar.with_collapse t.sidebar collapse }
     | Inspect_sidebar -> { t with inspected = true }
+    | Route_back -> { t with routes = Navigation_stack.pop t.routes }
+    | Route_forward -> { t with routes = Navigation_stack.forward t.routes }
+    | Route_replace ->
+      let entry =
+        Navigation_stack.Entry.create
+          ~id:(Navigation_stack.Id.of_string "Replacement" |> ok)
+          ~label:"Replacement"
+          "A replacement route has a fresh native page."
+        |> ok
+      in
+      { t with routes = Navigation_stack.replace t.routes entry |> ok }
   ;;
 end
 
@@ -90,6 +115,7 @@ module Observation = struct
     { model : Model.t
     ; inject : Action.t -> unit E.t
     ; editor : Input.t
+    ; route_editor : Input.t
     }
 end
 
@@ -121,6 +147,15 @@ let component
       graph
   in
   let open B.Let_syntax in
+  let route_editor =
+    Input.create
+      window
+      ~initial_text:"A draft that survives navigation."
+      ~config:
+        (B.return
+           (Text_input.Config.create ~mode:Single_line ~label:"Route draft" () |> ok))
+      graph
+  in
   let lazy_enabled =
     let%arr model = model in
     model.Model.lazy_content
@@ -143,14 +178,17 @@ let component
   B.Edge.after_display
     (let%arr model = model
      and inject = inject
-     and editor = editor in
-     E.of_thunk (fun () -> observed := Some { Observation.model; inject; editor }))
+     and editor = editor
+     and route_editor = route_editor in
+     E.of_thunk (fun () ->
+       observed := Some { Observation.model; inject; editor; route_editor }))
     graph;
   let loaded = B.Expert.Var.value loaded in
   let icon = B.Expert.Var.value icon in
   let%arr model = model
   and inject = inject
   and editor = editor
+  and route_editor = route_editor
   and lazy_view = lazy_view
   and loaded = loaded
   and icon = icon in
@@ -300,6 +338,44 @@ let component
                   "Restore billion-page archive"
               ]
           ]
+      ; card
+          [ UI.text
+              ~style:(style [ Font_size 19.; Font_weight 600 ])
+              "Native route transitions"
+          ; UI.row
+              ~style:(style [ Gap (px 8.) ])
+              [ UI.button
+                  ~disabled:(not (Navigation_stack.can_pop model.routes))
+                  ~on_click:(inject Route_back)
+                  "Back to draft"
+              ; UI.button
+                  ~disabled:(not (Navigation_stack.can_forward model.routes))
+                  ~on_click:(inject Route_forward)
+                  "Open preview"
+              ; UI.button ~on_click:(inject Route_replace) "Replace route"
+              ]
+          ; UI.navigation_stack
+              model.routes
+              ~label:"Workspace routes"
+              ~hidden:Retain
+              ~style:(style [ Width full; Height (px 130.); Shrink 0. ])
+              ~page_style:
+                (style [ Width full; Height full; Padding (px 12.); Gap (px 10.) ])
+              ~content:(fun entry ->
+                let label = Navigation_stack.Entry.label entry in
+                [ UI.text ~style:(style [ Font_weight 600 ]) label
+                ; (if String.equal label "Draft"
+                   then
+                     Input.view
+                       ~style:(style [ Width full; Height (px 40.) ])
+                       route_editor
+                   else UI.text (Navigation_stack.Entry.data entry))
+                ; UI.text
+                    "Route selection changes immediately; presentation and focus stay \
+                     native."
+                ])
+              ()
+          ]
       ; UI.disclosure
           ~key:(Key.of_string_exn "draft")
           ~label:"Retained draft"
@@ -437,6 +513,11 @@ let () =
                     | Ok snapshot -> snapshot
                     | Error error -> raise_s [%sexp (error : Text_input.Command_error.t)]
                   in
+                  let route_read () =
+                    match on_ui (Input.read_snapshot (latest ()).route_editor) with
+                    | Ok snapshot -> snapshot
+                    | Error error -> raise_s [%sexp (error : Text_input.Command_error.t)]
+                  in
                   await (fun () ->
                     Option.exists !observed ~f:(fun o ->
                       Option.is_some (Input.snapshot o.editor))
@@ -452,6 +533,20 @@ let () =
                    | Ok _ -> ()
                    | Error error -> raise_s [%sexp (error : Text_input.Command_error.t)]);
                   let before = read () in
+                  let route_before = route_read () in
+                  send Route_forward;
+                  await (fun () -> Navigation_stack.can_pop (model ()).routes);
+                  assert (Text_input.Snapshot.equal route_before (route_read ()));
+                  assert (Result.is_error (on_ui (Input.focus (latest ()).route_editor)));
+                  send Route_replace;
+                  await (fun () ->
+                    Option.exists
+                      (Navigation_stack.current (model ()).routes)
+                      ~f:(fun entry ->
+                        String.equal (Navigation_stack.Entry.label entry) "Replacement"));
+                  send Route_back;
+                  await (fun () -> not (Navigation_stack.can_pop (model ()).routes));
+                  assert (Text_input.Snapshot.equal route_before (route_read ()));
                   send Toggle_details;
                   await (fun () -> not (model ()).details);
                   assert (Text_input.Snapshot.equal before (read ()));

@@ -314,6 +314,7 @@ pub(super) async fn exercise(
     custom_disclosure_header(cx, handle, transport, (*config).clone()).await;
     inert_content(cx, handle, transport, (*config).clone()).await;
     inert_drag_cleanup(cx, handle, (*config).clone()).await;
+    super::navigation_stack_test::exercise(cx, handle, transport, (*config).clone()).await;
     println!(
         "GPUIO_DISCLOSURE_NATIVE_OK: header traversal, single activation, nested collapse/unmount focus, retained editors, hidden scopes and disposal"
     );

@@ -11,6 +11,7 @@ module Number_input = Number_input_wire
 module Otp_input = Otp_wire
 module Calendar = Calendar_wire
 module Color_input = Color_input_wire
+module Navigation_stack = Navigation_stack_wire
 module Container_query = Container_query_wire
 module Animation_program = Animation_program_wire
 module Document = Document_wire
@@ -71,6 +72,7 @@ module Kind = struct
     | Panel
     | Disclosure
     | Accordion
+    | Navigation_stack
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -736,6 +738,7 @@ module Op = struct
     | Set_otp_input of Node_id.t * Otp_input.Config.t * string
     | Set_calendar of Node_id.t * Calendar.Config.t * Calendar.Selection.t * int64
     | Set_color_input of Node_id.t * Color_input.Config.t * Color_input.Value.t
+    | Set_navigation_stack of Node_id.t * Navigation_stack.Config.t
   [@@deriving bin_io, equal, sexp_of]
 end
 

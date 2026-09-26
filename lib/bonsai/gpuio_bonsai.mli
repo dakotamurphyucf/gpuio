@@ -315,6 +315,20 @@ module View : sig
     -> t list
     -> t
 
+  (** Native route presentation; see [Gpuio.View.navigation_stack] for lifetime,
+      geometry and focus rules. Content may contain ordinary Bonsai effects. *)
+  val navigation_stack
+    :  'data Gpuio.Navigation_stack.t
+    -> ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?page_style:Gpuio.Style.t
+    -> ?motion:Gpuio.Navigation_stack.Motion.t
+    -> hidden:Gpuio.Content_policy.t
+    -> label:string
+    -> content:('data Gpuio.Navigation_stack.Entry.t -> t list)
+    -> unit
+    -> t
+
   val disclosure
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

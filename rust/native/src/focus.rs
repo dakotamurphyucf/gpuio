@@ -18,6 +18,25 @@ fn style_hidden(node: &crate::tree::Node) -> bool {
         })
 }
 
+fn navigation_hidden(tree: &crate::tree::Tree, node: &crate::tree::Node) -> bool {
+    node.parent
+        .and_then(|id| tree.get(id))
+        .is_some_and(|parent| {
+            parent.navigation_stack.is_some_and(|config| {
+                config
+                    .selected
+                    .and_then(|index| parent.children.get(index as usize))
+                    != Some(&node.id)
+            })
+        })
+}
+
+#[derive(Default)]
+struct Navigation {
+    selected: Option<NodeId>,
+    remembered: BTreeMap<NodeId, WeakFocusHandle>,
+}
+
 pub(super) type Shared = Rc<RefCell<Manager>>;
 struct Scope {
     handle: FocusHandle,
@@ -32,6 +51,7 @@ struct Entry {
     handle: FocusHandle,
     tab_stop: bool,
     disclosure_path: Vec<(NodeId, NodeId)>,
+    navigation_path: Vec<(NodeId, NodeId)>,
 }
 pub(super) struct Manager {
     window: WindowId,
@@ -47,6 +67,8 @@ pub(super) struct Manager {
     order: u64,
     enter: Option<NodeId>,
     pending: bool,
+    navigation: BTreeMap<NodeId, Navigation>,
+    navigation_enter: Vec<(NodeId, Option<WeakFocusHandle>)>,
 }
 impl Manager {
     pub(super) fn new(window: WindowId, session: SharedSession) -> Shared {
@@ -64,6 +86,8 @@ impl Manager {
             order: 0,
             enter: None,
             pending: false,
+            navigation: BTreeMap::new(),
+            navigation_enter: Vec::new(),
         }))
     }
     fn within(&self, node: NodeId, scope: NodeId) -> bool {
@@ -187,7 +211,7 @@ impl Manager {
             let Some(item) = tree.get(id) else {
                 return false;
             };
-            if style_hidden(item) {
+            if style_hidden(item) || navigation_hidden(tree, item) {
                 return false;
             }
             cursor = item.parent;
@@ -236,6 +260,7 @@ impl Manager {
             .any(|scope| scope.handle.is_focused(window))
     }
     pub(super) fn sync(&mut self, window: &mut Window, cx: &mut App) {
+        self.sync_navigation_focus(window);
         // Keep the previous painted ancestry: removed editor nodes are already
         // absent from the new tree. Select the first still-eligible outer trigger
         // only when its content region or previously focused child became ineligible.
@@ -263,6 +288,7 @@ impl Manager {
                     if self.hidden.contains(&id)
                         || self.query_hidden.contains(&id)
                         || style_hidden(node)
+                        || navigation_hidden(tree, node)
                     {
                         continue;
                     }
@@ -396,7 +422,59 @@ impl Manager {
         if hidden_focus {
             window.blur(cx);
         }
-        self.pending = had_scopes || !self.scopes.is_empty() || hidden_focus;
+        self.pending = had_scopes
+            || !self.scopes.is_empty()
+            || hidden_focus
+            || !self.navigation_enter.is_empty();
+    }
+
+    fn sync_navigation_focus(&mut self, window: &Window) {
+        if let Some(entry) = self
+            .entries
+            .iter()
+            .find(|entry| entry.handle.is_focused(window))
+        {
+            for (owner, page) in &entry.navigation_path {
+                if let Some(state) = self.navigation.get_mut(owner) {
+                    state.remembered.insert(*page, entry.handle.downgrade());
+                }
+            }
+        }
+        let session = self.session.borrow();
+        let Some(tree) = session.tree(self.window) else {
+            self.navigation.clear();
+            self.navigation_enter.clear();
+            return;
+        };
+        self.navigation.retain(|id, _| {
+            tree.get(*id)
+                .is_some_and(|node| node.navigation_stack.is_some())
+        });
+        self.navigation_enter
+            .retain(|(page, _)| tree.get(*page).is_some());
+        let mut stack = tree.root().into_iter().collect::<Vec<_>>();
+        while let Some(id) = stack.pop() {
+            let node = tree.get(id).expect("admitted tree");
+            if let Some(config) = node.navigation_stack {
+                let selected = config.selected.map(|index| node.children[index as usize]);
+                let visible = self.visible(id);
+                let state = self.navigation.entry(id).or_default();
+                state
+                    .remembered
+                    .retain(|page, _| node.children.contains(page));
+                if state.selected != selected {
+                    // Supersede pending focus for older selections of this presenter.
+                    self.navigation_enter
+                        .retain(|(page, _)| !node.children.contains(page));
+                    if visible && let Some(page) = selected {
+                        self.navigation_enter
+                            .push((page, state.remembered.get(&page).cloned()));
+                    }
+                    state.selected = selected;
+                }
+            }
+            stack.extend(node.children.iter().rev().copied());
+        }
     }
     pub(super) fn begin_frame(&mut self) {
         self.entries.clear();
@@ -453,9 +531,10 @@ impl Manager {
             self.last_editor = Some(node);
         }
         if self.seen.insert((node, part)) {
-            let disclosure_path = {
+            let (disclosure_path, navigation_path) = {
                 let session = self.session.borrow();
                 let mut path = Vec::new();
+                let mut navigation_path = Vec::new();
                 if let Some(tree) = session.tree(self.window) {
                     let mut child = node;
                     while let Some(parent) = tree
@@ -469,16 +548,20 @@ impl Manager {
                         {
                             path.push((child, trigger));
                         }
+                        if parent.navigation_stack.is_some() {
+                            navigation_path.push((parent.id, child));
+                        }
                         child = parent.id;
                     }
                 }
-                path
+                (path, navigation_path)
             };
             self.entries.push(Entry {
                 node,
                 handle,
                 tab_stop,
                 disclosure_path,
+                navigation_path,
             });
         }
     }
@@ -567,6 +650,8 @@ impl Manager {
                 .map(|entry| entry.handle.clone())
                 .unwrap_or_else(|| self.scopes[&scope].handle.clone());
             window.focus(&target, cx);
+        } else if self.finish_navigation(window, cx) {
+            // Destination focus was restored after its controls painted.
         } else if !self
             .entries
             .iter()
@@ -578,6 +663,61 @@ impl Manager {
                 .unwrap_or_else(|| fallback.clone());
             window.focus(&target, cx);
         }
+    }
+    pub(super) fn finish_navigation(&mut self, window: &mut Window, cx: &mut App) -> bool {
+        if self.enter.is_some() {
+            return false;
+        }
+        let mut focused = false;
+        for (page, remembered) in std::mem::take(&mut self.navigation_enter).into_iter().rev() {
+            if !self.allows(page) {
+                continue;
+            }
+            if focused {
+                continue;
+            }
+            // Respect a user/native focus choice made while the destination enters.
+            if self.entries.iter().any(|entry| {
+                entry.handle.is_focused(window)
+                    && self.eligible(entry.node)
+                    && self.within(entry.node, page)
+            }) {
+                focused = true;
+                continue;
+            }
+            let target = remembered
+                .as_ref()
+                .and_then(|handle| handle.upgrade())
+                .filter(|handle| {
+                    self.entries.iter().any(|entry| {
+                        &entry.handle == handle
+                            && self.eligible(entry.node)
+                            && self.within(entry.node, page)
+                    })
+                })
+                .or_else(|| {
+                    self.entries
+                        .iter()
+                        .find(|entry| {
+                            entry.tab_stop
+                                && self.eligible(entry.node)
+                                && self.within(entry.node, page)
+                        })
+                        .map(|entry| entry.handle.clone())
+                });
+            if let Some(target) = target {
+                window.focus(&target, cx);
+                focused = true;
+            } else {
+                // At offset 1 the incoming controls can be fully clipped on the
+                // first paint. Retry on a subsequent actual paint, never poll.
+                self.navigation_enter.push((page, remembered));
+            }
+        }
+        focused
+    }
+    pub(super) fn navigation_pending(&self) -> bool {
+        !self.navigation_enter.is_empty()
     }
     pub(super) fn traverse(&self, reverse: bool, window: &mut Window, cx: &mut App) {
         let Some(scope) = self.active else {
