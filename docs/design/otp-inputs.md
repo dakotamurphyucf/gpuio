@@ -349,3 +349,13 @@ are inspected. Synthetic density is not evidence of physical monitor transitions
 Consolidated required macOS/Linux CI and merge remain before ticket completion.
 Full Linux desktop GUI release acceptance remains OCH-17. No new dependency,
 toolchain or upstream compatibility claim is introduced by these controls.
+
+
+### Native Tab navigation
+
+Each segmented code field is one native Tab stop. The explicitly tracked GPUI
+focus handle registers that stop directly; disabled or blocked fields leave the
+Tab order, while read-only fields remain reachable for selection/copy. Remounting
+creates a fresh eligible handle. The external macOS example test checks forward
+and reverse traversal between the two code fields, read-only traversal, skipping
+the disabled field and traversal after remount.

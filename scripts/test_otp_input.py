@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise both public OTP modes through macOS AX and OS keyboard events."""
 from pathlib import Path
+import ctypes as C
 import os
 import signal
 import subprocess
@@ -17,6 +18,31 @@ SHIFT = 1 << 17
 
 
 class Codes(Mac):
+    def focused(self, label, role='AXTextField'):
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            field = self.wait_find(TITLE, label, role)
+            value = self.attr(field, 'AXFocused')
+            try:
+                get = self.cf.CFBooleanGetValue
+                get.restype, get.argtypes = C.c_bool, [C.c_void_p]
+                if value and get(value):
+                    return
+            finally:
+                if value:
+                    self.release(value)
+                self.release(field)
+            time.sleep(.02)
+        raise RuntimeError(f'Tab navigation did not focus {label}')
+
+    def tab_between_codes(self):
+        self.focus(DIGITS)
+        self.focused(DIGITS)
+        self.key(48)
+        self.focused(LETTERS)
+        self.key(48, SHIFT)
+        self.focused(DIGITS)
+
     def expect(self, label, expected, *, secure=False):
         deadline = time.monotonic() + 5
         actual = None
@@ -51,6 +77,7 @@ class Codes(Mac):
 def exercise(mac):
     mac.expect(DIGITS, '12')
     mac.expect(LETTERS, 'Ab')
+    mac.tab_between_codes()
     mac.field(TITLE, DIGITS, 'AXTextField', '１２３４５６')
     mac.expect(DIGITS, '123456')
     mac.wait_text(TITLE, 'Code filled. No authentication request was sent.')
@@ -68,6 +95,7 @@ def exercise(mac):
     mac.button('Fill sample')
     mac.expect(DIGITS, '123456')
     mac.button('Read-only', 'Allow edits')
+    mac.tab_between_codes()  # Read-only still participates in keyboard navigation.
     mac.focus(DIGITS)
     mac.key(0, COMMAND)  # Select all remains available.
     mac.key(51)
@@ -78,6 +106,9 @@ def exercise(mac):
     mac.button('Reveal', 'Mask')
     mac.expect(DIGITS, '123456')
     mac.button('Disable', 'Enable')
+    mac.focus(LETTERS)
+    mac.key(48, SHIFT)
+    mac.focused('Close', 'AXButton')  # Disabled digits are skipped.
     mac.button('Clear')  # Explicit replacement is permitted when disabled.
     mac.expect(DIGITS, '')
     mac.button('Enable', 'Disable')
@@ -88,6 +119,7 @@ def exercise(mac):
         raise RuntimeError('Unmounted OTP remains accessible')
     mac.button('Remount', 'Unmount')
     mac.expect(DIGITS, '12')
+    mac.tab_between_codes()  # Remounted handles join the native focus order.
     mac.field(TITLE, LETTERS, 'AXTextField', 'ａｂ１２ＣＤ３４')
     mac.expect(LETTERS, 'ab12CD34')
     mac.key(0, COMMAND)
@@ -130,7 +162,7 @@ def main():
             log.seek(0)
             print(log.read(), end='')
     print('GPUIO_OTP_APP_AX_OK: both alphabets, normalization, OS selection/delete/history, '
-          'completion/rejection observations, protected value, policy, remount and close')
+          'Tab/Shift-Tab order, completion/rejection observations, protected value, policy, remount and close')
 
 
 if __name__ == '__main__':

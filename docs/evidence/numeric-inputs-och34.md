@@ -1290,3 +1290,22 @@ under an owned timeout and exits cleanly; no test windows remain open.
 
 Required hosted macOS/Linux CI and merge remain pending under the milestone's
 consolidated delivery workflow.
+
+
+## OTP Tab-order follow-up
+
+Calendar acceptance revealed that an explicitly tracked GPUI focus handle must
+register its own Tab stop. A targeted external macOS reproduction confirmed the
+OTP example skipped the next code field. The native handle now registers a Tab
+stop while enabled and allowed by the visibility/modal gate. Read-only fields
+remain navigable.
+
+After rebuilding `examples/numeric/otp.exe`, the complete
+`python3 scripts/test_otp_input.py` passes with added actual OS Tab/Shift-Tab checks
+for both fields, read-only traversal, disabled-field skipping and remounting. Its
+existing value/normalization, editing/history, masking and policy checks remain
+passing. The image-enabled `native_otp_input` suite also passes all appearance,
+policy, independent-window, native editor, command-pressure and repeated-workload
+checks. All-target native-image Clippy passes with warnings denied. Owned child
+windows/processes exited. This corrects a missed keyboard case in the earlier
+local acceptance; it does not claim hosted or Linux graphical execution.

@@ -425,7 +425,12 @@ impl Render for Input {
                 .min_w(px(0.))
                 .overflow_hidden()
                 .key_context("Input GpuioOtp")
-                .track_focus(&self.focus)
+                .track_focus(
+                    &self
+                        .focus
+                        .clone()
+                        .tab_stop(!config.disabled && self.access() == Access::Allowed),
+                )
                 .cursor(CursorStyle::IBeam)
                 .role(if config.masked {
                     Role::PasswordInput
@@ -551,7 +556,7 @@ impl Instance {
         };
         route.emit(vec![o::Event::Observed(model.snapshot())]);
         let state = cx.new(|cx| {
-            let focus = cx.focus_handle();
+            let focus = cx.focus_handle().tab_stop(true);
             let subscriptions = vec![
                 cx.on_focus(&focus, window, Input::on_focus),
                 cx.on_blur(&focus, window, Input::on_blur),
