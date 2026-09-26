@@ -31,6 +31,7 @@ type t =
   ; close_pending : bool B.Expert.Var.t
   ; mutable close_answer : (Gpuio.Window.Close_decision.t -> unit) option
   ; panels : (int, Panel.t) Hashtbl.t
+  ; inspector : Inspector.t
   }
 
 let px = Gpuio.Length.px_exn
@@ -62,6 +63,7 @@ let create ~icons conversations ~selected =
   ; close_pending = B.Expert.Var.create false
   ; close_answer = None
   ; panels = Int.Table.create ()
+  ; inspector = Inspector.create ()
   }
 ;;
 
@@ -683,6 +685,9 @@ let command_id text = Command.Id.of_string text |> Or_error.ok_exn
 let shortcut key modifiers = Gpuio.Shortcut.create ~key ~modifiers () |> Or_error.ok_exn
 
 let component t ~open_window ~read_file ~attachment_directory window graph =
+  let inspector =
+    Inspector.component t.inspector ~dark:(B.Expert.Var.value t.dark) graph
+  in
   let search =
     Editor.create
       window
@@ -713,6 +718,7 @@ let component t ~open_window ~read_file ~attachment_directory window graph =
   and icons = Icons.value t.icons
   and pending_close = B.Expert.Var.value t.close_pending
   and search = search
+  and inspector = inspector
   and panels = panels in
   let p = Palette.of_dark dark in
   let active = Option.map (Tabs.active tabs) ~f:Tabs.Tab.data in
@@ -751,6 +757,8 @@ let component t ~open_window ~read_file ~attachment_directory window graph =
           "Previous conversation tab"
           (fun () -> B.Expert.Var.set t.tabs (Tabs.previous (B.Expert.Var.get t.tabs)))
       ; make_command "theme" "Toggle light/dark theme" (fun () -> toggle_theme t)
+      ; make_command "explore" "Explore workspace" (fun () ->
+          Inspector.toggle t.inspector)
       ; make_command
           ~shortcuts:[ shortcut "w" [ Primary ] ]
           "close-tab"
@@ -771,6 +779,7 @@ let component t ~open_window ~read_file ~attachment_directory window graph =
       ; Command (command_id "previous-tab")
       ; Separator
       ; Command (command_id "theme")
+      ; Command (command_id "explore")
       ; Command (command_id "copy")
       ; Separator
       ; Command (command_id "close-tab")
@@ -1013,6 +1022,10 @@ let component t ~open_window ~read_file ~attachment_directory window graph =
                ~label:"Close tab"
                (action (fun () -> Option.iter active ~f:(close_tab t)))
            ; spacer
+           ; button
+               dark
+               "Explore workspace"
+               (action (fun () -> Inspector.toggle t.inspector))
            ; icon_button
                dark
                icons
@@ -1051,7 +1064,16 @@ let component t ~open_window ~read_file ~attachment_directory window graph =
            ()
          |> Or_error.ok_exn)
       ~first:sidebar
-      ~second:content
+      ~second:
+        (View.row
+           ~style:
+             (style [ Width full; Height full; Min_width (px 0.); Min_height (px 0.) ])
+           [ View.column
+               ~key:(key "conversation-area")
+               ~style:(style [ Grow 1.; Basis (px 0.); Min_width (px 0.); Height full ])
+               [ content ]
+           ; inspector
+           ])
       ()
   in
   let close_dialog =
@@ -1171,6 +1193,7 @@ let component t ~open_window ~read_file ~attachment_directory window graph =
                      ; "next-tab"
                      ; "previous-tab"
                      ; "theme"
+                     ; "explore"
                      ; "copy"
                      ; "close-tab"
                      ; "close-window"

@@ -207,6 +207,15 @@ hosted macOS/Linux gates and merge remain pending.
 See [table design](design/data-tables.md) and
 [evidence](evidence/data-tables-och39.md).
 
+OCH-46 is now in progress. The chat's Explore workspace inspector integrates the
+separate native counter package through its generated backend, with real property,
+event and acknowledged-command flows. Local macOS pointer/keyboard, hide/reopen,
+draft preservation and theme checks pass; both existing M4 chat acceptance suites
+remain green. The native package's duplicate Space activation was fixed. Actual
+light/dark screenshots were inspected and the controls refined. This is the first
+showcase flow, not completion of the full component matrix or simultaneous
+workload. See [M5 integration evidence](evidence/agent-chat-m5.md).
+
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
 components pass local acceptance; OCH-24 has validated geometry, a bounded scene
 codec, native resource ownership and a tested OCaml/Rust upload bridge. The

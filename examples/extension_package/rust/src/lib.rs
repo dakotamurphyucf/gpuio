@@ -90,7 +90,6 @@ impl sdk::Component for Counter {
             },
         );
         let click = activate.clone();
-        let keyboard = activate.clone();
         Ok(gpui::div()
             .id("example-counter")
             .track_focus(&cx.focus)
@@ -109,20 +108,17 @@ impl sdk::Component for Counter {
             .bg(gpui::rgb(0x263f38))
             .text_color(gpui::rgb(0xe8f3ed))
             .cursor_pointer()
-            .child(gpui::div().child("NATIVE COUNTER"))
+            .child(gpui::div().child("CHECKPOINTS"))
             .child(
                 gpui::div()
                     .text_xl()
                     .child(format!("{}  +", self.value.get())),
             )
-            .on_click(move |_, window, app| click(true, window, app))
-            .on_key_down(move |event, window, app| {
-                if !event.keystroke.modifiers.modified()
-                    && matches!(event.keystroke.key.as_str(), "space" | "enter")
-                {
-                    keyboard(false, window, app);
-                    app.stop_propagation();
-                }
+            // GPUI's click listener already handles focused Enter/Space. A
+            // second key-down handler would activate once on down and again
+            // on up. Only real mouse clicks need the pointer-policy guard.
+            .on_click(move |event, window, app| {
+                click(matches!(event, gpui::ClickEvent::Mouse(_)), window, app)
             })
             .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, app| {
                 activate(false, window, app)

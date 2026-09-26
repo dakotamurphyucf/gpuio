@@ -7,6 +7,7 @@
   gpuio
   gpuio.bonsai
   gpuio.eio
+  gpuio_counter_backend
   bonsai
   eio_main)
  (preprocess

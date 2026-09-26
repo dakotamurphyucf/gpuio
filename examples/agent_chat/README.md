@@ -75,3 +75,24 @@ and OS close decisions. `--native-test` only lengthens fake send acceptance to
 make the newer-draft race observable and prints a marker after `App.run` returns.
 Linux GUI execution remains informational under OCH-17; Linux build/unit checks
 remain required. See [milestone evidence](../../docs/evidence/agent-workspace-m4.md).
+
+## Milestone 5 integration in progress
+
+**Explore workspace** opens the review inspector beside the conversation. Click
+its checkpoint card or focus it and press Space/Enter, choose a step of 1 or 5,
+and reset the count. Closing/reopening keeps this window's observed progress and
+conversation draft while unmounting native inspector content. Progress is in
+memory and ends with the window.
+
+The app now links the separate example counter package through its generated
+native backend. `runtime/review` consumes only that package's public typed API;
+`runtime/inspector` owns visibility. The reset status waits for a native command
+acknowledgement rather than treating submission as completion.
+
+Run `python3 scripts/test_agent_chat_review.py` after building for the actual
+macOS pointer/keyboard/properties/commands/events and lifetime walkthrough. Set
+`GPUIO_SCREENSHOT_DIR` to capture the dark/light views. See the
+[partial M5 evidence](../../docs/evidence/agent-chat-m5.md) and
+[complete remaining coverage plan](../../docs/design/agent-chat-m5-showcase.md).
+This review surface is the first integration; the full milestone showcase is not
+yet complete.

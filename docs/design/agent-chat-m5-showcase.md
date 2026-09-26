@@ -1,7 +1,8 @@
 # Milestone 5 agent-chat showcase
 
 Status: implementation plan for OCH-46, reconciled with the live OCH-23–26 and
-OCH-33–39 scopes on 2026-09-26. **The flows and acceptance below are pending.**
+OCH-33–39 scopes on 2026-09-26. **The review inspector is implemented; the remaining
+flows and combined acceptance below are pending.** See [current evidence](../evidence/agent-chat-m5.md).
 Existing component examples and library tests do not establish chat integration.
 Finish OCH-39 and the integrated acceptance before closing this milestone.
 
@@ -36,7 +37,7 @@ exact chat source links and passing walkthrough/evidence links to every row.
 
 | Ticket / family | Public API entry point | Planned reachable flow and observable behavior |
 | --- | --- | --- |
-| OCH-23 static extension | `Gpuio_example_counter`, `View.extension`; `examples/extension_package/` and generated consumer backend | Review checkpoint counter in the artifact inspector: native increment events update its summary; typed step properties and reset/set commands work. Consume the separate package, with its actual 0–100 value and 1–10 step limits. |
+| OCH-23 static extension | `Gpuio_example_counter`, `View.extension`; [chat Review](../../examples/agent_chat/runtime/review.ml), [Inspector](../../examples/agent_chat/runtime/inspector.ml) and generated consumer backend | Implemented review checkpoint counter: pointer/OS keyboard events, typed step properties and acknowledged resets; actual 0–100 count and 1–10 step limits. [Public test](../../scripts/test_agent_chat_review.py), [local evidence/screenshots](../evidence/agent-chat-m5.md). Combined workload and hosted gates still pending. |
 | OCH-24 retained canvas | `Canvas`, `Canvas_scene`, `View.canvas` | Run diagram: select, drag and pan/zoom using accepted native policies; selected-object details and an accessible text alternative describe the same scene. |
 | OCH-25 springs | `Animation.Spring` and typed animation specs | Inspector/detail reveal with interrupted retargeting; reduced motion reaches the correct state immediately. |
 | OCH-25 sequences and synchronized repetition | `Animation` sequence/repeat/group APIs | Ordered artifact reveal and synchronized active-run indicators; completion, hiding and teardown stop native work. No per-frame OCaml updates. |

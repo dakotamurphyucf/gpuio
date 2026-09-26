@@ -260,6 +260,7 @@ jobs:
         run: |
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/agent_chat/main.exe", "--self-test"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-agent-chat-public.log
           python3 scripts/test_agent_chat.py 2>&1 | tee .cache/ci/macos-agent-chat-native.log
+          python3 scripts/test_agent_chat_review.py 2>&1 | tee .cache/ci/macos-agent-chat-review.log
       - name: macOS native image pixels and cleanup
         if: runner.os == 'macOS'
         run: |
