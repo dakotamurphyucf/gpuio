@@ -66,7 +66,10 @@ Native keyboard and auto-advance scheduling now pass local tests for child-edito
 key isolation, pause/resume, clipping/window activation, one pending proposal,
 no idle frames and teardown. Native wheel bursts now pass axis/cancellation,
 momentum fencing after accepted selection, missing-end fallback, nested scrolling,
-reduced-motion input and disposal checks. Pointer drag and full acceptance remain.
+reduced-motion input and disposal checks. Native pointer/GPU checks now cover
+axis locking, two-page preview, capture/rebinding, snap/accepted retargeting,
+in-flight grabs, child-control priority and lifecycle/foreign-capture cancellation.
+Public carousel scenarios and full family acceptance remain.
 Remaining scope includes completing carousel,
 expanded public examples, broader acceptance and hosted gates.
 See [navigation design](design/navigation-components.md) and

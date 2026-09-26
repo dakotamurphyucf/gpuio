@@ -881,3 +881,58 @@ Logs in the implementing agent's scratch directory: `carousel-wheel-unit.log`,
 `carousel-wheel-window-final.log`, `carousel-wheel-clippy-final.log`. Test windows
 close at completion. Hosted macOS/Linux gates and merge remain consolidated at the
 end of the milestone; no new hosted or Linux GUI result is claimed.
+
+## Carousel native pointer capture and snap — 2026-09-26
+
+The production carousel now handles primary-button drag through the existing
+native event loop. It keeps selection application-owned, uses the bounded pure
+gesture model, previews two admitted page layers, and reuses navigation motion
+for snap/accepted retargeting. No per-move event or synchronous OCaml callback is
+introduced. Native input state has one optional gesture, one optional inert-page
+shield, a weak presenter, and the existing bounded wheel state.
+
+Local macOS `native_carousel` with `native-image-tests` passes:
+
+- Cross-axis rejection; pending input does not capture. Axis lock captures, redraw
+  rebinds the hitbox, and captured samples/release work outside the viewport.
+- Actual GPU readback of accepted/adjacent page colors during horizontal and
+  vertical previews. Tree selection is unchanged and the adjacent editor is inert.
+  Motion emits no application request; release emits one relative request.
+- Ignoring a request returns pixels and geometry to the accepted page. Accepting
+  it retargets from the painted neighboring layer. Grabbing an ongoing transition
+  uses its last painted offset rather than resetting to a settled page.
+- Escape cancels without selection. Native editor dragging stays in the editor;
+  an ordinary child button still activates without a carousel request. Reduced
+  motion preserves deliberate dragging, with immediate release settling. Last-page
+  Next remains usable with looping enabled.
+- Hiding, pointer-disable, resize, lost capture and disabled model replacement
+  cancel active capture. Activating a second real native window cancels the drag;
+  reactivation and release do not emit a stale request. That window is closed.
+- A foreign hitbox takes capture from an active drag; Escape cancellation preserves
+  that foreign capture. It is explicitly released by the test afterward.
+- Removing an entire mounted carousel while captured synchronously releases its
+  capture before owner drop. Release afterward emits nothing. A deliberately held
+  retired owner has no gesture and no retained listener references; native maps and
+  retained bytes return to zero. The existing pending-wheel teardown also passes.
+- Existing GPU/editor/focus/key/auto-advance and wheel regressions still pass.
+
+The first native run exposed the inert outgoing page also blocking its parent
+carousel's drag surface. Its descendants remain inert; a bounded shield above
+those descendants and below the accepted incoming page now identifies the same
+area as a carousel gesture surface. Incoming child controls retain precedence.
+A later teardown fixture attempted an empty root while keeping live nodes, which
+correctly failed tree admission. The replacement fixture removes the full tree;
+the invariant was preserved, not relaxed for the test.
+
+Pure tests additionally verify frozen painted origin after axis lock and avoid
+requesting snap frames for a preview that never painted. All 221 native library unit
+tests, all-target feature-enabled Clippy, Rust formatting and diff checks pass.
+Commands are the same as the preceding wheel checkpoint. Scratch logs:
+`carousel-drag-unit.log`, `carousel-drag-clippy.log`,
+`carousel-drag-window-final.log`.
+
+This is real macOS GPU/window behavior with synthetic GPUI pointer dispatch, not
+physical trackpad, touchscreen, VoiceOver speech or Linux GUI acceptance. Public
+carousel scenarios, expanded AX/IME/nested-family and unmount-policy composition
+acceptance remain before OCH-37 completion. No hosted CI/merge is claimed; the full
+milestone scope and consolidated macOS/Linux gates remain active.

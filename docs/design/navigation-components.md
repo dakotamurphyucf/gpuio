@@ -601,15 +601,40 @@ rechecks availability; removal explicitly disposes tasks and focus subscriptions
 even if an old painted listener temporarily retains the owner. Hover pausing uses
 the visible owner bounds, including native child hitboxes and controls.
 
-The pure drag model and two-layer preview/snap math are tested foundations only;
-pointer capture, native gesture routing and its actual GPU acceptance still need
-implementation. Preview leaves accepted selection unchanged, keeps an adjacent
-page inert, and retargets from accepted painted geometry when the application
-accepts a selection. These pure results alone do not advertise drag support.
+Primary-button dragging uses a pending axis decision before taking capture. It
+requires eight logical pixels and 1.25:1 dominance; a decisive cross-axis movement
+rejects the gesture. Child editors/buttons keep their native input. Once claimed,
+the pointer remains captured outside the viewport and its hitbox is rebound after
+each paint. Preview moves only the accepted page and at most one adjacent inert
+page, using bounded offsets. Non-looping edges apply resistance instead of issuing
+an invalid step. Release requests a neighbor after crossing 20% of the viewport
+extent, clamped to 12–80 logical pixels; the preview itself never changes selection.
+
+Release begins snapping toward the application-accepted page and emits at most
+one asynchronous relative request. If the application accepts it, presentation
+retargets from the last painted layers; if it ignores it, the page returns to its
+accepted position. A gesture can grab an ongoing transition: its initial offset
+comes from accepted paint and freezes on axis lock. Unpainted speculative samples
+do not become transition origins. Preview drives paint only on pointer samples;
+snapping uses the existing finite navigation motion. Reduced motion permits direct
+manipulation and settles release immediately.
+
+Outgoing controls remain inert while their shield remains a carousel drag surface;
+it does not restore descendant focus/IME/input. Preview uses only admitted retained
+content and never invokes OCaml to create a missing page. Explicit native unmount
+policy therefore cannot be bypassed by dragging. Separate Bonsai/Eio lifecycle
+choices remain application-owned, as for ordinary navigation.
+
+Escape, incompatible model/handler/page/axis changes, hidden or pointer-disabled
+ancestors, modal blocking, resize, capture loss, native window deactivation and
+unmount cancel a gesture without selecting. Cancellation releases only this
+carousel's owned capture; it does not release or consume input for a replacement
+capture owned by another component. Native teardown explicitly cancels capture
+before dropping the owner, including when old frame listeners still retain it.
 
 Implementation status: Core/Bonsai constructors, paired envelopes, admission,
 request dispatch, horizontal/vertical page presentation, keyboard, bounded wheel
-input and native automatic scheduling are implemented and locally tested on macOS.
-Axis-locked pointer drag/snapping, public Navigation Lab scenarios and full
+input, pointer drag/snapping and native automatic scheduling are implemented and
+locally tested on macOS. Public Navigation Lab carousel scenarios and full
 accessibility/family acceptance remain pending. No carousel capability is advertised;
 the gesture scope has not been replaced by the default buttons.

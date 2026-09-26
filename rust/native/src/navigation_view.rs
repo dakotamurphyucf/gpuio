@@ -9,6 +9,23 @@ pub(super) struct State {
     axis: gpuio_protocol::carousel::Axis,
 }
 
+impl State {
+    pub(super) fn previewing(&self) -> bool {
+        self.motion.previewing()
+    }
+    pub(super) fn drag_origin(&self) -> f32 {
+        self.motion.drag_origin()
+    }
+    pub(super) fn preview(&mut self, offset: f32, neighbor: Option<NodeId>) {
+        self.motion
+            .preview(offset, neighbor)
+            .expect("admitted carousel preview");
+    }
+    pub(super) fn finish_preview(&mut self, immediate: bool) {
+        self.motion.finish_preview(self.origin.elapsed(), immediate);
+    }
+}
+
 impl View {
     pub(super) fn sync_navigation(&mut self, dirty: &[NodeId]) {
         let session = self.session.borrow();
@@ -140,7 +157,13 @@ impl View {
                 page = page.hidden();
             }
             let body = if Some(*id) != selected {
-                crate::semantics::Inert(body).into_any_element()
+                if let Some(carousel) = node.parent.and_then(|parent| self.carousels.get(&parent))
+                    && layer.is_some()
+                {
+                    carousel::input::inert_page(body, carousel)
+                } else {
+                    crate::semantics::Inert(body).into_any_element()
+                }
             } else {
                 body
             };
@@ -152,7 +175,8 @@ impl View {
             .map(Rc::downgrade);
         let gate = self.focus.clone();
         let owner = node.id;
-        let state = Rc::downgrade(&state);
+        let presenter = Rc::downgrade(&state);
+        let state = presenter.clone();
         let element = div()
             .relative()
             .size_full()
@@ -197,6 +221,7 @@ impl View {
                 owner: cx.weak_entity(),
                 node: parent,
                 enabled: interaction.pointer,
+                presenter,
             }
             .into_any_element()
         } else {

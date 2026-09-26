@@ -208,6 +208,12 @@ impl State {
         self.painted = self.sample(now);
     }
 
+    pub fn drag_origin(&self) -> f32 {
+        self.selected
+            .and_then(|page| self.painted.layer(page))
+            .map_or(0., |layer| layer.offset)
+    }
+
     pub fn previewing(&self) -> bool {
         self.preview.is_some()
     }
@@ -245,7 +251,16 @@ impl State {
             return;
         }
         self.epoch = Arc::new(());
-        if immediate || self.config.motion == Motion::Immediate || self.config.duration_ms == 0 {
+        let already_settled = self.painted.outgoing.is_none()
+            && self
+                .painted
+                .current
+                .is_none_or(|layer| layer.offset == 0. && layer.opacity == 1.);
+        if immediate
+            || already_settled
+            || self.config.motion == Motion::Immediate
+            || self.config.duration_ms == 0
+        {
             self.settle(now);
             return;
         }
@@ -518,5 +533,11 @@ mod tests {
         assert!(!state.previewing());
         assert_eq!(state.sample(ms(32)).current.unwrap().offset, 0.);
         assert!(state.sample(ms(32)).outgoing.is_none());
+        state.preview(-0.3, Some(page(0))).unwrap(); // No paint.
+        state.finish_preview(ms(33), false);
+        assert!(
+            !state.sample(ms(33)).needs_frame,
+            "unpainted preview needs no snap frames"
+        );
     }
 }

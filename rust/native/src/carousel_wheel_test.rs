@@ -39,7 +39,7 @@ pub(super) async fn exercise(
         handle,
         vec![Op::SetCarousel(
             node(462),
-            config(6, 1, Axis::Horizontal, Direction::Direct),
+            config(100, 1, Axis::Horizontal, Direction::Direct),
         )],
     );
     frame(cx, handle).await;
@@ -70,7 +70,7 @@ pub(super) async fn exercise(
         cx,
         handle,
         vec![
-            Op::SetCarousel(node(462), config(7, 0, Axis::Horizontal, Direction::Next)),
+            Op::SetCarousel(node(462), config(101, 0, Axis::Horizontal, Direction::Next)),
             Op::SetNavigationStack(node(463), presentation(0, 0)),
         ],
     );
@@ -129,7 +129,7 @@ pub(super) async fn exercise(
         handle,
         vec![Op::SetCarousel(
             node(462),
-            config(8, 0, Axis::Vertical, Direction::Direct),
+            config(102, 0, Axis::Vertical, Direction::Direct),
         )],
     );
     frame(cx, handle).await;
@@ -137,7 +137,7 @@ pub(super) async fn exercise(
     wheel(cx, handle, point, delta(0., 0.), TouchPhase::Ended);
     assert_eq!(requests(transport), vec![Request::Next]);
     wheel(cx, handle, point, delta(0., -60.), TouchPhase::Started);
-    let mut disabled = config(9, 0, Axis::Vertical, Direction::Direct);
+    let mut disabled = config(103, 0, Axis::Vertical, Direction::Direct);
     disabled.disabled = true;
     apply(cx, handle, vec![Op::SetCarousel(node(462), disabled)]);
     frame(cx, handle).await;
@@ -157,7 +157,7 @@ pub(super) async fn exercise(
         vec![
             Op::SetCarousel(
                 node(462),
-                config(10, 0, Axis::Horizontal, Direction::Direct),
+                config(104, 0, Axis::Horizontal, Direction::Direct),
             ),
             Op::Create(node(471), Kind::Container, "Child scroller".into(), None),
             Op::Create(node(472), Kind::Text, "Wide child".into(), None),

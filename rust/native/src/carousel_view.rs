@@ -23,7 +23,8 @@ pub(super) struct State {
     _subscriptions: Vec<gpui::Subscription>,
 }
 impl State {
-    fn dispose(&mut self) {
+    fn dispose(&mut self, window: &mut Window) {
+        self.input.cancel_drag(window, true);
         self.timer = None;
         self.ticket = None;
         self.clock.dispose();
@@ -71,6 +72,14 @@ impl State {
         self.timer.is_some()
     }
     #[cfg(feature = "native-tests")]
+    pub(super) fn shield_hitbox(&self) -> Option<gpui::HitboxId> {
+        self.input.shield_hitbox()
+    }
+    #[cfg(feature = "native-tests")]
+    pub(super) fn dragging(&self) -> bool {
+        self.input.dragging()
+    }
+    #[cfg(feature = "native-tests")]
     pub(super) fn wheel_timer(&self) -> bool {
         self.input.has_timer()
     }
@@ -94,7 +103,7 @@ impl View {
                     .and_then(|tree| tree.get(*id))
                     .is_some_and(|node| node.carousel.is_some());
                 if !keep {
-                    state.borrow_mut().dispose();
+                    state.borrow_mut().dispose(window);
                 }
                 keep
             });
@@ -125,7 +134,7 @@ impl View {
         self.carousels.retain(|id, state| {
             let keep = present.contains(id);
             if !keep {
-                state.borrow_mut().dispose();
+                state.borrow_mut().dispose(window);
             }
             keep
         });
@@ -164,6 +173,7 @@ impl View {
             {
                 let now = state.origin.elapsed();
                 state.input.interrupt(now);
+                state.input.cancel_drag(window, true);
                 state.handler = handler;
                 state.painted = false;
                 state.timer = None;
@@ -193,6 +203,7 @@ impl View {
     pub(super) fn schedule_carousels(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let ids = self.carousels.keys().copied().collect::<Vec<_>>();
         for id in ids {
+            self.sync_carousel_drag(id, window, cx);
             self.schedule_carousel_wheel(id, window, cx);
             self.schedule_carousel(id, window, cx);
         }

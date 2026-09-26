@@ -574,6 +574,7 @@ pub(super) async fn exercise(
         "activation restarts a full interval"
     );
 
+    drag_input::exercise(cx, handle, transport).await;
     wheel_input::exercise(cx, handle, transport).await;
     let retired_carousel = handle
         .update(cx, |view, _, _| view.carousels[&node(462)].clone())
@@ -613,8 +614,9 @@ pub(super) async fn exercise(
         1,
         "retired input handlers release owner"
     );
+    drag_input::teardown(cx, handle, transport).await;
     println!(
-        "GPUIO_CAROUSEL_PRESENTATION_OK: vertical GPU transition, retained editor, hidden focus rejection, outside/control focus preservation, page focus handoff and disposal; keyboard, editor key isolation, one pending automatic proposal, settled paint, hover/focus/reduced/hidden/clipped/inactive pause, idle frame count and timer disposal; wheel dispatch and teardown; pointer drag pending"
+        "GPUIO_CAROUSEL_PRESENTATION_OK: vertical GPU transition, retained editor, hidden focus rejection, outside/control focus preservation, page focus handoff and disposal; keyboard, editor key isolation, one pending automatic proposal, settled paint, hover/focus/reduced/hidden/clipped/inactive pause, idle frame count and timer disposal; wheel dispatch and teardown; native pointer/GPU/capture checks"
     );
 }
 
@@ -667,3 +669,6 @@ fn requests(transport: &Transport) -> Vec<Request> {
 
 #[path = "carousel_wheel_test.rs"]
 mod wheel_input;
+
+#[path = "carousel_drag_test.rs"]
+mod drag_input;

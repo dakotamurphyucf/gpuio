@@ -1583,7 +1583,8 @@ impl Render for View {
                         gpuio_protocol::color_input::CancelReason::Escape,
                         window,
                         cx,
-                    ) | view.cancel_split_drag(window, cx)
+                    ) | view.cancel_carousel_drags(window, cx)
+                        | view.cancel_split_drag(window, cx)
                         | view.cancel_slider_drags(
                             gpuio_protocol::slider::CancelReason::Escape,
                             window,

@@ -31,6 +31,7 @@ pub struct Drag {
     next: bool,
     progress: Progress,
     delta: f32,
+    start_offset: f32,
 }
 fn components(axis: Axis, point: [f32; 2]) -> (f32, f32) {
     match axis {
@@ -58,10 +59,19 @@ impl Drag {
                 next,
                 progress: Progress::Pending,
                 delta: 0.,
+                start_offset: 0.,
             })
     }
     pub fn progress(&self) -> Progress {
         self.progress
+    }
+    /// While the gesture is undecided, follow the last painted position. Once
+    /// axis lock succeeds that origin freezes, so subsequent samples cannot drift
+    /// with an interrupted programmatic transition.
+    pub fn set_start_offset(&mut self, offset: f32) {
+        if self.progress == Progress::Pending && offset.is_finite() {
+            self.start_offset = offset.clamp(-1., 1.);
+        }
     }
     pub fn update(&mut self, point: [f32; 2]) -> Progress {
         if !point.iter().all(|v| v.is_finite()) {
@@ -87,13 +97,13 @@ impl Drag {
                 return self.progress;
             }
         }
-        self.delta = main;
-        let step = Step::from_delta(main);
+        let offset = (main / self.extent + self.start_offset).clamp(-1., 1.);
+        self.delta = offset * self.extent;
+        let step = Step::from_delta(offset);
         let available = match step {
             Step::Previous => self.previous,
             Step::Next => self.next,
         };
-        let offset = (main / self.extent).clamp(-1., 1.);
         self.progress = Progress::Dragging {
             offset: if available {
                 offset
@@ -277,6 +287,24 @@ mod tests {
         assert_eq!(edge.finish(), None);
         assert!(Drag::new(Axis::Horizontal, [0., 0.], 300., false, false).is_none());
         assert!(Drag::new(Axis::Horizontal, [0., 0.], f32::NAN, true, true).is_none());
+    }
+    #[test]
+    fn grabbing_an_inflight_page_freezes_its_painted_origin_after_axis_lock() {
+        let mut drag = Drag::new(Axis::Horizontal, [0., 0.], 300., true, true).unwrap();
+        drag.set_start_offset(0.6);
+        let Progress::Dragging { offset, neighbor } = drag.update([-30., 0.]) else {
+            panic!()
+        };
+        assert!((offset - 0.5).abs() < 0.0001);
+        assert_eq!(neighbor, Some(Step::Previous));
+        drag.set_start_offset(0.); // Cannot drift with later paint.
+        drag.set_start_offset(f32::NAN);
+        let Progress::Dragging { offset, neighbor } = drag.update([-270., 0.]) else {
+            panic!()
+        };
+        assert!((offset + 0.3).abs() < 0.0001);
+        assert_eq!(neighbor, Some(Step::Next));
+        assert_eq!(drag.finish(), Some(Step::Next));
     }
     #[test]
     fn bounded_invalid_and_vertical_drag_workload() {
