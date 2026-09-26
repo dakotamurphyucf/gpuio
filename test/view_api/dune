@@ -5,6 +5,10 @@
   (deps
    (sandbox preserve_file_kind)
    color-values.tsv
+   color-config.hex
+   color-preview.hex
+   color-set.hex
+   color-failed.hex
    calendar-command-request.hex
    calendar-command-events.hex
    calendar-request.hex
@@ -217,3 +221,5 @@
 (copy_files ../fixtures/calendar-*.hex)
 
 (copy_files ../fixtures/color-values.tsv)
+
+(copy_files ../fixtures/color-*.hex)

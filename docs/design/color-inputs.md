@@ -1,7 +1,8 @@
 # Color selection (OCH-36)
 
-Status: value foundation and pure native interaction policy implemented; mounted
-controls, bridge, popup and public example remain in progress. No color-control
+Status: value foundation, Core control contracts, paired standalone codecs and
+pure native interaction policy implemented; mounted controls, retained bridge,
+runtime controllers, popup and public example remain in progress. No color-control
 capability is advertised yet.
 
 ## Concrete values
@@ -33,17 +34,64 @@ valid colors and invalid text. Classification does not rewrite input. In
 particular, an empty edit is not an implicit successful Clear command.
 
 Pure Rust counterparts live in `gpuio_protocol::color_value`; neither side owns
-a native widget or schedules I/O. Wire codecs and protocol tags will be added
-with the bounded color-control contract; these domain types are not an implicit
-serialization format.
+a native widget or schedules I/O. The wire representation is described separately
+below; public value types do not expose bin_prot readers.
+
+## Core interface and wire boundary
+
+`Gpuio.Color_input` now exposes validated `Labels`, `Palette_entry` and `Config`,
+abstract revisions and interaction identities, immutable native snapshots,
+commands and typed observations/errors. `Labels.english ~control` supplies the
+default English channel labels; `Labels.create` accepts explicit localized names.
+For example, this constructs a description without allocating native resources:
+
+```ocaml
+let config =
+  let open Core.Or_error.Let_syntax in
+  let%bind labels = Gpuio.Color_input.Labels.english ~control:"Accent color" in
+  let%bind color = Gpuio.Color_value.Rgba.of_hex "#7C5CFC" in
+  let%bind entry = Gpuio.Color_input.Palette_entry.create ~color ~label:"Violet" in
+  Gpuio.Color_input.Config.create ~labels ~palette:[ entry ] ()
+```
+
+Snapshots expose the current and committed concrete values, unquantized editing
+channels, optional interaction/draft, and value-validity flags. Expert imports
+validate before constructing public snapshots. Their window/node identities stay
+separate from revisions and interaction IDs. This checkpoint does not expose a
+mounted View constructor or the Bonsai/Eio runtime controller yet.
+
+`Color_input_wire` and Rust's bounded `decode_color_*` functions encode the same
+ordered contracts. Concrete RGBA is a nonnegative bin_prot int64 in
+`0x00000000..0xFFFFFFFF`, with bit layout `0xRRGGBBAA`. Value tags distinguish Empty
+from Color. HSLA carries four binary64 values in hue/saturation/lightness/alpha
+order. Configuration carries seven labels, bounded palette entries, alpha policy,
+allow-empty, disabled and read-only. Snapshots carry revision, value, committed,
+channels, interaction, draft and the two validity flags, in that order.
+
+Standalone configuration payloads are bounded to 98,304 bytes; events/responses
+to 4,352 bytes; commands to 32 bytes. The largest valid configuration is 97,308
+bytes. Rust decoding bounds each length/count before allocation and requires
+full payload consumption. Semantic validation rejects invalid UTF-8, packed
+colors, nonfinite/out-of-range channels, inconsistent channel/RGBA values,
+future/nonpositive interaction IDs, impossible draft/interaction shapes and
+draft classifications inconsistent with their grammar. Started events carry
+the starting revision as their interaction ID. Forbidden draft classification
+requires a syntactically valid candidate with nonopaque alpha; whether the
+current configuration forbids it remains the native owner's responsibility.
+
+OCaml generated wire readers are internal data readers, followed by semantic
+validation when importing public values. They are not advertised as standalone
+untrusted-input entry points. These codecs have not yet been assigned outer
+View/message/event tags or enabled in the retained bridge. Dependency pins and
+the advertised capability set remain unchanged.
 
 ## Interaction policy
 
 `rust/native/src/color_input_state.rs` owns committed and preview selections,
 their HSLA representations, one optional interaction and one optional text draft.
-The corresponding Rust contract lives in `color_input.rs`. Public OCaml control
-interfaces and wire decoding are still being integrated; existing `Color_value`
-interfaces are available independently.
+The corresponding Rust contract lives in `color_input.rs`. Core descriptions and
+standalone codecs share these contracts; runtime controllers and retained bridge
+integration are still in progress.
 
 Channel input uses degrees for Hue (0–360) and percentages for Saturation,
 Lightness and Alpha (0–100). Text uses the existing numeric draft grammar,
@@ -128,8 +176,8 @@ late callbacks from the old interaction. Existing editor, focus, overlay and
 ownership adapters should be reused. A mounted adapter experiment will select
 the smallest safe integration boundary before exposing control interfaces.
 
-Mounted lifecycle behavior, paired wire decoding and public controllers remain
-to be implemented and validated. An eyedropper remains capability-specific
+Mounted lifecycle behavior, retained wire routing and public runtime controllers
+remain to be implemented and validated. An eyedropper remains capability-specific
 follow-on work unless a portable implementation is verified.
 
 See [local foundation evidence](../evidence/color-inputs-och36.md). Full ticket

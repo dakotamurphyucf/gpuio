@@ -1,13 +1,17 @@
 //! Color-control value and interaction contracts. Codec/bridge admission is
 //! separate; no native resources or GUI dependencies belong in this module.
 use crate::{color_value::*, numeric};
+use binprot::macros::BinProtWrite;
 
 pub const MAX_PALETTE_ENTRIES: usize = 256;
 pub const MAX_PALETTE_LABEL_BYTES: usize = 256;
 pub const MAX_LABEL_BYTES: usize = 4096;
 pub const MAX_DRAFT_BYTES: usize = 4096;
+pub const MAX_CONFIG_BYTES: usize = 98_304;
+pub const MAX_EVENT_BYTES: usize = 4352;
+pub const MAX_COMMAND_BYTES: usize = 32;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Channel {
     Hue,
     Saturation,
@@ -57,19 +61,19 @@ impl Channel {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Field {
     Hex,
     Channel(Channel),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
 pub struct PaletteEntry {
     pub color: Rgba,
     pub label: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
 pub struct Labels {
     pub control: String,
     pub hue: String,
@@ -88,7 +92,7 @@ pub fn valid_label(text: &str, limit: usize) -> bool {
             .is_empty()
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
 pub struct Config {
     pub labels: Labels,
     pub palette: Vec<PaletteEntry>,
@@ -153,19 +157,19 @@ impl Config {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum InteractionKind {
     Drag(Channel),
     Text(Field),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub struct Interaction {
     pub id: i64,
     pub kind: InteractionKind,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum DraftStatus {
     Empty,
     Incomplete,
@@ -175,7 +179,7 @@ pub enum DraftStatus {
     Valid,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
 pub struct Draft {
     pub text: String,
     pub composing: bool,
@@ -188,12 +192,7 @@ pub fn valid_draft(text: &str) -> bool {
 
 /// Classification is distinct from native text storage. Invalid/composing text
 /// must not replace the last valid native preview or commit a color.
-pub fn classify(
-    config: &Config,
-    field: Field,
-    text: &str,
-    channels: Hsla,
-) -> (DraftStatus, Option<Hsla>) {
+fn classify_unrestricted(field: Field, text: &str, channels: Hsla) -> (DraftStatus, Option<Hsla>) {
     let (status, candidate) = match field {
         Field::Hex => match HexDraft::parse(text) {
             HexDraft::Empty => (DraftStatus::Empty, None),
@@ -219,13 +218,23 @@ pub fn classify(
             next
         }
     });
+    (status, candidate)
+}
+
+pub fn classify(
+    config: &Config,
+    field: Field,
+    text: &str,
+    channels: Hsla,
+) -> (DraftStatus, Option<Hsla>) {
+    let (status, candidate) = classify_unrestricted(field, text, channels);
     match candidate {
         Some(candidate) if !config.allows_channels(candidate) => (DraftStatus::Forbidden, None),
         _ => (status, candidate),
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub struct Snapshot {
     pub revision: i64,
     pub value: Value,
@@ -257,16 +266,25 @@ impl Snapshot {
                 (
                     Some(Interaction {
                         id,
-                        kind: InteractionKind::Text(_),
+                        kind: InteractionKind::Text(field),
                     }),
                     Some(draft),
-                ) => *id > 0 && *id <= self.revision && valid_draft(&draft.text),
+                ) => {
+                    let (status, candidate) =
+                        classify_unrestricted(*field, &draft.text, self.channels);
+                    *id > 0
+                        && *id <= self.revision
+                        && valid_draft(&draft.text)
+                        && (draft.status == status
+                            || (draft.status == DraftStatus::Forbidden
+                                && candidate.is_some_and(|c| c.alpha() != 1.)))
+                }
                 _ => false,
             }
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Source {
     Pointer,
     Keyboard,
@@ -276,7 +294,7 @@ pub enum Source {
     Clear,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum CancelReason {
     Escape,
     ConfigurationChanged,
@@ -290,7 +308,7 @@ pub enum CancelReason {
     Interrupted,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub enum Event {
     Observed(Snapshot),
     Started(Snapshot),
@@ -313,7 +331,9 @@ impl Event {
         s.is_valid()
             && match self {
                 Self::Observed(_) => true,
-                Self::Started(_) => s.interaction.is_some() && s.value == s.committed,
+                Self::Started(_) => {
+                    s.interaction.is_some_and(|i| i.id == s.revision) && s.value == s.committed
+                }
                 Self::Preview(_) => s.interaction.is_some(),
                 Self::Committed(..) | Self::Cancelled(..) => {
                     s.interaction.is_none() && s.revision > 0
@@ -322,7 +342,7 @@ impl Event {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Error {
     NotMounted,
     Closed,
@@ -341,7 +361,7 @@ pub enum Error {
     NativeFailure,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Command {
     Set {
         value: Value,
@@ -366,7 +386,7 @@ impl Command {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub enum Response {
     Applied(Snapshot),
     Failed(Error),

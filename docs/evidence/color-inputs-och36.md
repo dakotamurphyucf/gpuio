@@ -64,3 +64,44 @@ drag flag on cancellation. This informs the private adapter integration work;
 there is no mounted test result for a color widget yet. No windows opened during
 this checkpoint. Paired codecs, retained bridge, native child synchronization,
 public control/popup/example and native/hosted acceptance remain pending.
+
+## Core contract and standalone codec checkpoint — 2026-09-25
+
+Compiled Core `Color_input` interfaces now validate labels, bounded palettes,
+revisions and imported snapshots; observations are separate from explicit commands.
+Rust and OCaml independently encode/decode these manually assembled fixtures:
+
+| Fixture | Bytes | Meaning |
+| --- | ---: | --- |
+| `color-config.hex` | 96 | Accent labels, two palette colors, alpha allowed, empty allowed, read-only |
+| `color-preview.hex` | 69 | Revision 8, text interaction 5, red at half alpha preview, green committed, valid hex draft |
+| `color-set.hex` | 9 | Set `#11223344` guarded by revision 7 |
+| `color-failed.hex` | 2 | Failed Stale_interaction response |
+
+The reference bytes were assembled with Python `struct` and manual bin_prot
+tags/length prefixes, without invoking either production encoder. Packed RGBA
+uses integer tags `FD` (signed 32-bit little endian) or `FC` (signed 64-bit little
+endian) where required; HSLA is little-endian binary64. Positive integers below
+128, variant/option tags and these short UTF-8 string lengths are single bytes.
+The preview's HSLA tuple is exactly `(0, 1, 0.5, 0.5)`; the stored RGBA alpha is
+128 after nearest-byte rounding. Fixture files are versioned under `test/fixtures`.
+
+Local Core expect tests pass fixture agreement/full consumption, public accessors,
+identity retention, invalid UTF-8/label/palette/revision guards, malformed snapshot
+and draft rejection, 1,805 public/wire color-conversion cases and the maximum
+97,308-byte configuration. Rust codec tests pass every fixture truncation, tags,
+trailing data, all channel/interaction/draft/source/cancel/error variants,
+semantic contradictions, nonfinite channels, maximum payloads, excess lengths
+and huge length declarations rejected before allocation. The ten native policy
+tests still pass under the stricter snapshot validation. These checks remain
+independent of mounted GPUI behavior.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @test/view_api/runtest @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-protocol --test color_value --test color_input_codec
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --lib color_input_state
+```
+
+Final lint/format results are recorded with the checkpoint in Linear. Outer
+protocol tags, retained admission/routing, native controls and Bonsai/Eio runtime
+controllers remain pending. No color capability or GUI acceptance is claimed.

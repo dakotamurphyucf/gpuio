@@ -1,7 +1,8 @@
 //! Concrete straight-alpha encoded-sRGB values. Theme references are not colors
 //! selected by a picker. All conversion arithmetic is binary64, independent of GPUI.
+use binprot::{BinProtWrite, macros::BinProtWrite};
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
 pub struct Hsla {
     hue_degrees: f64,
     saturation: f64,
@@ -169,13 +170,13 @@ fn hex_digit(value: u8) -> u8 {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Value {
     Empty,
     Color(Rgba),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum AlphaPolicy {
     AllowAlpha,
     OpaqueOnly,
@@ -213,5 +214,28 @@ impl HexDraft {
             3 | 4 | 6 | 8 => Self::Valid(Rgba::of_hex(text).expect("validated hex color")),
             _ => Self::Invalid(DraftError::TooLong),
         }
+    }
+}
+
+impl Rgba {
+    /// Canonical wire color: nonnegative bin_prot int64 containing 0xRRGGBBAA.
+    pub fn packed(self) -> i64 {
+        (i64::from(self.red) << 24)
+            | (i64::from(self.green) << 16)
+            | (i64::from(self.blue) << 8)
+            | i64::from(self.alpha)
+    }
+    pub fn from_packed(value: i64) -> Option<Self> {
+        (0..=0xffff_ffff).contains(&value).then_some(Self::new(
+            (value >> 24) as u8,
+            (value >> 16) as u8,
+            (value >> 8) as u8,
+            value as u8,
+        ))
+    }
+}
+impl BinProtWrite for Rgba {
+    fn binprot_write<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        self.packed().binprot_write(writer)
     }
 }

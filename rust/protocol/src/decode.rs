@@ -5,9 +5,13 @@ use std::io::{Cursor, Read};
 mod accessibility;
 mod avatar;
 mod calendar;
+mod color_input;
 pub use calendar::{
     decode_calendar_command, decode_calendar_config, decode_calendar_constraints,
     decode_calendar_event, decode_calendar_response, decode_calendar_selection,
+};
+pub use color_input::{
+    decode_color_command, decode_color_config, decode_color_event, decode_color_response,
 };
 mod loading;
 mod number_input;
