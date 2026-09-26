@@ -42,7 +42,16 @@ fn selection(modifiers: gpui::Modifiers) -> Selection {
 }
 
 impl View {
+    fn clear_tree_typeahead(&self, owner: NodeId) {
+        if let Some(state) = self.lists.get(&owner) {
+            state.borrow_mut().tree_typeahead.clear();
+        }
+    }
+
     fn tree_request(&mut self, owner: NodeId, request: Request) {
+        if !matches!(request, Request::Typeahead { .. }) {
+            self.clear_tree_typeahead(owner);
+        }
         if !self.focus.borrow().allows(owner) {
             return;
         }
@@ -74,23 +83,19 @@ impl View {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if !self.focus.borrow().allows(owner)
+        if !window.is_window_active()
+            || !self.focus.borrow().allows(owner)
             || !self
                 .lists
                 .get(&owner)
                 .is_some_and(|state| state.borrow().owns_tree_focus(window))
         {
+            self.clear_tree_typeahead(owner);
             return;
         }
         let modifiers = event.keystroke.modifiers;
         // Embedded editors/widgets keep all keys because their own handle, not
         // the exact tree surface/row handle, owns keyboard focus.
-        if modifiers.alt
-            || (cfg!(target_os = "macos") && modifiers.control)
-            || (!cfg!(target_os = "macos") && modifiers.platform)
-        {
-            return;
-        }
         let direction = match event.keystroke.key.as_str() {
             "up" => Some(Navigation::Previous),
             "down" => Some(Navigation::Next),
@@ -101,6 +106,14 @@ impl View {
             _ => None,
         };
         let request = if let Some(direction) = direction {
+            if modifiers.alt
+                || modifiers.function
+                || (cfg!(target_os = "macos") && modifiers.control)
+                || (!cfg!(target_os = "macos") && modifiers.platform)
+            {
+                self.clear_tree_typeahead(owner);
+                return;
+            }
             let gesture = if toggle(modifiers) && !modifiers.shift {
                 None
             } else {
@@ -109,18 +122,39 @@ impl View {
             Some(Request::Navigate(direction, gesture))
         } else {
             match event.keystroke.key.as_str() {
-                "space" => Some(Request::SelectActive(if modifiers.shift {
-                    selection(modifiers)
-                } else {
-                    Selection::Toggle
-                })),
+                "space"
+                    if !modifiers.alt
+                        && !modifiers.function
+                        && !(cfg!(target_os = "macos") && modifiers.control)
+                        && !(!cfg!(target_os = "macos") && modifiers.platform) =>
+                {
+                    Some(Request::SelectActive(if modifiers.shift {
+                        selection(modifiers)
+                    } else {
+                        Selection::Toggle
+                    }))
+                }
                 "enter" if !modifiers.modified() => Some(Request::ActivateActive),
+                _ if !modifiers.control && !modifiers.platform && !modifiers.function => {
+                    let text = event.keystroke.key_char.as_deref().or_else(|| {
+                        (!modifiers.alt && event.keystroke.key.chars().count() == 1)
+                            .then_some(event.keystroke.key.as_str())
+                    });
+                    text.and_then(|text| {
+                        self.lists[&owner]
+                            .borrow_mut()
+                            .tree_typeahead
+                            .input(text, std::time::Instant::now())
+                    })
+                }
                 _ => None,
             }
         };
         if let Some(request) = request {
             self.tree_request(owner, request);
             cx.stop_propagation();
+        } else {
+            self.clear_tree_typeahead(owner);
         }
     }
 
@@ -128,8 +162,21 @@ impl View {
         &mut self,
         element: Stateful<Div>,
         owner: NodeId,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Stateful<Div> {
+        if self.lists[&owner]
+            .borrow()
+            .tree_typeahead_activation
+            .is_none()
+        {
+            let subscription = cx.observe_window_activation(window, move |view, window, _| {
+                if !window.is_window_active() {
+                    view.clear_tree_typeahead(owner);
+                }
+            });
+            self.lists[&owner].borrow_mut().tree_typeahead_activation = Some(subscription);
+        }
         let focus = self.lists[&owner]
             .borrow()
             .tree_focus

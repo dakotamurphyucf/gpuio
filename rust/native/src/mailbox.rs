@@ -15,6 +15,13 @@ pub const MAX_INPUT_BYTES: usize = 4 * MAX_MESSAGE_BYTES;
 // Drain includes those prefixes when fitting a response batch into 1 MiB.
 fn event_bytes(event: &Event) -> usize {
     256 + match event {
+        Event::TreeInput(
+            _,
+            _,
+            _,
+            _,
+            gpuio_protocol::tree_input::Request::Typeahead { text, .. },
+        ) => text.len(),
         Event::CarouselRequested(_, _, _, _, request) => match request {
             gpuio_protocol::carousel::Request::Select(id) => id.len(),
             gpuio_protocol::carousel::Request::AutoNext { from, target, .. } => {
@@ -675,5 +682,32 @@ impl Mailbox {
                 class: Class::Terminal,
             });
         }
+    }
+}
+
+#[cfg(test)]
+mod tree_typeahead_tests {
+    use super::*;
+    #[test]
+    fn text_is_charged_and_relative_searches_are_not_coalesced() {
+        let text = "a".repeat(256);
+        let event = Event::TreeInput(
+            WindowId::from_parts(0, 1).unwrap(),
+            gpuio_protocol::NodeId::from_parts(0, 1).unwrap(),
+            gpuio_protocol::HandlerId::from_parts(0, 1).unwrap(),
+            1,
+            gpuio_protocol::tree_input::Request::Typeahead {
+                text,
+                reset: true,
+                cycle: false,
+            },
+        );
+        assert_eq!(event_bytes(&event), 512);
+        let mut mailbox = Mailbox::default();
+        mailbox.input(event.clone()).unwrap();
+        mailbox.input(event.clone()).unwrap();
+        assert_eq!(mailbox.input_bytes, 1024);
+        assert_eq!(mailbox.drain(128), vec![event.clone(), event]);
+        assert_eq!(mailbox.input_bytes, 0);
     }
 }

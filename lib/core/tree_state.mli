@@ -122,3 +122,9 @@ val navigate : t -> _ Tree.t -> selection:Selection.t option -> Navigation.t -> 
     or disabled targets leave the reconciled state unchanged. Native scrolling,
     focus ownership and generation checks belong to the interaction adapter. *)
 val reveal : t -> _ Tree.t -> Tree.Id.t -> focus:bool -> t
+
+(** Apply bounded Unicode typeahead to the current visible loaded tree. A match
+    moves the logical cursor and replaces selection; a miss only updates the
+    bounded prefix. Native adapters supply reset/cycling policy with the input.
+    No timer, load, native focus or activation is performed here. *)
+val typeahead : t -> _ Tree.t -> Tree_typeahead.Input.t -> t * Tree.Id.t option

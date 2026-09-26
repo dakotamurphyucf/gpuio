@@ -38,6 +38,8 @@ pub(super) struct State {
     mapping: Arc<BTreeMap<i64, NodeId>>,
     handles: BTreeMap<i64, gpui::FocusHandle>,
     pub(super) tree_focus: Option<gpui::FocusHandle>,
+    pub(super) tree_typeahead: super::tree_typeahead::Clock,
+    pub(super) tree_typeahead_activation: Option<gpui::Subscription>,
     pending_focus: Option<PendingFocus>,
     bound: Option<i64>,
     extra_pins: BTreeSet<i64>,
@@ -63,6 +65,8 @@ impl State {
             mapping: Arc::default(),
             handles: BTreeMap::new(),
             tree_focus: None,
+            tree_typeahead: Default::default(),
+            tree_typeahead_activation: None,
             pending_focus: None,
             bound: None,
             extra_pins: BTreeSet::new(),
@@ -96,7 +100,10 @@ impl State {
             self.tree_focus.get_or_insert_with(|| cx.focus_handle());
         } else {
             self.tree_focus = None;
+            self.tree_typeahead_activation = None;
         }
+        self.tree_typeahead
+            .sync(node.tree_input.then_some(node.handler).flatten());
         let index = node.list_index.as_ref().expect("validated list index");
         if self.pending_focus.as_ref().is_some_and(|pending| {
             !node.tree_input
@@ -589,7 +596,7 @@ impl View {
             root = root.hover(move |r| r.refine_style(&style));
         }
         if node.tree_input {
-            root = self.tree_root_input(root, node.id, cx);
+            root = self.tree_root_input(root, node.id, window, cx);
         }
         root = root.child(frame);
         if config.scrollbar {
@@ -653,11 +660,18 @@ impl Element for Frame {
             .element
             .prepaint(id, inspector, bounds, layout, window, cx);
         let mut state = self.state.borrow_mut();
+        if !state.owns_tree_focus(window)
+            || !window.is_window_active()
+            || !self.focus.borrow().allows(self.route.node)
+        {
+            state.tree_typeahead.clear();
+        }
         let visible_bounds = bounds
             .intersect(&window.content_mask().bounds)
             .intersect(&window.fully_visible_bounds());
         if visible_bounds.size.width <= px(0.) || visible_bounds.size.height <= px(0.) {
             state.pending_focus = None;
+            state.tree_typeahead.clear();
         }
         let handle = state.native.handle().clone();
         if state.width != Some(bounds.size.width) {

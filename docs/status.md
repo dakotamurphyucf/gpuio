@@ -115,7 +115,11 @@ AppKit focus/select, child editor/IME isolation and pointer priority. Explicit
 reveal now hands focus to a stable row after asynchronous mounting, with bounded
 pending state and cancellation on retirement, blur, deactivation or scrolling
 away. Native tests cover a one-row budget and actual window activation changes.
-Typeahead, the high-level outcome adapter, full accessibility setters, drag
+Unicode typeahead now supports canonical accents, case folding, repeated-prefix
+cycling and current-label search, with an event-driven native expiry clock and
+bounded Core prefix. Codec, reducer, queued Bonsai and actual native key-dispatch
+tests pass; a 100,000-node Core benchmark is recorded separately from native
+workload acceptance. The high-level outcome adapter, full accessibility setters, drag
 integration and public filesystem usage remain; no tree capability is advertised. See the [managed-tree design](design/managed-trees.md).
 
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native

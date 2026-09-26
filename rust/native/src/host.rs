@@ -125,6 +125,8 @@ mod toast_clock;
 mod tooltip;
 #[path = "tree_input_view.rs"]
 mod tree_input;
+#[path = "tree_typeahead.rs"]
+mod tree_typeahead;
 #[path = "typeahead.rs"]
 mod typeahead;
 struct ButtonState {

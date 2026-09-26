@@ -11,6 +11,7 @@ type 'key t =
   | Activate of 'key
   | Select_active of Tree_state.Selection.t
   | Activate_active
+  | Typeahead of Tree_typeahead.Input.t
 [@@deriving sexp_of]
 
 (** None discards an obsolete target. Relative requests need no key lookup. *)

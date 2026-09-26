@@ -137,9 +137,10 @@ depends: [
   "topkg" {= "1.1.1"}
   "typerep" {= "v0.17.1"}
   "uopt" {= "v0.17.0"}
-  "uucp" {= "17.0.0" & with-dev-setup}
+  "uucp" {= "17.0.0"}
+  "uunf" {= "17.0.0"}
   "uuseg" {= "17.0.0" & with-dev-setup}
-  "uutf" {= "1.0.4" & with-dev-setup}
+  "uutf" {= "1.0.4"}
   "variantslib" {= "v0.17.0"}
   "xdg" {= "3.24.2" & with-dev-setup}
   "yojson" {= "3.0.0" & with-dev-setup}

@@ -51,6 +51,7 @@ module Request : sig
   val activate : Target.t -> t
   val select_active : _ Tree_loading.Snapshot.t -> Tree_state.Selection.t -> t
   val activate_active : _ Tree_loading.Snapshot.t -> t
+  val typeahead : _ Tree_loading.Snapshot.t -> Tree_typeahead.Input.t -> t
 
   (** Programmatic reveal expands loaded ancestors, preserves selection/anchor
       and optionally updates the logical cursor. Disabled targets are ignored;

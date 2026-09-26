@@ -90,6 +90,7 @@ module Request = struct
     | Move of Move.t
     | Select_active of Tree_loading.Lease.t * State.Selection.t
     | Activate_active of Tree_loading.Lease.t
+    | Typeahead of Tree_loading.Lease.t * Tree_typeahead.Input.t
 
   let navigate snapshot ~selection direction =
     Navigate (Snapshot.lease snapshot, selection, direction)
@@ -101,6 +102,7 @@ module Request = struct
   let activate target = Activate target
   let select_active snapshot selection = Select_active (Snapshot.lease snapshot, selection)
   let activate_active snapshot = Activate_active (Snapshot.lease snapshot)
+  let typeahead snapshot input = Typeahead (Snapshot.lease snapshot, input)
   let reveal target ~focus = Reveal (target, focus)
   let move ~source ~destination placement = Move { source; destination; placement }
 end
@@ -148,6 +150,12 @@ let apply state snapshot request =
   | Request.Navigate (lease, selection, direction) ->
     if Tree_loading.Lease.equal lease (Snapshot.lease snapshot)
     then cursor (State.navigate state tree ~selection direction)
+    else None
+  | Typeahead (lease, input) ->
+    if Tree_loading.Lease.equal lease (Snapshot.lease snapshot)
+    then (
+      let state, found = State.typeahead state tree input in
+      if Option.is_some found then cursor state else result state)
     else None
   | Select_active (lease, gesture) ->
     if Tree_loading.Lease.equal lease (Snapshot.lease snapshot)

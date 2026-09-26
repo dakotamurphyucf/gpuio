@@ -578,3 +578,69 @@ rows with its unchanged 256-view cap and bounded caches. Local logs are
 `tree-focus-dune-final.log` in the implementing agent's scratch directory.
 No hosted CI or Linux GUI acceptance is claimed. All owned checks have exited;
 the test windows, including the second activation-test window, are closed.
+
+## Unicode typeahead (2026-09-26)
+
+The native tree input path now sends bounded printable UTF-8 queries with an
+event-driven one-second reset policy and a single-grapheme cycling flag. Core
+owns the bounded prefix and searches current visible enabled labels using
+Unicode 17 canonical caseless matching. No idle timer or persistent label index
+was added. The dependency change installs `uunf` 17.0.0 and promotes existing
+`uucp` 17.0.0 and transitive `uutf` 1.0.4 to runtime lock requirements; the isolated
+switch keeps OCaml, Bonsai and formatter versions unchanged.
+
+Coverage includes canonical composed/decomposed accents, Greek case folding,
+sharp-s and ligature expansion, joined emoji, repeated cycling, wrap/extension,
+combining marks split across inputs, early-normalization mismatch followed by a
+match, current-label replacement, hidden/disabled exclusion, stale source input,
+invalid/control/oversized UTF-8 and bounded prefix overflow. A Core test finds the
+last of 100,000 loaded nodes, wraps to the first and completes a miss. A real
+Bonsai driver delivers queued canonically equal inputs against the latest cursor.
+Independent OCaml/Rust bytes append nested request tag 7 without changing earlier
+request fixtures. Mailbox tests account for query text bytes and preserve order.
+
+The actual macOS window test dispatches GPUI text-bearing keys for Option-modified
+é, decomposed accents, a joined family emoji and multi-grapheme text. It verifies
+query contents, reset/cycling flags, navigation reset, shortcut rejection and
+embedded-editor key ownership, alongside the existing native tree focus suite.
+This is native GPUI dispatch, not physical keyboard automation or a claim that
+the tree itself implements an IME editor. The initial test driver incorrectly
+dispatched while borrowing its view; moving dispatch to `update_window` fixed
+the reentrant-borrow failure. Both test windows close on completion.
+
+All following checks pass on local macOS arm64 in the isolated toolchain with
+`GPUIO_JOBS=2 ./scripts/gpuio exec`:
+
+- `cargo test --workspace --locked -j2`.
+- `cargo clippy -p gpuio-native --features native-tests --all-targets --locked -j2 -- -D warnings`.
+- `cargo test -p gpuio-native --features native-tests --test native_tree --locked -j2`.
+- `dune build -j2 @all @runtest @fmt` after the streaming-normalizer optimization.
+- `dune build -j2 @test/virtual_list/runtest @fmt` after adding the final normalization regression.
+- `opam lint gpuio.opam`, language formatting and `git diff --check`.
+
+The final regression initially assumed that an accent-bearing partial query could
+match a differently ordered canonical prefix. The fixture now includes a matching
+intermediate label and proves that adding the next combining mark changes the
+match after canonical reordering; production behavior was correct.
+
+A local Eio-clock benchmark builds 100,000 root leaves with either `row` or
+`Éclair` labels, then measures 20 complete-miss queries (`not present`). Each query
+starts with a reset prefix; no native rendering is included. Reusing the two
+normalizers per search and stopping on a decisive prefix reduced these measured
+costs:
+
+| Labels | Before mean | After mean | Before allocated bytes/query | After allocated bytes/query |
+| --- | ---: | ---: | ---: | ---: |
+| ASCII | 18.332 ms | 18.202 ms | 14,400,298 | 7,200,322 |
+| Unicode | 57.435 ms | 40.360 ms | 162,400,298 | 116,001,098 |
+
+These are local Core latency and allocation measurements, not retained memory,
+an end-to-end input guarantee or a CI performance threshold. A complete Unicode
+miss still does appreciable work; full native workload acceptance remains open.
+Logs live under the implementing agent's ignored scratch folder:
+`tree-typeahead-rust-all.log`, `tree-typeahead-clippy.log`,
+`tree-typeahead-native-final.log`, `tree-typeahead-dune-final.log`,
+`tree-typeahead-regression-final.log` and `tree-typeahead-bench-final.log`.
+High-level integration, exact AX setters, drag/move, the public Eio filesystem
+example, full native tree workload and consolidated hosted macOS/Linux checks
+remain required. No tree capability or Linux GUI acceptance is claimed.

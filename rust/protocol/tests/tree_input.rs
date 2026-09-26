@@ -90,3 +90,40 @@ fn independent_tree_focus_transaction_and_strict_target_decode() {
     trailing.push(0);
     assert!(gpuio_protocol::decode(&trailing).is_err());
 }
+
+#[test]
+fn typeahead_unicode_fixture_and_text_bounds() {
+    let request = Request::Typeahead {
+        text: "e\u{301}".into(),
+        reset: true,
+        cycle: true,
+    };
+    assert!(request.is_valid());
+    let event = Event::TreeInput(
+        WindowId::from_parts(0, 1).unwrap(),
+        NodeId::from_parts(0, 1).unwrap(),
+        HandlerId::from_parts(0, 1).unwrap(),
+        1,
+        request,
+    );
+    assert_eq!(
+        hex(&event),
+        include_str!("../../../test/fixtures/tree-typeahead-event.hex").trim()
+    );
+    for text in [
+        "".to_string(),
+        "\0".into(),
+        "\u{85}".into(),
+        "a".repeat(257),
+    ] {
+        assert!(
+            !Request::Typeahead {
+                text,
+                reset: true,
+                cycle: true
+            }
+            .is_valid()
+        );
+    }
+    assert!(valid_typeahead_text("👨‍👩‍👧‍👦"));
+}

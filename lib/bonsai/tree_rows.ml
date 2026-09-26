@@ -217,6 +217,7 @@ let inner
               | Activate target -> R.activate target
               | Select_active selection -> R.select_active source selection
               | Activate_active -> R.activate_active source
+              | Typeahead input -> R.typeahead source input
             in
             callback request))
   in

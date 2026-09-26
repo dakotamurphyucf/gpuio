@@ -108,3 +108,35 @@ let%expect_test "tree row focus appends a scroll target without changing existin
     Result.is_error (Virtual_list.Expert.scroll_to_wire request ~find_id:(fun _ -> None)));
   [%expect {| |}]
 ;;
+
+let%expect_test "bounded Unicode typeahead appends request tag seven" =
+  let node = Gpuio_protocol.Node_id.create ~slot:0L ~generation:1L |> ok in
+  let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok in
+  let handler = Gpuio_protocol.Handler_id.create ~slot:0L ~generation:1L |> ok in
+  let event text =
+    Wire.Event.Tree_input
+      (window, node, handler, 1L, Typeahead { text; reset = true; cycle = true })
+  in
+  let bytes = fixture "tree-typeahead-event.hex" in
+  assert (
+    String.equal
+      bytes
+      (Bin_prot.Utils.bin_dump Wire.Event.bin_writer_t (event "é") |> Bigstring.to_string));
+  assert (
+    List.equal Wire.Event.equal [ event "é" ] (Wire.Event.decode ("\001" ^ bytes) |> ok));
+  List.iter
+    [ ""; "\000"; "\xff"; "\xc2\x85"; String.make 257 'a' ]
+    ~f:(fun text ->
+      let bytes =
+        Bin_prot.Utils.bin_dump [%bin_writer: Wire.Event.t list] [ event text ]
+        |> Bigstring.to_string
+      in
+      assert (Or_error.is_error (Wire.Event.decode bytes)));
+  for length = 0 to String.length bytes - 1 do
+    assert (Or_error.is_error (Wire.Event.decode ("\001" ^ String.prefix bytes length)))
+  done;
+  assert (Or_error.is_error (Wire.Event.decode ("\001" ^ bytes ^ "\000")));
+  let request = W.Request.Typeahead { text = "é"; reset = true; cycle = true } in
+  assert (Option.is_some (Tree_input.Expert.of_wire request ~find_key:(fun _ -> None)));
+  [%expect {| |}]
+;;

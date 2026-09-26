@@ -9,6 +9,7 @@ type 'key t =
   | Activate of 'key
   | Select_active of Tree_state.Selection.t
   | Activate_active
+  | Typeahead of Tree_typeahead.Input.t
 [@@deriving sexp_of]
 
 let filter_map t ~f =
@@ -21,6 +22,7 @@ let filter_map t ~f =
   | Activate key -> Option.map (f key) ~f:(fun key -> Activate key)
   | Select_active selection -> Some (Select_active selection)
   | Activate_active -> Some Activate_active
+  | Typeahead input -> Some (Typeahead input)
 ;;
 
 module Expert = struct
@@ -46,14 +48,18 @@ module Expert = struct
       let input =
         match request with
         | W.Request.Navigate (direction, gesture) ->
-          Navigate (navigation direction, Option.map gesture ~f:selection)
-        | Select (key, gesture) -> Select (key, selection gesture)
-        | Focus key -> Focus key
-        | Set_expanded (key, expanded) -> Set_expanded (key, expanded)
-        | Activate key -> Activate key
-        | Select_active gesture -> Select_active (selection gesture)
-        | Activate_active -> Activate_active
+          Some (Navigate (navigation direction, Option.map gesture ~f:selection))
+        | Select (key, gesture) -> Some (Select (key, selection gesture))
+        | Focus key -> Some (Focus key)
+        | Set_expanded (key, expanded) -> Some (Set_expanded (key, expanded))
+        | Activate key -> Some (Activate key)
+        | Select_active gesture -> Some (Select_active (selection gesture))
+        | Activate_active -> Some Activate_active
+        | Typeahead { text; reset; cycle } ->
+          Tree_typeahead.Input.create ~reset ~cycle text
+          |> Result.ok
+          |> Option.map ~f:(fun input -> Typeahead input)
       in
-      filter_map input ~f:find_key)
+      Option.bind input ~f:(fun input -> filter_map input ~f:find_key))
   ;;
 end

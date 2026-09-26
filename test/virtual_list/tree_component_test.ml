@@ -641,3 +641,42 @@ let%expect_test "deferred tree focus uses projection identity and mounted lifeti
   Bonsai_driver.Expert.invalidate_observers driver;
   [%expect {| |}]
 ;;
+
+let%expect_test "queued Unicode search requests reduce the latest prefix and cursor" =
+  let nodes =
+    List.mapi [ "Éclair"; "École"; "Else" ] ~f:(fun i label ->
+      id (Int.to_string i), leaf label)
+  in
+  let tree = T.create ~roots:(List.map nodes ~f:fst) nodes |> ok in
+  let snapshot = L.snapshot (L.create tree) in
+  let state = B.Expert.Var.create (S.create tree () |> ok) in
+  let on_request request =
+    E.of_thunk (fun () ->
+      match Gpuio.Tree_interaction.apply (B.Expert.Var.get state) snapshot request with
+      | None -> assert false
+      | Some outcome ->
+        B.Expert.Var.set state (Gpuio.Tree_interaction.Outcome.state outcome))
+  in
+  let driver =
+    create (fun graph ->
+      V.component
+        (B.return snapshot)
+        ~state:(B.Expert.Var.value state)
+        ~config
+        ~accessibility:(B.return (Gpuio.Accessibility.create ~role:(Tree false) () |> ok))
+        ~on_request:(B.return on_request)
+        ~render_row:text
+        graph)
+  in
+  display driver;
+  let callback = Option.value_exn (payload (result driver)).on_tree_input in
+  List.iter
+    [ true, "é"; false, "é" ]
+    ~f:(fun (reset, text) ->
+      let input = Gpuio.Tree_typeahead.Input.create ~reset ~cycle:true text |> ok in
+      Bonsai_driver.schedule_event driver (callback (Typeahead input)));
+  ignore (result driver : _ V.Output.t);
+  assert (Option.equal T.Id.equal (S.active (B.Expert.Var.get state)) (Some (id "1")));
+  Bonsai_driver.Expert.invalidate_observers driver;
+  [%expect {| |}]
+;;

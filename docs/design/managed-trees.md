@@ -9,8 +9,9 @@ rows and connects viewport demand/collapse policy to Eio loading controls. Paire
 tree accessibility metadata and actual native outline/item semantics are now
 implemented and locally tested. Opt-in native keyboard/pointer requests and
 AppKit focus/selection now reach typed Core/Bonsai handlers. The explicit reveal
-controller can hand focus to the same row after asynchronous mounting. Typeahead,
-full accessibility actions, high-level outcome/controller integration, drag
+controller can hand focus to the same row after asynchronous mounting. Unicode
+typeahead now reduces native text input against current Core labels. Full
+accessibility actions, high-level outcome/controller integration, drag
 integration and the public filesystem example remain. No tree capability is advertised.
 This document preserves the full live ticket scope; semantic getters alone do not
 establish interactive native widget acceptance.
@@ -340,8 +341,45 @@ keyboard/IME ownership; tree-row native controls block ancestor pointer clicks b
 allow wheel propagation. The root is one Tab stop; programmatically/pointer-focused
 rows remain outside the Tab sequence. Inherited pointer policy and inert/modal
 visibility still gate row requests. AppKit press selects rather than activating.
-Full accessibility setter adaptation, typeahead prefix/search, drag sessions and
+Full accessibility setter adaptation, drag sessions and
 high-level focus/reveal behavior still need implementation and native acceptance.
+
+### Unicode typeahead
+
+The native adapter sends printable UTF-8 text as nested request tag 7, together
+with reset and repeated-prefix cycling flags. Rust owns the last-input `Instant`
+and handler epoch, with a one-second expiry checked on the next input. No timer,
+task, label index or search prefix lives in Rust. Navigation, focus leaving the
+tree, window deactivation, hidden layout and handler retirement reset the clock.
+Exact tree root/row focus owns text; embedded editors retain their own keyboard
+and IME handling. Platform/control/function shortcuts are excluded. Option-key
+Unicode text is accepted when GPUI supplies `key_char`. A single Unicode grapheme
+permits repeated-prefix cycling, including a joined emoji sequence.
+
+Core `Tree_typeahead` retains only one prefix of at most 256 UTF-8 bytes. Both
+incoming text and its normalized form must fit this bound; controls and invalid
+UTF-8 are rejected. Matching uses Unicode 17 NFD, default case folding, then NFD,
+via explicit runtime dependencies `uucp` and `uunf` 17.0.0. Canonically equivalent
+accents match, accents remain significant, and matching is locale-independent.
+Normalization also applies across keystroke boundaries, including combining-mark
+reordering. The isolated lock adds these runtime requirements without changing
+the accepted OCaml, Bonsai or formatter versions.
+
+Search visits the current loaded visible order, skips disabled items and wraps
+once. A fresh or repeated-prefix search starts after the active item. An extended
+prefix first considers that item; a miss retries using only the latest input.
+Prefix overflow similarly restarts. A match replaces selection and produces a
+focus/reveal outcome; a miss preserves the cursor and requests neither focus nor
+activation. Unloaded branches are never fetched for typeahead. Queued requests
+reduce in delivery order against current state and labels under the existing
+source and mounted-lifetime guards.
+
+There is no persistent label cache. An ASCII prefix fast path avoids normalization;
+otherwise two normalizers are reused within one search and stream each label only
+until the prefix decides its match. Worst-case search remains linear in visible
+items and examined label content. The evidence records a 100,000-node Core
+benchmark separately from the still-pending full native workload; these timings
+are measurements, not an end-to-end latency guarantee.
 
 ### Deferred native row focus
 

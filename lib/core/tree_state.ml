@@ -44,6 +44,7 @@ type t =
   ; expanded : versions
   ; active : Id.t option
   ; anchor : (Id.t * int64) option
+  ; typeahead : Tree_typeahead.t
   ; source_order : Id.t list
   ; visible : Id.t list
   ; rows : Row.t array
@@ -156,6 +157,7 @@ let create tree ?(mode = Mode.Single) ?(selected = []) ?(expanded = []) () =
       ; expanded
       ; active = None
       ; anchor = None
+      ; typeahead = Tree_typeahead.empty
       ; source_order = Tree.preorder tree
       ; rows
       ; visible
@@ -400,4 +402,13 @@ let reveal t tree id ~focus:move_cursor =
     let t = if changed then rebuild { t with expanded } tree else t in
     if move_cursor then focus t tree id else t
   | None, _ | _, None | Some _, Some _ -> t
+;;
+
+let typeahead t tree input =
+  let t = reconcile t tree in
+  let typeahead, found =
+    Tree_typeahead.advance t.typeahead tree ~visible:t.visible ~active:t.active input
+  in
+  let t = Option.value_map found ~default:t ~f:(fun id -> select t tree id Replace) in
+  { t with typeahead }, found
 ;;

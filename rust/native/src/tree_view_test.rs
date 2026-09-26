@@ -295,6 +295,48 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
             Request::ActivateActive,
         ]
     );
+    // Printable Option-modified text retains its UTF-8 bytes; OCaml searches it.
+    for (index, text) in ["é", "e\u{301}", "👨‍👩‍👧‍👦", "ab"].into_iter().enumerate()
+    {
+        cx.update_window(handle.into(), |_, window, cx| {
+            let mut keystroke = gpui::Keystroke::parse("e").unwrap();
+            keystroke.key_char = Some(text.into());
+            keystroke.modifiers.alt = true;
+            window.dispatch_event(
+                gpui::PlatformInput::KeyDown(gpui::KeyDownEvent {
+                    keystroke,
+                    is_held: false,
+                    prefer_character_input: false,
+                }),
+                cx,
+            );
+        })
+        .unwrap();
+        assert_eq!(
+            requests(&transport),
+            vec![Request::Typeahead {
+                text: text.into(),
+                reset: index == 0,
+                cycle: index != 3,
+            }]
+        );
+    }
+    key(cx, handle, "down");
+    requests(&transport);
+    key(cx, handle, "z");
+    assert_eq!(
+        requests(&transport),
+        vec![Request::Typeahead {
+            text: "z".into(),
+            reset: true,
+            cycle: true
+        }]
+    );
+    key(cx, handle, "ctrl-z");
+    assert!(
+        requests(&transport).is_empty(),
+        "modified shortcut is not text intent"
+    );
     #[cfg(target_os = "macos")]
     {
         assert!(accessible_with_role(cx, handle, "Folder", Some("AXRow"), true).is_some());
@@ -427,7 +469,7 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
     );
     requests(&transport);
     for input in [
-        "left", "right", "up", "down", "home", "end", "space", "enter",
+        "left", "right", "up", "down", "home", "end", "space", "enter", "a",
     ] {
         key(cx, handle, input);
     }
