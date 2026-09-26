@@ -92,6 +92,7 @@ module Request = struct
     | Activate_active of Tree_loading.Lease.t
     | Typeahead of Tree_loading.Lease.t * Tree_typeahead.Input.t
     | Set_selected of Target.t * bool
+    | Toggle_expanded of Target.t
 
   let navigate snapshot ~selection direction =
     Navigate (Snapshot.lease snapshot, selection, direction)
@@ -101,6 +102,7 @@ module Request = struct
   let set_selected target selected = Set_selected (target, selected)
   let focus target = Focus target
   let set_expanded target expanded = Set_expanded (target, expanded)
+  let toggle_expanded target = Toggle_expanded target
   let activate target = Activate target
   let select_active snapshot selection = Select_active (Snapshot.lease snapshot, selection)
   let activate_active snapshot = Activate_active (Snapshot.lease snapshot)
@@ -148,6 +150,21 @@ let apply state snapshot request =
     then f (Target.id target)
     else None
   in
+  let expansion target update =
+    targeted target (fun id ->
+      match Tree.Node.children (Tree.find tree id |> Option.value_exn) with
+      | Leaf -> None
+      | Branch _ ->
+        let expanded = update (State.is_expanded state id) in
+        let next =
+          if Bool.equal expanded (State.is_expanded state id)
+          then state
+          else State.toggle_expanded state tree id
+        in
+        if Option.equal Tree.Id.equal (State.active state) (State.active next)
+        then result next
+        else cursor next)
+  in
   match request with
   | Request.Navigate (lease, selection, direction) ->
     if Tree_loading.Lease.equal lease (Snapshot.lease snapshot)
@@ -175,19 +192,8 @@ let apply state snapshot request =
   | Set_selected (target, selected) ->
     targeted target (fun id -> result (State.set_selected state tree id selected))
   | Focus target -> targeted target (fun id -> cursor (State.focus state tree id))
-  | Set_expanded (target, expanded) ->
-    targeted target (fun id ->
-      match Tree.Node.children (Tree.find tree id |> Option.value_exn) with
-      | Leaf -> None
-      | Branch _ ->
-        let next =
-          if Bool.equal expanded (State.is_expanded state id)
-          then state
-          else State.toggle_expanded state tree id
-        in
-        if Option.equal Tree.Id.equal (State.active state) (State.active next)
-        then result next
-        else cursor next)
+  | Set_expanded (target, expanded) -> expansion target (fun _ -> expanded)
+  | Toggle_expanded target -> expansion target not
   | Activate target -> targeted target (fun id -> result ~action:(Activate id) state)
   | Reveal (target, focus) ->
     if

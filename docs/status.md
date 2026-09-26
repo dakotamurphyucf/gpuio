@@ -121,8 +121,12 @@ bounded Core prefix. Codec, reducer, queued Bonsai and actual native key-dispatc
 tests pass; a 100,000-node Core benchmark is recorded separately from native
 workload acceptance. Per-row AppKit selection and expansion/disclosure setters now
 carry explicit desired states, preserving ordered requests before rerender. The
-high-level outcome adapter, drag
-integration and public filesystem usage remain; no tree capability is advertised. See the [managed-tree design](design/managed-trees.md).
+public Bonsai widget now integrates preferences, ordered native/controller requests,
+default row presentation and deferred reveal/focus. Its Eio filesystem example
+passes actual directory loading, native focus retention, selection and stale-command
+retirement after reset on macOS. Drag/move integration, context-action demonstration,
+visual focus review and full native workload acceptance remain; no tree capability
+is advertised. See the [managed-tree design](design/managed-trees.md).
 
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
 components pass local acceptance; OCH-24 has validated geometry, a bounded scene

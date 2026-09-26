@@ -52,6 +52,10 @@ module Request : sig
 
   val focus : Target.t -> t
   val set_expanded : Target.t -> bool -> t
+
+  (** Relative disclosure gesture; repeated queued gestures toggle in order. *)
+  val toggle_expanded : Target.t -> t
+
   val activate : Target.t -> t
   val select_active : _ Tree_loading.Snapshot.t -> Tree_state.Selection.t -> t
   val activate_active : _ Tree_loading.Snapshot.t -> t

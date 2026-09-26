@@ -709,3 +709,63 @@ initial navigation failure), `tree-ax-navigation-repeat.log` (reproduction),
 the agent's scratch folder. Both vendor reconstructions match; GPUI Base compares
 all 226 files excluding local Cargo.lock/target artifacts. All checks exit and
 native windows close. Hosted macOS/Linux gates remain pending with milestone 5.
+
+## Public Bonsai widget and Eio filesystem example (2026-09-26)
+
+`Gpuio_bonsai.Tree.component` now composes the managed-row primitive, current
+source/state reducer, default presentation and deferred reveal/focus. It owns
+preferences for a mounted source generation, while the application owns loaded
+data and its Eio loading scope. Controllers carry payload-free targets and ignore
+stale generations/incarnations. Initial preference inputs seed a generation once;
+mode remains controlled. Custom content receives guarded row lifetimes inside
+widget-owned indentation, disclosure, selection and TreeItem semantics.
+
+Ten Bonsai expect tests cover ordered native requests, post-display reveal,
+supersession/reorder, deletion/recreation/reset, payload collection while retaining
+a controller/target, initial seeds and mode changes, 100,000 selected nodes with
+four active rows, custom-row eviction/remount, disclosure cancellation and queued
+relative toggles, loading/retry/collapse and bounded first-page admission.
+The new Core relative-toggle request changes no protocol tag.
+
+The public `examples/tree` application reads actual directories through Eio and
+uses 128-entry pages, four existing loader workers and 32 active rows. Symlinks
+are leaves. The example documents path/metadata limits, directory-read allocations
+outside native budgets and the lack of filesystem watching or stable snapshots
+across directory mutations. It does not perform filesystem moves.
+
+The native self-test found two issues during development. First, waiting for a
+loader snapshot was too early to capture a target from the displayed widget;
+the test now waits for the displayed projection. Second, opening a directory near
+the viewport bottom could leave its first lazy boundary offscreen and request no
+children. The widget now explicitly requests newly opened eligible Ready branches,
+limited by available queue slots and the active-row budget. An expect regression
+opens eight ancestors without a viewport: automatic loading admits four pages,
+and disabling it admits none. Later-page demand still follows the viewport.
+
+Local macOS arm64 validation passes:
+
+- `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt`.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec dune exec --no-build examples/tree/main.exe -- --self-test`.
+- `git diff --check`.
+
+The native test loads this checkout's root, `test` and `test/virtual_list`, then
+reveals a file and waits for its actual native focus-retention pin. It checks
+bounded rows, selection, a source reset and stale-command retirement, requests a
+frame acknowledgement and shuts down. Its output is:
+
+```
+TREE_WIDGET_PASS eio_filesystem=true lazy_children=true native_focus_pin=true bounded_rows=true selection=true reset=true
+```
+
+Scratch logs are `tree-widget-full-check.log` and `tree-widget-native-4.log` under
+`scratch/agents/root-20260925-resumed/`. All processes exit and the native window
+closes. This adds actual OCaml/Eio/Rust integration evidence; it does not claim
+physical pointer/keyboard/assistive-device input or the full native 100,000-node
+workload. No Rust source changed in this slice; previous native input/AX checks
+remain recorded above. Hosted gates have not run for this checkpoint.
+
+OCH-38 remains in progress. Native drag/application-approved moves, context-action
+example integration, visible focus presentation review, and full native large/deep
+traversal/revisit/collapse/deletion/loading/drag acceptance remain before capability
+advertisement and final ticket closure. The example's current loading/focus checks
+are not a substitute for that remaining acceptance.

@@ -11,9 +11,11 @@ implemented and locally tested. Opt-in native keyboard/pointer requests and
 AppKit focus/selection now reach typed Core/Bonsai handlers. The explicit reveal
 controller can hand focus to the same row after asynchronous mounting. Unicode
 typeahead now reduces native text input against current Core labels. Per-row
-accessibility selection and expansion setters are implemented. High-level
-outcome/controller integration, drag
-integration and the public filesystem example remain. No tree capability is advertised.
+accessibility selection and expansion setters are implemented. The public Bonsai
+widget now owns preferences, ordered reduction and deferred reveal, with a locally
+tested Eio filesystem example. Drag/move integration, context-action demonstration,
+visual focus review and full native workload acceptance remain. No tree capability
+is advertised.
 This document preserves the full live ticket scope; semantic getters alone do not
 establish interactive native widget acceptance.
 
@@ -148,9 +150,9 @@ Payload-only changes share `Tree.preorder`, allowing state reconciliation to ret
 the existing snapshot. Selection and focus operations share visible metadata.
 `Tree_state.navigate` implements Previous/Next/First/Last/Parent/Child with optional
 selection gestures: it can move the cursor without changing selection, extend a
-range, or collapse/expand while preserving selection. It is a pure reducer. The managed row primitive now supplies native input and
-explicit reveal/focus requests; the high-level widget still needs to connect
-reducer outcomes, typeahead and presentation into one public interface.
+range, or collapse/expand while preserving selection. It is a pure reducer. The
+managed row primitive supplies native input and explicit reveal/focus requests;
+`Gpuio_bonsai.Tree` connects these outcomes, typeahead and default presentation.
 
 ### Incremental managed-row data
 
@@ -203,8 +205,8 @@ status/action content, not application tree items. `on_request` explicitly enabl
 native input and receives identity-checked `Tree_interaction.Request` values;
 applications reduce them against their latest snapshot/state. The managed primitive
 does not apply preferences implicitly. `Controller.reveal ~focus:true` requests
-scrolling and eventual focus of a current projection key; the pending high-level
-adapter will connect logical outcomes and ancestor expansion to this primitive.
+scrolling and eventual focus of a current projection key. The high-level adapter
+connects logical outcomes and ancestor expansion after displaying the new projection.
 
 The component checkpoints its accepted projection after display. Coalesced source
 changes compare with that checkpoint, and the existing list adapter independently
@@ -315,7 +317,7 @@ no I/O and cannot discover an unloaded ID. Already-open paths inspect at most th
 128 ancestors, rather than scanning all expansion preferences; a changed path
 rebuilds the visible projection. The outcome reports a stable reveal target and
 focus flag. The explicit managed controller provides native scrolling and eventual
-mounted focus; the high-level adapter still needs to connect these outcomes. The
+mounted focus; the high-level adapter connects these outcomes after display. The
 native adapter rechecks the same target before a delayed focus handoff.
 
 A Move action is an application-approved proposal with source and destination
@@ -358,8 +360,8 @@ unrelated roles are unchanged. The adapter queues even equal desired states so
 opposite requests before the next render retain their order; Core reduction is
 idempotent. The reproducible vendor patch and native AppKit evidence document this
 private platform contract. This does not claim VoiceOver speech or external AX
-notification-observer acceptance. Drag sessions and high-level outcome/focus
-integration still need implementation and native acceptance.
+notification-observer acceptance. Drag sessions still need implementation and native acceptance. High-level
+outcome/focus integration is covered by the public widget and filesystem example.
 
 ### Unicode typeahead
 
@@ -428,10 +430,57 @@ An inactive window may scroll but is never activated by this command. Mounted
 subscriptions disappear on completion, cancellation, list removal or window close.
 
 This controller requests focus; it does not acknowledge an OS focus change or
-modify tree selection. The high-level widget must apply the latest
-Tree_interaction outcome, expand loaded ancestors where requested, obtain the
-current projection key after that update, and then invoke reveal/focus. Arbitrary
+modify tree selection. The high-level widget applies the latest
+Tree_interaction outcome, expands loaded ancestors where requested, obtains the
+current projection key after that update, and then invokes reveal/focus. Arbitrary
 old projection keys are intentionally rejected after collapse/reappearance.
+
+## Public Bonsai widget
+
+`Gpuio_bonsai.Tree.component` takes a reactive loader snapshot, list configuration,
+accessible label and optional loading controls. Its output provides the view,
+current preferences/projection, active-row counts, viewport and a controller.
+Default rows include indentation, selection paint, ellipsized labels and pointer
+hit regions for disclosure. Disclosure has no additional Tab stop; the native
+TreeItem owns keyboard/accessibility interaction. A custom `render_item` supplies
+content inside this chrome and receives a target, controller and guarded row
+lifetime. Loading/error/retry boundaries remain separate from TreeItems.
+
+The widget owns preferences for one mounted source lease. Reactive initial
+selection/expansion inputs seed that generation once; later changes do not
+replace user choices. Mode remains controlled and reconciles selection. Applications
+can observe `Output.state` and persist deliberate preferences outside the widget.
+A source reset or unmount retires transient models and old controller effects.
+Neither event cancels the independently owned application loading scope.
+
+Controllers require an explicit payload-free `Target`, captured through
+`Output.target` before constructing delayed commands. They hold no historical
+snapshot; absent IDs fail capture, and stale, removed or reincarnated targets are
+ignored when delivered. Holding an entire Output intentionally retains its source.
+Native and controller requests reduce in order against the latest source/state.
+Relative toggle requests preserve two queued clicks, while desired expansion and
+selection setters remain idempotent. Only activation and approved-move proposals
+reach `on_action`; this callback never implicitly changes the application tree.
+
+Reveal expands loaded ancestors before native scrolling/focus. After display, a
+single pending target/serial is checked against the current model and projection;
+a newer reveal supersedes it, and stale or ineligible targets are dropped. The
+native adapter independently checks asynchronous focus ownership. This sequencing
+avoids passing a row key from the projection that preceded expansion.
+
+With loading controls and automatic demand enabled, newly opened eligible Ready
+branches request their first page even when their boundary lies just below the
+viewport. This is bounded by available loading queue slots and the configured
+active-row budget; later pages follow viewport demand. Failed pages require
+explicit retry. Loading effects run outside Bonsai evaluation and retain the
+loader's own generation checks and worker limits.
+
+The [filesystem example](../../examples/tree/README.md) uses an Eio directory
+capability and pages of at most 128 children. Symlinks are leaves. It demonstrates
+mode changes, activation, reset, native focus and selection, with 32 active rows.
+It does not watch files, rename/move entries or promise stable paging across
+filesystem changes. Directory-read allocations/application payloads are outside
+native row budgets; the documented metadata/ID limits still apply.
 
 ## Lazy children and asynchronous ownership
 
