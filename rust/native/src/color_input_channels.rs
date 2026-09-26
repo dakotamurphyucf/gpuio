@@ -376,7 +376,8 @@ impl ColorInput {
                     )
                     .child(
                         div()
-                            .w(px(96.))
+                            .w(relative(0.6))
+                            .min_w(px(0.))
                             .flex_shrink_0()
                             .child(self.editor_element(index + 1, window)),
                     ),

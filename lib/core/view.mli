@@ -408,8 +408,9 @@ val otp_input
   -> 'action t
 
 (** Retained color-control description. Seeds once per controller identity;
-    later configuration changes preserve the native value. Mounted rendering is
-    still being integrated; the color-input capability is not advertised yet. *)
+    later configuration changes preserve the native value. Rust owns native
+    channels, palette selection and editable drafts. Use [Gpuio_eio.Color_input]
+    for correlated commands, or [Gpuio_eio.Color_picker] for a controlled popup. *)
 val color_input
   :  ?style:Style.t
   -> controller:Key.t

@@ -251,3 +251,14 @@ let%expect_test
   printf "1805 channel cases; maximum config %d bytes\n" (Bigstring.length encoded);
   [%expect {| 1805 channel cases; maximum config 97308 bytes |}]
 ;;
+
+let%expect_test "color input capability uses the shared 64-bit handshake" =
+  let module Wire = Gpuio_protocol.Wire in
+  assert (Int64.equal (Int64.bit_and Wire.capabilities 137438953472L) 137438953472L);
+  let bytes =
+    Wire.Message.encode (Hello (Wire.version, Wire.capabilities)) |> Or_error.ok_exn
+  in
+  String.iter bytes ~f:(fun byte -> printf "%02x" (Char.to_int byte));
+  print_endline "";
+  [%expect {| 0001fcffffffff3f000000 |}]
+;;

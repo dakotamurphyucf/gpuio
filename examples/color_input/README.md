@@ -19,7 +19,7 @@ Run `_build/default/examples/color_input/main.exe --self-test` for the real
 OCaml/Rust command bridge, revision/lease guards, policy transitions, 64-request
 admission limit, remount and close ordering. The test opens and closes a native
 window. It does not substitute for external OS keyboard, accessibility, popup or
-full appearance acceptance; those remain tracked in OCH-36.
+full appearance acceptance; the native and popup suites provide separate coverage; see the OCH-36 evidence ledger.
 
 ## Popup picker
 
@@ -44,5 +44,6 @@ policy changes, historical fallback, external reset and window closure.
 `python3 scripts/test_color_picker.py` additionally exercises real macOS AX
 fields/sliders and OS Enter/Escape/arrows, outside pointer dismissal, focus
 restoration, nested dialog and right-edge placement. It targets and reaps its own
-child app. Both pass locally; complete color appearance/density/workload acceptance
-and consolidated hosted checks remain tracked in OCH-36.
+child app. Both pass locally. Native appearance/density/lifetime/workload acceptance also
+passes; consolidated hosted macOS/Linux checks and merge remain pending. See
+[the evidence ledger](../../docs/evidence/color-inputs-och36.md).

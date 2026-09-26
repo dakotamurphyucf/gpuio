@@ -620,7 +620,11 @@ impl View {
                 .focus(|style| style.border_color(rgba(0x6688ffff)));
         }
         if node.color_input.is_some() {
-            element = element.w(px(296.)).min_w(px(0.)).text_size(px(13.));
+            element = element
+                .w(px(296.))
+                .min_w(px(0.))
+                .text_size(px(13.))
+                .overflow_hidden();
         }
         if node.calendar.is_some() {
             element = element

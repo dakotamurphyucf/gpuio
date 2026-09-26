@@ -23,6 +23,52 @@ const CHANNELS: [c::Channel; 4] = [
     c::Channel::Alpha,
 ];
 
+// Fixed-size paint work, independent of the display scale and palette size.
+// Empty has no fill; a transparent concrete color still shows the checkerboard.
+fn swatch(value: Value) -> impl IntoElement {
+    canvas(
+        |_, _, _| (),
+        move |bounds, _, window, _| {
+            if let Value::Color(color) = value {
+                if color.alpha < 255 {
+                    for row in 0..4 {
+                        for column in 0..4 {
+                            let cell = Bounds::new(
+                                bounds.origin
+                                    + point(
+                                        bounds.size.width * (column as f32 / 4.),
+                                        bounds.size.height * (row as f32 / 4.),
+                                    ),
+                                size(bounds.size.width / 4., bounds.size.height / 4.),
+                            );
+                            let mut quad = fill(
+                                cell,
+                                rgba(if (row + column) % 2 == 0 {
+                                    0xeeeeeeff
+                                } else {
+                                    0x999999ff
+                                }),
+                            );
+                            quad.corner_radii = Corners {
+                                top_left: px(if row == 0 && column == 0 { 4. } else { 0. }),
+                                top_right: px(if row == 0 && column == 3 { 4. } else { 0. }),
+                                bottom_left: px(if row == 3 && column == 0 { 4. } else { 0. }),
+                                bottom_right: px(if row == 3 && column == 3 { 4. } else { 0. }),
+                            };
+                            window.paint_quad(quad);
+                        }
+                    }
+                }
+                let mut quad = fill(bounds, rgba(color.packed() as u32));
+                quad.corner_radii = px(4.).into();
+                window.paint_quad(quad);
+            }
+        },
+    )
+    .absolute()
+    .size_full()
+}
+
 struct Route {
     window: WindowId,
     node: NodeId,
@@ -96,6 +142,8 @@ struct ColorInput {
     closed: bool,
     metadata: Option<Arc<gpuio_protocol::accessibility::Config>>,
     editors: editors::Editors,
+    #[cfg(feature = "native-tests")]
+    painted_font: Pixels,
 }
 impl ColorInput {
     fn access(&self, pointer: bool) -> Access {
@@ -252,15 +300,15 @@ impl Render for ColorInput {
                 .gap(px(8.))
                 .child(
                     div()
+                        .relative()
                         .w(px(30.))
                         .h(px(30.))
+                        .flex_shrink_0()
                         .rounded(px(5.))
+                        .overflow_hidden()
                         .border_1()
                         .border_color(rgba(0x80808080))
-                        .bg(match snapshot.value {
-                            Value::Empty => transparent_black(),
-                            Value::Color(color) => rgba(color.packed() as u32).into(),
-                        }),
+                        .child(swatch(snapshot.value)),
                 )
                 .child(
                     div()
@@ -285,13 +333,14 @@ impl Render for ColorInput {
                 .relative()
                 .size(px(28.))
                 .rounded(px(5.))
+                .overflow_hidden()
                 .border_2()
                 .border_color(if selected || focus.is_focused(window) {
                     window.text_style().color
                 } else {
                     transparent_black()
                 })
-                .bg(rgba(entry.color.packed() as u32))
+                .child(swatch(value))
                 .role(Role::RadioButton)
                 .aria_label(entry.label.clone())
                 .aria_selected(selected)
@@ -374,6 +423,22 @@ impl Render for ColorInput {
             read_only: config.read_only,
             modal: false,
         });
+        #[cfg(feature = "native-tests")]
+        {
+            let weak = cx.weak_entity();
+            root = root.child(
+                canvas(
+                    |_, _, _| (),
+                    move |_, _, w, cx| {
+                        let _ = weak.update(cx, |s, _| {
+                            s.painted_font = w.text_style().font_size.to_pixels(w.rem_size())
+                        });
+                    },
+                )
+                .absolute()
+                .size_full(),
+            );
+        }
         crate::semantics::State {
             element: root,
             metadata: self.metadata.clone(),
@@ -424,6 +489,8 @@ impl Instance {
             closed: false,
             metadata: node.accessibility.clone(),
             editors: editors::Editors::default(),
+            #[cfg(feature = "native-tests")]
+            painted_font: px(0.),
         });
         state.update(cx, |s, cx| s.init_editors(window, cx));
         Ok(Self { state })

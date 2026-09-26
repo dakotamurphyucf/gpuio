@@ -1,9 +1,10 @@
 # Color selection (OCH-36)
 
-Status: value models, retained native channels/editors, correlated commands and
-the public Bonsai/Eio controller and popup examples pass local checks, including
-macOS AX and OS-input popup scenarios. Full native acceptance remains in progress. No color-control capability is
-advertised yet.
+Status: OCH-36 local macOS acceptance is complete. Native channels, palette swatches,
+hex/HSLA editing, correlated Bonsai/Eio commands and controlled popup selection are
+implemented. Capability `137438953472` (`1 << 37`) advertises the family; the current
+aggregate is `274877906943`. Consolidated hosted macOS/Linux checks and merge remain
+pending. See [acceptance evidence](../evidence/color-inputs-och36.md).
 
 ## Concrete values
 
@@ -93,8 +94,7 @@ Dependency pins and the advertised capability set remain unchanged.
 `rust/native/src/color_input_state.rs` owns committed and preview selections,
 their HSLA representations, one optional interaction and one optional text draft.
 The corresponding Rust contract lives in `color_input.rs`. Core descriptions and
-standalone codecs share these contracts; runtime controllers and native widget
-integration are still in progress.
+standalone codecs, native widgets and runtime controllers share these contracts.
 
 Channel input uses degrees for Hue (0–360) and percentages for Saturation,
 Lightness and Alpha (0–100). Text uses the existing numeric draft grammar,
@@ -172,9 +172,9 @@ private keyed focus handle. GPUIO uses the corresponding GPUI radio/toggled
 primitives with explicit retained handles so palette parts join its modal and
 managed-list focus registry. Mounted channel/palette keyboard and pointer checks
 now pass. Native text editing and AppKit marked-text/insertion checks also pass;
-full OS accessibility and color-control acceptance remain pending.
+actual macOS AX/OS-input, lifecycle, appearance and bounded-workload checks pass locally.
 
-The planned owner retains native channel editors/sliders, hue memory, draft,
+The owner retains native channel editors/sliders, hue memory, draft,
 baseline and revision. Preserve editing hue when a gesture becomes achromatic;
 explicit RGBA replacement derives deterministic hue from that value. Native
 preview updates and paint must not depend on a Bonsai round trip. Preview events
@@ -183,7 +183,8 @@ ordering boundaries. Cancel restores the complete baseline, and Set/Reset fences
 late callbacks from the old interaction. Existing editor, focus, overlay and
 ownership adapters should be reused. The native adapter now renders channels
 and palette/clear controls directly from that owner. Native text editors now
-share its draft/commit state; public runtime controllers are next.
+share its draft/commit state; public runtime controllers and popup composition use
+its correlated command boundary.
 
 Mounted lifecycle behavior and public runtime controllers remain to be
 implemented and validated. An eyedropper remains capability-specific
@@ -240,9 +241,9 @@ admitted without overriding the control's role/actions. Internal focus-part IDs
 are u16, allowing all 256 palette entries plus other controls without aliasing.
 
 The mounted test covers channels, palette and native text editing, including
-AppKit marked-text/insertion delegates. Correlated runtime commands, popup
-composition, public example, comprehensive AX/lifecycle/workload validation and
-capability advertisement remain pending.
+AppKit marked-text/insertion delegates. Public examples exercise commands and popup
+composition. Native lifetime, GPU layout, macOS AX/OS-input and bounded workload
+evidence is recorded separately; full Linux GUI acceptance remains OCH-17.
 
 ## Retained text editing
 
@@ -311,8 +312,8 @@ owner and returns `Native_failure`; later reads and mutations cannot claim succe
 
 The [Color Studio example](../../examples/color_input/README.md) demonstrates the
 public controller and includes a real-window OCaml/Rust command/lifecycle self-test.
-Popup Apply/Cancel composition and full color AX/appearance/workload acceptance
-remain separate work; this checkpoint does not advertise the color capability.
+Popup Apply/Cancel, native color AX/appearance/lifetime/workload and public bridge
+acceptance now pass locally; required hosted checks remain before milestone merge.
 
 ## Controlled-value popup
 
@@ -341,5 +342,37 @@ callbacks cannot close a later opening.
 
 The popup example has local coverage for native edits/sliders, actual OS keys,
 outside pointer dismissal, trigger focus restoration, dialog nesting and bounds
-clamping at the window edge. Wider theme/density/font/constraint and lifecycle/
-workload validation remains before advertising the complete color capability.
+clamping at the window edge. The native GPU suite covers light/dark colors, 1x/2x
+rendering, 13/20px fonts and constrained widths/heights while preserving native
+state. Native lifecycle and repeated owner/update/teardown workloads pass locally.
+
+## Layout, transparency and bounded ownership
+
+The outer control clips to its assigned rectangle by default; a caller may supply
+its ordinary overflow style explicitly. Natural height exposes all controls. A
+short assigned height deliberately clips the content rather than painting into
+neighboring UI. Channel labels ellipsize when constrained. Their text editors use
+60% of the available row width, retaining exact round-trippable float spelling;
+layout never rounds or quantizes native channel state. Smaller fields retain
+native horizontal text scrolling. Caller font and foreground overrides apply.
+
+Concrete translucent palette/preview swatches paint a fixed 4-by-4 checkerboard
+under their color, with rounded corners. Opaque colors need one quad; translucent
+colors at most 17. Empty has no fill and remains distinct from a concrete fully
+transparent color. GPU tests distinguish Empty, transparent, half-alpha and opaque
+red without depending on OCaml rendering callbacks.
+
+ColorSwatch functionality is the labelled native palette in `Color_input.Config`;
+HSLA controls are the native channel rail/editor pairs; ColorPicker is the public
+controlled-value popup. This follows the catalog plan's functional family mapping,
+without importing a parallel upstream state or a wrapper for each private type.
+
+Local workload evidence covers three cycles of 64 retained color owners and 320
+native child editors, discrete input/command events, 256 maximum-size text edits,
+preview coalescing, 64 KiB per-field history, idle and complete disposal. The
+23,872-byte retained-tree accounting in that workload excludes fixed native
+entities and editor history; it is not process RSS or a total memory measurement.
+The workload is representative validation, not a new supported-owner limit.
+Managed-row pins preserve active text/composition/focus; hidden/modal transitions
+cancel edits and release capture. Independent windows use separate leases even
+when node slots match, and closing during a drag disposes all five child editors.

@@ -131,7 +131,7 @@ AppKit value/action/masking, public OS keyboard/AX, GPU light/dark/density/preed
 managed-list pins, hidden/modal/capture cleanup and independent-window lifetimes
 pass locally. Three 256-owner workloads verify bounded history/coalescing, idle
 behavior and complete disposal. Capability `34359738368` advertises the family
-(current aggregate `137438953471`). Consolidated hosted gates and merge remain pending.
+(current aggregate `274877906943`). Consolidated hosted gates and merge remain pending.
 See [OTP contracts](design/otp-inputs.md).
 See [numeric design](design/numeric-inputs.md) and
 [foundation evidence](evidence/numeric-inputs-och34.md).
@@ -159,7 +159,7 @@ gates, managed-row pins, independent windows and three 64-owner idle/disposal
 cycles also pass locally. Single/range popup mode changes, nested-dialog dismissal/
 focus, actual panel bounds and right-edge placement also pass. OCH-35 local
 acceptance is complete; capability `68719476736` is advertised (aggregate
-`137438953471`). Consolidated hosted gates and merge remain pending.
+`274877906943`). Consolidated hosted gates and merge remain pending.
 See [calendar design](design/calendar.md) and [model evidence](evidence/calendar-och35.md).
 OCH-36 now has concrete Core/Rust RGBA/HSLA conversion and bounded hex-draft
 models, separate from theme references. The pure native policy now tests
@@ -177,7 +177,14 @@ controllers and a public Color Studio example now pass real-window correlated
 command, revision/lease, policy, request-limit, remount and close checks. Popup
 selection now passes public session/policy/Apply/Cancel integration and actual
 macOS AX/OS keyboard, dismissal, focus restoration, nested-dialog and clamped
-placement checks. Full native color acceptance remains in progress. See [color design](design/color-inputs.md)
+placement checks. OCH-36 local acceptance is complete: GPU checks cover 64
+light/dark/density/font/constrained-layout cases and transparent/opaque/empty
+swatches; native tests cover composition/managed-row pins, hidden/modal/pointer
+gates, independent-window deactivation/close and three 64-owner/320-editor
+workload/disposal cycles. A short-height clipping bug was fixed and channel
+fields now use available width without rounding native values. Color capability
+`137438953472` is advertised (aggregate `274877906943`). Consolidated hosted
+macOS/Linux gates and merge remain pending. See [color design](design/color-inputs.md)
 and [foundation evidence](evidence/color-inputs-och36.md).
 No milestone-05 completion or hosted acceptance is claimed yet.
 

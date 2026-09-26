@@ -5,8 +5,15 @@ use super::super::{
     stop_application,
 };
 use super::*;
+#[cfg(feature = "native-image-tests")]
+#[path = "color_input_appearance_test.rs"]
+mod appearance;
 #[path = "color_input_editors_test.rs"]
 mod editors_test;
+#[path = "color_input_lifecycle_test.rs"]
+mod lifecycle;
+#[path = "color_input_workload_test.rs"]
+mod workload;
 use crate::session::Session;
 use gpuio_protocol::v1::{
     CAPABILITIES, Color, Event, Field, Fill, Kind, Op, Style, Transaction, VERSION,
@@ -373,6 +380,9 @@ async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Tra
             assert!(!v.color_inputs[&node()].focused(w, cx))
         })
         .unwrap();
+    #[cfg(feature = "native-image-tests")]
+    appearance::exercise(cx, handle, transport).await;
+    lifecycle::exercise(cx, handle, transport).await;
     let (weak, fields) = handle
         .update(cx, |v, _, cx| {
             let input = &v.color_inputs[&node()].state;
@@ -482,6 +492,29 @@ async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Tra
         "GPUIO_COLOR_CHANNELS_OK: native keyboard, captured pointer preview/commit/Escape, palette activation, alpha/history/disabled gates and owner disposal"
     );
 }
+fn open_test_window(cx: &mut App, transport: &Arc<Transport>) -> WindowHandle<View> {
+    let id = WindowId::from_parts(0, 1).unwrap();
+    let session = Rc::new(RefCell::new(Session::default()));
+    session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
+    session
+        .borrow_mut()
+        .open(1, id, "GPUIO Color input test", 340., 560.)
+        .unwrap();
+    cx.open_window(
+        WindowOptions {
+            inactive_frame_interval: None,
+            window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
+                None,
+                size(px(340.), px(560.)),
+                cx,
+            ))),
+            ..Default::default()
+        },
+        |_, cx| cx.new(|_| View::new(id, session.clone(), transport.clone())),
+    )
+    .unwrap()
+}
+
 pub(crate) fn run() {
     let failure = Rc::new(RefCell::new(None));
     let task_failure = failure.clone();
@@ -495,31 +528,17 @@ pub(crate) fn run() {
         eprintln!("GPUIO_COLOR_LAUNCHED");
         gpui_base::init(cx);
         cx.set_quit_mode(QuitMode::Explicit);
-        let id = WindowId::from_parts(0, 1).unwrap();
-        let session = Rc::new(RefCell::new(Session::default()));
-        session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
-        session
-            .borrow_mut()
-            .open(1, id, "GPUIO Color input test", 340., 560.)
-            .unwrap();
-        let handle = cx
-            .open_window(
-                WindowOptions {
-                    inactive_frame_interval: None,
-                    window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
-                        None,
-                        size(px(340.), px(560.)),
-                        cx,
-                    ))),
-                    ..Default::default()
-                },
-                |_, cx| cx.new(|_| View::new(id, session.clone(), transport.clone())),
-            )
-            .unwrap();
+        let handle = open_test_window(cx, &transport);
         cx.activate(true);
         cx.spawn(async move |cx| {
             eprintln!("GPUIO_COLOR_EXERCISE");
-            let result = super::super::native_test::protect(exercise(cx, handle, &transport)).await;
+            let result = super::super::native_test::protect(async {
+                exercise(cx, handle, &transport).await;
+                handle.update(cx, |_, w, _| w.remove_window()).unwrap();
+                let next = cx.update(|cx| open_test_window(cx, &transport));
+                workload::exercise(cx, next, &transport).await;
+            })
+            .await;
             *task_failure.borrow_mut() = result.err();
             cx.update(stop_application);
         })

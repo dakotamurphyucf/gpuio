@@ -1,5 +1,11 @@
 # OCH-36 color input evidence
 
+Local macOS acceptance is complete. Capability `137438953472` advertises the
+color family; current aggregate `274877906943`. Required hosted macOS/Linux
+checks and milestone merge remain pending. Sections below preserve the evidence
+and outstanding scope at each historical checkpoint; the final section records
+the completed local acceptance.
+
 ## Value foundation — 2026-09-25
 
 This checkpoint implements pure concrete color and hex-draft models in Core and
@@ -287,3 +293,66 @@ CI includes both public examples and macOS AX automation; consolidated hosted
 execution remains pending. Full color appearance, scale/constraint, owner/window/
 managed-list lifecycle and workload acceptance remain outstanding, as do color
 capability advertisement, required macOS/Linux gates and milestone merge.
+
+## Final local acceptance — 2026-09-25
+
+The GPU suite passes 64 combinations of light/dark foreground/background, widths
+340/220/144/48, fonts 13/20px, natural/80px height and 1x/2x synthetic display scale.
+It verifies actual painted font inheritance, visible foreground, no paint outside
+the assigned bounds and unchanged native state across paints. It exposed missing
+default clipping on the color root; that is fixed. Channel fields now use 60% of
+the row width so normal layouts can show exact fractional values without rounding.
+Checkerboard preview/palette swatches distinguish concrete transparency from Empty;
+actual GPU pixels verify transparent, half-alpha, opaque and empty fills. Rounded
+swatch corners are painted explicitly because GPUI overflow masks are rectangular.
+Light/dark and transparency readbacks were visually reviewed.
+
+Native lifecycle tests pass pointer-disabled isolation, composed-text managed-row
+pins and atomic rejection of premature removal, ancestor hide clearing composition
+and pins, permitted hidden programmatic Set, modal interruption of captured drag,
+blocked late callbacks, preserved native entity through reparenting, actual window
+deactivation cancellation and separate-window routing with reused node slots.
+Closing the second window during drag releases capture and drops the owner plus
+all five child editors; the first window remains usable.
+
+Three workload cycles mount 64 owners and 320 child editors, exercise native
+keyboard steps and 256 explicit replacement commands, then 256 maximum-size draft
+edits. Required start plus latest preview coalesce to two queued events, history
+remains within 64 KiB per edited field, unfocused settled rendering emits no frames
+or events, and every owner/child weak reference expires on removal. Retained tree
+bytes are stable at 23,872 across cycles and zero after teardown. This accounting
+excludes fixed native entities/history and is not RSS. Debug cycle timings on the
+local Mac are about 2.0–2.1 seconds; this is not a release-build performance claim.
+
+The Rust protocol suite, color bridge/native suite, OCaml view/canvas expect suites,
+public inline/popup self-tests and macOS AX/OS-input popup automation pass with the
+final capability mask. All-target native-image Clippy and formatting pass. The
+independent Hello encoding is `0001fcffffffff3f000000` for bits 0 through 37.
+No changes to the GPUI/OCaml toolchain pins or global switches were needed.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-protocol
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-image-tests --test native_color_input --test color_input
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native --all-targets --features native-image-tests -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 examples/color_input/main.exe examples/color_input/picker.exe @test/view_api/runtest @test/canvas/runtest @fmt
+_build/default/examples/color_input/main.exe --self-test
+_build/default/examples/color_input/picker.exe --self-test
+python3 scripts/test_color_picker.py
+```
+
+| Accepted scope | Local evidence |
+| --- | --- |
+| Source evaluation and native ownership | Design's pinned base evaluation; single Rust policy and retained child editors |
+| Color space, alpha, rounding and invalid input | Independent value/codec fixtures, round trips, pure model and native text tests |
+| Drag/keyboard/channel entry, preview/commit/cancel | Native event ordering, pointer capture, AppKit text delegates and actual OS-key/AX tests |
+| Explicit Set/Reset and retained configuration | Guard/lease/composition tests, public command self-test, historical-policy checks |
+| Popup/focus/accessibility | Public popup integration and actual AX/OS-input dismissal, focus, nested-dialog and placement checks |
+| Theme/scale and transparency | 64 GPU cases, exact transparency pixels and reviewed images |
+| Bounds, stale resources and disposal | Queue/history/config limits, managed rows, independent windows, overload and three workload cycles |
+
+The platform eyedropper remains a follow-on, as allowed by the ticket. This does
+not establish external IME candidate-window automation or Linux GUI acceptance.
+Linux builds/unit tests and required hosted macOS checks still must pass in the
+consolidated milestone gate; OCH-17 owns final Linux GUI coverage. OCH-36 remains
+In Progress pending those checks and merge, consistent with adjacent local-ready
+milestone tickets. Milestone 5 still requires OCH-37/38/39/46.

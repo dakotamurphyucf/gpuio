@@ -2,7 +2,7 @@
 
 Status: semantic metadata, forms, stateless presentation, loading, avatars and
 rating are implemented with local native and public-API acceptance. Capability
-`17179869184` advertises this family (aggregate `137438953471`). Hosted macOS/Linux
+`17179869184` advertises this family (aggregate `274877906943`). Hosted macOS/Linux
 gates and merge remain pending. See the [evidence ledger](../evidence/presentation-components-och33.md).
 
 ## Public organization
