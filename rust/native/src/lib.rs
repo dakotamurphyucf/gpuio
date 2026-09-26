@@ -38,6 +38,7 @@ pub mod motion_host;
 mod motion_preference;
 pub mod motion_program;
 pub mod motion_timeline;
+pub mod navigation_motion;
 mod selection;
 mod semantics;
 pub mod session;

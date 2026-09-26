@@ -14,6 +14,8 @@ pub use color_input::{
     decode_color_command, decode_color_config, decode_color_event, decode_color_response,
 };
 mod loading;
+mod navigation_stack;
+pub use navigation_stack::decode_navigation_stack;
 mod number_input;
 mod otp_input;
 pub use otp_input::{

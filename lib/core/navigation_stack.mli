@@ -67,3 +67,28 @@ val pop_to : 'a t -> Id.t -> 'a t Or_error.t
 
 val update : 'a t -> Id.t -> f:('a -> 'a) -> 'a t Or_error.t
 val clear : 'a t -> 'a t
+
+module Motion : sig
+  (** Native presentation policy. Default is a 200 ms horizontal slide; replacement
+      at the same history position fades. First placement is immediate. Reduced
+      motion settles immediately. Timing never runs an OCaml callback per frame.
+      This policy is for the navigation presenter under implementation. *)
+  type t [@@deriving equal, sexp_of]
+
+  val default : t
+  val immediate : t
+
+  (** Finite duration in [0,10] seconds, rounded up to whole milliseconds.
+      Zero duration settles immediately. *)
+  val slide : Time_ns.Span.t -> t Or_error.t
+
+  val fade : Time_ns.Span.t -> t Or_error.t
+end
+
+module Expert : sig
+  val presentation_config
+    :  _ t
+    -> hidden:Content_policy.t
+    -> motion:Motion.t
+    -> Gpuio_protocol.Navigation_stack_wire.Config.t
+end

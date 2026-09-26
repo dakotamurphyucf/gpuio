@@ -95,6 +95,61 @@ its eligible trigger; route changes restore an eligible destination or focus its
 first control. Nested dialogs retain precedence over container focus restoration.
 Existing tab bars, tab panels and resizable panes remain the workspace vocabulary.
 
+### Navigation presenter contract
+
+The mounted API will be `View.navigation_stack model ~hidden ~label ~content`,
+with optional `key`, `style`, `page_style` and `motion`. `content` receives an
+entry, so its payload remains an OCaml value. The presenter uses one keyed Panel
+wrapper per history entry, in history order, and a selected index. With `Retain`,
+each page's builder runs and matching native descendants survive navigation.
+With `Unmount`, only the selected builder runs and inactive wrappers have no
+children. Empty wrappers preserve the ordered history positions without retaining
+editors, buffers or other page resources. App-supplied Bonsai computations and Eio
+data scopes retain their separate ownership rules.
+
+Native presentation follows generation-checked page node IDs, not route labels or
+indices cached across transactions. There is one current page and at most one
+outgoing painted page. Inactive retained pages must still take the host's normal
+hidden-element path so retained button/focus owners are not accidentally swept as
+unvisited; they do not paint or accept input. The outgoing page paints through the
+inert boundary. Only the current page is eligible for focus/IME and accessibility,
+including during the transition. The container clips to its assigned dimensions;
+page content does not determine a competing animated window size.
+
+`Navigation_stack.Motion` offers immediate, slide and fade policies. Default slide
+is 200 ms; duration is bounded to 0..10 seconds and rounded up to milliseconds.
+Slide offsets are fractions of the current assigned width, so resize does not
+require a synchronous measurement round trip. Smoothstep easing is native. Back
+and forward direction use stable page identity in the new order before falling
+back to history positions. Same-position replacement fades. Initial placement,
+zero duration and immediate policy settle without a run. Label/data updates to
+the same selected ID do not restart motion; changing the motion/retention policy
+settles an existing run. Hidden/reduced-motion presenters settle and do not replay
+old navigation when shown again.
+
+Interruption starts from the last accepted paint, never a speculative layout.
+Reversal can reuse the previous exit as the incoming page. A third destination
+retires the older exit and uses the last painted current page as its single exit.
+A destination selected and replaced before it paints does not become an outgoing
+visual. Samples carry an internal epoch; paint from before retarget/removal/settle
+cannot request another frame or alter the new run. The pure motion state stores
+only bounded IDs and geometry, with no native resource leases or application
+history payloads.
+
+Removal has precedence over animation. Replacing/removing an entry releases its
+native subtree in that transaction. Consequently a removed page has no outgoing
+visual; its replacement still enters. Unmount likewise animates incoming content
+without retaining a removed outgoing editor. Returning to a retained page should
+restore its last eligible control, otherwise its first eligible control. Focus
+history must be bounded by current page membership, use weak native handles, and
+yield to a higher modal scope. A separate workspace or native route model is not
+introduced.
+
+The motion policy, independent configuration codec and deterministic transition
+state are implemented; the mounted View/transaction adapter, rendering and focus
+restoration described here are still pending. Unit tests of this state are not
+native keyboard, GPU or accessibility acceptance.
+
 ## Native bridge and validation still to implement
 
 Use generation-checked node routes and ordered bounded requests. Relative

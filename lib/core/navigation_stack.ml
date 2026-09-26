@@ -95,3 +95,38 @@ let update t id ~f =
 ;;
 
 let clear _ = empty
+
+module Motion = struct
+  type t =
+    { kind : Gpuio_protocol.Navigation_stack_wire.Motion.t
+    ; duration_ms : int64
+    }
+  [@@deriving equal, sexp_of]
+
+  let default = { kind = Slide; duration_ms = 200L }
+  let immediate = { kind = Immediate; duration_ms = 0L }
+
+  let create kind duration =
+    let ms = Time_ns.Span.to_ms duration in
+    if (not (Float.is_finite ms)) || Float.(ms < 0. || ms > 10_000.)
+    then Or_error.error_string "navigation motion duration must be in [0,10] seconds"
+    else Ok { kind; duration_ms = Float.iround_up_exn ms |> Int64.of_int }
+  ;;
+
+  let slide = create Gpuio_protocol.Navigation_stack_wire.Motion.Slide
+  let fade = create Gpuio_protocol.Navigation_stack_wire.Motion.Fade
+end
+
+module Expert = struct
+  let presentation_config t ~hidden ~motion =
+    { Gpuio_protocol.Navigation_stack_wire.Config.selected =
+        (if t.current_index < 0 then None else Some (Int64.of_int t.current_index))
+    ; retain =
+        (match hidden with
+         | Content_policy.Retain -> true
+         | Unmount -> false)
+    ; motion = motion.Motion.kind
+    ; duration_ms = motion.duration_ms
+    }
+  ;;
+end

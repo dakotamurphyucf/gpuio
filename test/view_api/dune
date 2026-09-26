@@ -5,6 +5,7 @@
   (deps
    (sandbox preserve_file_kind)
    inert-request.hex
+   navigation-stack-config.hex
    disclosure-request.hex
    color-command-request.hex
    color-command-events.hex
@@ -236,3 +237,5 @@
 (copy_files ../fixtures/accessibility-current.hex)
 
 (copy_files ../fixtures/inert-request.hex)
+
+(copy_files ../fixtures/navigation-stack-config.hex)

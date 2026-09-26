@@ -42,7 +42,9 @@ Native sidebar width transitions now pass public macOS geometry, interruption an
 reduced-motion checks. Retained offcanvas content now slides out on either side
 while inert: native input/AX access stops immediately, editors survive, and nested
 animations/popup scopes suspend. GPU and public screenshot evidence verifies paint
-continues during exit. Mounted navigation transitions remain pending alongside
+continues during exit. Navigation now has tested bounded native transition state
+and an OCaml motion policy, including reversal from painted positions and removal
+precedence. Its mounted rendering/focus integration remains pending alongside
 remaining navigation/overlay/carousel components,
 expanded public examples, broader acceptance and hosted gates.
 See [navigation design](design/navigation-components.md) and

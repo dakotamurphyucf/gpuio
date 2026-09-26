@@ -383,3 +383,41 @@ Mounted navigation stack/transitions, remaining overlays/carousel, broader sideb
 workload/appearance acceptance and consolidated gates/merge remain incomplete.
 This supersedes the preceding checkpoint's missing offcanvas painted-exit slice;
 it does not complete OCH-37 or milestone 05. Full Linux GUI validation stays OCH-17.
+## Navigation transition-state checkpoint (2026-09-26)
+
+The presenter contract is now specified in the navigation design. Its deterministic
+Rust motion state and OCaml `Navigation_stack.Motion` policy are implemented, with
+an independently specified configuration fixture (`01020101fec800`: selected index
+2, retained content, slide, 200 ms). The bounded decoder rejects invalid tags,
+booleans, indices/durations, truncated input and trailing bytes. Selection must
+also agree with admitted child count; that transaction-level wiring is pending.
+
+Seven transition-state tests cover first placement, push/pop, painted reversal,
+speculative/stale paint, third-destination interruption, replacement/removal,
+Unmount, policy settling, atomic invalid updates, unchanged-selection updates,
+history insertion and 9,999 interruptions across the maximum 128-entry history.
+State owns geometry and IDs only; it does not preserve removed page resources or
+allocate a second native route history.
+
+Local macOS arm64 commands:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native -p gpuio-protocol --lib --test navigation_stack
+GPUIO_JOBS=2 ./scripts/gpuio exec dune runtest -j 2 test/view_api
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native -p gpuio-protocol --lib --tests -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @fmt
+```
+
+Both pass: 209 native unit tests, 28 protocol unit tests, the independent Rust
+configuration fixture/malformed-input test, and the OCaml View API expect suite.
+Clippy and the formatter check also pass.
+OCaml tests also verify Unmount preserves history positions, empty history, and
+duration bounds/rounding. An initial test helper used u32 where NodeId requires
+i64; it was corrected. The first expect run differed only in multiline whitespace;
+the actual output was reviewed and the expectation corrected.
+
+This checkpoint does **not** establish a mounted navigation-stack widget. The
+View/transaction adapter, native rendering, focus restoration, public example and
+actual GPU/keyboard/IME/AX scenarios remain to be connected and validated. Existing
+sidebar/disclosure native evidence below is separate; no navigation-stack native
+GUI acceptance or new capability advertisement is claimed by these unit tests.
