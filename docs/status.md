@@ -151,8 +151,13 @@ acceptance. Core data/paging and a scoped Eio adapter now pass 100,000-row order
 and paged workloads, retired-row/query checks, saturated inbox delivery and
 100 rapid resets while cancellation cleanup holds both worker slots. Producer
 concurrency stays at two; old results are discarded and unrelated scoped work
-survives explicit close. The bridge, public widget, selection/anchor reconciliation
-and native interaction/lifecycle acceptance remain. See [table design](design/data-tables.md) and
+survives explicit close. The selected native adapter now lives in `rust/table`,
+with upstream provenance, existing base helpers and per-instance appearance.
+Its macOS test reproduces the four virtualization samples, preserves selection
+through row/column reorder, clears removed selections without event echoes, and
+verifies native entity release on close. The bridge, public widget, visual anchor
+reconciliation and full native interaction/cache/lifecycle acceptance remain.
+See [table design](design/data-tables.md) and
 [evidence](evidence/data-tables-och39.md).
 
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native

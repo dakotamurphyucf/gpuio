@@ -1,6 +1,6 @@
 # Read-only data tables (OCH-39)
 
-Status: column/data/paging foundations implemented; native adapter evaluation in progress.
+Status: column/data/paging foundations and initial extracted native adapter implemented.
 This document does not advertise a table capability or claim ticket acceptance.
 
 ## Ownership and scope
@@ -142,12 +142,26 @@ A one-line `.or_else(|_| crate_name("gpui"))` fallback in the scratch copy of
 for the default-feature library on macOS, not all optional features, Linux, or
 native behavior. It does not require changing GPUI versions.
 
-The production choice between the styled dependency and a provenanced extraction
-remains open pending the retained-data delegate and native ownership experiments.
-An equivalent implementation cannot be justified merely by the macro lookup
-failure, because the isolated patch resolves it. Any extraction must preserve
-provenance and acceptance scope; any full reuse must isolate additional theme,
-initialization and dependency requirements.
+The selected integration is a provenanced extraction in `rust/table`, reusing
+existing `gpui-base` virtualization, scrolling, actions and style helpers. Its
+per-instance appearance avoids requiring the styled library's global theme,
+assets and unrelated component initialization. This is an ownership/style choice,
+not a claim that full reuse is incompatible: the isolated macro patch resolves
+the compile probe. Source hashes and the Apache license are recorded in
+`rust/table/UPSTREAM.md` and `LICENSE`. No third-party dependency version changed.
+
+The extracted state retains row-lifetime and column keys for selection. Refresh
+quietly remaps those keys or clears missing targets; explicit native selection
+replacement rejects invalid targets atomically without scrolling or emitting a
+user event. Layout indices remain internal. The host must issue distinct native
+row keys for distinct membership lifetimes. This native foundation is not yet
+connected to Core row references or mounted/query generations.
+
+The local macOS test confirms sampled virtualization, selection remapping through
+row/column reorder, removal handling and native entity release on window close.
+Before integration, remaining positional events and callbacks captured by old
+layouts need stable identity or generation validation. Visual viewport anchors,
+resize reconciliation and retained cell-cache policy still require implementation.
 
 ## Remaining acceptance
 

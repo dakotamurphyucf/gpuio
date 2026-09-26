@@ -2528,6 +2528,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpuio-table-adapter"
+version = "0.0.0"
+dependencies = [
+ "gpui",
+ "gpui-base",
+ "gpui_platform",
+]
+
+[[package]]
 name = "gpuio-wayland"
 version = "0.0.0"
 dependencies = [

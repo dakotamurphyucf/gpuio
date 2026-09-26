@@ -1,6 +1,6 @@
 # OCH-39 data-table evidence
 
-Status (2026-09-26): **column/data/paging foundations and candidate evaluation**. OCH-39 remains
+Status (2026-09-26): **column/data/paging foundations and initial native extraction**. OCH-39 remains
 In Progress. No table capability is advertised. The
 [design](../design/data-tables.md) lists the remaining production acceptance.
 
@@ -72,6 +72,9 @@ promise/function naming collision. These results establish Core/Eio contracts;
 they do not establish table-native paging, stable visual anchors, input or AX.
 
 ## Styled-library compile probe
+
+This historical probe informed the extracted adapter selected below; it is not a
+production dependency.
 
 Upstream gpui-kit commit `84f57fdfcb4910623fb0bb7f795b077e249f9271` was read
 from a clean local checkout and archived into a new ignored scratch workspace.
@@ -150,3 +153,39 @@ PY
 
 The fixture closes on caught assertion failures as well as success. The external
 timeout also kills and reaps its own process if initialization fails to progress.
+
+## Extracted native adapter
+
+`rust/table` now contains the selected, attributed extraction. Per-instance
+appearance replaces the global styled theme; the existing base supplies native
+virtual lists, scrolling, scrollbars and actions. No GPUI pin changed, and the
+workspace lock only adds the local adapter package. The full styled crate and
+its extra dependencies are not linked by the adapter.
+
+Local macOS commands, using the isolated toolchain:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy -p gpuio-table-adapter \
+  --all-targets --features native-tests --locked -j2 -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-table-adapter \
+  --locked --features native-tests --test native_table -j2
+```
+
+Both **pass**. The native test reproduces the four samples above with the same
+peak of 80 distinct body cells. It then selects row key 50,001 / column `col-32`,
+reverses 100,000 rows and the unpinned columns, and verifies selection and retained
+Unicode text follow their keys. Removing the selected row or column clears the
+selection. Invalid replacements retain the prior selection; reconciliation emits
+no user-selection echo. Closing the window releases the table entity, verified
+through a weak handle. The window closes and the process exits normally.
+
+These are direct native command/state/layout checks, not foreground keyboard,
+clipboard, context-menu or accessibility acceptance. Unicode retained text is not
+proof of Unicode clipboard behavior. Only sampled working sets are measured;
+full-history cache bounds and the public OCaml/Bonsai bridge remain outstanding.
+CI now includes adapter compile/lint on both platforms and the macOS native run;
+those hosted jobs have not yet been executed for this change.
+
+The local workspace `cargo test --workspace --locked -j2`, Dune
+`build -j2 @all @runtest @fmt`, and `./scripts/gpuio lint` also pass. These
+checks do not rerun every native GUI suite or establish Linux runtime support.

@@ -95,6 +95,8 @@ jobs:
         run: ./scripts/gpuio lint 2>&1 | tee .cache/ci/lint.log
       - name: Build and lint native UI tests
         run: |
+          ./scripts/gpuio exec cargo test --locked -p gpuio-table-adapter --features native-tests --test native_table --no-run
+          ./scripts/gpuio exec cargo clippy --locked -p gpuio-table-adapter --features native-tests --all-targets -- -D warnings
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_ui --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_editor --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_controls --no-run
@@ -198,6 +200,9 @@ jobs:
       - name: macOS native managed tree semantics
         if: runner.os == 'macOS'
         run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_tree"], check=True, timeout=300)' 2>&1 | tee .cache/ci/macos-tree-native.log
+      - name: macOS native table adapter
+        if: runner.os == 'macOS'
+        run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-table-adapter", "--features", "native-tests", "--test", "native_table"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-table-native.log
       - name: macOS public managed trees and approved moves
         if: runner.os == 'macOS'
         run: |

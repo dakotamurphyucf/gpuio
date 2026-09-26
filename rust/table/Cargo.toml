@@ -1,0 +1,22 @@
+[package]
+name = "gpuio-table-adapter"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+gpui = { git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b", default-features = false }
+gpui-base = { path = "../../vendor/gpui-base" }
+
+[dev-dependencies]
+gpui_platform = { git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b", features = ["font-kit", "runtime_shaders"] }
+
+[[test]]
+name = "native_table"
+harness = false
+required-features = ["native-tests"]
+
+[features]
+native-tests = []
