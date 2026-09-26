@@ -311,10 +311,31 @@ module Labels = struct
   ;;
 end
 
+module Motion = struct
+  type t =
+    { duration : Time_ns.Span.t
+    ; easing : Animation.Easing.t
+    }
+
+  let create
+        ?(duration = Time_ns.Span.of_ms 200.)
+        ?(easing = Animation.Easing.ease_in_out)
+        ()
+    =
+    if Time_ns.Span.(duration < zero || duration > of_sec 10.)
+    then Or_error.error_string "sidebar motion duration must be in 0..10 seconds"
+    else Ok { duration; easing }
+  ;;
+
+  let default = create () |> Or_error.ok_exn
+  let immediate = create ~duration:Time_ns.Span.zero () |> Or_error.ok_exn
+end
+
 module Appearance = struct
   type t =
     { width : float
     ; compact_width : float
+    ; motion : Motion.t
     ; style : Style.t
     ; item_style : Style.t
     ; current_style : Style.t
@@ -324,6 +345,7 @@ module Appearance = struct
   let create
         ?(width = 240.)
         ?(compact_width = 56.)
+        ?(motion = Motion.default)
         ?(style = Style.empty)
         ?(item_style = Style.empty)
         ?(current_style = Style.empty)
@@ -336,7 +358,8 @@ module Appearance = struct
     then
       Or_error.error_string
         "sidebar widths must satisfy 32 <= compact <= expanded <= 4096"
-    else Ok { width; compact_width; style; item_style; current_style; group_style }
+    else
+      Ok { width; compact_width; motion; style; item_style; current_style; group_style }
   ;;
 
   let default = create () |> Or_error.ok_exn
@@ -598,6 +621,7 @@ let view
           ; border
           ]
       ; appearance.style
+      ; style [ Width (px width); Shrink 0. ]
       ; (if offcanvas
          then
            style
@@ -620,5 +644,34 @@ let view
       children
   in
   let%bind metadata = Accessibility.create ~role:Navigation ~label:labels.navigation () in
-  View.with_accessibility (View.column ?key ~style:root_style [ panel ]) metadata
+  let%bind content =
+    View.with_accessibility
+      (View.column ~key:(key_of "sidebar") ~style:root_style [ panel ])
+      metadata
+  in
+  let%bind target = Animation.Target.create [ Width, width ] in
+  let%map animation =
+    Animation.Config.create
+      ~target
+      ~duration:appearance.motion.duration
+      ~easing:appearance.motion.easing
+      ()
+  in
+  View.animate
+    ?key
+    ~style:
+      (style
+         [ Height full
+         ; Min_width (px 0.)
+         ; Min_height (px 0.)
+         ; Shrink 0.
+         ; Overflow_x Hidden
+         ; Overflow_y Hidden
+         ; Align_items
+             (match side with
+              | Left -> Start
+              | Right -> End)
+         ])
+    animation
+    [ content ]
 ;;

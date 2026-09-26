@@ -234,8 +234,8 @@ covers navigation/expansion requests; supplied slot controls and context-menu
 commands own their enabled policy.
 
 `Icon` preserves top-level link identity and names while hiding nested content,
-headings, suffixes and expansion buttons. `Offcanvas` removes the sidebar from
-layout and accessibility; `Never` ignores collapse without discarding the stored
+headings, suffixes and expansion buttons. `Offcanvas` immediately hides content/accessibility and releases its allocated
+layout width over the configured transition; `Never` ignores collapse without discarding the stored
 preference. `Content_policy.Retain | Unmount` governs native hidden descendants,
 not Bonsai computation or Eio task lifetime. Unmount skips hidden-content builder
 callbacks; retain preserves native nodes. Structural decoration changes, such as
@@ -243,10 +243,20 @@ adding a context-menu wrapper, may replace descendants. Ordinary collapse and
 selection preserve matching keyed links. Labels and all dynamic expansion labels
 are bounded/validated; appearance refines existing tokens and state styles.
 
-This is the initial static-width composition. Native width/reveal motion,
-interrupted/reduced-motion behavior, broader workloads and final sidebar acceptance
-remain to be integrated with the navigation work; they are not silently removed
-from the OCH-37 scope.
+`Sidebar.Motion` now configures native allocated-width transitions (default 200 ms
+with ease-in-out, or `immediate`; durations 0..10 seconds). The stable animated
+wrapper uses existing OCH-12 ownership: immediate first placement, interruption
+from the painted width, no OCaml callback per frame, native reduced-motion settling
+and disposal. Fixed-width inner content takes its target geometry at model update,
+so its text does not reflow with each intermediate wrapper width. Width arguments
+own this geometry even if an appearance style supplies another width; other style
+refinements remain available. The inner border and clip alignment follow `Side`.
+
+Current offcanvas behavior hides its content immediately while animating allocation
+to zero; opening reveals the fixed-width content. A painted outgoing slide still
+needs separate native paint/interaction gating. This requirement, broader workloads
+and final sidebar acceptance remain pending, alongside navigation transitions.
+Retaining an interactive outgoing panel during its exit is not an acceptable shortcut.
 
 ### Independent actions inside disclosure headers
 

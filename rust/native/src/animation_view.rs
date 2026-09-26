@@ -21,6 +21,8 @@ pub(super) struct State {
     test_now: Option<Duration>,
     #[cfg(feature = "native-tests")]
     pub(super) paint_count: u64,
+    #[cfg(feature = "native-tests")]
+    pub(super) frame_requests: u64,
 }
 impl State {
     #[cfg(feature = "native-tests")]
@@ -201,6 +203,10 @@ pub(super) fn paint(state: &Rc<RefCell<State>>, sample: Sample) -> gpui::AnyElem
                 state.publish(endpoint);
             }
             if wake == Wake::Frame {
+                #[cfg(feature = "native-tests")]
+                {
+                    state.frame_requests += 1;
+                }
                 window.request_animation_frame();
             }
         },
@@ -234,6 +240,8 @@ impl View {
                     test_now: None,
                     #[cfg(feature = "native-tests")]
                     paint_count: 0,
+                    #[cfg(feature = "native-tests")]
+                    frame_requests: 0,
                     window: self.id,
                     node: node.id,
                     session: self.session.clone(),

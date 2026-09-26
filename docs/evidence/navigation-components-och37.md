@@ -249,3 +249,58 @@ macOS/Linux checks and merge remain pending. Next are native sidebar/navigation
 motion and focus, the supplementary overlay variants and carousel, followed by
 broader appearance/lifetime/workload acceptance, OCH-38/OCH-39 and the OCH-46 chat
 showcase. This checkpoint does not complete OCH-37 or milestone 05.
+
+## Sidebar allocated-width motion — 2026-09-26
+
+`Sidebar.Motion` and `Appearance.motion` now use the existing native animation
+wrapper, defaulting to a 200 ms ease-in-out transition. Explicit immediate mode
+keeps the same wrapper identity. First placement has no entrance animation;
+subsequent widths start at the last painted value. Inner content takes its target
+width immediately, while the clipped outer allocation interpolates. This adds no
+wire configuration, timers in OCaml or dependency changes.
+
+One additional expect test checks duration bounds (0..10 seconds), no explicit
+initial values, unchanged-render stability, matching native owner across widths
+56/0/240 and immediate-mode updates. The view API suite, Bonsai compilation,
+public example link and Dune format checks pass locally.
+
+The public `scripts/test_sidebar.py --motion` check passes on local macOS arm64.
+It uses a two-second linear transition and real AX position readback of adjacent
+content. Samples show intermediate allocated widths while the inner sidebar has
+already reached 56 pixels, reversal before completion without a target snap,
+offcanvas allocation reaching zero while content is inaccessible, and intermediate
+reopening geometry. Application Reduce settles the two-second target inside a
+900 ms observation bound (the passing run observed the endpoint on its first
+sample). The normal public sidebar AX/keyboard/context-menu regression also passes.
+Both scripts own, close and reap their test application.
+
+The existing native animation regression initially failed twice at its immediate
+whole-window idle assertion, observing render count 22 -> 23. Test-only instrumentation
+now counts actual animation frame requests. Across two 180 ms observation intervals,
+that count does not advance and no deadline is active; one queued redraw drains
+in the first interval, and the second requires strictly unchanged whole-window
+render count. The complete native animation suite passes with that stronger
+separation of scheduling evidence, including interruption, hidden/reduced idle,
+repetition, delayed disposal and window close. No production scheduling behavior
+was changed. This establishes absence of ongoing animation work, not the precise
+source of an already queued GPUI/platform redraw.
+
+Commands (repository isolated toolchain):
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @test/view_api/runtest lib/bonsai/gpuio_bonsai.cma examples/navigation/main.exe @fmt
+python3 scripts/test_sidebar.py --motion
+python3 scripts/test_sidebar.py
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-tests --test native_animation
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native --all-targets --features native-image-tests -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all --check
+_build/default/examples/navigation/main.exe --self-test
+```
+
+**Still pending:** offcanvas content currently hides immediately during shrinking
+allocation. Keeping one outgoing painted visual while denying all interaction is
+not yet implemented, and cannot be claimed from these width tests. Mounted
+navigation transitions need that same paint/interaction separation. Broader sidebar
+appearance/workload acceptance, remaining OCH-37 components and consolidated hosted
+macOS/Linux gates/merge remain required. A new hosted public-motion step is wired
+but has not run. Full Linux GUI validation remains OCH-17.

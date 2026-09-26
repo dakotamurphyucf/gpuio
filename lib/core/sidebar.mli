@@ -126,15 +126,34 @@ module Labels : sig
     -> t Or_error.t
 end
 
+module Motion : sig
+  type t
+
+  (** Native width transitions, with no callback per frame. The first mount is
+      immediate; updates start at the last painted width. Duration defaults to
+      200 ms, is nonnegative and at most 10 seconds. Reduced motion settles the
+      current target. This does not control application selection or lifetimes. *)
+  val create
+    :  ?duration:Time_ns.Span.t
+    -> ?easing:Animation.Easing.t
+    -> unit
+    -> t Or_error.t
+
+  val default : t
+  val immediate : t
+end
+
 module Appearance : sig
   type t
 
   (** Widths are finite logical pixels, 32..4096; compact width <= expanded width.
       Existing theme tokens supply colors. Styles refine sidebar/item/current/group
-      boxes. Item styles preserve the native state-style vocabulary. *)
+      boxes. Width arguments own the sidebar's geometry over style width/shrink
+      overrides. Item styles preserve the native state-style vocabulary. *)
   val create
     :  ?width:float
     -> ?compact_width:float
+    -> ?motion:Motion.t
     -> ?style:Style.t
     -> ?item_style:Style.t
     -> ?current_style:Style.t
@@ -181,8 +200,10 @@ val toggle
     Invalid dynamic toggle labels return an error. Current and expanded state stay
     application-owned. Replacing decoration wrappers (such as adding a context menu)
     may replace their native descendants; ordinary collapse/selection does not.
-    Width/reveal motion is a separate native integration step, not implemented by
-    this initial composition. *)
+    A stable native wrapper animates allocated width while content uses its target
+    width (no text reflow per frame). Offcanvas contents become hidden immediately;
+    their layout allocation animates to zero. An outgoing painted slide is still
+    pending separate native presentation/interaction gating. *)
 val view
   :  t
   -> ?key:Key.t

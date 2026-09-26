@@ -93,7 +93,17 @@ module Observation = struct
     }
 end
 
-let component ~icon ~loaded ~observed ~lazy_activations ~lazy_deactivations window graph =
+let component
+      ~motion_test
+      ~set_motion
+      ~icon
+      ~loaded
+      ~observed
+      ~lazy_activations
+      ~lazy_deactivations
+      window
+      graph
+  =
   let model, inject =
     B.state_machine0
       ~default_model:Model.initial
@@ -178,6 +188,19 @@ let component ~icon ~loaded ~observed ~lazy_activations ~lazy_deactivations wind
   let sidebar =
     Sidebar.view
       model.sidebar
+      ~appearance:
+        (Sidebar.Appearance.create
+           ~motion:
+             (if motion_test
+              then
+                Sidebar.Motion.create
+                  ~duration:(Time_ns.Span.of_sec 2.)
+                  ~easing:Animation.Easing.linear
+                  ()
+                |> ok
+              else Sidebar.Motion.default)
+           ()
+         |> ok)
       ~hidden:Retain
       ~header:(fun ~compact ->
         UI.text
@@ -218,13 +241,21 @@ let component ~icon ~loaded ~observed ~lazy_activations ~lazy_deactivations wind
            ])
       [ UI.row
           ~style:(style [ Gap (px 8.); Wrap Wrap ])
-          [ Sidebar.toggle
-              model.sidebar
-              ~on_request:(fun request -> inject (Sidebar request))
-              ()
-          ; UI.button ~on_click:(inject (Collapse_mode Icon)) "Icon mode"
-          ; UI.button ~on_click:(inject (Collapse_mode Offcanvas)) "Offcanvas mode"
-          ]
+          ([ Sidebar.toggle
+               model.sidebar
+               ~on_request:(fun request -> inject (Sidebar request))
+               ()
+           ; UI.button ~on_click:(inject (Collapse_mode Icon)) "Icon mode"
+           ; UI.button ~on_click:(inject (Collapse_mode Offcanvas)) "Offcanvas mode"
+           ]
+           @
+           if motion_test
+           then
+             [ UI.button
+                 ~on_click:(set_motion Animation.Preference.Reduce)
+                 "Reduce motion"
+             ]
+           else [])
       ; UI.text ("Selected destination: " ^ selected)
       ; UI.text
           (if model.inspected
@@ -307,152 +338,165 @@ let component ~icon ~loaded ~observed ~lazy_activations ~lazy_deactivations wind
 
 let () =
   let self_test = Array.exists (Sys.get_argv ()) ~f:(String.equal "--self-test") in
+  let motion_test = Array.exists (Sys.get_argv ()) ~f:(String.equal "--motion-test") in
   let observed = ref None
   and lazy_activations = ref 0
   and lazy_deactivations = ref 0 in
   let completed = ref false
   and data_completed = ref false
   and data_cancelled = ref false in
-  App.run (fun env app ->
-    let clock = Eio.Stdenv.clock env in
-    let loaded = B.Expert.Var.create false in
-    let icon = B.Expert.Var.create None in
-    Sidebar_icons.load env app icon;
-    let released, release = Eio.Promise.create () in
-    let window =
-      App.open_window
-        app
-        ~focus:true
-        ~title:"GPUIO Navigation Lab"
-        ~width:1120.
-        ~height:760.
-        (component ~icon ~loaded ~observed ~lazy_activations ~lazy_deactivations)
-      |> ok
-    in
-    let data_scope = Scope.child (App.Window.scope window) ~name:"archive-data" |> ok in
-    ignore
-      (Scope.start
-         data_scope
-         ~f:(fun () ->
-           if self_test then Eio.Promise.await released else Eio.Time.sleep clock 0.4;
-           data_completed := true)
-         ~on_result:(fun result ->
-           E.of_thunk (fun () ->
-             ok result;
-             B.Expert.Var.set loaded true))
-       |> ok
-       : Scope.Task.t);
-    (* A long-lived subscription belongs to the data owner, not either panel. *)
-    ignore
-      (Scope.start
-         data_scope
-         ~f:(fun () ->
-           Exn.protect ~f:Eio.Fiber.await_cancel ~finally:(fun () ->
-             data_cancelled := true))
-         ~on_result:(fun result -> E.of_thunk (fun () -> ok result))
-       |> ok
-       : Scope.Task.t);
-    if self_test
-    then
-      ignore
-        (Scope.start
-           (App.Window.scope window)
-           ~f:(fun () ->
-             Eio.Time.with_timeout_exn clock 20. (fun () ->
-               let await ready =
-                 while not (ready ()) do
-                   Eio.Time.sleep clock 0.005
-                 done
-               in
-               let on_ui ui_effect =
-                 let result, resolve = Eio.Promise.create () in
-                 Scope.Expert.enqueue (App.Window.scope window) (fun () ->
-                   E.Expert.handle (E.map ui_effect ~f:(Eio.Promise.resolve resolve)));
-                 Eio.Promise.await result
-               in
-               let latest () = Option.value_exn !observed in
-               let model () = (latest ()).model in
-               let send action = on_ui ((latest ()).inject action) in
-               let read () =
-                 match on_ui (Input.read_snapshot (latest ()).editor) with
-                 | Ok snapshot -> snapshot
-                 | Error error -> raise_s [%sexp (error : Text_input.Command_error.t)]
-               in
-               await (fun () ->
-                 Option.exists !observed ~f:(fun o ->
-                   Option.is_some (Input.snapshot o.editor))
-                 && !lazy_activations = 1);
-               (match
-                  on_ui
-                    (Input.replace
-                       (latest ()).editor
-                       ~selection:End
-                       ~undo:Record
-                       "Preserved draft 👩🏽‍💻")
-                with
-                | Ok _ -> ()
-                | Error error -> raise_s [%sexp (error : Text_input.Command_error.t)]);
-               let before = read () in
-               send Toggle_details;
-               await (fun () -> not (model ()).details);
-               assert (Text_input.Snapshot.equal before (read ()));
-               assert (
-                 Result.equal
-                   Text_input.Snapshot.equal
-                   Text_input.Command_error.equal
-                   (on_ui (Input.focus (latest ()).editor))
-                   (Error Focus_blocked));
-               assert (!lazy_deactivations = 0);
-               send Toggle_lazy;
-               await (fun () -> !lazy_deactivations = 1);
-               assert (Scope.is_active data_scope && not !data_cancelled);
-               Eio.Promise.resolve release ();
-               await (fun () -> B.Expert.Var.get loaded);
-               assert !data_completed;
-               on_ui
-                 (E.Many
-                    (List.init 3 ~f:(fun _ ->
-                       (latest ()).inject (Page Pagination.Request.next))));
-               await (fun () ->
-                 Option.equal Int.equal (Pagination.current (model ()).pages) (Some 4));
-               send (Total 2);
-               await (fun () ->
-                 Option.equal Int.equal (Pagination.current (model ()).pages) (Some 2));
-               send (Page (Pagination.Request.page 100 |> ok));
-               send Toggle_details;
-               await (fun () -> (model ()).details);
-               assert (
-                 Option.equal Int.equal (Pagination.current (model ()).pages) (Some 2));
-               assert (
-                 String.equal (Text_input.Snapshot.text (read ())) "Preserved draft 👩🏽‍💻");
-               send Toggle_lazy;
-               await (fun () -> !lazy_activations = 2);
-               assert (Scope.is_active data_scope && not !data_cancelled);
-               send (Sidebar Toggle_collapsed);
-               await (fun () -> Sidebar.is_collapsed (model ()).sidebar);
-               send (Sidebar (Select (Model.sidebar_id "Inbox")));
-               send (Sidebar (Select (Model.sidebar_id "Settings")));
-               await (fun () ->
-                 Option.equal
-                   Sidebar.Id.equal
-                   (Sidebar.selected (model ()).sidebar)
-                   (Some (Model.sidebar_id "Settings")));
-               send (Collapse_mode Offcanvas);
-               await (fun () ->
-                 Sidebar.Collapse.equal (Sidebar.collapse (model ()).sidebar) Offcanvas);
-               send (Sidebar Toggle_collapsed);
-               await (fun () -> not (Sidebar.is_collapsed (model ()).sidebar));
-               assert (Sidebar.is_expanded (model ()).sidebar (Model.sidebar_id "Archive"));
-               assert (
-                 String.equal (Text_input.Snapshot.text (read ())) "Preserved draft 👩🏽‍💻");
-               await (fun () -> Option.is_some (B.Expert.Var.get icon));
-               completed := true))
-           ~on_result:(fun result ->
-             E.of_thunk (fun () ->
-               App.Window.close window;
-               ok result))
+  App.run
+    ~motion:(if motion_test then Full else System)
+    (fun env app ->
+       let clock = Eio.Stdenv.clock env in
+       let loaded = B.Expert.Var.create false in
+       let icon = B.Expert.Var.create None in
+       Sidebar_icons.load env app icon;
+       let released, release = Eio.Promise.create () in
+       let window =
+         App.open_window
+           app
+           ~focus:true
+           ~title:"GPUIO Navigation Lab"
+           ~width:1120.
+           ~height:760.
+           (component
+              ~motion_test
+              ~set_motion:(fun policy -> E.of_thunk (fun () -> App.set_motion app policy))
+              ~icon
+              ~loaded
+              ~observed
+              ~lazy_activations
+              ~lazy_deactivations)
          |> ok
-         : Scope.Task.t));
+       in
+       let data_scope =
+         Scope.child (App.Window.scope window) ~name:"archive-data" |> ok
+       in
+       ignore
+         (Scope.start
+            data_scope
+            ~f:(fun () ->
+              if self_test then Eio.Promise.await released else Eio.Time.sleep clock 0.4;
+              data_completed := true)
+            ~on_result:(fun result ->
+              E.of_thunk (fun () ->
+                ok result;
+                B.Expert.Var.set loaded true))
+          |> ok
+          : Scope.Task.t);
+       (* A long-lived subscription belongs to the data owner, not either panel. *)
+       ignore
+         (Scope.start
+            data_scope
+            ~f:(fun () ->
+              Exn.protect ~f:Eio.Fiber.await_cancel ~finally:(fun () ->
+                data_cancelled := true))
+            ~on_result:(fun result -> E.of_thunk (fun () -> ok result))
+          |> ok
+          : Scope.Task.t);
+       if self_test
+       then
+         ignore
+           (Scope.start
+              (App.Window.scope window)
+              ~f:(fun () ->
+                Eio.Time.with_timeout_exn clock 20. (fun () ->
+                  let await ready =
+                    while not (ready ()) do
+                      Eio.Time.sleep clock 0.005
+                    done
+                  in
+                  let on_ui ui_effect =
+                    let result, resolve = Eio.Promise.create () in
+                    Scope.Expert.enqueue (App.Window.scope window) (fun () ->
+                      E.Expert.handle (E.map ui_effect ~f:(Eio.Promise.resolve resolve)));
+                    Eio.Promise.await result
+                  in
+                  let latest () = Option.value_exn !observed in
+                  let model () = (latest ()).model in
+                  let send action = on_ui ((latest ()).inject action) in
+                  let read () =
+                    match on_ui (Input.read_snapshot (latest ()).editor) with
+                    | Ok snapshot -> snapshot
+                    | Error error -> raise_s [%sexp (error : Text_input.Command_error.t)]
+                  in
+                  await (fun () ->
+                    Option.exists !observed ~f:(fun o ->
+                      Option.is_some (Input.snapshot o.editor))
+                    && !lazy_activations = 1);
+                  (match
+                     on_ui
+                       (Input.replace
+                          (latest ()).editor
+                          ~selection:End
+                          ~undo:Record
+                          "Preserved draft 👩🏽‍💻")
+                   with
+                   | Ok _ -> ()
+                   | Error error -> raise_s [%sexp (error : Text_input.Command_error.t)]);
+                  let before = read () in
+                  send Toggle_details;
+                  await (fun () -> not (model ()).details);
+                  assert (Text_input.Snapshot.equal before (read ()));
+                  assert (
+                    Result.equal
+                      Text_input.Snapshot.equal
+                      Text_input.Command_error.equal
+                      (on_ui (Input.focus (latest ()).editor))
+                      (Error Focus_blocked));
+                  assert (!lazy_deactivations = 0);
+                  send Toggle_lazy;
+                  await (fun () -> !lazy_deactivations = 1);
+                  assert (Scope.is_active data_scope && not !data_cancelled);
+                  Eio.Promise.resolve release ();
+                  await (fun () -> B.Expert.Var.get loaded);
+                  assert !data_completed;
+                  on_ui
+                    (E.Many
+                       (List.init 3 ~f:(fun _ ->
+                          (latest ()).inject (Page Pagination.Request.next))));
+                  await (fun () ->
+                    Option.equal Int.equal (Pagination.current (model ()).pages) (Some 4));
+                  send (Total 2);
+                  await (fun () ->
+                    Option.equal Int.equal (Pagination.current (model ()).pages) (Some 2));
+                  send (Page (Pagination.Request.page 100 |> ok));
+                  send Toggle_details;
+                  await (fun () -> (model ()).details);
+                  assert (
+                    Option.equal Int.equal (Pagination.current (model ()).pages) (Some 2));
+                  assert (
+                    String.equal (Text_input.Snapshot.text (read ())) "Preserved draft 👩🏽‍💻");
+                  send Toggle_lazy;
+                  await (fun () -> !lazy_activations = 2);
+                  assert (Scope.is_active data_scope && not !data_cancelled);
+                  send (Sidebar Toggle_collapsed);
+                  await (fun () -> Sidebar.is_collapsed (model ()).sidebar);
+                  send (Sidebar (Select (Model.sidebar_id "Inbox")));
+                  send (Sidebar (Select (Model.sidebar_id "Settings")));
+                  await (fun () ->
+                    Option.equal
+                      Sidebar.Id.equal
+                      (Sidebar.selected (model ()).sidebar)
+                      (Some (Model.sidebar_id "Settings")));
+                  send (Collapse_mode Offcanvas);
+                  await (fun () ->
+                    Sidebar.Collapse.equal (Sidebar.collapse (model ()).sidebar) Offcanvas);
+                  send (Sidebar Toggle_collapsed);
+                  await (fun () -> not (Sidebar.is_collapsed (model ()).sidebar));
+                  assert (
+                    Sidebar.is_expanded (model ()).sidebar (Model.sidebar_id "Archive"));
+                  assert (
+                    String.equal (Text_input.Snapshot.text (read ())) "Preserved draft 👩🏽‍💻");
+                  await (fun () -> Option.is_some (B.Expert.Var.get icon));
+                  completed := true))
+              ~on_result:(fun result ->
+                E.of_thunk (fun () ->
+                  App.Window.close window;
+                  ok result))
+            |> ok
+            : Scope.Task.t));
   if self_test
   then (
     assert (!completed && !data_completed && !data_cancelled);

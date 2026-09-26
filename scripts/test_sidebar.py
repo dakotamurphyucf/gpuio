@@ -62,6 +62,69 @@ def sidebar_width(mac):
         mac.release(node)
 
 
+def content_x(mac):
+    class Point(C.Structure):
+        _fields_ = [('x', C.c_double), ('y', C.c_double)]
+    node = mac.wait_find(TITLE, 'Selected destination: Inbox', 'AXStaticText')
+    value = mac.attr(node, 'AXPosition')
+    try:
+        getter = mac.ax.AXValueGetValue
+        getter.restype, getter.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
+        result = Point()
+        if not value or not getter(value, 1, C.byref(result)):
+            raise RuntimeError('Content lacks native position')
+        return result.x
+    finally:
+        if value:
+            mac.release(value)
+        mac.release(node)
+
+
+def await_x(mac, predicate, timeout=5):
+    deadline = time.monotonic() + timeout
+    values = []
+    while time.monotonic() < deadline:
+        value = content_x(mac)
+        values.append(round(value, 2))
+        if predicate(value):
+            print('SIDEBAR_MOTION_SAMPLES', values, flush=True)
+            return value
+        time.sleep(0.03)
+    raise RuntimeError(f'Width transition did not meet expectation: {values}')
+
+
+def exercise_motion(mac):
+    mac.wait_text(TITLE, 'Selected destination: Inbox')
+    mac.set(mac.app, 'AXFrontmost', mac.true)
+    full = content_x(mac)
+    assert 235 <= sidebar_width(mac) <= 245
+    mac.press(TITLE, 'Collapse sidebar')
+    absent(mac, 'Inbox', 'AXLink')
+    # Outer allocation animates, while the content immediately takes icon width.
+    await_x(mac, lambda x: full - 150 < x < full - 40)
+    assert 51 <= sidebar_width(mac) <= 61
+    mac.press(TITLE, 'Expand sidebar')
+    assert content_x(mac) < full - 10, 'Interruption snapped to the target'
+    await_x(mac, lambda x: abs(x - full) < 1)
+    mac.press(TITLE, 'Collapse sidebar')
+    compact = full - 184
+    await_x(mac, lambda x: abs(x - compact) < 1)
+    mac.press(TITLE, 'Offcanvas mode')
+    absent(mac, 'Sidebar', 'AXGroup')
+    await_x(mac, lambda x: compact - 45 < x < compact - 10)
+    await_x(mac, lambda x: abs(x - (full - 240)) < 1)
+    mac.press(TITLE, 'Expand sidebar')
+    await_x(mac, lambda x: full - 180 < x < full - 40)
+    await_x(mac, lambda x: abs(x - full) < 1)
+    mac.press(TITLE, 'Icon mode')
+    mac.press(TITLE, 'Reduce motion')
+    mac.press(TITLE, 'Collapse sidebar')
+    # Two-second full-motion runs settle under Reduce rather than playing out.
+    await_x(mac, lambda x: abs(x - compact) < 1, timeout=0.9)
+    mac.close(TITLE)
+    print('GPUIO_SIDEBAR_MOTION_AX_OK: native allocation samples, fixed inner width, interruption, offcanvas hiding/reveal, reduced motion and close')
+
+
 def exercise(mac, images):
     mac.wait_text(TITLE, 'Selected destination: Inbox')
     mac.set(mac.app, 'AXFrontmost', mac.true)
@@ -123,15 +186,22 @@ def exercise(mac, images):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--images', type=Path)
+    parser.add_argument('--motion', action='store_true')
     args = parser.parse_args()
     repo = Path(__file__).resolve().parent.parent
     with tempfile.TemporaryFile(mode='w+') as log:
-        child = subprocess.Popen([str(repo / '_build/default/examples/navigation/main.exe')],
+        command = [str(repo / '_build/default/examples/navigation/main.exe')]
+        if args.motion:
+            command.append('--motion-test')
+        child = subprocess.Popen(command,
                                  cwd=repo, stdout=log, stderr=subprocess.STDOUT, text=True)
         mac = None
         try:
             mac = Mac(child.pid, child)
-            exercise(mac, args.images)
+            if args.motion:
+                exercise_motion(mac)
+            else:
+                exercise(mac, args.images)
             if child.wait(timeout=15) != 0:
                 raise RuntimeError('Navigation app exited unsuccessfully')
         finally:
@@ -146,7 +216,8 @@ def main():
                     child.wait()
             log.seek(0)
             print(log.read(), end='')
-    print('GPUIO_SIDEBAR_AX_OK: parent navigation/expansion, current help, disabled route, icon/offcanvas geometry and hiding, restored expansion, context command and close')
+    if not args.motion:
+        print('GPUIO_SIDEBAR_AX_OK: parent navigation/expansion, current help, disabled route, icon/offcanvas geometry and hiding, restored expansion, context command and close')
 
 
 if __name__ == '__main__':

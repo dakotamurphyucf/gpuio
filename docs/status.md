@@ -38,9 +38,11 @@ The initial sidebar adds grouped/nested destinations, independent expansion,
 icon/offcanvas modes, scoped icons, context commands and current-link semantics.
 Local public macOS AX checks and screenshots cover its collapse modes; native
 regressions also cover custom disclosure headers and retained hidden popup scopes.
-Remaining navigation/overlay/carousel components, sidebar/navigation motion,
-expanded public examples, broader acceptance and hosted gates remain
-in progress. See [navigation design](design/navigation-components.md) and
+Native sidebar width transitions now pass public macOS geometry, interruption and
+reduced-motion checks. Outgoing offcanvas painting and navigation transitions remain
+pending alongside remaining navigation/overlay/carousel components,
+expanded public examples, broader acceptance and hosted gates.
+See [navigation design](design/navigation-components.md) and
 [foundation evidence](evidence/navigation-components-och37.md).
 
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native

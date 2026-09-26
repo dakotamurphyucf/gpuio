@@ -141,6 +141,60 @@ let sidebar ?(hidden = Content_policy.Retain) model =
   S.view model ~hidden ~on_request:Fn.id () |> ok
 ;;
 
+let%expect_test "width motion is native, bounded and stable across target changes" =
+  List.iter [ -1.; 10_001. ] ~f:(fun ms ->
+    assert (Result.is_error (S.Motion.create ~duration:(Time_ns.Span.of_ms ms) ())));
+  ignore (S.Motion.create ~duration:(Time_ns.Span.of_sec 10.) () |> ok : S.Motion.t);
+  let reconciler = Reconciler.create window in
+  let model = model () in
+  let first = commit reconciler (sidebar model) in
+  let owner, config =
+    List.find_map_exn first ~f:(function
+      | W.Op.Set_animation (node, config) -> Some (node, config)
+      | _ -> None)
+  in
+  assert (Option.is_none config.initial);
+  assert (Int64.equal config.duration_ms 200L);
+  assert (List.is_empty (commit reconciler (sidebar model)));
+  List.iter
+    [ S.with_collapsed model true, 56.
+    ; S.with_collapse (S.with_collapsed model true) Offcanvas, 0.
+    ; model, 240.
+    ]
+    ~f:(fun (model, width) ->
+      let changes = commit reconciler (sidebar model) in
+      assert (
+        not
+          (List.exists changes ~f:(function
+             | W.Op.Remove _ -> true
+             | _ -> false)));
+      let config =
+        List.find_map_exn changes ~f:(function
+          | W.Op.Set_animation (node, config) when Gpuio_protocol.Node_id.equal owner node
+            -> Some config
+          | _ -> None)
+      in
+      assert (Option.is_none config.initial);
+      assert (
+        W.Animation.Target.equal
+          (List.hd_exn config.targets)
+          { property = Width; value = width }));
+  let appearance = S.Appearance.create ~motion:S.Motion.immediate () |> ok in
+  let changes =
+    commit reconciler (S.view model ~appearance ~hidden:Retain ~on_request:Fn.id () |> ok)
+  in
+  assert (
+    List.exists changes ~f:(function
+      | W.Op.Set_animation (node, config) ->
+        Gpuio_protocol.Node_id.equal node owner && Int64.equal config.duration_ms 0L
+      | _ -> false));
+  print_endline
+    "stable native owner; initial placement settles; target widths 56/0/240; immediate \
+     policy does not remount";
+  [%expect
+    {| stable native owner; initial placement settles; target widths 56/0/240; immediate policy does not remount |}]
+;;
+
 let button operations label =
   List.find_map_exn operations ~f:(function
     | W.Op.Create (node, Button, text, Some handler) when String.equal text label ->
