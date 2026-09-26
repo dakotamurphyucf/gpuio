@@ -134,6 +134,11 @@ pub fn run_native_table_host_test() {
     host::table_view::run_test();
 }
 
+#[cfg(feature = "native-tests")]
+pub fn run_native_table_history_test() {
+    host::table_view::run_history_test();
+}
+
 pub mod document_diff;
 
 pub mod document_markdown;

@@ -989,3 +989,8 @@ mod test;
 pub(crate) fn run_test() {
     test::run();
 }
+
+#[cfg(feature = "native-tests")]
+pub(crate) fn run_history_test() {
+    test::run_history();
+}

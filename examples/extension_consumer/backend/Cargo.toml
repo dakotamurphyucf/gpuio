@@ -25,3 +25,4 @@ component_0 = { package = "gpuio-example-counter", path = "../../extension_packa
 [patch.crates-io]
 gpuio-extension-sdk = { path = "../../../rust/extension-sdk" }
 accesskit_macos = { path = "../../../vendor/accesskit-macos" }
+taffy = { path = "../../../vendor/taffy" }

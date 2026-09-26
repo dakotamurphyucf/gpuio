@@ -2506,6 +2506,7 @@ dependencies = [
  "ropey",
  "roxmltree 0.21.1",
  "syntect",
+ "taffy",
  "two-face",
  "unicode-segmentation",
 ]
@@ -5796,8 +5797,6 @@ dependencies = [
 [[package]]
 name = "taffy"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c034e05f6ee85a12daa63863c2245797715075c70649947aa0da54f3f2ab1d0f"
 dependencies = [
  "arrayvec",
  "serde",

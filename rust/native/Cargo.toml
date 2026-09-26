@@ -42,7 +42,7 @@ flate2 = "=1.1.10"
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "=0.26.0"
 objc2 = "0.6.4"
-objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSString", "NSRange", "NSURL", "NSArray", "NSNotification", "NSOperation"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSString", "NSRange", "NSURL", "NSArray", "NSNotification", "NSOperation", "NSProcessInfo"] }
 objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSApplication", "NSOpenPanel", "NSSavePanel", "NSPanel", "NSResponder", "NSWindow", "NSView", "NSWorkspace", "NSAccessibility", "block2"] }
 block2 = "0.6.2"
 
@@ -51,6 +51,7 @@ gpuio-portal = { path = "../portal" }
 gpuio-wayland = { path = "../wayland", optional = true }
 
 [dev-dependencies]
+taffy = { version = "=0.13.0", default-features = false, features = ["std", "taffy_tree"] }
 gpuio-portal = { path = "../portal" }
 gpuio-wayland = { path = "../wayland" }
 
@@ -250,5 +251,11 @@ required-features = ["native-tests"]
 [[test]]
 name = "native_table_host"
 path = "tests/native_table_host.rs"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_table_history"
+path = "tests/native_table_history.rs"
 harness = false
 required-features = ["native-tests"]

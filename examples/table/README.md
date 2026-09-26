@@ -51,6 +51,13 @@ anchors, query retirement, streaming, selected-row removal, paging failure/retry
 and window-scoped producer/cell cleanup. Light/dark style changes retain selection,
 anchors and active cell lifetimes. The table's `~style` belongs to one native root;
 its surface, text and border can use the ordinary GPUIO style vocabulary.
+The script also holds a real Eio producer while accepting column resize/reorder
+requests, then delivers its page without changing the selected row or pixel
+anchor. A second producer stays in cancellation cleanup while sorting reverses
+the current data; its late result cannot append a row to the new query. These
+cases invoke the application's request handler and check native frame/viewport
+observations. They do not inject physical column gestures. A rendered-frame
+acknowledgement is separate from delivery of the refreshed viewport observation.
 It does not establish physical keyboard,
 clipboard, IME, accessibility, or Linux GUI acceptance.
 

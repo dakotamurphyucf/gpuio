@@ -11,6 +11,7 @@
   (source_tree "../../../rust")
   (source_tree "../../../vendor/gpui-base")
   (source_tree "../../../vendor/accesskit-macos")
+  (source_tree "../../../vendor/taffy")
   (source_tree "../../extension_package/rust")
   "../../../scripts/build_native.py")
  (action

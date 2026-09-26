@@ -187,8 +187,17 @@ and anchors through light/dark changes. Actual macOS accessibility now passes
 logical counts/indices, Unicode cell values, selected-descendant focus, ordered
 selection setters, separate sorting, selection-mode restrictions and retired
 hidden/disabled objects. The vendored Cocoa adapter has a reproducible table
-metadata/selection patch. Physical keyboard/IME, broader native full-history/paging
-interactions and final acceptance remain; no table capability is advertised.
+metadata/selection patch. The native table now passes two complete 100,000-row
+traversals with at most 128 active rows/512 cells, actual horizontal sweeps and
+zero retired text payloads retained at batch checks. This exposed a pinned Taffy
+measurement-context retirement issue; a reproduced, documented two-line patch
+at the same version fixes it in both backend paths. Unmount/window release and
+intentional failure cleanup pass. The public example now also preserves anchors
+and selection through accepted resize/reorder during a pending Eio page and
+sorts while obsolete producer cleanup is held; late results do not alter the
+new query. Shared controls/editor/list/tree/table regressions, Rust workspace
+tests and strict Clippy pass. Physical keyboard/IME, public context flows and
+final acceptance remain; no table capability is advertised.
 See [table design](design/data-tables.md) and
 [evidence](evidence/data-tables-och39.md).
 
@@ -223,6 +232,8 @@ showcase the completed feature families in the polished agent-chat application.
 OCH-46 is part of milestone completion and covers feature mapping, interactive
 flows, light/dark and responsive-layout polish, accessibility, reduced motion,
 streaming/performance regression checks and updated screenshots/documentation.
+Its [component coverage and flow plan](design/agent-chat-m5-showcase.md) is
+versioned; the new showcase flows remain implementation work.
 OCH-25 now has validated public spring parameters, an independent OCaml/Rust
 parameter fixture and a tested analytic native spring trajectory. Typed programs,
 a bounded codec and compiled finite sequence timelines also pass local tests.

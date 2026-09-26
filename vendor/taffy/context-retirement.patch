@@ -1,0 +1,6 @@
+--- a/src/tree/taffy_tree.rs
++++ b/src/tree/taffy_tree.rs
+@@ -616,0 +617 @@
++        self.node_context_data.clear();
+@@ -639,0 +641 @@
++        let _ = self.node_context_data.remove(key);

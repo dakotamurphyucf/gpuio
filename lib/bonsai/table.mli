@@ -50,7 +50,13 @@ module Output : sig
   val controller : _ t -> Controller.t
   val selection : _ t -> Row.t Selection.t
   val target : _ t -> Gpuio.Table_data.Id.t -> Row.t Or_error.t
+
+  (** Latest native observation for the current query, order and configuration.
+      Changes can temporarily return [None] until a matching observation arrives.
+      A rendered-frame acknowledgement does not guarantee that observation has
+      already been delivered to Bonsai. *)
   val viewport : _ t -> Gpuio.Virtual_list.Viewport.t option
+
   val active_rows : _ t -> int
   val active_cells : _ t -> int
   val budget_exhausted : _ t -> bool

@@ -46,7 +46,8 @@ let component ~smoke window graph =
 ;;
 
 let () =
-  let smoke = Array.exists (Sys.get_argv ()) ~f:(String.equal "--smoke") in
+  let flag name = Array.exists (Sys.get_argv ()) ~f:(String.equal name) in
+  let smoke = flag "--smoke" in
   let catalog = App.extension_catalog () |> Or_error.ok_exn in
   if not (List.exists catalog ~f:(Gpuio.Extension.Schema.equal Counter.schema))
   then failwith "the linked backend does not provide the counter schema";
@@ -54,7 +55,7 @@ let () =
     let (_ : App.Window.t) =
       App.open_window
         app
-        ~focus:(not smoke)
+        ~focus:(not (flag "--background"))
         ~title:"GPUIO · Extension SDK"
         ~width:640.
         ~height:360.

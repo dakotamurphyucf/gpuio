@@ -1,7 +1,8 @@
 # OCH-39 data-table evidence
 
-Status (2026-09-26): **column/data/paging foundations and initial native extraction**. OCH-39 remains
-In Progress. No table capability is advertised. The
+Status (2026-09-26): **public Core/Bonsai/Eio and retained native table implemented;
+local AppKit semantics and full native history checks pass**. OCH-39 remains
+In Progress pending the remaining integration/platform acceptance. No table capability is advertised. The
 [design](../design/data-tables.md) lists the remaining production acceptance.
 
 ## Column schema
@@ -666,3 +667,143 @@ no table capability or completed milestone is advertised.
 The final strict all-target check also passes:
 `GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --workspace --locked -j2 --all-targets --features gpuio-native/native-image-tests,gpuio-table-adapter/native-tests -- -D warnings`.
 All owned validation processes and windows have exited.
+
+## Full native table history workload
+
+`GPUIO_JOBS=2 python3 scripts/test_table_history.py` runs the production table
+host in a hidden 540 × 2700 logical-pixel macOS window. It verifies the platform
+actually supplies the tall viewport, with the production minimum 20-pixel row
+height. The workload visits every one of 100,000 logical rows twice, replacing
+each batch's payloads and node generations. Each batch contains at most 128 rows
+and 512 cells. It scrolls horizontally between the first and last unpinned
+columns and checks that the pinned column stays fixed and every cell renders.
+
+Transactions pass through the real BinProt encoder/decoder and unchanged limits
+of 4,096 operations and 1 MiB. The test checks current rows, focus handles,
+selection states and tree nodes; weak references track retired text payloads,
+cell metadata and selections. It checks release after unmount and after window
+close, then deliberately fails a separate run to verify window/process cleanup.
+The Python runner bounds execution and terminates/reaps its process group on
+timeout or cancellation. It does not read or overwrite the user's clipboard.
+
+Logical-source admission accounting reserves 192 bytes per row, independently
+of mounted cell payloads. The test bounds the mounted accounting delta to less
+than 1 MiB and records both values separately from process peak RSS; admission
+accounting is not an allocator measurement. Progress reports split update,
+paint and checking/scheduler time. A scoped macOS activity keeps this explicit
+hidden workload runnable without activating its window or changing global
+App Nap or sleep settings.
+
+The full workload now passes locally on macOS. An initial diagnostic run was
+deliberately stopped after its 12,800-row segment time increased from 53 to
+338 seconds; it did not establish full-history acceptance. A one-batch viewport
+probe uses a distinct marker and is also not full-history acceptance. This
+workload does not replace physical input, active Eio paging/column interaction,
+the polished chat showcase or required hosted platform validation.
+
+The subsequent full run reached the second traversal's final short batch but
+failed its unchanged 1,024-retired-payload limit with 1,295 retained payloads.
+Failure cleanup closed the native window. An independent probe against the
+original Taffy 0.13.0 showed that both `remove` and `clear` left measurement
+contexts alive after retiring all nodes. GPUI stores text measurement closures
+in those contexts. The scoped [dependency patch](../../vendor/taffy/GPUIO.md)
+retires the contexts alongside their nodes, without changing the version or
+layout calculations; both native backend build paths apply it.
+
+With that patch, the two ordinary Rust ownership regressions pass. A short native
+`--probe-cache` alternates 128- and 32-row batches eight times (1,280 visits): it
+now records zero retired cached payloads and passes unmount/window release. The
+same probe failed before the patch. Its distinct marker is not full traversal
+acceptance; the complete two-pass rerun is recorded below. Broader regressions
+are being validated separately.
+Original archive hashes, the two-line patch reconstruction and license hash all
+verify against `vendor/taffy/UPSTREAM.json`.
+
+The patched full runner exits successfully with all three completion markers:
+
+| Measurement | Result |
+| --- | ---: |
+| Logical rows / complete traversals | 100,000 / 2 |
+| Total row visits | 200,000 |
+| Active rows / cells | at most 128 / 512 |
+| Peak retired text payloads still cached at batch checks | 0 |
+| Retired text after unmount / window close | 0 / 0 |
+| Logical-source baseline admission accounting | 19,200,689 bytes |
+| Peak total admission accounting | 19,643,057 bytes |
+| Peak mounted-payload accounting above baseline | 442,368 bytes |
+| Initial / final process peak RSS | 77,168,640 / 183,451,648 bytes |
+| Full traversal duration | 517.0 seconds |
+
+Every horizontal sweep checks that all four columns render and the first pinned
+column stays fixed. Every batch checks current resource bounds, old cell-metadata
+and selection release, and actual viewport positions. The separate intentional
+assertion exits nonzero, closes its window and is recognized by the runner as
+verified failure cleanup; the runner itself exits zero. Both owned processes are
+reaped. These are hidden-window native layout/paint and ownership results, not a
+release-mode latency benchmark or physical AppKit keyboard/IME evidence.
+
+## Public paging with column and sort updates
+
+The extended Table Lab passes `GPUIO_JOBS=2 python3 scripts/test_table_public.py`
+with the patched default native backend. Its controlled Eio producers now exercise:
+
+- A pending page while the application accepts a column resize to 240 pixels
+  and moves the message column ahead of the tool column. Query generation,
+  cell selection and row 4's seven-pixel anchor survive both updates and the
+  subsequent page delivery from 16 to 32 rows. Active cells remain at most 96.
+- A second producer deliberately held in cancellation cleanup while descending
+  sort reverses the data. Row 16 follows its key to index 15 with its nine-pixel
+  anchor and selection intact. Finishing the obsolete producer cannot append
+  its extra row or change that anchor. The scripted cancellation delay has a
+  timeout so a failing check can still close its window and workers.
+- Final window closure releases every activated cell and finishes all five
+  producers, including cancellation of an ordinary still-running load.
+
+The first development run checked the anchor before a refreshed observation
+arrived. Waiting for the current observation passes with the exact original row
+and offset requirements; no native anchor implementation or tolerance changed.
+Rendered-frame acknowledgements and viewport observations are separate events.
+This is public Bonsai/Eio/native layout integration through the application's
+request callback, not physical pointer/keyboard/IME validation. The existing
+adapter's real native gesture cases provide their own separate evidence.
+
+The full Dune `@all @runtest @fmt` checks pass with the two-line Taffy patch and
+both backend paths. The final example-only rebuild and formatting check also
+pass after correcting the asynchronous test observation.
+
+The shared layout regression checks also pass locally:
+
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --workspace --locked -j2`.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --workspace --locked -j2 --all-targets --features gpuio-native/native-image-tests,gpuio-table-adapter/native-tests -- -D warnings`.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native --features native-image-tests --test native_editor --test native_controls --test native_list --test native_tree --test native_table_host` under a 600-second process-group guard.
+
+The native checks cover controls/menus/pointer behavior, the editor's actual
+macOS text-client composition path, table input/GPU/AX behavior and list/tree
+workloads. Both managed lists and trees visit/revisit all 100,000 rows and now
+report zero retired cached text at their checks and after unmount. The editor
+result is shared-editor regression evidence; table-specific AppKit input/context
+acceptance remains separate. All owned windows/processes from these suites exit.
+Required hosted validation and milestone completion remain pending.
+
+The independent extension consumer also passes
+`GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --run` using a fresh
+`--workspace` directory. This stages installed public libraries locally, builds
+a separate consumer with the generated backend and observes its native command
+and correlated paint before closing. No opam switch is modified. Fresh generated
+and checked-in backend manifests, registration and Dune source dependencies
+agree, including the Taffy patch path.
+
+An initial background smoke run timed out waiting for paint. Activating that
+same independently built executable made it pass immediately. The smoke example
+now activates by default, with an explicit `--background` option for environments
+that deliver background frames. The paint requirement and runner timeout are
+unchanged. A fresh full independent build/run passes with that default. This is
+macOS consumer evidence; it does not establish Linux GUI acceptance.
+
+The final `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt`
+passes after the viewport documentation and smoke activation change. Staged and
+working-tree whitespace checks pass. No original vendored source differs from
+its recorded hash after reversing exactly the two patched context-retirement
+lines; the separate patch-reconstruction check also passes. OCH-39 remains open
+for table-specific AppKit input/context work and final acceptance, followed by
+OCH-46, hosted gates and merge.

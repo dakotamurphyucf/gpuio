@@ -3,6 +3,8 @@ use super::*;
 #[cfg(target_os = "macos")]
 #[path = "table_host_test/accessibility.rs"]
 mod accessibility;
+#[path = "table_host_test/history.rs"]
+mod history;
 #[path = "table_host_test/input.rs"]
 mod input;
 #[cfg(feature = "native-image-tests")]
@@ -146,6 +148,20 @@ fn apply(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>, operations: 
                 base,
                 revision: base + 1,
                 operations,
+            };
+            use binprot::BinProtWrite;
+            let mut bytes = Vec::new();
+            Message::Apply(transaction)
+                .binprot_write(&mut bytes)
+                .unwrap();
+            assert!(
+                bytes.len() <= MAX_MESSAGE_BYTES,
+                "test batch exceeds production wire budget"
+            );
+            let Message::Apply(transaction) =
+                gpuio_protocol::decode(&bytes).expect("real transaction decoder")
+            else {
+                unreachable!()
             };
             let applied = view
                 .session
@@ -414,6 +430,12 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
     );
 }
 pub(super) fn run() {
+    run_case(false);
+}
+pub(super) fn run_history() {
+    run_case(true);
+}
+fn run_case(history: bool) {
     let failure = Rc::new(RefCell::new(None));
     let task_failure = failure.clone();
     let mut fds = [0; 2];
@@ -423,38 +445,64 @@ pub(super) fn run() {
     let transport = Arc::new(Transport::new(write.as_raw_fd()).unwrap());
     gpui_platform::application().run(move |cx| {
         cx.set_quit_mode(gpui::QuitMode::Explicit);
-        let clipboard = cx.read_from_clipboard();
+        let clipboard = if history {
+            None
+        } else {
+            cx.read_from_clipboard()
+        };
         gpui_base::init(cx);
         gpuio_table_adapter::init(cx);
         let session = Rc::new(RefCell::new(crate::session::Session::default()));
         session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
+        let height = if history { 2700. } else { 340. };
         session
             .borrow_mut()
-            .open(1, window_id(), "GPUIO Table", 540., 340.)
+            .open(1, window_id(), "GPUIO Table", 540., height)
             .unwrap();
         let window = cx
             .open_window(
                 gpui::WindowOptions {
                     window_bounds: Some(gpui::WindowBounds::Windowed(gpui::Bounds::centered(
                         None,
-                        gpui::size(px(540.), px(340.)),
+                        gpui::size(px(540.), px(height as f32)),
                         cx,
                     ))),
                     focus: false,
-                    show: true,
+                    show: !history,
                     ..Default::default()
                 },
                 |_, cx| cx.new(|_| View::new(window_id(), session.clone(), transport.clone())),
             )
             .unwrap();
         cx.spawn(async move |cx| {
-            let result = super::super::native_test::protect(exercise(cx, window)).await;
+            let result = super::super::native_test::protect(async {
+                if history {
+                    let cached = history::exercise(cx, window).await;
+                    window
+                        .update(cx, |_, window, _| window.remove_window())
+                        .unwrap();
+                    assert!(
+                        cached.iter().all(|weak| weak.strong_count() == 0),
+                        "closed table window retained text cache"
+                    );
+                    eprintln!("GPUIO_TABLE_HISTORY_WINDOW_RELEASE_OK");
+                } else {
+                    exercise(cx, window).await;
+                }
+            })
+            .await;
             let _ = window.update(cx, |_, window, _| window.remove_window());
+            if history && result.is_err() {
+                assert!(cx.update(|cx| cx.windows().is_empty()));
+                eprintln!("TABLE_HISTORY_FAILURE_CLEANUP_OK");
+            }
             *task_failure.borrow_mut() = result.err();
             cx.update(|cx| {
-                cx.write_to_clipboard(
-                    clipboard.unwrap_or_else(|| gpui::ClipboardItem::new_string(String::new())),
-                );
+                if !history {
+                    cx.write_to_clipboard(
+                        clipboard.unwrap_or_else(|| gpui::ClipboardItem::new_string(String::new())),
+                    );
+                }
                 super::super::stop_application(cx);
             });
         })

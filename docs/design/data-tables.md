@@ -1,7 +1,9 @@
 # Read-only data tables (OCH-39)
 
-Status: column/data/paging, native admission and retained host renderer implemented;
-public Core/Bonsai component and full native acceptance remain.
+Status: public Core/Bonsai/Eio tables, native admission and retained host rendering
+are implemented.
+See the evidence ledger for local acceptance; physical input, remaining paging
+integration, the chat showcase and consolidated hosted gates remain.
 This document does not advertise a table capability or claim ticket acceptance.
 
 ## Ownership and scope

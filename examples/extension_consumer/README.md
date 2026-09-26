@@ -48,3 +48,9 @@ This leaves its temporary workspace path in the result for inspection. Omit
 into an opam switch. Its successful GUI run is distinct from Linux GUI release
 acceptance. See [the SDK contract](../../docs/design/extensions.md) for lifecycle,
 limits, schema compatibility and the trusted native-code boundary.
+
+The smoke application activates its window by default because it must observe
+an actual rendered frame before closing. An occluded background window may not
+receive that frame on macOS. Pass `--background` directly to the example only
+where background frame delivery is available; this does not waive the paint
+acknowledgement or extend the independent runner's timeout.

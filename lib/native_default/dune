@@ -6,6 +6,7 @@
   (source_tree ../../rust)
   (source_tree ../../vendor/gpui-base)
   (source_tree ../../vendor/accesskit-macos)
+  (source_tree ../../vendor/taffy)
   ../../Cargo.toml
   ../../Cargo.lock
   ../../rust-toolchain.toml

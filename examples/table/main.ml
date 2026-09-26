@@ -41,6 +41,15 @@ type row =
   ; message : string
   }
 
+module Load_behavior = struct
+  type t =
+    | Fail
+    | Sample_rows
+    | Until_cancelled
+    | Pending of row Pager.Page.t Or_error.t Eio.Promise.t
+    | Protected_pending of row Pager.Page.t Or_error.t Eio.Promise.t
+end
+
 let row n =
   { number = n
   ; tool = (if n mod 2 = 0 then "Search" else "Read file")
@@ -111,8 +120,8 @@ let run ~self_test ~background =
     and pager_ref = ref None in
     let mounted = ref 0
     and unmounted = ref 0 in
-    let fail = ref true
-    and wait_load = ref false in
+    let load_behavior = ref Load_behavior.Fail in
+    let on_request_ref = ref None in
     let started = ref 0
     and active = ref 0
     and finished = ref 0 in
@@ -136,13 +145,19 @@ let run ~self_test ~background =
                  Int.incr active;
                  Exn.protect
                    ~f:(fun () ->
-                     if !wait_load
-                     then Eio.Fiber.await_cancel ()
-                     else if !fail
-                     then
+                     match !load_behavior with
+                     | Until_cancelled -> Eio.Fiber.await_cancel ()
+                     | Pending result -> Eio.Promise.await result
+                     | Protected_pending result ->
+                       (* Bound this scripted cancellation delay so a failed
+                          test can still shut down its window and workers. *)
+                       Eio.Cancel.protect (fun () ->
+                         Eio.Time.with_timeout_exn (Eio.Stdenv.clock env) 30. (fun () ->
+                           Eio.Promise.await result))
+                     | Fail ->
                        Or_error.error_string
                          "Demonstration: page unavailable; retry to continue"
-                     else
+                     | Sample_rows ->
                        Ok
                          { Pager.Page.rows = List.init 16 ~f:(fun n -> id n, row n)
                          ; next = End
@@ -193,6 +208,7 @@ let run ~self_test ~background =
                  Pager.reset pager ~query:"sorted" source ~before:End ~after:End |> ok
                | Select _ | Activate _ | Context _ | Copy _ -> ())
            in
+           on_request_ref := Some on_request;
            fun graph ->
              let snapshot = Pager.value pager in
              let output =
@@ -364,7 +380,7 @@ let run ~self_test ~background =
           | Ready | Loading | End -> false);
         frame ();
         assert (!started = 1 && !active = 0);
-        sync (fun () -> fail := false);
+        sync (fun () -> load_behavior := Sample_rows);
         perform
           (App.scope app)
           (W.Paging.retry
@@ -374,17 +390,105 @@ let run ~self_test ~background =
         wait "public retry paints rows" (fun () ->
           D.length (Pager.snapshot pager).data = 16
           && W.Output.active_cells (output ()) > 0);
+        let page, deliver_page = Eio.Promise.create () in
         sync (fun () ->
-          wait_load := true;
+          load_behavior := Pending page;
+          Pager.reset
+            pager
+            ~query:"columns-while-loading"
+            (Pager.snapshot pager).data
+            ~before:End
+            ~after:(More None)
+          |> ok;
+          Pager.request pager After |> ok);
+        wait "page held during column changes" (fun () -> !active = 1);
+        frame ();
+        let row_four = target 4 in
+        command (fun c ->
+          W.Controller.batch
+            c
+            [ Set_selection (Cell (row_four, col "message")); Scroll_to (row_four, 7.) ]
+          |> ok);
+        wait "anchor before column updates" (fun () -> anchor row_four 7.);
+        let generation = (Pager.snapshot pager).generation in
+        (* Exercise the application request handler and actual native updates.
+           Physical pointer/keyboard dispatch has separate native acceptance. *)
+        let accept request =
+          perform (App.scope app) ((Option.value_exn !on_request_ref) request)
+        in
+        accept (Resize [ col "tool", 240. ]);
+        accept (Move (col "message", Some (col "tool")));
+        frame ();
+        wait "anchor observed after column updates" (fun () -> anchor row_four 7.);
+        assert (!active = 1);
+        assert (Int64.equal (Pager.snapshot pager).generation generation);
+        Eio.Promise.resolve
+          deliver_page
+          (Ok
+             { Pager.Page.rows = List.init 16 ~f:(fun n -> id (n + 16), row (n + 16))
+             ; next = End
+             });
+        wait "page delivered after resize and reorder" (fun () ->
+          !active = 0 && D.length (Pager.snapshot pager).data = 32);
+        frame ();
+        wait "anchor observed after page delivery" (fun () -> anchor row_four 7.);
+        assert (W.Output.active_cells (output ()) <= 96);
+        (match W.Output.selection (output ()) with
+         | Cell (row, column) ->
+           assert (D.Row_ref.equal row row_four && C.Id.equal column (col "message"))
+         | Empty | Row _ | Column _ -> failwith "page delivery reset selection");
+        let row_sixteen = target 16 in
+        command (fun c ->
+          W.Controller.batch
+            c
+            [ Set_selection (Cell (row_sixteen, col "message"))
+            ; Scroll_to (row_sixteen, 9.)
+            ]
+          |> ok);
+        wait "anchor before pending sort" (fun () -> anchor row_sixteen 9.);
+        let obsolete, deliver_obsolete = Eio.Promise.create () in
+        sync (fun () ->
+          load_behavior := Protected_pending obsolete;
+          Pager.reset
+            pager
+            ~query:"sort-while-loading"
+            (Pager.snapshot pager).data
+            ~before:End
+            ~after:(More None)
+          |> ok;
+          Pager.request pager After |> ok);
+        wait "producer pending before sort" (fun () -> !active = 1);
+        accept (Sort (col "number", Some Descending));
+        frame ();
+        wait "sort follows keyed anchor" (fun () ->
+          String.equal (Pager.snapshot pager).query "sorted"
+          && anchor row_sixteen 9.
+          && Option.exists
+               (W.Output.viewport (output ()))
+               ~f:(fun v -> v.visible_first = 15));
+        assert (!active = 1);
+        Eio.Promise.resolve
+          deliver_obsolete
+          (Ok { Pager.Page.rows = [ id 32, row 32 ]; next = End });
+        wait "cancelled producer finishes after new sort" (fun () -> !active = 0);
+        frame ();
+        assert (D.length (Pager.snapshot pager).data = 32);
+        assert (anchor row_sixteen 9.);
+        (match W.Output.selection (output ()) with
+         | Cell (row, _) -> assert (D.Row_ref.equal row row_sixteen)
+         | Empty | Row _ | Column _ -> failwith "sorting reset stable selection");
+        sync (fun () ->
+          load_behavior := Until_cancelled;
           Pager.reset pager ~query:"closing" (data 0) ~before:End ~after:(More None) |> ok);
         wait "window-scoped producer" (fun () -> !active = 1);
         sync (fun () -> App.Window.close window);
         wait "window closes cells and cancels producer" (fun () ->
           App.Window.is_closed window && !active = 0 && !mounted = !unmounted);
-        assert (!started = 3 && !finished = 3);
+        assert (!started = 5 && !finished = 5);
         Eio.Flow.copy_string
           "GPUIO_TABLE_PUBLIC_OK: 100k rows, bounded cells, keyed commands, anchors, \
-           query retirement, streaming, selection repair, paging retry and window cleanup\n"
+           query retirement, streaming, selection repair, paging retry, column changes \
+           during loading, late sort results and window cleanup\n"
           (Eio.Stdenv.stdout env);
         App.shutdown app)
     else App.on_reopen app (fun () -> E.Ignore))
