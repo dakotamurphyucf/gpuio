@@ -679,3 +679,43 @@ The dedicated native target is wired into required macOS execution and Linux
 compilation. Hosted results are still pending the consolidated M5 gates. No Linux
 GUI or VoiceOver speech acceptance is claimed. Carousel and broader OCH-37 family/
 sidebar acceptance remain pending, followed by OCH-38/39/46 and final CI/merge.
+
+## Carousel model, codec and clock foundation — 2026-09-26
+
+The carousel is not yet a mounted component. This checkpoint implements its
+application-owned selection model, standalone paired config/request serialization
+and pure native scheduling state, without advertising a capability or claiming
+native GUI acceptance.
+
+Local macOS results:
+
+- Full Core view API expect suite passes, including relative/boundary/looping
+  requests, disabled versus explicit selection, identity-preserving reorder,
+  shrink/empty/refill, metadata/interval validation and 10,000 updates over 128
+  items. Old automatic proposals remain invalid after a full loop, explicit
+  restart, order or policy changes; payload-only refresh preserves the revision.
+- Three Rust carousel codec tests pass independent OCaml/Rust fixtures, truncation,
+  malformed tags/fields, maximum 128 IDs of 256 bytes each, rejection above bounds,
+  stale automatic requests and non-mutating target resolution. Direction is
+  explicit for Previous/Next through looping boundaries.
+- Four native clock unit tests pass stable redraw deadlines, early/stale wake
+  rejection, full-interval resume, one pending proposal across 9,995 redraws,
+  policy/revision/generational node changes, disposal and atomic time overflow.
+- Feature-enabled all-target native Clippy and OCaml/Rust formatting pass.
+
+Commands:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune runtest -j 2 test/view_api
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-protocol --test carousel
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --lib carousel_clock
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native --all-targets --features native-image-tests -- -D warnings
+git diff --check
+```
+
+Scratch logs: `carousel-core-final.log`, `carousel-codec-final.log`,
+`carousel-clock-final.log`, `carousel-clippy-final.log`, `carousel-format-final.log`.
+No windows were opened for these pure model/codec/clock tests. Mounted view/event
+integration, atomic admission, gestures, actual task ownership/cancellation,
+accessibility and native/public examples remain necessary for OCH-37 acceptance.

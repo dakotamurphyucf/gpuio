@@ -5,6 +5,8 @@
   (deps
    (sandbox preserve_file_kind)
    inert-request.hex
+   carousel-config.hex
+   carousel-request.hex
    navigation-stack-config.hex
    navigation-stack-request.hex
    disclosure-request.hex
@@ -248,3 +250,5 @@
 (copy_files ../fixtures/overlay-kinds-request.hex)
 
 (copy_files ../fixtures/hover-card-request.hex)
+
+(copy_files ../fixtures/carousel-*.hex)

@@ -484,3 +484,51 @@ note editor. The public self-test covers open/close focus eligibility and retain
 text; the dedicated native suite covers actual keyboard/pointer/IME/AX and timer
 behavior. Linux native-suite compilation is wired to the required build gate;
 Linux graphical acceptance remains OCH-17.
+
+## Carousel selection and native presentation
+
+`Carousel.t` owns an ordered collection of labelled, stable-ID items and the
+selected item. It is a value model; payloads, Bonsai state and Eio tasks stay in
+the application. The limits are 128 items and 256 KiB of IDs/labels, independently
+of native resource quotas. Reordering preserves the selected ID. Removing it
+selects the old position clamped to the remaining collection. Empty collections
+have no selection; refilling selects the first item. Single-item collections
+cannot advance, including in looping mode.
+
+Manual `Previous`, `Next`, `First`, `Last` and `Select` requests reduce against
+the latest application model. They are ordered requests, not coalesced selected
+snapshots. Disabled models ignore requests; explicit application selection is
+still permitted. Relative movement records its direction, so last-to-first Next
+and first-to-last Previous can animate consistently with the user's action.
+Direct selection leaves the presenter to infer direction from positions.
+
+Automatic advancement is opt-in, defaults to five seconds and accepts intervals
+from one second through one hour, rounded up to milliseconds. Its intended native
+eligibility requires settled visible paint, an active visible window, no hover,
+focus or drag within the component, and normal motion policy. Pausing cancels the
+deadline; resuming waits a full interval without catching up. At most one automatic
+proposal waits for an application response. Ignoring it cannot accumulate events.
+`restart_auto_advance` explicitly rearms after a rejected proposal.
+
+An automatic request carries model revision, source ID and successor ID. Selection,
+ordered membership, looping, disabled and automatic policy changes advance a
+checked revision; same-order payload/label refreshes preserve it. A full loop
+cannot revive an old request. Revision exhaustion returns an error without wrap.
+A freshly created model begins a new lineage and requires a fresh mounted key.
+The mounted adapter must reject backwards revisions and changed logical state at
+the same revision; presentation-only changes do not create a new selection owner.
+
+The pure native clock owns one immutable epoch ticket and a bounded schedule of
+revision, generational source/target node IDs and interval. Redraws preserve its
+absolute deadline. Old tickets, early wakes, disposal and unacknowledged proposals
+cannot generate a second tick. The future host adapter must recheck eligibility
+before waking and own/cancel the actual task through a weak, generational host.
+
+Implementation status: the Core model, independent paired config/request codecs
+and pure native clock are implemented and locally tested. The mounted Core/Bonsai
+view, bridge envelopes, admission rules, native rendering/gestures/tasks and macOS
+acceptance remain pending. This foundation does not advertise a carousel capability.
+The full target retains horizontal/vertical navigation, looping, keyboard and
+pointer controls, pagination, axis-locked drag/snapping and wheel gestures. It
+reuses retained-page presentation and explicit Retain/Unmount policy, and must
+never steal outside focus during automatic or programmatic selection changes.

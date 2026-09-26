@@ -5,6 +5,8 @@ use std::io::{Cursor, Read};
 mod accessibility;
 mod avatar;
 mod calendar;
+mod carousel;
+pub use carousel::{decode_carousel_config, decode_carousel_request};
 mod color_input;
 pub use calendar::{
     decode_calendar_command, decode_calendar_config, decode_calendar_constraints,
