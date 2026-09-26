@@ -1,6 +1,6 @@
 # OCH-39 data-table evidence
 
-Status (2026-09-26): **foundation and candidate evaluation only**. OCH-39 remains
+Status (2026-09-26): **column/data/paging foundations and candidate evaluation**. OCH-39 remains
 In Progress. No table capability is advertised. The
 [design](../design/data-tables.md) lists the remaining production acceptance.
 
@@ -28,6 +28,48 @@ The consolidated local command `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2
 @all @runtest @fmt` also **passes**. The build reports the existing macOS linker
 duplicate-library warnings. This covers OCaml builds, expect/runtime suites and
 formatting; it is not a new run of every native GUI suite.
+
+## Data and paging resources
+
+`Table_data` now has typed row IDs, immutable revisioned data and payload-free
+membership references. The Core tests traverse/reorder **100,000 rows**, preserve
+an anchor at its changed numeric position, verify no value invalidation on reorder,
+and perform 100 point updates sharing the order snapshot. Separate removal and
+reinsertion retire a reference; a foreign source or independent branch addition
+cannot impersonate it. Weak probes prove replaced and removed payloads are
+collected while an obsolete row reference remains live. Malformed IDs, duplicate
+and invalid structural operations, empty ranges, row-count and key-byte budgets
+are covered.
+
+Core `Table_paging` tests load **100,000 rows in 49 bounded pages** after a one-row
+seed. They cover simultaneous boundaries, current-query payload/column changes,
+sort/reset with a surviving stable anchor, foreign/duplicate/obsolete responses,
+explicit retry, canceled and malformed pages, cursor/error limits and atomic
+failed resets. Old responses are discarded before payload admission; a malformed
+old page cannot fail the current query. Stored error text remains bounded UTF-8.
+
+`Gpuio_eio.Table_paging` is tested with the project's deterministic Eio mock
+backend and real Scope/Inbox/Bonsai effect delivery:
+
+- Query values are captured in requests; producer results publish only through
+  the UI inbox. A failed boundary does not retry on repeated ordinary demand.
+- Both old producers wait in protected cancellation cleanup while **100 query
+  resets** request both boundaries. Only queries 0 and 100 actually start: four
+  total producer calls, **peak concurrency two**, all four finish. Intermediate
+  pending queries are superseded without growing a worker or request queue.
+- With a **one-entry UI inbox**, old-sort results are queued or blocked when
+  reset occurs. Only new-sort rows are ever published.
+- An invalid reset preserves old running producers. Canceling one boundary and
+  then closing twice finishes both producers; an unrelated task in the same
+  scope remains alive. Parent-scope shutdown cancels it separately.
+- A one-task scope exercises worker admission failure, explicit retry using the
+  available worker, and parent-scope cleanup/closed-controller rejection.
+
+Commands `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2
+@test/view_api/runtest` and `... dune build -j2 @test/runtime/runtest` **pass**.
+Development corrections were expected UTF-8 sexp escaping and a test-local
+promise/function naming collision. These results establish Core/Eio contracts;
+they do not establish table-native paging, stable visual anchors, input or AX.
 
 ## Styled-library compile probe
 

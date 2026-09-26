@@ -147,8 +147,12 @@ isolated styled DataTable candidate compiles against the unchanged GPUI pin afte
 a one-line macro crate-name fallback. Its native macOS probe renders at most
 80 distinct body cells across four sampled positions in a 100,000-row/64-column
 table. This is candidate evidence, not production integration or full-history
-acceptance. Data resources, bridge, public widget and native interaction/lifecycle
-acceptance remain. See [table design](design/data-tables.md) and
+acceptance. Core data/paging and a scoped Eio adapter now pass 100,000-row order
+and paged workloads, retired-row/query checks, saturated inbox delivery and
+100 rapid resets while cancellation cleanup holds both worker slots. Producer
+concurrency stays at two; old results are discarded and unrelated scoped work
+survives explicit close. The bridge, public widget, selection/anchor reconciliation
+and native interaction/lifecycle acceptance remain. See [table design](design/data-tables.md) and
 [evidence](evidence/data-tables-och39.md).
 
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native

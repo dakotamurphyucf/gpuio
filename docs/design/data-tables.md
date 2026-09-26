@@ -1,6 +1,6 @@
 # Read-only data tables (OCH-39)
 
-Status: column-schema foundation implemented; native adapter evaluation in progress.
+Status: column/data/paging foundations implemented; native adapter evaluation in progress.
 This document does not advertise a table capability or claim ticket acceptance.
 
 ## Ownership and scope
@@ -21,9 +21,9 @@ reconciled with application acceptance and explicit replacement commands.
 The ticket includes row/cell selection, keyboard navigation, Unicode copy,
 context actions, column resizing/reordering/left pinning/sort requests, grouped
 headers, empty/loading/error states and bounded paging. It does not include
-editable grid transactions. The final public widget, resource API and paired
-wire contracts remain to be implemented; these paragraphs constrain them rather
-than imply their existence.
+editable grid transactions. The public widget and paired wire contracts remain
+to be implemented. The Core and Eio resources below are implemented, but are not
+yet connected to the native table or a Bonsai table component.
 
 ## Column schema
 
@@ -55,6 +55,65 @@ fails atomically if a pin partition or group would be split. Valid moves reorder
 members and groups without changing keyed membership. A non-movable column
 cannot be the source, but another source can move past it. Pin/group restructuring
 is an explicit application schema replacement, not an implicit drag side effect.
+
+## Application data and row lifetime
+
+`Table_data` is an immutable source of application payloads with distinct typed
+row IDs. It builds on `List_collection`: point updates take O(log n), preserve
+the order snapshot and membership, and expose conservative changed-value
+invalidation without walking every payload. Structural replacement/splice and
+explicit application-supplied reorder take O(n log n). Reordering preserves
+payload versions, so it does not invalidate every cell as a value change.
+
+Each `create` establishes an independent source lineage. Revisions are local to
+that lineage and cannot identify a source by themselves. `Row_ref` captures one
+row's membership lifetime and source identity, without capturing its payload or
+source snapshot. Updates/reorder preserve it; separate removal and reinsertion
+of the same ID retire it. New additions in two immutable branches are distinct
+even when their numeric revisions match. An adapter must also enforce its query
+and mounted-handler generation; row membership is not a substitute for those.
+
+Application data may contain up to 1,000,000 logical rows and 64 MiB of key bytes.
+Key bytes are counted once per row; this is a logical admission limit, not a
+measurement of OCaml heap use. Payloads and persistent data snapshots belong to
+the application, independently of the bounded active cells/native cache. The
+resource keeps no registry of removed keys. Dropping old snapshots permits old
+payloads and membership metadata to be collected.
+
+## Query and paged resource
+
+`Table_paging` is the UI-domain-owned Core state machine. Its polymorphic query
+value carries application sort/filter settings. Each request captures that value
+at admission. Applications must use immutable query values; the framework does
+not compare, serialize or execute the query. The producer/server supplies rows
+in display order. There is no automatic sort of a partially loaded query.
+
+There is one request at each of the Before/After boundaries, at most two current
+requests. Pages contain at most 2,048 rows, cursors at most 4,096 opaque bytes,
+and stored errors at most 4,096 valid UTF-8 bytes without NUL. Initial seed data
+uses the larger source limits. Duplicate/oversized/invalid responses fail
+atomically and require explicit retry. Empty pages must advance their cursor or
+reach End. Obsolete responses are ignored before inspecting their contents.
+
+`reset ~query data ~before ~after` atomically advances the query generation and
+retires both current requests, even when reusing the same query value. Invalid
+reset parameters leave old data and requests intact. A reordered source from the
+same lineage preserves surviving row references, enabling keyed anchor/selection
+reconciliation. A fresh source resets identity. Clearing rows and later loading
+them again is a new membership lifetime; the future widget must specify any
+pending-key preference policy explicitly instead of treating absence as a known
+future return. Column resize/reorder and current-query payload updates do not
+cancel pages. Appending is allowed only at a known latest boundary.
+
+`Gpuio_eio.Table_paging` supplies the scoped implementation and reactive Bonsai
+snapshot. Two lazily created reusable Eio workers bound producer concurrency.
+Cancellation does not free a slot until the producer exits, including protected
+cleanup, and the UI inbox accepts its completion. Behind occupied workers only
+the latest request at each boundary waits. Workers sleep on streams while idle;
+there is no polling. Query resets cancel old producer contexts and reject their
+already queued results using the Core tokens. Explicit close cancels only this
+controller; parent-scope cancellation closes it too. Application data remains
+readable after close, while completion publication is retired.
 
 ## Upstream evaluation
 
@@ -95,8 +154,8 @@ initialization and dependency requirements.
 The model tests are one foundation, not a replacement for these gates:
 
 - Compile the actual selected production adapter against both platform targets.
-- Deliver revisioned in-memory and Eio paged resources, bounded native cell
-  descriptions and queues, and stale-result/cancellation handling.
+- Connect the tested in-memory/Eio resources to bounded native cell descriptions,
+  viewport demand, query generations and stable selection/anchor reconciliation.
 - Integrate public Core/Bonsai views, native column interaction, stable selection,
   keyboard, copy, context actions, accessibility and lifecycle behavior.
 - Exercise 100,000 logical rows with measured active/cache bounds and full
