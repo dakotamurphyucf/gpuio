@@ -162,8 +162,10 @@ acceptance is complete; capability `68719476736` is advertised (aggregate
 `137438953471`). Consolidated hosted gates and merge remain pending.
 See [calendar design](design/calendar.md) and [model evidence](evidence/calendar-och35.md).
 OCH-36 now has concrete Core/Rust RGBA/HSLA conversion and bounded hex-draft
-models, separate from theme references. Native color controls, their bridge and
-public example remain in progress. See [color design](design/color-inputs.md)
+models, separate from theme references. The pure native policy now tests
+preview/commit/cancel, draft/composition handling, hue memory, guarded Set/Reset,
+stale callbacks, configuration history and revision/fault lifetimes. Mounted
+color controls, their bridge and public example remain in progress. See [color design](design/color-inputs.md)
 and [foundation evidence](evidence/color-inputs-och36.md).
 No milestone-05 completion or hosted acceptance is claimed yet.
 

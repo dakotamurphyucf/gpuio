@@ -33,8 +33,34 @@ GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all --check
 Final command results are recorded with the commit in Linear. Scratch logs are
 local evidence, not build inputs. No GUI windows were opened for this foundation.
 
-Remaining: native policy/child adapter, bounded wire/configuration, retained
+Remaining at that checkpoint: native policy/child adapter, bounded wire/configuration, retained
 bridge, Core/Bonsai/Eio controls, swatches and popup, public example, actual native
 input/AX/GPU/lifetime/workload acceptance, capability advertisement, required
 macOS/Linux hosted checks, merge and OCH-46 showcase integration. Linux GUI
 acceptance remains deferred to OCH-17.
+
+## Native policy checkpoint — 2026-09-25
+
+Ten deterministic `color_input_state` tests now pass on local macOS. They exercise
+the real Rust policy type, independently of GPUI drawing: preview/commit/cancel,
+achromatic hue memory, explicit hue entry while gray, typed percentages,
+composition/invalid drafts, stale interaction callbacks after Set/Reset, guarded
+rejection without cancelling active edits, configuration/alpha/empty history,
+disabled/read-only and blocked input, discrete interruptions, bounded labels/
+palette, shared-config replacement/disposal, revision exhaustion and terminal
+fault/close behavior. Each operation returns at most two events and the tests
+check event validity and order. These tests do not prove mounted editor/IME,
+pointer capture, accessibility or resource cleanup.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --lib color_input_state
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native --all-targets --features native-image-tests -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all --check
+```
+
+The base slider source evaluation also found that AX Increment/Decrement changes
+its value without emitting a SliderEvent, and no public method clears its private
+drag flag on cancellation. This informs the private adapter integration work;
+there is no mounted test result for a color widget yet. No windows opened during
+this checkpoint. Paired codecs, retained bridge, native child synchronization,
+public control/popup/example and native/hosted acceptance remain pending.

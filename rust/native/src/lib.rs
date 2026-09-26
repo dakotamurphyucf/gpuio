@@ -192,6 +192,7 @@ pub fn run_native_slider_test() {
 }
 
 pub mod calendar_state;
+pub mod color_input_state;
 pub mod number_input_state;
 pub mod otp_edit;
 pub mod otp_input_state;
