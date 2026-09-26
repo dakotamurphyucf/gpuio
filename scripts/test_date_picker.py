@@ -16,6 +16,14 @@ SELECTED = '2024-02-20 – 2024-02-22'
 
 
 class Picker(Mac):
+    def day(self, label):
+        node = self.wait_find(TITLE, label, 'AXCheckBox')
+        try:
+            assert self.text(node, 'AXSubrole') == 'AXToggle'
+            self.perform(node, 'AXPress')
+        finally:
+            self.release(node)
+
     def boolean(self, node, attribute):
         value = self.attr(node, attribute)
         if not value:
@@ -114,15 +122,15 @@ class Picker(Mac):
 def exercise(mac):
     mac.wait_text(TITLE, 'Confirmed: ' + INITIAL)
     mac.open(INITIAL)
-    mac.press(TITLE, 'February 20, 2024')
+    mac.day('February 20, 2024')
     mac.button_state('Apply', 'AXEnabled', False)
-    mac.press(TITLE, 'February 22, 2024')
+    mac.day('February 22, 2024')
     mac.button_state('Apply', 'AXEnabled', True)
     mac.press(TITLE, 'Cancel')
     mac.closed(INITIAL)
     mac.open(INITIAL)
-    mac.press(TITLE, 'February 20, 2024')
-    mac.press(TITLE, 'February 22, 2024')
+    mac.day('February 20, 2024')
+    mac.day('February 22, 2024')
     mac.press(TITLE, 'Apply')
     mac.closed(SELECTED)
     mac.open(SELECTED)

@@ -189,8 +189,16 @@ Pointer activation uses release/click; mouse-down only establishes composite
 focus. Configuration, live route, modal/visibility, pointer and edit permissions
 are checked when actions run. Initial observation is emitted once, focus changes
 are observed, and hidden/removed calendars release keyboard focus. No timer is
-installed by the calendar. Actual idle, accessibility, scale/constrained-layout,
-independent-window and managed-list acceptance still require dedicated checks.
+installed by the calendar. Actual idle, scale/constrained-layout, independent-window
+and managed-list acceptance still require dedicated checks.
+
+The calendar is one native Tab stop, enabled only while its input gate permits
+focus. Its active descendant exposes the keyboard cursor separately from selection.
+Date buttons carry pressed state; the pinned macOS accessibility backend exposes
+these as AXCheckBox/AXToggle with a Boolean AXValue. The group value is a canonical
+ISO date, partial range or complete range; its localized displayed month/year is
+AXHelp. Month/year/navigation controls remain ordinary buttons. External macOS
+checks cover these values, AX focus/activation, OS keys and Tab/Shift-Tab order.
 
 The tree may admit a valid seed and then change constraints in the same transaction
 before creating a GPUI entity. The private native `from_retained` constructor accepts

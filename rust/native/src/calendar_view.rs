@@ -247,10 +247,24 @@ impl Calendar {
             })
             .role(Role::Button)
             .aria_label(label)
-            .aria_selected(selected)
             .child(text);
+        if matches!(action, Some(Action::Activate(_))) {
+            // AccessKit's macOS backend exposes button pressed state as an
+            // AXToggle checkbox value; aria_selected alone is not exported for
+            // buttons. Keep the action a date activation, not a text-only label.
+            element = element.aria_toggled(if selected {
+                gpui::accesskit::Toggled::True
+            } else {
+                gpui::accesskit::Toggled::False
+            });
+        }
         if selected {
             element = element.bg(rgba(0x6688ff38));
+        }
+        // GPUI honors this only while an ancestor holds actual native focus.
+        // Do not gate it on the asynchronously observed model focus flag.
+        if cursor {
+            element = element.aria_active_descendant();
         }
         if enabled {
             element = element.hover(|s| s.bg(rgba(0x71809624)));
@@ -517,6 +531,22 @@ impl Render for Calendar {
             cx,
         ));
         let weak = cx.weak_entity();
+        let date_label = |date: c::Date| {
+            let (year, month, day) = date.ymd();
+            format!("{year:04}-{month:02}-{day:02}")
+        };
+        let value = match s.selection {
+            c::Selection::Empty => String::new(),
+            c::Selection::Single(date) => date_label(date),
+            c::Selection::RangeStart(date) => format!("{} – …", date_label(date)),
+            c::Selection::Range(range) => {
+                format!(
+                    "{} – {}",
+                    date_label(range.first()),
+                    date_label(range.last())
+                )
+            }
+        };
         let root = div()
             .id("calendar")
             .relative()
@@ -528,9 +558,20 @@ impl Render for Calendar {
             .p(px(8.))
             .text_size(px(13.))
             .key_context("GpuioCalendar")
-            .track_focus(&self.focus)
+            .track_focus(
+                &self
+                    .focus
+                    .clone()
+                    .tab_stop(!config.disabled && self.access() == Access::Allowed),
+            )
             .role(Role::Group)
             .aria_label(config.label.clone())
+            .aria_value(value)
+            .aria_description(format!(
+                "{} {}",
+                labels.months[(s.month.month() - 1) as usize],
+                s.month.year()
+            ))
             .on_key_down(cx.listener(Self::key))
             .child(header)
             .child(body)
@@ -594,7 +635,7 @@ impl Instance {
             return Err(c::Error::NativeFailure);
         }
         let state = cx.new(|cx| {
-            let focus = cx.focus_handle();
+            let focus = cx.focus_handle().tab_stop(true);
             let subscriptions = vec![
                 cx.on_focus(&focus, window, Calendar::on_focus),
                 cx.on_blur(&focus, window, Calendar::on_blur),

@@ -301,6 +301,7 @@ async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Tra
         command(cx, c::Command::Focus),
         c::Response::Failed(c::Error::FocusBlocked)
     );
+    exercise_boundaries(cx, handle, transport).await;
     let old_owner = handle
         .update(cx, |v, _, _| v.calendars[&node()].state.downgrade())
         .unwrap();
@@ -322,6 +323,132 @@ async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Tra
         "GPUIO_CALENDAR_NATIVE_OK: native keyboard/pointer navigation, completion order, retained history, read-only/disabled and disposal"
     );
 }
+
+async fn exercise_boundaries(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Transport) {
+    let mut localized = config();
+    localized.auto_focus = false;
+    localized.first_weekday = 0;
+    localized.labels.months[0] = "Janvier".into();
+    localized.labels.months[1] = "Février".into();
+    localized.labels.months[2] = "März".into();
+    localized.labels.months[11] = "Décembre".into();
+    localized.labels.today = "Aujourd’hui".into();
+    apply(
+        cx,
+        handle,
+        vec![
+            set(localized.clone()),
+            Op::SetStyle(
+                node(),
+                vec![Style::Fields(vec![
+                    Field::Background(Fill::Solid(Color::Rgba(0xf4f6faff))),
+                    Field::Foreground(Color::Rgba(0x182332ff)),
+                ])],
+            ),
+        ],
+    );
+    frame(cx, handle).await;
+    let command = |cx: &mut AsyncApp, command: c::Command| {
+        handle
+            .update(cx, |v, w, cx| v.calendars[&node()].command(&command, w, cx))
+            .unwrap()
+    };
+    let applied = |response| match response {
+        c::Response::Applied(s) => s,
+        other => panic!("calendar boundary command failed: {other:?}"),
+    };
+    applied(command(cx, c::Command::Clear { if_revision: None }));
+    applied(command(cx, c::Command::FocusDate(c::Date::MIN)));
+    frame(cx, handle).await;
+    events(transport);
+    let minimum = snapshot(cx, handle);
+    for key_name in ["left", "up", "pageup", "home"] {
+        key(cx, handle, key_name);
+        frame(cx, handle).await;
+        assert_eq!(snapshot(cx, handle), minimum, "minimum boundary {key_name}");
+        assert!(events(transport).is_empty());
+    }
+    capture(cx, handle, "calendar-minimum-localized");
+    applied(command(
+        cx,
+        c::Command::SetPresentation(c::Presentation::Years),
+    ));
+    frame(cx, handle).await;
+    events(transport);
+    let years = snapshot(cx, handle);
+    key(cx, handle, "left");
+    frame(cx, handle).await;
+    assert_eq!(snapshot(cx, handle), years);
+    key(cx, handle, "enter");
+    frame(cx, handle).await;
+    assert_eq!(snapshot(cx, handle).presentation, c::Presentation::Months);
+    events(transport);
+    let months = snapshot(cx, handle);
+    key(cx, handle, "left");
+    frame(cx, handle).await;
+    assert_eq!(snapshot(cx, handle), months);
+    key(cx, handle, "enter");
+    frame(cx, handle).await;
+    key(cx, handle, "right");
+    frame(cx, handle).await;
+    events(transport);
+    key(cx, handle, "enter");
+    frame(cx, handle).await;
+    assert_eq!(
+        snapshot(cx, handle).selection,
+        c::Selection::Single(date(1, 1, 2))
+    );
+    assert!(matches!(
+        events(transport).as_slice(),
+        [c::Event::Changed(_), c::Event::Selected(_)]
+    ));
+
+    applied(command(cx, c::Command::FocusDate(c::Date::MAX)));
+    frame(cx, handle).await;
+    events(transport);
+    let maximum = snapshot(cx, handle);
+    for key_name in ["right", "down", "pagedown", "end"] {
+        key(cx, handle, key_name);
+        frame(cx, handle).await;
+        assert_eq!(snapshot(cx, handle), maximum, "maximum boundary {key_name}");
+        assert!(events(transport).is_empty());
+    }
+    capture(cx, handle, "calendar-maximum-localized");
+    for presentation in [c::Presentation::Months, c::Presentation::Years] {
+        applied(command(cx, c::Command::SetPresentation(presentation)));
+        frame(cx, handle).await;
+        events(transport);
+        let before = snapshot(cx, handle);
+        key(cx, handle, "right");
+        key(cx, handle, "pagedown");
+        frame(cx, handle).await;
+        assert_eq!(snapshot(cx, handle), before);
+        assert!(events(transport).is_empty());
+    }
+    capture(cx, handle, "calendar-maximum-years");
+    applied(command(cx, c::Command::FocusDate(date(2024, 2, 29))));
+    let clamped = applied(command(
+        cx,
+        c::Command::ShowMonth(c::Month::new(2025, 2).unwrap()),
+    ));
+    assert_eq!(clamped.focused_date, date(2025, 2, 28));
+    assert_eq!(clamped.selection, c::Selection::Single(date(1, 1, 2)));
+    // Locale/week-start updates are configuration changes, never date parsing.
+    localized.first_weekday = 1;
+    localized.labels.months[1] = "February with a deliberately long localized label".into();
+    apply(cx, handle, vec![set(localized)]);
+    frame(cx, handle).await;
+    let retained = snapshot(cx, handle);
+    assert_eq!(retained.selection, clamped.selection);
+    assert_eq!(retained.focused_date, clamped.focused_date);
+    assert_eq!(retained.month, clamped.month);
+    capture(cx, handle, "calendar-long-label");
+    events(transport);
+    eprintln!(
+        "GPUIO_CALENDAR_BOUNDARY_OK: civil endpoints, day/month/year guards, leap clamping, locale and retained selection"
+    );
+}
+
 async fn exercise_range(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Transport) {
     let id = NodeId::from_parts(1, 1).unwrap();
     let handler = HandlerId::from_parts(1, 1).unwrap();

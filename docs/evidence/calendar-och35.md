@@ -288,3 +288,40 @@ Success markers: `GPUIO_DATE_PICKER_PUBLIC_OK`, `GPUIO_DATE_PICKER_AX_OK`.
 CI definitions include both checks. Broader calendar/picker visual, boundary,
 modal, multiple-window/list and workload acceptance remains open above. OCH-35
 and milestone 5 remain in progress, with the full milestone-05 scope unchanged.
+
+
+## Inline accessibility and civil-boundary checkpoint
+
+Local macOS arm64 checks pass for `scripts/test_calendar.py`: real AppKit values,
+pressed date cells, cursor focus without selection, disabled dates, month/year
+activation, actual OS arrows/Enter/Home/End/Shift-PageUp, Tab/Shift-Tab between
+single/range calendars, partial/complete range values, read-only browsing,
+disabled explicit replacement, unmount/remount and close. Explicit GPUI focus
+handles now register their Tab stop directly; setting it only on the tracking
+Div would skip the calendar. Active-descendant reporting follows actual native
+focus rather than the asynchronously observed model flag.
+
+The image-enabled native suite adds year-1/year-9999 day/month/year navigation
+rejection, leap-day clamping, locale/week-start updates preserving selection and
+four boundary/localization readbacks. All four corrected images were visually
+inspected. An initial test fixture cleared foreground/background before capture;
+restoring an explicit palette made these images usable. Long month names remain
+center-clipped at this checkpoint; layout polish is still pending. Images live in
+local `scratch/agents/root-20260924-m5/calendar-boundaries/`.
+
+Commands (all passed locally):
+
+```sh
+python3 scripts/test_calendar.py
+python3 scripts/test_date_picker.py
+_build/default/examples/calendar/main.exe --self-test
+_build/default/examples/calendar/picker.exe --self-test
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-image-tests --test native_calendar
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native --all-targets --features native-image-tests -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all -- --check
+```
+
+Success markers include `GPUIO_CALENDAR_AX_OK`, `GPUIO_CALENDAR_BOUNDARY_OK` and
+both public/popup markers. Owned processes/windows exited. The macOS CI definition
+now includes the inline AX test, but hosted results remain pending. This does not
+claim complete screen-reader, layout, workload or OCH-35 acceptance.
