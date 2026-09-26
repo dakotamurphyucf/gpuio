@@ -154,7 +154,9 @@ macOS AX/OS-input checks cover popup selection, dismissal and focus behavior.
 Inline AppKit values/cursor/selection and OS keyboard/Tab navigation also pass,
 with native civil endpoints, leap clamping and locale retention checks. Calendar
 rendering now passes 192 GPU theme/density/font/constrained-layout cases; long
-labels use ellipses and caller font overrides are honored.
+labels use ellipses and caller font overrides are honored. Native modal/pointer
+gates, managed-row pins, independent windows and three 64-owner idle/disposal
+cycles also pass locally. Broader popup placement coverage remains.
 Full native acceptance remains in progress; no calendar capability is advertised.
 See [calendar design](design/calendar.md) and [model evidence](evidence/calendar-och35.md).
 No milestone-05 completion or hosted acceptance is claimed yet.

@@ -189,8 +189,11 @@ Pointer activation uses release/click; mouse-down only establishes composite
 focus. Configuration, live route, modal/visibility, pointer and edit permissions
 are checked when actions run. Initial observation is emitted once, focus changes
 are observed, and hidden/removed calendars release keyboard focus. No timer is
-installed by the calendar. Actual idle, scale/constrained-layout, independent-window
-and managed-list acceptance still require dedicated checks.
+installed by the calendar. Native checks now cover idle rendering, constrained
+layouts, independent-window disposal and focused managed-list retention. Focused
+calendar rows participate in atomic managed-list retention guards; hiding the
+ancestor releases focus and the pin. Programmatic replacement remains available
+while hidden, while native actions and focus requests remain gated.
 
 The calendar is one native Tab stop, enabled only while its input gate permits
 focus. Its active descendant exposes the keyboard cursor separately from selection.

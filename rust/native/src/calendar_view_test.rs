@@ -17,6 +17,10 @@ use std::{
 #[cfg(feature = "native-image-tests")]
 #[path = "calendar_appearance_test.rs"]
 mod appearance;
+#[path = "calendar_lifecycle_test.rs"]
+mod lifecycle;
+#[path = "calendar_workload_test.rs"]
+mod workload;
 fn node() -> NodeId {
     NodeId::from_parts(0, 1).unwrap()
 }
@@ -307,6 +311,7 @@ async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Tra
     exercise_boundaries(cx, handle, transport).await;
     #[cfg(feature = "native-image-tests")]
     appearance::exercise(cx, handle, transport).await;
+    lifecycle::exercise(cx, handle, transport).await;
     let old_owner = handle
         .update(cx, |v, _, _| v.calendars[&node()].state.downgrade())
         .unwrap();
@@ -455,7 +460,7 @@ async fn exercise_boundaries(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
 }
 
 async fn exercise_range(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Transport) {
-    let id = NodeId::from_parts(1, 1).unwrap();
+    let id = NodeId::from_parts(1, 2).unwrap();
     let handler = HandlerId::from_parts(1, 1).unwrap();
     let snapshot = |cx: &mut AsyncApp| {
         handle
@@ -627,6 +632,29 @@ async fn exercise_range(cx: &mut AsyncApp, handle: WindowHandle<View>, transport
     );
 }
 
+fn open_test_window(cx: &mut App, transport: &Arc<Transport>) -> WindowHandle<View> {
+    let id = WindowId::from_parts(0, 1).unwrap();
+    let session = Rc::new(RefCell::new(Session::default()));
+    session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
+    session
+        .borrow_mut()
+        .open(1, id, "GPUIO Calendar test", 340., 360.)
+        .unwrap();
+    cx.open_window(
+        WindowOptions {
+            inactive_frame_interval: None,
+            window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
+                None,
+                size(px(340.), px(360.)),
+                cx,
+            ))),
+            ..Default::default()
+        },
+        |_, cx| cx.new(|_| View::new(id, session.clone(), transport.clone())),
+    )
+    .unwrap()
+}
+
 pub(crate) fn run() {
     let failure = Rc::new(RefCell::new(None));
     let task_failure = failure.clone();
@@ -638,30 +666,15 @@ pub(crate) fn run() {
     gpui_platform::application().run(move |cx| {
         gpui_base::init(cx);
         cx.set_quit_mode(QuitMode::Explicit);
-        let id = WindowId::from_parts(0, 1).unwrap();
-        let session = Rc::new(RefCell::new(Session::default()));
-        session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
-        session
-            .borrow_mut()
-            .open(1, id, "GPUIO Calendar test", 340., 360.)
-            .unwrap();
-        let handle = cx
-            .open_window(
-                WindowOptions {
-                    inactive_frame_interval: None,
-                    window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
-                        None,
-                        size(px(340.), px(360.)),
-                        cx,
-                    ))),
-                    ..Default::default()
-                },
-                |_, cx| cx.new(|_| View::new(id, session.clone(), transport.clone())),
-            )
-            .unwrap();
+        let handle = open_test_window(cx, &transport);
         cx.activate(true);
         cx.spawn(async move |cx| {
-            let result = super::super::native_test::protect(exercise(cx, handle, &transport)).await;
+            let result = super::super::native_test::protect(async {
+                exercise(cx, handle, &transport).await;
+                let next = cx.update(|cx| open_test_window(cx, &transport));
+                workload::exercise(cx, next, &transport).await;
+            })
+            .await;
             *task_failure.borrow_mut() = result.err();
             cx.update(stop_application);
         })

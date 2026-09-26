@@ -54,12 +54,10 @@ uses Core's uppercase weekday sexps. No failing behavior was promoted away.
 
 ## Still required for this ticket
 
-- Full inline calendar acceptance: actual accessibility, modal/pointer policies,
-  civil boundaries, locale/format, scale/layout, independent windows, managed-list
-  pins, idle and bounded workload coverage beyond the initial checks below.
-- Broader popup placement/nested-overlay and visual coverage, independent-window
-  checks, managed-list pins and idle/retention/disposal workloads beyond the public
-  popup lifecycle/input evidence below.
+- Broader popup placement/nested-overlay, single-mode and visual coverage beyond
+  the public range-picker lifecycle/input checks below. The shared native calendar
+  now has separate modal/window/list/workload coverage; that does not itself prove
+  every composed popup placement or interaction.
 - Required macOS/Linux consolidated CI, merge and Linear completion; final
   integration into OCH-46. Full Linux GUI release acceptance remains OCH-17.
 
@@ -350,3 +348,42 @@ The rebuilt public calendar and popup examples also pass `test_calendar.py` and
 `test_date_picker.py` after these layout changes. Dune `@fmt` and Cargo formatting
 pass; all owned test windows/processes exited. Full lifecycle/workload acceptance
 remains in progress.
+
+
+## Native lifecycle and workload checkpoint
+
+The native macOS calendar suite now passes:
+
+- Pointer-disabled previous-month clicks do nothing; enabling pointer interaction
+  restores navigation without changing selection.
+- A focused calendar pins its managed-list row. Attempted removal with that pin
+  rejects atomically without advancing the retained-tree revision. Hiding the
+  ancestor releases focus/pins and rejects focus/native actions; explicit hidden
+  replacement remains available and survives reveal.
+- A modal focus scope blocks calendar focus, pointer navigation and a queued native
+  activation callback. Removing the scope restores use without replacing the
+  native calendar entity.
+- Two actual windows reuse the same node identity while maintaining independent
+  selections/routes. A Changed/Selected pair targets only the second window;
+  closing it disposes its owner, and the surviving calendar still accepts input.
+  Input uses GPUI platform dispatch here, not external OS automation.
+- Three cycles each mount 64 native calendars, deliver 16 discrete navigation
+  changes and 256 explicit replacements in drained batches of 16, and remove all
+  owners. Tree accounting is 98,112 bytes in each cycle and zero after removal;
+  all weak native owners expire. This measures retained-tree accounting, not total
+  process/GPU memory, and is a mounted workload rather than 64 simultaneously
+  visible calendars.
+- After settling and blurring, each workload observes 150ms with no additional
+  render or output events. Debug cycle durations were 3.55s, 3.43s and 3.23s on
+  this local macOS machine; these are validation timings, not release benchmarks.
+
+Command: `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native
+--features native-image-tests --test native_calendar`.
+Markers: `GPUIO_CALENDAR_LIFECYCLE_OK`, `GPUIO_CALENDAR_WORKLOAD_OK`, alongside
+existing boundary/appearance/range-pressure/native checks. All owned windows and
+processes closed. The lifecycle fixture initially attempted sparse native node
+slots; it was corrected to use consecutive slots and increment generations when
+reusing retired identities. No production arena policy was changed.
+
+Final all-target native-image Clippy (`-D warnings`), Cargo formatting and
+`git diff --check` also pass for this checkpoint.
