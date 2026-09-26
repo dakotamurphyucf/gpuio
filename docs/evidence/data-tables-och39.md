@@ -1,0 +1,110 @@
+# OCH-39 data-table evidence
+
+Status (2026-09-26): **foundation and candidate evaluation only**. OCH-39 remains
+In Progress. No table capability is advertised. The
+[design](../design/data-tables.md) lists the remaining production acceptance.
+
+## Column schema
+
+`lib/core/table_column.{ml,mli}` and `test/view_api/table_column_test.ml` cover:
+
+- Stable case-sensitive Unicode keys, invalid UTF-8/NUL/size rejection, duplicate
+  columns and duplicate/empty group membership.
+- Finite size constraints, native resize clamping, programmatic changes to
+  non-resizable columns, unknown IDs and preservation of the original value.
+- Keyed grouped-header membership through valid moves and resizing; rejection
+  of split groups, crossed pin partitions and non-refining nested headers.
+- Every source and destination for 64 columns: **4,160 moves**, checking identity,
+  destination placement and unchanged relative order of the other columns.
+- Empty schemas, column/header/text limits, locked source moves and stale targets.
+
+Local macOS command: `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2
+@test/view_api/runtest` — **PASS**. Initial development failures were a test's
+integer-specialized equality applied to an option (fixed to `Option.equal
+Int.equal`) and expected sexp line wrapping (reviewed and corrected manually).
+No expectation auto-promotion was used.
+
+The consolidated local command `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2
+@all @runtest @fmt` also **passes**. The build reports the existing macOS linker
+duplicate-library warnings. This covers OCaml builds, expect/runtime suites and
+formatting; it is not a new run of every native GUI suite.
+
+## Styled-library compile probe
+
+Upstream gpui-kit commit `84f57fdfcb4910623fb0bb7f795b077e249f9271` was read
+from a clean local checkout and archived into a new ignored scratch workspace.
+The probe uses the project's Zed GPUI commit
+`a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b`, existing vendored base and Rust
+1.97.1, with two build jobs. Production manifests, lockfiles and OCaml switches
+are unchanged. Optional styled features such as tree-sitter languages were not
+enabled.
+
+`cargo check -p gpui-component` initially fails with 14 diagnostics from seven
+chart `IntoPlot` derives, because their macro resolves package `gpui-pre` or
+`gpui-kit`, not `gpui`. Adding a fallback to `crate_name("gpui")` in the isolated
+macro copy makes the same default-feature library pass. This is a crate-name
+compatibility patch; it is not evidence of a table rendering defect or a reason
+to change GPUI pins. The probe lock independently resolves extra dependencies.
+
+The committed [workspace generator](../../scripts/probe_table_adapter.py) records
+all probe manifest/source changes. Its output was compared byte-for-byte with
+the compiled root manifest, component manifest, patched macro and native example.
+It copies committed upstream content, refuses an incorrect source revision or
+existing output directory, and writes only beneath this checkout's `scratch/`.
+
+With a local checkout at that upstream revision:
+
+```sh
+python3 scripts/probe_table_adapter.py \
+  --source /path/to/pinned/gpui-kit \
+  --output scratch/table-candidate --macro-fallback
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo check \
+  --manifest-path scratch/table-candidate/Cargo.toml -p gpui-component -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo build \
+  --manifest-path scratch/table-candidate/Cargo.toml \
+  -p gpui-component --example gpuio_table_probe --locked -j2
+```
+
+Omit `--macro-fallback` into a different fresh directory to reproduce the initial
+macro failure. Run Cargo/Dune serially; the wrapper shares the checkout's target
+cache. The initial check resolves the scratch lock; subsequent commands use it.
+
+## Native candidate measurements
+
+The committed [probe fixture](fixtures/table_adapter_probe.rs) constructs the
+actual styled `TableState`/`DataTable` with **100,000 logical row keys**, **64
+columns**, two left-pinned columns and a 720 × 360 logical-pixel macOS window.
+Its Rust delegate reads retained strings or a placeholder, without any OCaml
+callback. A stand-in producer delivers formatted Unicode strings between sample
+positions, outside the render callback. It is not the production paging adapter.
+
+The native executable was run under a 60-second subprocess timeout. It passed,
+closed its window and exited normally. It does not activate the application and
+does not claim foreground keyboard, clipboard or accessibility validation.
+
+| Target (zero-based row, column) | Distinct rows rendered | Unique body cells over three redraws | Columns observed, including pinned cells |
+| --- | ---: | ---: | --- |
+| 0, 0 | 11 | 66 | 0, 1, 2, 3, 4, 5 |
+| 50,000, 32 | 12 | 80 | 0, 1, 2, 30, 31, 32, 33 |
+| 99,999, 63 | 12 | 69 | 0, 1, 2, 61, 62, 63 |
+| 0, 2 | 11 | 66 | 0, 1, 2, 3, 4, 5 |
+
+The fixture asserts that the target cell was rendered, the working set is
+nonempty, and each sample stays below 4,096 unique cells. The peak observed was
+80 cells. Previous/measurement positions can occur within the three-frame union.
+These four samples establish native vertical/horizontal virtualization behavior
+for this candidate and geometry. They do **not** establish full-history bounded
+retention, GC/resource release, paged sort races, stable selection, all geometry,
+production FFI integration, Linux GUI support or complete OCH-39 acceptance.
+
+Run the built candidate with an external timeout when reproducing:
+
+```sh
+python3 - <<'PY'
+import subprocess
+subprocess.run(["target/debug/examples/gpuio_table_probe"], check=True, timeout=60)
+PY
+```
+
+The fixture closes on caught assertion failures as well as success. The external
+timeout also kills and reaps its own process if initialization fails to progress.

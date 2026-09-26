@@ -140,6 +140,17 @@ managed-tree bit `549755813888` is advertised (aggregate `1099511627775`).
 Consolidated hosted gates and merge remain before ticket closure. See the
 [managed-tree design](design/managed-trees.md).
 
+OCH-39 now has a tested Core column schema with stable keys, finite widths,
+resize clamping, left pinning and keyed multi-level header groups. Tests cover
+4,160 moves at the 64-column limit, invalid schemas and user restrictions. An
+isolated styled DataTable candidate compiles against the unchanged GPUI pin after
+a one-line macro crate-name fallback. Its native macOS probe renders at most
+80 distinct body cells across four sampled positions in a 100,000-row/64-column
+table. This is candidate evidence, not production integration or full-history
+acceptance. Data resources, bridge, public widget and native interaction/lifecycle
+acceptance remain. See [table design](design/data-tables.md) and
+[evidence](evidence/data-tables-och39.md).
+
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
 components pass local acceptance; OCH-24 has validated geometry, a bounded scene
 codec, native resource ownership and a tested OCaml/Rust upload bridge. The
