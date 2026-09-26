@@ -531,3 +531,15 @@ fn retained_calendar_envelopes_match_independent_fixtures_and_bound_decoding() {
         .unwrap();
     assert_eq!(decode(&invalid_selection), Err(DecodeError::Malformed));
 }
+
+#[test]
+fn calendar_capability_uses_the_shared_64_bit_handshake() {
+    use gpuio_protocol::{decode, v1::*};
+    assert_eq!(CAPABILITIES & CAP_CALENDARS, 1_i64 << 36);
+    let hello = Message::Hello(VERSION, CAPABILITIES);
+    let mut bytes = Vec::new();
+    hello.binprot_write(&mut bytes).unwrap();
+    let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
+    assert_eq!(hex, "0001fcffffffff1f000000");
+    assert_eq!(decode(&bytes), Ok(hello));
+}

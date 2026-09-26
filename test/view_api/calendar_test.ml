@@ -287,3 +287,14 @@ let%expect_test "strict date formats, leap centuries and Gregorian-cycle round t
     438291 exact format round trips across a complete Gregorian leap cycle
     |}]
 ;;
+
+let%expect_test "calendar capability uses the shared 64-bit handshake" =
+  let module Wire = Gpuio_protocol.Wire in
+  assert (Int64.equal (Int64.bit_and Wire.capabilities 68719476736L) 68719476736L);
+  let bytes =
+    Wire.Message.encode (Hello (Wire.version, Wire.capabilities)) |> Or_error.ok_exn
+  in
+  String.iter bytes ~f:(fun byte -> printf "%02x" (Char.to_int byte));
+  print_endline "";
+  [%expect {| 0001fcffffffff1f000000 |}]
+;;

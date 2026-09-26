@@ -1,11 +1,12 @@
 # OCH-35 calendar/date-picker evidence
 
-Status: **in progress**. This records incremental evidence, not completed widget acceptance.
-The milestone retains the full calendar and popup-picker scope. A retained
-`View.calendar`, correlated Eio calendar controller and controlled-value popup
-picker are implemented. No calendar capability is advertised yet. The mounted
-calendar and picker have incremental macOS input, visual and lifecycle evidence
-below; remaining full acceptance is listed explicitly.
+Status: **local acceptance complete** for native inline calendars and composed
+popup date pickers. Public Core/Bonsai/Eio APIs, paired bounded codecs and native
+commands/observations support civil single dates and inclusive ranges. Capability
+`68719476736` advertises this family (aggregate `137438953471`). OCH-35 remains In
+Progress until required consolidated macOS/Linux CI and merge. Full Linux GUI
+acceptance remains OCH-17. The chronological checkpoints below preserve findings
+at each stage; earlier statements of incomplete implementation are historical.
 
 ## Civil model checkpoint
 
@@ -54,10 +55,6 @@ uses Core's uppercase weekday sexps. No failing behavior was promoted away.
 
 ## Still required for this ticket
 
-- Broader popup placement/nested-overlay, single-mode and visual coverage beyond
-  the public range-picker lifecycle/input checks below. The shared native calendar
-  now has separate modal/window/list/workload coverage; that does not itself prove
-  every composed popup placement or interaction.
 - Required macOS/Linux consolidated CI, merge and Linear completion; final
   integration into OCH-46. Full Linux GUI release acceptance remains OCH-17.
 
@@ -387,3 +384,51 @@ reusing retired identities. No production arena policy was changed.
 
 Final all-target native-image Clippy (`-D warnings`), Cargo formatting and
 `git diff --check` also pass for this checkpoint.
+
+
+## Composed popup acceptance and capability
+
+The public picker example now demonstrates single dates, ranges, relocation to a
+modal dialog and left/right-edge anchors. Its explicit palette keeps application
+text readable; native popup styling remains supplied by ordinary overlays. The
+extended public self-test covers changing mode while open, invalidating the old
+range session, single-date Apply, and cancellation after clearing a single draft.
+
+The external macOS script passes both modes, native selection without immediate
+application commit, Apply/Cancel, nested Escape (picker first, then parent dialog),
+restoration to each eligible trigger, and applying a single date inside the dialog.
+Actual AX panel bounds remain within the owned window; a right-edge anchor forces
+inward clamping. Three final screenshots (single draft, nested dialog, right edge)
+were captured from the owned process and visually inspected. Set
+`GPUIO_PICKER_SCREENSHOT_DIR` to reproduce them; local copies are under
+`scratch/agents/root-20260924-m5/picker-placement/`.
+
+Two test setup corrections were required: wait for the partial/complete Apply state
+before invoking AXPress, and explicitly focus the parent dialog trigger before
+AX activation when asserting restoration. AXPress alone does not establish the
+same prior focus as keyboard activation or a pointer click. No production focus
+policy was changed to satisfy those checks.
+
+Capability `CAP_CALENDARS = 1 << 36` covers the accepted family. The aggregate
+`137438953471` has independently assembled Hello bytes `0001fcffffffff1f000000`
+(one variant byte, version 1, bin_prot int64 tag and eight little-endian bytes),
+checked by OCaml and Rust. Existing capability handshake expectations were manually
+updated to that value, not auto-promoted. This advertisement is local implementation
+acceptance, not hosted/Linux graphical validation or completed milestone delivery.
+
+Final capability checks pass locally:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @test/view_api/runtest @test/canvas/runtest @test/codec/runtest @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-protocol -p gpuio-native --test calendar --test calendar_codec --test canvas_view --test container_query --test animation_program --test accessibility --test otp_input
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native --all-targets --features native-image-tests -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 examples/calendar/main.exe examples/calendar/picker.exe @fmt
+_build/default/examples/calendar/main.exe --self-test
+_build/default/examples/calendar/picker.exe --self-test
+python3 scripts/test_date_picker.py
+```
+
+The external popup test and inspected screenshots use the final example layout;
+its run preceded the capability-only change. Both public self-tests were rebuilt
+and rerun afterward to verify the new native/OCaml handshake. Formatting and
+`git diff --check` pass. No owned windows or processes remain.

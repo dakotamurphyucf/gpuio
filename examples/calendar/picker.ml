@@ -16,6 +16,7 @@ let range first last =
 ;;
 
 let initial = range "2024-02-27" "2024-02-29"
+let single_initial = C.Selection.single (day "2024-02-29") |> ok
 let partial = C.Selection.range_start (day "2024-02-20") |> ok
 let replacement = range "2024-02-20" "2024-02-22"
 
@@ -72,10 +73,11 @@ type flags =
   { disabled : bool
   ; read_only : bool
   ; restricted : bool
+  ; single : bool
   }
 [@@deriving equal]
 
-let normal = { disabled = false; read_only = false; restricted = false }
+let normal = { disabled = false; read_only = false; restricted = false; single = false }
 
 let exercise
       window
@@ -218,6 +220,29 @@ let exercise
   let%bind disabled = current () in
   let%bind () = E.of_thunk (fun () -> assert (not (P.is_open disabled))) in
   let%bind () = set_flags normal in
+  let%bind obsolete_range = reopen () in
+  let%bind () = set_flags { normal with single = true } in
+  let%bind () = set_value single_initial in
+  let%bind () = settle window in
+  let%bind changed_mode = current () in
+  let%bind () = E.of_thunk (fun () -> assert (not (P.is_open changed_mode))) in
+  let%bind stale = P.confirm obsolete_range in
+  let%bind () = error stale Stale_session in
+  let%bind single = reopen () in
+  let%bind () =
+    selection (C.Snapshot.selection (P.draft single |> Option.value_exn)) single_initial
+  in
+  let single_replacement = C.Selection.single (day "2024-03-01") |> ok in
+  let%bind _ = replace single single_replacement in
+  let%bind applied = P.confirm single >>= expect in
+  let%bind () = selection applied single_replacement in
+  let%bind () = settle window in
+  let%bind () = selection !application_value single_replacement in
+  let%bind single = reopen () in
+  let%bind _ = replace single C.Selection.empty in
+  let%bind () = P.cancel single in
+  let%bind () = settle window in
+  let%bind () = selection !application_value single_replacement in
   let%bind final = reopen () in
   let%bind () = E.of_thunk (fun () -> App.Window.close window) in
   let%bind closed = P.confirm final in
@@ -252,6 +277,8 @@ let component ~self_test ~completed window graph =
   let flags, set_flags = B.state normal graph in
   let placed, set_placed = B.state true graph in
   let active, set_active = B.state true graph in
+  let dialog_open, set_dialog = B.state false graph in
+  let right_edge, set_right_edge = B.state false graph in
   let confirmed = ref [] in
   let application_value = ref initial in
   let config =
@@ -262,8 +289,8 @@ let component ~self_test ~completed window graph =
       else C.Constraints.unrestricted
     in
     C.Config.create
-      ~mode:Range
-      ~label:"Travel date range"
+      ~mode:(if flags.single then Single else Range)
+      ~label:(if flags.single then "Appointment date" else "Travel date range")
       ~constraints
       ~disabled:flags.disabled
       ~read_only:flags.read_only
@@ -346,16 +373,34 @@ let component ~self_test ~completed window graph =
   and set_value = set_value
   and flags = flags
   and set_flags = set_flags
+  and dialog_open = dialog_open
+  and set_dialog = set_dialog
+  and right_edge = right_edge
+  and set_right_edge = set_right_edge
   and placed = placed in
+  let picker_view =
+    match picker with
+    | Some picker when placed -> P.view ~overlay ~label:(format value) picker
+    | Some _ | None -> View.column []
+  in
+  let cancel_picker = Option.value_map picker ~default:E.Ignore ~f:P.cancel in
   View.column
     ~style:
       (Gpuio.Style.create_exn
-         [ Padding (Gpuio.Length.px_exn 28.); Gap (Gpuio.Length.px_exn 18.) ])
+         [ Width (Gpuio.Length.percent_exn 100.)
+         ; Height (Gpuio.Length.percent_exn 100.)
+         ; Background (Gpuio.Background.solid (Gpuio.Color.rgb_exn 0x0d1420))
+         ; Foreground (Gpuio.Color.rgb_exn 0xe6edf3)
+         ; Padding (Gpuio.Length.px_exn 28.)
+         ; Gap (Gpuio.Length.px_exn 18.)
+         ])
     [ View.text "Plan a little time away"
-    ; View.text "Pick a range, then Apply. Escape or Cancel leaves your dates unchanged."
+    ; View.text "Pick dates, then Apply. Escape or Cancel leaves your dates unchanged."
     ; View.row
         ~style:(Gpuio.Style.create_exn [ Gap (Gpuio.Length.px_exn 8.) ])
-        [ View.button ~on_click:(set_value initial) "Reset dates"
+        [ View.button
+            ~on_click:(set_value (if flags.single then single_initial else initial))
+            "Reset dates"
         ; View.button
             ~on_click:(set_flags { flags with read_only = not flags.read_only })
             (if flags.read_only then "Allow selection" else "Read-only")
@@ -364,9 +409,45 @@ let component ~self_test ~completed window graph =
             (if flags.disabled then "Enable" else "Disable")
         ; View.button ~on_click:(E.of_thunk (fun () -> App.Window.close window)) "Close"
         ]
-    ; (match picker with
-       | Some picker when placed -> P.view ~overlay ~label:(format value) picker
-       | Some _ | None -> View.column [])
+    ; View.row
+        ~style:(Gpuio.Style.create_exn [ Gap (Gpuio.Length.px_exn 8.) ])
+        [ View.button
+            ~on_click:
+              (E.Many
+                 [ set_flags { flags with single = not flags.single }
+                 ; set_value (if flags.single then initial else single_initial)
+                 ])
+            (if flags.single then "Date range" else "Single date")
+        ; View.button ~on_click:(E.Many [ cancel_picker; set_dialog true ]) "Open dialog"
+        ; View.button
+            ~on_click:(E.Many [ cancel_picker; set_right_edge (not right_edge) ])
+            (if right_edge then "Left edge" else "Right edge")
+        ]
+    ; (if dialog_open
+       then View.column []
+       else
+         View.row
+           ~style:
+             (Gpuio.Style.create_exn
+                [ Justify_content (if right_edge then End else Start) ])
+           [ picker_view ])
+    ; View.dialog
+        ~key:(Gpuio.Key.of_string_exn "picker-dialog")
+        ~config:
+          (Gpuio.Overlay.Config.create ~label:"Schedule appointment" ~width:420. () |> ok)
+        ~on_dismiss:(fun _ -> E.Many [ cancel_picker; set_dialog false ])
+        (if dialog_open
+         then
+           Some
+             (View.column
+                ~style:(Gpuio.Style.create_exn [ Gap (Gpuio.Length.px_exn 12.) ])
+                [ View.text "Schedule appointment"
+                ; picker_view
+                ; View.button
+                    ~on_click:(E.Many [ cancel_picker; set_dialog false ])
+                    "Done"
+                ])
+         else None)
     ; View.text ("Confirmed: " ^ format value)
     ; View.text
         (Option.value_map (Option.bind picker ~f:P.error) ~default:"" ~f:error_message)
@@ -391,7 +472,7 @@ let () =
     assert !completed;
     Eio_main.run (fun env ->
       Eio.Flow.copy_string
-        "GPUIO_DATE_PICKER_PUBLIC_OK: partial/complete, apply/cancel, policy, external \
-         reset, stale sessions and close\n"
+        "GPUIO_DATE_PICKER_PUBLIC_OK: single/range, mode changes, partial/complete, \
+         apply/cancel, policy, external reset, stale sessions and close\n"
         (Eio.Stdenv.stdout env)))
 ;;

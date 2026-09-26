@@ -131,7 +131,7 @@ AppKit value/action/masking, public OS keyboard/AX, GPU light/dark/density/preed
 managed-list pins, hidden/modal/capture cleanup and independent-window lifetimes
 pass locally. Three 256-owner workloads verify bounded history/coalescing, idle
 behavior and complete disposal. Capability `34359738368` advertises the family
-(aggregate `68719476735`). Consolidated hosted gates and merge remain pending.
+(current aggregate `137438953471`). Consolidated hosted gates and merge remain pending.
 See [OTP contracts](design/otp-inputs.md).
 See [numeric design](design/numeric-inputs.md) and
 [foundation evidence](evidence/numeric-inputs-och34.md).
@@ -156,8 +156,10 @@ with native civil endpoints, leap clamping and locale retention checks. Calendar
 rendering now passes 192 GPU theme/density/font/constrained-layout cases; long
 labels use ellipses and caller font overrides are honored. Native modal/pointer
 gates, managed-row pins, independent windows and three 64-owner idle/disposal
-cycles also pass locally. Broader popup placement coverage remains.
-Full native acceptance remains in progress; no calendar capability is advertised.
+cycles also pass locally. Single/range popup mode changes, nested-dialog dismissal/
+focus, actual panel bounds and right-edge placement also pass. OCH-35 local
+acceptance is complete; capability `68719476736` is advertised (aggregate
+`137438953471`). Consolidated hosted gates and merge remain pending.
 See [calendar design](design/calendar.md) and [model evidence](evidence/calendar-och35.md).
 No milestone-05 completion or hosted acceptance is claimed yet.
 

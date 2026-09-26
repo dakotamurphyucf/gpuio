@@ -16,6 +16,49 @@ SELECTED = '2024-02-20 – 2024-02-22'
 
 
 class Picker(Mac):
+    def bounds(self, node):
+        class Point(C.Structure):
+            _fields_ = [('x', C.c_double), ('y', C.c_double)]
+        point, size = Point(), Point()
+        get = self.ax.AXValueGetValue
+        get.restype, get.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
+        for attr, kind, target in [('AXPosition', 1, point), ('AXSize', 2, size)]:
+            value = self.attr(node, attr)
+            try:
+                if not value or not get(value, kind, C.byref(target)):
+                    raise RuntimeError(f'Missing {attr} for placement check')
+            finally:
+                if value:
+                    self.release(value)
+        return point.x, point.y, size.x, size.y
+
+    def contained(self, *, clamped_from_anchor=None):
+        panel = self.wait_find(TITLE, 'Choose travel dates')
+        window = self.window(TITLE)
+        try:
+            x, y, width, height = self.bounds(panel)
+            wx, wy, ww, wh = self.bounds(window)
+            assert width > 200 and height > 300, (x, y, width, height)
+            assert (x >= wx and y >= wy and x + width <= wx + ww + 1
+                    and y + height <= wy + wh + 1), (
+                        'popup outside window', (x, y, width, height), (wx, wy, ww, wh))
+            if clamped_from_anchor:
+                anchor = self.wait_find(TITLE, clamped_from_anchor, 'AXButton')
+                try:
+                    ax, _, _, _ = self.bounds(anchor)
+                    assert x < ax - 20, ('right-edge popup did not clamp inward', x, ax)
+                finally:
+                    self.release(anchor)
+        finally:
+            self.release(panel)
+            self.release(window)
+
+    def capture(self, name):
+        directory = os.environ.get('GPUIO_PICKER_SCREENSHOT_DIR')
+        if directory:
+            from test_canvas import screenshot
+            screenshot(self, Path(directory) / (name + '.png'))
+
     def day(self, label):
         node = self.wait_find(TITLE, label, 'AXCheckBox')
         try:
@@ -48,13 +91,16 @@ class Picker(Mac):
             time.sleep(.02)
         raise RuntimeError(f'{label} {attribute}: expected {expected}, got {actual}')
 
-    def open(self, label):
+    def focused_press(self, label):
         node = self.wait_find(TITLE, label, 'AXButton')
         try:
             self.set(node, 'AXFocused', self.true)
             self.perform(node, 'AXPress')
         finally:
             self.release(node)
+
+    def open(self, label):
+        self.focused_press(label)
         self.release(self.wait_find(TITLE, 'Cancel', 'AXButton'))
 
     def click_outside_control(self):
@@ -104,7 +150,7 @@ class Picker(Mac):
             finally:
                 self.release(event)
 
-    def closed(self, label, *, restored=True):
+    def popup_gone(self):
         deadline = time.monotonic() + 5
         while time.monotonic() < deadline:
             node = self.find(TITLE, 'Cancel', 'AXButton')
@@ -113,7 +159,12 @@ class Picker(Mac):
             self.release(node)
             time.sleep(.02)
         else:
+            self.dump(TITLE)
+            self.capture('failure-popup-remained')
             raise RuntimeError('Popup remained accessible after dismissal')
+
+    def closed(self, label, *, restored=True):
+        self.popup_gone()
         self.wait_text(TITLE, 'Confirmed: ' + label)
         if restored:
             self.button_state(label, 'AXFocused', True)
@@ -130,7 +181,9 @@ def exercise(mac):
     mac.closed(INITIAL)
     mac.open(INITIAL)
     mac.day('February 20, 2024')
+    mac.button_state('Apply', 'AXEnabled', False)
     mac.day('February 22, 2024')
+    mac.button_state('Apply', 'AXEnabled', True)
     mac.press(TITLE, 'Apply')
     mac.closed(SELECTED)
     mac.open(SELECTED)
@@ -148,10 +201,12 @@ def exercise(mac):
     mac.key(124)
     mac.key(36)
     mac.button_state('Apply', 'AXEnabled', True)
+    mac.button_state('Apply', 'AXEnabled', True)
     mac.press(TITLE, 'Apply')
     mac.closed('2024-02-21 – 2024-02-22')
     mac.open('2024-02-21 – 2024-02-22')
     mac.press(TITLE, 'Clear')
+    mac.button_state('Apply', 'AXEnabled', True)
     mac.press(TITLE, 'Apply')
     mac.closed('Choose dates')
     mac.press(TITLE, 'Reset dates')
@@ -165,6 +220,57 @@ def exercise(mac):
     mac.button_state(INITIAL, 'AXEnabled', False)
     mac.press(TITLE, 'Enable')
     mac.button_state(INITIAL, 'AXEnabled', True)
+    mac.press(TITLE, 'Allow selection')
+    mac.press(TITLE, 'Single date')
+    mac.wait_text(TITLE, 'Confirmed: 2024-02-29')
+    mac.open('2024-02-29')
+    mac.day('March 1, 2024')
+    mac.wait_text(TITLE, 'Confirmed: 2024-02-29')  # A native selection remains a draft.
+    mac.button_state('Apply', 'AXEnabled', True)
+    mac.contained()
+    mac.capture('single-draft')
+    mac.button_state('Apply', 'AXEnabled', True)
+    mac.press(TITLE, 'Apply')
+    mac.closed('2024-03-01')
+    mac.open('2024-03-01')
+    mac.day('February 21, 2024')
+    mac.press(TITLE, 'Cancel')
+    mac.closed('2024-03-01')
+    mac.focused_press('Open dialog')
+    mac.release(mac.wait_find(TITLE, 'Done', 'AXButton'))
+    mac.open('2024-03-01')
+    mac.contained()
+    mac.capture('nested-dialog')
+    mac.key(53)  # First Escape closes only the picker.
+    mac.popup_gone()
+    mac.release(mac.wait_find(TITLE, 'Done', 'AXButton'))
+    mac.button_state('2024-03-01', 'AXFocused', True)
+    mac.key(53)  # Second Escape closes the containing dialog.
+    mac.button_state('Open dialog', 'AXFocused', True)
+    mac.wait_text(TITLE, 'Confirmed: 2024-03-01')
+    mac.focused_press('Open dialog')
+    mac.release(mac.wait_find(TITLE, 'Done', 'AXButton'))
+    mac.open('2024-03-01')
+    mac.day('February 20, 2024')
+    mac.button_state('Apply', 'AXEnabled', True)
+    mac.press(TITLE, 'Apply')
+    mac.popup_gone()
+    mac.button_state('2024-02-20', 'AXFocused', True)
+    mac.press(TITLE, 'Done')
+    mac.wait_text(TITLE, 'Confirmed: 2024-02-20')
+    mac.button_state('Open dialog', 'AXFocused', True)
+    mac.press(TITLE, 'Right edge')
+    mac.open('2024-02-20')
+    mac.contained(clamped_from_anchor='2024-02-20')
+    mac.capture('right-edge')
+    mac.key(53)
+    mac.closed('2024-02-20')
+    mac.press(TITLE, 'Left edge')
+    mac.press(TITLE, 'Date range')
+    mac.wait_text(TITLE, 'Confirmed: ' + INITIAL)
+    mac.open(INITIAL)
+    mac.press(TITLE, 'Cancel')
+    mac.closed(INITIAL)
     mac.press(TITLE, 'Close')
 
 
@@ -195,7 +301,7 @@ def main():
             log.seek(0)
             print(log.read(), end='')
     print('GPUIO_DATE_PICKER_AX_OK: partial/complete, Apply/Cancel, Escape, '
-          'outside pointer, restored trigger focus, OS day navigation, clear, readonly and disabled')
+          'outside pointer, restored trigger focus, OS day navigation, single/range modes, nested dialog, clamped placement, clear, readonly and disabled')
 
 
 if __name__ == '__main__':

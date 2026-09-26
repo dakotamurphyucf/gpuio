@@ -1,16 +1,13 @@
 # Calendars and date pickers — OCH-35
 
-Status: implementation contract in progress. Civil-date models, bounded standalone
-codecs, typed locale/configuration/command/observation contracts and a native
-calendar policy owner pass local tests. Retained view descriptions, tree admission,
-revision-checked event routing and atomic completion mailbox admission are connected.
-The OCaml model also provides strict date formatting/parsing. A mounted GPUI
-calendar now renders and passes initial macOS keyboard/pointer and event/lifetime
-checks. The public Bonsai/Eio controller and correlated command bridge pass local
-integration tests. The controlled-value popup picker is implemented with explicit
-Apply/Cancel and session/lease guards; full native acceptance remains required.
-No calendar capability is advertised yet. See the
-[foundation evidence](../evidence/calendar-och35.md).
+Status: implemented and locally accepted on macOS. Public Core/Bonsai/Eio inline
+calendars and controlled-value popup pickers cover single dates and inclusive
+ranges, bounded civil constraints, explicit navigation and native ownership.
+Capability `68719476736` (`1 << 36`) advertises this family; the current aggregate
+is `137438953471`. Required consolidated macOS/Linux CI and merge remain pending.
+See the [acceptance evidence](../evidence/calendar-och35.md) for exact coverage and
+platform limits. No editable date field, system-locale inference or time-zone
+conversion is implied.
 
 ## Civil values and bounded work
 
