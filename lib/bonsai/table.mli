@@ -72,7 +72,10 @@ end
     lifecycle contract and receive their own lifetime guard. Preferences and
     application jobs belong outside transient cell computations. Source-order
     metadata is O(logical rows); point updates share it without rebuilding keys.
-    Give the table bounded geometry through [style] or its parent. *)
+    Give the table bounded geometry through [style] or its parent. The caller's
+    key and style belong to the native table root: padding, border and surface
+    decoration are applied once. Style updates preserve selection and anchors;
+    source-lineage resets remain independent of the caller's sibling key. *)
 val component
   :  'data Gpuio.Table_data.t B.t
   -> config:Config.t B.t

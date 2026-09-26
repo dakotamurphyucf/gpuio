@@ -283,6 +283,12 @@ let compatible mounted view =
        (Option.exists old.virtual_list ~f:(fun list -> Option.is_some list.table))
        (Option.exists next.virtual_list ~f:(fun list -> Option.is_some list.table))
   && Option.equal
+       Key.equal
+       (Option.bind old.virtual_list ~f:(fun list ->
+          Option.bind list.table ~f:(fun table -> table.source_key)))
+       (Option.bind next.virtual_list ~f:(fun list ->
+          Option.bind list.table ~f:(fun table -> table.source_key)))
+  && Option.equal
        Table_column.Id.equal
        (Option.map old.table_cell ~f:Table.Cell.column)
        (Option.map next.table_cell ~f:Table.Cell.column)

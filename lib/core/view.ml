@@ -225,7 +225,8 @@ type 'action image =
   }
 
 type 'action table =
-  { config : Table.Config.t
+  { source_key : Key.t option
+  ; config : Table.Config.t
   ; query_generation : int64
   ; commands : Key.t Table.Command.t list
   ; on_input : Key.t Table.Request.t -> 'action
@@ -1692,7 +1693,8 @@ let toast_stack ?key ?(style = Style.empty) ?(config = Toast.Stack.default) item
 
 module Expert = struct
   type nonrec 'action table = 'action table =
-    { config : Table.Config.t
+    { source_key : Key.t option
+    ; config : Table.Config.t
     ; query_generation : int64
     ; commands : Key.t Table.Command.t list
     ; on_input : Key.t Table.Request.t -> 'action
@@ -1744,6 +1746,7 @@ module Expert = struct
 
   let managed_table
         ?key
+        ?source_key
         ?style
         ?(commands = [])
         ~config
@@ -1806,7 +1809,9 @@ module Expert = struct
         children
       ; virtual_list =
           Option.map root.virtual_list ~f:(fun list ->
-            { list with table = Some { config; query_generation; commands; on_input } })
+            { list with
+              table = Some { source_key; config; query_generation; commands; on_input }
+            })
       })
   ;;
 

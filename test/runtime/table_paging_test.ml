@@ -357,11 +357,7 @@ let%expect_test
     in
     let report at_end =
       let output = result () in
-      let root =
-        (Gpuio.View.Expert.describe (W.Output.view output)).children
-        |> List.hd_exn
-        |> Gpuio.View.Expert.describe
-      in
+      let root = Gpuio.View.Expert.describe (W.Output.view output) in
       let list = Option.value_exn root.virtual_list in
       let viewport : Gpuio.Virtual_list.Viewport.t =
         { visible_first = 0

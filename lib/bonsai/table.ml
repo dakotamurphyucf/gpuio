@@ -353,7 +353,17 @@ let pending_selection input model =
   repaired_selection input selection
 ;;
 
-let inner source ~config ~query_generation ~on_request ~lifetime ~render_cell graph =
+let inner
+      source
+      ~config
+      ~key
+      ~style
+      ~query_generation
+      ~on_request
+      ~lifetime
+      ~render_cell
+      graph
+  =
   let open B.Let_syntax in
   let identity = B.map source ~f:D.Expert.identity |> B.cutoff ~equal:phys_equal in
   let metadata =
@@ -432,7 +442,8 @@ let inner source ~config ~query_generation ~on_request ~lifetime ~render_cell gr
     and model = model
     and inject = inject
     and active = active
-    and rendered = rendered in
+    and rendered = rendered
+    and style = style in
     let open Or_error.Let_syntax in
     let%bind rows, exhausted = active in
     let schema = C.Collection.to_list (Config.columns input.config) in
@@ -458,12 +469,13 @@ let inner source ~config ~query_generation ~on_request ~lifetime ~render_cell gr
     let refs keys = List.filter_map keys ~f:(Metadata.find metadata) in
     let%map view =
       Gpuio.View.Expert.managed_table
-        ~key:
+        ?key
+        ~source_key:
           (D.Expert.Identity.source_id (D.Expert.identity input.source)
            |> D.Source_id.sexp_of_t
            |> Sexp.to_string
            |> Key.of_string_exn)
-        ~style:fill
+        ~style
         ~config:input.config
         ~query_generation:query
         ~order:metadata.order
@@ -540,15 +552,20 @@ let component
       (module D.Source_id)
       sources
       ~f:(fun _ source lifetime graph ->
-        inner source ~config ~query_generation ~on_request ~lifetime ~render_cell graph)
+        inner
+          source
+          ~config
+          ~key
+          ~style
+          ~query_generation
+          ~on_request
+          ~lifetime
+          ~render_cell
+          graph)
       graph
   in
-  let%arr outputs = outputs
-  and style = style in
-  Map.data outputs
-  |> List.hd_exn
-  |> Or_error.map ~f:(fun output ->
-    { output with Output.view = Gpuio.View.column ?key ~style [ output.view ] })
+  let%arr outputs = outputs in
+  Map.data outputs |> List.hd_exn
 ;;
 
 module Paging = Virtual_list.Paging

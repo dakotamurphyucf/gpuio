@@ -11,7 +11,7 @@ REPO = Path(__file__).resolve().parents[1]
 def main():
     process = subprocess.Popen(
         ["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-j2",
-         "-p", "gpuio-native", "--features", "native-tests", "--test", "native_table_host"],
+         "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_table_host"],
         cwd=REPO, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         start_new_session=True,
     )
@@ -25,7 +25,7 @@ def main():
     print(output, end="", flush=True)
     if process.returncode:
         raise SystemExit(process.returncode)
-    for marker in ("GPUIO_TABLE_COMMAND_FOCUS_OK", "GPUIO_TABLE_INPUT_OK",
+    for marker in ("GPUIO_TABLE_STYLE_OK", "GPUIO_TABLE_COMMAND_FOCUS_OK", "GPUIO_TABLE_INPUT_OK",
                    "GPUIO_NATIVE_TABLE_HOST_OK"):
         if marker not in output:
             raise SystemExit(f"native table host exited without completing {marker}")

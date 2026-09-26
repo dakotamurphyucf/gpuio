@@ -87,9 +87,26 @@ let fill =
     [ Grow 1.; Min_height (Gpuio.Length.px_exn 0.); Min_width (Gpuio.Length.px_exn 0.) ]
 ;;
 
+let table_style ~light =
+  Gpuio.Style.merge
+    [ fill
+    ; Gpuio.Style.create_exn
+        [ Background
+            (Gpuio.Background.solid
+               (Gpuio.Color.rgb_exn (if light then 0xf4f7fc else 0x111b2b)))
+        ; Foreground (Gpuio.Color.rgb_exn (if light then 0x17263c else 0xdce7f7))
+        ; Border_color (Gpuio.Color.rgb_exn (if light then 0xcbd6e6 else 0x30445e))
+        ; Border_width 1.
+        ; Radius 12.
+        ; Font_size 14.
+        ]
+    ]
+;;
+
 let run ~self_test ~background =
   App.run ~exit_on_last_window:(not self_test) (fun env app ->
     let cfg = B.Expert.Var.create initial_config in
+    let style = B.Expert.Var.create (table_style ~light:false) in
     let observed = ref None
     and pager_ref = ref None in
     let mounted = ref 0
@@ -183,7 +200,7 @@ let run ~self_test ~background =
                  snapshot
                  ~paging:(B.return controls)
                  ~config:(B.Expert.Var.value cfg)
-                 ~style:(B.return fill)
+                 ~style:(B.Expert.Var.value style)
                  ~on_request:(B.return on_request)
                  ~render_cell:(fun ~row:_ ~data ~column ~lifetime:_ graph ->
                    B.Edge.lifecycle
@@ -305,6 +322,17 @@ let run ~self_test ~background =
         perform (App.scope app) stale;
         frame ();
         assert (anchor middle 9.);
+        let mounted_before = !mounted
+        and unmounted_before = !unmounted in
+        sync (fun () -> B.Expert.Var.set style (table_style ~light:true));
+        frame ();
+        assert (anchor middle 9.);
+        assert (!mounted = mounted_before && !unmounted = unmounted_before);
+        (match W.Output.selection (output ()) with
+         | Cell (row, _) -> assert (D.Row_ref.equal row middle)
+         | Empty | Row _ | Column _ -> failwith "style update reset table selection");
+        sync (fun () -> B.Expert.Var.set style (table_style ~light:false));
+        frame ();
         sync (fun () ->
           Pager.set
             pager

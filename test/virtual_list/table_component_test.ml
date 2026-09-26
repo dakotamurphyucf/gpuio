@@ -46,11 +46,7 @@ let display d =
   ignore (result d : _ W.Output.t)
 ;;
 
-let root output =
-  View.Expert.describe (W.Output.view output)
-  |> fun v -> List.hd_exn v.View.Expert.children |> View.Expert.describe
-;;
-
+let root output = View.Expert.describe (W.Output.view output)
 let list output = (root output).virtual_list |> Option.value_exn
 let table output = (list output).table |> Option.value_exn
 let target o n = W.Output.target o (id n) |> ok
@@ -434,4 +430,136 @@ let%expect_test "superseded batches cannot publish a selection that was never di
   assert (Option.equal String.equal (selected (result d)) (Some "4"));
   Bonsai_driver.Expert.invalidate_observers d;
   [%expect {| |}]
+;;
+
+let%expect_test
+    "public style owns one native box; source lineage resets independently of sibling key"
+  =
+  let module Wire = Gpuio_protocol.Wire in
+  let caller_key = Gpuio.Key.of_string_exn (String.make 256 'k') in
+  let data = B.Expert.Var.create (source 3) in
+  let styled color =
+    Gpuio.Style.create_exn
+      [ Width (Gpuio.Length.px_exn 480.)
+      ; Height (Gpuio.Length.px_exn 280.)
+      ; Padding (Gpuio.Length.px_exn 12.)
+      ; Background (Gpuio.Background.solid (Gpuio.Color.rgb_exn color))
+      ]
+  in
+  let style = B.Expert.Var.create (styled 0x123456) in
+  let d =
+    create (fun graph ->
+      W.component
+        (B.Expert.Var.value data)
+        ~config:(B.return (config ()))
+        ~key:caller_key
+        ~style:(B.Expert.Var.value style)
+        ~render_cell:text_cell
+        graph)
+  in
+  let r = R.create (Gpuio_protocol.Window_id.create ~slot:1L ~generation:1L |> ok) in
+  let prepare () =
+    let output = result d in
+    let root = root output in
+    assert (Option.value_exn root.key |> Gpuio.Key.equal caller_key);
+    assert (
+      Gpuio.Style.equal
+        root.style
+        (View.Expert.describe (View.column ~style:(B.Expert.Var.get style) [])).style);
+    let pending =
+      R.prepare r ~theme:Gpuio.Theme.default (Some (W.Output.view output)) |> ok
+    in
+    let operations =
+      match R.message pending with
+      | Some (Wire.Message.Apply transaction) -> transaction.operations
+      | _ -> []
+    in
+    R.accept r pending |> ok;
+    operations
+  in
+  let mounts operations =
+    List.filter_map operations ~f:(function
+      | Wire.Op.Create (node, Virtual_list, _, _) -> Some node
+      | _ -> None)
+  in
+  let first = prepare () in
+  assert (List.length (mounts first) = 1);
+  assert (
+    not
+      (List.exists first ~f:(function
+         | Wire.Op.Create (_, Container, _, _) -> true
+         | _ -> false)));
+  B.Expert.Var.set style (styled 0xabcdef);
+  let changed = prepare () in
+  assert (List.is_empty (mounts changed));
+  assert (
+    List.exists changed ~f:(function
+      | Wire.Op.Set_style _ -> true
+      | _ -> false));
+  B.Expert.Var.set data (source 3);
+  let replaced = prepare () in
+  let old = List.hd_exn (mounts first) in
+  let fresh = List.hd_exn (mounts replaced) in
+  assert (not (Gpuio_protocol.Node_id.equal old fresh));
+  print_s [%sexp "one styled root; style update retains mount; fresh lineage replaces it"];
+  [%expect {| "one styled root; style update retains mount; fresh lineage replaces it" |}]
+;;
+
+let%expect_test
+    "tables sharing a source retain independent caller keys through sibling reorder"
+  =
+  let data = B.return (source 1) in
+  let reverse = B.Expert.Var.create false in
+  let d =
+    create (fun graph ->
+      let first =
+        W.component
+          data
+          ~config:(B.return (config ()))
+          ~key:(Gpuio.Key.of_string_exn "first")
+          ~render_cell:text_cell
+          graph
+      in
+      let second =
+        W.component
+          data
+          ~config:(B.return (config ()))
+          ~key:(Gpuio.Key.of_string_exn "second")
+          ~render_cell:text_cell
+          graph
+      in
+      let open B.Let_syntax in
+      let%arr first = first
+      and second = second
+      and reverse = B.Expert.Var.value reverse in
+      let views = [ W.Output.view (ok first); W.Output.view (ok second) ] in
+      Ok (View.column (if reverse then List.rev views else views)))
+  in
+  let r = R.create (Gpuio_protocol.Window_id.create ~slot:1L ~generation:1L |> ok) in
+  let prepare () =
+    let pending = R.prepare r ~theme:Gpuio.Theme.default (Some (result d)) |> ok in
+    let operations =
+      match R.message pending with
+      | Some (Gpuio_protocol.Wire.Message.Apply transaction) -> transaction.operations
+      | _ -> []
+    in
+    R.accept r pending |> ok;
+    operations
+  in
+  ignore (prepare () : Gpuio_protocol.Wire.Op.t list);
+  B.Expert.Var.set reverse true;
+  let reordered = prepare () in
+  assert (
+    List.exists reordered ~f:(function
+      | Splice _ -> true
+      | _ -> false));
+  assert (
+    not
+      (List.exists reordered ~f:(function
+         | Create _ | Remove _ -> true
+         | _ -> false)));
+  print_s
+    [%sexp "same source, distinct caller keys; reorder preserves both native tables"];
+  [%expect
+    {| "same source, distinct caller keys; reorder preserves both native tables" |}]
 ;;

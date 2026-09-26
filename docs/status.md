@@ -179,8 +179,12 @@ Table Lab passes native keyed scrolling/anchors, streaming, query retirement,
 failure/retry and window cleanup. Native pointer/key dispatch and OS clipboard
 checks now pass exact Unicode/quoted TSV, unavailable-selection preservation,
 Tab exit, toolbar Copy, child-editor priority and hidden/disabled gating.
-Physical keyboard/accessibility, style forwarding, broader native full-history/
-paging interactions and final acceptance remain; no
+The public table now applies its style to one native root while separate
+source identity preserves reset semantics. GPU checks pass alpha/gradient surfaces,
+border/padding/corner clipping, inherited text, state precedence, pinned-column
+paint and readable selected cells/rows. The styled Table Lab retains selection
+and anchors through light/dark changes. Physical keyboard/accessibility, broader
+native full-history/paging interactions and final acceptance remain; no
 table capability is advertised.
 See [table design](design/data-tables.md) and
 [evidence](evidence/data-tables-och39.md).

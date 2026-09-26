@@ -700,7 +700,8 @@ val toast_stack
 
 module Expert : sig
   type 'action table =
-    { config : Table.Config.t
+    { source_key : Key.t option
+    ; config : Table.Config.t
     ; query_generation : int64
     ; commands : Key.t Table.Command.t list
     ; on_input : Key.t Table.Request.t -> 'action
@@ -753,9 +754,12 @@ module Expert : sig
       Commands are ordered batches of at most 64 items; a retained equal batch
       executes once, new serials strictly increase across the mount (also across
       omitted batches and query resets). Delayed obsolete targets are errors;
-      higher-level controllers should filter them before constructing a View. *)
+      higher-level controllers should filter them before constructing a View.
+      Changing [source_key] replaces the entire native mount independently of
+      the sibling [key]; keep it stable for point updates and query changes. *)
   val managed_table
     :  ?key:Key.t
+    -> ?source_key:Key.t
     -> ?style:Style.t
     -> ?commands:Key.t Table.Command.t list
     -> config:Table.Config.t

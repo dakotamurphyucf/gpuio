@@ -551,3 +551,61 @@ include two complete 100,000-row traversals and existing child-editor, selection
 move and disposal checks. This is regression evidence for shared focus/command
 changes; it does not transfer those widgets' AX/IME acceptance to the table.
 The final table host rerun passes after clipboard-restoration cleanup.
+
+## One public styled table surface (2026-09-26)
+
+The public table now applies its key and style to its native root. Expert-only
+source identity participates in reconciliation separately, preserving full-length
+caller keys and replacement on a fresh data lineage without an extra layout box.
+Expect tests verify a 256-byte caller key, style updates without native replacement,
+fresh-source replacement under that same key, and keyed sibling reorder of two
+tables sharing one source without replacing either native table. Existing Bonsai
+and paging tests pass against the direct root.
+
+The retained host paints its surface/border/radius once, with transparent native
+header/body layers and inherited root text. Actual GPU readback verifies:
+
+- A half-alpha red surface blends once over white in header, body and padding;
+  border and rounded-corner pixels prove a single box and correct clipping.
+- A gradient reaches header/body; contrasting native child backgrounds verify
+  that the horizontally scrolling column cannot overpaint the pinned cell.
+- Foreground inheritance, focus < hover < press precedence, disabled suppression,
+  and restoration of default appearance after removing refinements.
+- Selected cells and whole rows retain visible text. The stronger check exposed
+  an opaque selection overlay covering the text. Highlights now paint behind
+  content, with only a transparent outline overlay above it.
+
+These assertions use actual native layout, GPUI pointer/focus dispatch and GPU
+pixels at a controlled scale factor of 1. They do not claim physical monitor-scale
+changes or table accessibility acceptance. `scripts/test_table_host.py` now runs
+with `native-image-tests` and requires the style completion marker. An optional
+absolute `GPUIO_TABLE_STYLE_SCREENSHOT` path saves the first test surface; it is
+an artifact destination, never a required input. All test windows close normally.
+
+Rust workspace tests and strict all-target Clippy, including native-image test
+code, pass after the selection-paint fix. The full Dune build/tests/format check
+passes for the direct-root and key semantics. The Table Lab's light/dark style
+update preserves selection and its keyed pixel anchor; the final test additionally
+checks absolute cell activation/deactivation counters rather than only the active
+cell count. Final public rerun evidence is recorded below.
+
+Table accessibility/physical AppKit input, full-history native cache/traversal,
+resize/reorder/sort during paging, public context flows and the remaining OCH-39
+acceptance still remain. OCH-46, hosted macOS/Linux gates and merge remain part
+of milestone 5. No table capability or hosted acceptance is advertised here.
+
+Final local checks pass after the selection fix and stronger lifecycle assertion:
+
+- `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt`.
+- `GPUIO_JOBS=2 python3 scripts/test_table_public.py` — light/dark updates preserve
+  the exact activation/deactivation counters, selection and keyed anchor, followed
+  by the existing query/stream/paging/close checks.
+- `GPUIO_JOBS=2 python3 scripts/test_table_host.py` — GPU style/state/selection
+  assertions plus retained host and input/clipboard/command regressions.
+- `GPUIO_JOBS=2 python3 scripts/test_table_adapter.py` — column/input/anchor
+  regression and verified failing-process cleanup.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --workspace --locked -j2`.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --workspace --locked -j2 --all-targets --features gpuio-native/native-image-tests,gpuio-table-adapter/native-tests -- -D warnings`.
+
+All owned test processes/windows exited. No hosted run is claimed by these local
+results, and the full OCH-39 completion audit is still pending.

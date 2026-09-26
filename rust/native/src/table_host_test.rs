@@ -2,6 +2,9 @@
 use super::*;
 #[path = "table_host_test/input.rs"]
 mod input;
+#[cfg(feature = "native-image-tests")]
+#[path = "table_host_test/style.rs"]
+mod style;
 use gpuio_protocol::{
     list::{IdRun, Order, Row},
     v1::*,
@@ -218,6 +221,8 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
         })
         .unwrap();
     input::exercise(cx, window).await;
+    #[cfg(feature = "native-image-tests")]
+    style::exercise(cx, window).await;
     for enabled in [false, true] {
         apply(
             cx,

@@ -60,3 +60,13 @@ unify double-click and keyboard activation. Copy uses a retained-only delegate
 hook and a bounded quoted-TSV encoder; missing complete selections preserve the
 clipboard. Exact table focus is required so embedded editors retain their keys.
 See the host acceptance ledger for native clipboard/command policy coverage.
+
+The host can opt into inherited root text refinements with `inherit_text_style`.
+Its outer box owns border/radius/background while internal header/body layers
+stay transparent; this avoids covering gradients or applying alpha twice. The
+standalone adapter defaults remain unchanged. Host GPU tests cover geometry,
+clipping, root state precedence and preserved pinned-column painting.
+
+Selection fills now paint behind row/cell content; transparent outlines remain
+above it. Actual GPU tests caught opaque extracted overlays hiding selected text
+and now require that text to stay visible for both cell and whole-row selection.

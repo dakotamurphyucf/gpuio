@@ -9,6 +9,7 @@ use gpui::{
     App, Context, Entity, FocusHandle, Focusable, IntoElement, WeakEntity, Window, div, prelude::*,
     px,
 };
+use gpui_base::StyledExt;
 use gpuio_protocol::{HandlerId, NodeId, WindowId, list::Viewport, table as wire};
 use gpuio_table_adapter::{
     Sizable, Size,
@@ -182,41 +183,27 @@ impl TableDelegate for Delegate {
     fn appearance(&self) -> gpuio_table_adapter::Appearance {
         use gpuio_protocol::v1::{Field, Fill, Style};
         let mut appearance = gpuio_table_adapter::Appearance::default();
+        // The outer host box paints the surface once, including gradients and
+        // alpha. Nested native table layers must not obscure or blend it again.
+        appearance.tokens.table = gpui::transparent_black();
+        appearance.tokens.table_head = gpui::transparent_black();
         for style in self.styles.iter() {
             match style {
-                Style::Background(value) => {
-                    appearance.tokens.table = super::color(value);
-                    appearance.tokens.table_head = super::color(value);
-                }
                 Style::Foreground(value) => {
                     appearance.foreground = super::color(value);
                     appearance.table_head_foreground = super::color(value);
                 }
-                Style::HoverBackground(value) => {
-                    appearance.tokens.table_hover = super::color(value)
-                }
-                Style::FocusBackground(value) => {
-                    appearance.tokens.table_active = super::color(value)
-                }
                 Style::Radius(value) => appearance.radius = px(*value as f32),
-                Style::State(state, fields) if matches!(*state, 1 | 2 | 3 | 7) => {
+                Style::State(7, fields) => {
                     for field in fields {
                         if let Field::Background(Fill::Solid(value)) = field {
-                            if *state == 2 {
-                                appearance.tokens.table_hover = super::color(value);
-                            } else {
-                                appearance.tokens.table_active = super::color(value);
-                            }
+                            appearance.tokens.table_active = super::color(value);
                         }
                     }
                 }
                 Style::Fields(fields) => {
                     for field in fields {
                         match field {
-                            Field::Background(Fill::Solid(value)) => {
-                                appearance.tokens.table = super::color(value);
-                                appearance.tokens.table_head = super::color(value);
-                            }
                             Field::Foreground(value) => {
                                 appearance.foreground = super::color(value);
                                 appearance.table_head_foreground = super::color(value);
@@ -739,7 +726,10 @@ impl View {
                 pending.extend(node.children.iter().copied());
             }
         }
+        let appearance = native.read(cx).delegate().appearance();
         let element = DataTable::new(&native)
+            .bordered(false)
+            .inherit_text_style(true)
             .with_size(Size::Size(px(config.row_height as f32)))
             .scrollbar_visible(config.scrollbar, config.scrollbar)
             .into_any_element();
@@ -748,11 +738,16 @@ impl View {
             state,
             revision: tree.revision(),
         };
-        let (root, _) = apply_styles(
+        let (mut root, states) = apply_styles(
             div()
                 .id(("gpuio-table", node.id.slot()))
                 .role(gpui::Role::Table)
                 .aria_label(config.label.clone())
+                .bg(gpuio_table_adapter::Appearance::default().tokens.table)
+                .text_color(appearance.foreground)
+                .border_1()
+                .border_color(appearance.border)
+                .rounded(appearance.radius)
                 .size_full()
                 .min_w_0()
                 .min_h_0()
@@ -762,6 +757,24 @@ impl View {
             interaction,
             config.disabled,
         );
+        if !config.disabled
+            && native.focus_handle(cx).is_focused(window)
+            && let Some(focused) = &states[0]
+        {
+            root = root.refine_style(focused);
+        }
+        if let Some(hovered) = states[1].clone() {
+            root = root.hover(move |root| root.refine_style(&hovered));
+        }
+        if let Some(pressed) = states[2].clone() {
+            root = root.active(move |root| root.refine_style(&pressed));
+        }
+        if config.disabled {
+            root = root.opacity(0.5);
+            if let Some(disabled) = &states[5] {
+                root = root.refine_style(disabled);
+            }
+        }
         let element =
             self.finish_element(root.child(frame), node, tree.revision(), config.disabled);
         if config.disabled {

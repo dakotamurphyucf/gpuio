@@ -47,6 +47,7 @@ pub(super) struct TableOptions {
     pub(super) stripe: bool,
     /// Set to use border style of the table.
     pub(super) bordered: bool,
+    pub(super) inherit_text_style: bool,
     /// The cell size of the table.
     pub(super) size: Size,
 }
@@ -57,6 +58,7 @@ impl Default for TableOptions {
             scrollbar_visible: Edges::all(true),
             stripe: false,
             bordered: true,
+            inherit_text_style: false,
             size: Size::default(),
         }
     }
@@ -129,6 +131,12 @@ where
         self
     }
 
+    /// Let the host's root text refinements reach headers and body cells.
+    pub fn inherit_text_style(mut self, inherit: bool) -> Self {
+        self.options.inherit_text_style = inherit;
+        self
+    }
+
     /// Set scrollbar visibility.
     pub fn scrollbar_visible(mut self, vertical: bool, horizontal: bool) -> Self {
         self.options.scrollbar_visible = Edges {
@@ -157,6 +165,7 @@ where
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let theme = self.state.read(cx).delegate().appearance();
         let bordered = self.options.bordered;
+        let inherit_text_style = self.options.inherit_text_style;
         let focus_handle = self.state.focus_handle(cx);
         self.state.update(cx, |state, _| {
             state.options = self.options;
@@ -181,7 +190,9 @@ where
             .on_action(window.listener_for(&self.state, TableState::action_select_page_up))
             .on_action(window.listener_for(&self.state, TableState::action_select_page_down))
             .bg(theme.tokens.table)
-            .text_color(theme.foreground)
+            .when(!inherit_text_style, |this| {
+                this.text_color(theme.foreground)
+            })
             .when(bordered, |this| {
                 this.rounded(theme.radius)
                     .border_1()

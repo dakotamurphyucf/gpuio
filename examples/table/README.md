@@ -48,7 +48,10 @@ reliable. The default permits activation so an occluded window cannot prevent th
 frame checks. The test requires a completion marker and terminates/reaps the
 process group on timeout. It covers public retained cells, keyed commands and
 anchors, query retirement, streaming, selected-row removal, paging failure/retry,
-and window-scoped producer/cell cleanup. It does not establish physical keyboard,
+and window-scoped producer/cell cleanup. Light/dark style changes retain selection,
+anchors and active cell lifetimes. The table's `~style` belongs to one native root;
+its surface, text and border can use the ordinary GPUIO style vocabulary.
+It does not establish physical keyboard,
 clipboard, IME, accessibility, or Linux GUI acceptance.
 
 See [table contracts](../../docs/design/data-tables.md) and

@@ -2106,7 +2106,9 @@ where
             .w_full()
             .flex_shrink_0()
             .bg(theme.tokens.table_head)
-            .text_color(theme.table_head_foreground)
+            .when(!self.options.inherit_text_style, |this| {
+                this.text_color(theme.table_head_foreground)
+            })
             .refine_style(&style)
             .on_drag_move(self.column_listener(
                 cx,
@@ -2367,11 +2369,10 @@ where
                                                         row_ix, col_ix, window, cx,
                                                     ))
                                                     .when(is_cell_selected, |this| {
-                                                        this.child(
+                                                        this.bg(theme.tokens.table_active).child(
                                                             div()
                                                                 .absolute()
                                                                 .inset_0()
-                                                                .bg(theme.tokens.table_active)
                                                                 .border_1()
                                                                 .border_color(
                                                                     theme.table_active_border,
@@ -2492,11 +2493,11 @@ where
                                                             row_ix, col_ix, window, cx,
                                                         ))
                                                         .when(is_cell_selected, |this| {
-                                                            this.child(
+                                                            this.bg(theme.tokens.table_active)
+                                                                .child(
                                                                 div()
                                                                     .absolute()
                                                                     .inset_0()
-                                                                    .bg(theme.tokens.table_active)
                                                                     .border_1()
                                                                     .border_color(
                                                                         theme.table_active_border,
@@ -2563,17 +2564,18 @@ where
                     this.when(is_selected && self.selection_mode.is_row(), |this| {
                         this.map(|this| {
                             if theme.list.active_highlight {
-                                this.border_color(gpui::transparent_white()).child(
-                                    div()
-                                        .top(if row_ix == 0 { px(0.) } else { px(-1.) })
-                                        .left(px(0.))
-                                        .right(px(0.))
-                                        .bottom(px(-1.))
-                                        .absolute()
-                                        .bg(theme.tokens.table_active)
-                                        .border_1()
-                                        .border_color(theme.table_active_border),
-                                )
+                                this.bg(theme.tokens.table_active)
+                                    .border_color(gpui::transparent_white())
+                                    .child(
+                                        div()
+                                            .top(if row_ix == 0 { px(0.) } else { px(-1.) })
+                                            .left(px(0.))
+                                            .right(px(0.))
+                                            .bottom(px(-1.))
+                                            .absolute()
+                                            .border_1()
+                                            .border_color(theme.table_active_border),
+                                    )
                             } else {
                                 this.bg(theme.tokens.accent)
                             }

@@ -442,6 +442,38 @@ Tab exit, toolbar command routing, retained child editors and current hidden/
 disabled policy. These are distinct from physical AppKit input and accessibility
 acceptance, which remain required alongside broader OCH-39 validation.
 
+## Public table styling and mount identity
+
+The public Bonsai table now exposes one native table root. The caller's `key`
+and complete `style` apply to that root, so padding, border, radius and opacity
+are not duplicated across a synthetic layout wrapper. A separate expert-only
+`source_key` participates in reconciliation compatibility. Fresh data lineages
+replace the native mount even when the caller's sibling key is unchanged; style,
+payload and query updates retain it. This is OCaml reconciliation metadata, not
+a new wire field. Caller keys retain their full 256-byte limit.
+
+The native host paints the table surface once. Its internal body and header
+layers are transparent over that surface, so solid colors, alpha and gradients
+remain visible. The default host surface is uniform across header and body;
+header separators and selection/hover feedback remain native. The standalone
+extracted adapter keeps its original default header/body appearance.
+
+Root text refinements reach header and body cells, unless a child supplies its
+own text style. Focused, hovered, pressed and disabled root refinements use the
+ordinary style precedence; focus refers to the table itself, preserving embedded
+editor ownership. The Selected state's solid background colors the native
+row/cell selection. Selection fills paint behind cell content; only the outline
+is overlaid, preserving readable text. Focused and Hovered backgrounds style the root surface rather
+than being repurposed as selection colors. Base border color also colors native
+dividers. Native row hover feedback retains its default appearance. No editable
+grid behavior is implied by ordinary child View composition.
+
+The Table Lab supplies explicit surface/text/border colors and checks a light/
+dark update while selection and a keyed pixel anchor are retained. GPU tests
+separately verify surface composition, clipping, pinned-column paint, inherited
+text and state precedence. Full table accessibility and remaining paging/history
+acceptance still apply.
+
 ## Remaining acceptance
 
 The model tests are one foundation, not a replacement for these gates:
