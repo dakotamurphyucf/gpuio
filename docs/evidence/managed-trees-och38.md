@@ -837,3 +837,57 @@ were serialized. Final logs are `tree-move-rust-all.log`,
 `tree-move-clippy-final.log`, `tree-move-native-final.log` and
 `tree-move-dune-all.log` in the agent scratch directory. Processes are reaped;
 no test window remains. Hosted macOS/Linux gates and merge remain pending.
+
+## Native indicators and public approved moves (2026-09-26)
+
+Native row focus now paints only for the exact TreeItem focus handle in the active
+window. Native drop feedback paints a Before/After line or Inside outline after
+row content, using GPUI's accepted hover hitbox and the inherited foreground.
+The high-level tree supplies the theme foreground by default; explicit caller
+styles override it. No layout change or per-motion OCaml callback is introduced.
+
+The native-image tree suite passes exact GPU pixel checks for selected but
+unfocused rows, actual pointer focus, blur, foreground changes and all three drop
+placements over opaque custom row content. Leaving a target removes its cue during
+the same gesture; returning restores it, and finishing removes it. Existing native
+move, AppKit semantics, editor/IME and deferred-focus checks also pass. The initial
+test tried to retrieve a row from the unrelated focus-manager lookup; changing the
+test to an actual native pointer click exercises the real TreeItem focus owner.
+
+The public `examples/tree --outline` example adds an in-memory editable forest,
+row command registries, native context menus and keyboard-accessible Actions menu
+buttons. A proposal leaves data unchanged until the application's confirmation.
+Its pure transformation handles Before/After/Inside and same-parent index changes,
+preserves payload/incarnation and rejects expired proposals. Approval tokens are
+consumed before mutation; duplicate or superseded confirmations cannot approve
+another move. The dialog key retires old native handlers. The filesystem explorer
+remains read-only and shares only runtime helpers with the outline example.
+
+Local macOS arm64 results:
+
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy -p gpuio-native --features native-image-tests --all-targets --locked -j2 -- -D warnings`: PASS.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --workspace --locked -j2`: PASS.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt`: PASS after correcting the new Dune stanza's formatting. No expect output was automatically promoted.
+- Native `cargo test -p gpuio-native --features native-image-tests --test native_tree --locked -j2`: PASS, including hover exit/return and existing interaction suites.
+- `_build/default/examples/tree/main.exe --outline --self-test`: PASS for command delivery, unchanged data before approval, stable identity, duplicate/superseded confirmation and reset-expired approval.
+- `_build/default/examples/tree/main.exe --self-test`: PASS for the refactored Eio filesystem explorer, lazy children, native focus pin, selection and reset.
+- `python3 scripts/test_tree_outline.py`: PASS through actual AppKit pointer dragging, AX confirmation, native right-click menu and a second approved move. The application checks the resulting parents and exits.
+
+Final example markers are:
+
+```
+TREE_OUTLINE_PASS menu_command=true confirmation_once=true stable_identity=true superseded_approval=true stale_approval=true
+TREE_OUTLINE_GESTURE_PASS native_drag=true native_menu=true approved_moves=2
+```
+
+Scratch logs under `scratch/agents/root-20260925-resumed/` are
+`tree-indicators-native-final.log`, `tree-outline-clippy-final.log`,
+`tree-outline-rust-all.log`, `tree-outline-dune-final.log`,
+`tree-outline-self-test-final.log`, `tree-filesystem-refactor-final.log` and
+`tree-outline-gesture-final.log`. Cargo and Dune were serialized. All owned test
+processes exited and their windows closed. CI now invokes these public checks and
+the GPU-enabled tree suite; hosted macOS/Linux gates have not run for this change.
+
+Full native large/deep traversal/revisit and broader tree drag lifecycle acceptance
+remain. These example/presentation checks do not close OCH-38 or advertise its
+capability, and do not establish Linux GUI acceptance.

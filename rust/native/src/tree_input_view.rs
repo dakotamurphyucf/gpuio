@@ -295,7 +295,7 @@ impl View {
         row.child(
             canvas(
                 |_, _, _| (),
-                move |_, _, window, _| {
+                move |bounds, _, window, _| {
                     if gate.borrow().visible(node) {
                         gate.borrow_mut().record(
                             node,
@@ -303,6 +303,13 @@ impl View {
                             false,
                             focus.is_focused(window),
                         );
+                        if focus.is_focused(window) && window.is_window_active() {
+                            window.paint_quad(gpui::outline(
+                                bounds.inset(gpui::px(1.)),
+                                window.text_style().color,
+                                gpui::BorderStyle::default(),
+                            ));
+                        }
                     }
                 },
             )

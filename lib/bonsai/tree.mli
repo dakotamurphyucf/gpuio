@@ -95,6 +95,9 @@ end
     The renderer follows [Managed_rows.assoc]'s lifetime/reset rules. The default
     displays the node label. Native loading/retry rows never become tree items.
     Default colors use the background/foreground/accent/muted theme tokens.
+    Native focus and drop overlays inherit the tree container foreground, above
+    opaque row content; [style] can override it. Only actual native row focus in
+    an active window paints a focus outline, not selection or the logical cursor.
 
     With loading and [auto_load=true], newly expanded eligible branches request
     their first ready page even if its boundary is just below the viewport.

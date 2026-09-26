@@ -495,6 +495,12 @@ let component
   Map.data outputs
   |> List.hd_exn
   |> Or_error.map ~f:(fun output ->
+    let style =
+      Gpuio.Style.merge
+        [ Gpuio.Style.create_exn [ Foreground (Gpuio.Color.token_exn "foreground") ]
+        ; style
+        ]
+    in
     let view = Gpuio.View.column ?key ~style [ Output.view output ] in
     { output with view })
 ;;

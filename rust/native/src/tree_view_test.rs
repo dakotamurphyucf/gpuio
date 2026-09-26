@@ -704,6 +704,26 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
     );
 }
 
+#[cfg(feature = "native-image-tests")]
+fn assert_tree_pixel(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    point: gpui::Point<gpui::Pixels>,
+    expected: [u8; 4],
+    label: &str,
+) {
+    let image = cx
+        .update_window(handle.into(), |_, window, cx| {
+            window.set_scale_factor(1.);
+            window.draw(cx).clear(cx);
+            window.render_to_image().unwrap()
+        })
+        .unwrap();
+    let x = f32::from(point.x).floor() as u32;
+    let y = f32::from(point.y).floor() as u32;
+    assert_eq!(image.get_pixel(x, y).0, expected, "{label} at {x},{y}");
+}
+
 async fn exercise_moves(
     cx: &mut gpui::AsyncApp,
     handle: WindowHandle<View>,
@@ -749,6 +769,39 @@ async fn exercise_moves(
         let point = gpui::point(rect.center().x, rect.origin.y + rect.size.height * fraction);
         super::super::native_test::move_mouse(cx, handle, point, true);
         frame(cx, handle).await;
+        #[cfg(feature = "native-image-tests")]
+        if active(cx, handle) {
+            let sample = if fraction < 0.25 {
+                gpui::point(rect.right() - px(8.), rect.origin.y + px(2.))
+            } else if fraction < 0.75 {
+                gpui::point(rect.right() - px(3.), rect.center().y)
+            } else {
+                gpui::point(rect.right() - px(8.), rect.bottom() - px(4.))
+            };
+            assert_tree_pixel(
+                cx,
+                handle,
+                sample,
+                [102, 255, 136, 255],
+                "drop cue above opaque content",
+            );
+            super::super::native_test::move_mouse(
+                cx,
+                handle,
+                gpui::point(rect.right() - px(8.), rect.bottom() + px(50.)),
+                true,
+            );
+            frame(cx, handle).await;
+            assert_tree_pixel(
+                cx,
+                handle,
+                sample,
+                [40, 53, 75, 255],
+                "leaving a target clears its cue during the same gesture",
+            );
+            super::super::native_test::move_mouse(cx, handle, point, true);
+            frame(cx, handle).await;
+        }
         super::super::native_test::mouse(cx, handle, point, false);
         frame(cx, handle).await;
     }
@@ -768,6 +821,116 @@ async fn exercise_moves(
         ],
     );
     frame(cx, handle).await;
+    #[cfg(feature = "native-image-tests")]
+    {
+        apply(
+            cx,
+            handle,
+            vec![
+                Op::SetStyle(
+                    node(5),
+                    vec![Style::Fields(vec![
+                        Field::Width(Length::Px(380.)),
+                        Field::Height(Length::Px(180.)),
+                        Field::Foreground(Color::Rgba(0x66ff88ff)),
+                    ])],
+                ),
+                Op::SetStyle(
+                    node(7),
+                    vec![Style::Fields(vec![
+                        Field::Width(Length::Percent(100.)),
+                        Field::Height(Length::Px(32.)),
+                        Field::Background(Fill::Solid(Color::Rgba(0x28354bff))),
+                    ])],
+                ),
+            ],
+        );
+        frame(cx, handle).await;
+        let rect = bounds(cx, handle, 0);
+        let point = gpui::point(rect.right() - px(2.), rect.center().y);
+        handle
+            .update(cx, |view, window, cx| {
+                view.lists[&node(5)]
+                    .borrow()
+                    .tree_focus
+                    .as_ref()
+                    .unwrap()
+                    .focus(window, cx);
+            })
+            .unwrap();
+        frame(cx, handle).await;
+        assert_tree_pixel(
+            cx,
+            handle,
+            point,
+            [40, 53, 75, 255],
+            "selected row without native focus has no outline",
+        );
+        super::super::native_test::move_mouse(cx, handle, rect.center(), false);
+        frame(cx, handle).await;
+        super::super::native_test::mouse(cx, handle, rect.center(), true);
+        super::super::native_test::mouse(cx, handle, rect.center(), false);
+        frame(cx, handle).await;
+        assert_tree_pixel(
+            cx,
+            handle,
+            point,
+            [102, 255, 136, 255],
+            "actual focus above opaque content",
+        );
+        apply(
+            cx,
+            handle,
+            vec![Op::SetStyle(
+                node(5),
+                vec![Style::Fields(vec![
+                    Field::Width(Length::Px(380.)),
+                    Field::Height(Length::Px(180.)),
+                    Field::Foreground(Color::Rgba(0xff88ccff)),
+                ])],
+            )],
+        );
+        frame(cx, handle).await;
+        assert_tree_pixel(
+            cx,
+            handle,
+            point,
+            [255, 136, 204, 255],
+            "focus inherits current foreground",
+        );
+        handle
+            .update(cx, |view, window, cx| {
+                view.lists[&node(5)]
+                    .borrow()
+                    .tree_focus
+                    .as_ref()
+                    .unwrap()
+                    .focus(window, cx);
+            })
+            .unwrap();
+        frame(cx, handle).await;
+        assert_tree_pixel(
+            cx,
+            handle,
+            point,
+            [40, 53, 75, 255],
+            "blur removes focus outline",
+        );
+        apply(
+            cx,
+            handle,
+            vec![Op::SetStyle(
+                node(5),
+                vec![Style::Fields(vec![
+                    Field::Width(Length::Px(380.)),
+                    Field::Height(Length::Px(180.)),
+                    Field::Foreground(Color::Rgba(0x66ff88ff)),
+                ])],
+            )],
+        );
+        frame(cx, handle).await;
+        requests(transport);
+    }
     for (fraction, placement) in [
         (0.1, Placement::Before),
         (0.5, Placement::Inside),
@@ -879,6 +1042,35 @@ async fn exercise_moves(
         ],
     );
     frame(cx, handle).await;
+    #[cfg(feature = "native-image-tests")]
+    {
+        let rect = bounds(cx, handle, 0);
+        assert_tree_pixel(
+            cx,
+            handle,
+            gpui::point(rect.right() - px(3.), rect.center().y),
+            [40, 53, 75, 255],
+            "finished drag leaves no cue",
+        );
+        apply(
+            cx,
+            handle,
+            vec![
+                Op::SetStyle(
+                    node(5),
+                    vec![Style::Fields(vec![
+                        Field::Width(Length::Px(380.)),
+                        Field::Height(Length::Px(180.)),
+                    ])],
+                ),
+                Op::SetStyle(node(7), vec![]),
+            ],
+        );
+        frame(cx, handle).await;
+        eprintln!(
+            "GPUIO_TREE_INDICATORS_OK: actual-focus/blur, foreground update, selected opaque row content and three native drop placements via GPU pixels"
+        );
+    }
     requests(transport);
     eprintln!(
         "GPUIO_TREE_MOVES_OK: native start/drop, before/inside/after, no hierarchy mutation, escape/policy/handler/disabled/inert cancellation and lease disposal"

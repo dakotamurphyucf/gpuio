@@ -2,7 +2,7 @@
 use super::View;
 use gpui::{
     App, Bounds, Context, Div, Pixels, Render, SharedString, Stateful, Window, canvas, div,
-    prelude::*, rgba,
+    prelude::*, px, rgba,
 };
 use gpuio_protocol::{
     HandlerId, NodeId, WindowId,
@@ -153,6 +153,8 @@ impl View {
         let accept_view = weak.clone();
         let bounds = Rc::new(Cell::new(None::<Bounds<Pixels>>));
         let captured = bounds.clone();
+        let hovered = Rc::new(Cell::new(false));
+        let signal = hovered.clone();
         row.on_drag(
             Drag {
                 route,
@@ -194,7 +196,12 @@ impl View {
                     .unwrap_or(false)
             })
         })
-        .drag_over::<Drag>(|style, _, _, _| style.bg(rgba(0x6688ff30)))
+        // This runs only for GPUI's hovered hitbox and an accepted drag type.
+        // Paint the cue above the children instead of behind opaque row content.
+        .drag_over::<Drag>(move |style, _, _, _| {
+            signal.set(true);
+            style
+        })
         .on_drop(move |drag: &Drag, window, cx| {
             let _ = drop_view.update(cx, |view, cx| {
                 if view.accepts_tree_drag(drag, route, window)
@@ -218,7 +225,40 @@ impl View {
                 move |bounds, _, _| {
                     captured.set(Some(bounds));
                 },
-                |_, _, _, _| (),
+                move |bounds, _, window, cx| {
+                    if hovered.get()
+                        && cx.has_active_drag()
+                        && window.is_window_active()
+                        && bounds.contains(&window.mouse_position())
+                    {
+                        let color = window.text_style().color;
+                        let inset = bounds.inset(px(2.));
+                        match placement(bounds, window.mouse_position().y, branch) {
+                            Placement::Inside => window.paint_quad(gpui::outline(
+                                inset,
+                                color,
+                                gpui::BorderStyle::default(),
+                            )),
+                            Placement::Before | Placement::After => {
+                                let y = if matches!(
+                                    placement(bounds, window.mouse_position().y, branch),
+                                    Placement::Before
+                                ) {
+                                    inset.origin.y
+                                } else {
+                                    inset.bottom() - px(2.)
+                                };
+                                window.paint_quad(gpui::fill(
+                                    gpui::Bounds::new(
+                                        gpui::point(inset.origin.x, y),
+                                        gpui::size(inset.size.width, px(2.)),
+                                    ),
+                                    color,
+                                ));
+                            }
+                        }
+                    }
+                },
             )
             .absolute()
             .top_0()

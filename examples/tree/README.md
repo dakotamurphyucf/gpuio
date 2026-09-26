@@ -1,4 +1,6 @@
-# Managed filesystem tree
+# Managed trees
+
+## Filesystem explorer
 
 Run from the repository root:
 
@@ -52,3 +54,44 @@ It loads real directories, reveals a file, waits for its native focus retention
 pin, checks selection and stale-command retirement after reset, then closes the
 application. This is separate from physical keyboard/assistive-device tests and
 from the full large/deep native tree workload required by OCH-38.
+
+## Editable outline
+
+```sh
+./scripts/gpuio exec dune exec examples/tree/main.exe -- --outline
+```
+
+Outline Lab uses an in-memory forest and application-approved moves; it does not
+modify files. Drag one item onto a branch to propose moving it inside, or use the
+top/bottom quarter to insert before/after. Leaves use top/bottom halves. The native
+preview and insertion line/outline update without OCaml callbacks on pointer motion.
+Right-click a row for context commands, or Tab to its Actions menu button for the
+keyboard alternative. The sample asks for confirmation before publishing a validated
+replacement forest, preserving item IDs and payloads. Confirmation is an application
+policy; the framework only emits proposals and supplies revalidation.
+
+The application consumes each approval token once. A superseded confirmation cannot
+approve a newer proposal, and resetting the data source expires old approvals.
+Approval reads the latest snapshot and widget state. The sample move function
+requires fully loaded destination siblings; it does not define paging or server
+mutation policy for other applications.
+
+Native focus and drop indicators inherit the tree's foreground color, including
+theme changes and a caller's `Foreground` style override. They paint above opaque
+row content without affecting layout. The focus outline follows actual TreeItem
+focus in the active window; a selected row or focused child control alone does
+not acquire it. Moves are currently single-row and restricted to one tree/window,
+without automatic hover expansion or edge autoscroll.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune exec examples/tree/main.exe -- --outline --self-test
+python3 scripts/test_tree_outline.py
+```
+
+The first check exercises menu proposals, one-shot/superseded confirmation, stable
+identity and stale approval after reset. The second drives an actual macOS drag,
+confirmation, native context menu and move back through the public application.
+It needs macOS Accessibility permission for its launching terminal/agent, activates
+only the child application, checks pointer targets belong to that process and
+always closes/reaps the child. These checks complement the native GPU indicator
+tests; neither is the full large-tree workload acceptance.

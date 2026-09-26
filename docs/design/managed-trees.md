@@ -14,9 +14,10 @@ typeahead now reduces native text input against current Core labels. Per-row
 accessibility selection and expansion setters are implemented. The public Bonsai
 widget now owns preferences, ordered reduction and deferred reveal, with a locally
 tested Eio filesystem example. Opt-in native drag now emits typed move proposals
-with endpoint validation and cancellation. Public approved-move/context-action
-demonstration, visual focus review and full native workload acceptance remain. No tree capability
-is advertised.
+with endpoint validation and cancellation. An editable outline demonstrates
+application approval and context actions through actual AppKit input. Native GPU
+checks cover focus and drop indicators above opaque row content. Full native
+large/deep workload acceptance remains. No tree capability is advertised.
 This document preserves the full live ticket scope; semantic getters alone do not
 establish interactive native widget acceptance.
 
@@ -378,7 +379,7 @@ must map to current collection keys before reaching application callbacks.
 
 Rust uses GPUI's native drag lifecycle and measured destination bounds. The top
 and bottom quarter of a branch propose Before/After; the middle proposes Inside.
-Leaves split into Before/After halves. A labelled preview and target highlight
+Leaves split into Before/After halves. A labelled preview and insertion line/outline
 provide native feedback without per-move OCaml traffic. Only a completed drop
 emits a tree intent. This is a single-row, same-tree, same-window operation; it
 neither exports desktop payloads nor performs a filesystem move.
@@ -404,9 +405,31 @@ command even when native dragging is disabled.
 
 Actual macOS GPUI tests cover all placements, preview cleanup, Escape/policy/
 handler/disabled/inert cancellation, source collapse/deletion and child-editor
-selection/key/IME isolation with moves enabled. Public approved-move example
-integration and broader cross-window/deactivation/traversal workload checks remain;
-these bridge/native tests alone do not close OCH-38.
+selection/key/IME isolation with moves enabled. The public editable outline also
+passes an actual AppKit drag, confirmation, native context-menu command and move
+back through OCaml. Broader cross-window/deactivation/traversal workload checks
+remain; these tests alone do not close OCH-38.
+
+### Native indicators and application approval
+
+The focus outline uses exact native row focus in the active window, separately
+from logical cursor, selection and focus inside an embedded control. Drop feedback
+uses GPUI's accepted hover hitbox: Before/After paint an insertion line and Inside
+paints an outline. Both overlays paint after row content, without changing layout,
+and inherit the current foreground. The high-level tree defaults to the theme's
+foreground token and allows an explicit style override. GPU readback tests verify
+opaque custom content, focus/blur, changed foreground, all placements and hover
+exit/return. No pointer-motion callback or additional OCaml state is needed.
+
+`examples/tree --outline` demonstrates application-owned approval. Its pure
+transformation rechecks `Move.is_current`, requires fully loaded destination
+siblings and publishes a validated replacement while preserving item identity.
+One pending token is consumed before mutation; duplicate or superseded callbacks
+cannot approve a newer move. Each modal is keyed by its token to retire old native
+handlers. The current loader snapshot and widget state are read on confirmation,
+so source reset and ineligible endpoints expire an old approval. This is an
+example policy, not a required confirmation UI or a general filesystem operation.
+The separate Eio filesystem example remains read-only.
 
 ### Unicode typeahead
 

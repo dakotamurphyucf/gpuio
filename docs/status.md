@@ -127,9 +127,12 @@ passes actual directory loading, native focus retention, selection and stale-com
 retirement after reset on macOS. Opt-in native dragging now emits typed move
 proposals through current row identities, with native lifecycle cancellation and
 Core/Bonsai endpoint validation. Local GPUI tests cover all placements, cancellation,
-preview cleanup and embedded-editor isolation. Public approved-move/context-action
-demonstration, visual focus review and full native workload acceptance remain; no tree capability
-is advertised. See the [managed-tree design](design/managed-trees.md).
+preview cleanup and embedded-editor isolation. The public editable outline passes
+actual AppKit drag, confirmation and context-menu moves. Native GPU checks cover
+actual focus/blur and all drop indicators above opaque rows, including changed
+foreground and hover exit. Full native large/deep workload and broader drag
+lifecycle acceptance remain; no tree capability is advertised. See the
+[managed-tree design](design/managed-trees.md).
 
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
 components pass local acceptance; OCH-24 has validated geometry, a bounded scene
