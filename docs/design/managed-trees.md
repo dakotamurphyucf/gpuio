@@ -1,0 +1,190 @@
+# Managed trees (OCH-38)
+
+Status: interface/ownership design in progress. No tree widget, tree wire protocol
+or tree capability is implemented or advertised yet. This document preserves the
+full live ticket scope; model tests alone will not establish native acceptance.
+
+## Existing implementation and adapter choice
+
+The pinned `vendor/gpui-base/src/tree.rs` provides `Tree`, `TreeState`, `TreeItem`
+and uniform-list rendering. It supplies useful keyboard and visual behavior, but
+`set_items` clears index-based selection, expansion mutates shared native item
+state, and rebuilding recursively clones a hierarchy into its visible entries.
+It supports one selected index. Its render callback is synchronous Rust code.
+A direct FFI wrapper would not meet stable application identity, controlled
+expansion or asynchronous row construction. No change to the source pin is needed.
+
+Build the adapter on the existing managed virtual-list layout, keyed row identity,
+viewport requests, native focus pins and bounded Bonsai `Managed_rows.assoc`.
+Use the pinned tree's hierarchy/key behavior as a reference, with GPUIO native
+roles and style tokens. Rust renders already admitted row descriptions; an absent
+row remains a native placeholder until the ordinary asynchronous bridge delivers
+it. No layout callback enters OCaml and no filesystem work runs on the GPUI thread.
+
+## Data, preferences and transient state
+
+The Core collection is a validated immutable **flat keyed forest**. Stable public
+`Tree.Id` values identify nodes; array offsets and native node handles do not.
+Each record contains a label, disabled flag, arbitrary application payload and
+children described as either a leaf or an ordered branch with a paging boundary.
+An empty branch is distinct from a leaf and can start with `More None` for lazy
+children. Roots are a separately ordered list. Payloads never cross the wire.
+
+The constructor and structural updates reject duplicate IDs, missing references,
+multiple parents, roots that are also children, unreachable nodes and cycles.
+Iterative validation enforces a depth bound without recursive traversal of
+untrusted input. A rejected update changes no collection, preference or lease.
+Sibling reorder preserves IDs and payloads; moving a subtree is an explicit
+application update validated against the proposed forest, never a native mutation.
+
+Initial implementation budgets: 100,000 loaded nodes, depth 128 (root depth 1),
+256 UTF-8 bytes per ID, 4,096 UTF-8 bytes per label, and 8 MiB aggregate IDs/labels/
+cursors. Branch cursors are opaque strings bounded to 4,096 bytes. Application
+payload memory is outside these metadata bounds and remains application-owned.
+Native row resources continue to obey the existing tree/session quotas. A tree
+with 100,000 logical items must not create 100,000 retained native row nodes.
+
+Expansion and selection are separate immutable preferences keyed by ID. They
+survive row deactivation and native cache eviction. Removing a subtree prunes
+its selected/expanded IDs; collapsing preserves descendant preferences but moves
+an active descendant focus to the collapsed ancestor. Re-expansion restores the
+preferences, not evicted transient row computation models. Disabled nodes cannot
+be selected/expanded by user requests; explicit application state changes remain
+possible. Leaf nodes cannot be expanded.
+
+Provide Single and Multiple selection policy. Plain activation selects one,
+platform toggle modifier changes one membership, Shift selects the visible range
+from a stable anchor, and the combined modifier extends it. Structural changes
+revalidate the anchor; an absent anchor falls back to the current focused node or
+single target. Hidden selections may remain preferences, but keyboard focus and
+range traversal use the current visible order. Selection and activation are
+separate callbacks so a context action need not open a file.
+
+The intended Core interface separates concepts (signatures are a design draft):
+
+```ocaml
+module Tree : sig
+  module Id : sig
+    type t
+    include Comparator.S with type t := t
+    val of_string : string -> t Or_error.t
+    val to_string : t -> string
+  end
+
+  module Children : sig
+    type t = Leaf | Branch of { ids : Id.t list; next : List_paging.Boundary.t }
+  end
+
+  module Node : sig
+    type 'data t
+    val create
+      : label:string -> ?disabled:bool -> children:Children.t -> 'data
+      -> 'data t Or_error.t
+  end
+
+  type 'data t
+  val create : roots:Id.t list -> (Id.t * 'data Node.t) list -> 'data t Or_error.t
+  val revision : _ t -> int64
+  val find : 'data t -> Id.t -> 'data Node.t option
+  val set_data : 'data t -> id:Id.t -> 'data -> 'data t Or_error.t
+  val replace
+    : 'data t -> roots:Id.t list -> (Id.t * 'data Node.t) list -> 'data t Or_error.t
+end
+```
+
+Structural operations increment a checked revision and invalidate only affected
+parent load generations. Data-only updates preserve visible order and identity;
+they must not flatten the complete forest for each streamed payload fragment.
+The precise preferences/request and incremental splice interfaces will be drafted
+beside their model implementation before adding native tags.
+
+## Keyboard, focus and accessibility
+
+Native Up/Down/Home/End, Left/Right, Space/Enter, modifiers and bounded typeahead
+produce ordered typed intents. Left collapses an expanded branch or moves to its
+parent; Right expands a branch or moves to its first visible child. Application
+reduction uses current stable IDs and validated order. Typeahead searches labels
+in the visible loaded order, wraps once, and uses a bounded native prefix timeout;
+it does not fetch every unloaded subtree or synchronously call OCaml.
+
+Rust keeps native focus/selection paint and applies accepted focus/reveal commands
+through the managed list. Logical focus can target a not-yet-mounted row: reveal
+requests it, and focus waits for that same key/generation to mount. Obsolete
+commands after deletion, collection replacement or window close are discarded.
+A pending target never silently turns into the row now at its old numeric index.
+
+The tree root and row expose Tree/TreeItem semantics, hierarchy level, expanded,
+selected, disabled and loading state, with sibling position/count when known.
+Unknown lazy sibling totals must not be invented. Native accessibility actions
+use the same intents and generational admission as pointer/keyboard input.
+Rows may compose existing context menus and drag/drop descriptions. Child controls
+retain their own key handling; tree traversal must not steal an embedded editor's
+arrows or first IME Escape. Inline rename and editable cells are outside this ticket.
+
+## Lazy children and asynchronous ownership
+
+Reuse OCH-13 paging's explicit `More cursor`/`End`, Ready/Loading/Failed status,
+explicit retry, progress checks and obsolete-completion rules. Implement a single
+scoped tree loader with bounded pending requests and at most four concurrent
+producers; do not create a live pager/fiber for every logical node. A completion
+token carries controller identity, collection generation, parent incarnation and
+request serial. Reusing a deleted public key does not resurrect its old request.
+
+Opening a branch requests its missing child page asynchronously. Loading/error/
+retry are real bounded rows in the visible projection, with synthetic identities
+outside the application ID namespace. Empty pages must reach End or advance the
+cursor. Duplicate/cyclic current responses fail atomically and become retryable;
+obsolete responses are ignored without importing their records into the forest.
+
+Collapse cancels outstanding loads under the collapsed branch by default and
+invalidates queued completions; it preserves already accepted child data. Deletion,
+reset and scope close cancel affected producers and retire their tokens. An
+application can keep a separate data-service scope when it intentionally wants
+background fetches to survive visibility; native row lifetime never chooses that
+policy implicitly. In-flight data requests are independent of transient row scopes.
+
+The filesystem example receives an Eio directory capability. It loads children in
+scoped producers, uses deterministic ordering and explicit failure/retry, and does
+not follow symlink cycles implicitly. Window closure cancels its loader. No host
+filesystem path is treated as a native callback or ambient Rust capability.
+
+## Transport and resource plan
+
+Retain OCH-13's logical order/viewport protocol and per-row admission wherever
+possible. Do not serialize the full hierarchy/payload into every visible row or
+redraw. Row hierarchy/selection semantics need a small validated native extension;
+its exact paired codec is not designed yet. Native key intents may request pure
+OCaml reduction asynchronously, allowing offscreen typeahead/ancestor lookup
+without uploading a duplicate label index. Measure this path's latency under load.
+
+Updates and commands carry checked revision/generation identity. Relative intents
+remain ordered; focus/reveal and drag move intents validate their original target
+against the accepted forest. A drag captures stable source IDs and destination
+relation (before/after/inside), not indices. Collapse/deletion/replacement during
+an active drag cancels invalid targets and never changes hierarchy silently.
+
+Requested/overscanned/pinned rows share `Virtual_list.Config.max_active`; default
+admission will target 256 active rows. Persistent selection does not pin every
+selected row. Focus/composition/active interaction pins are bounded and released
+on teardown. Cached row content must remain bounded across a full traversal and
+revisit, following the existing managed-row reset and `Lifetime.guard` contract.
+No capability bit is added until public and native acceptance pass.
+
+## Required implementation and acceptance sequence
+
+1. Pure collection/preferences and generation-checked load model, with expect
+   tests for malformed forests, 100,000 nodes, maximum depth, reorder, collapse,
+   removal/reuse, selection/range anchors, stale commands and atomic failure.
+2. Core/Bonsai tree projection and Eio loader interfaces over existing managed-row
+   and paging machinery; no new scheduler or source dependency pins.
+3. Native row semantics, tree keyboard/typeahead/focus and move intent adapter;
+   paired fixtures, admission limits and real macOS keyboard/pointer/IME/AX tests.
+4. Public filesystem explorer: Eio capabilities, loading/error/retry, context
+   actions, approved move demonstration and explicit task/row lifetime examples.
+5. Full traversal/revisit, deep branches, collapse/deletion during load/drag,
+   resize/reveal and window-close tests prove bounded metadata/cache/native rows
+   and cancelled timers/producers. Then advertise the family and record evidence.
+
+Consolidated hosted macOS/Linux builds/tests and milestone merge remain required.
+Full Linux GUI validation stays in OCH-17. OCH-46 incorporates the finished tree
+into the polished chat application's project/artifact navigation.
