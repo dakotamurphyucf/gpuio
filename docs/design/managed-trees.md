@@ -18,8 +18,11 @@ with endpoint validation and cancellation. An editable outline demonstrates
 application approval and context actions through actual AppKit input. Native GPU
 checks cover focus and drop indicators above opaque row content. Core/Bonsai and
 native full traversal/revisit now pass at 100,000 rows with depth 128 and bounded
-transient resources. Broader drag and public loading lifecycle acceptance remains.
-No tree capability is advertised.
+transient resources. Native drag source reorder/window isolation and public
+loading/cancellation/close checks pass locally. The managed-tree family advertises
+bit 39 (`549755813888`), for a shared required mask of `1099511627775`. This is
+distinct from the original retained-view-tree bit. Consolidated hosted macOS/Linux
+gates and milestone merge remain required before ticket closure.
 This document preserves the full live ticket scope; semantic getters alone do not
 establish interactive native widget acceptance.
 
@@ -409,8 +412,11 @@ Actual macOS GPUI tests cover all placements, preview cleanup, Escape/policy/
 handler/disabled/inert cancellation, source collapse/deletion and child-editor
 selection/key/IME isolation with moves enabled. The public editable outline also
 passes an actual AppKit drag, confirmation, native context-menu command and move
-back through OCaml. Broader cross-window/deactivation/traversal workload checks
-remain; these tests alone do not close OCH-38.
+back through OCaml. A separate same-session native test preserves source identity
+across sibling reorder, rejects a foreign-window drop, and checks actual OS window
+deactivation plus the production close sequence. Both cancellation paths release
+the preview lease and suppress late-release proposals. Full traversal/revisit
+resource evidence is recorded below; hosted gates and merge still precede closure.
 
 ### Native indicators and application approval
 
@@ -639,7 +645,10 @@ admission will target 256 active rows. Persistent selection does not pin every
 selected row. Focus/composition/active interaction pins are bounded and released
 on teardown. Cached row content must remain bounded across a full traversal and
 revisit, following the existing managed-row reset and `Lifetime.guard` contract.
-No capability bit is added until public and native acceptance pass.
+The managed-tree capability follows local public/native acceptance. A successful
+paint-time focus handoff schedules one deferred redraw so native outline/focus
+events and the new viewport pin are published while OCaml is idle; there is no
+polling task. A regression waits for the pin without forcing another frame.
 
 ### Full traversal and revisit evidence
 

@@ -1,5 +1,31 @@
 # OCH-38 implementation evidence
 
+## Current acceptance map
+
+Local macOS component acceptance is complete; consolidated hosted macOS/Linux
+gates and milestone merge remain before ticket closure. The sections below are
+chronological checkpoints, so their earlier remaining-work lists are historical.
+Managed-tree capability bit 39 is separate from retained-view-tree capability 1.
+
+| Required behavior | Evidence |
+| --- | --- |
+| Pinned upstream adapter evaluation and explicit native ownership | `docs/design/managed-trees.md`; flat OCaml-owned hierarchy, existing native managed rows, no synchronous OCaml paint/layout callbacks |
+| Stable keys, revisions, topology validation and bounded metadata | `test/view_api/tree_test.ml`, `tree_rows_test.ml`: malformed graphs, reorder/incarnation, 100k nodes, depth 128, byte limits and weak payload-release probes |
+| Expansion, single/multiple/range selection, removal repair and typeahead | `tree_state_test.ml`, `tree_interaction_test.ml`, `test/virtual_list/tree_typeahead_test.ml`; actual native key/pointer/AX checks in `tree_view_test.rs` |
+| Lazy pages, failure/retry, reset and stale completions | Core `tree_loading_test.ml`, runtime `tree_loading_test.ml`/`tree_component_test.ml`; bounded workers/queue, collapse/deletion cancellation and public lifecycle workload |
+| Public Bonsai widget, custom rows, commands and source/mount lifetime | `test/virtual_list/tree_widget_test.ml`; filesystem and outline examples plus lifecycle mode |
+| Keyboard/IME/focus/accessibility and theme-aware indicators | Native tree input/AX/GPU suites; child-editor priority, exact setters and deferred-focus regression without forced redraw |
+| Application-approved moves and context actions | Outline pure tests and public AppKit drag/menu script; native placement, source reorder, disabled/hidden/deleted targets, Escape, foreign-window, deactivation and close checks |
+| Full traversal/revisit with bounded models, native rows and caches | Bonsai tree-component test and `tree_history_test.rs`: 100k nodes visited twice, depth 128, 256 active rows, weak model/resource probes and zero remaining text on window close |
+| Native deep reveal, resize, load cancellation, retry and teardown | `examples/tree --lifecycle-self-test`, including row lifecycle counters and window-owned Eio producers |
+| Paired bridge negotiation and encoding | `test/view_api/tree_input_test.ml`, `rust/protocol/tests/tree_input.rs`, independent operation/event fixtures and shared-mask Hello tests |
+
+Actual filesystem I/O is tested through the Eio filesystem example. Actual AppKit
+pointer/menu interaction is tested through the separate outline script. The two
+100k traversal workloads measure Bonsai and native layers separately; neither is
+reported as a single full-size public application traversal. Linux GUI validation
+remains OCH-17, and local macOS results do not substitute for hosted build gates.
+
 ## Core loaded forest — 2026-09-26
 
 Implemented `lib/core/tree.mli` and `tree.ml`, with expect tests in
@@ -961,3 +987,76 @@ Final aggregate `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest
 @fmt` and `git diff --check` pass (`tree-history-dune-final.log`). This slice adds
 validation and test-harness fixes; the production implementation is unchanged
 from the preceding locally validated checkpoint.
+
+## Final tree lifecycle integration and capability (2026-09-26)
+
+The same-session native drag workload now uses separate windows with deliberately
+identical row and handler IDs. Reordering siblings during a held gesture preserves
+its original source row ID; the eventual proposal targets the correct current
+sibling. A release in the foreign window emits no move. Actual platform window
+activation cancels the source gesture and releases its weakly observed preview
+lease. The production close sequence likewise releases the preview; subsequent
+mouse release on a surviving window cannot deliver a stale proposal. All windows
+are closed and the original suite window is restored before the resource workload.
+These checks use GPUI-dispatched input plus actual OS activation, separately from
+the public AppKit outline driver.
+
+The public `--lifecycle-self-test` workload uses the high-level Bonsai tree and a
+loader owned by `App.Window.scope`, created in the component factory before graph
+construction. It passes native focus at depth 128 and observed window resize,
+then starts controllable Eio producers. Collapse cancels the first producer;
+deleting its selected branch cancels the second and repairs selection. Captured
+reveal commands do not survive deletion/reset. A deliberate failure remains failed
+until an explicit retry loads a child. That child receives native focus. Closing
+the window cancels its final producer, clears queued/running work, and deactivates
+all mounted rows. Exactly five producers start and finish; peak concurrency is
+one in this scenario. Earlier runtime tests separately exercise the four-worker
+limit and inbox backpressure.
+
+This public test exposed a real GPUIO focus-observation issue: focus was assigned
+successfully during native paint, but viewport pins had been observed during
+prepaint. GPUI suppresses ordinary refresh while drawing, leaving the client with
+an old empty pin set when no unrelated work followed. Diagnostics confirmed an
+active window and completed native handoff. The adapter now schedules one deferred
+redraw after successful focus assignment. It publishes the focus path, indicator
+and pin without idle polling, a producer, or additional pending target ownership.
+The native regression waits for the resulting viewport event without forcing
+another frame; the public test likewise requires the loaded-child pin before
+issuing subsequent work. Temporary diagnostic tracing is removed.
+
+Local native-image tree checks pass after this fix, including the new autonomous
+pin regression, full drag/AX/IME/GPU suite and 100k traversal/revisit. The public
+lifecycle test passes with:
+
+```
+TREE_LIFECYCLE_PASS depth=128 native_focus=true resize=true collapse_cancel=true deletion_cancel=true selection_repair=true stale_reveal=true explicit_retry=true window_cleanup=true
+```
+
+Managed trees now advertise `CAP_MANAGED_TREES = 1 << 39` (`549755813888`). Both
+bridge halves require aggregate `1099511627775`. Independent OCaml/Rust tests
+assert the tree-only Hello bytes `0001fc0000000080000000`, distinct from the
+original retained-view-tree bit. Existing aggregate handshake expectations advance
+to `0001fcffffffffff000000`. No dependency, GPUI, OCaml or Bonsai pin changes.
+
+Final local checks pass using the isolated repository toolchain and two jobs:
+
+- `cargo test --workspace --locked -j2`, including the new capability fixture.
+- `cargo clippy -p gpuio-native --features native-image-tests --all-targets --locked -j2 -- -D warnings`.
+- `dune build -j2 @all @runtest @fmt` and `git diff --check`.
+- Native tree suite, including the autonomous focus-pin regression, window drag
+  lifecycle and full resource traversal (`tree-lifecycle-native-final.log`).
+- Current public lifecycle, filesystem and outline self-tests, plus the actual
+  AppKit drag/menu script, run serially against the final shared capability mask.
+
+Logs under `scratch/agents/root-20260925-resumed/` are `tree-acceptance-rust.log`,
+`tree-acceptance-clippy.log`, `tree-acceptance-dune.log`,
+`tree-acceptance-lifecycle.log`, `tree-acceptance-filesystem.log`,
+`tree-acceptance-outline.log` and `tree-acceptance-appkit.log`. All processes exited
+and native windows closed. Initial public compilation used OCaml 5's reserved word
+`effect` as a helper name; renaming it fixed that test-only syntax error. The
+focus timeout and production correction are described above. No failed
+expectation was automatically promoted.
+
+The local scope audit at the top of this ledger maps each OCH-38 requirement to
+its evidence. Hosted macOS/Linux gates, milestone merge and final ticket closure
+remain pending; Linux GUI acceptance remains OCH-17.

@@ -202,6 +202,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/tree/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-tree-filesystem-public.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/tree/main.exe", "--lifecycle-self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-tree-lifecycle-public.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/tree/main.exe", "--outline", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-tree-outline-public.log
           python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_tree_outline.py"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-tree-outline-appkit.log
       - name: macOS native interactive hover cards

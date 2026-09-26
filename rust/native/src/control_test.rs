@@ -29,6 +29,8 @@ mod split_test;
 mod toast_test;
 #[path = "tooltip_test.rs"]
 mod tooltip_test;
+#[path = "tree_drag_lifecycle_test.rs"]
+mod tree_drag_lifecycle_test;
 #[path = "tree_focus_test.rs"]
 mod tree_focus_test;
 #[path = "tree_history_test.rs"]
@@ -1841,6 +1843,7 @@ fn run_suite(suite: Suite) {
                         Suite::Trees => {
                             tree_view_test::exercise(cx, handle).await;
                             tree_focus_test::exercise(cx, handle).await;
+                            tree_drag_lifecycle_test::exercise(cx, handle).await;
                             let cached_text = tree_history_test::exercise(cx, handle).await;
                             handle
                                 .update(cx, |_, window, _| window.remove_window())

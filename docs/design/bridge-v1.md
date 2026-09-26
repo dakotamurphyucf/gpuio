@@ -24,6 +24,9 @@ capabilities fail explicitly. Typed assets/documents, static native extensions
 and retained canvas scene registration have separate capability bits. Canvas
 registration alone does not advertise a rendered canvas widget. Extension payloads
 require a registered schema and its bounded package-specific validation.
+Managed trees advertise bit 39 separately from the original retained-view-tree
+bit. Both language halves require the shared mask `1099511627775`; an older host
+fails capability negotiation instead of accepting unsupported tree input/moves.
 Correlated open/close/frame requests are distinct from per-window transactions.
 Acceptance and rendering are distinct events; rendering does not assert physical
 screen presentation. The client submits one transaction per window at a time.

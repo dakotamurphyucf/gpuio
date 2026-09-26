@@ -15,7 +15,13 @@
 
 (executable
  (name main)
- (modules main filesystem filesystem_demo outline_demo support)
+ (modules
+  main
+  filesystem
+  filesystem_demo
+  outline_demo
+  lifecycle_demo
+  support)
  (libraries
   core
   gpuio

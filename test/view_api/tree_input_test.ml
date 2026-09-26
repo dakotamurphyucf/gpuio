@@ -234,3 +234,12 @@ let%expect_test "move fixtures resolve and validate both stable endpoints" =
        : string Tree_input.t option)];
   [%expect {| ((Move (source 42) (destination 43) (placement Inside))) |}]
 ;;
+
+let%expect_test "managed trees have a distinct capability from retained view trees" =
+  let capability = 549755813888L in
+  assert (Int64.equal (Int64.bit_and Wire.capabilities capability) capability);
+  let bytes = Wire.Message.encode (Hello (Wire.version, capability)) |> ok in
+  String.iter bytes ~f:(fun byte -> printf "%02x" (Char.to_int byte));
+  print_endline "";
+  [%expect {| 0001fc0000000080000000 |}]
+;;

@@ -198,6 +198,6 @@ fn navigation_capability_uses_the_shared_64_bit_handshake() {
     assert_eq!(CAPABILITIES & CAP_NAVIGATION_COMPONENTS, 1_i64 << 38);
     let hello = Message::Hello(VERSION, CAPABILITIES);
     let encoded = bytes(&hello);
-    assert_eq!(hex(&encoded), "0001fcffffffff7f000000");
+    assert_eq!(hex(&encoded), "0001fcffffffffff000000");
     assert_eq!(decode(&encoded), Ok(hello));
 }

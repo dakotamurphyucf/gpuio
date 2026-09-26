@@ -95,3 +95,22 @@ It needs macOS Accessibility permission for its launching terminal/agent, activa
 only the child application, checks pointer targets belong to that process and
 always closes/reaps the child. These checks complement the native GPU indicator
 tests; neither is the full large-tree workload acceptance.
+
+## Lifecycle workload
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune exec examples/tree/main.exe -- --lifecycle-self-test
+```
+
+This public-API workload reveals and focuses a node at depth 128, resizes the
+window, then exercises lazy loading with controllable Eio producers. Collapse
+and deletion cancel running work; deleting a selected branch repairs selection.
+A source reset retires captured reveal commands. A failed page stays failed until
+explicit retry, after which the newly loaded child receives native focus without
+an extra application redraw. Closing the window cancels its loader scope and
+deactivates every mounted row. The test uses in-memory data and exits automatically.
+
+Large-tree resource acceptance is separate: the Bonsai expect suite and native
+`native_tree` suite each traverse 100,000 rows twice with a 256-row active limit
+and weak probes for resource release. See the [evidence ledger](../../docs/evidence/managed-trees-och38.md)
+for actual platform coverage and cache accounting.

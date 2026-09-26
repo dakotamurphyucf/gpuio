@@ -840,6 +840,10 @@ impl Element for Frame {
         // Drop the list borrow/subscriptions before focus observers run.
         if let Some(focus) = focus {
             focus.focus(window, cx);
+            // Viewport pins were observed in prepaint, before this handoff.
+            // GPUI suppresses refresh during paint. Publish the new focus path,
+            // outline and pin in one subsequent frame even if OCaml stays idle.
+            window.defer(cx, |window, _| window.refresh());
         }
     }
 }

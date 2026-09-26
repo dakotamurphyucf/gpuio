@@ -194,8 +194,35 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
     );
     mount(cx, handle, 1, false);
     frame(cx, handle).await;
+    let transport = handle
+        .update(cx, |view, _, _| view.transport.clone())
+        .unwrap();
+    // Let any setup frames finish. The following wait never requests a frame:
+    // a successful paint-time focus handoff must publish its pin by itself.
+    cx.background_executor()
+        .timer(std::time::Duration::from_millis(100))
+        .await;
+    transport.mailbox.lock().unwrap().drain(256);
     apply(cx, handle, vec![command(1, ScrollTarget::FocusTreeRow(1))]);
-    frame(cx, handle).await;
+    let mut observed_pin = false;
+    for _ in 0..100 {
+        let events = transport.mailbox.lock().unwrap().drain(256);
+        if events.iter().any(|event| {
+            matches!(event,
+            Event::ListViewport(_, owner, _, _, viewport)
+                if *owner == node(12) && viewport.pinned == vec![1])
+        }) {
+            observed_pin = true;
+            break;
+        }
+        cx.background_executor()
+            .timer(std::time::Duration::from_millis(10))
+            .await;
+    }
+    assert!(
+        observed_pin,
+        "paint-time focus must publish its pin while OCaml is idle"
+    );
     assert_eq!(focused(cx, handle), vec![1]);
     assert_eq!(pending(cx, handle), None);
 
@@ -204,9 +231,6 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
     frame(cx, handle).await;
     assert_eq!(pending(cx, handle), Some(99));
     assert!(focused(cx, handle).is_empty());
-    let transport = handle
-        .update(cx, |view, _, _| view.transport.clone())
-        .unwrap();
     let events = transport.mailbox.lock().unwrap().drain(256);
     assert!(
         events.iter().any(|event| matches!(event,
