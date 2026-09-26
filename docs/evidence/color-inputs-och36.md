@@ -173,3 +173,41 @@ that hosted run remains pending. Checkpoint details also appear in Linear.
 Native text editors, runtime commands, popup/example, actual OS AX/IME input, full
 color lifecycle/workload tests, capability advertisement, required hosted gates
 and merge remain pending. No full OCH-36 or milestone acceptance is claimed.
+
+## Native text editing checkpoint — 2026-09-25
+
+The real-window color suite now passes native Hex/HSLA editing: invalid and valid
+drafts, unsnapped 123.456-degree entry, Enter/Escape/blur behavior, synchronized
+siblings, preserved spelling after commit, selection/history/composition through
+a label change, undo/redo as draft changes, read-only and hidden rejection, and
+full owner plus five-child disposal. Oversized native text is rejected; 80
+maximum-size replacements stay within the 64 KiB field-history budget and Cancel
+clears discarded history. The input fields have visible inherited-color borders
+and focus/error feedback.
+
+On macOS, the suite also invokes the actual NSView `setMarkedText` and `insertText`
+delegates outside the GPUI window update. Marked text preserves the committed
+preview, insertion ends composition and updates it, and Enter commits. These are
+actual AppKit text-input delegate checks, not automated interaction with an IME
+candidate window. Most keyboard/pointer scenarios still use GPUI event dispatch;
+external OS keyboard and complete color AX acceptance remain pending.
+
+A pressure test leaves one queue slot before a required Started/Preview pair. It
+confirms neither event escapes, one overload fault appears and the native input
+becomes noneditable. Native edit-command lookup/availability remembers the exact
+field after focus leaves it. Existing native menu and numeric suites pass after
+shared command-router integration, including real NSMenu activation, context Copy
+restoration, native AppKit numeric AX/IME, repeat/window lifetimes and three
+256-editor workload/disposal cycles.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-image-tests --test native_color_input --test native_menus --test native_number_input
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native --all-targets --features native-image-tests -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all --check
+```
+
+Native all-target Clippy and format checks pass. Light/dark GPU readbacks were
+reviewed for field borders, text legibility and alignment. The pure Core/wire
+contracts are unchanged in this checkpoint. Correlated color commands,
+public controller/popup/example, comprehensive color AX/appearance/lifecycle/
+workload acceptance and required hosted macOS/Linux gates remain pending.

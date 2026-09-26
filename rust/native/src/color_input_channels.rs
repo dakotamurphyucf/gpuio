@@ -354,7 +354,7 @@ impl ColorInput {
                 .top_0()
                 .bottom_0(),
             )
-            .child(self.record(&focus, index as u16, enabled));
+            .child(self.record(&focus, index as u16, enabled, false));
         div()
             .w_full()
             .min_w(px(0.))
@@ -364,9 +364,22 @@ impl ColorInput {
             .child(
                 div()
                     .flex()
+                    .items_center()
                     .justify_between()
-                    .child(label.clone())
-                    .child(format!("{value:.2}")),
+                    .gap(px(8.))
+                    .child(
+                        div()
+                            .min_w(px(0.))
+                            .flex_1()
+                            .text_ellipsis()
+                            .child(label.clone()),
+                    )
+                    .child(
+                        div()
+                            .w(px(96.))
+                            .flex_shrink_0()
+                            .child(self.editor_element(index + 1, window)),
+                    ),
             )
             .child(crate::semantics::State {
                 element: track,

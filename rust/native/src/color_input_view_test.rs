@@ -5,6 +5,8 @@ use super::super::{
     stop_application,
 };
 use super::*;
+#[path = "color_input_editors_test.rs"]
+mod editors_test;
 use crate::session::Session;
 use gpuio_protocol::v1::{
     CAPABILITIES, Color, Event, Field, Fill, Kind, Op, Style, Transaction, VERSION,
@@ -174,6 +176,7 @@ async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Tra
     frame(cx, handle).await;
     capture(cx, handle, "color-channels-dark");
     assert!(events(transport).is_empty());
+    editors_test::exercise(cx, handle, transport).await;
     focus_channel(cx, handle, 0);
     frame(cx, handle).await;
     key(cx, handle, "right");
@@ -370,8 +373,20 @@ async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Tra
             assert!(!v.color_inputs[&node()].focused(w, cx))
         })
         .unwrap();
-    let weak = handle
-        .update(cx, |v, _, _| v.color_inputs[&node()].state.downgrade())
+    let (weak, fields) = handle
+        .update(cx, |v, _, cx| {
+            let input = &v.color_inputs[&node()].state;
+            (
+                input.downgrade(),
+                input
+                    .read(cx)
+                    .editors
+                    .fields
+                    .iter()
+                    .map(|field| field.state.downgrade())
+                    .collect::<Vec<_>>(),
+            )
+        })
         .unwrap();
     apply(cx, handle, vec![Op::SetRoot(None), Op::Remove(node())]);
     frame(cx, handle).await;
@@ -383,6 +398,77 @@ async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Tra
         })
         .unwrap();
     assert!(weak.upgrade().is_none());
+    assert!(fields.iter().all(|field| field.upgrade().is_none()));
+    // A required Started/Preview pair must fault atomically when only one
+    // input slot remains, and native fields must stop accepting further edits.
+    events(transport);
+    let next = NodeId::from_parts(0, 2).unwrap();
+    let next_handler = HandlerId::from_parts(2, 1).unwrap();
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Create(next, Kind::ColorInput, "".into(), Some(next_handler)),
+            Op::SetColorInput(
+                next,
+                Box::new(config()),
+                Value::Color(Rgba::new(0, 255, 0, 255)),
+            ),
+            Op::SetRoot(Some(next)),
+        ],
+    );
+    frame(cx, handle).await;
+    events(transport);
+    let field = handle
+        .update(cx, |v, w, cx| {
+            let input = v.color_inputs[&next].state.read(cx);
+            let observed = input.model.snapshot();
+            let revision = v.session.borrow().tree(v.id).unwrap().revision();
+            for _ in 0..crate::mailbox::MAX_INPUT_EVENTS - 1 {
+                assert!(transport.input(Event::ColorInputEvent(
+                    v.id,
+                    next,
+                    next_handler,
+                    revision,
+                    c::Event::Observed(observed.clone())
+                )));
+            }
+            let field = input.editors.fields[0].state.clone();
+            w.focus(&field.read(cx).focus_handle(cx), cx);
+            field
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    handle
+        .update(cx, |_, w, cx| {
+            field.update(cx, |s, cx| {
+                let length = s.value().encode_utf16().count();
+                s.replace_text_in_range(Some(0..length), "#112233", w, cx);
+            })
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    let drained = transport.mailbox.lock().unwrap().drain(256);
+    assert_eq!(
+        drained
+            .iter()
+            .filter(|e| matches!(e, Event::Overloaded(_)))
+            .count(),
+        1
+    );
+    assert!(!drained.iter().any(|e| matches!(
+        e,
+        Event::ColorInputEvent(_, _, _, _, c::Event::Started(_) | c::Event::Preview(_))
+    )));
+    handle
+        .update(cx, |v, _, cx| {
+            assert!(!v.session.borrow().accepts_input(v.id));
+            assert!(!field.read(cx).is_editable());
+        })
+        .unwrap();
+    eprintln!(
+        "GPUIO_COLOR_PRESSURE_OK: required text pair remains atomic and native fields disable after overload"
+    );
     eprintln!(
         "GPUIO_COLOR_CHANNELS_OK: native keyboard, captured pointer preview/commit/Escape, palette activation, alpha/history/disabled gates and owner disposal"
     );
@@ -405,7 +491,7 @@ pub(crate) fn run() {
         session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
         session
             .borrow_mut()
-            .open(1, id, "GPUIO Color input test", 340., 420.)
+            .open(1, id, "GPUIO Color input test", 340., 560.)
             .unwrap();
         let handle = cx
             .open_window(
@@ -413,7 +499,7 @@ pub(crate) fn run() {
                     inactive_frame_interval: None,
                     window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
                         None,
-                        size(px(340.), px(420.)),
+                        size(px(340.), px(560.)),
                         cx,
                     ))),
                     ..Default::default()

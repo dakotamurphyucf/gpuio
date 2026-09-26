@@ -131,11 +131,18 @@ impl View {
                     .find(|(_, otp)| otp.focus_handle(cx).is_focused(window))
                     .map(|(node, _)| *node)
             })
+            .or_else(|| {
+                self.color_inputs
+                    .iter()
+                    .find(|(_, color)| color.editing(window, cx))
+                    .map(|(node, _)| *node)
+            })
             .or_else(|| self.focus.borrow().last_editor())
             .filter(|node| {
                 (self.editors.contains_key(node)
                     || self.numbers.contains_key(node)
-                    || self.otps.contains_key(node))
+                    || self.otps.contains_key(node)
+                    || self.color_inputs.contains_key(node))
                     && self.focus.borrow().allows(*node)
             })
     }
@@ -158,6 +165,8 @@ impl View {
             otp.command_available(action, cx)
         } else if let Some(number) = self.numbers.get(&editor) {
             number.command_available(action, cx)
+        } else if let Some(color) = self.color_inputs.get(&editor) {
+            color.command_available(action, window, cx)
         } else {
             self.editors[&editor].command_available(action, cx)
         }
@@ -229,7 +238,19 @@ impl View {
                     .get(&editor)
                     .map(|number| number.focus_handle(cx))
                     .or_else(|| self.otps.get(&editor).map(|otp| otp.focus_handle(cx)))
-                    .unwrap_or_else(|| self.editors[&editor].focus_handle(cx));
+                    .or_else(|| {
+                        self.color_inputs
+                            .get(&editor)
+                            .and_then(|color| color.command_focus(window, cx))
+                    })
+                    .or_else(|| {
+                        self.editors
+                            .get(&editor)
+                            .map(|editor| editor.focus_handle(cx))
+                    });
+                let Some(focus) = focus else {
+                    return false;
+                };
                 window.focus(&focus, cx);
                 let action: Box<dyn gpui::Action> = match action {
                     NativeCommand::Copy => Box::new(gpui_base::input::Copy),
@@ -293,11 +314,20 @@ impl View {
             .otps
             .values()
             .find(|otp| otp.focus_handle(cx).is_focused(window));
-        let composing = otp.is_some_and(|otp| otp.is_composing(cx))
+        let color = self
+            .color_inputs
+            .values()
+            .find(|color| color.editing(window, cx));
+        let composing = color.is_some_and(|color| color.is_composing(cx))
+            || otp.is_some_and(|otp| otp.is_composing(cx))
             || number.is_some_and(|number| number.is_composing(cx))
             || editor.is_some_and(|editor| editor.is_composing(cx))
             || palette.is_some_and(|state| state.query.read(cx).bridge_composition().is_some());
-        let editing = editor.is_some() || number.is_some() || palette.is_some() || otp.is_some();
+        let editing = editor.is_some()
+            || number.is_some()
+            || palette.is_some()
+            || otp.is_some()
+            || color.is_some();
         let route = {
             let session = self.session.borrow();
             let Some(tree) = session.tree(self.id) else {

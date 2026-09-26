@@ -14,6 +14,8 @@ use std::sync::Arc;
 
 #[path = "color_input_channels.rs"]
 mod channels;
+#[path = "color_input_editors.rs"]
+mod editors;
 const CHANNELS: [c::Channel; 4] = [
     c::Channel::Hue,
     c::Channel::Saturation,
@@ -93,6 +95,7 @@ struct ColorInput {
     pointer: bool,
     closed: bool,
     metadata: Option<Arc<gpuio_protocol::accessibility::Config>>,
+    editors: editors::Editors,
 }
 impl ColorInput {
     fn access(&self, pointer: bool) -> Access {
@@ -124,16 +127,20 @@ impl ColorInput {
                 if events.is_empty() {
                     return;
                 }
+                self.editor_events(&events);
                 if !self.route.emit(events) {
                     self.model.fault();
                     self.release(window);
                 }
+                self.sync_editors(window, cx);
                 cx.notify();
             }
             Err(c::Error::LimitExceeded | c::Error::NativeFailure) => {
                 self.model.fault();
                 self.release(window);
                 self.route.fault();
+                self.sync_editors(window, cx);
+                cx.notify();
             }
             Err(_) => (),
         }
@@ -162,10 +169,12 @@ impl ColorInput {
             .iter()
             .chain(&self.palette_focus)
             .chain(std::iter::once(&self.clear_focus))
+            .chain(self.editors.fields.iter().map(|editor| &editor.focus))
             .any(|f| f.is_focused(window))
     }
     fn hide(&mut self, reason: c::CancelReason, window: &mut Window, cx: &mut Context<Self>) {
         self.cancel(reason, window, cx);
+        self.sync_editors(window, cx);
         if self.focused(window) {
             window.blur(cx);
         }
@@ -184,7 +193,13 @@ impl ColorInput {
         }
         self.publish(result, window, cx);
     }
-    fn record(&self, focus: &FocusHandle, part: u16, enabled: bool) -> impl IntoElement + use<> {
+    fn record(
+        &self,
+        focus: &FocusHandle,
+        part: u16,
+        enabled: bool,
+        editor: bool,
+    ) -> impl IntoElement + use<> {
         let focus = focus.clone();
         let gate = self.route.gate.clone();
         let node = self.route.node;
@@ -195,13 +210,11 @@ impl ColorInput {
                     && bounds.size.height > px(0.)
                     && bounds.intersects(&window.content_mask().bounds)
                 {
-                    gate.borrow_mut().record_part(
-                        node,
-                        part,
-                        focus.clone(),
-                        enabled,
-                        focus.is_focused(window),
-                    );
+                    let mut gate = gate.borrow_mut();
+                    if editor && focus.is_focused(window) {
+                        gate.remember_editor(node);
+                    }
+                    gate.record_part(node, part, focus.clone(), enabled, focus.is_focused(window));
                 }
             },
         )
@@ -212,6 +225,7 @@ impl ColorInput {
 
 impl Render for ColorInput {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.sync_editors(window, cx);
         let config = self.model.config();
         let snapshot = self.model.snapshot();
         let enabled = !config.disabled && self.access(false) == Access::Allowed;
@@ -248,10 +262,12 @@ impl Render for ColorInput {
                             Value::Color(color) => rgba(color.packed() as u32).into(),
                         }),
                 )
-                .child(match snapshot.value {
-                    Value::Empty => config.labels.clear.clone(),
-                    Value::Color(color) => color.to_hex(),
-                }),
+                .child(
+                    div()
+                        .min_w(px(0.))
+                        .flex_1()
+                        .child(self.editor_element(0, window)),
+                ),
         );
         for (index, channel) in CHANNELS.into_iter().enumerate() {
             root = root.child(self.channel(index, channel, window, cx));
@@ -287,7 +303,12 @@ impl Render for ColorInput {
                 .when(enabled && config.allows(value), |this| {
                     this.track_focus(&focus)
                 })
-                .child(self.record(&focus, 4 + index as u16, enabled && config.allows(value)));
+                .child(self.record(
+                    &focus,
+                    4 + index as u16,
+                    enabled && config.allows(value),
+                    false,
+                ));
             if allowed {
                 swatch = swatch.cursor_pointer().on_click(cx.listener(
                     move |s, event: &ClickEvent, w, cx| {
@@ -331,7 +352,7 @@ impl Render for ColorInput {
                 this.track_focus(&clear_focus)
             })
             .child(config.labels.clear.clone())
-            .child(self.record(&clear_focus, 260, enabled && config.allow_empty));
+            .child(self.record(&clear_focus, 260, enabled && config.allow_empty, false));
         if editable && config.allow_empty {
             clear = clear.on_click(cx.listener(|s, event: &ClickEvent, w, cx| {
                 s.choose(
@@ -369,7 +390,12 @@ pub(super) struct Instance {
     state: Entity<ColorInput>,
 }
 impl Instance {
-    fn new(view: &View, node: &crate::tree::Node, cx: &mut App) -> Result<Self, c::Error> {
+    fn new(
+        view: &View,
+        node: &crate::tree::Node,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Result<Self, c::Error> {
         let mount = node.color_input.as_ref().expect("validated color input");
         let model = State::from_retained(mount.config.clone(), mount.initial)?;
         let route = Route {
@@ -397,7 +423,9 @@ impl Instance {
             pointer: true,
             closed: false,
             metadata: node.accessibility.clone(),
+            editors: editors::Editors::default(),
         });
+        state.update(cx, |s, cx| s.init_editors(window, cx));
         Ok(Self { state })
     }
     pub(super) fn retained(&self, window: &Window, cx: &App) -> bool {
@@ -501,7 +529,7 @@ impl View {
                     cx.notify();
                 });
             } else {
-                match Instance::new(self, &node, cx) {
+                match Instance::new(self, &node, window, cx) {
                     Ok(instance) => {
                         self.color_inputs.insert(node.id, instance);
                     }

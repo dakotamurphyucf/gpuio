@@ -372,6 +372,11 @@ impl Manager {
             .iter()
             .any(|entry| &entry.handle == handle && self.eligible(entry.node))
     }
+    pub(super) fn remember_editor(&mut self, node: NodeId) {
+        if self.eligible(node) {
+            self.last_editor = Some(node);
+        }
+    }
     pub(super) fn last_editor(&self) -> Option<NodeId> {
         self.last_editor.filter(|node| self.eligible(*node))
     }

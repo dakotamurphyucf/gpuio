@@ -58,8 +58,8 @@ Snapshots expose the current and committed concrete values, unquantized editing
 channels, optional interaction/draft, and value-validity flags. Expert imports
 validate before constructing public snapshots. Their window/node identities stay
 separate from revisions and interaction IDs. `View.color_input` describes a retained native leaf with a stable controller key,
-a configuration, an initial seed and typed observations. Native rendering and the
-Bonsai/Eio runtime controller are still being integrated.
+a configuration, an initial seed and typed observations. Native channels, palette and text fields are mounted; correlated commands and
+the Bonsai/Eio runtime controller are still being integrated.
 
 `Color_input_wire` and Rust's bounded `decode_color_*` functions encode the same
 ordered contracts. Concrete RGBA is a nonnegative bin_prot int64 in
@@ -169,7 +169,8 @@ Base ColorSwatch provides controlled radio/toggled presentation, but owns a
 private keyed focus handle. GPUIO uses the corresponding GPUI radio/toggled
 primitives with explicit retained handles so palette parts join its modal and
 managed-list focus registry. Mounted channel/palette keyboard and pointer checks
-now pass; full OS accessibility and text-editor acceptance remain pending.
+now pass. Native text editing and AppKit marked-text/insertion checks also pass;
+full OS accessibility and color-control acceptance remain pending.
 
 The planned owner retains native channel editors/sliders, hue memory, draft,
 baseline and revision. Preserve editing hue when a gesture becomes achromatic;
@@ -179,7 +180,8 @@ may coalesce within an interaction; commits/cancellations remain discrete
 ordering boundaries. Cancel restores the complete baseline, and Set/Reset fences
 late callbacks from the old interaction. Existing editor, focus, overlay and
 ownership adapters should be reused. The native adapter now renders channels
-and palette/clear controls directly from that owner. Text editors and public runtime controllers are next.
+and palette/clear controls directly from that owner. Native text editors now
+share its draft/commit state; public runtime controllers are next.
 
 Mounted lifecycle behavior and public runtime controllers remain to be
 implemented and validated. An eyedropper remains capability-specific
@@ -235,6 +237,42 @@ listed in the evidence ledger are currently validated. Native form metadata is
 admitted without overriding the control's role/actions. Internal focus-part IDs
 are u16, allowing all 256 palette entries plus other controls without aliasing.
 
-The initial mounted test covers channels and palette. Hex/channel text editing,
-correlated runtime commands, popup composition, public example, comprehensive
-AX/IME/lifecycle/workload validation and capability advertisement remain pending.
+The mounted test covers channels, palette and native text editing, including
+AppKit marked-text/insertion delegates. Correlated runtime commands, popup
+composition, public example, comprehensive AX/lifecycle/workload validation and
+capability advertisement remain pending.
+
+## Retained text editing
+
+Five native `InputState` entities edit Hex and the four channels. Each holds at
+most 4,096 draft bytes and 64 KiB of undo history (320 KiB total history budget per
+color owner). Labels are configurable; built-in validation feedback currently
+uses English defaults, consistent with numeric inputs. Channel formatting uses
+a round-tripping numeric representation rather than rounding editable values to
+two decimals. Theme foregrounds drive field borders and focus feedback.
+
+The first actual text change starts a color interaction. Valid noncomposing edits
+update the color and other fields immediately. Invalid/incomplete/out-of-range
+drafts remain visible without replacing the last valid preview. Composition
+preserves the previous preview until the native platform completes it. Enter
+commits only a valid, noncomposing draft; Escape restores the complete committed
+color. Leaving a field commits a valid draft or cancels an invalid/composing one.
+An empty text draft never invokes Clear.
+
+A successful text commit preserves that field's spelling, selection and history.
+Cancellation restores canonical text and clears discarded draft history. Sibling
+fields update from the native color owner; replacements of their text retire
+obsolete history. Label-only configuration updates preserve the active field's
+raw text, selection, composition and undo storage. Disabled/hidden/read-only
+policies cancel active editing and prevent subsequent native edits.
+
+Observers copy the native text/composition stamp before synchronizing siblings.
+Programmatic synchronization records the resulting stamp so delayed notifications
+cannot be mistaken for new user input. Callbacks retain weak owner references;
+removal releases the color owner and all five input entities. Required event
+batches remain atomic; output failure faults the window and disables the fields.
+
+Native edit-command routing recognizes the focused field, retains the last field
+for toolbar/menu focus restoration, and respects composition and input gates.
+This is separate from the forthcoming correlated color Set/Reset/Focus commands
+and public Bonsai/Eio controller.
