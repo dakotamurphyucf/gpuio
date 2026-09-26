@@ -545,7 +545,26 @@ impl TooltipConfig {
 pub enum OverlayKind {
     Dialog,
     Popover,
+    SheetLeft,
+    SheetRight,
+    SheetTop,
+    SheetBottom,
+    AlertDialog,
 }
+impl OverlayKind {
+    pub fn is_modal(self) -> bool {
+        match self {
+            Self::Dialog
+            | Self::SheetLeft
+            | Self::SheetRight
+            | Self::SheetTop
+            | Self::SheetBottom
+            | Self::AlertDialog => true,
+            Self::Popover => false,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Dismissal {
     Escape,
@@ -566,6 +585,7 @@ impl OverlayConfig {
             && !self.label.contains('\0')
             && self.width.is_finite()
             && (1.0..=16384.0).contains(&self.width)
+            && (self.kind != OverlayKind::AlertDialog || !self.dismiss_on_outside_pointer)
     }
     pub fn allows(&self, reason: Dismissal) -> bool {
         match reason {

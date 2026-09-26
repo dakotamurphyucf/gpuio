@@ -927,7 +927,12 @@ impl View {
                     .map(|(state, _)| state.borrow().styles.clone())
             })
             .unwrap_or_else(|| node.style.clone());
-        let (styled, states) = apply_styles(element, &styles, interaction, disabled);
+        let (styled, mut states) = apply_styles(element, &styles, interaction, disabled);
+        if let Some(config) = &node.overlay {
+            for state in states.iter_mut().flatten() {
+                overlay::constrain_state_style(config.kind, state);
+            }
+        }
         element = styled;
         let [
             focused,

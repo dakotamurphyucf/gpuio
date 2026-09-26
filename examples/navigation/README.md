@@ -11,7 +11,7 @@ Page buttons send `Pagination.Request` values to a Bonsai state machine, which
 reduces each against the latest model. The buttons do not own another selection.
 Localized labels, ordinary native keyboard/AX actions and current-page descriptions
 are supplied through `Navigation`. The two breadcrumb ancestors both return to the
-archive's first page; full navigation-stack transitions are still being implemented.
+archive's first page; the separate route card demonstrates native stack transitions.
 
 The draft's Bonsai computation stays active when its native panel is hidden with
 `Content_policy.Retain`. The separate lazy switch changes a Bonsai branch and its
@@ -26,7 +26,7 @@ completes data work while content is hidden, and verifies scoped shutdown. It
 closes the window on completion or a reported failure. Native tests separately
 cover actual Tab/Enter/AX activation and AppKit description readback.
 
-This example covers the implemented navigation/disclosure subset. Mounted navigation transitions, overlay variants and carousel remain part of OCH-37;
+This example covers implemented navigation/disclosure and modal overlay adapters. Hover cards, carousel and broader acceptance remain part of OCH-37;
 Linux GUI validation remains OCH-17.
 
 The lab also includes the initial `Sidebar` composition: grouped nested links,
@@ -69,3 +69,18 @@ snapshots and rejection of focus commands to the inactive route. Native tests
 separately exercise GPU exit pixels, actual keyboard/AX behavior, disabled focus
 fallback, Unmount and disposal. This example is an implementation lab, not complete
 OCH-37 acceptance or the final chat showcase.
+
+## Drawers and confirmations
+
+The four drawer buttons open `Gpuio_bonsai.View.sheet` at each window edge. Native
+layout clamps the configured extent and keeps focus inside until the app accepts
+closure. Escape/backdrop requests close this example's drawer. The **Close with
+confirmation** button opens a nested `View.alert_dialog`; **Keep open** is the
+first eligible control and receives focus. Clicking its backdrop does nothing.
+Escape or **Keep open** returns to the drawer; **Close details** removes both.
+
+The self-test drives this flow through the public Bonsai reducer and verifies
+that background editor focus is blocked and its draft survives. Actual native
+keyboard/pointer, placement, resize, AX and dismissal routing are checked separately
+by `native_controls`. These surfaces unmount on close; their application state and
+Eio tasks are not implicitly cancelled by native visibility.

@@ -12,6 +12,13 @@ let px = Length.px_exn
 let style = Style.create_exn
 let full = Length.percent_exn 100.
 
+module Modal = struct
+  type t =
+    | Closed
+    | Drawer of Sheet.Edge.t
+    | Confirmation of Sheet.Edge.t
+end
+
 module Action = struct
   type t =
     | Page of Pagination.Request.t
@@ -25,6 +32,10 @@ module Action = struct
     | Route_back
     | Route_forward
     | Route_replace
+    | Open_drawer of Sheet.Edge.t
+    | Close_drawer
+    | Confirm_drawer_close
+    | Cancel_drawer_close
 end
 
 module Model = struct
@@ -34,6 +45,7 @@ module Model = struct
     ; lazy_content : bool
     ; sidebar : Sidebar.t
     ; inspected : bool
+    ; modal : Modal.t
     ; routes : string Navigation_stack.t
     }
 
@@ -72,6 +84,7 @@ module Model = struct
     ; details = true
     ; lazy_content = true
     ; sidebar
+    ; modal = Closed
     ; inspected = false
     ; routes =
         Navigation_stack.create
@@ -98,6 +111,16 @@ module Model = struct
     | Inspect_sidebar -> { t with inspected = true }
     | Route_back -> { t with routes = Navigation_stack.pop t.routes }
     | Route_forward -> { t with routes = Navigation_stack.forward t.routes }
+    | Open_drawer edge -> { t with modal = Drawer edge }
+    | Close_drawer -> { t with modal = Closed }
+    | Confirm_drawer_close ->
+      (match t.modal with
+       | Closed | Confirmation _ -> t
+       | Drawer edge -> { t with modal = Confirmation edge })
+    | Cancel_drawer_close ->
+      (match t.modal with
+       | Closed | Drawer _ -> t
+       | Confirmation edge -> { t with modal = Drawer edge })
     | Route_replace ->
       let entry =
         Navigation_stack.Entry.create
@@ -266,6 +289,64 @@ let component
     |> Option.bind ~f:(Sidebar.find model.sidebar)
     |> Option.value_map ~default:"None" ~f:Sidebar.Item.label
   in
+  let drawer =
+    let edge, content =
+      match model.modal with
+      | Modal.Closed -> Sheet.Edge.Right, None
+      | Drawer edge | Confirmation edge ->
+        let confirming =
+          match model.modal with
+          | Confirmation _ -> true
+          | Closed | Drawer _ -> false
+        in
+        ( edge
+        , Some
+            (UI.column
+               ~style:(style [ Gap (px 16.) ])
+               [ UI.text
+                   ~style:(style [ Font_size 22.; Font_weight 700 ])
+                   "Workspace details"
+               ; UI.text
+                   "This drawer stays modal until an accepted application update closes \
+                    it."
+               ; UI.button
+                   ~on_click:(inject Confirm_drawer_close)
+                   "Close with confirmation"
+               ; UI.button ~on_click:(inject Close_drawer) "Done"
+               ; UI.alert_dialog
+                   ~key:(Key.of_string_exn "drawer-confirmation")
+                   ~config:
+                     (Alert_dialog.Config.create ~label:"Close workspace details?" ()
+                      |> ok)
+                   ~on_dismiss:(fun _ -> inject Cancel_drawer_close)
+                   (if confirming
+                    then
+                      Some
+                        (UI.column
+                           ~style:(style [ Gap (px 14.) ])
+                           [ UI.text
+                               ~style:(style [ Font_size 20.; Font_weight 600 ])
+                               "Close workspace details?"
+                           ; UI.text
+                               "Backdrop clicks leave this confirmation open. Escape \
+                                returns to the drawer."
+                           ; UI.row
+                               ~style:(style [ Gap (px 10.) ])
+                               [ UI.button
+                                   ~on_click:(inject Cancel_drawer_close)
+                                   "Keep open"
+                               ; UI.button ~on_click:(inject Close_drawer) "Close details"
+                               ]
+                           ])
+                    else None)
+               ]) )
+    in
+    UI.sheet
+      ~key:(Key.of_string_exn "workspace-drawer")
+      ~config:(Sheet.Config.create ~label:"Workspace details" ~edge ~extent:360. () |> ok)
+      ~on_dismiss:(fun _ -> inject Close_drawer)
+      content
+  in
   let content =
     UI.column
       ~style:
@@ -309,6 +390,12 @@ let component
       ; UI.text
           ~style:(style [ Font_size 30.; Font_weight 700 ])
           "A place for every detail."
+      ; UI.row
+          ~style:(style [ Gap (px 8.); Wrap Wrap ])
+          (List.map
+             [ Sheet.Edge.Left, "Left"; Right, "Right"; Top, "Top"; Bottom, "Bottom" ]
+             ~f:(fun (edge, label) ->
+               UI.button ~on_click:(inject (Open_drawer edge)) (label ^ " drawer")))
       ; Navigation.breadcrumbs
           crumbs
           ~label:"Archive path"
@@ -419,6 +506,7 @@ let component
         (match sidebar_side with
          | Sidebar.Side.Left -> [ sidebar; content ]
          | Right -> [ content; sidebar ])
+    ; drawer
     ]
 ;;
 
@@ -534,6 +622,28 @@ let () =
                    | Error error -> raise_s [%sexp (error : Text_input.Command_error.t)]);
                   let before = read () in
                   let route_before = route_read () in
+                  send (Open_drawer Right);
+                  await (fun () ->
+                    match (model ()).modal with
+                    | Drawer _ -> true
+                    | Closed | Confirmation _ -> false);
+                  assert (Result.is_error (on_ui (Input.focus (latest ()).editor)));
+                  send Confirm_drawer_close;
+                  await (fun () ->
+                    match (model ()).modal with
+                    | Confirmation _ -> true
+                    | Closed | Drawer _ -> false);
+                  send Cancel_drawer_close;
+                  await (fun () ->
+                    match (model ()).modal with
+                    | Drawer _ -> true
+                    | Closed | Confirmation _ -> false);
+                  send Close_drawer;
+                  await (fun () ->
+                    match (model ()).modal with
+                    | Closed -> true
+                    | Drawer _ | Confirmation _ -> false);
+                  assert (Text_input.Snapshot.equal before (read ()));
                   send Route_forward;
                   await (fun () -> Navigation_stack.can_pop (model ()).routes);
                   assert (Text_input.Snapshot.equal route_before (route_read ()));

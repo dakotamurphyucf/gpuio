@@ -401,3 +401,44 @@ hidden tooltip retains its anchor layout/owner with no hover listeners or active
 surface; its native synchronization cancels pending timers. Hidden overlays skip
 deferred rendering, and parent containers only capture active popover anchors.
 This preserves retained ownership while keeping hidden popup content inactive.
+
+## Sheets and alert dialogs
+
+`Sheet.Config` separates `Edge.Left | Right | Top | Bottom` from a validated
+`extent` in logical pixels. The default is a right drawer of 360 pixels; extent
+is finite in 1..16384. Native layout clamps it to the viewport and fills the
+other axis. Panel dimensions, min/max dimensions, margins, offsets and positioning
+cannot detach a sheet from its edge, including hover/focus style refinements.
+Ordinary colors, borders, padding and content layout remain application styles.
+The default panel scrolls vertically when content exceeds its bounds.
+
+`View.sheet` uses the existing modal focus scope and restoration policy. Escape
+and outside-pointer dismissal default to enabled and can be configured separately.
+Changing edge/extent with the same key keeps the scope and native children alive.
+A dismissal is an asynchronous request; until the application submits an accepted
+close, the trap and backdrop remain active. Nested popups keep existing hit-surface
+registration and innermost Escape handling.
+
+`Alert_dialog.Config` exposes label, width (default 480) and Escape policy. Outside
+pointer dismissal is deliberately unavailable, and native admission rejects wire
+configurations that enable it. `View.alert_dialog` uses the AlertDialog accessibility
+role, the existing modal host and the same application-controlled close contract.
+It enters the first eligible control. Put a safe/cancel action first in content
+order for destructive confirmation. Confirmation is an ordinary explicit button
+action; the panel has no implicit Enter-to-confirm behavior. Escape never confirms.
+
+Both constructors accept optional content: `None` immediately unmounts native
+resources, while OCaml models and Eio tasks follow their own declared lifetimes.
+No exit animation retains removed content; neither adapter allocates a new timer,
+queue, focus manager or native application callback. Retained hidden ancestors use
+the existing focus/visibility gate, which omits deferred surfaces while hidden.
+
+The existing overlay wire layout is unchanged. Appended kind tags are SheetLeft=2,
+SheetRight=3, SheetTop=4, SheetBottom=5 and AlertDialog=6; Dialog=0 and Popover=1 are
+unchanged. The existing internal `width` scalar carries sheet extent. Public OCaml
+APIs use the accurate `extent` name. Every modal kind requires a trapped focus
+scope at native admission. Existing window/node/editor quotas still apply.
+
+The public Navigation Lab demonstrates four drawer edges and nested safe-first
+confirmation. Local native and public evidence belongs in the OCH-37 evidence
+ledger; these adapters do not complete hover cards, carousel or the full ticket.

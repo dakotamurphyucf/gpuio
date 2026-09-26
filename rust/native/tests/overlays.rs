@@ -153,3 +153,86 @@ fn overlay_validation_dismissal_policy_and_lifetime_are_atomic() {
         .unwrap();
     assert_eq!(session.retained_bytes(), 0);
 }
+
+#[test]
+fn supplementary_modals_require_traps_and_alerts_reject_outside_dismissal() {
+    use gpuio_native::tree::Tree;
+    for kind in [
+        OverlayKind::SheetLeft,
+        OverlayKind::SheetRight,
+        OverlayKind::SheetTop,
+        OverlayKind::SheetBottom,
+        OverlayKind::AlertDialog,
+    ] {
+        let window = WindowId::from_parts(0, 1).unwrap();
+        let node = NodeId::from_parts(0, 1).unwrap();
+        let mut tree = Tree::new(window);
+        let config = OverlayConfig {
+            kind,
+            label: "Modal".into(),
+            width: 220.,
+            dismiss_on_escape: true,
+            dismiss_on_outside_pointer: false,
+        };
+        let scope = FocusScopeConfig {
+            trap: true,
+            auto_focus: true,
+            restore_focus: true,
+        };
+        let tx = |base, operations| Transaction {
+            window,
+            base,
+            revision: base + 1,
+            operations,
+        };
+        tree.apply(&tx(
+            0,
+            vec![
+                Op::Create(
+                    node,
+                    Kind::FocusScope,
+                    "".into(),
+                    Some(HandlerId::from_parts(0, 1).unwrap()),
+                ),
+                Op::SetFocusScope(node, scope),
+                Op::SetOverlay(node, Some(config.clone())),
+                Op::SetRoot(Some(node)),
+            ],
+        ))
+        .unwrap();
+        let retained = tree.retained_bytes();
+        assert_eq!(
+            tree.apply(&tx(
+                1,
+                vec![Op::SetFocusScope(
+                    node,
+                    FocusScopeConfig {
+                        trap: false,
+                        ..scope
+                    }
+                )]
+            )),
+            Err(ErrorCode::InvalidTree)
+        );
+        if kind == OverlayKind::AlertDialog {
+            assert_eq!(
+                tree.apply(&tx(
+                    1,
+                    vec![Op::SetOverlay(
+                        node,
+                        Some(OverlayConfig {
+                            dismiss_on_outside_pointer: true,
+                            ..config
+                        })
+                    )]
+                )),
+                Err(ErrorCode::InvalidTree)
+            );
+        }
+        assert_eq!(tree.revision(), 1);
+        assert_eq!(tree.retained_bytes(), retained);
+        tree.apply(&tx(1, vec![Op::SetRoot(None), Op::Remove(node)]))
+            .unwrap();
+        assert_eq!(tree.retained_bytes(), 0);
+    }
+}

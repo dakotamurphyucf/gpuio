@@ -27,6 +27,28 @@ fn dismiss(route: &Route, reason: Dismissal) {
     }
 }
 
+/// Dynamic hover/focus refinements run after the panel builder. Sheets own
+/// geometry in those states too; visual/content styling remains unrestricted.
+pub(super) fn constrain_state_style(kind: OverlayKind, style: &mut gpui::StyleRefinement) {
+    match kind {
+        OverlayKind::SheetLeft
+        | OverlayKind::SheetRight
+        | OverlayKind::SheetTop
+        | OverlayKind::SheetBottom => {
+            style.size = Default::default();
+            style.min_size = Default::default();
+            style.max_size = Default::default();
+            style.margin = Default::default();
+            style.inset = Default::default();
+            style.position = None;
+            style.flex_grow = None;
+            style.flex_shrink = None;
+            style.flex_basis = None;
+        }
+        OverlayKind::Dialog | OverlayKind::Popover | OverlayKind::AlertDialog => {}
+    }
+}
+
 pub(super) fn element(
     mut panel: Stateful<Div>,
     config: Arc<OverlayConfig>,
@@ -41,14 +63,45 @@ pub(super) fn element(
         return div().into_any_element();
     }
     let priority = route.gate.borrow().layer(route.node);
-    let modal = config.kind == OverlayKind::Dialog;
+    let modal = config.kind.is_modal();
+    let viewport = window.viewport_size();
+    // Edge-attached sheets own geometry; arbitrary panel dimensions cannot move
+    // their trap offscreen or leave a gap along the attached edge.
+    let sheet_size = match config.kind {
+        OverlayKind::SheetLeft | OverlayKind::SheetRight => Some(gpui::size(
+            px(config.width as f32).min(viewport.width),
+            viewport.height,
+        )),
+        OverlayKind::SheetTop | OverlayKind::SheetBottom => Some(gpui::size(
+            viewport.width,
+            px(config.width as f32).min(viewport.height),
+        )),
+        OverlayKind::Dialog | OverlayKind::Popover | OverlayKind::AlertDialog => None,
+    };
+    if let Some(size) = sheet_size {
+        panel = panel
+            .w(size.width)
+            .h(size.height)
+            .min_w(size.width)
+            .max_w(size.width)
+            .min_h(size.height)
+            .max_h(size.height)
+            .m_0()
+            .relative()
+            .flex_shrink_0();
+        panel.style().inset = Default::default();
+    }
     let key = route.clone();
     let action = route.clone();
     let outside = route.clone();
     let escape = config.dismiss_on_escape;
     // These are bubbling listeners: child native widgets consume their own Escape.
     panel = panel
-        .role(gpui::Role::Dialog)
+        .role(if config.kind == OverlayKind::AlertDialog {
+            gpui::Role::AlertDialog
+        } else {
+            gpui::Role::Dialog
+        })
         .aria_label(config.label.clone())
         .occlude()
         .on_key_down(move |event, _, cx| {
@@ -98,14 +151,20 @@ pub(super) fn element(
     }
     .into_any_element();
     if modal {
-        let viewport = window.viewport_size();
         let backdrop = div()
             .w(viewport.width)
             .h(viewport.height)
             .flex()
-            .items_center()
-            .justify_center()
-            .p(px(16.))
+            .map(|backdrop| match config.kind {
+                OverlayKind::SheetLeft => backdrop.items_start().justify_start(),
+                OverlayKind::SheetRight => backdrop.items_start().justify_end(),
+                OverlayKind::SheetTop => backdrop.items_start().justify_start(),
+                OverlayKind::SheetBottom => backdrop.items_end().justify_start(),
+                OverlayKind::Dialog | OverlayKind::AlertDialog => {
+                    backdrop.items_center().justify_center().p(px(16.))
+                }
+                OverlayKind::Popover => unreachable!("nonmodal surface"),
+            })
             .bg(rgba(0x00000080))
             .occlude()
             .on_any_mouse_down(|_, window, cx| {

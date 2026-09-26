@@ -817,6 +817,11 @@ impl Decoder<'_> {
             kind: match self.tag()? {
                 0 => OverlayKind::Dialog,
                 1 => OverlayKind::Popover,
+                2 => OverlayKind::SheetLeft,
+                3 => OverlayKind::SheetRight,
+                4 => OverlayKind::SheetTop,
+                5 => OverlayKind::SheetBottom,
+                6 => OverlayKind::AlertDialog,
                 _ => return Err(DecodeError::Malformed),
             },
             label: self.text()?,

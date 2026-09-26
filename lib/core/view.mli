@@ -162,6 +162,30 @@ val dialog
   -> 'action t option
   -> 'action t
 
+(** A modal edge-attached drawer, sharing dialog focus/restoration and dismissal
+    ordering. [None] unmounts native content immediately; application models and
+    Eio task lifetimes remain the caller's responsibility. No close animation
+    retains removed resources. *)
+val sheet
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Sheet.Config.t
+  -> on_dismiss:(Overlay.Dismissal.t -> 'action)
+  -> 'action t option
+  -> 'action t
+
+(** An alert dialog enters its first eligible control. Put the safe/cancel action
+    first in content order, especially for destructive confirmation. Confirmation
+    uses ordinary buttons; Enter never implicitly confirms on the panel itself.
+    [None] closes and unmounts. Backdrop clicks are ignored. *)
+val alert_dialog
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Alert_dialog.Config.t
+  -> on_dismiss:(Overlay.Dismissal.t -> 'action)
+  -> 'action t option
+  -> 'action t
+
 (** The anchor remains mounted when closed. Content is positioned against its
     current frame's bounds, enters focus without trapping, and restores on close. *)
 val popover

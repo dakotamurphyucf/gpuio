@@ -151,3 +151,120 @@ let%expect_test "overlay request and dismissal agree with independent Rust fixtu
     assert (List.equal Wire.Event.equal events (Wire.Event.decode bytes |> Or_error.ok_exn)));
   [%expect {| |}]
 ;;
+
+let%expect_test "sheet and alert configuration validation and independent wire tags" =
+  List.iter [ Float.nan; Float.infinity; 0.; 16385. ] ~f:(fun extent ->
+    assert (Result.is_error (Sheet.Config.create ~label:"Overlay" ~extent ())));
+  List.iter
+    [ ""; "\255"; "a\000b"; String.make 4097 'a' ]
+    ~f:(fun label ->
+      assert (Result.is_error (Sheet.Config.create ~label ()));
+      assert (Result.is_error (Alert_dialog.Config.create ~label ())));
+  let sheets =
+    List.map [ Sheet.Edge.Left; Right; Top; Bottom ] ~f:(fun edge ->
+      let config =
+        Sheet.Config.create
+          ~label:"Overlay"
+          ~edge
+          ~extent:220.
+          ~dismiss_on_outside_pointer:false
+          ()
+        |> Or_error.ok_exn
+      in
+      Overlay.Expert.to_wire
+        (Sheet.Expert.overlay config)
+        ~kind:(Sheet.Expert.kind config))
+  in
+  let alert =
+    Alert_dialog.Config.create ~label:"Overlay" ~width:220. () |> Or_error.ok_exn
+  in
+  let configs =
+    sheets
+    @ [ Overlay.Expert.to_wire (Alert_dialog.Expert.overlay alert) ~kind:Alert_dialog ]
+  in
+  let node = Node_id.create ~slot:0L ~generation:1L |> Or_error.ok_exn in
+  let request =
+    Wire.Message.Apply
+      { window
+      ; base = 0L
+      ; revision = 1L
+      ; operations =
+          List.map configs ~f:(fun config -> Wire.Op.Set_overlay (node, Some config))
+      }
+  in
+  Eio_main.run (fun env ->
+    let hex =
+      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "overlay-kinds-request.hex")
+      |> String.strip
+    in
+    let bytes =
+      String.init
+        (String.length hex / 2)
+        ~f:(fun i ->
+          Char.of_int_exn (Int.of_string ("0x" ^ String.sub hex ~pos:(i * 2) ~len:2)))
+    in
+    assert (String.equal bytes (Wire.Message.encode request |> Or_error.ok_exn)));
+  print_s
+    [%sexp
+      (List.map configs ~f:(fun c -> c.kind, c.dismiss_on_outside_pointer)
+       : (Wire.Overlay_kind.t * bool) list)];
+  [%expect
+    {|
+    ((Sheet_left false) (Sheet_right false) (Sheet_top false)
+     (Sheet_bottom false) (Alert_dialog false))
+    |}]
+;;
+
+let%expect_test "sheet geometry updates retain identity; alert rejects outside requests" =
+  let reconciler = Reconciler.create window in
+  let commit view =
+    let update =
+      Reconciler.prepare reconciler ~theme:Theme.default (Some view) |> Or_error.ok_exn
+    in
+    Reconciler.accept reconciler update |> Or_error.ok_exn;
+    match Reconciler.message update with
+    | Some (Wire.Message.Apply tx) -> tx.operations
+    | _ -> []
+  in
+  let sheet edge =
+    View.sheet
+      ~config:(Sheet.Config.create ~label:"Settings" ~edge () |> Or_error.ok_exn)
+      ~on_dismiss:(fun _ -> "sheet-close")
+      (Some (View.button ~on_click:(fun () -> "action") "Action"))
+  in
+  let first = commit (sheet Left) in
+  let node, handler =
+    List.find_map_exn first ~f:(function
+      | Wire.Op.Create (node, Focus_scope, _, Some handler) -> Some (node, handler)
+      | _ -> None)
+  in
+  let changed = commit (sheet Right) in
+  assert (
+    not
+      (List.exists changed ~f:(function
+         | Wire.Op.Create _ | Remove _ -> true
+         | _ -> false)));
+  let alert content =
+    View.alert_dialog
+      ~config:(Alert_dialog.Config.create ~label:"Confirm" () |> Or_error.ok_exn)
+      ~on_dismiss:(fun _ -> "cancel")
+      content
+  in
+  ignore
+    (commit (alert (Some (View.button ~on_click:(fun () -> "cancel") "Cancel")))
+     : Wire.Op.t list);
+  let dispatch reason =
+    Reconciler.dispatch
+      reconciler
+      (Wire.Event.Overlay_dismissed (window, node, handler, 3L, reason))
+  in
+  print_s
+    [%sexp (dispatch Outside_pointer : string option), (dispatch Escape : string option)];
+  ignore (commit (alert None) : Wire.Op.t list);
+  print_s [%sexp (dispatch Escape : string option)];
+  [%expect
+    {|
+    (() (cancel))
+    ()
+    |}]
+;;

@@ -825,7 +825,7 @@ impl Tree {
                     && (node.kind != Kind::FocusScope
                         || !config.is_valid()
                         || node.handler.is_none()
-                        || (config.kind == OverlayKind::Dialog
+                        || (config.kind.is_modal()
                             && !node.focus_scope.is_some_and(|scope| scope.trap))
                         || (config.kind == OverlayKind::Popover && Some(node.id) == plan.root))
                 {

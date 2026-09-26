@@ -77,6 +77,7 @@
    combobox-v1-events.hex
    focus-v1-request.hex
    focus-v1-events.hex
+   overlay-kinds-request.hex
    overlay-v1-request.hex
    overlay-v1-events.hex
    file-dialog-v1-requests.hex
@@ -242,3 +243,5 @@
 (copy_files ../fixtures/navigation-stack-config.hex)
 
 (copy_files ../fixtures/navigation-stack-request.hex)
+
+(copy_files ../fixtures/overlay-kinds-request.hex)

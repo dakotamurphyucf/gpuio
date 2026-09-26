@@ -728,7 +728,7 @@ let overlay_style style =
     ]
 ;;
 
-let dialog ?key ?style ~config ~on_dismiss content =
+let modal_overlay ?key ?style ~kind ~config ~on_dismiss content =
   match content with
   | None ->
     container
@@ -742,8 +742,32 @@ let dialog ?key ?style ~config ~on_dismiss content =
          ~config:(Focus_scope.create ~trap:true ())
          [ content ])
       with
-      overlay = Some { kind = Dialog; config; on_dismiss }
+      overlay = Some { kind; config; on_dismiss }
     }
+;;
+
+let dialog ?key ?style ~config ~on_dismiss content =
+  modal_overlay ?key ?style ~kind:Dialog ~config ~on_dismiss content
+;;
+
+let sheet ?key ?style ~config ~on_dismiss content =
+  modal_overlay
+    ?key
+    ?style
+    ~kind:(Sheet.Expert.kind config)
+    ~config:(Sheet.Expert.overlay config)
+    ~on_dismiss
+    content
+;;
+
+let alert_dialog ?key ?style ~config ~on_dismiss content =
+  modal_overlay
+    ?key
+    ?style
+    ~kind:Alert_dialog
+    ~config:(Alert_dialog.Expert.overlay config)
+    ~on_dismiss
+    content
 ;;
 
 let popover ?key ?style ~config ~on_dismiss ~anchor content =

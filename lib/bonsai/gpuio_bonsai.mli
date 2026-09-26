@@ -249,6 +249,22 @@ module View : sig
     -> t option
     -> t
 
+  val sheet
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Sheet.Config.t
+    -> on_dismiss:(Gpuio.Overlay.Dismissal.t -> unit Bonsai.Effect.t)
+    -> t option
+    -> t
+
+  val alert_dialog
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Alert_dialog.Config.t
+    -> on_dismiss:(Gpuio.Overlay.Dismissal.t -> unit Bonsai.Effect.t)
+    -> t option
+    -> t
+
   val popover
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

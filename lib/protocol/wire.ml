@@ -203,6 +203,11 @@ module Overlay_kind = struct
   type t =
     | Dialog
     | Popover
+    | Sheet_left
+    | Sheet_right
+    | Sheet_top
+    | Sheet_bottom
+    | Alert_dialog
   [@@deriving bin_io, equal, sexp_of]
 end
 

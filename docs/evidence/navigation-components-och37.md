@@ -552,3 +552,64 @@ gates remain open; these results do not claim Linux GUI acceptance.
 The public Navigation Lab was rebuilt against the updated native library and its
 `--self-test` passes. Dune formatting, rustfmt and whitespace checks pass. All
 owned test applications exited.
+
+## Four-edge sheets and alert dialogs — 2026-09-26
+
+Core and Bonsai now expose `View.sheet` with `Sheet.Config`/`Edge` and
+`View.alert_dialog` with `Alert_dialog.Config`. Both use the existing overlay
+focus/occlusion/event path. Configuration, lifetime and safe-first content ordering
+are documented in the public interfaces and navigation design. No source pins,
+editor quotas or capability claims changed.
+
+Locally passing evidence on macOS:
+
+- OCaml expect tests cover invalid extent/labels, every appended kind against an
+  independently assembled byte fixture, edge updates without remounting, alert
+  outside-request rejection, accepted Escape delivery and stale requests after
+  unmount. The complete `test/view_api` suite passes.
+- Rust codec checks use the same independent transaction fixture and reject
+  truncation, unknown kind and trailing bytes. Native admission tests cover all
+  five modal kinds, required traps, forbidden alert backdrop policy, atomic
+  failure and zero retained tree accounting on disposal. Existing overlay
+  validation and prior Dialog/Popover fixture contracts remain intact.
+- Actual `native_controls` macOS window checks pass all four sheet edges, extreme
+  extent clamping and resize, fixed geometry despite base and hover dimension/
+  margin styles, editor focus-handle retention across reconfiguration, forward/
+  reverse Tab confinement, Escape as a request, nested alert backdrop blocking
+  without leaking to an enclosing dismissible dialog, AppKit AX window exposure,
+  and restoration after accepted closure. The existing dialog/popover, child-popup
+  hit routing, native marked-text Escape, tooltip, menus, palette, progress,
+  toast and pointer regressions in that suite also pass. These checks do not
+  claim a VoiceOver speech audit or Linux graphical execution.
+- The rebuilt public Navigation Lab `--self-test` opens a drawer and nested
+  confirmation through its Bonsai reducer, verifies background editor focus is
+  blocked, cancels/closes and preserves the draft. Its existing navigation,
+  pagination, lazy lifecycle and independent Eio task/teardown checks pass.
+  This reducer-driven test complements actual native input coverage.
+- All-target feature-enabled Clippy, OCaml/Rust formatting and whitespace checks
+  pass. Owned windows close and test processes terminate normally.
+
+Commands (repository-local environment, two jobs):
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native -p gpuio-protocol --features gpuio-native/native-image-tests --test overlays --test overlay_kinds
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-image-tests --test native_controls
+GPUIO_JOBS=2 ./scripts/gpuio exec dune runtest -j 2 test/view_api
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 examples/navigation/main.exe @fmt
+_build/default/examples/navigation/main.exe --self-test
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native -p gpuio-protocol --all-targets --features gpuio-native/native-image-tests -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all --check
+git diff --check
+```
+
+The final native log is `supplementary-overlay-native-final.log`; public build/
+test, Core, Rust admission/codec and Clippy logs are in the implementing agent's
+ignored scratch directory. Initial compile checks caught a misplaced validation
+line and fixture field name; both were corrected before passing checks. Clippy's
+redundant clone of a Copy test configuration was removed. No live process or
+unresolved failure remains at this checkpoint.
+
+Remaining OCH-37 scope includes hover cards, carousel, broader sidebar acceptance,
+final family integration and hosted gates. OCH-38/39/46 and the consolidated M5
+macOS/Linux CI/merge remain required. These local adapter checks do not complete
+the ticket or milestone.

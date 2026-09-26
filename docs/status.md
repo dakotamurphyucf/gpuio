@@ -48,8 +48,12 @@ retained native controls, destination focus, outgoing GPU paint and immediate
 removal. Native nested/modal, IME, pointer/keyboard exit gating and a full 128-page
 workload with resize also pass, alongside the public example. Four retained editors
 fit within unchanged editor quotas; history bounds do not exempt native resources.
-Remaining scope includes
-remaining navigation/overlay/carousel components,
+Four-edge sheets and alert-dialog adapters now share the existing modal focus and
+asynchronous dismissal infrastructure. Native macOS checks cover edge geometry,
+clamping/resize, late hover styles, editor identity, focus restoration and nested
+alert backdrop blocking. The public Navigation Lab includes drawer/confirmation
+flows; its latest validation is recorded in the evidence ledger.
+Remaining scope includes hover cards and carousel,
 expanded public examples, broader acceptance and hosted gates.
 See [navigation design](design/navigation-components.md) and
 [foundation evidence](evidence/navigation-components-och37.md).
