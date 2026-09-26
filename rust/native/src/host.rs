@@ -562,6 +562,9 @@ impl View {
                 | Kind::AnimationProgram
                 | Kind::ContainerQuery
                 | Kind::TabPanel
+                | Kind::Panel
+                | Kind::Disclosure
+                | Kind::Accordion
                 | Kind::FocusScope
                 | Kind::CommandScope
                 | Kind::RadioGroup
@@ -855,10 +858,39 @@ impl View {
         if node.kind == Kind::TabBar {
             element = element.flex_row();
         }
-        if node.kind == Kind::TabPanel {
+        if matches!(node.kind, Kind::TabPanel | Kind::Panel) {
             element = element
-                .role(gpui::Role::TabPanel)
+                .role(if node.kind == Kind::TabPanel {
+                    gpui::Role::TabPanel
+                } else {
+                    gpui::Role::Region
+                })
                 .aria_label(accessible_name);
+        }
+        if matches!(node.kind, Kind::Disclosure | Kind::Accordion) {
+            element = element.role(gpui::Role::Group);
+        }
+        if let Some(parent) = node.parent.and_then(|id| tree.get(id))
+            && parent.kind == Kind::Disclosure
+            && parent.children.first() == Some(&id)
+        {
+            let expanded = self.focus.borrow().visible(parent.children[1]);
+            let gate = self.focus.clone();
+            element = element
+                .aria_expanded(expanded)
+                .on_key_down(move |event, window, cx| {
+                    let modifiers = event.keystroke.modifiers;
+                    if !modifiers.control
+                        && !modifiers.alt
+                        && !modifiers.platform
+                        && !modifiers.shift
+                        && gate
+                            .borrow()
+                            .disclosure_key(id, &event.keystroke.key, window, cx)
+                    {
+                        cx.stop_propagation();
+                    }
+                });
         }
         let animation = self.animation_frame(node, window, cx);
         let program = self.program_frame(node, window, cx);
@@ -1152,7 +1184,7 @@ impl View {
             {
                 element = element.child(self.element(tree, *trailing, interaction, window, cx));
             }
-        } else if !label.is_empty() && node.kind != Kind::TabPanel {
+        } else if !label.is_empty() && !matches!(node.kind, Kind::TabPanel | Kind::Panel) {
             element = element.child(gpui::SharedString::from(label));
         }
         for child in node.children.iter() {

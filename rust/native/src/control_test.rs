@@ -7,6 +7,8 @@ mod drag_drop_test;
 mod extension_test;
 #[path = "menu_test.rs"]
 mod menu_test;
+#[path = "navigation_test.rs"]
+mod navigation_test;
 #[path = "overlay_test.rs"]
 mod overlay_test;
 #[path = "palette_test.rs"]
@@ -1586,6 +1588,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
 enum Suite {
     Controls,
     Tabs,
+    Navigation,
     Splits,
     Extensions,
     Menus,
@@ -1604,6 +1607,9 @@ pub fn run_extensions() {
 }
 pub fn run_splits() {
     run_suite(Suite::Splits);
+}
+pub fn run_navigation() {
+    run_suite(Suite::Navigation);
 }
 pub fn run_tabs() {
     run_suite(Suite::Tabs);
@@ -1707,7 +1713,7 @@ fn run_suite(suite: Suite) {
         ]);
         if !matches!(
             suite,
-            Suite::Controls | Suite::Tabs | Suite::Splits | Suite::Extensions
+            Suite::Controls | Suite::Tabs | Suite::Navigation | Suite::Splits | Suite::Extensions
         ) {
             // Reserve the same generational slots used by preceding component
             // fixtures, without exercising those unrelated windows/interactions.
@@ -1718,7 +1724,11 @@ fn run_suite(suite: Suite) {
                 Suite::Toast => 61,
                 Suite::Pointer => 82,
                 Suite::DragDrop => 90,
-                Suite::Controls | Suite::Tabs | Suite::Splits | Suite::Extensions => unreachable!(),
+                Suite::Controls
+                | Suite::Tabs
+                | Suite::Navigation
+                | Suite::Splits
+                | Suite::Extensions => unreachable!(),
             };
             for slot in 5..end {
                 operations.push(Op::Create(node(slot), Kind::Text, String::new(), None));
@@ -1763,6 +1773,9 @@ fn run_suite(suite: Suite) {
                     match suite {
                         Suite::Extensions => extension_test::exercise(cx, handle, &transport).await,
                         Suite::Splits => split_test::exercise(cx, handle, &transport).await,
+                        Suite::Navigation => {
+                            navigation_test::exercise(cx, handle, &transport).await
+                        }
                         Suite::Tabs => {
                             radio(cx, handle, &transport, Kind::TabBar, 5).await;
                             retained_tab_panel(cx, handle).await;

@@ -142,6 +142,9 @@ pub enum Kind {
     OtpInput,
     Calendar,
     ColorInput,
+    Panel,
+    Disclosure,
+    Accordion,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]

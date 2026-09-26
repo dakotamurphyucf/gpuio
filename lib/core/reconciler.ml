@@ -254,6 +254,9 @@ let kind = function
   | Number_input -> Number_input
   | Otp_input -> Otp_input
   | Color_input -> Color_input
+  | Panel -> Panel
+  | Disclosure -> Disclosure
+  | Accordion -> Accordion
   | Calendar -> Calendar
   | Virtual_list -> Virtual_list
   | Canvas_view -> Canvas_view

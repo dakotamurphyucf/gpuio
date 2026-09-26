@@ -217,3 +217,8 @@ pub fn run_native_calendar_test() {
 pub fn run_native_color_input_test() {
     host::color_input_view::test::run();
 }
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_navigation_test() {
+    host::control_test::run_navigation();
+}

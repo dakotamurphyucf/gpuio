@@ -4,6 +4,7 @@
  (inline_tests
   (deps
    (sandbox preserve_file_kind)
+   disclosure-request.hex
    color-command-request.hex
    color-command-events.hex
    color-values.tsv
@@ -227,3 +228,5 @@
 (copy_files ../fixtures/color-values.tsv)
 
 (copy_files ../fixtures/color-*.hex)
+
+(copy_files ../fixtures/disclosure-request.hex)

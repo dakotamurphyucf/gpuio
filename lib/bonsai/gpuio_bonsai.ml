@@ -93,6 +93,34 @@ module View = struct
   let split_pane = Gpuio.View.split_pane
   let tab_bar = Gpuio.View.tab_bar
   let tab_panel = Gpuio.View.tab_panel
+  let panel = Gpuio.View.panel
+  let accordion = Gpuio.View.accordion
+
+  let disclosure
+        ?key
+        ?style
+        ?trigger_style
+        ?panel_style
+        ~label
+        ~expanded
+        ?disabled
+        ~hidden
+        ~on_toggle
+        children
+    =
+    Gpuio.View.disclosure
+      ?key
+      ?style
+      ?trigger_style
+      ?panel_style
+      ~label
+      ~expanded
+      ?disabled
+      ~hidden
+      ~on_toggle:(fun () -> on_toggle)
+      children
+  ;;
+
   let radio_group = Gpuio.View.radio_group
   let select = Gpuio.View.select
   let combobox = Gpuio.View.combobox

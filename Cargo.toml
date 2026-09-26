@@ -1,7 +1,7 @@
 [workspace]
 members = ["rust/protocol", "rust/native", "rust/foundation", "rust/portal", "rust/wayland", "rust/extension-sdk", "examples/extension_package/rust"]
 resolver = "3"
-exclude = ["vendor/gpui-base"]
+exclude = ["vendor/gpui-base", "vendor/accesskit-macos"]
 
 [workspace.package]
 version = "0.0.0"
@@ -17,3 +17,4 @@ opt-level = 1
 
 [patch.crates-io]
 gpuio-extension-sdk = { path = "rust/extension-sdk" }
+accesskit_macos = { path = "vendor/accesskit-macos" }

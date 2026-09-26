@@ -303,6 +303,43 @@ module View : sig
     -> t list
     -> t
 
+  (** Generic region and disclosure lifetimes follow [Gpuio.View.panel] and
+      [Gpuio.View.disclosure]; hiding native content does not itself deactivate
+      its Bonsai computation or cancel application tasks. *)
+  val panel
+    :  key:Gpuio.Key.t
+    -> label:string
+    -> active:bool
+    -> hidden:Gpuio.Content_policy.t
+    -> ?style:Gpuio.Style.t
+    -> t list
+    -> t
+
+  val disclosure
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?trigger_style:Gpuio.Style.t
+    -> ?panel_style:Gpuio.Style.t
+    -> label:string
+    -> expanded:bool
+    -> ?disabled:bool
+    -> hidden:Gpuio.Content_policy.t
+    -> on_toggle:unit Bonsai.Effect.t
+    -> t list
+    -> t
+
+  val accordion
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?trigger_style:Gpuio.Style.t
+    -> ?panel_style:Gpuio.Style.t
+    -> model:Gpuio.Disclosure.t
+    -> hidden:Gpuio.Content_policy.t
+    -> on_request:(Gpuio.Disclosure.Request.t -> unit Bonsai.Effect.t)
+    -> content:(Gpuio.Choice.Id.t -> t list)
+    -> unit
+    -> t
+
   val radio_group
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

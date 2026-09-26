@@ -5,6 +5,7 @@
   (env_var CARGO_TARGET_DIR)
   (source_tree ../../rust)
   (source_tree ../../vendor/gpui-base)
+  (source_tree ../../vendor/accesskit-macos)
   ../../Cargo.toml
   ../../Cargo.lock
   ../../rust-toolchain.toml

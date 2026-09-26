@@ -9,6 +9,14 @@ use std::{
     rc::Rc,
 };
 
+fn style_hidden(node: &crate::tree::Node) -> bool {
+    node.style.iter().any(|style| {
+        matches!(style,
+        Style::Fields(fields) if fields.iter().any(|field|
+            matches!(field, Field::Display(3) | Field::Visibility(1))))
+    })
+}
+
 pub(super) type Shared = Rc<RefCell<Manager>>;
 struct Scope {
     handle: FocusHandle,
@@ -22,6 +30,7 @@ struct Entry {
     node: NodeId,
     handle: FocusHandle,
     tab_stop: bool,
+    disclosure_path: Vec<(NodeId, NodeId)>,
 }
 pub(super) struct Manager {
     window: WindowId,
@@ -177,14 +186,8 @@ impl Manager {
             let Some(item) = tree.get(id) else {
                 return false;
             };
-            for style in item.style.iter() {
-                if let Style::Fields(fields) = style
-                    && fields
-                        .iter()
-                        .any(|field| matches!(field, Field::Display(3) | Field::Visibility(1)))
-                {
-                    return false;
-                }
+            if style_hidden(item) {
+                return false;
             }
             cursor = item.parent;
         }
@@ -232,6 +235,15 @@ impl Manager {
             .any(|scope| scope.handle.is_focused(window))
     }
     pub(super) fn sync(&mut self, window: &mut Window, cx: &mut App) {
+        // Keep the previous painted ancestry: removed editor nodes are already
+        // absent from the new tree. Select the first still-eligible outer trigger
+        // only when its associated content region was hidden/removed.
+        let disclosure_restore = self
+            .entries
+            .iter()
+            .find(|entry| entry.handle.is_focused(window))
+            .map(|entry| entry.disclosure_path.clone())
+            .unwrap_or_default();
         let had_scopes = !self.scopes.is_empty();
         let configs = {
             let session = self.session.borrow();
@@ -239,10 +251,15 @@ impl Manager {
             if let Some(tree) = session.tree(self.window) {
                 let mut stack = tree.root().into_iter().collect::<Vec<_>>();
                 while let Some(id) = stack.pop() {
-                    if self.hidden.contains(&id) || self.query_hidden.contains(&id) {
+                    let node = tree.get(id).expect("validated node");
+                    // Traversal already skipped hidden ancestors; inspect this
+                    // node once rather than rewalking its ancestry for every node.
+                    if self.hidden.contains(&id)
+                        || self.query_hidden.contains(&id)
+                        || style_hidden(node)
+                    {
                         continue;
                     }
-                    let node = tree.get(id).expect("validated node");
                     let config = node
                         .focus_scope
                         .or_else(|| {
@@ -333,11 +350,26 @@ impl Manager {
             .filter(|(_, scope)| scope.config.trap)
             .max_by_key(|(_, scope)| scope.order)
             .map(|(id, _)| *id);
-        if let Some(handle) = restore
+        let mut scope_restored = false;
+        if let Some(ref handle) = restore
             && self
                 .entries
                 .iter()
-                .any(|entry| entry.handle == handle && self.eligible(entry.node))
+                .any(|entry| &entry.handle == handle && self.eligible(entry.node))
+        {
+            window.focus(handle, cx);
+            scope_restored = true;
+        }
+        if !scope_restored
+            && let Some(handle) = disclosure_restore.iter().find_map(|(panel, trigger)| {
+                if self.visible(*panel) || !self.eligible(*trigger) {
+                    return None;
+                }
+                self.entries
+                    .iter()
+                    .find(|entry| entry.node == *trigger)
+                    .map(|entry| entry.handle.clone())
+            })
         {
             window.focus(&handle, cx);
         }
@@ -412,13 +444,94 @@ impl Manager {
             self.last_editor = Some(node);
         }
         if self.seen.insert((node, part)) {
+            let disclosure_path = {
+                let session = self.session.borrow();
+                let mut path = Vec::new();
+                if let Some(tree) = session.tree(self.window) {
+                    let mut child = node;
+                    while let Some(parent) = tree
+                        .get(child)
+                        .and_then(|node| node.parent)
+                        .and_then(|id| tree.get(id))
+                    {
+                        if parent.kind == Kind::Disclosure && parent.children.get(1) == Some(&child)
+                        {
+                            path.push((child, parent.children[0]));
+                        }
+                        child = parent.id;
+                    }
+                }
+                path
+            };
             self.entries.push(Entry {
                 node,
                 handle,
                 tab_stop,
+                disclosure_path,
             });
         }
     }
+    pub(super) fn disclosure_key(
+        &self,
+        node: NodeId,
+        key: &str,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> bool {
+        if !matches!(key, "up" | "down" | "home" | "end") || !self.eligible(node) {
+            return false;
+        }
+        let session = self.session.borrow();
+        let Some(tree) = session.tree(self.window) else {
+            return false;
+        };
+        let Some(disclosure) = tree
+            .get(node)
+            .and_then(|node| node.parent)
+            .and_then(|id| tree.get(id))
+        else {
+            return false;
+        };
+        if disclosure.kind != Kind::Disclosure || disclosure.children.first() != Some(&node) {
+            return false;
+        }
+        let Some(accordion) = disclosure
+            .parent
+            .and_then(|id| tree.get(id))
+            .filter(|node| node.kind == Kind::Accordion)
+        else {
+            return false;
+        };
+        let handles = self
+            .entries
+            .iter()
+            .map(|entry| (entry.node, &entry.handle))
+            .collect::<BTreeMap<_, _>>();
+        let targets = accordion
+            .children
+            .iter()
+            .filter_map(|id| {
+                let trigger = *tree.get(*id)?.children.first()?;
+                if !self.eligible(trigger) {
+                    return None;
+                }
+                handles.get(&trigger).map(|handle| (trigger, *handle))
+            })
+            .collect::<Vec<_>>();
+        let Some(index) = targets.iter().position(|(id, _)| *id == node) else {
+            return false;
+        };
+        let target = match key {
+            "home" => 0,
+            "end" => targets.len() - 1,
+            "up" => (index + targets.len() - 1) % targets.len(),
+            "down" => (index + 1) % targets.len(),
+            _ => unreachable!(),
+        };
+        window.focus(targets[target].1, cx);
+        true
+    }
+
     pub(super) fn take_pending(&mut self) -> bool {
         std::mem::take(&mut self.pending)
     }

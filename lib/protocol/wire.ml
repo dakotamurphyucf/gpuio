@@ -68,6 +68,9 @@ module Kind = struct
     | Otp_input
     | Calendar
     | Color_input
+    | Panel
+    | Disclosure
+    | Accordion
   [@@deriving bin_io, equal, sexp_of]
 end
 

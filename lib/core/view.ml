@@ -45,6 +45,9 @@ module Kind = struct
     | Otp_input
     | Calendar
     | Color_input
+    | Panel
+    | Disclosure
+    | Accordion
   [@@deriving equal, sexp_of]
 end
 
@@ -886,6 +889,86 @@ let tab_panel ~key ~label ~active ?(style = Style.empty) children =
       ]
   in
   { (column ~key ~style children) with kind = Tab_panel; text = label }
+;;
+
+let panel ~key ~label ~active ~hidden ?(style = Style.empty) children =
+  if not (Gpuio_protocol.Accessibility_wire.valid_text label)
+  then invalid_arg "panel label must be nonempty UTF-8 without NUL, at most 4096 bytes";
+  let children =
+    match hidden with
+    | Content_policy.Retain -> children
+    | Unmount -> if active then children else []
+  in
+  let style =
+    Style.merge
+      [ style; (if active then Style.empty else Style.create_exn [ Display Hidden ]) ]
+  in
+  { (column ~key ~style children) with kind = Panel; text = label }
+;;
+
+let disclosure
+      ?key
+      ?style
+      ?trigger_style
+      ?panel_style
+      ~label
+      ~expanded
+      ?(disabled = false)
+      ~hidden
+      ~on_toggle
+      children
+  =
+  let trigger =
+    button
+      ~key:(Key.of_string_exn "trigger")
+      ?style:trigger_style
+      ~disabled
+      ~on_click:on_toggle
+      label
+  in
+  let panel =
+    panel
+      ~key:(Key.of_string_exn "panel")
+      ~label
+      ~active:expanded
+      ~hidden
+      ?style:panel_style
+      children
+  in
+  { (column ?key ?style [ trigger; panel ]) with kind = Disclosure }
+;;
+
+let accordion
+      ?key
+      ?style
+      ?trigger_style
+      ?panel_style
+      ~model
+      ~hidden
+      ~on_request
+      ~content
+      ()
+  =
+  let children =
+    Choice.Collection.to_list (Disclosure.items model)
+    |> List.map ~f:(fun item ->
+      let id = Choice.id item in
+      let expanded = Disclosure.is_expanded model id in
+      let children =
+        if expanded || Content_policy.equal hidden Retain then content id else []
+      in
+      disclosure
+        ~key:(Key.of_string_exn (Choice.Id.to_string id))
+        ?trigger_style
+        ?panel_style
+        ~label:(Choice.label item)
+        ~expanded
+        ~disabled:(Disclosure.is_disabled model || Choice.is_disabled item)
+        ~hidden
+        ~on_toggle:(fun () -> on_request (Disclosure.Request.Toggle id))
+        children)
+  in
+  { (column ?key ?style children) with kind = Accordion }
 ;;
 
 let make_virtual_list

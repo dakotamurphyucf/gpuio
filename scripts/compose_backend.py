@@ -29,7 +29,7 @@ def generate(manifest, output):
     interop = native["dependencies"]["ocaml-interop"]
     dependencies = []
     factories = []
-    source_paths = [root / "rust", root / "vendor/gpui-base"]
+    source_paths = [root / "rust", root / "vendor/gpui-base", root / "vendor/accesskit-macos"]
     component_paths = set()
     if not 1 <= len(config["components"]) <= 64:
         raise ValueError("expected 1..64 component packages")
@@ -79,6 +79,7 @@ opt-level = 1
 gpuio-native = {{ path = {json.dumps(relative(root / 'rust/native'))} }}
 ocaml-interop = {{ git = {json.dumps(interop['git'])}, rev = {json.dumps(interop['rev'])}, features = ["no-caml-startup"] }}
 ''' + "\n".join(dependencies) + f'\n\n[patch.crates-io]\ngpuio-extension-sdk = {{ path = {json.dumps(relative(root / "rust/extension-sdk"))} }}\n'
+    cargo += f'accesskit_macos = {{ path = {json.dumps(relative(root / "vendor/accesskit-macos"))} }}\n'
     registration = f'''// Generated static registration. No OCaml values are stored in components.
 #[ocaml_interop::export]
 pub fn gpuio_{library}_initialize(_cr: &mut ocaml_interop::OCamlRuntime, _unit: ocaml_interop::OCaml<()>) {{

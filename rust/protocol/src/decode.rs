@@ -869,6 +869,9 @@ impl Decoder<'_> {
                     39 => Kind::OtpInput,
                     40 => Kind::Calendar,
                     41 => Kind::ColorInput,
+                    42 => Kind::Panel,
+                    43 => Kind::Disclosure,
+                    44 => Kind::Accordion,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)

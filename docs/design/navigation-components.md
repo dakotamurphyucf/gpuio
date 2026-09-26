@@ -112,3 +112,45 @@ focus/IME, lazy/retained lifetimes, nested overlays, constrained themed layouts,
 carousel timing/idle/disposal and public Bonsai/Eio usage. Linux builds/unit tests
 and the consolidated macOS hosted checks remain required before milestone merge;
 Linux GUI acceptance stays under OCH-17. OCH-46 integrates these into the chat demo.
+
+## Mounted disclosure contract
+
+`Content_policy.Retain | Unmount` and `View.panel`, `View.disclosure` and
+`View.accordion` now have Core and Bonsai bindings. Panel is a labelled native
+region (not a tab panel). Inactive regions use native hidden layout/input policy.
+Retain preserves children; Unmount removes them and creates fresh child leases on
+reopening. The disclosure trigger and enclosing region keep stable keys. Accordion
+content callbacks run while constructing an OCaml description, never in Rust;
+Unmount skips callbacks for collapsed items. Bonsai branching and Eio scopes still
+control computation/task lifetimes independently.
+
+The wire appends kinds 42 Panel, 43 Disclosure and 44 Accordion. It reuses existing
+style changes, splice operations, button handler leases and Press events. A
+Disclosure has exactly one Button followed by one Panel; an Accordion has at most
+4,096 direct Disclosure children. Admission checks these relationships atomically.
+Panel labels require 1..4,096 UTF-8 bytes without NUL. A native header's expanded
+property follows its associated panel's effective visibility. Up/Down wrap among
+eligible direct headers; Home/End choose endpoints. Modified keys and nested
+accordion groups remain independent. Enter/Space and accessibility Press use the
+same existing button activation path, delivering one semantic toggle intent.
+
+The focus manager records each painted control's disclosure ancestry, bounded by
+the retained tree's depth. A collapse/unmount can therefore restore an eligible
+trigger even after the old focused editor disappears from the new tree. Hidden
+nested triggers are skipped for an eligible outer trigger; modal restoration and
+entry retain priority. Scope collection skips style-hidden subtrees so an invisible
+retained modal scope does not continue trapping focus. Header lookup uses an index
+of painted handles rather than scanning the full focus list once per header.
+
+The pinned macOS adapter needed a focused correction: AccessKit 0.26.3 stored
+expanded state but its macOS adapter did not expose the corresponding getter or
+selector. `vendor/accesskit-macos` preserves that exact version and adds the getter,
+selector availability and change notification. See [patch provenance](../../vendor/accesskit-macos/GPUIO.md).
+Both standard and composed static backends use it; no global installation or GPUI
+version upgrade is involved. Native AppKit getter/Press checks pass. VoiceOver
+speech and external notification observation remain distinct from those checks.
+
+This is an initial mounted disclosure implementation, not complete OCH-37
+acceptance. Broader layout/appearance, reveal/navigation motion, public examples,
+other navigation/overlay/carousel families and full lifecycle/workload acceptance
+remain to be finished before capability advertisement.

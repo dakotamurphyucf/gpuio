@@ -273,6 +273,56 @@ val tab_panel
   -> 'action t list
   -> 'action t
 
+(** A generic labelled region. [hidden] is an explicit native lifetime policy.
+    Inactive regions remain absent from layout and native input, regardless of
+    supplied style. This does not deactivate a Bonsai computation that the caller
+    continues evaluating. A label is nonempty UTF-8 without NUL, at most 4096
+    bytes; invalid literal labels raise as with [Style.create_exn]. *)
+val panel
+  :  key:Key.t
+  -> label:string
+  -> active:bool
+  -> hidden:Content_policy.t
+  -> ?style:Style.t
+  -> 'action t list
+  -> 'action t
+
+(** Controlled collapsible content with a native button trigger and labelled
+    region. Enter/Space, pointer and accessibility activation emit one intent;
+    reduce it against current application state. Collapsing focused content
+    restores its eligible trigger, respecting enclosing modal focus policy.
+    Styles refine the outer, trigger and panel boxes independently. *)
+val disclosure
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?trigger_style:Style.t
+  -> ?panel_style:Style.t
+  -> label:string
+  -> expanded:bool
+  -> ?disabled:bool
+  -> hidden:Content_policy.t
+  -> on_toggle:(unit -> 'action)
+  -> 'action t list
+  -> 'action t
+
+(** Ordered disclosures with stable item IDs. Up/Down/Home/End move among eligible
+    headers; Enter/Space request a toggle. Content runs on the OCaml domain when
+    building this description, never in native layout/paint. With [Unmount], it
+    is not called for collapsed items; this alone does not deactivate a Bonsai
+    computation evaluated outside that callback. Nested accordions have separate
+    header navigation groups. *)
+val accordion
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?trigger_style:Style.t
+  -> ?panel_style:Style.t
+  -> model:Disclosure.t
+  -> hidden:Content_policy.t
+  -> on_request:(Disclosure.Request.t -> 'action)
+  -> content:(Choice.Id.t -> 'action t list)
+  -> unit
+  -> 'action t
+
 (** A native select with a bounded, scrollable option popup. Focus remains on
     the trigger. Arrows move the open popup highlight without changing the
     application value; Enter requests the highlighted ID, Escape cancels, and
@@ -693,6 +743,9 @@ module Expert : sig
       | Otp_input
       | Calendar
       | Color_input
+      | Panel
+      | Disclosure
+      | Accordion
     [@@deriving equal, sexp_of]
   end
 

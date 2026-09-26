@@ -26,8 +26,12 @@ OCH-37 now has compiled and locally tested Core models for bounded navigation
 history, single/multiple disclosure and pagination. Tests cover route replacement,
 back/forward/branching, disabled and stale requests, collection/page-count shrink,
 128-entry navigation, 4,096-item disclosure and 10,430 bounded pagination partitions.
-These are pure models; native component integration, focus/hidden-content behavior,
-supplementary overlays, carousel, public examples and platform acceptance remain
+Core/Bonsai panel/disclosure/accordion bindings and initial native macOS checks now
+pass keyboard/expanded accessibility state, nested focus restoration, retained and
+unmounted editors, marked-text isolation and hidden focus-scope cleanup. A small
+vendored patch to the unchanged accesskit_macos 0.26.3 exposes expanded state;
+both native backend build paths use it. Remaining navigation/overlay/carousel
+components, motion, public examples, broader acceptance and hosted gates remain
 in progress. See [navigation design](design/navigation-components.md) and
 [foundation evidence](evidence/navigation-components-och37.md).
 

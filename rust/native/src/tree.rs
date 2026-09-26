@@ -9,6 +9,9 @@ fn allows_children(kind: Kind) -> bool {
         kind,
         Kind::Container
             | Kind::TabPanel
+            | Kind::Panel
+            | Kind::Disclosure
+            | Kind::Accordion
             | Kind::SplitPane
             | Kind::VirtualList
             | Kind::Animated
@@ -797,6 +800,11 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
+                if node.kind == Kind::Panel
+                    && (node.text.is_empty() || node.text.len() > 4096 || node.text.contains('\0'))
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 match node.kind {
                     Kind::Input | Kind::Textarea | Kind::Combobox => {
                         let config = node.editor.as_ref().ok_or(ErrorCode::InvalidTree)?;
@@ -834,6 +842,9 @@ impl Tree {
                     | Kind::Calendar
                     | Kind::ColorInput
                     | Kind::TabPanel
+                    | Kind::Panel
+                    | Kind::Disclosure
+                    | Kind::Accordion
                     | Kind::SplitPane
                     | Kind::Extension
                     | Kind::CanvasView
@@ -1841,6 +1852,23 @@ impl Plan<'_> {
                         .children
                         .iter()
                         .any(|id| !self.node(*id).is_ok_and(|node| node.kind == Kind::Toast)))
+            {
+                return Err(ErrorCode::InvalidTree);
+            }
+            if node.kind == Kind::Disclosure
+                && (node.children.len() != 2
+                    || self.node(node.children[0])?.kind != Kind::Button
+                    || self.node(node.children[1])?.kind != Kind::Panel)
+            {
+                return Err(ErrorCode::InvalidTree);
+            }
+            if node.kind == Kind::Accordion
+                && (node.children.len() > 4096
+                    || node.children.iter().any(|id| {
+                        !self
+                            .node(*id)
+                            .is_ok_and(|child| child.kind == Kind::Disclosure)
+                    }))
             {
                 return Err(ErrorCode::InvalidTree);
             }
