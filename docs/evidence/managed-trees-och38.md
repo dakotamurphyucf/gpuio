@@ -407,3 +407,41 @@ passes, including the Core fixture and real Bonsai-driver metadata propagation
 check. The focused native inert-row regression and final all-target native-test
 Clippy also pass (`tree-semantics-dune-all.log`, `tree-native-inert.log`,
 `tree-semantics-clippy-final.log`). `cargo fmt --all` and `git diff --check` pass.
+
+
+## Pure interaction requests and reveal (2026-09-26)
+
+`Tree_interaction` defines payload-free identity targets, ordered relative requests,
+explicit expansion, selection/focus, separate activation, programmatic reveal and
+application-approved moves. `Tree_state.reveal` opens loaded ancestors while
+preserving selection/range anchor. Outcomes request eventual native reveal/focus;
+this layer performs no native operation and implements no keyboard listener.
+
+Expect coverage exercises:
+
+- Multiple relative Next requests from one snapshot accumulate against the latest
+  cursor; repeated explicit expansion is idempotent. Hidden/disabled user targets
+  and leaf expansion reject; activation does not change selection or focus.
+- Reveal opens ancestors, optionally moves the logical cursor, preserves selection
+  and anchor, and handles disabled ancestors as programmatic preferences. Collapse
+  repairs the active descendant and reports its ancestor for native focus handoff.
+- Payload updates, sibling reorder and accepted child pages preserve interaction
+  targets. Child-page tokens retire independently. Coalesced deletion/reinsertion,
+  reset, absent targets and foreign controller identity reject old commands.
+- Moves leave application data and state unchanged until approval. Self/cycle,
+  disabled destination and Inside-leaf proposals reject; delayed approval can
+  detect collapse or branch-to-leaf conversion through `Move.is_current`.
+- A maximum-depth reveal expands 127 ancestors to expose level 128. Captured
+  requests/targets remain live while a 1 MiB application payload is collected.
+
+Native typeahead, handlers/AX actions, scrolling/focus handoff, drag sessions,
+public Eio filesystem usage and full native tree workload acceptance remain.
+No capability or new dependency is added by this pure contract.
+
+Validation passes locally on macOS arm64 with
+`GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt`, including the
+new expect tests and existing complete suite (`tree-interaction-dune-all.log`).
+The first test compile used a weak-pointer module outside Core; it was replaced
+with the repository's existing Stdlib.Weak test pattern. The first execution
+needed only reviewed multiline expectation whitespace corrections. No native GUI
+run or hosted CI is claimed for this pure layer. `git diff --check` passes.

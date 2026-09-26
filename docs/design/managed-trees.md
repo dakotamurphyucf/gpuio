@@ -280,6 +280,47 @@ Rows may compose existing context menus and drag/drop descriptions. Child contro
 retain their own key handling; tree traversal must not steal an embedded editor's
 arrows or first IME Escape. Inline rename and editable cells are outside this ticket.
 
+## Generation-checked interaction reduction
+
+`Tree_interaction` now provides the pure request contract for the pending native
+adapter. A `Target` holds the loader lease, stable ID and node incarnation, with
+no snapshot or payload. Unlike a child-page target, it survives accepted child
+paging. Payload updates and reorder preserve it; source reset, foreign ownership
+and deletion/recreation retire it. A separate mounted lifetime guard is still
+required before a queued view event reaches this reducer.
+
+Relative navigation requests carry a source lease and reduce against the latest
+logical cursor in delivery order. Targeted selection/focus/activation require a
+current visible enabled item. Expansion requests specify the desired Boolean
+state, so a repeated accessibility expansion is idempotent. Collapsing an active
+ancestor reports the repaired logical cursor as a new reveal/focus target.
+Activation is an explicit action and does not silently change selection.
+
+Programmatic reveal opens the loaded target's ancestors, preserves selection and
+range anchor, and optionally changes the logical cursor. It may expand disabled
+ancestors as application preferences but rejects a disabled target. It performs
+no I/O and cannot discover an unloaded ID. Already-open paths inspect at most the
+128 ancestors, rather than scanning all expansion preferences; a changed path
+rebuilds the visible projection. The outcome reports a stable reveal target and
+focus flag. Native scrolling and eventual mounted OS focus remain unimplemented.
+The native adapter must recheck the same target before a delayed focus handoff.
+
+A Move action is an application-approved proposal with source and destination
+targets plus Before/After/Inside placement. Reduction never modifies the hierarchy.
+Both endpoints must be current, visible and enabled; Inside requires a branch;
+self/descendant destinations reject. `Move.is_current` lets asynchronous approval
+recheck identity, visibility and topology immediately before the application
+constructs a validated `Tree.replace`. Collapsing or deleting an endpoint therefore
+cannot redirect an old proposal to a different item.
+
+This module supplies no native key listeners, typeahead prefix/search, drag session
+or high-level widget yet. Those adapters will translate native row IDs through the
+existing monotonic list identity mapping; numeric positions are never public IDs.
+Relative intents must remain ordered in the bounded input mailbox. Targeted
+requests must retain identity across event delivery instead of resolving a stale
+index against the newest order. These remain implementation requirements, not
+claims of completed interactive native behavior.
+
 ## Lazy children and asynchronous ownership
 
 `Gpuio.Tree_loading` and `Gpuio_eio.Tree_loading` reuse OCH-13's `More cursor`/`End`,

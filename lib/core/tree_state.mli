@@ -115,3 +115,10 @@ val focus : t -> _ Tree.t -> Tree.Id.t -> t
     other directions start at the first. This produces no OS focus or load effect;
     adapters observe the result and issue generation-checked native/load requests. *)
 val navigate : t -> _ Tree.t -> selection:Selection.t option -> Navigation.t -> t
+
+(** Programmatically expose a loaded enabled target by expanding its ancestors.
+    Preserves selection and anchor, and changes the logical cursor only when
+    [focus] is true. Disabled ancestors can be expanded as preferences. Missing
+    or disabled targets leave the reconciled state unchanged. Native scrolling,
+    focus ownership and generation checks belong to the interaction adapter. *)
+val reveal : t -> _ Tree.t -> Tree.Id.t -> focus:bool -> t

@@ -378,3 +378,26 @@ let navigate t tree ~selection direction =
        then toggle_expanded t tree id
        else move (List.find ids ~f:(eligible t)))
 ;;
+
+let reveal t tree id ~focus:move_cursor =
+  let t = reconcile t tree in
+  match Tree.find tree id, Tree.ancestors tree id with
+  | Some node, Some ancestors when not (Tree.Node.is_disabled node) ->
+    let expanded, changed =
+      List.fold
+        ancestors
+        ~init:(t.expanded, false)
+        ~f:(fun (expanded, changed) ancestor ->
+          if Map.mem expanded ancestor
+          then expanded, changed
+          else
+            ( Map.set
+                expanded
+                ~key:ancestor
+                ~data:(Tree.Expert.incarnation tree ancestor |> Option.value_exn)
+            , true ))
+    in
+    let t = if changed then rebuild { t with expanded } tree else t in
+    if move_cursor then focus t tree id else t
+  | None, _ | _, None | Some _, Some _ -> t
+;;
