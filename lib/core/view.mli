@@ -699,6 +699,13 @@ val toast_stack
   -> 'action t Core.Or_error.t
 
 module Expert : sig
+  type 'action table =
+    { config : Table.Config.t
+    ; query_generation : int64
+    ; commands : Key.t Table.Command.t list
+    ; on_input : Key.t Table.Request.t -> 'action
+    }
+
   type 'action virtual_list =
     { config : Virtual_list.Config.t
     ; order : Virtual_list.Order.t
@@ -710,6 +717,7 @@ module Expert : sig
     ; on_retain : (Key.t list -> 'action) option
     ; on_tree_input : (Key.t Tree_input.t -> 'action) option
     ; tree_moves : bool
+    ; table : 'action table option
     }
 
   (** Native list adapters supply the desired row set, including pinned rows.
@@ -732,6 +740,31 @@ module Expert : sig
     -> ?on_tree_input:(Key.t Tree_input.t -> 'action)
     -> ?tree_moves:bool
     -> (Key.t * 'action t) list
+    -> 'action t Core.Or_error.t
+
+  (** Native retained table adapter. Rows contain exactly one cell per schema
+      column in schema order; wrappers are generated with stable column keys.
+      Only [config]'s bounded active rows are accepted. No arbitrary row wrapper,
+      native handle or synchronous renderer crosses this interface.
+
+      Query generations must not decrease during a mount. A query reset retires
+      callbacks/viewport observations while preserving surviving row IDs. The
+      reconciler generates schema revisions from accepted column/sort changes.
+      Commands are ordered batches of at most 64 items; a retained equal batch
+      executes once, new serials strictly increase across the mount (also across
+      omitted batches and query resets). Delayed obsolete targets are errors;
+      higher-level controllers should filter them before constructing a View. *)
+  val managed_table
+    :  ?key:Key.t
+    -> ?style:Style.t
+    -> ?commands:Key.t Table.Command.t list
+    -> config:Table.Config.t
+    -> query_generation:int64
+    -> order:Virtual_list.Order.t
+    -> on_viewport:(Virtual_list.Viewport.t -> 'action)
+    -> on_retain:(Key.t list -> 'action)
+    -> on_input:(Key.t Table.Request.t -> 'action)
+    -> (Key.t * (Table.Cell.t * 'action t) list) list
     -> 'action t Core.Or_error.t
 
   type 'action container_query =
@@ -990,6 +1023,7 @@ module Expert : sig
     ; menu : menu option
     ; focus_scope : Focus_scope.t option
     ; virtual_list : 'action virtual_list option
+    ; table_cell : Table.Cell.t option
     ; children : 'action t list
     }
 

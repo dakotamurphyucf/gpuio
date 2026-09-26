@@ -407,3 +407,36 @@ expanded native host harness. The external-consumer lockfile initially lacked
 the new local adapter dependency and Clippy caught a unit-valued prepaint binding;
 both were corrected before those final checks. These checks establish this native
 host checkpoint, not the remaining public widget or full OCH-39 acceptance.
+
+## Core retained View and typed input integration
+
+The Core adapter now constructs bounded table row/cell Views and reconciles them
+through the native table envelopes. `Table.Cell` retains validated copy text;
+selection/request/target/command types keep row and column identities separate.
+The reconciler assigns accepted schema revisions, rotates query handlers, resolves
+logical row IDs, validates current input policy and admits ordered command batches.
+
+Six expect scenarios in `test/view_api/table_view_test.ml` pass:
+
+- A 100,000-row logical order with one active two-cell row creates six nodes and
+  two copy descriptors. A streamed text update changes only text/copy metadata;
+  retention resolves the offscreen-capable logical identity correctly.
+- Old schema/query/handler input and removed/reincarnated rows are rejected;
+  current keyed input reaches the callback and window closure retires delivery.
+- Ordered commands target unmaterialized rows, execute once, and preserve their
+  monotonic serial across omitted batches. Invalid targets, offsets or query
+  generations fail preparation without consuming serials.
+- Resize/sort/selection requests obey current column, mode and disabled policy;
+  duplicate/invalid widths and invalid UTF-8/NUL/oversized copy text are rejected.
+- Missing, duplicate, misordered, foreign and over-budget rows are rejected.
+  Table/list specialization changes allocate a fresh native root identity.
+- Column reorder preserves keyed cell nodes. A failed schema/command preparation
+  does not consume the next schema revision; unchanged views produce no diff.
+
+The final local command
+`GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt` passes, including
+all existing Core/Bonsai/runtime tests and examples. These new tests establish
+OCaml View/reconciliation behavior, not a public Bonsai table, foreground native
+interaction or Linux GUI acceptance. The existing native host evidence above is
+separate. The managed presenter, public example, remaining native table acceptance,
+showcase and consolidated hosted gates/merge remain; no capability is advertised.

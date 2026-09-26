@@ -224,6 +224,13 @@ type 'action image =
   ; on_change : (Image.State.t -> 'action) option
   }
 
+type 'action table =
+  { config : Table.Config.t
+  ; query_generation : int64
+  ; commands : Key.t Table.Command.t list
+  ; on_input : Key.t Table.Request.t -> 'action
+  }
+
 type 'action virtual_list =
   { config : Virtual_list.Config.t
   ; order : Virtual_list.Order.t
@@ -235,6 +242,7 @@ type 'action virtual_list =
   ; on_retain : (Key.t list -> 'action) option
   ; on_tree_input : (Key.t Tree_input.t -> 'action) option
   ; tree_moves : bool
+  ; table : 'action table option
   }
 
 type 'action t =
@@ -281,6 +289,7 @@ type 'action t =
   ; menu : menu option
   ; focus_scope : Focus_scope.t option
   ; virtual_list : 'action virtual_list option
+  ; table_cell : Table.Cell.t option
   ; children : 'action t list
   }
 
@@ -328,6 +337,7 @@ let text ?key ?(style = Style.empty) text =
   ; menu = None
   ; focus_scope = None
   ; virtual_list = None
+  ; table_cell = None
   ; control = None
   ; children = []
   }
@@ -480,6 +490,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; menu = None
   ; focus_scope = None
   ; virtual_list = None
+  ; table_cell = None
   ; control = None
   ; children
   }
@@ -587,6 +598,7 @@ let button
   ; menu = None
   ; focus_scope = None
   ; virtual_list = None
+  ; table_cell = None
   ; control = Some (Button { disabled })
   ; children
   }
@@ -666,6 +678,7 @@ let toggle
   ; menu = None
   ; focus_scope = None
   ; virtual_list = None
+  ; table_cell = None
   ; control = Some control
   ; children = []
   }
@@ -1335,6 +1348,7 @@ let make_virtual_list
             ; on_retain
             ; on_tree_input
             ; tree_moves
+            ; table = None
             }
       })
 ;;
@@ -1422,6 +1436,7 @@ let text_input
   ; menu = None
   ; focus_scope = None
   ; virtual_list = None
+  ; table_cell = None
   ; control = None
   ; children = []
   }
@@ -1470,6 +1485,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; menu = None
   ; focus_scope = None
   ; virtual_list = None
+  ; table_cell = None
   ; children = []
   }
 ;;
@@ -1544,6 +1560,7 @@ let combobox
   ; menu = None
   ; focus_scope = None
   ; virtual_list = None
+  ; table_cell = None
   ; children = []
   }
 ;;
@@ -1674,6 +1691,13 @@ let toast_stack ?key ?(style = Style.empty) ?(config = Toast.Stack.default) item
 ;;
 
 module Expert = struct
+  type nonrec 'action table = 'action table =
+    { config : Table.Config.t
+    ; query_generation : int64
+    ; commands : Key.t Table.Command.t list
+    ; on_input : Key.t Table.Request.t -> 'action
+    }
+
   type nonrec 'action virtual_list = 'action virtual_list =
     { config : Virtual_list.Config.t
     ; order : Virtual_list.Order.t
@@ -1685,6 +1709,7 @@ module Expert = struct
     ; on_retain : (Key.t list -> 'action) option
     ; on_tree_input : (Key.t Tree_input.t -> 'action) option
     ; tree_moves : bool
+    ; table : 'action table option
     }
 
   let managed_virtual_list
@@ -1715,6 +1740,74 @@ module Expert = struct
       ~on_tree_input
       ~tree_moves
       rows
+  ;;
+
+  let managed_table
+        ?key
+        ?style
+        ?(commands = [])
+        ~config
+        ~query_generation
+        ~order
+        ~on_viewport
+        ~on_retain
+        ~on_input
+        rows
+    =
+    let open Or_error.Let_syntax in
+    let%bind (_ : Gpuio_protocol.Table_wire.Config.t) =
+      Table.Expert.to_wire config ~schema_revision:1L ~query_generation
+    in
+    let columns =
+      Table_column.Collection.to_list (Table.Config.columns config)
+      |> List.map ~f:Table_column.id
+    in
+    if
+      List.length commands > 64
+      || not
+           (List.for_all rows ~f:(fun (_, cells) ->
+              List.equal
+                Table_column.Id.equal
+                columns
+                (List.map cells ~f:(fun (cell, _) -> Table.Cell.column cell))))
+    then Or_error.error_string "table rows must match schema columns; at most 64 commands"
+    else (
+      let%map root =
+        make_virtual_list
+          ?key
+          ?style
+          ~config:(Table.Expert.list_config config)
+          ~order
+          ~managed:true
+          ~invalidated:[]
+          ~invalidation_revision:0L
+          ~scroll:None
+          ~on_viewport:(Some on_viewport)
+          ~on_retain:(Some on_retain)
+          ~on_tree_input:None
+          ~tree_moves:false
+          (List.map rows ~f:(fun (key, _) -> key, column []))
+      in
+      let children =
+        List.map rows ~f:(fun (key, cells) ->
+          column
+            ~key
+            (List.map cells ~f:(fun (metadata, child) ->
+               { (column
+                    ~key:
+                      (Key.of_string_exn
+                         (Table_column.Id.to_string (Table.Cell.column metadata)))
+                    [ child ])
+                 with
+                 table_cell = Some metadata
+               })))
+      in
+      { root with
+        children
+      ; virtual_list =
+          Option.map root.virtual_list ~f:(fun list ->
+            { list with table = Some { config; query_generation; commands; on_input } })
+      })
   ;;
 
   type nonrec 'action container_query = 'action container_query =
@@ -1907,6 +2000,7 @@ module Expert = struct
     ; menu : menu option
     ; focus_scope : Focus_scope.t option
     ; virtual_list : 'action virtual_list option
+    ; table_cell : Table.Cell.t option
     ; children : 'action t list
     }
 

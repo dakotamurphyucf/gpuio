@@ -72,6 +72,73 @@ module Config : sig
   val with_sort : t -> Sort.t option -> t Or_error.t
 end
 
+module Cell : sig
+  (** Copy text is retained separately from its View: at most 65536 UTF-8 bytes,
+      without NUL. Empty copy text is valid. No formatting callback is retained. *)
+  type t [@@deriving equal, sexp_of]
+
+  val create : column:Table_column.Id.t -> copy_text:string -> t Or_error.t
+  val column : t -> Table_column.Id.t
+  val copy_text : t -> string
+end
+
+module Selection : sig
+  type 'row t =
+    | Empty
+    | Row of 'row
+    | Column of Table_column.Id.t
+    | Cell of 'row * Table_column.Id.t
+  [@@deriving equal, sexp_of]
+
+  val filter_map : 'a t -> f:('a -> 'b option) -> 'b t option
+end
+
+module Request : sig
+  (** Native proposals use stable identities. Sorting never mutates data. Context
+      Empty clears the context target; it does not open an empty-area menu.
+      Copy requests do not acknowledge an OS clipboard write. *)
+  type 'row t =
+    | Select of 'row Selection.t
+    | Activate of 'row * Table_column.Id.t option
+    | Context of 'row Selection.t
+    | Resize of (Table_column.Id.t * float) list
+    | Move of Table_column.Id.t * Table_column.Id.t option
+    | Sort of Table_column.Id.t * Direction.t option
+    | Copy of 'row Selection.t
+  [@@deriving equal, sexp_of]
+
+  val filter_map : 'a t -> f:('a -> 'b option) -> 'b t option
+end
+
+module Target : sig
+  type 'row t =
+    | Set_selection of 'row Selection.t
+    | Reveal of 'row * Table_column.Id.t option
+    | Scroll_to of 'row * float
+    | Scroll_to_column of Table_column.Id.t
+    | Scroll_to_end
+    | Reset_columns
+  [@@deriving equal, sexp_of]
+end
+
+module Command : sig
+  (** Low-level commands for mounted adapters. Serials must strictly increase
+      for each new batch; identical retained batches are executed once. Query
+      generations fence delayed commands. The adapter validates live targets and
+      offsets smaller than the current row height before emitting a transaction. *)
+  type 'row t [@@deriving equal, sexp_of]
+
+  val create
+    :  serial:int64
+    -> query_generation:int64
+    -> 'row Target.t
+    -> 'row t Or_error.t
+
+  val serial : _ t -> int64
+  val query_generation : _ t -> int64
+  val target : 'row t -> 'row Target.t
+end
+
 module Expert : sig
   (** Revisions belong to the mounted bridge adapter, not application config.
       No native handle is serialized through this conversion. *)
@@ -80,4 +147,19 @@ module Expert : sig
     -> schema_revision:int64
     -> query_generation:int64
     -> Gpuio_protocol.Table_wire.Config.t Or_error.t
+
+  val list_config : Config.t -> Virtual_list.Config.t
+  val cell_to_wire : Cell.t -> Gpuio_protocol.Table_wire.Cell.t
+
+  val request_of_wire
+    :  Config.t
+    -> Gpuio_protocol.Table_wire.Request.t
+    -> find_key:(int64 -> 'row option)
+    -> 'row Request.t option
+
+  val command_to_wire
+    :  Config.t
+    -> 'row Command.t
+    -> find_id:('row -> int64 option)
+    -> Gpuio_protocol.Table_wire.Command.t Or_error.t
 end

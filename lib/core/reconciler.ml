@@ -2,6 +2,7 @@ module Ui_command = Command
 open Core
 open Gpuio_protocol
 module Wire = Wire
+module TW = Gpuio_protocol.Table_wire
 
 exception Cannot_prepare of Error.t
 
@@ -70,7 +71,7 @@ type 'a callback =
   | Split_pane of Split_pane.Config.t * (Split_pane.Snapshot.t -> 'a)
   | Canvas of Wire.Canvas_view.Config.t * (Canvas.Event.t -> 'a)
   | Document of Text_source.Handle.t * (Document.Navigation.t -> 'a)
-  | Virtual_list of List_identity.t * 'a View.Expert.virtual_list
+  | Virtual_list of List_identity.t * 'a View.Expert.virtual_list * TW.Config.t option
   | Animation_program of int64 * (int64 * int64) ref * (Animation.Program.Event.t -> 'a)
   | Animation of int64 * int64 ref * (Animation.Event.t -> 'a)
   | Image of (Image.State.t -> 'a)
@@ -117,6 +118,8 @@ type 'a mounted =
   ; color_input_seen : int64 ref
   ; calendar_seen : int64 ref
   ; list_identity : List_identity.t option
+  ; table_config : TW.Config.t option
+  ; table_serial : int64
   ; choice_appearance : Wire.Choice_appearance.t option
   ; children : 'a mounted list
   ; controllers : String.Set.t
@@ -276,6 +279,13 @@ let compatible mounted view =
   and next = View.Expert.describe view in
   View.Expert.Kind.equal old.kind next.kind
   && Option.equal Key.equal old.key next.key
+  && Bool.equal
+       (Option.exists old.virtual_list ~f:(fun list -> Option.is_some list.table))
+       (Option.exists next.virtual_list ~f:(fun list -> Option.is_some list.table))
+  && Option.equal
+       Table_column.Id.equal
+       (Option.map old.table_cell ~f:Table.Cell.column)
+       (Option.map next.table_cell ~f:Table.Cell.column)
   && Option.equal
        Wire.Extension.Schema.equal
        (Option.map old.extension ~f:(fun item -> item.config.schema))
@@ -648,6 +658,33 @@ let rec mount builder ~depth previous view =
           list.order
         |> value)
     in
+    let table = Option.bind description.virtual_list ~f:(fun list -> list.table) in
+    let old_table_config = Option.bind previous ~f:(fun old -> old.table_config) in
+    let table_config =
+      Option.map table ~f:(fun table ->
+        let candidate =
+          Table.Expert.to_wire
+            table.config
+            ~schema_revision:1L
+            ~query_generation:table.query_generation
+          |> value
+        in
+        match old_table_config with
+        | None -> candidate
+        | Some old ->
+          if Int64.(candidate.query_generation < old.query_generation)
+          then fail "table query generation went backwards";
+          let changed =
+            (not (TW.Schema.equal old.schema candidate.schema))
+            || not (Option.equal TW.Sort.equal old.sort candidate.sort)
+          in
+          if changed && Int64.equal old.schema_revision Int64.max_value
+          then fail "table schema revision exhausted";
+          { candidate with
+            schema_revision =
+              (if changed then Int64.succ old.schema_revision else old.schema_revision)
+          })
+    in
     let callback =
       match description.virtual_list, list_identity, callback with
       | Some list, Some identity, None ->
@@ -655,23 +692,28 @@ let rec mount builder ~depth previous view =
           Option.is_some list.on_viewport
           || Option.is_some list.on_retain
           || Option.is_some list.on_tree_input
-        then Some (Virtual_list (identity, list))
+        then Some (Virtual_list (identity, list, table_config))
         else None
       | None, None, callback -> callback
       | _ -> fail "incompatible virtual list callback"
     in
     let rotate_handler =
-      (match description.virtual_list, previous with
-       | Some list, Some mounted ->
-         let old =
-           Option.exists (View.Expert.describe mounted.view).virtual_list ~f:(fun list ->
-             Option.is_some list.on_tree_input)
-         in
-         (not (Bool.equal old (Option.is_some list.on_tree_input)))
-         || Option.exists
-              (View.Expert.describe mounted.view).virtual_list
-              ~f:(fun previous -> not (Bool.equal previous.tree_moves list.tree_moves))
-       | None, _ | Some _, None -> false)
+      (match table_config, old_table_config with
+       | Some next, Some old ->
+         not (Int64.equal next.query_generation old.query_generation)
+       | Some _, None | None, _ -> false)
+      || (match description.virtual_list, previous with
+          | Some list, Some mounted ->
+            let old =
+              Option.exists
+                (View.Expert.describe mounted.view).virtual_list
+                ~f:(fun list -> Option.is_some list.on_tree_input)
+            in
+            (not (Bool.equal old (Option.is_some list.on_tree_input)))
+            || Option.exists
+                 (View.Expert.describe mounted.view).virtual_list
+                 ~f:(fun previous -> not (Bool.equal previous.tree_moves list.tree_moves))
+          | None, _ | Some _, None -> false)
       || (match description.extension, previous with
           | Some item, Some mounted ->
             Option.exists (View.Expert.describe mounted.view).extension ~f:(fun old ->
@@ -843,6 +885,15 @@ let rec mount builder ~depth previous view =
       emit
         builder
         (Set_accessibility (id, Option.map accessibility ~f:Accessibility.Expert.to_wire));
+    Option.iter description.table_cell ~f:(fun cell ->
+      let old =
+        Option.bind previous ~f:(fun old -> (View.Expert.describe old.view).table_cell)
+      in
+      if not (Option.equal Table.Cell.equal old (Some cell))
+      then emit builder (Set_table_cell (id, Table.Expert.cell_to_wire cell)));
+    Option.iter table_config ~f:(fun config ->
+      if not (Option.equal TW.Config.equal old_table_config (Some config))
+      then emit builder (Set_table (id, config)));
     let tree_input description =
       Option.exists description.View.Expert.virtual_list ~f:(fun list ->
         Option.is_some list.on_tree_input)
@@ -1342,6 +1393,41 @@ let rec mount builder ~depth previous view =
              then fail "tree row focus requires native tree input"
            | Offset _ | Reveal _ | End -> ());
           emit builder (Scroll_list (id, request))));
+    let table_serial =
+      let serial =
+        Option.value_map previous ~default:0L ~f:(fun old -> old.table_serial)
+      in
+      match table with
+      | None -> serial
+      | Some table ->
+        let old_commands =
+          Option.value_map previous ~default:[] ~f:(fun old ->
+            Option.bind (View.Expert.describe old.view).virtual_list ~f:(fun list ->
+              list.table)
+            |> Option.value_map ~default:[] ~f:(fun table -> table.commands))
+        in
+        if List.equal (Table.Command.equal Key.equal) old_commands table.commands
+        then serial
+        else
+          List.fold table.commands ~init:serial ~f:(fun serial command ->
+            if Int64.compare (Table.Command.serial command) serial <= 0
+            then fail "table command serial did not advance";
+            if
+              not
+                (Int64.equal
+                   (Table.Command.query_generation command)
+                   table.query_generation)
+            then fail "table command belongs to an obsolete query";
+            let request =
+              Table.Expert.command_to_wire
+                table.config
+                command
+                ~find_id:(List_identity.id (Option.value_exn list_identity))
+              |> value
+            in
+            emit builder (Table_command (id, request));
+            request.serial)
+    in
     let controllers =
       let own =
         let controller =
@@ -1424,6 +1510,8 @@ let rec mount builder ~depth previous view =
     ; color_input_seen
     ; calendar_seen
     ; list_identity
+    ; table_config
+    ; table_serial
     ; choice_appearance
     ; children
     ; controllers
@@ -1535,7 +1623,7 @@ let retain_list_rows t notices =
           t.state.bindings
           (node_slot notice.Gpuio_protocol.List_wire.Retained.node)
       with
-      | Some { node; callback = Virtual_list (identity, list); _ }
+      | Some { node; callback = Virtual_list (identity, list, _); _ }
         when Node_id.equal node notice.node ->
         let%bind callback =
           Option.value_map
@@ -1635,6 +1723,27 @@ let dispatch t = function
                  (Text_source.Expert.native_id expected_source) ->
        Document.Expert.navigation navigation |> Result.ok |> Option.map ~f:callback
      | Some _ | None -> None)
+  | Wire.Event.Table_input (window, node, handler, revision, input)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Virtual_list (identity, list, Some config)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Int64.equal input.schema_revision config.schema_revision
+            && Int64.equal input.query_generation config.query_generation ->
+       Option.bind list.table ~f:(fun table ->
+         Table.Expert.request_of_wire
+           table.config
+           input.request
+           ~find_key:(List_identity.key identity)
+         |> Option.map ~f:table.on_input)
+     | Some _ | None -> None)
   | Wire.Event.Tree_input (window, node, handler, revision, request)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -1643,7 +1752,7 @@ let dispatch t = function
      | Some
          { node = expected
          ; handler = expected_handler
-         ; callback = Virtual_list (identity, list)
+         ; callback = Virtual_list (identity, list, _)
          }
        when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
        Tree_input.Expert.of_wire request ~find_key:(List_identity.key identity)
@@ -1673,7 +1782,7 @@ let dispatch t = function
      | Some
          { node = expected
          ; handler = expected_handler
-         ; callback = Virtual_list (identity, list)
+         ; callback = Virtual_list (identity, list, _)
          }
        when Node_id.equal node expected
             && Handler_id.equal handler expected_handler

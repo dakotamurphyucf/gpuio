@@ -169,8 +169,11 @@ handlers, and dirty cell edits revalidate table ownership. The retained native
 host now renders real cell Views, publishes bounded viewport demand, executes
 commands, shares focus retention and captures input routes at event creation.
 A local background-window test passes a sparse 100,000-row source, row-height
-anchor changes, single/empty data and entity release. Public View/Bonsai dispatch,
-clipboard/keyboard/accessibility and full-history/paging acceptance remain; no
+anchor changes, single/empty data and entity release. The Core managed table View
+now constructs bounded keyed cells, generates accepted schema revisions, routes
+typed input through current query/schema/policy checks and emits ordered commands.
+The managed Bonsai presenter, clipboard/keyboard/accessibility and full-history/
+paging acceptance remain; no
 table capability is advertised.
 See [table design](design/data-tables.md) and
 [evidence](evidence/data-tables-och39.md).

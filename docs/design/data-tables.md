@@ -274,7 +274,7 @@ but application callback dispatch still awaits the public mounted adapter.
 The new operation/event tags append to the under-development protocol without
 changing existing tags. No table capability is advertised from admission alone.
 Rendering, command execution and native focus pins are now integrated. Clipboard
-effects and public event dispatch still require integration; broader native
+effects and the managed Bonsai presenter still require integration; broader native
 keyboard/accessibility/cache/lifecycle acceptance remains.
 
 ## Retained native host
@@ -317,6 +317,44 @@ that every style refinement or accessibility contract has passed acceptance.
 The local host test drives actual GPUI layout/paint in a background window; it is
 not foreground keyboard, clipboard or IME acceptance.
 
+## Core View and callback adapter
+
+`Table.Cell` holds validated copy text and a typed column ID, separately from the
+child View. `Table.Selection`, `Request` and `Target` parameterize row identity;
+column identities are always `Table_column.Id`. `Table.Command` adds a positive
+serial and query generation. The managed adapter uses these types with bridge
+keys internally; application controllers will capture `Table_data.Row_ref`
+membership instead of accepting a reused display position.
+
+`View.Expert.managed_table` constructs inert keyed row/cell wrappers and admits
+exactly one cell per column, in accepted schema order. It checks active-row and
+active-cell limits before reconciliation, sharing managed-list order, viewport
+and retention infrastructure. The callback delivers typed native proposals.
+Cell copy text can change without replacing the wrapper; changing its column
+identity requires a new node. Replacing a table with an ordinary list also
+requires a new node, even when their outer kind/key would otherwise match.
+
+Reconciliation generates schema revisions from accepted schema/sort changes.
+Query generations must not decrease during a mount; changing one rotates the
+handler even when row order is unchanged. The callback binding stores the
+accepted schema/query revisions. Delivery rejects stale handlers, removed or
+reincarnated row IDs, obsolete schema/query snapshots, disabled input and invalid
+current column/selection policies. A column reorder retains keyed cell nodes.
+Streaming text/copy metadata updates do not resend logical order or schema.
+
+Command batches contain at most 64 ordered requests. An identical retained batch
+is not resent. New batches must strictly advance the mounted serial, including
+after an omitted batch or query reset, and use the current query generation.
+Targets resolve against the final logical order, including unmaterialized rows;
+selection mode and column existence are checked before submission. Offsets must
+be smaller than the configured row height. Failed preparation publishes no state
+and consumes neither schema revisions nor command serials. Native admission
+independently validates the resulting transaction.
+
+This is the Core adapter used by a managed presenter, not yet the ordinary Bonsai
+table component. Transient-cell lifetimes, source membership, application paging
+and the public native example still need that presenter and acceptance evidence.
+
 ## Remaining acceptance
 
 The model tests are one foundation, not a replacement for these gates:
@@ -324,7 +362,7 @@ The model tests are one foundation, not a replacement for these gates:
 - Compile the actual selected production adapter against both platform targets.
 - Connect the tested in-memory/Eio resources to bounded native cell descriptions,
   viewport demand, query generations and stable selection/anchor reconciliation.
-- Integrate public Core/Bonsai views, native column interaction, stable selection,
+- Integrate the managed Bonsai presenter, native column interaction, stable selection,
   keyboard, copy, context actions, accessibility and lifecycle behavior.
 - Exercise 100,000 logical rows with measured active/cache bounds and full
   traversal/revisit, horizontal and vertical behavior, resize/reorder/sort during
