@@ -146,6 +146,35 @@ pub(super) async fn exercise(
             accessible_with_role(cx, handle, "Second action", Some("AXButton"), false).is_some()
         );
     }
+    // Outgoing hitboxes are inert; the exposed incoming portion stays actionable.
+    let positions = handle
+        .update(cx, |v, _, _| {
+            let probes = v.probes.borrow();
+            [
+                probes[&node(57)].bounds.center(),
+                gpui::point(px(316.), probes[&node(60)].bounds.center().y),
+            ]
+        })
+        .unwrap();
+    let _ = presses(transport);
+    for (index, position) in positions.into_iter().enumerate() {
+        super::super::native_test::move_mouse(cx, handle, position, false);
+        super::super::native_test::mouse(cx, handle, position, true);
+        super::super::native_test::mouse(cx, handle, position, false);
+        assert_eq!(
+            presses(transport),
+            if index == 0 { vec![] } else { vec![node(60)] }
+        );
+    }
+    // Outgoing pages still paint, but cannot enter native Tab traversal.
+    for key_name in ["tab", "tab", "tab", "tab", "shift-tab", "shift-tab"] {
+        key(cx, handle, key_name);
+        frame(cx, handle).await;
+        assert!(
+            focused(cx, handle, node(59)) || focused(cx, handle, node(60)),
+            "Tab during slide must stay on the selected page"
+        );
+    }
     // Return before the slide completes; remembered focus should beat the first editor.
     apply(
         cx,
@@ -193,7 +222,10 @@ pub(super) async fn exercise(
     handle
         .update(cx, |v, _, _| assert!(!v.editors.contains_key(&node(56))))
         .unwrap();
-    assert!(focused(cx, handle, node(59)));
+    assert!(
+        focused(cx, handle, node(60)),
+        "surviving page restores its last clicked control"
+    );
     // Unmount policy removes every inactive descendant in the admitted transaction.
     let mut unmount = config(1);
     unmount.retain = false;

@@ -163,9 +163,29 @@ destination take precedence. Hidden retained panels still build native elements,
 but have no paint or accessibility subtree; outgoing content uses the inert paint
 boundary. No transition endpoint crosses the bridge.
 
-Initial mounted macOS tests and the public example pass. Broader nested/modal,
-resize/layout and maximum mounted-history acceptance remain pending; these results
-do not yet establish full OCH-37 family acceptance.
+Mounted macOS tests now cover nested routes, higher and outgoing modal scopes,
+native marked text isolation, pointer shielding, Tab/Shift-Tab during painted exits,
+resize during motion and all 128 pages. A route request deferred by a higher modal
+remains pending while its destination is still visible; accepted modal close then
+restores destination focus. A hidden/removed destination retires the request.
+When painted but ineligible controls exist, keyboard traversal uses the focus
+manager's eligible order even without an active modal trap. Otherwise ordinary
+native traversal remains in use. These rules close gaps that an input callback
+guard or accessibility hiding alone cannot address.
+
+The 128-entry history bound is independent of resource quotas. In particular,
+ordinary editors still reserve 8 MiB each against the 64 MiB per-window logical
+budget, as documented in the native-editor contract. These are conservative
+admission units, not measured RSS. Retain does not exempt hidden editors. The
+mounted workload uses 128 pages/buttons with four editor pages and read-only
+content elsewhere, checks a rejected 128-editor proposal leaves state unchanged,
+and verifies Unmount releases inactive widgets. Applications with many editor
+pages can explicitly unmount inactive native content and keep data/drafts under
+application ownership. No quota was widened to admit this workload.
+
+These results do not yet establish full OCH-37 family acceptance; supplementary
+overlays, carousel, broader sidebar presentation/workload and final hosted gates
+remain.
 
 ## Native bridge and validation still to implement
 

@@ -490,3 +490,65 @@ All-target native/protocol Clippy with `native-image-tests` and `-D warnings`, D
 formatting, rustfmt and the public right-sidebar AX/context-menu regression also
 pass. All owned test windows exited. The latter verifies that adding the route
 card did not break the existing sidebar flows; it is not a separate route AX test.
+## Nested navigation, input isolation and mounted-history workload (2026-09-26)
+
+The expanded actual-window test found and fixed two focus defects:
+
+- A route selected behind a separate modal lost its pending destination-focus
+  request. The modal correctly kept focus, but closing it did not focus the new
+  route. The request now survives temporary modal precedence while the page is
+  selected/visible and is retired if the page becomes hidden or removed.
+- With no modal trap, native Tab traversal could visit a still-painted outgoing
+  control. The manager now uses its eligible painted order whenever ineligible
+  controls are present; ordinary native traversal remains for fully eligible
+  frames. Actual forward/reverse Tab and pointer tests verify the outgoing page
+  cannot receive focus or activation while its pixels remain visible.
+
+The nested fixture independently changes inner/outer histories, enters marked
+text through macOS's native text client, hides the inner editor through outer
+navigation, and verifies later input cannot mutate it. Returning restores the
+same editor handle. A separate modal retains focus across route changes and
+Escape only requests dismissal; accepted close restores the current route.
+Reparenting that modal into a page and leaving the page retires its trap and
+prevents hidden Escape dismissal events.
+
+The maximum mounted-history fixture contains 128 pages and buttons, four native
+editor pages and read-only text elsewhere. It traverses every page with actual
+Enter activation, preserving all native handles and constant retained accounting.
+Per-page weak focus records stay bounded by 128 and pending destination requests
+by one. It resizes during a slide to 300×180, 500×320 and 400×280 logical pixels;
+incoming/outgoing offsets stay one assigned width apart, and GPU readback confirms
+the selected content fills the clipped viewport. Switching to Unmount releases
+127 inactive pages' descendants; final disposal clears editor/button/navigation
+owners, focus records and retained session accounting.
+
+An initial 128-editor proposal hit the **existing** 8 MiB/editor reservation against
+the 64 MiB/window logical quota. The final test explicitly verifies atomic rejection
+before running the mixed-content workload. No quota was changed. A 128-entry
+history is not a promise of 128 simultaneous native editors, and the reservations
+are not allocator/RSS measurements. The public interface and design now say so.
+
+Final local macOS arm64 command:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-image-tests --test native_navigation
+```
+
+Pass markers include `GPUIO_NAVIGATION_NESTED_OK` and
+`GPUIO_NAVIGATION_WORKLOAD_OK`. The final measured traversal had a median of
+16,470 µs and p95 of 18,502 µs from transaction application through the test's
+two-frame wait. This includes display scheduling and excludes the OCaml/FFI path;
+it is a local workload observation, not a render-CPU or end-to-end latency claim.
+
+Shared native editor and controls regressions also pass with the focus fixes.
+The combined run subsequently found a stale assertion in the extended navigation
+test: clicking the incoming action correctly made it the page's remembered target,
+so return focus should be that button, not the earlier editor. The assertion now
+matches the explicit user interaction, and the final navigation run passes.
+All-target Clippy with `native-image-tests` and denied warnings passes. No source,
+protocol or dependency pin changed. Remaining OCH-37 component families and hosted
+gates remain open; these results do not claim Linux GUI acceptance.
+
+The public Navigation Lab was rebuilt against the updated native library and its
+`--self-test` passes. Dune formatting, rustfmt and whitespace checks pass. All
+owned test applications exited.

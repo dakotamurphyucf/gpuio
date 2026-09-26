@@ -671,6 +671,12 @@ impl Manager {
         let mut focused = false;
         for (page, remembered) in std::mem::take(&mut self.navigation_enter).into_iter().rev() {
             if !self.allows(page) {
+                // A higher modal temporarily owns focus. Keep the destination
+                // request while its page remains selected/visible, then restore
+                // it after an accepted modal close. Hidden/removed routes retire it.
+                if self.visible(page) {
+                    self.navigation_enter.push((page, remembered));
+                }
                 continue;
             }
             if focused {
@@ -719,22 +725,37 @@ impl Manager {
     pub(super) fn navigation_pending(&self) -> bool {
         !self.navigation_enter.is_empty()
     }
+    #[cfg(feature = "native-tests")]
+    pub(super) fn navigation_test_stats(&self) -> (usize, usize, usize) {
+        (
+            self.navigation.len(),
+            self.navigation
+                .values()
+                .map(|state| state.remembered.len())
+                .sum(),
+            self.navigation_enter.len(),
+        )
+    }
     pub(super) fn traverse(&self, reverse: bool, window: &mut Window, cx: &mut App) {
-        let Some(scope) = self.active else {
+        // Inert exits still paint native focus handles. Preserve native traversal
+        // for ordinary frames, but never let those ineligible handles become stops.
+        if self.active.is_none() && self.entries.iter().all(|entry| self.eligible(entry.node)) {
             if reverse {
                 window.focus_prev(cx);
             } else {
                 window.focus_next(cx);
             }
             return;
-        };
+        }
         let entries = self
             .entries
             .iter()
             .filter(|entry| entry.tab_stop && self.eligible(entry.node))
             .collect::<Vec<_>>();
         if entries.is_empty() {
-            window.focus(&self.scopes[&scope].handle, cx);
+            if let Some(scope) = self.active {
+                window.focus(&self.scopes[&scope].handle, cx);
+            }
             return;
         }
         let current = entries

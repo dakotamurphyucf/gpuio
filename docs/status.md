@@ -45,7 +45,10 @@ animations/popup scopes suspend. GPU and public screenshot evidence verifies pai
 continues during exit. Navigation now has tested bounded native transition state
 and a mounted Core/Bonsai presenter, including reversal from painted positions,
 retained native controls, destination focus, outgoing GPU paint and immediate
-removal. Initial native and public checks pass; broader navigation acceptance remains alongside
+removal. Native nested/modal, IME, pointer/keyboard exit gating and a full 128-page
+workload with resize also pass, alongside the public example. Four retained editors
+fit within unchanged editor quotas; history bounds do not exempt native resources.
+Remaining scope includes
 remaining navigation/overlay/carousel components,
 expanded public examples, broader acceptance and hosted gates.
 See [navigation design](design/navigation-components.md) and

@@ -295,6 +295,11 @@ val panel
     computations. At most one retained outgoing page paints, already inert.
     Removed pages never delay resource disposal for an exit animation.
 
+    The 128-entry history bound does not bypass native resource quotas. Retained
+    hidden editors still consume the ordinary editor admission budget. Use
+    Unmount when inactive native resources should be released while application
+    data remains available.
+
     Native timing and focus restoration follow [Navigation_stack.Motion]. The
     container clips pages to its assigned size; give it explicit dimensions or
     flex allocation. Label must be nonempty UTF-8 without NUL, at most 4096 bytes. *)
