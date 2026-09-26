@@ -19,25 +19,56 @@ module Id = struct
   let to_string t = t
 end
 
-module Row_ref = struct
-  type t =
-    { owner : unit ref
-    ; id : Id.t
-    ; lifetime : unit ref
-    }
+module Source_id = struct
+  module T = struct
+    type t = Type_equal.Id.Uid.t [@@deriving compare, equal, sexp_of]
+  end
 
-  let id t = t.id
+  include T
+  include Comparator.Make (T)
 
-  let equal a b =
-    phys_equal a.owner b.owner && Id.equal a.id b.id && phys_equal a.lifetime b.lifetime
+  let create () =
+    Type_equal.Id.create ~name:"table membership" sexp_of_unit |> Type_equal.Id.uid
   ;;
 end
 
+module Row_ref = struct
+  module T = struct
+    type t =
+      { owner : Source_id.t
+      ; id : Id.t
+      ; lifetime : Source_id.t
+      }
+    [@@deriving compare, equal, sexp_of]
+  end
+
+  include T
+  include Comparator.Make (T)
+
+  let id t = t.id
+end
+
+module Identity = struct
+  type t =
+    { owner : Source_id.t
+    ; keys : Id.t list
+    ; lifetimes : (Id.t, Source_id.t, Id.comparator_witness) Map.t
+    }
+
+  let source_id t = t.owner
+
+  let row_ref t id =
+    Map.find t.lifetimes id
+    |> Option.map ~f:(fun lifetime -> { Row_ref.owner = t.owner; id; lifetime })
+  ;;
+
+  let rows t = List.map t.keys ~f:(fun id -> row_ref t id |> Option.value_exn)
+end
+
 type 'data t =
-  { owner : unit ref
+  { identity : Identity.t
   ; revision : int64
   ; items : (Id.t, 'data, Id.comparator_witness) List_collection.t
-  ; lifetimes : (Id.t, unit ref, Id.comparator_witness) Map.t
   ; key_bytes : int
   }
 
@@ -47,25 +78,21 @@ let length t = List_collection.length t.items
 let is_empty t = List_collection.is_empty t.items
 let revision t = t.revision
 let key_bytes t = t.key_bytes
-let same_source a b = phys_equal a.owner b.owner
+let same_source a b = Source_id.equal a.identity.owner b.identity.owner
 let keys t = List_collection.keys t.items
 let find t key = List_collection.find t.items key
 let index t key = List_collection.index t.items key
 let nth t index = List_collection.nth t.items index
 let range t ~first ~last = List_collection.range t.items ~first ~last
 let to_alist t = List_collection.to_alist t.items
-
-let row_ref t key =
-  Map.find t.lifetimes key
-  |> Option.map ~f:(fun lifetime -> { Row_ref.owner = t.owner; id = key; lifetime })
-;;
+let row_ref t key = Identity.row_ref t.identity key
 
 let contains_ref t (reference : Row_ref.t) =
-  phys_equal t.owner reference.owner
+  Source_id.equal t.identity.owner reference.owner
   && Option.value_map
-       (Map.find t.lifetimes reference.id)
+       (Map.find t.identity.lifetimes reference.id)
        ~default:false
-       ~f:(fun lifetime -> phys_equal lifetime reference.lifetime)
+       ~f:(Source_id.equal reference.lifetime)
 ;;
 
 let validate_count count =
@@ -94,9 +121,17 @@ let create rows =
   let lifetimes =
     Map.of_alist_exn
       (module Id)
-      (List.map (List_collection.keys items) ~f:(fun key -> key, ref ()))
+      (List.map (List_collection.keys items) ~f:(fun key -> key, Source_id.create ()))
   in
-  { owner = ref (); revision = 0L; items; lifetimes; key_bytes }
+  { identity =
+      { Identity.owner = Source_id.create ()
+      ; keys = List_collection.keys items
+      ; lifetimes
+      }
+  ; revision = 0L
+  ; items
+  ; key_bytes
+  }
 ;;
 
 let next_revision t =
@@ -117,13 +152,17 @@ let replace_items t ~revision ~items ~key_bytes =
       (module Id)
       (List.map (List_collection.keys items) ~f:(fun key ->
          let lifetime =
-           match Map.find t.lifetimes key with
+           match Map.find t.identity.lifetimes key with
            | Some lifetime -> lifetime
-           | None -> ref ()
+           | None -> Source_id.create ()
          in
          key, lifetime))
   in
-  { t with revision; items; lifetimes; key_bytes }
+  { identity = { t.identity with keys = List_collection.keys items; lifetimes }
+  ; revision
+  ; items
+  ; key_bytes
+  }
 ;;
 
 let replace t rows =
@@ -146,7 +185,11 @@ let splice t ~at ~remove rows =
 let reorder t keys =
   let%bind.Or_error revision = next_revision t in
   let%map.Or_error items = List_collection.reorder t.items keys in
-  { t with revision; items }
+  { t with
+    revision
+  ; items
+  ; identity = { t.identity with keys = List_collection.keys items }
+  }
 ;;
 
 let fold_changed_values t ~previous ~init ~f =
@@ -156,5 +199,13 @@ let fold_changed_values t ~previous ~init ~f =
 ;;
 
 module Expert = struct
+  module Identity = Identity
+
+  let identity t = t.identity
+
+  let row_key (row : Row_ref.t) =
+    Source_id.sexp_of_t row.lifetime |> Sexp.to_string |> Key.of_string_exn
+  ;;
+
   let items t = t.items
 end

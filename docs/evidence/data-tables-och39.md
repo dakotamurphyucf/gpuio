@@ -440,3 +440,65 @@ OCaml View/reconciliation behavior, not a public Bonsai table, foreground native
 interaction or Linux GUI acceptance. The existing native host evidence above is
 separate. The managed presenter, public example, remaining native table acceptance,
 showcase and consolidated hosted gates/merge remain; no capability is advertised.
+
+## Public Bonsai presenter, Eio controls and Table Lab
+
+`Gpuio_bonsai.Table` now exposes managed `component`/`paged`, typed cell renderers,
+row-membership targets, selection observations and bounded controller batches.
+`Gpuio_eio.Table_paging.controls` supplies generation-checked request/retry/cancel
+effects. Source identity/order metadata contains no payloads and survives point
+updates by sharing. Row keys include membership incarnation, including a removal
+and reinsertion coalesced before a displayed frame.
+
+The component tests pass bounded active cells, keyed streaming, native selection
+observations, column-removal repair, query-local cell lifetimes, stale controllers
+and native effects, once-only command batches and source-payload release while
+old controllers/effects remain reachable. A supersession regression confirms that
+a selection batch replaced before display cannot publish an unexecuted selection,
+and that newer native selection wins over an older pending batch. Query resets
+rotate the native callback while preserving the same native table root.
+
+The full-history Bonsai workload visits every one of 100,000 rows twice with two
+columns, allocating 400,000 non-default cell payloads over those visits. It checks
+at most 200 active cell payloads at collection samples, zero retired payloads
+after eviction, and retained heap growth below 200,000 words over its initialized
+baseline. These are OCaml/Bonsai lifecycle and heap checks; they do not establish
+a full-history native GPUI cache bound.
+
+The public Eio integration test passes empty cursor-advancing pages without a new
+frame, waiting for layout after a nonempty page, explicit failure retry and ignored
+obsolete/closed paging controls. Only Ready boundaries trigger automatic work.
+
+The final local macOS public native command
+`GPUIO_JOBS=2 python3 scripts/test_table_public.py` passes and closes its window:
+
+- 100,000 logical rows, three columns, at most 96 retained active cells, initial
+  native viewport demand and actual public View submission.
+- A selection/scroll batch reaches row 50,000 at nine pixels within the row;
+  changing row height from 32 to 44 preserves that anchor.
+- Reversing the same source under a new query preserves the row anchor and
+  reports its new visible index 49,999. A captured old-query reveal is ignored.
+- Streamed Unicode text appears in the accepted retained cell description,
+  followed by a native frame acknowledgment; selected-row removal repairs the
+  public selection.
+- An empty new source triggers a scoped failing producer, waits for explicit
+  retry, then paints the loaded rows. Closing during another producer cancels it
+  and releases all cell lifetimes (three producers started and finished).
+
+The native run permits activation for reliable frame delivery and does not inject
+physical keyboard input or establish clipboard/IME/accessibility acceptance. Its
+wrapper requires the completion marker and kills/reaps the process group on a
+120-second timeout. The CI workflow includes this public harness for the later
+consolidated macOS run; no hosted execution is claimed here.
+
+Final `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt` passes.
+The first full check found only formatting of the new example's Dune stanza; it
+was corrected before the final all-pass run. Contracts and runnable commands are
+in the [table design](../design/data-tables.md) and
+[Table Lab README](../../examples/table/README.md).
+
+OCH-39 remains in progress: complete native keyboard/copy/context/accessibility,
+presentation/style and lifecycle acceptance, full-history native cache checks,
+resize/reorder/sort during paging, and the remaining public interactions. The chat
+showcase, consolidated platform gates and merge remain milestone deliverables.
+No table capability bit is advertised yet.

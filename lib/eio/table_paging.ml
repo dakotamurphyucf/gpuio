@@ -268,3 +268,31 @@ let append t rows =
   let%map.Or_error () = P.append t.state rows in
   notify t
 ;;
+
+let controls t =
+  check t;
+  let current ~generation =
+    (not t.closed)
+    && Scope.is_active t.scope
+    && Int64.equal generation (P.generation t.state)
+  in
+  let run operation ~generation direction =
+    Bonsai.Effect.of_thunk (fun () ->
+      check t;
+      if current ~generation
+      then (
+        match operation t direction with
+        | Ok () -> ()
+        | Error error ->
+          (match P.status t.state direction with
+           | Failed _ -> ()
+           | Ready | Loading | End -> Error.raise error)))
+  in
+  Gpuio_bonsai.Table.Paging.create
+    ~request:(run request)
+    ~retry:(run retry)
+    ~cancel:(fun ~generation direction ->
+      Bonsai.Effect.of_thunk (fun () ->
+        check t;
+        if current ~generation then cancel t direction))
+;;

@@ -172,8 +172,12 @@ A local background-window test passes a sparse 100,000-row source, row-height
 anchor changes, single/empty data and entity release. The Core managed table View
 now constructs bounded keyed cells, generates accepted schema revisions, routes
 typed input through current query/schema/policy checks and emits ordered commands.
-The managed Bonsai presenter, clipboard/keyboard/accessibility and full-history/
-paging acceptance remain; no
+The public Bonsai presenter and Eio paging controls now connect bounded cell
+lifetimes, membership-aware commands, query resets and current selection. Local
+tests traverse all 100,000 rows twice and release retired cell payloads. The public
+Table Lab passes native keyed scrolling/anchors, streaming, query retirement,
+failure/retry and window cleanup. Clipboard/keyboard/accessibility, broader native
+full-history/paging interactions and final acceptance remain; no
 table capability is advertised.
 See [table design](design/data-tables.md) and
 [evidence](evidence/data-tables-och39.md).

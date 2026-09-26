@@ -206,6 +206,9 @@ jobs:
       - name: macOS retained table host
         if: runner.os == 'macOS'
         run: python3 scripts/test_table_host.py 2>&1 | tee .cache/ci/macos-table-host-native.log
+      - name: macOS public Bonsai table and paging
+        if: runner.os == 'macOS'
+        run: python3 scripts/test_table_public.py 2>&1 | tee .cache/ci/macos-table-public.log
       - name: macOS public managed trees and approved moves
         if: runner.os == 'macOS'
         run: |

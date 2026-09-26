@@ -2,6 +2,7 @@ module Managed_rows = Managed_rows
 module Virtual_list = Virtual_list
 module Tree_rows = Tree_rows
 module Tree = Tree
+module Table = Table
 
 module View = struct
   type t = unit Bonsai.Effect.t Gpuio.View.t

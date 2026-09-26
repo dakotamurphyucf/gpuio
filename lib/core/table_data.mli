@@ -11,14 +11,22 @@ module Id : sig
   val to_string : t -> string
 end
 
+module Source_id : sig
+  (** Process-local lineage identity with no application payload. *)
+  type t [@@deriving compare, equal, sexp_of]
+
+  include Comparator.S with type t := t
+end
+
 module Row_ref : sig
   (** One membership lifetime of a row in one source lineage. Contains no
       application payload or collection snapshot. Removing and later adding
       the same ID creates a different lifetime. Not a serialized native handle. *)
-  type t
+  type t [@@deriving compare, equal, sexp_of]
+
+  include Comparator.S with type t := t
 
   val id : t -> Id.t
-  val equal : t -> t -> bool
 end
 
 (** Immutable, ordered application data. It owns no cells, views, Bonsai models,
@@ -82,6 +90,18 @@ val fold_changed_values
   -> 'acc Or_error.t
 
 module Expert : sig
+  module Identity : sig
+    (** Shared immutable order/membership metadata, with no row payloads.
+        Point updates share it; structural changes replace it. *)
+    type t
+
+    val source_id : t -> Source_id.t
+    val rows : t -> Row_ref.t list
+  end
+
+  val identity : _ t -> Identity.t
+  val row_key : Row_ref.t -> Key.t
+
   (** Shared data snapshot for bounded managed-row adapters. No mapping or
       copying takes place. Native row allocation and query epochs remain the
       adapter's responsibility. *)

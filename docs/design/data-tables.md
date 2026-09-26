@@ -274,7 +274,7 @@ but application callback dispatch still awaits the public mounted adapter.
 The new operation/event tags append to the under-development protocol without
 changing existing tags. No table capability is advertised from admission alone.
 Rendering, command execution and native focus pins are now integrated. Clipboard
-effects and the managed Bonsai presenter still require integration; broader native
+effects still require integration; broader native
 keyboard/accessibility/cache/lifecycle acceptance remains.
 
 ## Retained native host
@@ -351,21 +351,66 @@ be smaller than the configured row height. Failed preparation publishes no state
 and consumes neither schema revisions nor command serials. Native admission
 independently validates the resulting transaction.
 
-This is the Core adapter used by a managed presenter, not yet the ordinary Bonsai
-table component. Transient-cell lifetimes, source membership, application paging
-and the public native example still need that presenter and acceptance evidence.
+This Core adapter is consumed by the public `Gpuio_bonsai.Table` presenter below.
+The Expert View constructor is not required for ordinary application code.
+
+## Public Bonsai presenter and Eio paging
+
+`Gpuio_bonsai.Table.component` accepts a `Table_data` source and reactive
+`Table.Config`; `Table.paged` accepts a table-pager snapshot and generation-checked
+controls. Each active row has a keyed computation, and each column inside it has
+its own default-reset lifetime. `render_cell` returns a validated `Table.Cell`
+with independent copy text and an ordinary View. Only the requested/pinned rows
+create cells; all schema columns count against the cell budget, regardless of
+horizontal paint virtualization. Persistent preferences and I/O jobs belong
+outside these transient computations.
+
+Table source/order metadata now exposes opaque comparable lineage and membership
+identities without row payloads. Point updates share that snapshot. Native row
+keys include the membership incarnation, so a removal/reinsertion coalesced before
+native acceptance still creates a new identity. A retained controller or delayed
+native effect holds no source payload snapshot. `Output.target` captures a
+membership; the output itself deliberately retains its current source snapshot.
+
+The outer component scope is keyed by source lineage. A fresh source resets the
+widget and its native root. A same-source query-generation increase keeps that
+root and surviving anchors/selection, but resets transient cell computations and
+rejects older-query effects. Decreasing generations within a mount is invalid.
+Selection repairs after row/column removal or a selection-mode change. This
+component never sorts data on behalf of the application: sort/resize/reorder and
+other native requests are delivered as typed proposals for application handling.
+
+Controller batches contain at most 64 commands and replace an earlier pending,
+undisplayed batch. Group selection/reveal when both must execute. Serials remain
+monotonic; an after-display acknowledgment clears only its own displayed batch.
+The model distinguishes displayed/native selection from a pending selection, so
+superseding a batch cannot report a selection that never reached native code.
+A newer native selection supersedes an older pending batch, and sequence checks
+prevent delayed display acknowledgment from overwriting that observation.
+
+Viewport validity follows query, logical order and config, not row payload
+revision. This preserves useful geometry after a point update or empty
+cursor-advancing page. A nonempty page waits for new native layout before loading
+another boundary; empty advancing pages can continue without an otherwise
+unnecessary frame. Automatic demand requests only Ready boundaries. Failure
+requires explicit retry; leaving the viewport does not cancel application work.
+`Gpuio_eio.Table_paging.controls` rechecks current generation, scope and closure
+when an effect executes. Resetting or closing the pager cancels its producers;
+resetting a widget alone does not own that application I/O lifetime.
+
+The [Table Lab](../../examples/table/README.md) exercises the public path. Native
+keyboard/copy/context/accessibility and the rest of the full OCH-39 acceptance
+remain required; the public presenter is not a claim that those gates passed.
 
 ## Remaining acceptance
 
 The model tests are one foundation, not a replacement for these gates:
 
 - Compile the actual selected production adapter against both platform targets.
-- Connect the tested in-memory/Eio resources to bounded native cell descriptions,
-  viewport demand, query generations and stable selection/anchor reconciliation.
-- Integrate the managed Bonsai presenter, native column interaction, stable selection,
-  keyboard, copy, context actions, accessibility and lifecycle behavior.
+- Complete native keyboard, copy, context actions, accessibility and lifecycle
+  acceptance, including resize/reorder/sort during active paging.
 - Exercise 100,000 logical rows with measured active/cache bounds and full
   traversal/revisit, horizontal and vertical behavior, resize/reorder/sort during
   paging, removed selected rows, Unicode copy, focus, empty/error and teardown.
-- Add a public example and showcase in OCH-46, then consolidated local/hosted
+- Add the polished chat showcase in OCH-46, then consolidated local/hosted
   macOS and Linux checks and merge. Linux GUI acceptance remains OCH-17.

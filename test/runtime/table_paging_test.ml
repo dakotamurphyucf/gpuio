@@ -294,3 +294,134 @@ let%expect_test
     (2 true)
     |}]
 ;;
+
+let%expect_test
+    "public Bonsai paging follows empty pages, retries explicitly and fences old controls"
+  =
+  with_scope (fun scope inbox ->
+    let module B = Bonsai.Cont in
+    let module W = Gpuio_bonsai.Table in
+    let calls = ref 0 in
+    let fail = ref false in
+    let pager =
+      P.create
+        ~scope
+        ~query:"q0"
+        (empty ())
+        ~before:End
+        ~after:(More None)
+        ~load:(fun request ->
+          Int.incr calls;
+          if !fail
+          then Or_error.error_string "offline"
+          else (
+            match P.Request.cursor request with
+            | None -> Ok { P.Page.rows = []; next = More (Some "first") }
+            | Some "first" ->
+              Ok { P.Page.rows = [ id "one", "one" ]; next = More (Some "last") }
+            | Some _ -> Ok { P.Page.rows = [ id "two", "two" ]; next = End }))
+      |> ok
+    in
+    let column = Gpuio.Table_column.Id.of_string "name" |> ok in
+    let columns =
+      Gpuio.Table_column.Collection.create
+        [ Gpuio.Table_column.create ~id:column ~label:"Name" () |> ok ]
+      |> ok
+    in
+    let config =
+      Gpuio.Table.Config.create ~columns ~label:"Paged" ~max_active_rows:4 () |> ok
+    in
+    let controls = P.controls pager in
+    let driver =
+      Bonsai_driver.create
+        ~action_history:Release_after_flush
+        ~clock:(Bonsai.Time_source.create ~start:Time_ns.epoch)
+        (fun graph ->
+           W.paged
+             (P.value pager)
+             ~paging:(B.return controls)
+             ~config:(B.return config)
+             ~render_cell:(fun ~row:_ ~data ~column ~lifetime:_ _ ->
+               B.map2 data column ~f:(fun text col ->
+                 W.Cell.text ~column:(Gpuio.Table_column.id col) text))
+             graph)
+    in
+    let result () =
+      Bonsai_driver.flush driver;
+      Bonsai_driver.result driver |> ok
+    in
+    let display () =
+      ignore (result () : _ W.Output.t);
+      Bonsai_driver.trigger_lifecycles driver;
+      ignore (result () : _ W.Output.t)
+    in
+    let report at_end =
+      let output = result () in
+      let root =
+        (Gpuio.View.Expert.describe (W.Output.view output)).children
+        |> List.hd_exn
+        |> Gpuio.View.Expert.describe
+      in
+      let list = Option.value_exn root.virtual_list in
+      let viewport : Gpuio.Virtual_list.Viewport.t =
+        { visible_first = 0
+        ; visible_last = D.length (P.snapshot pager).data
+        ; requested = []
+        ; pinned = []
+        ; anchor = None
+        ; following_tail = false
+        ; at_start = true
+        ; at_end
+        ; budget_exhausted = false
+        }
+      in
+      Bonsai_driver.schedule_event driver (Option.value_exn list.on_viewport viewport)
+    in
+    display ();
+    report true;
+    display ();
+    settle inbox;
+    display ();
+    settle inbox;
+    display ();
+    assert (!calls = 2 && D.length (P.snapshot pager).data = 1);
+    assert (Option.is_none (W.Output.viewport (result ())));
+    settle inbox;
+    display ();
+    assert (!calls = 2);
+    report false;
+    display ();
+    settle inbox;
+    assert (!calls = 2);
+    fail := true;
+    report true;
+    display ();
+    settle inbox;
+    display ();
+    assert (!calls = 3);
+    for _ = 0 to 2 do
+      report true;
+      display ();
+      settle inbox
+    done;
+    assert (!calls = 3);
+    fail := false;
+    Bonsai_driver.schedule_event driver (W.Paging.retry controls ~generation:0L After);
+    display ();
+    settle inbox;
+    display ();
+    assert (!calls = 4 && D.length (P.snapshot pager).data = 2);
+    P.reset pager ~query:"q1" (empty ()) ~before:End ~after:(More None) |> ok;
+    display ();
+    Bonsai_driver.schedule_event driver (W.Paging.request controls ~generation:0L After);
+    display ();
+    settle inbox;
+    assert (!calls = 4);
+    P.close pager;
+    Bonsai_driver.schedule_event driver (W.Paging.request controls ~generation:1L After);
+    display ();
+    settle inbox;
+    assert (!calls = 4);
+    Bonsai_driver.Expert.invalidate_observers driver);
+  [%expect {| |}]
+;;

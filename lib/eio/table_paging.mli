@@ -65,3 +65,7 @@ val append : (_, 'data) t -> (Gpuio.Table_data.Id.t * 'data) list -> unit Or_err
     Parent-scope cancellation also closes it. Other controllers/tasks in the
     same scope are unaffected by explicit close. *)
 val close : (_, _) t -> unit
+
+(** Generation-checked controls for [Gpuio_bonsai.Table.paged]. Delayed actions
+    from an obsolete query, a closed controller or a cancelled scope do nothing. *)
+val controls : (_, _) t -> Gpuio_bonsai.Table.Paging.t
