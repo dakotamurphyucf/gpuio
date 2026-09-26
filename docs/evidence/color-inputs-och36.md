@@ -246,3 +246,44 @@ The workflow now includes the public self-test on macOS. Hosted execution remain
 pending the consolidated milestone run. Popup Apply/Cancel, complete native color
 AX/appearance/lifecycle/workload acceptance, capability advertisement and required
 hosted macOS/Linux checks/merge remain outstanding.
+
+## Popup policy, controller and actual macOS input — 2026-09-25
+
+Core expect tests cover valid preview confirmation, composing/incomplete/raw-draft
+and active-drag rejection, current policy, stale session/lease/revision fencing,
+remount replacement and historical seed fallback. A test fixture initially kept
+a different committed value after removing its interaction; strict snapshot
+validation correctly rejected it. The idle fixture now sets committed=current.
+
+The new `Gpuio_eio.Color_picker` public example passes real-window Apply/Cancel,
+in-flight cancellation, old opening and old native lease rejection, view remount,
+Bonsai component deactivation/reactivation, read-only/disabled/opaque policy,
+historical fallback, external-value invalidation, empty confirmation and close.
+No new native/protocol changes were needed for popup composition.
+
+`python3 scripts/test_color_picker.py` passes against its own native child:
+AX hex editing and channel limits; AX slider Increment plus OS Right arrow;
+OS Enter leaving the confirmed application value unchanged until Apply;
+invalid draft disabling Apply; OS Escape discarding the popup draft; Cancel;
+verified child-owned outside pointer dismissal; restored trigger focus;
+read-only/disabled controls; right-edge bounds clamping; and Clear/Apply inside
+a containing dialog. Native screenshots were reviewed for readable controls and
+contained popup bounds at the tested size. This is not a full density/theme/font
+matrix or an IME candidate-window test.
+
+The automation first assumed inline Escape precedence and used an outside target
+covered by the taller popup. It now checks popup dismissal and verifies the click
+point lies outside the measured panel. Dialog automation waits for the replacement
+trigger's containing dialog before pressing it, avoiding the retired outer node.
+All child windows/processes are closed and reaped on completion or failure.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 examples/color_input/main.exe examples/color_input/picker.exe @test/view_api/runtest @fmt
+_build/default/examples/color_input/picker.exe --self-test
+python3 scripts/test_color_picker.py
+```
+
+CI includes both public examples and macOS AX automation; consolidated hosted
+execution remains pending. Full color appearance, scale/constraint, owner/window/
+managed-list lifecycle and workload acceptance remain outstanding, as do color
+capability advertisement, required macOS/Linux gates and milestone merge.

@@ -323,7 +323,9 @@ let () =
   if self_test
   then (
     assert !completed;
-    print_endline
-      "GPUIO_COLOR_CONTROLLER_OK: commands, revisions, policy, 64-request admission, \
-       remount and close")
+    Eio_main.run (fun env ->
+      Eio.Flow.copy_string
+        "GPUIO_COLOR_CONTROLLER_OK: commands, revisions, policy, 64-request admission, \
+         remount and close\n"
+        (Eio.Stdenv.stdout env)))
 ;;

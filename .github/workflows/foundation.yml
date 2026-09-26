@@ -168,6 +168,8 @@ jobs:
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_calendar"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-calendar-native.log
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_color_input"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-color-input-native.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/color_input/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-color-input-public.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/color_input/picker.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-color-picker-public.log
+          python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_color_picker.py"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-color-picker-ax.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/presentation/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-presentation-public.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/numeric/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-numeric-public.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/numeric/number.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-number-public.log

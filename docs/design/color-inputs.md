@@ -1,8 +1,8 @@
 # Color selection (OCH-36)
 
 Status: value models, retained native channels/editors, correlated commands and
-the public Bonsai/Eio controller/example pass local checks. Popup selection and
-full native acceptance remain in progress. No color-control capability is
+the public Bonsai/Eio controller and popup examples pass local checks, including
+macOS AX and OS-input popup scenarios. Full native acceptance remains in progress. No color-control capability is
 advertised yet.
 
 ## Concrete values
@@ -313,3 +313,33 @@ The [Color Studio example](../../examples/color_input/README.md) demonstrates th
 public controller and includes a real-window OCaml/Rust command/lifecycle self-test.
 Popup Apply/Cancel composition and full color AX/appearance/workload acceptance
 remain separate work; this checkpoint does not advertise the color capability.
+
+## Controlled-value popup
+
+`Gpuio.Color_picker` is the pure lifetime/confirmation policy;
+`Gpuio_eio.Color_picker.create window ~config ~value ~on_change` is the public
+Bonsai controller. It composes `View.color_input` with the existing popover rather
+than introducing another Rust widget or synchronous OCaml callback. Each opening
+has a new session and native key. The confirmed application value stays separate
+from native previews and text commits. Apply reads the native draft asynchronously,
+then validates the latest application value, opening, lease/revision and policy.
+Invalid/composing text, active pointer drags and disallowed values cannot confirm.
+A valid noncomposing text preview can confirm without a separate Enter. Success
+closes the opening and calls `on_change` once; it does not fabricate a native
+user-commit event. Cancel, outside dismissal and Escape discard the draft. Popup
+Escape takes precedence over the inline editor's local cancellation handler.
+
+Changing the application value or disabling closes the opening. Other configuration
+changes preserve the draft and confirmation revalidates the new policy. A disallowed
+historical application value seeds Empty if allowed, otherwise its original RGB
+with opaque alpha, or opaque black if Empty itself is disallowed. The fallback is
+only a draft; cancellation cannot rewrite the application value. Read-only opens
+for inspection but cannot Apply. Removed/reinserted open views accept their new
+reconciler-validated native lease; replies from the removed lease cannot confirm it.
+Deactivating the Bonsai component closes the session. Late cancellation and Apply
+callbacks cannot close a later opening.
+
+The popup example has local coverage for native edits/sliders, actual OS keys,
+outside pointer dismissal, trigger focus restoration, dialog nesting and bounds
+clamping at the window edge. Wider theme/density/font/constraint and lifecycle/
+workload validation remains before advertising the complete color capability.
