@@ -519,3 +519,62 @@ deduplication and inherited pointer disabling/restoration. All owned validation
 processes have exited. Local logs are `tree-input-rust-all.log`,
 `tree-input-clippy-final.log`, `tree-input-native-final.log` and
 `tree-input-dune-all-final.log` under the implementing agent's scratch directory.
+
+
+## Deferred row focus and reveal (2026-09-26)
+
+The explicit Bonsai tree-row reveal controller accepts `~focus:true`. It retains
+source/projection checks and uses a new nested Scroll_target tag (3) in the
+existing serialled scroll operation. Independent OCaml/Rust bytes cover this
+command, positive target/serial validation, truncation and trailing bytes. Core
+and native admission reject focus requests on lists without native tree input.
+The existing public tree input requests and their encodings remain unchanged.
+
+Native handoff releases the previous row pin by focusing the tree surface, then
+waits for the same enabled visible row to materialize. One pending target and two
+scoped event subscriptions suffice; there is no idle task/timer. A one-row budget
+exposed a real starvation case: a partially visible preceding row consumed the
+request budget. The destination now gets priority within the same unchanged cap.
+Native row rendering tracks that destination separately from the bounded overscan
+request sample, so sample truncation cannot leave it waiting after materialization.
+
+The native_tree suite now additionally exercises the production focus path with
+real `apply_guarded` admission and current native retention pins:
+
+- A sparse 100-row logical order and a one-active-row budget, verifying placeholder
+  demand without an old focus pin, then actual focus after target materialization.
+- A waiting destination reordered to a new position without changing its identity.
+- Newer ordinary reveal superseding focus; older/duplicate serials cannot revive it.
+- Deletion/reinsertion, handler retirement, blur/return, disabled materialization,
+  inert/restore and removal while a command waits.
+- Actual second-window activation cancelling the first window's handoff; a new
+  request to the inactive window does not activate it. The second window closes.
+- Native GPUI wheel dispatch away from the destination cancelling handoff.
+- Zero-width layout retiring a waiting command before restore; row focus also
+  checks intersection with the list bounds, content mask and window viewport.
+
+The Bonsai driver separately checks native command encoding through the public
+controller and rejects a captured effect after source replacement. Reconciler
+coverage checks one-time serial emission across reorder and deletion, rejects a
+new absent target and reports missing tree input. These tests do not yet constitute
+a complete public filesystem app or the full 100,000-node native tree workload.
+High-level reduction/reveal wiring, typeahead, complete AX setters, drag/move,
+filesystem usage and consolidated hosted validation remain required.
+
+Validation passes on local macOS arm64 in the isolated toolchain
+(`GPUIO_JOBS=2 ./scripts/gpuio exec`):
+
+- `cargo test -p gpuio-protocol --test tree_input --locked -j2`.
+- `cargo test --workspace --locked -j2`.
+- `cargo clippy -p gpuio-native --features native-tests --all-targets --locked -j2 -- -D warnings`.
+- `cargo test -p gpuio-native --features native-tests --test native_tree --test native_list --locked -j2`.
+- `dune build -j2 @all @runtest @fmt` and both language format checks.
+
+The final native_tree rerun additionally covers clipping/zero-width cancellation.
+The full ordinary-list regression passes traversal and revisit of all 100,000
+rows with its unchanged 256-view cap and bounded caches. Local logs are
+`tree-focus-protocol.log`, `tree-focus-rust-final.log`, `tree-focus-clippy-final.log`,
+`tree-focus-native-guarded.log`, `tree-focus-clipping.log` and
+`tree-focus-dune-final.log` in the implementing agent's scratch directory.
+No hosted CI or Linux GUI acceptance is claimed. All owned checks have exited;
+the test windows, including the second activation-test window, are closed.

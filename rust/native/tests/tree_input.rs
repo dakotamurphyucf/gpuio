@@ -173,3 +173,37 @@ fn relative_intents_are_ordered_not_coalesced_and_close_retains_pending_output()
     );
     assert!(!mailbox.has_window_output(0));
 }
+
+#[test]
+fn focus_command_requires_tree_opt_in_and_current_logical_identity() {
+    use gpuio_protocol::list::{ScrollRequest, ScrollTarget};
+    let focus = |row| {
+        Op::ScrollList(
+            node(0),
+            ScrollRequest {
+                serial: 1,
+                target: ScrollTarget::FocusTreeRow(row),
+            },
+        )
+    };
+    let mut session = session();
+    assert_eq!(
+        session.apply(&tx(1, vec![focus(2)])),
+        Err(ErrorCode::InvalidTree)
+    );
+    assert_eq!(session.tree(window()).unwrap().revision(), 1);
+    let applied = session.apply(&tx(1, vec![focus(1)])).unwrap();
+    assert_eq!(applied.lists.len(), 1);
+    assert_eq!(
+        session.apply(&tx(2, vec![Op::SetTreeInput(node(0), false), focus(1)])),
+        Err(ErrorCode::InvalidTree)
+    );
+    assert!(
+        session
+            .tree(window())
+            .unwrap()
+            .get(node(0))
+            .unwrap()
+            .tree_input
+    );
+}

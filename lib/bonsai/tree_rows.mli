@@ -35,8 +35,10 @@ module Controller : sig
   type t
 
   (** Reveals an already visible item; expanding ancestors is a higher-level
-      tree operation. This scroll request does not claim OS keyboard focus. *)
-  val reveal : t -> Rows.Key.t -> unit Bonsai.Effect.t
+      tree operation. With [focus=true], native input must be enabled; focus is
+      requested after the same row mounts, and cancelled by target retirement,
+      a newer scroll request or user focus changes. No OS focus is acknowledged. *)
+  val reveal : t -> ?focus:bool -> Rows.Key.t -> unit Bonsai.Effect.t
 
   (** Request/retry requires a current visible expanded branch. Cancel may target
       any current branch. Build a lightweight token with [Snapshot.target]. *)

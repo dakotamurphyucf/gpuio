@@ -8,9 +8,10 @@ item and lazy-boundary identities. `Gpuio_bonsai.Tree_rows` now mounts bounded
 rows and connects viewport demand/collapse policy to Eio loading controls. Paired
 tree accessibility metadata and actual native outline/item semantics are now
 implemented and locally tested. Opt-in native keyboard/pointer requests and
-AppKit focus/selection now reach typed Core/Bonsai handlers. Typeahead, full
-accessibility actions, delayed focus/reveal, drag integration and the public
-filesystem example remain. No tree capability is advertised.
+AppKit focus/selection now reach typed Core/Bonsai handlers. The explicit reveal
+controller can hand focus to the same row after asynchronous mounting. Typeahead,
+full accessibility actions, high-level outcome/controller integration, drag
+integration and the public filesystem example remain. No tree capability is advertised.
 This document preserves the full live ticket scope; semantic getters alone do not
 establish interactive native widget acceptance.
 
@@ -145,8 +146,9 @@ Payload-only changes share `Tree.preorder`, allowing state reconciliation to ret
 the existing snapshot. Selection and focus operations share visible metadata.
 `Tree_state.navigate` implements Previous/Next/First/Last/Parent/Child with optional
 selection gestures: it can move the cursor without changing selection, extend a
-range, or collapse/expand while preserving selection. It is a pure reducer; native
-key delivery, OS focus/reveal, typeahead and lazy-load effects are not yet wired.
+range, or collapse/expand while preserving selection. It is a pure reducer. The managed row primitive now supplies native input and
+explicit reveal/focus requests; the high-level widget still needs to connect
+reducer outcomes, typeahead and presentation into one public interface.
 
 ### Incremental managed-row data
 
@@ -198,8 +200,9 @@ duplicate TreeItem on the inner presentation. Boundary rows remain ordinary
 status/action content, not application tree items. `on_request` explicitly enables
 native input and receives identity-checked `Tree_interaction.Request` values;
 applications reduce them against their latest snapshot/state. The managed primitive
-does not apply preferences implicitly. Delayed OS focus/reveal still belongs to
-the pending higher-level adapter.
+does not apply preferences implicitly. `Controller.reveal ~focus:true` requests
+scrolling and eventual focus of a current projection key; the pending high-level
+adapter will connect logical outcomes and ancestor expansion to this primitive.
 
 The component checkpoints its accepted projection after display. Coalesced source
 changes compare with that checkpoint, and the existing list adapter independently
@@ -339,6 +342,41 @@ rows remain outside the Tab sequence. Inherited pointer policy and inert/modal
 visibility still gate row requests. AppKit press selects rather than activating.
 Full accessibility setter adaptation, typeahead prefix/search, drag sessions and
 high-level focus/reveal behavior still need implementation and native acceptance.
+
+### Deferred native row focus
+
+`Tree_rows.Controller.reveal ~focus:true` uses the list controller's
+`focus_tree_row` command. It appends nested Scroll_target tag 3 to the existing
+serialled Scroll_list operation; older offset/reveal/end encodings are unchanged.
+Core and native admission require opted-in tree input. Bonsai checks the current
+mounted projection key and source lifetime; native commands use the monotonic
+logical row ID, never a transient list position.
+
+An accepted new focus command reveals the logical row and focuses the tree
+surface immediately, releasing the previous row's focus pin. This lets even a
+one-row active budget request the destination. Pending focus has priority over
+other visible rows within the same budget, including a partially visible leading
+row. It adds no retention pin or extra active-row allocation. Rust retains one
+pending row/serial/handler and two scoped subscriptions per list (blur and window
+activation), with no timer or polling loop. Repeated serials do nothing; every
+newer scroll request supersedes a pending focus request.
+
+The actual row receives focus only when its current enabled TreeItem is
+materialized in the visible native layout, intersecting the content mask and
+window viewport. A fully clipped or zero-size layout retires pending focus during
+prepaint. Sibling reorder preserves the target
+and reveals its new position. Logical removal, input/handler retirement, disabling
+or hiding the target/list, user blur, window deactivation and scrolling away retire
+the request. Hiding retires it during transaction synchronization, without waiting
+for an invisible paint. Restoring visibility or returning focus cannot revive it.
+An inactive window may scroll but is never activated by this command. Mounted
+subscriptions disappear on completion, cancellation, list removal or window close.
+
+This controller requests focus; it does not acknowledge an OS focus change or
+modify tree selection. The high-level widget must apply the latest
+Tree_interaction outcome, expand loaded ancestors where requested, obtain the
+current projection key after that update, and then invoke reveal/focus. Arbitrary
+old projection keys are intentionally rejected after collapse/reappearance.
 
 ## Lazy children and asynchronous ownership
 

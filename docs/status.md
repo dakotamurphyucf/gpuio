@@ -111,9 +111,12 @@ relative requests, separates activation, opens ancestors for logical reveal and
 returns application-approved move proposals with approval-time revalidation.
 Opt-in native keyboard/pointer requests now travel through monotonic list identity
 to current Core/Bonsai handlers. Local macOS checks cover ordered arrows/modifiers,
-AppKit focus/select, child editor/IME isolation and pointer priority. Typeahead,
-delayed focus/reveal, full accessibility setters, drag integration and public
-filesystem usage remain; no tree capability is advertised. See the [managed-tree design](design/managed-trees.md).
+AppKit focus/select, child editor/IME isolation and pointer priority. Explicit
+reveal now hands focus to a stable row after asynchronous mounting, with bounded
+pending state and cancellation on retirement, blur, deactivation or scrolling
+away. Native tests cover a one-row budget and actual window activation changes.
+Typeahead, the high-level outcome adapter, full accessibility setters, drag
+integration and public filesystem usage remain; no tree capability is advertised. See the [managed-tree design](design/managed-trees.md).
 
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
 components pass local acceptance; OCH-24 has validated geometry, a bounded scene

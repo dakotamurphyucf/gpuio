@@ -756,6 +756,7 @@ impl Decoder<'_> {
                 0 => crate::list::ScrollTarget::Offset(self.int()?, self.float()?),
                 1 => crate::list::ScrollTarget::Reveal(self.int()?),
                 2 => crate::list::ScrollTarget::End,
+                3 => crate::list::ScrollTarget::FocusTreeRow(self.int()?),
                 _ => return Err(DecodeError::Malformed),
             },
         };
@@ -763,7 +764,8 @@ impl Decoder<'_> {
             crate::list::ScrollTarget::Offset(row, offset) => {
                 row > 0 && (0.0..=1_000_000.0).contains(&offset)
             }
-            crate::list::ScrollTarget::Reveal(row) => row > 0,
+            crate::list::ScrollTarget::Reveal(row)
+            | crate::list::ScrollTarget::FocusTreeRow(row) => row > 0,
             crate::list::ScrollTarget::End => true,
         };
         if request.serial < 1 || !valid_target {

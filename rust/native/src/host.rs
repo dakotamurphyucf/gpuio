@@ -1996,7 +1996,7 @@ pub fn run(transport: Arc<Transport>) {
                                     if let Some(window) = windows.get(&tx.window) {
                                         let _ = window.update(cx, |view, window, cx| {
                                             view.update_editors(&applied.dirty, window, cx);
-                                            view.list_actions(&applied.lists);
+                                            view.list_actions(&applied.lists, window, cx);
                                             cx.notify();
                                         });
                                     }

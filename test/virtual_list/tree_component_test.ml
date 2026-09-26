@@ -602,3 +602,42 @@ let%expect_test
   [%expect
     {| ordered requests reduce latest state; native keys resolve item identity; retired source callback ignored |}]
 ;;
+
+let%expect_test "deferred tree focus uses projection identity and mounted lifetime" =
+  let tree = forest 3 in
+  let loader = L.create tree in
+  let source = B.Expert.Var.create (L.snapshot loader) in
+  let driver =
+    create (fun graph ->
+      V.component
+        (B.Expert.Var.value source)
+        ~state:(B.return (S.create tree () |> ok))
+        ~config
+        ~accessibility:(B.return (Gpuio.Accessibility.create ~role:(Tree false) () |> ok))
+        ~on_request:(B.return (fun _ -> E.Ignore))
+        ~render_row:text
+        graph)
+  in
+  display driver;
+  let initial = result driver in
+  let row = key (V.Output.projection initial) "2" in
+  let delayed = V.Controller.reveal (V.Output.controller initial) ~focus:true row in
+  Bonsai_driver.schedule_event driver delayed;
+  let scroll = Option.value_exn (payload (result driver)).scroll in
+  let wire =
+    Gpuio.Virtual_list.Expert.scroll_to_wire scroll ~find_id:(fun found ->
+      if Gpuio.Key.equal found (R.Key.to_view_key row) then Some 42L else None)
+    |> ok
+  in
+  assert (Gpuio_protocol.List_wire.Scroll_target.equal wire.target (Focus_tree_row 42L));
+  assert (Int64.equal wire.serial 1L);
+  display driver;
+  (* A new source can reuse numeric projection keys, but not the old lifetime. *)
+  B.Expert.Var.set source (L.snapshot (L.create tree));
+  ignore (result driver : _ V.Output.t);
+  display driver;
+  Bonsai_driver.schedule_event driver delayed;
+  assert (Option.is_none (payload (result driver)).scroll);
+  Bonsai_driver.Expert.invalidate_observers driver;
+  [%expect {| |}]
+;;

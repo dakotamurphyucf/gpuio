@@ -73,6 +73,13 @@ module Scroll_request : sig
   val to_row : serial:int64 -> ?offset:float -> Key.t -> t Or_error.t
 
   val reveal : serial:int64 -> Key.t -> t Or_error.t
+
+  (** Reveal an opted-in tree item and focus its native row once mounted.
+      Requires native tree input on the list. Superseding scroll commands, target
+      removal, handler retirement or user focus changes cancel pending handoff.
+      This is a request, not an acknowledgement of OS focus. *)
+  val focus_tree_row : serial:int64 -> Key.t -> t Or_error.t
+
   val to_end : serial:int64 -> unit -> t Or_error.t
 end
 

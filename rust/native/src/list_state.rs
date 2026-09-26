@@ -145,7 +145,7 @@ impl State {
                     offset_in_item: px(offset as f32),
                 });
             }
-            ScrollTarget::Reveal(row) => {
+            ScrollTarget::Reveal(row) | ScrollTarget::FocusTreeRow(row) => {
                 let item_ix = self
                     .index
                     .position(row)

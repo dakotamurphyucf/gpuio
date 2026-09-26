@@ -33,7 +33,7 @@ fn apply(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, operations: Vec<Op
                 .apply(&tx)
                 .unwrap_or_else(|error| panic!("{error:?}: {tx:?}"));
             view.update_editors(&applied.dirty, window, cx);
-            view.list_actions(&applied.lists);
+            view.list_actions(&applied.lists, window, cx);
             cx.notify();
         })
         .unwrap();
@@ -600,7 +600,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: WindowHandle<View>) {
             ));
             let applied = view.session.borrow_mut().apply_guarded(&tx, &pins).unwrap();
             view.update_editors(&applied.dirty, window, cx);
-            view.list_actions(&applied.lists);
+            view.list_actions(&applied.lists, window, cx);
             cx.notify();
         })
         .unwrap();

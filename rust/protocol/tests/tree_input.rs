@@ -58,3 +58,35 @@ fn independent_request_event_and_opt_in_fixtures() {
         include_str!("../../../test/fixtures/tree-input-event.hex").trim()
     );
 }
+
+#[test]
+fn independent_tree_focus_transaction_and_strict_target_decode() {
+    use gpuio_protocol::list::{ScrollRequest, ScrollTarget};
+    let message = Message::Apply(Transaction {
+        window: WindowId::from_parts(0, 1).unwrap(),
+        base: 0,
+        revision: 1,
+        operations: vec![Op::ScrollList(
+            NodeId::from_parts(0, 1).unwrap(),
+            ScrollRequest {
+                serial: 7,
+                target: ScrollTarget::FocusTreeRow(42),
+            },
+        )],
+    });
+    let encoded = bytes(&message);
+    assert_eq!(
+        hex(&message),
+        include_str!("../../../test/fixtures/tree-focus-transaction.hex").trim()
+    );
+    assert_eq!(gpuio_protocol::decode(&encoded), Ok(message));
+    for end in 0..encoded.len() {
+        assert!(gpuio_protocol::decode(&encoded[..end]).is_err());
+    }
+    let mut invalid = encoded.clone();
+    *invalid.last_mut().unwrap() = 0;
+    assert!(gpuio_protocol::decode(&invalid).is_err());
+    let mut trailing = encoded;
+    trailing.push(0);
+    assert!(gpuio_protocol::decode(&trailing).is_err());
+}

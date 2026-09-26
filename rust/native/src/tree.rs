@@ -1218,6 +1218,12 @@ impl Plan<'_> {
                         Some(row)
                     }
                     ScrollTarget::Reveal(row) => Some(row),
+                    ScrollTarget::FocusTreeRow(row) => {
+                        if !node.tree_input {
+                            return Err(ErrorCode::InvalidTree);
+                        }
+                        Some(row)
+                    }
                     ScrollTarget::End => None,
                 };
                 if !Self::list_contains(index, row.into_iter()) {

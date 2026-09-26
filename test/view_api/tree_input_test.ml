@@ -80,3 +80,31 @@ let%expect_test "paired native input fixtures preserve ordered relative and keye
      (Select_active Replace) Activate_active)
     |}]
 ;;
+
+let%expect_test "tree row focus appends a scroll target without changing existing tags" =
+  let node = Gpuio_protocol.Node_id.create ~slot:0L ~generation:1L |> ok in
+  let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok in
+  let key = Key.of_string_exn "destination" in
+  let request = Virtual_list.Scroll_request.focus_tree_row ~serial:7L key |> ok in
+  let request =
+    Virtual_list.Expert.scroll_to_wire request ~find_id:(fun found ->
+      if Key.equal key found then Some 42L else None)
+    |> ok
+  in
+  let bytes =
+    Wire.Message.encode
+      (Apply
+         { window
+         ; base = 0L
+         ; revision = 1L
+         ; operations = [ Scroll_list (node, request) ]
+         })
+    |> ok
+  in
+  assert (String.equal bytes (fixture "tree-focus-transaction.hex"));
+  assert (Result.is_error (Virtual_list.Scroll_request.focus_tree_row ~serial:0L key));
+  let request = Virtual_list.Scroll_request.focus_tree_row ~serial:1L key |> ok in
+  assert (
+    Result.is_error (Virtual_list.Expert.scroll_to_wire request ~find_id:(fun _ -> None)));
+  [%expect {| |}]
+;;

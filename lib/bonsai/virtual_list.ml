@@ -11,11 +11,12 @@ module Command = struct
   type t =
     | Offset of Key.t * float
     | Reveal of Key.t
+    | Focus_tree_row of Key.t
     | End
   [@@deriving equal, sexp_of]
 
   let target = function
-    | Offset (key, _) | Reveal key -> Some key
+    | Offset (key, _) | Reveal key | Focus_tree_row key -> Some key
     | End -> None
   ;;
 
@@ -23,6 +24,7 @@ module Command = struct
     match t with
     | Offset (key, offset) -> V.Scroll_request.to_row ~serial ~offset key
     | Reveal key -> V.Scroll_request.reveal ~serial key
+    | Focus_tree_row key -> V.Scroll_request.focus_tree_row ~serial key
     | End -> V.Scroll_request.to_end ~serial ()
   ;;
 end
@@ -41,6 +43,7 @@ module Controller = struct
   ;;
 
   let reveal t key = t.submit (Reveal (t.key key))
+  let focus_tree_row t key = t.submit (Focus_tree_row (t.key key))
   let jump_to_latest t = t.submit End
 end
 

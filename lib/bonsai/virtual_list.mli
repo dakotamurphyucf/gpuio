@@ -11,6 +11,11 @@ module Controller : sig
 
   val scroll_to : 'key t -> ?offset:float -> 'key -> unit Bonsai.Effect.t Or_error.t
   val reveal : 'key t -> 'key -> unit Bonsai.Effect.t
+
+  (** Requires [on_tree_input]. Reveals and requests eventual native row focus;
+      the current target must expose enabled TreeItem semantics when mounted. *)
+  val focus_tree_row : 'key t -> 'key -> unit Bonsai.Effect.t
+
   val jump_to_latest : _ t -> unit Bonsai.Effect.t
 end
 

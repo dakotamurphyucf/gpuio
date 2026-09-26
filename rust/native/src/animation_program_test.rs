@@ -75,7 +75,7 @@ fn apply(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, operations: Vec<Op
                 })
                 .unwrap();
             view.update_editors(&result.dirty, window, cx);
-            view.list_actions(&result.lists);
+            view.list_actions(&result.lists, window, cx);
             cx.notify();
         })
         .unwrap();

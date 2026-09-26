@@ -37,13 +37,13 @@ end
 
 module Controller = struct
   type t =
-    { reveal : Rows.Key.t -> unit E.t
+    { reveal : focus:bool -> Rows.Key.t -> unit E.t
     ; request : Target.t -> unit E.t
     ; retry : Target.t -> unit E.t
     ; cancel : Target.t -> unit E.t
     }
 
-  let reveal t = t.reveal
+  let reveal t ?(focus = false) key = t.reveal ~focus key
   let request t = t.request
   let retry t = t.retry
   let cancel t = t.cancel
@@ -137,11 +137,16 @@ let controller ~lifetime ~peek ~list ~loading =
       else E.Ignore)
   in
   { Controller.reveal =
-      (fun key ->
+      (fun ~focus key ->
         with_current lifetime peek ~f:(fun rows ->
           match Rows.find rows key with
           | None | Some (Boundary _) -> E.Ignore
-          | Some (Item _) -> V.Controller.reveal list_controller key))
+          | Some (Item item) ->
+            if Gpuio.Tree.Node.is_disabled item.node
+            then E.Ignore
+            else if focus
+            then V.Controller.focus_tree_row list_controller key
+            else V.Controller.reveal list_controller key))
   ; request = (fun target -> run target ~visible:true Loading.request)
   ; retry = (fun target -> run target ~visible:true Loading.retry)
   ; cancel = (fun target -> run target ~visible:false Loading.cancel)

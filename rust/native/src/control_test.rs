@@ -29,6 +29,8 @@ mod split_test;
 mod toast_test;
 #[path = "tooltip_test.rs"]
 mod tooltip_test;
+#[path = "tree_focus_test.rs"]
+mod tree_focus_test;
 #[path = "tree_view_test.rs"]
 mod tree_view_test;
 use super::editor_test::{frame, key};
@@ -1251,7 +1253,7 @@ fn apply_in_update(
             panic!("native test transaction rejected: {error:?}: {transaction:?}")
         });
     view.update_editors(&applied.dirty, window, cx);
-    view.list_actions(&applied.lists);
+    view.list_actions(&applied.lists, window, cx);
     cx.notify();
 }
 fn focused(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, id: NodeId) -> bool {
@@ -1816,7 +1818,10 @@ fn run_suite(suite: Suite) {
                         Suite::Navigation => {
                             navigation_test::exercise(cx, handle, &transport).await
                         }
-                        Suite::Trees => tree_view_test::exercise(cx, handle).await,
+                        Suite::Trees => {
+                            tree_view_test::exercise(cx, handle).await;
+                            tree_focus_test::exercise(cx, handle).await;
+                        }
                         Suite::Tabs => {
                             radio(cx, handle, &transport, Kind::TabBar, 5).await;
                             retained_tab_panel(cx, handle).await;

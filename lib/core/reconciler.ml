@@ -1317,14 +1317,18 @@ let rec mount builder ~depth previous view =
       if not (Option.equal Virtual_list.Scroll_request.equal old_scroll list.scroll)
       then
         Option.iter list.scroll ~f:(fun request ->
-          emit
-            builder
-            (Scroll_list
-               ( id
-               , Virtual_list.Expert.scroll_to_wire
-                   request
-                   ~find_id:(List_identity.id identity)
-                 |> value ))));
+          let request =
+            Virtual_list.Expert.scroll_to_wire
+              request
+              ~find_id:(List_identity.id identity)
+            |> value
+          in
+          (match request.target with
+           | Gpuio_protocol.List_wire.Scroll_target.Focus_tree_row _ ->
+             if Option.is_none list.on_tree_input
+             then fail "tree row focus requires native tree input"
+           | Offset _ | Reveal _ | End -> ());
+          emit builder (Scroll_list (id, request))));
     let controllers =
       let own =
         let controller =

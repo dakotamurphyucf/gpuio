@@ -84,7 +84,7 @@ fn apply(cx: &mut AsyncApp, handle: WindowHandle<View>, operations: Vec<Op>) {
                 })
                 .unwrap();
             v.update_editors(&applied.dirty, w, cx);
-            v.list_actions(&applied.lists);
+            v.list_actions(&applied.lists, w, cx);
             cx.notify();
         })
         .unwrap();

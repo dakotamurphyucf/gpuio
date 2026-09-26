@@ -100,6 +100,7 @@ module Scroll_request = struct
       | Offset of Key.t * float
       | Reveal of Key.t
       | End
+      | Focus_tree_row of Key.t
     [@@deriving equal, sexp_of]
   end
 
@@ -122,6 +123,7 @@ module Scroll_request = struct
   ;;
 
   let reveal ~serial key = make ~serial (Reveal key)
+  let focus_tree_row ~serial key = make ~serial (Focus_tree_row key)
   let to_end ~serial () = make ~serial End
 end
 
@@ -188,6 +190,9 @@ module Expert = struct
       | Reveal key ->
         let%map id = id key in
         W.Scroll_target.Reveal id
+      | Focus_tree_row key ->
+        let%map id = id key in
+        W.Scroll_target.Focus_tree_row id
       | End -> Ok W.Scroll_target.End
     in
     { W.Scroll_request.serial = t.serial; target }

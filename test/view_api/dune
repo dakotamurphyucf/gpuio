@@ -35,6 +35,7 @@
    tree-input-requests.hex
    tree-input-transaction.hex
    tree-input-event.hex
+   tree-focus-transaction.hex
    accessibility-tree.hex
    accessibility-field.hex
    accessibility-request.hex
@@ -262,3 +263,5 @@
 (copy_files ../fixtures/carousel-*.hex)
 
 (copy_files ../fixtures/tree-input-*.hex)
+
+(copy_files ../fixtures/tree-focus-transaction.hex)
