@@ -23,11 +23,17 @@ def main():
         output, _ = process.communicate()
         print(output, end="", flush=True)
         raise SystemExit("native table host timed out; process group terminated and reaped")
+    finally:
+        if process.poll() is None:
+            os.killpg(process.pid, signal.SIGKILL)
+            process.communicate()
     print(output, end="", flush=True)
     if process.returncode:
         raise SystemExit(process.returncode)
-    if sys.platform == "darwin" and "GPUIO_TABLE_AX_OK" not in output:
-        raise SystemExit("native table host exited without completing GPUIO_TABLE_AX_OK")
+    if sys.platform == "darwin":
+        for marker in ("GPUIO_TABLE_AX_OK", "GPUIO_TABLE_APPKIT_KEYS_OK", "GPUIO_TABLE_APPKIT_EDITOR_OK"):
+            if marker not in output:
+                raise SystemExit(f"native table host exited without completing {marker}")
     for marker in ("GPUIO_TABLE_STYLE_OK", "GPUIO_TABLE_COMMAND_FOCUS_OK", "GPUIO_TABLE_INPUT_OK",
                    "GPUIO_NATIVE_TABLE_HOST_OK"):
         if marker not in output:

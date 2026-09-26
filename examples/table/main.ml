@@ -118,10 +118,12 @@ let run ~self_test ~background =
     let style = B.Expert.Var.create (table_style ~light:false) in
     let observed = ref None
     and pager_ref = ref None in
+    let observed_actions = ref None in
     let mounted = ref 0
     and unmounted = ref 0 in
     let load_behavior = ref Load_behavior.Fail in
     let on_request_ref = ref None in
+    let actions = Event_actions.create () in
     let started = ref 0
     and active = ref 0
     and finished = ref 0 in
@@ -170,43 +172,49 @@ let run ~self_test ~background =
            pager_ref := Some pager;
            let controls = Pager.controls pager in
            let on_request request =
-             E.of_thunk (fun () ->
-               let config = B.Expert.Var.get cfg in
-               let columns = T.Config.columns config in
-               match request with
-               | T.Request.Resize widths ->
-                 let columns =
-                   List.map (C.Collection.to_list columns) ~f:(fun c ->
-                     match List.Assoc.find widths (C.id c) ~equal:C.Id.equal with
-                     | None -> c
-                     | Some width -> C.with_width c width |> ok)
-                   |> C.Collection.create
-                        ~header_groups:(C.Collection.header_groups columns)
-                   |> ok
-                 in
-                 B.Expert.Var.set cfg (T.Config.with_columns config columns |> ok)
-               | Move (column, before) ->
-                 let columns = C.Collection.move columns ~column ~before |> ok in
-                 B.Expert.Var.set cfg (T.Config.with_columns config columns |> ok)
-               | Sort (column, direction) ->
-                 let snapshot = Pager.snapshot pager in
-                 let rows =
-                   D.to_alist snapshot.data
-                   |> List.sort ~compare:(fun (_, a) (_, b) ->
-                     match direction with
-                     | Some T.Direction.Descending -> Int.compare b.number a.number
-                     | Some Ascending | None -> Int.compare a.number b.number)
-                 in
-                 let source = D.reorder snapshot.data (List.map rows ~f:fst) |> ok in
-                 B.Expert.Var.set
-                   cfg
-                   (T.Config.with_sort
-                      config
-                      (Option.map direction ~f:(fun direction ->
-                         { T.Sort.column; direction }))
-                    |> ok);
-                 Pager.reset pager ~query:"sorted" source ~before:End ~after:End |> ok
-               | Select _ | Activate _ | Context _ | Copy _ -> ())
+             E.Many
+               [ Event_actions.request
+                   actions
+                   ~generation:(Pager.snapshot pager).generation
+                   request
+               ; E.of_thunk (fun () ->
+                   let config = B.Expert.Var.get cfg in
+                   let columns = T.Config.columns config in
+                   match request with
+                   | T.Request.Resize widths ->
+                     let columns =
+                       List.map (C.Collection.to_list columns) ~f:(fun c ->
+                         match List.Assoc.find widths (C.id c) ~equal:C.Id.equal with
+                         | None -> c
+                         | Some width -> C.with_width c width |> ok)
+                       |> C.Collection.create
+                            ~header_groups:(C.Collection.header_groups columns)
+                       |> ok
+                     in
+                     B.Expert.Var.set cfg (T.Config.with_columns config columns |> ok)
+                   | Move (column, before) ->
+                     let columns = C.Collection.move columns ~column ~before |> ok in
+                     B.Expert.Var.set cfg (T.Config.with_columns config columns |> ok)
+                   | Sort (column, direction) ->
+                     let snapshot = Pager.snapshot pager in
+                     let rows =
+                       D.to_alist snapshot.data
+                       |> List.sort ~compare:(fun (_, a) (_, b) ->
+                         match direction with
+                         | Some T.Direction.Descending -> Int.compare b.number a.number
+                         | Some Ascending | None -> Int.compare a.number b.number)
+                     in
+                     let source = D.reorder snapshot.data (List.map rows ~f:fst) |> ok in
+                     B.Expert.Var.set
+                       cfg
+                       (T.Config.with_sort
+                          config
+                          (Option.map direction ~f:(fun direction ->
+                             { T.Sort.column; direction }))
+                        |> ok);
+                     Pager.reset pager ~query:"sorted" source ~before:End ~after:End |> ok
+                   | Select _ | Activate _ | Context _ | Copy _ -> ())
+               ]
            in
            on_request_ref := Some on_request;
            fun graph ->
@@ -233,14 +241,38 @@ let run ~self_test ~background =
                      W.Cell.text ~column:(C.id column) text))
                  graph
              in
+             let event_actions =
+               Event_actions.view
+                 actions
+                 ~snapshot
+                 ~current:(fun () -> Pager.snapshot pager)
+                 ~output
+                 ~describe:(fun row ->
+                   sprintf "Event %06d · %s\n%s" row.number row.tool row.message)
+                 ~result_column:(col "message")
+                 graph
+             in
              let open B.Let_syntax in
              B.Edge.after_display
-               (let%arr output = output in
-                E.of_thunk (fun () -> observed := Some (ok output)))
+               (let%arr output = output
+                and event_actions = event_actions in
+                E.of_thunk (fun () ->
+                  observed := Some (ok output);
+                  observed_actions := Some event_actions))
                graph;
              let%arr output = output
-             and snapshot = snapshot in
+             and snapshot = snapshot
+             and event_actions = event_actions in
              let output = ok output in
+             let selection =
+               let event row = D.Row_ref.id row |> D.Id.to_string in
+               match W.Output.selection output with
+               | Empty -> "Select an event to inspect it"
+               | Row row -> sprintf "Selected event %s" (event row)
+               | Cell (row, column) ->
+                 sprintf "Selected event %s · %s" (event row) (C.Id.to_string column)
+               | Column column -> sprintf "Selected column %s" (C.Id.to_string column)
+             in
              let footer =
                match snapshot.after with
                | Failed error ->
@@ -272,6 +304,8 @@ let run ~self_test ~background =
                ; View.text "100,000 rows · pinned columns · resize, reorder and sort"
                ; W.Output.view output
                ; footer
+               ; View.text selection
+               ; event_actions
                ])
       |> ok
     in
@@ -293,6 +327,22 @@ let run ~self_test ~background =
         let sync f = perform (App.scope app) (E.of_thunk f) in
         let command f = perform (App.scope app) (f (W.Output.controller (output ()))) in
         let target n = W.Output.target (output ()) (id n) |> ok in
+        let rec action_named name view =
+          let description = Gpuio.View.Expert.describe view in
+          if String.equal description.text name
+          then Option.map description.on_click ~f:(fun click -> click ())
+          else List.find_map description.children ~f:(action_named name)
+        in
+        let context_action () =
+          Option.bind !observed_actions ~f:(action_named "Reveal result")
+        in
+        let open_context row =
+          perform
+            (App.scope app)
+            ((Option.value_exn !on_request_ref) (T.Request.Context (Row row)));
+          wait "context actions" (fun () -> Option.is_some (context_action ()));
+          Option.value_exn (context_action ())
+        in
         let anchor row offset =
           Option.exists
             (W.Output.viewport (output ()))
@@ -322,6 +372,7 @@ let run ~self_test ~background =
         sync (fun () -> B.Expert.Var.set cfg (with_height (B.Expert.Var.get cfg) 44.));
         frame ();
         wait "row-height anchor" (fun () -> anchor middle 9.);
+        let stale_context = open_context middle in
         sync (fun () ->
           let snapshot = Pager.snapshot pager in
           let reordered =
@@ -336,8 +387,19 @@ let run ~self_test ~background =
                (W.Output.viewport (output ()))
                ~f:(fun v -> v.visible_first = 49_999));
         perform (App.scope app) stale;
+        wait "query retires context" (fun () -> Option.is_none (context_action ()));
+        perform (App.scope app) stale_context;
         frame ();
         assert (anchor middle 9.);
+        ignore (open_context middle : unit E.t);
+        perform (App.scope app) stale_context;
+        frame ();
+        assert (Option.is_some (context_action ()));
+        perform
+          (App.scope app)
+          (Option.bind !observed_actions ~f:(action_named "Close event details")
+           |> Option.value_exn);
+        wait "current context closes" (fun () -> Option.is_none (context_action ()));
         let mounted_before = !mounted
         and unmounted_before = !unmounted in
         sync (fun () -> B.Expert.Var.set style (table_style ~light:true));
@@ -363,6 +425,17 @@ let run ~self_test ~background =
         in
         wait "streamed retained cell" (fun () -> has_copy (W.Output.view (output ())));
         frame ();
+        let removed_context = open_context middle in
+        perform
+          (App.scope app)
+          (Option.bind !observed_actions ~f:(action_named "Close event details")
+           |> Option.value_exn);
+        wait "context closes before reopening" (fun () ->
+          Option.is_none (context_action ()));
+        ignore (open_context middle : unit E.t);
+        perform (App.scope app) removed_context;
+        frame ();
+        assert (Option.is_some (context_action ()));
         sync (fun () ->
           let snapshot = Pager.snapshot pager in
           let index = D.index snapshot.data (id 50_000) |> Option.value_exn in
@@ -372,6 +445,10 @@ let run ~self_test ~background =
           match W.Output.selection (output ()) with
           | Empty -> true
           | Row _ | Column _ | Cell _ -> false);
+        wait "removed row retires context" (fun () -> Option.is_none (context_action ()));
+        perform (App.scope app) removed_context;
+        frame ();
+        assert (T.Selection.equal D.Row_ref.equal (W.Output.selection (output ())) Empty);
         sync (fun () ->
           Pager.reset pager ~query:"paged" (data 0) ~before:End ~after:(More None) |> ok);
         wait "native empty demand loads failure" (fun () ->

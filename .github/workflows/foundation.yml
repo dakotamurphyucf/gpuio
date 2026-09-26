@@ -211,7 +211,9 @@ jobs:
         run: python3 scripts/test_table_history.py 2>&1 | tee .cache/ci/macos-table-history-native.log
       - name: macOS public Bonsai table and paging
         if: runner.os == 'macOS'
-        run: python3 scripts/test_table_public.py 2>&1 | tee .cache/ci/macos-table-public.log
+        run: |
+          python3 scripts/test_table_public.py 2>&1 | tee .cache/ci/macos-table-public.log
+          python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_table_appkit.py"], check=True, timeout=150)' 2>&1 | tee .cache/ci/macos-table-public-appkit.log
       - name: macOS public managed trees and approved moves
         if: runner.os == 'macOS'
         run: |

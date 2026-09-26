@@ -439,10 +439,10 @@ when it owns focus. A Copy toolbar/menu command can restore that remembered tabl
 focus. Cut, Paste, SelectAll, Undo and Redo remain unavailable for the read-only
 table itself. This does not change embedded editors' own commands.
 
-Local tests now cover GPUI pointer/key dispatch, actual OS clipboard contents,
+Local tests cover GPUI pointer/key dispatch, actual OS clipboard contents,
 Tab exit, toolbar command routing, retained child editors and current hidden/
-disabled policy. These are distinct from physical AppKit input and accessibility
-acceptance, which remain required alongside broader OCH-39 validation.
+disabled policy. Separate AppKit keyboard/input-client and public pointer/AX
+scenarios now pass as recorded in the evidence ledger.
 
 ## Public table styling and mount identity
 
@@ -511,13 +511,24 @@ keyboard/IME acceptance or Linux graphical accessibility acceptance.
 
 ## Remaining acceptance
 
-The model tests are one foundation, not a replacement for these gates:
+Local evidence now covers the native adapter, public presenter/pager, 100,000-row
+full traversal/revisit, bounded retention, horizontal/vertical behavior, native
+input/copy/accessibility, context flows and cleanup. Final work remains:
 
-- Compile the actual selected production adapter against both platform targets.
-- Complete native keyboard, copy, context actions, accessibility and lifecycle
-  acceptance, including resize/reorder/sort during active paging.
-- Exercise 100,000 logical rows with measured active/cache bounds and full
-  traversal/revisit, horizontal and vertical behavior, resize/reorder/sort during
-  paging, removed selected rows, Unicode copy, focus, empty/error and teardown.
+- Audit every live OCH-39 requirement against the complete evidence and settle
+  capability advertisement; do not infer ticket completion from a single suite.
 - Add the polished chat showcase in OCH-46, then consolidated local/hosted
-  macOS and Linux checks and merge. Linux GUI acceptance remains OCH-17.
+  macOS and Linux checks and merge, including both selected adapter build paths.
+  Linux GUI acceptance remains OCH-17.
+
+## Application context flows
+
+The public Table Lab demonstrates `Request.Activate` and `Request.Context` using
+an application-owned inspection dialog. The table provides the stable target;
+applications choose their action UI and effects. Right-click does not implicitly
+replace ordinary selection. Query generation and row membership guard delayed
+actions; current payloads are looked up at presentation/invocation rather than
+retaining an obsolete source snapshot. Reveal uses the existing controller batch
+to select/reveal the result and native dialog dismissal restores table focus.
+CoreGraphics keyboard and public pointer/AX scenarios now verify this path locally
+on macOS; the evidence ledger distinguishes them from GPUI-dispatched tests.

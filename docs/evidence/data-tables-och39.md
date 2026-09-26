@@ -1,8 +1,10 @@
 # OCH-39 data-table evidence
 
 Status (2026-09-26): **public Core/Bonsai/Eio and retained native table implemented;
-local AppKit semantics and full native history checks pass**. OCH-39 remains
-In Progress pending the remaining integration/platform acceptance. No table capability is advertised. The
+local AppKit semantics/input, public context flows and full native history checks pass**.
+OCH-39 remains In Progress pending its final acceptance audit and consolidated
+platform gates. Earlier checkpoint sections retain their historical scope; the
+latest input/context evidence is at the end. No table capability is advertised. The
 [design](../design/data-tables.md) lists the remaining production acceptance.
 
 ## Column schema
@@ -807,3 +809,57 @@ its recorded hash after reversing exactly the two patched context-retirement
 lines; the separate patch-reconstruction check also passes. OCH-39 remains open
 for table-specific AppKit input/context work and final acceptance, followed by
 OCH-46, hosted gates and merge.
+
+## AppKit input and public context actions
+
+The retained-host test now posts CoreGraphics keyboard events only to its own PID,
+yielding to the actual AppKit event queue outside `Window::update`. Local macOS
+checks pass Down/Right selection, Return activation, Shift-F10 context, Command-C
+and exact Unicode clipboard data in request order. An embedded editor then receives
+real `NSTextInputClient` marked-text replacement/commit, followed by OS Backspace
+(deleting one joined-family grapheme), Select All/Copy, Return and Shift-F10 without
+emitting table actions. The host restores the original clipboard and closes its
+window. This is native input-client integration, not evidence for every installed
+IME or VoiceOver speech. The runner requires both new AppKit completion markers.
+
+`examples/table/event_actions.{ml,mli}` connects public requests to an ordinary
+accessible inspection dialog and a keyed **Reveal result** action. It keeps a row
+membership/query generation/dialog identity and resolves the current payload; delayed invocation
+validates again and retains only the controller, not an output/source snapshot.
+Right-click targeting stays independent of selected-row state. Invalidated dialogs
+unmount; guarded dismissal cannot close a newer target. The public lifecycle test
+captures old callbacks, changes query/removes the selected row, and closes/reopens
+the same row in one query; obsolete callbacks cannot move selection or dismiss
+the new inspection dialog.
+
+The external `scripts/test_table_appkit.py` check passes actual child-PID keyboard,
+owner-checked pointer input, Return/Shift-F10, Escape/focus restoration, reveal,
+right-clicking a different row, AX button activation and native window closure.
+It exposed missing content labels on the shared selectable-text renderer; the
+renderer now gives its existing Label the same shared text as its accessible label.
+The public test reads the exact Unicode event description through macOS AX, so
+this regression is checked through the platform adapter. No broad accessibility
+or Linux GUI claim follows from this test.
+
+Local macOS commands at this checkpoint all pass:
+
+- `GPUIO_JOBS=2 python3 scripts/test_table_host.py`: retained host, AppKit keys and
+  text-input client, clipboard, child-editor priority, GPU styling and table AX.
+- `GPUIO_JOBS=2 python3 scripts/test_table_public.py`: existing full public paging
+  suite plus query/row/dialog-session retirement and stale callback checks.
+- `GPUIO_JOBS=2 python3 scripts/test_table_appkit.py`: external public input and
+  exact selectable Unicode text exposed through native AX.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native
+  --features native-image-tests --test native_ui`: shared native selection/copy,
+  input, focus, style and replacement/reset regression.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native --lib`:
+  **225 unit tests pass**.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j2 -p gpuio-native
+  --all-targets --features native-image-tests -- -D warnings`.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/table/main.exe @fmt`
+  and `... cargo fmt --all --check`.
+
+The public AppKit runner has a 120-second total deadline and always reaps its
+child. Native/public table runners also kill/reap their process groups on
+interruption. Hosted macOS/Linux validation, final capability audit and milestone
+completion are not claimed by these local results.

@@ -1,5 +1,8 @@
 //! GPUI event dispatch and real clipboard; separate from physical AppKit input.
 use super::*;
+#[cfg(target_os = "macos")]
+#[path = "appkit_input.rs"]
+mod appkit;
 
 fn key(cx: &mut gpui::AsyncApp, handle: gpui::WindowHandle<View>, key: &str) {
     for down in [true, false] {
@@ -82,6 +85,8 @@ fn assert_selection(
 }
 
 pub(super) async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
+    #[cfg(target_os = "macos")]
+    appkit::table(cx, window).await;
     requests(cx, window);
     let position = window
         .update(cx, |view, _, _| {
@@ -374,6 +379,9 @@ async fn command_and_child(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<V
         requests(cx, window).is_empty(),
         "child input must not emit table actions"
     );
+
+    #[cfg(target_os = "macos")]
+    appkit::editor(cx, window).await;
 
     // Disabling an ancestor table makes retained editors inert, including their
     // direct input-handler and command gates, not just the table's own actions.

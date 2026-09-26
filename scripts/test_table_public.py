@@ -22,6 +22,10 @@ def main():
         output, _ = process.communicate()
         print(output, end="", flush=True)
         raise SystemExit("public table timed out; process group terminated and reaped")
+    finally:
+        if process.poll() is None:
+            os.killpg(process.pid, signal.SIGKILL)
+            process.communicate()
     print(output, end="", flush=True)
     if process.returncode:
         raise SystemExit(process.returncode)

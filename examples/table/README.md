@@ -65,3 +65,25 @@ See [table contracts](../../docs/design/data-tables.md) and
 [validation evidence](../../docs/evidence/data-tables-och39.md). The remaining
 native acceptance and polished chat showcase are tracked separately; OCH-39 is
 still in progress and no table capability bit is advertised yet.
+
+Return, Shift-F10, or a cell right-click opens **Event actions**, an application-owned
+inspection dialog. **Reveal result** selects/reveals the result cell and returns
+focus to the table; use the platform Copy shortcut for its complete retained text.
+The right-click target can differ from the selected row. `Event_actions` retains
+only a row membership, query generation and dialog identity; it resolves current payloads for
+presentation and validates again before applying an action. Removed rows and
+new queries dismiss obsolete dialogs. A delayed old action cannot select a new
+row or dismiss a newer dialog, including reopening the same row in the same query.
+
+The separate macOS public input check uses the built executable:
+
+```sh
+GPUIO_JOBS=2 python3 scripts/test_table_appkit.py
+```
+
+It targets keyboard events to its child PID and checks pointer ownership before
+clicking. It exercises pointer/arrow selection, Return and Shift-F10, a right-click
+on a different row, native dialog focus restoration, reveal, selectable-text
+accessibility and closing the native window. It always reaps its child.
+Clipboard and marked-text composition are covered by the separate retained-host
+suite; this script does not modify the clipboard or select a system IME.

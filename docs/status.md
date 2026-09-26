@@ -196,8 +196,12 @@ intentional failure cleanup pass. The public example now also preserves anchors
 and selection through accepted resize/reorder during a pending Eio page and
 sorts while obsolete producer cleanup is held; late results do not alter the
 new query. Shared controls/editor/list/tree/table regressions, Rust workspace
-tests and strict Clippy pass. Physical keyboard/IME, public context flows and
-final acceptance remain; no table capability is advertised.
+tests and strict Clippy pass. AppKit keyboard and embedded-editor composition now
+pass through targeted OS events and the native text-input client. The public
+example also passes pointer/keyboard inspection, guarded context actions, reveal,
+focus restoration and native window closure. Selectable text now exposes its
+content label to macOS accessibility. Final acceptance/capability audit, showcase
+integration and hosted gates remain; no table capability is advertised.
 See [table design](design/data-tables.md) and
 [evidence](evidence/data-tables-och39.md).
 
