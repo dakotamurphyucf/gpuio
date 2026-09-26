@@ -147,6 +147,7 @@ pub enum Kind {
     Accordion,
     NavigationStack,
     HoverCard,
+    Carousel,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -660,6 +661,7 @@ pub enum Op {
         crate::color_value::Value,
     ),
     SetNavigationStack(NodeId, crate::navigation_stack::Config),
+    SetCarousel(NodeId, crate::carousel::Config),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -833,4 +835,5 @@ pub enum Event {
     CalendarResult(i64, WindowId, NodeId, crate::calendar_input::Response),
     ColorInputEvent(WindowId, NodeId, HandlerId, i64, crate::color_input::Event),
     ColorInputResult(i64, WindowId, NodeId, crate::color_input::Response),
+    CarouselRequested(WindowId, NodeId, HandlerId, i64, crate::carousel::Request),
 }

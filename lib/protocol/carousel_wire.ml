@@ -47,6 +47,18 @@ module Config = struct
     | None -> List.is_empty t.ids
     | Some index -> Int64.(index >= 0L && index < of_int (List.length t.ids))
   ;;
+
+  let can_replace t previous =
+    valid t
+    && (Int64.(t.revision > previous.revision)
+        || (Int64.equal t.revision previous.revision
+            && List.equal String.equal t.ids previous.ids
+            && Option.equal Int64.equal t.selected previous.selected
+            && Bool.equal t.looping previous.looping
+            && Bool.equal t.disabled previous.disabled
+            && Option.equal Int64.equal t.auto_advance_ms previous.auto_advance_ms
+            && Direction.equal t.direction previous.direction))
+  ;;
 end
 
 module Request = struct
@@ -73,3 +85,29 @@ module Request = struct
       && not (String.equal from target)
   ;;
 end
+
+let accepts_request (config : Config.t) request =
+  Config.valid config
+  && (not config.disabled)
+  && (not (List.is_empty config.ids))
+  && Request.valid request
+  &&
+  match request with
+  | Request.Previous | Next | First | Last -> true
+  | Select id -> List.mem config.ids id ~equal:String.equal
+  | Auto_next { revision; from; target } ->
+    Int64.equal revision config.revision
+    && Option.is_some config.auto_advance_ms
+    &&
+      (match config.selected with
+      | None -> false
+      | Some index ->
+        let index = Int64.to_int_exn index in
+        let count = List.length config.ids in
+        count > 1
+        && (index + 1 < count || config.looping)
+        && Option.exists (List.nth config.ids index) ~f:(String.equal from)
+        && Option.exists
+             (List.nth config.ids ((index + 1) % count))
+             ~f:(String.equal target))
+;;

@@ -19,6 +19,8 @@ module Item = struct
   let with_data t data = { t with data }
 end
 
+module Motion = Navigation_stack.Motion
+
 module Axis = struct
   type t =
     | Horizontal

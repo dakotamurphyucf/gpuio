@@ -118,9 +118,8 @@ module Motion = struct
 end
 
 module Expert = struct
-  let presentation_config t ~hidden ~motion =
-    { Gpuio_protocol.Navigation_stack_wire.Config.selected =
-        (if t.current_index < 0 then None else Some (Int64.of_int t.current_index))
+  let motion_config motion ~selected ~hidden =
+    { Gpuio_protocol.Navigation_stack_wire.Config.selected
     ; retain =
         (match hidden with
          | Content_policy.Retain -> true
@@ -128,5 +127,13 @@ module Expert = struct
     ; motion = motion.Motion.kind
     ; duration_ms = motion.duration_ms
     }
+  ;;
+
+  let presentation_config t ~hidden ~motion =
+    motion_config
+      motion
+      ~hidden
+      ~selected:
+        (if t.current_index < 0 then None else Some (Int64.of_int t.current_index))
   ;;
 end

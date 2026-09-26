@@ -524,11 +524,45 @@ absolute deadline. Old tickets, early wakes, disposal and unacknowledged proposa
 cannot generate a second tick. The future host adapter must recheck eligibility
 before waking and own/cancel the actual task through a weak, generational host.
 
-Implementation status: the Core model, independent paired config/request codecs
-and pure native clock are implemented and locally tested. The mounted Core/Bonsai
-view, bridge envelopes, admission rules, native rendering/gestures/tasks and macOS
-acceptance remain pending. This foundation does not advertise a carousel capability.
-The full target retains horizontal/vertical navigation, looping, keyboard and
-pointer controls, pagination, axis-locked drag/snapping and wheel gestures. It
-reuses retained-page presentation and explicit Retain/Unmount policy, and must
-never steal outside focus during automatic or programmatic selection changes.
+`View.carousel` in Core and Bonsai wraps a keyed native NavigationStack viewport
+and optional ordinary controls. `show_controls` defaults to true; first/previous,
+bounded numbered pagination, next/last controls emit typed application requests.
+Numbered controls use stable item IDs in their own key namespace, accepting even
+maximum-length IDs or IDs equal to boundary-control names. Current-item metadata
+is distinct from focus/selection and does not disable the current button. Controls
+and viewport/page styles are independently customizable. Assign the owner or
+viewport a height; the viewport can use flex allocation. `Carousel.Motion` shares
+the navigation motion vocabulary, with horizontal/vertical axis selected separately.
+
+The native root is Kind=47, SetCarousel appends operation=49, and CarouselRequested
+appends event=54. Independent fixtures cover the envelopes without changing earlier
+tags. The root owns a required request handler and one viewport plus optional
+controls. Admission verifies its item count/selection against the viewport, including
+viewport-only updates that otherwise leave the owner unchanged. Config revisions
+cannot regress or change logical state at equal revision. Axis changes are allowed
+at equal revision and settle an existing slide, including owner-only updates.
+Retained config bytes include the bounded item ID storage in ordinary tree quotas.
+
+Requests share the existing ordered bounded input mailbox. Generational node,
+handler, window and accepted tree revision checks precede delivery. Relative manual
+intents are not discarded solely because the last rendered snapshot is at an edge:
+a preceding queued request can change the model before OCaml reduces them. Unknown
+absolute IDs, disabled/empty owners and obsolete automatic proposals are rejected.
+A full mailbox follows the existing explicit overload contract rather than silently
+coalescing navigation. The reconciler repeats automatic/config guards against the
+latest accepted model and rejects stale model reuse on the same mounted key.
+
+Presentation reuses the bounded current/outgoing page layers and native ownership.
+Incoming direction honors explicit Next/Previous through loop boundaries; direct
+selection uses page positions. Outgoing paint is inert immediately. Carousel focus
+restoration runs only when focus was in the departing page; controls and the
+surrounding application keep focus during selection changes. Native hidden-page
+input rejection, retained editors and immediate disposal are unchanged.
+
+Implementation status: Core/Bonsai constructors, paired envelopes, admission,
+request dispatch and mounted horizontal/vertical page presentation are implemented.
+Local macOS tests cover presentation/focus/retained editor behavior. Keyboard/drag/
+wheel input, host task/eligibility integration for the tested pure automatic clock,
+public Navigation Lab scenarios and full acceptance remain pending. No carousel
+capability is advertised. The full target still includes axis-locked pointer drag,
+snapping and wheel gestures; these have not been replaced by the default buttons.

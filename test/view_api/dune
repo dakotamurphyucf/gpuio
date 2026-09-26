@@ -5,6 +5,8 @@
   (deps
    (sandbox preserve_file_kind)
    inert-request.hex
+   carousel-transaction.hex
+   carousel-event.hex
    carousel-config.hex
    carousel-request.hex
    navigation-stack-config.hex

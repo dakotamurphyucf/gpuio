@@ -9,7 +9,7 @@ use std::{collections::BTreeSet, sync::Arc, time::Duration};
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Layer {
     pub page: NodeId,
-    /// Horizontal offset as a fraction of the presenter's assigned width.
+    /// Offset as a fraction of the presenter's assigned extent on its motion axis.
     pub offset: f32,
     pub opacity: f32,
 }
@@ -100,6 +100,18 @@ impl State {
     /// preserves its timeline; a policy change settles it. Removed pages disappear
     /// immediately. Retargeting starts from accepted paint, never speculative layout.
     pub fn update(&mut self, pages: &[NodeId], config: Config, now: Duration) -> Result<(), Error> {
+        self.update_with_direction(pages, config, now, None)
+    }
+
+    /// A looping presenter can specify the requested direction independently of
+    /// numeric positions. Retargeting still starts at accepted painted geometry.
+    pub fn update_with_direction(
+        &mut self,
+        pages: &[NodeId],
+        config: Config,
+        now: Duration,
+        direction: Option<std::cmp::Ordering>,
+    ) -> Result<(), Error> {
         if !Self::valid(pages, config) {
             return Err(Error::InvalidPages);
         }
@@ -129,10 +141,10 @@ impl State {
             .selected
             .and_then(|id| pages.iter().position(|page| *page == id));
         let new_position = config.selected.map(|index| index as usize);
-        let direction = match (old_position, new_position) {
+        let direction = direction.unwrap_or_else(|| match (old_position, new_position) {
             (Some(old), Some(new)) => new.cmp(&old),
             _ => config.selected.cmp(&previous_index),
-        };
+        });
         let slide = config.motion == Motion::Slide && direction != std::cmp::Ordering::Equal;
         let sign = if direction == std::cmp::Ordering::Less {
             -1.
@@ -379,5 +391,28 @@ mod tests {
         let stale = state.sample(ms(210));
         state.painted(state.sample(ms(220)));
         assert!(!state.painted(stale));
+    }
+
+    #[test]
+    fn looping_direction_overrides_positions_without_resetting_painted_reversal() {
+        use std::cmp::Ordering::{Greater, Less};
+        let pages = [page(0), page(1), page(2)];
+        let mut state = State::new(&pages, config(Some(2)), ms(0)).unwrap();
+        state
+            .update_with_direction(&pages, config(Some(0)), ms(1), Some(Greater))
+            .unwrap();
+        assert_eq!(state.sample(ms(1)).current.unwrap().offset, 1.);
+        let half = state.sample(ms(101));
+        assert_eq!(half.outgoing.unwrap().offset, -0.5);
+        assert!(state.painted(half.clone()));
+        state
+            .update_with_direction(&pages, config(Some(2)), ms(102), Some(Less))
+            .unwrap();
+        let reverse = state.sample(ms(102));
+        assert_eq!(reverse.current, half.outgoing);
+        assert_eq!(reverse.outgoing, half.current);
+        assert!(state.painted(state.sample(ms(302))));
+        state.update(&pages, config(Some(0)), ms(303)).unwrap();
+        assert_eq!(state.sample(ms(303)).current.unwrap().offset, -1.);
     }
 }

@@ -13,6 +13,7 @@ fn allows_children(kind: Kind) -> bool {
             | Kind::Disclosure
             | Kind::Accordion
             | Kind::NavigationStack
+            | Kind::Carousel
             | Kind::SplitPane
             | Kind::VirtualList
             | Kind::Animated
@@ -97,6 +98,7 @@ pub struct Node {
     pub animation: Option<Arc<gpuio_protocol::animation::Config>>,
     pub animation_program: Option<Arc<gpuio_protocol::animation_program::Config>>,
     pub navigation_stack: Option<gpuio_protocol::navigation_stack::Config>,
+    pub carousel: Option<Arc<gpuio_protocol::carousel::Config>>,
     pub container_query: Option<Arc<gpuio_protocol::container_query::Config>>,
     pub accessibility: Option<Arc<gpuio_protocol::accessibility::Config>>,
     pub list_config: Option<Arc<gpuio_protocol::list::Config>>,
@@ -119,9 +121,13 @@ pub struct Node {
 
 impl Node {
     fn payload_bytes(&self) -> usize {
-        self.color_input
+        self.carousel
             .as_ref()
-            .map_or(0, |color| 32 + color.config.retained_bytes())
+            .map_or(0, |config| config.retained_bytes())
+            + self
+                .color_input
+                .as_ref()
+                .map_or(0, |color| 32 + color.config.retained_bytes())
             + self
                 .calendar
                 .as_ref()
@@ -500,6 +506,20 @@ impl Tree {
             }
             plan.operation(op)?;
         }
+        // A viewport-only update must also validate its unchanged carousel owner.
+        // Include it in dirty output so owner scheduling sees the admitted snapshot.
+        let carousel_parents = plan
+            .changes
+            .values()
+            .filter_map(|slot| {
+                let parent = slot.node.as_ref()?.parent?;
+                plan.node(parent).ok()?.carousel.as_ref()?;
+                Some(parent)
+            })
+            .collect::<BTreeSet<_>>();
+        for parent in carousel_parents {
+            plan.node_mut(parent)?;
+        }
         for slot in plan.changes.values() {
             if let Some(node) = &slot.node {
                 plan.validate_list(node)?;
@@ -839,6 +859,27 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
+                if (node.kind == Kind::Carousel) != node.carousel.is_some()
+                    || node.carousel.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || node.handler.is_none()
+                            || node.text.is_empty()
+                            || node.text.len() > 4096
+                            || node.text.contains('\0')
+                            || !(1..=2).contains(&node.children.len())
+                            || node.children.first().is_none_or(|child| {
+                                plan.node(*child).map_or(true, |viewport| {
+                                    viewport.kind != Kind::NavigationStack
+                                        || viewport.children.len() != config.ids.len()
+                                        || viewport.navigation_stack.is_none_or(|presentation| {
+                                            presentation.selected != config.selected
+                                        })
+                                })
+                            })
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 if (node.kind == Kind::NavigationStack) != node.navigation_stack.is_some()
                     || node.navigation_stack.is_some_and(|config| {
                         !config.valid_children(node.children.len())
@@ -905,6 +946,7 @@ impl Tree {
                     | Kind::Disclosure
                     | Kind::Accordion
                     | Kind::NavigationStack
+                    | Kind::Carousel
                     | Kind::SplitPane
                     | Kind::Extension
                     | Kind::CanvasView
@@ -1257,6 +1299,7 @@ impl Plan<'_> {
             | Op::SetAnimation(id, ..)
             | Op::SetAnimationProgram(id, ..)
             | Op::SetNavigationStack(id, ..)
+            | Op::SetCarousel(id, ..)
             | Op::SetContainerQuery(id, ..)
             | Op::SetAccessibility(id, ..)
             | Op::SetLoading(id, ..)
@@ -1379,6 +1422,7 @@ impl Plan<'_> {
                             animation: None,
                             animation_program: None,
                             navigation_stack: None,
+                            carousel: None,
                             container_query: None,
                             accessibility: None,
                             list_config: None,
@@ -1467,6 +1511,19 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.toast_stack = Some(Arc::new(config.clone()));
+            }
+            Op::SetCarousel(id, config) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::Carousel
+                    || !config.is_valid()
+                    || node
+                        .carousel
+                        .as_ref()
+                        .is_some_and(|old| !config.can_replace(old))
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.carousel = Some(Arc::new(config.clone()));
             }
             Op::SetNavigationStack(id, config) => {
                 if self.node(*id)?.kind != Kind::NavigationStack || !config.is_valid() {

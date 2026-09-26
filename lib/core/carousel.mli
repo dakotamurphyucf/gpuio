@@ -22,6 +22,8 @@ module Item : sig
   val with_data : 'a t -> 'a -> 'a t
 end
 
+module Motion = Navigation_stack.Motion
+
 module Axis : sig
   type t =
     | Horizontal

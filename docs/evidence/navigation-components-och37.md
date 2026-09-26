@@ -719,3 +719,56 @@ Scratch logs: `carousel-core-final.log`, `carousel-codec-final.log`,
 No windows were opened for these pure model/codec/clock tests. Mounted view/event
 integration, atomic admission, gestures, actual task ownership/cancellation,
 accessibility and native/public examples remain necessary for OCH-37 acceptance.
+
+## Carousel view, admission and native presentation — 2026-09-26
+
+Core/Bonsai `View.carousel` now builds an application-owned, keyed viewport with
+optional ordinary first/previous/numbered/next/last controls. It shares retained
+navigation pages instead of owning a second selection model. This checkpoint does
+not implement carousel keyboard/drag/wheel input or automatic host scheduling.
+
+Local validation:
+
+- Full `test/view_api` passes Retain versus Unmount content construction, stable
+  node identity across selection, bounded pagination over 128 items, maximum-length
+  IDs and control-name collisions. Dispatch checks cover queued manual order,
+  callback replacement, stale automatic/model/handler rejection and retirement.
+- Four Rust carousel codec tests pass config/request and independently constructed
+  transaction/event envelopes (Kind47/operation49/event54), truncation and bounds.
+  The OCaml counterpart verifies the same bytes and rejects invalid event revisions.
+- Two native admission/session tests pass owner/viewport selection consistency,
+  viewport-only invalid updates, monotonic model revisions, equal-revision axis
+  changes, invalid handler/label/structure, unchanged accounting on rejection,
+  ordered mailbox delivery, disabled/stale requests, window close and zero retained
+  bytes after disposal. Both existing navigation admission tests also pass.
+- Eight pure navigation-motion tests pass, including explicit loop direction and
+  reversal from accepted painted geometry without disturbing ordinary route motion.
+- The real macOS `native_navigation` suite passes its existing disclosure, nested
+  route/overlay/IME, retained-editor and full 128-page workload regressions plus
+  the new carousel presentation scenario. That scenario checks actual vertical GPU
+  incoming/outgoing pixels, retained editor focus-handle identity, hidden editor
+  focus denial, outside/control focus preservation, destination focus handoff and
+  final zero resource accounting. An owner-only axis change during a live slide
+  settles on the selected page, verified by GPU pixels. Focus assertions use native
+  focus operations; carousel-specific physical keyboard/IME and gesture acceptance
+  are still pending. The window closes at suite completion.
+- Core/Bonsai builds, formatting and feature-enabled all-target Clippy pass.
+
+Commands:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune runtest -j 2 test/view_api
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 lib/bonsai/gpuio_bonsai.cma @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-protocol --test carousel
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --test carousel --test navigation_stack
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --lib navigation_motion
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-image-tests --test native_navigation
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native -p gpuio-protocol --all-targets --features gpuio-native/native-image-tests -- -D warnings
+```
+
+Scratch logs: `carousel-view-test-final.log`, `carousel-view-format-final.log`,
+`carousel-envelope-test.log`, `carousel-admission-final.log`,
+`carousel-motion-test.log`, `carousel-presentation-native-final.log`,
+`carousel-mounted-clippy-final.log`. No hosted/Linux GUI results are claimed.
+Existing required CI builds/runs the expanded navigation target; consolidated M5
+hosted gates and merge remain pending.

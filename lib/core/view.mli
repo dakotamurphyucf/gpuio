@@ -362,6 +362,33 @@ val navigation_stack
   -> unit
   -> 'action t
 
+(** Application-owned carousel selection. The viewport reuses retained navigation
+    pages; [hidden] controls native resources independently of Bonsai/Eio lifetimes.
+    Give the owner or [viewport_style] an assigned height. Stable item IDs key pages.
+    Default controls include first/previous/numbered/next/last navigation; disable
+    them to supply application controls outside the component. Requests must be
+    reduced against the latest model using [Carousel.apply_request].
+
+    The adapter is under implementation: pointer gestures, automatic scheduling
+    and native keyboard/accessibility acceptance are not yet complete. *)
+val carousel
+  :  'data Carousel.t
+  -> ?key:Key.t
+  -> ?style:Style.t
+  -> ?viewport_style:Style.t
+  -> ?page_style:Style.t
+  -> ?controls_style:Style.t
+  -> ?control_style:Style.t
+  -> ?show_controls:bool
+  -> ?axis:Carousel.Axis.t
+  -> ?motion:Carousel.Motion.t
+  -> hidden:Content_policy.t
+  -> label:string
+  -> on_request:(Carousel.Request.t -> 'action)
+  -> content:('data Carousel.Item.t -> 'action t list)
+  -> unit
+  -> 'action t
+
 (** Controlled collapsible content with a native button trigger and labelled
     region. Enter/Space, pointer and accessibility activation emit one intent;
     reduce it against current application state. Collapsing focused content
@@ -841,6 +868,7 @@ module Expert : sig
       | Accordion
       | Navigation_stack
       | Hover_card
+      | Carousel
     [@@deriving equal, sexp_of]
   end
 
@@ -933,6 +961,8 @@ module Expert : sig
     ; animation : 'action animation option
     ; animation_program : 'action animation_program option
     ; navigation_stack : Gpuio_protocol.Navigation_stack_wire.Config.t option
+    ; carousel :
+        (Gpuio_protocol.Carousel_wire.Config.t * (Carousel.Request.t -> 'action)) option
     ; container_query : 'action container_query option
     ; accessibility : Accessibility.t option
     ; image : 'action image option

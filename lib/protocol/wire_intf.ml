@@ -13,6 +13,7 @@ module type S = sig
   module Otp_input = Otp_wire
   module Calendar = Calendar_wire
   module Color_input = Color_input_wire
+  module Carousel = Carousel_wire
   module Navigation_stack = Navigation_stack_wire
   module Container_query = Container_query_wire
   module Animation_program = Animation_program_wire
@@ -77,6 +78,7 @@ module type S = sig
       | Accordion
       | Navigation_stack
       | Hover_card
+      | Carousel
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -747,6 +749,7 @@ module type S = sig
       | Set_calendar of Node_id.t * Calendar.Config.t * Calendar.Selection.t * int64
       | Set_color_input of Node_id.t * Color_input.Config.t * Color_input.Value.t
       | Set_navigation_stack of Node_id.t * Navigation_stack.Config.t
+      | Set_carousel of Node_id.t * Carousel.Config.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -983,6 +986,8 @@ module type S = sig
       | Color_input_event of
           Window_id.t * Node_id.t * Handler_id.t * int64 * Color_input.Event.t
       | Color_input_result of int64 * Window_id.t * Node_id.t * Color_input.Response.t
+      | Carousel_requested of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Carousel.Request.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

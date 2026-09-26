@@ -6,6 +6,7 @@ use std::time::Instant;
 pub(super) struct State {
     origin: Instant,
     motion: navigation_motion::State,
+    axis: gpuio_protocol::carousel::Axis,
 }
 
 impl View {
@@ -17,23 +18,63 @@ impl View {
                 .is_some_and(|node| node.navigation_stack.is_some())
         });
         if let Some(tree) = tree {
+            let mut presenters = dirty
+                .iter()
+                .copied()
+                .collect::<std::collections::BTreeSet<_>>();
             for id in dirty {
+                if let Some(owner) = tree.get(*id)
+                    && owner.carousel.is_some()
+                    && let Some(viewport) = owner.children.first()
+                {
+                    presenters.insert(*viewport);
+                }
+            }
+            for id in &presenters {
                 let Some(node) = tree.get(*id) else { continue };
                 let Some(config) = node.navigation_stack else {
                     continue;
                 };
+                let axis = node
+                    .parent
+                    .and_then(|parent| tree.get(parent))
+                    .and_then(|owner| owner.carousel.as_ref())
+                    .map_or(gpuio_protocol::carousel::Axis::Horizontal, |config| {
+                        config.axis
+                    });
                 if let Some(state) = self.navigation.get(id) {
                     let mut state = state.borrow_mut();
                     let now = state.origin.elapsed();
+                    if state.axis != axis {
+                        state.motion.settle(now);
+                        state.axis = axis;
+                    }
                     state
                         .motion
-                        .update(&node.children, config, now)
+                        .update_with_direction(
+                            &node.children,
+                            config,
+                            now,
+                            node.parent
+                                .and_then(|parent| tree.get(parent))
+                                .and_then(|owner| owner.carousel.as_ref())
+                                .and_then(|config| match config.direction {
+                                    gpuio_protocol::carousel::Direction::Direct => None,
+                                    gpuio_protocol::carousel::Direction::Previous => {
+                                        Some(std::cmp::Ordering::Less)
+                                    }
+                                    gpuio_protocol::carousel::Direction::Next => {
+                                        Some(std::cmp::Ordering::Greater)
+                                    }
+                                }),
+                        )
                         .expect("admitted navigation");
                 } else {
                     self.navigation.insert(
                         *id,
                         Rc::new(RefCell::new(State {
                             origin: Instant::now(),
+                            axis,
                             motion: navigation_motion::State::new(
                                 &node.children,
                                 config,
@@ -64,6 +105,11 @@ impl View {
             }
             state.motion.sample(now)
         };
+        let vertical = node
+            .parent
+            .and_then(|parent| tree.get(parent))
+            .and_then(|owner| owner.carousel.as_ref())
+            .is_some_and(|config| config.axis == gpuio_protocol::carousel::Axis::Vertical);
         let selected = sample.current.map(|layer| layer.page);
         let mut pages = Vec::with_capacity(node.children.len());
         // Build hidden retained descendants as usual to preserve their native owners.
@@ -82,9 +128,12 @@ impl View {
                 .find(|layer| layer.page == *id);
             let mut page = div().absolute().top_0().size_full().overflow_hidden();
             if let Some(layer) = layer {
-                page = page
-                    .left(gpui::relative(layer.offset))
-                    .opacity(layer.opacity);
+                page = if vertical {
+                    page.left_0().top(gpui::relative(layer.offset))
+                } else {
+                    page.left(gpui::relative(layer.offset))
+                }
+                .opacity(layer.opacity);
             } else {
                 page = page.hidden();
             }

@@ -884,6 +884,7 @@ impl Decoder<'_> {
                     44 => Kind::Accordion,
                     45 => Kind::NavigationStack,
                     46 => Kind::HoverCard,
+                    47 => Kind::Carousel,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -972,6 +973,7 @@ impl Decoder<'_> {
                 Op::SetOtpInput(node, config, initial)
             }
             48 => Op::SetNavigationStack(self.node()?, self.navigation_stack_config()?),
+            49 => Op::SetCarousel(self.node()?, self.carousel_config()?),
             47 => Op::SetColorInput(
                 self.node()?,
                 Box::new(self.color_config()?),

@@ -456,6 +456,12 @@ impl Manager {
     }
 
     fn sync_navigation_focus(&mut self, window: &Window) {
+        let focused_path = self
+            .entries
+            .iter()
+            .find(|entry| entry.handle.is_focused(window))
+            .map(|entry| entry.navigation_path.clone())
+            .unwrap_or_default();
         if let Some(entry) = self
             .entries
             .iter()
@@ -485,7 +491,17 @@ impl Manager {
             if let Some(config) = node.navigation_stack {
                 let selected = config.selected.map(|index| node.children[index as usize]);
                 let visible = self.visible(id);
+                let carousel = node
+                    .parent
+                    .and_then(|parent| tree.get(parent))
+                    .is_some_and(|owner| owner.carousel.is_some());
                 let state = self.navigation.entry(id).or_default();
+                // Carousel changes never steal focus from its controls or the
+                // surrounding application, including automatic advancement.
+                let restore = !carousel
+                    || focused_path
+                        .iter()
+                        .any(|(owner, page)| *owner == id && Some(*page) == state.selected);
                 state
                     .remembered
                     .retain(|page, _| node.children.contains(page));
@@ -493,7 +509,10 @@ impl Manager {
                     // Supersede pending focus for older selections of this presenter.
                     self.navigation_enter
                         .retain(|(page, _)| !node.children.contains(page));
-                    if visible && let Some(page) = selected {
+                    if visible
+                        && restore
+                        && let Some(page) = selected
+                    {
                         self.navigation_enter
                             .push((page, state.remembered.get(&page).cloned()));
                     }

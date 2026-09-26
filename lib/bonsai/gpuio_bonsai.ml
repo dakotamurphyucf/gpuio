@@ -97,6 +97,7 @@ module View = struct
   let tab_bar = Gpuio.View.tab_bar
   let tab_panel = Gpuio.View.tab_panel
   let panel = Gpuio.View.panel
+  let carousel = Gpuio.View.carousel
   let navigation_stack = Gpuio.View.navigation_stack
   let accordion = Gpuio.View.accordion
   let disclosure_with_header = Gpuio.View.disclosure_with_header

@@ -58,10 +58,12 @@ native tooltip timing, retained content and placement. Local native tests cover
 Tab/pointer/IME/Escape, accepted controlled close, anchor restoration and timer
 cancellation; the Navigation Lab includes a contributor preview. Existing tooltips
 retain their separate help semantics and grace clock.
-Carousel now has a tested Core selection model, independent paired codecs and
-a pure native clock with stable deadlines, pause/restart and stale-wake rejection.
-It is not yet a mounted widget; native gestures, scheduling and acceptance remain.
-Remaining scope includes mounted carousel,
+Carousel now has a tested Core selection model, paired envelopes, Core/Bonsai
+constructors, bounded default pagination and native admission/request dispatch.
+Mounted horizontal/vertical presentation reuses retained pages; local macOS checks
+cover GPU transition geometry, retained editors and focus preservation/handoff.
+Its pure clock is tested, but native scheduling/gestures and full acceptance remain.
+Remaining scope includes completing carousel,
 expanded public examples, broader acceptance and hosted gates.
 See [navigation design](design/navigation-components.md) and
 [foundation evidence](evidence/navigation-components-och37.md).

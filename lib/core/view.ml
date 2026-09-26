@@ -50,6 +50,7 @@ module Kind = struct
     | Accordion
     | Navigation_stack
     | Hover_card
+    | Carousel
   [@@deriving equal, sexp_of]
 end
 
@@ -265,6 +266,8 @@ type 'action t =
   ; animation : 'action animation option
   ; animation_program : 'action animation_program option
   ; navigation_stack : Gpuio_protocol.Navigation_stack_wire.Config.t option
+  ; carousel :
+      (Gpuio_protocol.Carousel_wire.Config.t * (Carousel.Request.t -> 'action)) option
   ; container_query : 'action container_query option
   ; accessibility : Accessibility.t option
   ; image : 'action image option
@@ -311,6 +314,7 @@ let text ?key ?(style = Style.empty) text =
   ; animation = None
   ; animation_program = None
   ; navigation_stack = None
+  ; carousel = None
   ; container_query = None
   ; accessibility = None
   ; image = None
@@ -459,6 +463,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; animation = None
   ; animation_program = None
   ; navigation_stack = None
+  ; carousel = None
   ; container_query = None
   ; accessibility = None
   ; image = None
@@ -565,6 +570,7 @@ let button
   ; animation = None
   ; animation_program = None
   ; navigation_stack = None
+  ; carousel = None
   ; container_query = None
   ; accessibility = None
   ; image = None
@@ -643,6 +649,7 @@ let toggle
   ; animation = None
   ; animation_program = None
   ; navigation_stack = None
+  ; carousel = None
   ; container_query = None
   ; accessibility = None
   ; image = None
@@ -705,6 +712,7 @@ let focus_scope ?key ?style ~config children =
   ; animation = None
   ; animation_program = None
   ; navigation_stack = None
+  ; carousel = None
   ; container_query = None
   ; accessibility = None
   ; image = None
@@ -1002,6 +1010,140 @@ let navigation_stack
   }
 ;;
 
+let carousel
+      model
+      ?key
+      ?style
+      ?viewport_style
+      ?page_style
+      ?controls_style
+      ?control_style
+      ?(show_controls = true)
+      ?(axis = Carousel.Axis.Horizontal)
+      ?(motion = Carousel.Motion.default)
+      ~hidden
+      ~label
+      ~on_request
+      ~content
+      ()
+  =
+  if not (Gpuio_protocol.Accessibility_wire.valid_text label)
+  then invalid_arg "carousel label must be nonempty UTF-8 without NUL, at most 4096 bytes";
+  let config = Carousel.Expert.to_wire model ~axis in
+  let children =
+    List.mapi (Carousel.items model) ~f:(fun index item ->
+      let active = Option.equal Int64.equal config.selected (Some (Int64.of_int index)) in
+      let children =
+        match hidden with
+        | Content_policy.Retain -> content item
+        | Unmount -> if active then content item else []
+      in
+      panel
+        ~key:(Key.of_string_exn (Carousel.Id.to_string (Carousel.Item.id item)))
+        ~label:(Carousel.Item.label item)
+        ~active:true
+        ~hidden:Content_policy.Retain
+        ?style:page_style
+        children)
+  in
+  let viewport_style =
+    Style.merge
+      [ Style.create_exn [ Grow 1.; Min_height (Length.px_exn 0.) ]
+      ; Option.value viewport_style ~default:Style.empty
+      ]
+  in
+  let viewport =
+    { (column ~key:(Key.of_string_exn "viewport") ~style:viewport_style children) with
+      kind = Navigation_stack
+    ; text = label
+    ; navigation_stack =
+        Some
+          (Navigation_stack.Expert.motion_config motion ~hidden ~selected:config.selected)
+    }
+  in
+  let controls =
+    if not show_controls
+    then []
+    else (
+      let current = Option.map config.selected ~f:(fun i -> Int64.to_int_exn i + 1) in
+      let pages =
+        Pagination.create
+          ~total_pages:(List.length config.ids)
+          ?current
+          ~disabled:config.disabled
+          ()
+        |> Or_error.ok_exn
+      in
+      let control key label enabled request =
+        button
+          ~key:(Key.of_string_exn key)
+          ?style:control_style
+          ~disabled:(not enabled)
+          ~on_click:(fun () -> on_request request)
+          label
+      in
+      let numbered =
+        List.map (Pagination.items pages) ~f:(function
+          | Pagination.Item.Gap { first = _; last = _ } -> text "…"
+          | Page page ->
+            let item = List.nth_exn (Carousel.items model) (page - 1) in
+            let selected = Option.equal Int.equal current (Some page) in
+            let view =
+              control
+                (Carousel.Id.to_string (Carousel.Item.id item))
+                (Int.to_string page)
+                (not config.disabled)
+                (Carousel.Request.select (Carousel.Item.id item))
+            in
+            let metadata =
+              Accessibility.create
+                ?current:(if selected then Some Page else None)
+                ?description:(if selected then Some "Current item" else None)
+                ()
+              |> Or_error.ok_exn
+            in
+            with_accessibility view metadata |> Or_error.ok_exn)
+      in
+      [ row
+          ~key:(Key.of_string_exn "controls")
+          ~style:
+            (Style.merge
+               [ Style.create_exn [ Gap (Length.px_exn 6.); Align_items Center ]
+               ; Option.value controls_style ~default:Style.empty
+               ])
+          ([ control
+               "first"
+               "First"
+               ((not config.disabled) && Option.exists current ~f:(fun n -> n > 1))
+               Carousel.Request.first
+           ; control
+               "previous"
+               "Previous"
+               (Carousel.can_previous model)
+               Carousel.Request.previous
+           ]
+           @ [ row
+                 ~key:(Key.of_string_exn "pages")
+                 ~style:(Style.create_exn [ Gap (Length.px_exn 6.) ])
+                 numbered
+             ]
+           @ [ control "next" "Next" (Carousel.can_next model) Carousel.Request.next
+             ; control
+                 "last"
+                 "Last"
+                 ((not config.disabled)
+                  && Option.exists current ~f:(fun n -> n < List.length config.ids))
+                 Carousel.Request.last
+             ])
+      ])
+  in
+  { (column ?key ?style (viewport :: controls)) with
+    kind = Carousel
+  ; text = label
+  ; carousel = Some (config, on_request)
+  }
+;;
+
 let disclosure
       ?key
       ?style
@@ -1234,6 +1376,7 @@ let text_input
   ; animation = None
   ; animation_program = None
   ; navigation_stack = None
+  ; carousel = None
   ; container_query = None
   ; accessibility = None
   ; image = None
@@ -1281,6 +1424,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; animation = None
   ; animation_program = None
   ; navigation_stack = None
+  ; carousel = None
   ; container_query = None
   ; accessibility = None
   ; image = None
@@ -1354,6 +1498,7 @@ let combobox
   ; animation = None
   ; animation_program = None
   ; navigation_stack = None
+  ; carousel = None
   ; container_query = None
   ; accessibility = None
   ; image = None
@@ -1709,6 +1854,8 @@ module Expert = struct
     ; animation : 'action animation option
     ; animation_program : 'action animation_program option
     ; navigation_stack : Gpuio_protocol.Navigation_stack_wire.Config.t option
+    ; carousel :
+        (Gpuio_protocol.Carousel_wire.Config.t * (Carousel.Request.t -> 'action)) option
     ; container_query : 'action container_query option
     ; accessibility : Accessibility.t option
     ; image : 'action image option

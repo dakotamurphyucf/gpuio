@@ -86,6 +86,12 @@ module Motion : sig
 end
 
 module Expert : sig
+  val motion_config
+    :  Motion.t
+    -> selected:int64 option
+    -> hidden:Content_policy.t
+    -> Gpuio_protocol.Navigation_stack_wire.Config.t
+
   val presentation_config
     :  _ t
     -> hidden:Content_policy.t

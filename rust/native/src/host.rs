@@ -589,6 +589,7 @@ impl View {
                 | Kind::Disclosure
                 | Kind::Accordion
                 | Kind::NavigationStack
+                | Kind::Carousel
                 | Kind::FocusScope
                 | Kind::CommandScope
                 | Kind::RadioGroup
@@ -884,7 +885,7 @@ impl View {
         }
         if matches!(
             node.kind,
-            Kind::TabPanel | Kind::Panel | Kind::NavigationStack
+            Kind::TabPanel | Kind::Panel | Kind::NavigationStack | Kind::Carousel
         ) {
             element = element
                 .role(if node.kind == Kind::TabPanel {
@@ -1216,7 +1217,7 @@ impl View {
         } else if !label.is_empty()
             && !matches!(
                 node.kind,
-                Kind::TabPanel | Kind::Panel | Kind::NavigationStack
+                Kind::TabPanel | Kind::Panel | Kind::NavigationStack | Kind::Carousel
             )
         {
             element = element.child(gpui::SharedString::from(label));

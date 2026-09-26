@@ -153,3 +153,41 @@ fn relative_and_automatic_selection_resolve_without_native_mutation() {
     config.selected = None;
     assert_eq!(config.target(&Request::Previous), None);
 }
+
+#[test]
+fn appended_transaction_and_event_tags_match_independent_fixtures() {
+    use gpuio_protocol::{HandlerId, NodeId, WindowId, decode, v1::*};
+    let window = WindowId::from_parts(0, 1).unwrap();
+    let node = NodeId::from_parts(0, 1).unwrap();
+    let message = Message::Apply(Transaction {
+        window,
+        base: 0,
+        revision: 1,
+        operations: vec![Op::SetCarousel(node, config())],
+    });
+    let encoded = bytes(&message);
+    assert_eq!(
+        hex(&encoded),
+        include_str!("../../../test/fixtures/carousel-transaction.hex").trim()
+    );
+    assert_eq!(decode(&encoded), Ok(message));
+    for end in 0..encoded.len() {
+        assert!(decode(&encoded[..end]).is_err());
+    }
+    let event = Event::CarouselRequested(
+        window,
+        node,
+        HandlerId::from_parts(0, 1).unwrap(),
+        1,
+        Request::AutoNext {
+            revision: 7,
+            from: "β".into(),
+            target: "c".into(),
+        },
+    );
+    assert_eq!(
+        hex(&bytes(&event)),
+        include_str!("../../../test/fixtures/carousel-event.hex").trim()
+    );
+    assert_eq!(bytes(&Kind::Carousel), vec![47]);
+}

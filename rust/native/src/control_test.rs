@@ -1,4 +1,6 @@
 //! Real-window control activation, focus traversal and native accessibility.
+#[path = "carousel_view_test.rs"]
+mod carousel_view_test;
 #[path = "command_test.rs"]
 mod command_test;
 #[path = "drag_drop_test.rs"]

@@ -85,6 +85,7 @@ type 'a callback =
   | Tooltip of Tooltip.Config.t * (bool -> 'a)
   | Editor of (Text_input.Event.t -> 'a)
   | Choice of Choice.Config.t * (Choice.Id.t -> 'a)
+  | Carousel of Wire.Carousel.Config.t * (Carousel.Request.t -> 'a)
   | Rating of Rating.Config.t * (Rating.Request.t -> 'a)
   | Slider of Slider.Value.t * int64 ref * (Slider.Event.t -> 'a)
   | Number_input of int64 ref * (Number_input.Event.t -> 'a)
@@ -233,6 +234,7 @@ let kind = function
   | Focus_scope -> Focus_scope
   | Tooltip -> Tooltip
   | Hover_card -> Hover_card
+  | Carousel -> Carousel
   | Command_scope -> Command_scope
   | Command_button -> Command_button
   | Menu -> Menu
@@ -529,6 +531,12 @@ let rec mount builder ~depth previous view =
       | Some _, Some _ -> fail "calendar cannot combine another handler"
     in
     let callback =
+      match description.carousel, callback with
+      | Some (config, on_request), None -> Some (Carousel (config, on_request))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "carousel cannot combine another handler"
+    in
+    let callback =
       match description.rating, callback with
       | Some rating, None ->
         if
@@ -821,6 +829,18 @@ let rec mount builder ~depth previous view =
       emit
         builder
         (Set_accessibility (id, Option.map accessibility ~f:Accessibility.Expert.to_wire));
+    let carousel = Option.map description.carousel ~f:fst in
+    let old_carousel =
+      Option.bind previous ~f:(fun mounted ->
+        Option.map (View.Expert.describe mounted.view).carousel ~f:fst)
+    in
+    Option.iter carousel ~f:(fun config ->
+      if
+        Option.exists old_carousel ~f:(fun old ->
+          not (Wire.Carousel.Config.can_replace config old))
+      then fail "carousel model revision must advance when selection or policy changes";
+      if not (Option.equal Wire.Carousel.Config.equal carousel old_carousel)
+      then emit builder (Set_carousel (id, config)));
     let navigation = description.navigation_stack in
     let old_navigation =
       Option.bind previous ~f:(fun mounted ->
@@ -1664,6 +1684,7 @@ let dispatch t = function
         | Click callback -> Some (callback ())
         | Editor _
         | Rating _
+        | Carousel _
         | Slider _
         | Number_input _
         | Otp_input _
@@ -1809,6 +1830,23 @@ let dispatch t = function
            seen := snapshot.revision;
            Some (callback event))
      | Some _ | None -> None)
+  | Carousel_requested (window, node, handler, revision, request)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match
+       Map.find t.state.bindings (node_slot node), Carousel.Expert.request_of_wire request
+     with
+     | ( Some
+           { node = expected
+           ; handler = expected_handler
+           ; callback = Carousel (config, callback)
+           }
+       , Ok decoded )
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Wire.Carousel.accepts_request config request -> Some (callback decoded)
+     | _ -> None)
   | Rating_requested (window, node, handler, revision, request)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -2022,6 +2060,7 @@ let dispatch t = function
   | Animation_endpoint _
   | Animation_program_event _
   | Rating_requested _
+  | Carousel_requested _
   | Slider_result _
   | Slider_event _
   | Color_input_result _

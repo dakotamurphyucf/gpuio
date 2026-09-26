@@ -44,6 +44,34 @@ impl Config {
                 Some(index) => index >= 0 && (index as usize) < self.ids.len(),
             }
     }
+    pub fn can_replace(&self, previous: &Self) -> bool {
+        self.is_valid()
+            && (self.revision > previous.revision
+                || (self.revision == previous.revision
+                    && self.ids == previous.ids
+                    && self.selected == previous.selected
+                    && self.looping == previous.looping
+                    && self.disabled == previous.disabled
+                    && self.auto_advance_ms == previous.auto_advance_ms
+                    && self.direction == previous.direction))
+    }
+    /// Preserve ordered manual intents even at a snapshot boundary: an earlier
+    /// queued request can change the model before this one is reduced in OCaml.
+    pub fn accepts_request(&self, request: &Request) -> bool {
+        !self.disabled
+            && !self.ids.is_empty()
+            && request.is_valid()
+            && match request {
+                Request::AutoNext { .. } => self.target(request).is_some(),
+                Request::Select(id) => self.ids.contains(id),
+                Request::Previous | Request::Next | Request::First | Request::Last => true,
+            }
+    }
+    pub fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + self.ids.len() * std::mem::size_of::<String>()
+            + self.ids.iter().map(String::len).sum::<usize>()
+    }
     /// A relative step always resolves against this accepted snapshot. No implicit
     /// selection mutation occurs in native code, including automatic advancement.
     pub fn target(&self, request: &Request) -> Option<usize> {

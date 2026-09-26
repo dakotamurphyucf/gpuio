@@ -341,6 +341,25 @@ module View : sig
     -> t list
     -> t
 
+  (** See [Gpuio.View.carousel] for selection and native lifetime contracts. *)
+  val carousel
+    :  'data Gpuio.Carousel.t
+    -> ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?viewport_style:Gpuio.Style.t
+    -> ?page_style:Gpuio.Style.t
+    -> ?controls_style:Gpuio.Style.t
+    -> ?control_style:Gpuio.Style.t
+    -> ?show_controls:bool
+    -> ?axis:Gpuio.Carousel.Axis.t
+    -> ?motion:Gpuio.Carousel.Motion.t
+    -> hidden:Gpuio.Content_policy.t
+    -> label:string
+    -> on_request:(Gpuio.Carousel.Request.t -> unit Bonsai.Effect.t)
+    -> content:('data Gpuio.Carousel.Item.t -> t list)
+    -> unit
+    -> t
+
   (** Native route presentation; see [Gpuio.View.navigation_stack] for lifetime,
       geometry and focus rules. Content may contain ordinary Bonsai effects. *)
   val navigation_stack

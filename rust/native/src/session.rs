@@ -604,6 +604,31 @@ impl Session {
         .then_some(Event::NumberInputEvent(id, node, handler, revision, event))
     }
 
+    pub fn request_carousel(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        request: gpuio_protocol::carousel::Request,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        (!window.overloaded
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && window.tree.accepts_handler(node, handler)
+            && request.is_valid()
+            && window
+                .tree
+                .get(node)?
+                .carousel
+                .as_ref()?
+                .accepts_request(&request))
+        .then_some(Event::CarouselRequested(
+            id, node, handler, revision, request,
+        ))
+    }
+
     pub fn request_rating(
         &self,
         id: WindowId,
