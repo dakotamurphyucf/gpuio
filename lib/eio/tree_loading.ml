@@ -219,3 +219,38 @@ let replace t tree f =
 
 let update t tree = replace t tree P.update
 let reset t tree = replace t tree P.reset
+
+let controls
+      ?(on_error = fun error -> Bonsai.Effect.of_thunk (fun () -> Error.raise error))
+      t
+  =
+  check t;
+  let open_ () =
+    check t;
+    (not t.closed) && Scope.is_active t.scope
+  in
+  let run operation target =
+    Bonsai.Effect.bind
+      (Bonsai.Effect.of_thunk (fun () ->
+         if
+           open_ ()
+           && Snapshot.is_current (snapshot t) target
+           && Snapshot.queued_count (snapshot t) < P.max_queued
+         then operation t (P.Target.parent target)
+         else Ok ()))
+      ~f:(function
+        | Ok () -> Bonsai.Effect.Ignore
+        | Error error -> on_error error)
+  in
+  Gpuio_bonsai.Tree_rows.Loading.create
+    ~request:(run request)
+    ~retry:(run retry)
+    ~cancel:(fun target ->
+      Bonsai.Effect.of_thunk (fun () ->
+        if open_ () && Snapshot.is_current (snapshot t) target
+        then cancel t (P.Target.parent target)))
+    ~cancel_hidden:(fun lease state ->
+      Bonsai.Effect.of_thunk (fun () ->
+        if open_ () && P.Lease.equal lease (Snapshot.lease (snapshot t))
+        then cancel_hidden t state))
+;;

@@ -1,6 +1,24 @@
 open Core
 module Boundary = List_paging.Boundary
 
+module Lease : sig
+  (** Payload-free controller identity and reset generation. *)
+  type t [@@deriving compare, sexp_of]
+
+  include Comparator.S with type t := t
+
+  val equal : t -> t -> bool
+end
+
+module Target : sig
+  (** Payload-free branch identity including incarnation and child revision.
+      Capture before scheduling an effect and validate again at delivery. *)
+  type t
+
+  val parent : t -> Tree.Id.t
+  val equal : t -> t -> bool
+end
+
 module Request : sig
   type t
 
@@ -49,6 +67,14 @@ module Snapshot : sig
       created controllers may expose the same numeric generation. *)
   val same_generation : _ t -> _ t -> bool
 
+  val lease : _ t -> Lease.t
+
+  (** Requires a present branch. These tokens do not reserve queue capacity or
+      start work. Child-prefix changes, reset and reincarnation retire a target;
+      payload edits and sibling reorder preserve it. *)
+  val target : _ t -> Tree.Id.t -> Target.t Or_error.t
+
+  val is_current : _ t -> Target.t -> bool
   val status : _ t -> Tree.Id.t -> Status.t option
   val queued_count : _ t -> int
   val running_count : _ t -> int

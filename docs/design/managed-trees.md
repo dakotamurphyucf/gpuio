@@ -4,8 +4,9 @@ Status: the Core `Tree` collection and `Tree_state` expansion, selection, visibl
 projection and logical navigation reducer are implemented. `Tree_loading` now
 provides a bounded Core paging model and scoped Eio worker adapter. `Tree_rows`
 projects these models into an incremental keyed list collection with distinct
-item and lazy-boundary identities. Managed Bonsai row views, native tree input/
-semantics and the public filesystem example remain. No tree wire protocol or capability is advertised. This
+item and lazy-boundary identities. `Gpuio_bonsai.Tree_rows` now mounts bounded
+rows and connects viewport demand/collapse policy to Eio loading controls. Native
+tree input/semantics and the public filesystem example remain. No tree wire protocol or capability is advertised. This
 document preserves the full live ticket scope; model tests do not establish
 native widget acceptance.
 
@@ -176,7 +177,70 @@ only update the owned source snapshot. Status invalidation includes error-detail
 eviction, so a mounted failed row switches to the generic retry message when its
 detail leaves the bounded cache. Historical projections retained explicitly by
 applications retain their historical payloads; the current projection has no
-back-reference chain. Rendered rows still need the OCH-13 lifetime/viewport layer.
+back-reference chain. The Bonsai primitive supplies the OCH-13 lifetime/viewport
+layer described below.
+
+### Bonsai viewport and row lifetimes
+
+`Gpuio_bonsai.Tree_rows.component` is the managed primitive for the higher-level
+native tree adapter. It accepts loader snapshots, application-owned preferences,
+bounded list configuration and a row renderer. The renderer receives typed Item/
+Boundary data, a projection key and `Managed_rows.Lifetime`; its transient models
+must obey the same reset/guard contract as OCH-13. This primitive does not yet
+supply native Tree/TreeItem roles, keyboard traversal or OS focus behavior.
+
+The component checkpoints its accepted projection after display. Coalesced source
+changes compare with that checkpoint, and the existing list adapter independently
+checks height invalidation against its own accepted collection. Persistent
+selection is never converted into row retention. Explicit pins and native
+viewport/interaction demand share `Config.max_active`; only that subset creates
+row computations. A 100,000-node selection with a four-row configuration therefore
+still mounts at most four rows, including native pins.
+
+Source generations use a comparable, payload-free `Tree_loading.Lease`. Its owner
+comes from a generative Core type identity, with no payload or historical registry;
+the reset counter distinguishes successive generations of that owner. Bonsai
+keys a managed subtree by the full lease, and the native wrapper has a distinct
+source key. Independent controllers at numeric generation zero cannot share
+row models. Deactivation resets projection/list/row models and retires controller
+effects even if the same source is subsequently remounted. The data loader belongs
+to the application scope and is not closed by removing this view.
+
+The primitive controller reveals a current visible projection key and provides
+request/retry/cancel effects for a lightweight branch `Target`. Reveal does not
+expand ancestors or assert OS focus; the higher-level tree controller will add
+those semantics. Delivery peeks at current projection state and checks lifetime,
+branch identity and visibility. A target holds only source lease, stable parent
+ID, incarnation and child revision. Its equality and currentness do not retain
+application payloads; page-prefix changes invalidate it, while payload edits and
+sibling reorder preserve it.
+
+`Gpuio_eio.Tree_loading.controls` checks tokens again on the UI domain. Closed,
+reset, foreign, deleted and obsolete branch delivery is ignored. Queue saturation
+leaves Ready/Failed unchanged as backpressure. Worker admission and producer
+failures publish Failed; exceptional remaining control errors use `on_error`
+(by default raised at the UI effect boundary). Building controls starts no work.
+
+After display, visible Ready boundary rows request pages up to the remaining
+queue capacity and active-row budget. Failure requires explicit retry. Demand
+callbacks peek at the latest policy/state before acting, so queued observation
+effects do not restore an old expansion decision. `auto_load=false` suspends new
+automatic requests; `cancel_hidden=false` opts into deliberate background prefetch.
+Default collapse cancellation releases hidden branch requests while preserving
+accepted data. Unmounting only retires view effects: in-flight application-owned
+loads can finish and provide their data to a later mounted view.
+
+Typical primitive composition (with renderer/state supplied by the tree adapter):
+
+```ocaml
+Gpuio_bonsai.Tree_rows.component
+  (Gpuio_eio.Tree_loading.value loader)
+  ~state
+  ~loading:(Bonsai.Cont.return (Gpuio_eio.Tree_loading.controls loader))
+  ~config
+  ~render_row
+  graph
+```
 
 ## Keyboard, focus and accessibility
 
@@ -255,8 +319,9 @@ Payload updates preserve valid loads. When application data changes the external
 parameters used by a loader, call `invalidate` explicitly; the controller does not
 compare arbitrary payloads to guess that a filesystem path or service changed.
 `cancel_hidden` reconciles the supplied `Tree_state` and applies the default
-collapse policy. Explicit prefetch may omit it. The managed component still needs
-to wire its expansion changes and viewport demand to those operations.
+collapse policy. Explicit prefetch may omit it. The managed component now connects
+controlled preference changes and viewport demand to these operations after
+display. Native input still needs to produce the higher-level tree requests.
 
 The filesystem example receives an Eio directory capability. It loads children in
 scoped producers, uses deterministic ordering and explicit failure/retry, and does

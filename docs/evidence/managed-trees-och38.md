@@ -278,3 +278,62 @@ small-forest cycles to keep validation efficient without losing those invariants
 No native GUI windows, protocol/dependency changes or hosted CI were involved.
 Managed Bonsai viewport/lifetime integration, native input/AX/typeahead/reveal/move
 semantics, the Eio filesystem provider and native traversal acceptance remain.
+
+## Bonsai row lifetimes and Eio controls (2026-09-26)
+
+`Gpuio_bonsai.Tree_rows.component` now composes the incremental projection with
+OCH-13's managed list/row lifetimes. Full source leases key both the Bonsai subtree
+and native wrapper; separate controllers with numeric generation zero cannot
+share transient models. Source reset/unmount retires controller effects, while
+application-owned data loading stays independent of view lifetime. This primitive
+provides the bounded data-to-view path, not native Tree/TreeItem widget semantics.
+
+Core leases/branch targets contain only identity/version metadata. The Eio
+`controls` adapter revalidates them at effect delivery, respects queue capacity,
+publishes ordinary producer/worker failures and ignores stale/closed delivery.
+Automatic requests observe visible Ready boundaries after display; explicit retry
+is required after failure. Collapse cancellation and background-prefetch policy
+remain explicit. Demand callbacks peek at the latest state/policy before acting.
+
+Passing local evidence:
+
+- Bonsai driver: 100,000 selected nodes mount at most four rows with a four-row
+  configuration, including native pins. Viewport traversal releases row lifetimes;
+  selection and updated application data survive. A streamed payload invalidates
+  its one row, and coalesced changes retain the accepted invalidation baseline.
+- Separate generation-zero sources replace the native source key, reset transient
+  button models and ignore the old reveal controller. Unmount/remount of the same
+  source also ignores old controller effects while allowing the new controller.
+- Visible boundaries respect the active budget; a queue with one slot remaining
+  admits one boundary. Releasing capacity admits the next. Failures do not retry
+  automatically, explicit retry works, `auto_load=false` suspends demand and
+  collapsed branches cancel queued work.
+- Eio mock backend uses real scoped fibers: a burst of 70 control requests runs
+  four producers and queues 64; excess demand is backpressure without an exception.
+  Foreign/reset/closed targets are ignored. A completed page retires its old
+  target; payload updates preserve it. All scopes/producers close after tests.
+- Combined Bonsai/Eio test: a viewport starts loading; collapse cancels that
+  producer; re-expansion starts another request. Unmount leaves the second producer
+  alive, its result publishes to application data, and remount uses the loaded
+  child without another request. This uses controlled promises, not timing sleeps.
+- A weak-reference test collects a 1 MiB application payload while a captured
+  branch target and comparable source lease remain live.
+
+Validation:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune runtest -j2 test/virtual_list test/runtime
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt
+git diff --check
+```
+
+The full build, expect suites, formatting and whitespace checks pass locally on
+macOS arm64. Logs: `tree-bonsai-tests.log`, `tree-bonsai-runtime.log`,
+`tree-bonsai-eio-integration.log`, `tree-bonsai-dune-all.log` in the agent's ignored
+scratch directory. Initial integration compilation found a missing public module
+alias and a test record-label annotation; both were corrected before passing.
+No native GUI process, Rust/protocol change, new dependency or hosted CI run was
+needed for this layer. Actual native keyboard/AX/typeahead/focus/reveal/move
+semantics, the public filesystem provider and native full-traversal/cancellation
+checks remain, followed by consolidated hosted gates and merge. No tree
+capability is advertised yet.

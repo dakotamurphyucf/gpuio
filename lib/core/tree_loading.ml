@@ -25,9 +25,48 @@ module Stamp = struct
   let current tree id stamp = Option.exists (find tree id) ~f:(equal stamp)
 end
 
+module Owner = struct
+  type t = Type_equal.Id.Uid.t [@@deriving compare, sexp_of]
+
+  let create () =
+    Type_equal.Id.create ~name:"tree loader" sexp_of_unit |> Type_equal.Id.uid
+  ;;
+end
+
+module Lease = struct
+  module T = struct
+    type t =
+      { owner : Owner.t
+      ; generation : int64
+      }
+    [@@deriving compare, sexp_of]
+  end
+
+  include T
+  include Comparator.Make (T)
+
+  let equal a b = phys_equal a.owner b.owner && Int64.equal a.generation b.generation
+end
+
+module Target = struct
+  type t =
+    { lease : Lease.t
+    ; parent : Id.t
+    ; stamp : Stamp.t
+    }
+
+  let parent t = t.parent
+
+  let equal a b =
+    Lease.equal a.lease b.lease
+    && Id.equal a.parent b.parent
+    && Stamp.equal a.stamp b.stamp
+  ;;
+end
+
 module Request = struct
   type t =
-    { owner : unit ref
+    { owner : Owner.t
     ; generation : int64
     ; serial : int64
     ; parent : Id.t
@@ -87,7 +126,7 @@ let boundary tree id =
 
 module Snapshot = struct
   type 'data t =
-    { owner : unit ref
+    { owner : Owner.t
     ; tree : 'data Tree.t
     ; generation : int64
     ; queued : Request.t list
@@ -99,9 +138,20 @@ module Snapshot = struct
 
   let tree t = t.tree
   let generation t = t.generation
+  let lease t = { Lease.owner = t.owner; generation = t.generation }
+  let same_generation a b = Lease.equal (lease a) (lease b)
 
-  let same_generation a b =
-    phys_equal a.owner b.owner && Int64.equal a.generation b.generation
+  let target t parent =
+    match boundary t.tree parent, Stamp.find t.tree parent with
+    | Some _, Some stamp -> Ok { Target.lease = lease t; parent; stamp }
+    | None, _ | Some _, None ->
+      Or_error.error_string "tree load target requires a present branch"
+  ;;
+
+  let is_current t target =
+    Lease.equal (lease t) target.Target.lease
+    && Stamp.current t.tree target.parent target.stamp
+    && Option.is_some (boundary t.tree target.parent)
   ;;
 
   let queued_count t = List.length t.queued
@@ -171,7 +221,7 @@ module Snapshot = struct
 end
 
 type 'data t =
-  { owner : unit ref
+  { owner : Owner.t
   ; mutable state : 'data Snapshot.t
   ; mutable serial : int64
   ; mutable closed : bool
@@ -190,7 +240,7 @@ let empty owner tree generation =
 ;;
 
 let create tree =
-  let owner = ref () in
+  let owner = Owner.create () in
   { owner; state = empty owner tree 0L; serial = 0L; closed = false }
 ;;
 

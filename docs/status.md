@@ -97,8 +97,12 @@ shutdown and preservation of unrelated tasks. `Tree_rows` now projects item and
 lazy-boundary records into keyed list data, with compact generation/incarnation-
 checked identity, point invalidation and no historical key registry. Core tests
 cover 100,000-node updates, 200,000 logical item/boundary rows, depth 128,
-collapse/reopen and old-payload collection. Managed Bonsai views, native tree input/
-accessibility, typeahead and public filesystem usage remain; no tree capability is
+collapse/reopen and old-payload collection. The Bonsai tree-row primitive now
+mounts only viewport/pinned rows, checks source-instance/reset identity, preserves
+coalesced invalidation and retires old controller effects. Eio controls drive
+capacity-limited visible demand, explicit retry and collapse cancellation; local
+combined runtime tests distinguish view unmount from application data lifetime.
+Native tree input/accessibility, typeahead and public filesystem usage remain; no tree capability is
 advertised. See the [managed-tree design](design/managed-trees.md).
 
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native

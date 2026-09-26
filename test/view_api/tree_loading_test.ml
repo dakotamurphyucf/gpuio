@@ -20,6 +20,34 @@ let forest count =
   T.create ~roots:(List.map nodes ~f:fst) nodes |> ok
 ;;
 
+let%expect_test
+    "UI leases and targets retain identity without retaining application payloads"
+  =
+  let weak = Stdlib.Weak.create 1 in
+  let[@inline never] capture () =
+    let data = Bytes.create 1_048_576 in
+    Stdlib.Weak.set weak 0 (Some data);
+    let node =
+      T.Node.create ~label:"Folder" ~children:(Branch { ids = []; next = More None }) data
+      |> ok
+    in
+    let tree = T.create ~roots:[ id "root" ] [ id "root", node ] |> ok in
+    let source = P.snapshot (P.create tree) in
+    P.Snapshot.lease source, P.Snapshot.target source (id "root") |> ok
+  in
+  let lease, target = capture () in
+  Gc.full_major ();
+  assert (not (Stdlib.Weak.check weak 0));
+  assert (T.Id.equal (P.Target.parent target) (id "root"));
+  assert (P.Lease.compare lease lease = 0 && P.Lease.equal lease lease);
+  let source = P.snapshot (P.create (forest 1)) in
+  assert (not (P.Lease.equal lease (P.Snapshot.lease source)));
+  assert (P.Lease.compare lease (P.Snapshot.lease source) <> 0);
+  assert (Result.is_error (P.Snapshot.target source (id "absent")));
+  print_endline "target and comparable lease survive; 1 MiB application payload collected";
+  [%expect {| target and comparable lease survive; 1 MiB application payload collected |}]
+;;
+
 let snapshot = P.snapshot
 let tree t = P.Snapshot.tree (snapshot t)
 let status t name = P.Snapshot.status (snapshot t) (id name)

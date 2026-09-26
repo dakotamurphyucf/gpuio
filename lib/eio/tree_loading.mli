@@ -24,6 +24,17 @@ val create
 val snapshot : 'data t -> 'data Snapshot.t
 val value : 'data t -> 'data Snapshot.t Bonsai.Cont.t
 
+(** Generation/incarnation/child-revision checked effects for the managed tree
+    row component. Stale or closed delivery is ignored. Queue saturation is
+    backpressure: it leaves Ready/Failed unchanged for later demand or retry.
+    Worker admission/producer failures publish Failed in the normal snapshot.
+    Other errors go to [on_error], which defaults to raising on the UI effect
+    boundary. Creating controls does not start producers. *)
+val controls
+  :  ?on_error:(Error.t -> unit Bonsai.Effect.t)
+  -> _ t
+  -> Gpuio_bonsai.Tree_rows.Loading.t
+
 (** Queue/closed-controller errors return directly. Admitted requests whose worker
     cannot start publish a Failed snapshot and require an explicit retry. *)
 val request : _ t -> Gpuio.Tree.Id.t -> unit Or_error.t

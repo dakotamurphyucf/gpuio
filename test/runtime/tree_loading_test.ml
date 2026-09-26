@@ -48,6 +48,95 @@ let with_scope ?(capacity = 16) ?(max_tasks = 16) f =
       Inbox.close inbox))
 ;;
 
+let%expect_test "UI loading controls reject stale tokens and backpressure without raising"
+  =
+  with_scope (fun scope inbox ->
+    let started = ref 0 in
+    let t =
+      P.create ~scope (forest 70) ~load:(fun _ ->
+        Int.incr started;
+        Eio.Fiber.await_cancel ())
+      |> ok
+    in
+    let module Controls = Gpuio_bonsai.Tree_rows.Loading in
+    let errors = ref [] in
+    let controls =
+      P.controls
+        ~on_error:(fun error ->
+          Bonsai.Effect.of_thunk (fun () -> errors := error :: !errors))
+        t
+    in
+    let run = Bonsai.Effect.Expert.handle in
+    let target i = P.Snapshot.target (P.snapshot t) (id (Int.to_string i)) |> ok in
+    let old = target 0 in
+    let foreign = Gpuio.Tree_loading.create (forest 70) |> Gpuio.Tree_loading.snapshot in
+    run
+      (Controls.request
+         controls
+         (Gpuio.Tree_loading.Snapshot.target foreign (id "0") |> ok));
+    settle inbox;
+    assert (!started = 0);
+    List.iter (List.range 0 70) ~f:(fun i -> run (Controls.request controls (target i)));
+    settle inbox;
+    assert (!started = 4);
+    assert (P.Snapshot.queued_count (P.snapshot t) = 64);
+    assert (List.is_empty !errors);
+    let old_lease = P.Snapshot.lease (P.snapshot t) in
+    P.reset t (forest 1) |> ok;
+    run (Controls.request controls old);
+    run
+      (Controls.cancel_hidden
+         controls
+         old_lease
+         (Gpuio.Tree_state.create (tree t) () |> ok));
+    settle inbox;
+    assert (P.Snapshot.queued_count (P.snapshot t) = 0);
+    assert (!started = 4);
+    run (Controls.request controls (target 0));
+    settle inbox;
+    assert (!started = 5);
+    let current = target 0 in
+    P.close t;
+    run (Controls.request controls current);
+    run (Controls.retry controls current);
+    run (Controls.cancel controls current);
+    settle inbox;
+    assert (!started = 5 && List.is_empty !errors));
+  print_endline
+    "four workers and 64 queued; foreign/reset/closed controls ignored; no overflow error";
+  [%expect
+    {| four workers and 64 queued; foreign/reset/closed controls ignored; no overflow error |}]
+;;
+
+let%expect_test "page completion retires a UI target while payload updates preserve it" =
+  with_scope (fun scope inbox ->
+    let started = ref 0 in
+    let t =
+      P.create ~scope (forest 1) ~load:(fun _ ->
+        Int.incr started;
+        Ok { P.Page.roots = []; nodes = []; next = More (Some (Int.to_string !started)) })
+      |> ok
+    in
+    let controls = P.controls t in
+    let module Controls = Gpuio_bonsai.Tree_rows.Loading in
+    let run = Bonsai.Effect.Expert.handle in
+    let original = P.Snapshot.target (P.snapshot t) (id "0") |> ok in
+    P.update t (T.set_data (tree t) ~id:(id "0") () |> ok) |> ok;
+    assert (P.Snapshot.is_current (P.snapshot t) original);
+    run (Controls.request controls original);
+    settle inbox;
+    assert (!started = 1);
+    assert (not (P.Snapshot.is_current (P.snapshot t) original));
+    run (Controls.request controls original);
+    settle inbox;
+    assert (!started = 1);
+    run (Controls.request controls (P.Snapshot.target (P.snapshot t) (id "0") |> ok));
+    settle inbox;
+    assert (!started = 2);
+    P.close t);
+  [%expect {| |}]
+;;
+
 let%expect_test "tree results and failures publish on the UI turn with explicit retry" =
   with_scope (fun scope inbox ->
     let changes = ref 0 in
