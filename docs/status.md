@@ -22,6 +22,15 @@ The full consolidated local build, suites, native regressions, Clippy and format
 checks pass. The evidence ledger records hosted results; PR #12 records the final
 checked head and merge status. Full Linux GUI acceptance remains OCH-17.
 
+OCH-37 now has compiled and locally tested Core models for bounded navigation
+history, single/multiple disclosure and pagination. Tests cover route replacement,
+back/forward/branching, disabled and stale requests, collection/page-count shrink,
+128-entry navigation, 4,096-item disclosure and 10,430 bounded pagination partitions.
+These are pure models; native component integration, focus/hidden-content behavior,
+supplementary overlays, carousel, public examples and platform acceptance remain
+in progress. See [navigation design](design/navigation-components.md) and
+[foundation evidence](evidence/navigation-components-och37.md).
+
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
 components pass local acceptance; OCH-24 has validated geometry, a bounded scene
 codec, native resource ownership and a tested OCaml/Rust upload bridge. The
