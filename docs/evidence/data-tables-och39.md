@@ -4,7 +4,8 @@ Status (2026-09-26): **public Core/Bonsai/Eio and retained native table implemen
 local AppKit semantics/input, public context flows and full native history checks pass**.
 OCH-39 remains In Progress pending its final acceptance audit and consolidated
 platform gates. Earlier checkpoint sections retain their historical scope; the
-latest input/context evidence is at the end. No table capability is advertised. The
+latest input/context evidence is at the end. The [local acceptance audit](data-tables-och39-audit.md)
+now supports managed-table bit 40 (`1099511627776`), aggregate `2199023255551`. The
 [design](../design/data-tables.md) lists the remaining production acceptance.
 
 ## Column schema
@@ -863,3 +864,14 @@ The public AppKit runner has a 120-second total deadline and always reaps its
 child. Native/public table runners also kill/reap their process groups on
 interruption. Hosted macOS/Linux validation, final capability audit and milestone
 completion are not claimed by these local results.
+
+## Local audit and capability
+
+The [requirement-by-requirement audit](data-tables-och39-audit.md) now accounts for
+all OCH-39 local functionality. Managed tables advertise `CAP_MANAGED_TABLES =
+1 << 40` (`1099511627776`), independently of trees and ordinary virtual lists.
+Both bridge halves require mask `2199023255551`. Paired Rust/OCaml checks encode
+this bit as `0001fc0000000000010000`; existing full-mask fixtures deliberately
+change to `0001fcffffffffff010000`. This is an explicit compatibility gate, not
+a claim of Linux GUI or hosted milestone acceptance. OCH-39 remains In Progress
+until the required hosted checks/delivery gates complete.

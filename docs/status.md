@@ -76,7 +76,7 @@ input rejection, IME-first Escape, editor key isolation, popup focus/hover pause
 outside the carousel bounds and full scope/timer disposal. Shared overlays now
 register their visible panel bounds with the existing focus manager. Local OCH-37
 component acceptance is complete; navigation bit `274877906944` is advertised
-(current aggregate `1099511627775`). Consolidated hosted checks and merge remain,
+(current aggregate `2199023255551`). Consolidated hosted checks and merge remain,
 followed by final ticket completion. The chat showcase stays in OCH-46.
 See [navigation design](design/navigation-components.md) and
 [foundation evidence](evidence/navigation-components-och37.md).
@@ -136,7 +136,7 @@ probes proving model/resource release. Native source reorder/window isolation,
 deactivation/close, and public deep reveal, resize, loading/retry/cancellation and
 window-scope cleanup now pass. Paint-time focus schedules one follow-up redraw to
 publish its pin while OCaml is idle. Local OCH-38 component acceptance is complete;
-managed-tree bit `549755813888` is advertised (aggregate `1099511627775`).
+managed-tree bit `549755813888` is advertised (aggregate `2199023255551`).
 Consolidated hosted gates and merge remain before ticket closure. See the
 [managed-tree design](design/managed-trees.md).
 
@@ -200,8 +200,10 @@ tests and strict Clippy pass. AppKit keyboard and embedded-editor composition no
 pass through targeted OS events and the native text-input client. The public
 example also passes pointer/keyboard inspection, guarded context actions, reveal,
 focus restoration and native window closure. Selectable text now exposes its
-content label to macOS accessibility. Final acceptance/capability audit, showcase
-integration and hosted gates remain; no table capability is advertised.
+content label to macOS accessibility. The [local acceptance audit](evidence/data-tables-och39-audit.md)
+maps the live requirements to code and native evidence. Managed tables advertise
+bit 40 (`1099511627776`), with shared mask `2199023255551`. Showcase integration,
+hosted macOS/Linux gates and merge remain pending.
 See [table design](design/data-tables.md) and
 [evidence](evidence/data-tables-och39.md).
 
@@ -316,7 +318,7 @@ AppKit value/action/masking, public OS keyboard/AX, GPU light/dark/density/preed
 managed-list pins, hidden/modal/capture cleanup and independent-window lifetimes
 pass locally. Three 256-owner workloads verify bounded history/coalescing, idle
 behavior and complete disposal. Capability `34359738368` advertises the family
-(current aggregate `1099511627775`). Consolidated hosted gates and merge remain pending.
+(current aggregate `2199023255551`). Consolidated hosted gates and merge remain pending.
 See [OTP contracts](design/otp-inputs.md).
 See [numeric design](design/numeric-inputs.md) and
 [foundation evidence](evidence/numeric-inputs-och34.md).
@@ -344,7 +346,7 @@ gates, managed-row pins, independent windows and three 64-owner idle/disposal
 cycles also pass locally. Single/range popup mode changes, nested-dialog dismissal/
 focus, actual panel bounds and right-edge placement also pass. OCH-35 local
 acceptance is complete; capability `68719476736` is advertised (aggregate
-`1099511627775`). Consolidated hosted gates and merge remain pending.
+`2199023255551`). Consolidated hosted gates and merge remain pending.
 See [calendar design](design/calendar.md) and [model evidence](evidence/calendar-och35.md).
 OCH-36 now has concrete Core/Rust RGBA/HSLA conversion and bounded hex-draft
 models, separate from theme references. The pure native policy now tests
@@ -368,7 +370,7 @@ swatches; native tests cover composition/managed-row pins, hidden/modal/pointer
 gates, independent-window deactivation/close and three 64-owner/320-editor
 workload/disposal cycles. A short-height clipping bug was fixed and channel
 fields now use available width without rounding native values. Color capability
-`137438953472` is advertised (aggregate `1099511627775`). Consolidated hosted
+`137438953472` is advertised (aggregate `2199023255551`). Consolidated hosted
 macOS/Linux gates and merge remain pending. See [color design](design/color-inputs.md)
 and [foundation evidence](evidence/color-inputs-och36.md).
 No milestone-05 completion or hosted acceptance is claimed yet.

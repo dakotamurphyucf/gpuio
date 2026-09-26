@@ -419,3 +419,24 @@ fn column_moves_preserve_group_membership_and_input_policy() {
     config.column_selection = false;
     assert!(!config.allows_request(&Request::Select(Selection::Column("β".into())), |_| true));
 }
+
+#[test]
+fn managed_tables_require_a_distinct_negotiated_capability() {
+    use gpuio_protocol::v1::*;
+    assert_eq!(CAPABILITIES & CAP_MANAGED_TABLES, 1_i64 << 40);
+    assert_eq!(
+        CAP_MANAGED_TABLES & (CAP_TREE | CAP_MANAGED_TREES | CAP_VIRTUAL_LISTS),
+        0
+    );
+    let hello = Message::Hello(VERSION, CAP_MANAGED_TABLES);
+    let mut bytes = Vec::new();
+    hello.binprot_write(&mut bytes).unwrap();
+    assert_eq!(
+        bytes
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>(),
+        "0001fc0000000000010000"
+    );
+    assert_eq!(gpuio_protocol::decode(&bytes), Ok(hello));
+}

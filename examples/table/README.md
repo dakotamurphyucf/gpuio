@@ -64,7 +64,8 @@ clipboard, IME, accessibility, or Linux GUI acceptance.
 See [table contracts](../../docs/design/data-tables.md) and
 [validation evidence](../../docs/evidence/data-tables-och39.md). The remaining
 native acceptance and polished chat showcase are tracked separately; OCH-39 is
-still in progress and no table capability bit is advertised yet.
+still in progress pending hosted gates. Managed tables advertise bit 40, distinct
+from ordinary virtual lists and managed trees.
 
 Return, Shift-F10, or a cell right-click opens **Event actions**, an application-owned
 inspection dialog. **Reveal result** selects/reveals the result cell and returns

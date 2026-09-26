@@ -329,3 +329,13 @@ let%expect_test "table transaction and fenced event envelopes match Rust" =
       assert (Result.is_error (Wire.Event.decode bytes)));
   [%expect {| |}]
 ;;
+
+let%expect_test "managed tables require a distinct negotiated capability" =
+  let module Wire = Gpuio_protocol.Wire in
+  let capability = 1099511627776L in
+  assert (Int64.equal (Int64.bit_and Wire.capabilities capability) capability);
+  let bytes = Wire.Message.encode (Hello (Wire.version, capability)) |> Or_error.ok_exn in
+  String.iter bytes ~f:(fun byte -> printf "%02x" (Char.to_int byte));
+  print_endline "";
+  [%expect {| 0001fc0000000000010000 |}]
+;;

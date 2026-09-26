@@ -1,10 +1,11 @@
 # Read-only data tables (OCH-39)
 
 Status: public Core/Bonsai/Eio tables, native admission and retained host rendering
-are implemented.
-See the evidence ledger for local acceptance; physical input, remaining paging
-integration, the chat showcase and consolidated hosted gates remain.
-This document does not advertise a table capability or claim ticket acceptance.
+are implemented and locally accepted on macOS. The [acceptance audit](../evidence/data-tables-och39-audit.md)
+maps the live scope to code and evidence. Managed tables advertise bit 40
+(`1099511627776`); both bridge halves require mask `2199023255551`.
+The chat showcase and consolidated hosted macOS/Linux gates remain. Local
+acceptance does not claim ticket closure or Linux GUI acceptance.
 
 ## Ownership and scope
 
@@ -515,8 +516,8 @@ Local evidence now covers the native adapter, public presenter/pager, 100,000-ro
 full traversal/revisit, bounded retention, horizontal/vertical behavior, native
 input/copy/accessibility, context flows and cleanup. Final work remains:
 
-- Audit every live OCH-39 requirement against the complete evidence and settle
-  capability advertisement; do not infer ticket completion from a single suite.
+- Complete hosted platform verification of the [local acceptance audit](../evidence/data-tables-och39-audit.md);
+  do not infer ticket completion from a single suite.
 - Add the polished chat showcase in OCH-46, then consolidated local/hosted
   macOS and Linux checks and merge, including both selected adapter build paths.
   Linux GUI acceptance remains OCH-17.

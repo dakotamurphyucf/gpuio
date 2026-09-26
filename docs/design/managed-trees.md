@@ -20,7 +20,7 @@ checks cover focus and drop indicators above opaque row content. Core/Bonsai and
 native full traversal/revisit now pass at 100,000 rows with depth 128 and bounded
 transient resources. Native drag source reorder/window isolation and public
 loading/cancellation/close checks pass locally. The managed-tree family advertises
-bit 39 (`549755813888`), for a shared required mask of `1099511627775`. This is
+bit 39 (`549755813888`), for a shared required mask of `2199023255551`. This is
 distinct from the original retained-view-tree bit. Consolidated hosted macOS/Linux
 gates and milestone merge remain required before ticket closure.
 This document preserves the full live ticket scope; semantic getters alone do not

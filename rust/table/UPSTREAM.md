@@ -78,3 +78,10 @@ stable column keys. Retained accessible cell values are supplied by an optional
 delegate hook, without a host-language callback. Sorting has a separate accessible
 button. The shared Cocoa adapter changes are tracked separately under
 `vendor/accesskit-macos/table-state.patch` with original adapter provenance.
+
+Current acceptance supersedes the early checkpoint limitations above: the public
+presenter, Eio paging, native AppKit input/semantics and full-history checks now
+pass locally. The complete scope is mapped in
+`docs/evidence/data-tables-och39-audit.md`; managed tables negotiate their own bit40.
+Hosted macOS/Linux checks and merge remain pending. This does not expand the
+upstream compatibility claim beyond the selected extraction.

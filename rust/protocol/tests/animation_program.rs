@@ -337,6 +337,6 @@ fn advanced_capability_handshake_matches_ocaml_above_32_bits() {
     let mut bytes = Vec::new();
     message.binprot_write(&mut bytes).unwrap();
     let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
-    assert_eq!(hex, "0001fcffffffffff000000");
+    assert_eq!(hex, "0001fcffffffffff010000");
     assert_eq!(decode(&bytes), Ok(message));
 }
