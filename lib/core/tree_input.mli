@@ -13,9 +13,15 @@ type 'key t =
   | Activate_active
   | Typeahead of Tree_typeahead.Input.t
   | Set_selected of 'key * bool
+  | Move of
+      { source : 'key
+      ; destination : 'key
+      ; placement : Tree_interaction.Placement.t
+      }
 [@@deriving sexp_of]
 
-(** None discards an obsolete target. Relative requests need no key lookup. *)
+(** None discards an obsolete target. Move requires both endpoints to resolve.
+    Relative requests need no key lookup. A move is a proposal, never a mutation. *)
 val filter_map : 'a t -> f:('a -> 'b option) -> 'b t option
 
 module Expert : sig

@@ -145,3 +145,59 @@ fn exact_selection_fixture_preserves_desired_membership() {
     assert!(!Request::SetSelected(0, true).is_valid());
     assert!(!Request::SetSelected(-1, false).is_valid());
 }
+
+#[test]
+fn independent_move_fixtures_and_both_endpoint_validation() {
+    use gpuio_protocol::tree_input::Placement;
+    let request = Request::Move {
+        source: 42,
+        destination: 43,
+        placement: Placement::Inside,
+    };
+    let window = WindowId::from_parts(0, 1).unwrap();
+    let node = NodeId::from_parts(0, 1).unwrap();
+    let event = Event::TreeInput(
+        window,
+        node,
+        HandlerId::from_parts(0, 1).unwrap(),
+        1,
+        request.clone(),
+    );
+    assert_eq!(
+        hex(&event),
+        include_str!("../../../test/fixtures/tree-move-event.hex").trim()
+    );
+    assert_eq!(request.targets().collect::<Vec<_>>(), vec![43, 42]);
+    assert!(request.is_valid());
+    for (source, destination) in [(0, 43), (42, -1), (42, 42)] {
+        assert!(
+            !Request::Move {
+                source,
+                destination,
+                placement: Placement::Before
+            }
+            .is_valid()
+        );
+    }
+    let message = Message::Apply(Transaction {
+        window,
+        base: 0,
+        revision: 1,
+        operations: vec![Op::SetTreeMoves(node, true)],
+    });
+    let encoded = bytes(&message);
+    assert_eq!(
+        hex(&message),
+        include_str!("../../../test/fixtures/tree-move-transaction.hex").trim()
+    );
+    assert_eq!(gpuio_protocol::decode(&encoded), Ok(message));
+    for end in 0..encoded.len() {
+        assert!(gpuio_protocol::decode(&encoded[..end]).is_err());
+    }
+    let mut invalid = encoded.clone();
+    *invalid.last_mut().unwrap() = 2;
+    assert!(gpuio_protocol::decode(&invalid).is_err());
+    invalid = encoded;
+    invalid.push(0);
+    assert!(gpuio_protocol::decode(&invalid).is_err());
+}

@@ -36,6 +36,14 @@ module Selection = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Placement = struct
+  type t =
+    | Before
+    | After
+    | Inside
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Request = struct
   type t =
     | Navigate of Navigation.t * Selection.t option
@@ -51,11 +59,18 @@ module Request = struct
         ; cycle : bool
         }
     | Set_selected of int64 * bool
+    | Move of
+        { source : int64
+        ; destination : int64
+        ; placement : Placement.t
+        }
   [@@deriving bin_io, equal, sexp_of]
 
   let valid = function
     | Navigate _ | Select_active _ | Activate_active -> true
     | Typeahead { text; _ } -> valid_typeahead_text text
+    | Move { source; destination; _ } ->
+      Int64.(source > 0L && destination > 0L && source <> destination)
     | Select (id, _) | Focus id | Set_expanded (id, _) | Activate id | Set_selected (id, _)
       -> Int64.(id > 0L)
   ;;

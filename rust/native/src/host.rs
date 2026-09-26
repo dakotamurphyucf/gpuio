@@ -123,6 +123,8 @@ mod toast;
 mod toast_clock;
 #[path = "tooltip.rs"]
 mod tooltip;
+#[path = "tree_drag.rs"]
+mod tree_drag;
 #[path = "tree_input_view.rs"]
 mod tree_input;
 #[path = "tree_typeahead.rs"]
@@ -192,6 +194,7 @@ struct View {
     loading_probes: BTreeMap<NodeId, loading::Probe>,
     scrolls: BTreeMap<NodeId, Rc<scroll::State>>,
     lists: BTreeMap<NodeId, Rc<RefCell<list_view::State>>>,
+    tree_drag: std::rc::Weak<tree_drag::Lease>,
     animations: BTreeMap<NodeId, Rc<RefCell<animation::State>>>,
     navigation: BTreeMap<NodeId, Rc<RefCell<navigation::State>>>,
     carousels: BTreeMap<NodeId, Rc<RefCell<carousel::State>>>,
@@ -421,6 +424,7 @@ impl View {
             loading_probes: Default::default(),
             scrolls: Default::default(),
             lists: Default::default(),
+            tree_drag: Default::default(),
             animations: Default::default(),
             navigation: Default::default(),
             carousels: Default::default(),
@@ -1617,7 +1621,8 @@ impl Render for View {
                         gpuio_protocol::color_input::CancelReason::Escape,
                         window,
                         cx,
-                    ) | view.cancel_carousel_drags(window, cx)
+                    ) | view.cancel_tree_drag(window, cx)
+                        | view.cancel_carousel_drags(window, cx)
                         | view.cancel_split_drag(window, cx)
                         | view.cancel_slider_drags(
                             gpuio_protocol::slider::CancelReason::Escape,
@@ -2112,7 +2117,7 @@ pub fn run(transport: Arc<Transport>) {
                                     transport.respond(Event::Closed(correlation, id));
                                     if let Some(window) = windows.remove(&id) {
                                         let _ = window
-                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); view.close_color_inputs(window, cx); view.cancel_split_drag(window, cx); view.extensions.clear(); for state in view.canvases.values() { state.borrow_mut().close(window); } view.canvases.clear(); window.remove_window(); });
+                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); view.cancel_tree_drag(window, cx); view.close_color_inputs(window, cx); view.cancel_split_drag(window, cx); view.extensions.clear(); for state in view.canvases.values() { state.borrow_mut().close(window); } view.canvases.clear(); window.remove_window(); });
                                     }
                                 }
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),

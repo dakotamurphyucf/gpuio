@@ -34,6 +34,11 @@ module Controller = struct
   let toggle_expanded t target = t.dispatch (I.Request.toggle_expanded target)
   let reveal t ?(focus = false) target = t.dispatch (I.Request.reveal target ~focus)
   let activate t target = t.dispatch (I.Request.activate target)
+
+  let propose_move t ~source ~destination placement =
+    t.dispatch (I.Request.move ~source ~destination placement)
+  ;;
+
   let request t target = t.load target Load.Request
   let retry t target = t.load target Load.Retry
   let cancel t target = t.load target Load.Cancel
@@ -279,6 +284,7 @@ let inner
       ~initial_expanded
       ~loading
       ~on_action
+      ~allow_moves
       ~lifetime
       ~config
       ~label
@@ -362,6 +368,7 @@ let inner
              ~config
              ~accessibility
              ~on_request
+             ~allow_moves
              ?loading:optional_loading
              ~auto_load
              ~cancel_hidden
@@ -449,6 +456,7 @@ let component
       ?loading
       ?(auto_load = B.return true)
       ?(cancel_hidden = B.return true)
+      ?(allow_moves = B.return false)
       ?(on_action = B.return (fun _ -> E.Ignore))
       ?(render_item =
         fun ~target:_ ~item ~controller:_ ~lifetime:_ _ ->
@@ -472,6 +480,7 @@ let component
           ~initial_expanded
           ~loading
           ~on_action
+          ~allow_moves
           ~lifetime
           ~config
           ~label

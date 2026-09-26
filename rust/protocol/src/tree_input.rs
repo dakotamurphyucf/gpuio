@@ -15,6 +15,12 @@ pub enum Selection {
     Toggle,
     Range { extend: bool },
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum Placement {
+    Before,
+    After,
+    Inside,
+}
 #[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Request {
     Navigate(Navigation, Option<Selection>),
@@ -30,6 +36,11 @@ pub enum Request {
         cycle: bool,
     },
     SetSelected(i64, bool),
+    Move {
+        source: i64,
+        destination: i64,
+        placement: Placement,
+    },
 }
 impl Request {
     pub fn target(&self) -> Option<i64> {
@@ -39,15 +50,28 @@ impl Request {
             | Self::SetExpanded(id, _)
             | Self::SetSelected(id, _)
             | Self::Activate(id) => Some(*id),
+            Self::Move { destination, .. } => Some(*destination),
             Self::Navigate(..)
             | Self::SelectActive(_)
             | Self::ActivateActive
             | Self::Typeahead { .. } => None,
         }
     }
+    pub fn targets(&self) -> impl Iterator<Item = i64> {
+        let source = match self {
+            Self::Move { source, .. } => Some(*source),
+            _ => None,
+        };
+        self.target().into_iter().chain(source)
+    }
     pub fn is_valid(&self) -> bool {
         match self {
             Self::Typeahead { text, .. } => valid_typeahead_text(text),
+            Self::Move {
+                source,
+                destination,
+                ..
+            } => *source > 0 && *destination > 0 && source != destination,
             _ => self.target().is_none_or(|id| id > 0),
         }
     }

@@ -151,7 +151,12 @@ impl Session {
         {
             return None;
         }
-        if let Some(target) = request.target() {
+        if matches!(request, gpuio_protocol::tree_input::Request::Move { .. })
+            && !current.tree_moves
+        {
+            return None;
+        }
+        for target in request.targets() {
             let row = current.list_rows.iter().find(|row| row.id == target)?;
             let item = state.tree.get(row.node)?;
             let Some(gpuio_protocol::accessibility::Role::TreeItem(metadata)) =
@@ -164,6 +169,8 @@ impl Session {
                     request,
                     gpuio_protocol::tree_input::Request::SetExpanded(..)
                 ) && metadata.expanded.is_none())
+                || (matches!(request, gpuio_protocol::tree_input::Request::Move { destination, placement: gpuio_protocol::tree_input::Placement::Inside, .. } if destination == target)
+                    && metadata.expanded.is_none())
             {
                 return None;
             }

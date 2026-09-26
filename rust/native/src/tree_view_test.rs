@@ -226,6 +226,7 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
     }
     apply(cx, handle, operations);
     frame(cx, handle).await;
+    exercise_moves(cx, handle, &transport).await;
     #[cfg(target_os = "macos")]
     {
         // Querying enables the lazy native accessibility tree, then allow paint.
@@ -453,6 +454,7 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
         cx,
         handle,
         vec![
+            Op::SetTreeMoves(node(5), true),
             Op::Create(
                 node(11),
                 Kind::Input,
@@ -506,6 +508,18 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
         requests(&transport).is_empty(),
         "child editor click must not select its tree row"
     );
+    super::super::native_test::mouse(cx, handle, point, true);
+    super::super::native_test::move_mouse(cx, handle, point + gpui::point(px(20.), px(0.)), true);
+    frame(cx, handle).await;
+    cx.update_window(handle.into(), |_, _, cx| {
+        assert!(
+            !cx.has_active_drag(),
+            "child editor selection cannot start a tree drag"
+        )
+    })
+    .unwrap();
+    super::super::native_test::mouse(cx, handle, point + gpui::point(px(20.), px(0.)), false);
+    frame(cx, handle).await;
     requests(&transport);
     for input in [
         "left", "right", "up", "down", "home", "end", "space", "enter", "a",
@@ -577,6 +591,41 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
     apply(
         cx,
         handle,
+        vec![Op::SetAccessibility(
+            node(8),
+            Some(metadata(
+                Role::TreeItem(item(2, None, false, false)),
+                "Child",
+            )),
+        )],
+    );
+    frame(cx, handle).await;
+    let source_point = handle
+        .update(cx, |view, _, _| {
+            view.lists[&node(5)]
+                .borrow()
+                .native
+                .handle()
+                .bounds_for_item(1)
+                .unwrap()
+                .center()
+        })
+        .unwrap();
+    super::super::native_test::move_mouse(cx, handle, source_point, false);
+    frame(cx, handle).await;
+    super::super::native_test::mouse(cx, handle, source_point, true);
+    super::super::native_test::move_mouse(
+        cx,
+        handle,
+        source_point + gpui::point(px(12.), px(0.)),
+        true,
+    );
+    frame(cx, handle).await;
+    cx.update_window(handle.into(), |_, _, cx| assert!(cx.has_active_drag()))
+        .unwrap();
+    apply(
+        cx,
+        handle,
         vec![
             Op::SetAccessibility(
                 node(6),
@@ -606,6 +655,22 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
         ],
     );
     frame(cx, handle).await;
+    cx.update_window(handle.into(), |_, _, cx| {
+        assert!(
+            !cx.has_active_drag(),
+            "collapse/deletion cancels the removed source drag"
+        )
+    })
+    .unwrap();
+    handle
+        .update(cx, |view, _, _| assert!(view.tree_drag.upgrade().is_none()))
+        .unwrap();
+    super::super::native_test::mouse(cx, handle, source_point, false);
+    assert!(
+        requests(&transport)
+            .iter()
+            .all(|request| !matches!(request, Request::Move { .. }))
+    );
     #[cfg(target_os = "macos")]
     assert_eq!(
         rows(cx, handle),
@@ -636,5 +701,186 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
         .unwrap();
     eprintln!(
         "GPUIO_TREE_SEMANTICS_OK: mounted outline/item hierarchy, selection/expanded/disabled, no duplicate/boundary items, update/removal and teardown; ordered keyboard, AppKit focus/select and child editor/IME isolation"
+    );
+}
+
+async fn exercise_moves(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    transport: &Transport,
+) {
+    use gpuio_protocol::tree_input::Placement;
+    fn bounds(
+        cx: &mut gpui::AsyncApp,
+        handle: WindowHandle<View>,
+        index: usize,
+    ) -> gpui::Bounds<gpui::Pixels> {
+        handle
+            .update(cx, |view, _, _| {
+                view.lists[&node(5)]
+                    .borrow()
+                    .native
+                    .handle()
+                    .bounds_for_item(index)
+                    .unwrap()
+            })
+            .unwrap()
+    }
+    fn active(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> bool {
+        cx.update_window(handle.into(), |_, _, cx| cx.has_active_drag())
+            .unwrap()
+    }
+    async fn begin(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
+        let point = bounds(cx, handle, 1).center();
+        super::super::native_test::move_mouse(cx, handle, point, false);
+        frame(cx, handle).await;
+        super::super::native_test::mouse(cx, handle, point, true);
+        super::super::native_test::move_mouse(
+            cx,
+            handle,
+            point + gpui::point(px(12.), px(0.)),
+            true,
+        );
+        frame(cx, handle).await;
+        assert!(active(cx, handle), "native GPUI owns the tree drag");
+    }
+    async fn release(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, fraction: f32) {
+        let rect = bounds(cx, handle, 0);
+        let point = gpui::point(rect.center().x, rect.origin.y + rect.size.height * fraction);
+        super::super::native_test::move_mouse(cx, handle, point, true);
+        frame(cx, handle).await;
+        super::super::native_test::mouse(cx, handle, point, false);
+        frame(cx, handle).await;
+    }
+    requests(transport);
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::SetTreeMoves(node(5), true),
+            Op::SetAccessibility(
+                node(8),
+                Some(metadata(
+                    Role::TreeItem(item(2, None, false, false)),
+                    "Child",
+                )),
+            ),
+        ],
+    );
+    frame(cx, handle).await;
+    for (fraction, placement) in [
+        (0.1, Placement::Before),
+        (0.5, Placement::Inside),
+        (0.9, Placement::After),
+    ] {
+        begin(cx, handle).await;
+        release(cx, handle, fraction).await;
+        assert_eq!(
+            requests(transport),
+            vec![Request::Move {
+                source: 2,
+                destination: 1,
+                placement
+            }]
+        );
+        assert!(!active(cx, handle));
+        handle
+            .update(cx, |view, _, _| {
+                assert!(
+                    view.tree_drag.upgrade().is_none(),
+                    "drag lease retires after drop"
+                )
+            })
+            .unwrap();
+    }
+    begin(cx, handle).await;
+    key(cx, handle, "escape");
+    frame(cx, handle).await;
+    assert!(!active(cx, handle));
+    release(cx, handle, 0.5).await;
+    assert!(
+        requests(transport)
+            .iter()
+            .all(|request| !matches!(request, Request::Move { .. }))
+    );
+    for change in [
+        Op::SetTreeMoves(node(5), false),
+        Op::Bind(
+            node(5),
+            Some(gpuio_protocol::HandlerId::from_parts(5, 2).unwrap()),
+        ),
+        Op::SetAccessibility(
+            node(8),
+            Some(metadata(
+                Role::TreeItem(item(2, None, false, true)),
+                "Child",
+            )),
+        ),
+        Op::SetStyle(
+            node(8),
+            vec![Style::Fields(vec![
+                Field::Height(Length::Px(32.)),
+                Field::Inert(true),
+            ])],
+        ),
+    ] {
+        begin(cx, handle).await;
+        apply(cx, handle, vec![change]);
+        frame(cx, handle).await;
+        assert!(
+            !active(cx, handle),
+            "policy/disabled/hidden source cancels without a timer"
+        );
+        release(cx, handle, 0.5).await;
+        assert!(
+            requests(transport)
+                .iter()
+                .all(|request| !matches!(request, Request::Move { .. }))
+        );
+        apply(
+            cx,
+            handle,
+            vec![
+                Op::SetTreeMoves(node(5), true),
+                Op::Bind(
+                    node(5),
+                    Some(gpuio_protocol::HandlerId::from_parts(5, 1).unwrap()),
+                ),
+                Op::SetAccessibility(
+                    node(8),
+                    Some(metadata(
+                        Role::TreeItem(item(2, None, false, false)),
+                        "Child",
+                    )),
+                ),
+                Op::SetStyle(
+                    node(8),
+                    vec![Style::Fields(vec![
+                        Field::Height(Length::Px(32.)),
+                        Field::Shrink(0.),
+                    ])],
+                ),
+            ],
+        );
+        frame(cx, handle).await;
+    }
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::SetTreeMoves(node(5), false),
+            Op::SetAccessibility(
+                node(8),
+                Some(metadata(
+                    Role::TreeItem(item(2, None, false, true)),
+                    "Child",
+                )),
+            ),
+        ],
+    );
+    frame(cx, handle).await;
+    requests(transport);
+    eprintln!(
+        "GPUIO_TREE_MOVES_OK: native start/drop, before/inside/after, no hierarchy mutation, escape/policy/handler/disabled/inert cancellation and lease disposal"
     );
 }

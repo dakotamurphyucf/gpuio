@@ -11,10 +11,20 @@ type 'key t =
   | Activate_active
   | Typeahead of Tree_typeahead.Input.t
   | Set_selected of 'key * bool
+  | Move of
+      { source : 'key
+      ; destination : 'key
+      ; placement : Tree_interaction.Placement.t
+      }
 [@@deriving sexp_of]
 
 let filter_map t ~f =
   match t with
+  | Move { source; destination; placement } ->
+    let open Option.Let_syntax in
+    let%bind source = f source in
+    let%map destination = f destination in
+    Move { source; destination; placement }
   | Navigate (direction, selection) -> Some (Navigate (direction, selection))
   | Select (key, selection) -> Option.map (f key) ~f:(fun key -> Select (key, selection))
   | Focus key -> Option.map (f key) ~f:(fun key -> Focus key)
@@ -44,12 +54,20 @@ module Expert = struct
     | Child -> Child
   ;;
 
+  let placement = function
+    | W.Placement.Before -> Tree_interaction.Placement.Before
+    | After -> After
+    | Inside -> Inside
+  ;;
+
   let of_wire request ~find_key =
     if not (W.Request.valid request)
     then None
     else (
       let input =
         match request with
+        | W.Request.Move { source; destination; placement = position } ->
+          Some (Move { source; destination; placement = placement position })
         | W.Request.Navigate (direction, gesture) ->
           Some (Navigate (navigation direction, Option.map gesture ~f:selection))
         | Select (key, gesture) -> Some (Select (key, selection gesture))

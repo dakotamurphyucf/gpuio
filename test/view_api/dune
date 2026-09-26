@@ -38,6 +38,8 @@
    tree-focus-transaction.hex
    tree-typeahead-event.hex
    tree-selection-event.hex
+   tree-move-event.hex
+   tree-move-transaction.hex
    accessibility-tree.hex
    accessibility-field.hex
    accessibility-request.hex
@@ -271,3 +273,5 @@
 (copy_files ../fixtures/tree-typeahead-event.hex)
 
 (copy_files ../fixtures/tree-selection-event.hex)
+
+(copy_files ../fixtures/tree-move-*.hex)

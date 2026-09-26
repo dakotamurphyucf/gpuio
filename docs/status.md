@@ -124,8 +124,11 @@ carry explicit desired states, preserving ordered requests before rerender. The
 public Bonsai widget now integrates preferences, ordered native/controller requests,
 default row presentation and deferred reveal/focus. Its Eio filesystem example
 passes actual directory loading, native focus retention, selection and stale-command
-retirement after reset on macOS. Drag/move integration, context-action demonstration,
-visual focus review and full native workload acceptance remain; no tree capability
+retirement after reset on macOS. Opt-in native dragging now emits typed move
+proposals through current row identities, with native lifecycle cancellation and
+Core/Bonsai endpoint validation. Local GPUI tests cover all placements, cancellation,
+preview cleanup and embedded-editor isolation. Public approved-move/context-action
+demonstration, visual focus review and full native workload acceptance remain; no tree capability
 is advertised. See the [managed-tree design](design/managed-trees.md).
 
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native

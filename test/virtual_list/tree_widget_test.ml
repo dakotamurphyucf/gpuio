@@ -614,3 +614,93 @@ let%expect_test "default lazy rows request retry and collapse cancels hidden dat
   [%expect
     {| load, busy, failure/retry and collapse cancellation; hidden old boundary ignored |}]
 ;;
+
+let%expect_test "native moves are opt-in proposals checked against latest data and policy"
+  =
+  let source = B.Expert.Var.create (L.snapshot (L.create (forest ()))) in
+  let allowed = B.Expert.Var.create true in
+  let moves = ref [] in
+  let driver =
+    create (fun graph ->
+      W.component
+        (B.Expert.Var.value source)
+        ~config
+        ~label:"Movable"
+        ~allow_moves:(B.Expert.Var.value allowed)
+        ~initial_expanded:(B.return [ id "folder" ])
+        ~on_action:
+          (B.return (function
+             | I.Action.Move move -> E.of_thunk (fun () -> moves := move :: !moves)
+             | None | Activate _ -> E.Ignore))
+        graph)
+  in
+  display driver;
+  observe driver ~first:0 ~last:4;
+  display driver;
+  let output = result driver in
+  let key name =
+    R.item_key (W.Output.projection output) (id name)
+    |> Option.value_exn
+    |> R.Key.to_view_key
+  in
+  let callback = (payload output).on_tree_input |> Option.value_exn in
+  let move source destination placement =
+    callback
+      (Gpuio.Tree_input.Move
+         { source = key source; destination = key destination; placement })
+  in
+  let valid = move "other" "folder" Inside in
+  Bonsai_driver.schedule_event driver valid;
+  display driver;
+  assert (List.length !moves = 1);
+  let proposal = List.hd_exn !moves in
+  assert (
+    I.Move.is_current
+      proposal
+      (B.Expert.Var.get source)
+      ~state:(W.Output.state (result driver)));
+  assert (T.Id.equal (I.Target.id (I.Move.source proposal)) (id "other"));
+  assert (T.Id.equal (I.Target.id (I.Move.destination proposal)) (id "folder"));
+  (* Proposal delivery never rewrites the application forest. *)
+  assert (
+    List.equal
+      T.Id.equal
+      (T.roots (L.Snapshot.tree (B.Expert.Var.get source)))
+      (ids [ "folder"; "other"; "disabled" ]));
+  List.iter
+    [ move "folder" "nested" Inside; move "other" "a" Inside; move "a" "a" Before ]
+    ~f:(Bonsai_driver.schedule_event driver);
+  display driver;
+  assert (List.length !moves = 1);
+  B.Expert.Var.set allowed false;
+  display driver;
+  assert (not (payload (result driver)).tree_moves);
+  Bonsai_driver.schedule_event driver valid;
+  display driver;
+  assert (List.length !moves = 1);
+  B.Expert.Var.set allowed true;
+  display driver;
+  submit driver (fun controller output ->
+    W.Controller.set_expanded controller (target output "folder") false);
+  display driver;
+  assert (
+    I.Move.is_current
+      proposal
+      (B.Expert.Var.get source)
+      ~state:(W.Output.state (result driver)));
+  (* Captured child row keys disappear on collapse. *)
+  Bonsai_driver.schedule_event driver (move "a" "other" After);
+  display driver;
+  assert (List.length !moves = 1);
+  B.Expert.Var.set source (L.snapshot (L.create (forest ())));
+  display driver;
+  Bonsai_driver.schedule_event driver valid;
+  display driver;
+  assert (List.length !moves = 1);
+  Bonsai_driver.Expert.invalidate_observers driver;
+  print_endline
+    "valid proposal only; no mutation; invalid endpoints, disabled policy, collapse and \
+     reset ignored";
+  [%expect
+    {| valid proposal only; no mutation; invalid endpoints, disabled policy, collapse and reset ignored |}]
+;;

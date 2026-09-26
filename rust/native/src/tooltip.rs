@@ -195,6 +195,7 @@ impl View {
         self.focus.borrow_mut().sync(window, cx);
         self.pointer_capture.borrow_mut().sync(window);
         super::drag_drop::sync(self.id, window, cx);
+        self.sync_tree_drag(window, cx);
         for (id, state) in &mut self.tooltips {
             let handle = self.focus.borrow().handle(*id);
             if self.focus.borrow().blocks_pointer(*id) {

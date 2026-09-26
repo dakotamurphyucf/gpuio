@@ -100,6 +100,7 @@ pub struct Node {
     pub navigation_stack: Option<gpuio_protocol::navigation_stack::Config>,
     pub carousel: Option<Arc<gpuio_protocol::carousel::Config>>,
     pub tree_input: bool,
+    pub tree_moves: bool,
     pub container_query: Option<Arc<gpuio_protocol::container_query::Config>>,
     pub accessibility: Option<Arc<gpuio_protocol::accessibility::Config>>,
     pub list_config: Option<Arc<gpuio_protocol::list::Config>>,
@@ -860,6 +861,9 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
+                if node.tree_moves && !node.tree_input {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 if node.tree_input
                     && (node.kind != Kind::VirtualList
                         || node.handler.is_none()
@@ -1319,6 +1323,7 @@ impl Plan<'_> {
             | Op::SetAnimationProgram(id, ..)
             | Op::SetNavigationStack(id, ..)
             | Op::SetTreeInput(id, ..)
+            | Op::SetTreeMoves(id, ..)
             | Op::SetCarousel(id, ..)
             | Op::SetContainerQuery(id, ..)
             | Op::SetAccessibility(id, ..)
@@ -1444,6 +1449,7 @@ impl Plan<'_> {
                             navigation_stack: None,
                             carousel: None,
                             tree_input: false,
+                            tree_moves: false,
                             container_query: None,
                             accessibility: None,
                             list_config: None,
@@ -1538,6 +1544,12 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.tree_input = *enabled;
+            }
+            Op::SetTreeMoves(id, enabled) => {
+                if self.node(*id)?.kind != Kind::VirtualList {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.tree_moves = *enabled;
             }
             Op::SetCarousel(id, config) => {
                 let node = self.node(*id)?;

@@ -8,11 +8,12 @@ let key = Key.of_string_exn
 let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok
 let config = Virtual_list.Config.create ~height:(Fixed 24.) () |> ok
 
-let view ?(enabled = true) ?(semantics = true) ?scroll keys =
+let view ?(enabled = true) ?(moves = false) ?(semantics = true) ?scroll keys =
   let order = Virtual_list.Order.create (List.map keys ~f:key) |> ok in
   let view =
     View.Expert.managed_virtual_list
       ~config
+      ~tree_moves:moves
       ?scroll
       ~order
       ~on_viewport:(fun _ -> None)
@@ -125,6 +126,58 @@ let%expect_test "focus serial is emitted once and rejects lists without native t
   assert (
     Result.is_error
       (R.prepare reconciler ~theme:Theme.default (Some (view ~scroll:obsolete [ "a" ]))));
+  R.close reconciler;
+  [%expect {| |}]
+;;
+
+let%expect_test "move opt-in rotates callback epochs and validates both row identities" =
+  let reconciler = R.create window in
+  assert (
+    Or_error.is_error
+      (R.prepare
+         reconciler
+         ~theme:Theme.default
+         (Some (view ~enabled:false ~moves:true [ "a"; "b" ]))));
+  let initial = prepare reconciler (view ~moves:true [ "a"; "b" ]) in
+  let node, handler =
+    List.find_map_exn (operations initial) ~f:(function
+      | Create (node, Virtual_list, _, Some handler) -> Some (node, handler)
+      | _ -> None)
+  in
+  assert (
+    List.exists (operations initial) ~f:(function
+      | Set_tree_moves (_, true) -> true
+      | _ -> false));
+  accept reconciler initial;
+  let event handler =
+    W.Event.Tree_input
+      ( window
+      , node
+      , handler
+      , 1L
+      , Move { source = 1L; destination = 2L; placement = After } )
+  in
+  assert (Option.is_some (R.dispatch reconciler (event handler) |> Option.join));
+  let disabled = prepare reconciler (view [ "a"; "b" ]) in
+  assert (
+    List.exists (operations disabled) ~f:(function
+      | Set_tree_moves (_, false) -> true
+      | _ -> false));
+  accept reconciler disabled;
+  assert (Option.is_none (R.dispatch reconciler (event handler) |> Option.join));
+  let enabled = prepare reconciler (view ~moves:true [ "b"; "a" ]) in
+  let current =
+    List.find_map_exn (operations enabled) ~f:(function
+      | Bind (_, Some h) -> Some h
+      | _ -> None)
+  in
+  accept reconciler enabled;
+  assert (Option.is_none (R.dispatch reconciler (event handler) |> Option.join));
+  assert (Option.is_some (R.dispatch reconciler (event current) |> Option.join));
+  accept reconciler (prepare reconciler (view ~moves:true [ "b" ]));
+  assert (Option.is_none (R.dispatch reconciler (event current) |> Option.join));
+  accept reconciler (prepare reconciler (view ~moves:true [ "a"; "b" ]));
+  assert (Option.is_none (R.dispatch reconciler (event current) |> Option.join));
   R.close reconciler;
   [%expect {| |}]
 ;;

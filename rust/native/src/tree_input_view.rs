@@ -48,7 +48,7 @@ impl View {
         }
     }
 
-    fn tree_request(&mut self, owner: NodeId, request: Request) {
+    pub(super) fn tree_request(&mut self, owner: NodeId, request: Request) {
         if !matches!(request, Request::Typeahead { .. }) {
             self.clear_tree_typeahead(owner);
         }
@@ -59,7 +59,7 @@ impl View {
             let session = self.session.borrow();
             session.tree(self.id).and_then(|tree| {
                 let node = tree.get(owner)?;
-                if let Some(target) = request.target() {
+                for target in request.targets() {
                     let row = node.list_rows.iter().find(|row| row.id == target)?;
                     if !self.focus.borrow().allows(row.node) {
                         return None;
@@ -223,6 +223,7 @@ impl View {
         if item.disabled {
             return row;
         }
+        row = self.tree_row_drag(row, owner, binding, item.expanded.is_some(), cx);
         let click_focus = focus.clone();
         row = row.on_click(
             cx.listener(move |view, event: &gpui::ClickEvent, window, cx| {

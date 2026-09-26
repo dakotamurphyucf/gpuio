@@ -207,3 +207,92 @@ fn focus_command_requires_tree_opt_in_and_current_logical_identity() {
             .tree_input
     );
 }
+
+#[test]
+fn move_proposals_require_explicit_policy_and_two_current_eligible_items() {
+    use gpuio_protocol::tree_input::Placement;
+    let mut session = session();
+    let event = |session: &Session, source, destination, placement| {
+        session.tree_input(
+            window(),
+            node(0),
+            handler(),
+            1,
+            Request::Move {
+                source,
+                destination,
+                placement,
+            },
+        )
+    };
+    session
+        .apply(&tx(
+            1,
+            vec![
+                Op::Create(node(2), Kind::Container, String::new(), None),
+                Op::SetAccessibility(node(2), Some(item(false))),
+                Op::SetListOrder(
+                    node(0),
+                    Order {
+                        revision: 2,
+                        runs: vec![IdRun { first: 1, count: 2 }],
+                    },
+                ),
+                Op::SetListRows(
+                    node(0),
+                    vec![
+                        Row {
+                            id: 1,
+                            node: node(1),
+                        },
+                        Row {
+                            id: 2,
+                            node: node(2),
+                        },
+                    ],
+                ),
+                Op::Splice(node(0), 1, 0, vec![node(2)]),
+            ],
+        ))
+        .unwrap();
+    assert!(event(&session, 1, 2, Placement::After).is_none());
+    session
+        .apply(&tx(2, vec![Op::SetTreeMoves(node(0), true)]))
+        .unwrap();
+    assert!(event(&session, 1, 2, Placement::After).is_some());
+    assert!(event(&session, 2, 1, Placement::Before).is_some());
+    assert!(event(&session, 1, 2, Placement::Inside).is_none());
+    assert!(event(&session, 3, 2, Placement::After).is_none());
+    assert!(event(&session, 1, 3, Placement::After).is_none());
+    assert!(event(&session, 1, 1, Placement::After).is_none());
+    assert_eq!(
+        session.apply(&tx(3, vec![Op::SetTreeInput(node(0), false)])),
+        Err(ErrorCode::InvalidTree)
+    );
+    assert_eq!(
+        session.apply(&tx(3, vec![Op::SetTreeMoves(node(1), true)])),
+        Err(ErrorCode::InvalidTree)
+    );
+    session
+        .apply(&tx(
+            3,
+            vec![Op::SetAccessibility(node(1), Some(item(true)))],
+        ))
+        .unwrap();
+    assert!(event(&session, 1, 2, Placement::After).is_none());
+    assert!(event(&session, 2, 1, Placement::After).is_none());
+    session
+        .apply(&tx(4, vec![Op::SetAccessibility(node(1), None)]))
+        .unwrap();
+    assert!(event(&session, 1, 2, Placement::After).is_none());
+    session
+        .apply(&tx(
+            5,
+            vec![
+                Op::SetTreeMoves(node(0), false),
+                Op::SetTreeInput(node(0), false),
+            ],
+        ))
+        .unwrap();
+    assert!(event(&session, 2, 1, Placement::After).is_none());
+}

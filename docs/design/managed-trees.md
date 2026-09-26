@@ -13,8 +13,9 @@ controller can hand focus to the same row after asynchronous mounting. Unicode
 typeahead now reduces native text input against current Core labels. Per-row
 accessibility selection and expansion setters are implemented. The public Bonsai
 widget now owns preferences, ordered reduction and deferred reveal, with a locally
-tested Eio filesystem example. Drag/move integration, context-action demonstration,
-visual focus review and full native workload acceptance remain. No tree capability
+tested Eio filesystem example. Opt-in native drag now emits typed move proposals
+with endpoint validation and cancellation. Public approved-move/context-action
+demonstration, visual focus review and full native workload acceptance remain. No tree capability
 is advertised.
 This document preserves the full live ticket scope; semantic getters alone do not
 establish interactive native widget acceptance.
@@ -360,8 +361,52 @@ unrelated roles are unchanged. The adapter queues even equal desired states so
 opposite requests before the next render retain their order; Core reduction is
 idempotent. The reproducible vendor patch and native AppKit evidence document this
 private platform contract. This does not claim VoiceOver speech or external AX
-notification-observer acceptance. Drag sessions still need implementation and native acceptance. High-level
-outcome/focus integration is covered by the public widget and filesystem example.
+notification-observer acceptance. Native drag proposals are described below.
+High-level outcome/focus integration is covered by the public widget and filesystem
+example.
+
+### Native move proposals
+
+Native tree dragging is opt-in through reactive `Tree.component ~allow_moves`;
+the default is false. The primitive exposes the same option and the lower-level
+managed list calls it `tree_moves`. It requires tree input and Tree root semantics.
+Changing input or move policy rotates the handler epoch, retiring queued requests.
+The appended operation tag 51 (`Set_tree_moves`) carries this policy separately
+from the existing input switch. Nested tree request tag 9 carries source and
+destination monotonic row IDs plus Before/After/Inside placement. Both endpoints
+must map to current collection keys before reaching application callbacks.
+
+Rust uses GPUI's native drag lifecycle and measured destination bounds. The top
+and bottom quarter of a branch propose Before/After; the middle proposes Inside.
+Leaves split into Before/After halves. A labelled preview and target highlight
+provide native feedback without per-move OCaml traffic. Only a completed drop
+emits a tree intent. This is a single-row, same-tree, same-window operation; it
+neither exports desktop payloads nor performs a filesystem move.
+
+One gesture lease holds window/list/handler/row identity. GPUI's preview owns the
+lease; the host and drag descriptor hold weak references. No application payload,
+hierarchy snapshot, producer, label index or timer is retained. The source must
+remain a mounted, visible, enabled TreeItem in the current input/move epoch.
+Escape, source hiding/disabling/removal, handler/policy retirement, window
+inactivation and close cancel it. Row eviction follows the existing focus-pin and
+active-row budget; dragging adds no separate retention policy. There is no
+implicit hovered-branch expansion/loading or automatic edge scrolling.
+
+Native admission rechecks both current rows, input/move policy and destination
+branch eligibility. The OCaml reconciler rejects disabled-policy or missing-key
+requests, the Bonsai adapter rechecks current policy, and `Tree_interaction` checks
+source lease/incarnation, visibility, disabled state, self/descendant destinations
+and placement. The resulting Move is a proposal: no native or framework reducer
+mutates application hierarchy. Applications recheck `Move.is_current` immediately
+before applying a delayed approval and publish their validated replacement tree.
+`Tree.Controller.propose_move` supplies the equivalent explicit keyboard/menu
+command even when native dragging is disabled.
+
+Actual macOS GPUI tests cover all placements, preview cleanup, Escape/policy/
+handler/disabled/inert cancellation, source collapse/deletion and child-editor
+selection/key/IME isolation with moves enabled. Public approved-move example
+integration and broader cross-window/deactivation/traversal workload checks remain;
+these bridge/native tests alone do not close OCH-38.
 
 ### Unicode typeahead
 
@@ -538,7 +583,7 @@ compare arbitrary payloads to guess that a filesystem path or service changed.
 `cancel_hidden` reconciles the supplied `Tree_state` and applies the default
 collapse policy. Explicit prefetch may omit it. The managed component now connects
 controlled preference changes and viewport demand to these operations after
-display. Native input still needs to produce the higher-level tree requests.
+display. Native input reaches the high-level widget through typed tree requests.
 
 The filesystem example receives an Eio directory capability. It loads children in
 scoped producers, uses deterministic ordering and explicit failure/retry, and does

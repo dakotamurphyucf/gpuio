@@ -665,6 +665,7 @@ pub enum Op {
     SetNavigationStack(NodeId, crate::navigation_stack::Config),
     SetCarousel(NodeId, crate::carousel::Config),
     SetTreeInput(NodeId, bool),
+    SetTreeMoves(NodeId, bool),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]

@@ -750,6 +750,7 @@ module Op = struct
     | Set_navigation_stack of Node_id.t * Navigation_stack.Config.t
     | Set_carousel of Node_id.t * Carousel.Config.t
     | Set_tree_input of Node_id.t * bool
+    | Set_tree_moves of Node_id.t * bool
   [@@deriving bin_io, equal, sexp_of]
 end
 

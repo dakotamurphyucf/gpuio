@@ -159,6 +159,7 @@ let inner
       ~config
       ?accessibility
       ?on_request
+      ~allow_moves
       ~pinned
       ~loading
       ~auto_load
@@ -190,10 +191,12 @@ let inner
     | Ok rows -> List.filter_map pinned ~f:(Rows.item_key rows)
   in
   let peek = B.peek projection graph in
+  let peek_moves = B.peek allow_moves graph in
   let on_tree_input =
     Option.map on_request ~f:(fun callback ->
       let%arr callback = callback
       and peek = peek
+      and peek_moves = peek_moves
       and lifetime = lifetime in
       fun input ->
         with_current lifetime peek ~f:(fun rows ->
@@ -210,6 +213,8 @@ let inner
             let module R = Gpuio.Tree_interaction.Request in
             let request =
               match input with
+              | Move { source; destination; placement } ->
+                R.move ~source ~destination placement
               | Navigate (direction, selection) -> R.navigate source ~selection direction
               | Select (target, selection) -> R.select target selection
               | Focus target -> R.focus target
@@ -220,7 +225,20 @@ let inner
               | Typeahead input -> R.typeahead source input
               | Set_selected (target, selected) -> R.set_selected target selected
             in
-            callback request))
+            (match input with
+             | Move _ ->
+               E.bind peek_moves ~f:(function
+                 | B.Computation_status.Active true -> callback request
+                 | Active false | Inactive -> E.Ignore)
+             | Navigate _
+             | Select _
+             | Focus _
+             | Set_expanded _
+             | Activate _
+             | Select_active _
+             | Activate_active
+             | Typeahead _
+             | Set_selected _ -> callback request)))
   in
   let list =
     V.component
@@ -230,6 +248,7 @@ let inner
       ~config
       ?accessibility
       ?on_tree_input
+      ~tree_moves:allow_moves
       ~pinned:pins
       ~render_row
       graph
@@ -316,6 +335,7 @@ let component
       ?(style = B.return fill)
       ?accessibility
       ?on_request
+      ?(allow_moves = B.return false)
       ?(pinned = B.return [])
       ?loading
       ?(auto_load = B.return true)
@@ -345,6 +365,7 @@ let component
             ~config
             ?accessibility
             ?on_request
+            ~allow_moves
             ~pinned
             ~loading
             ~auto_load

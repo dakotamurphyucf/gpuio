@@ -84,6 +84,12 @@ end
     [cancel_hidden=false] permits deliberate background prefetch. Unmount retires
     row/controller effects but does not close the application-owned data loader.
 
+    [allow_moves] defaults to false and requires [on_request]. It opts into
+    native single-row move proposals; both current row keys must resolve before
+    delivery. Disabled policy is rechecked at delivery, and policy changes retire
+    the native handler epoch. The reducer/application must validate and approve
+    the move; no hierarchy update is implicit.
+
     Supply bounded viewport geometry through [style] or the parent. No callbacks
     enter OCaml synchronously from native layout and no I/O occurs in evaluation. *)
 val component
@@ -94,6 +100,7 @@ val component
   -> ?style:Gpuio.Style.t B.t
   -> ?accessibility:Gpuio.Accessibility.t B.t
   -> ?on_request:(Gpuio.Tree_interaction.Request.t -> unit Bonsai.Effect.t) B.t
+  -> ?allow_moves:bool B.t
   -> ?pinned:Gpuio.Tree.Id.t list B.t
   -> ?loading:Loading.t B.t
   -> ?auto_load:bool B.t

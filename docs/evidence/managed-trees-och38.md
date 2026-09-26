@@ -769,3 +769,71 @@ example integration, visible focus presentation review, and full native large/de
 traversal/revisit/collapse/deletion/loading/drag acceptance remain before capability
 advertisement and final ticket closure. The example's current loading/focus checks
 are not a substitute for that remaining acceptance.
+
+## Native move proposals (2026-09-26)
+
+The high-level tree now exposes reactive `allow_moves` (default false), and
+`Controller.propose_move` provides the explicit keyboard/menu alternative. Native
+moves use the existing managed-list IDs and asynchronous tree request route.
+Operation tag 51 enables moves; nested request tag 9 carries two row IDs and a
+placement. Independent OCaml/Rust fixtures cover both messages, malformed IDs,
+self-targets, invalid placement/Boolean tags, truncation and trailing bytes.
+
+Reconciliation requires native tree input and rotates its handler when move
+policy changes. Dispatch rejects disabled-policy moves and missing endpoint keys.
+The Bonsai adapter resolves both endpoints against its current projection/source,
+rechecks current policy and calls the existing pure reducer. Tests prove valid
+proposal delivery without hierarchy mutation, invalid/self/descendant/leaf-inside
+rejection, disabled policy, hidden children after collapse, generation reset,
+handler retirement and removed/reintroduced keys. `Move.is_current` remains the
+application's approval-time revalidation contract.
+
+Rust's GPUI drag snapshot holds native route identity and a bounded label only.
+One preview owns a gesture lease; the host and source descriptor hold weak
+references. Source/destination checks include window/list/handler, mounted row
+binding, current input/move policy and visible/enabled semantics. Drop placement
+uses current measured row bounds: branch quarters select Before/Inside/After,
+while leaf halves select Before/After. Only the final proposal crosses the bridge.
+There is no task, producer, hierarchy copy or per-motion OCaml callback.
+
+The actual local macOS GPUI tree suite passes:
+
+- Native drag startup and all three branch placements, exact stable endpoint
+  requests, no implicit hierarchy update and preview-lease disposal after drop.
+- Escape, move-policy retirement, handler replacement, source disabled/inert state
+  and actual source-row deletion during collapse cancel dragging without a timer.
+- Embedded-editor pointer selection does not start a parent tree drag with moves
+  enabled; existing child keyboard/IME, AppKit setters and focus suites also pass.
+
+The expanded test initially attempted to detach a row without removing its native
+nodes. Admission correctly rejected the orphaned tree. The test now exercises
+cancellation during the existing valid collapse/deletion transaction. An earlier
+compile error placed an editor probe before its point binding; that test-only
+placement is corrected. No production invariant was relaxed.
+
+Scratch native evidence is `tree-move-native-4.log`; all tests exit and windows
+close. This uses actual GPUI mouse dispatch in a real macOS window, not physical
+mouse hardware or an end-to-end public OCaml drag app. Existing Core/Bonsai tests
+and independent protocol fixtures separately cover the receiving half. These
+checks do not claim cross-window, window-deactivation/close or full traversal
+acceptance for tree drag; those remain in the broader workload/public-example work.
+
+Current limitations are explicit: one row, same tree/window, no desktop export,
+no automatic hover expansion/loading or edge autoscroll. Existing focus pins share
+the active-row budget; no separate drag pin policy is added. The filesystem demo
+remains read-only with native moves disabled. Public approved-move/context-action
+examples, focus presentation review and full native large/deep traversal/revisit
+acceptance remain before OCH-38 closure or tree capability advertisement.
+
+Final local checks pass with the repository's isolated toolchain and two jobs:
+
+- `cargo test --workspace --locked -j2`.
+- `cargo clippy -p gpuio-native --features native-tests --all-targets --locked -j2 -- -D warnings`.
+- `cargo test -p gpuio-native --features native-tests --test native_tree --locked -j2`.
+- `dune build -j2 @all @runtest @fmt` and `git diff --check`.
+
+Commands use `GPUIO_JOBS=2 ./scripts/gpuio exec`; Cargo and Dune native linking
+were serialized. Final logs are `tree-move-rust-all.log`,
+`tree-move-clippy-final.log`, `tree-move-native-final.log` and
+`tree-move-dune-all.log` in the agent scratch directory. Processes are reaped;
+no test window remains. Hosted macOS/Linux gates and merge remain pending.

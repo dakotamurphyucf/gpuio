@@ -178,3 +178,59 @@ let%expect_test "bounded Unicode typeahead appends request tag seven" =
   assert (Option.is_some (Tree_input.Expert.of_wire request ~find_key:(fun _ -> None)));
   [%expect {| |}]
 ;;
+
+let%expect_test "move fixtures resolve and validate both stable endpoints" =
+  let node = Gpuio_protocol.Node_id.create ~slot:0L ~generation:1L |> ok in
+  let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok in
+  let handler = Gpuio_protocol.Handler_id.create ~slot:0L ~generation:1L |> ok in
+  let request source destination =
+    W.Request.Move { source; destination; placement = Inside }
+  in
+  let event source destination =
+    Wire.Event.Tree_input (window, node, handler, 1L, request source destination)
+  in
+  let bytes = fixture "tree-move-event.hex" in
+  assert (
+    String.equal
+      bytes
+      (Bin_prot.Utils.bin_dump Wire.Event.bin_writer_t (event 42L 43L)
+       |> Bigstring.to_string));
+  assert (
+    List.equal
+      Wire.Event.equal
+      [ event 42L 43L ]
+      (Wire.Event.decode ("\001" ^ bytes) |> ok));
+  let message =
+    Wire.Message.Apply
+      { window; base = 0L; revision = 1L; operations = [ Set_tree_moves (node, true) ] }
+  in
+  assert (
+    String.equal (Wire.Message.encode message |> ok) (fixture "tree-move-transaction.hex"));
+  List.iter
+    [ 0L, 43L; 42L, -1L; 42L, 42L ]
+    ~f:(fun (source, destination) ->
+      let encoded =
+        Bin_prot.Utils.bin_dump
+          [%bin_writer: Wire.Event.t list]
+          [ event source destination ]
+        |> Bigstring.to_string
+      in
+      assert (Or_error.is_error (Wire.Event.decode encoded)));
+  for length = 0 to String.length bytes - 1 do
+    assert (Or_error.is_error (Wire.Event.decode ("\001" ^ String.prefix bytes length)))
+  done;
+  assert (Or_error.is_error (Wire.Event.decode ("\001" ^ bytes ^ "\000")));
+  assert (
+    Or_error.is_error (Wire.Event.decode ("\001" ^ String.drop_suffix bytes 1 ^ "\003")));
+  List.iter [ 42L; 43L ] ~f:(fun missing ->
+    assert (
+      Option.is_none
+        (Tree_input.Expert.of_wire (request 42L 43L) ~find_key:(fun id ->
+           if Int64.equal missing id then None else Some (Int64.to_string id)))));
+  print_s
+    [%sexp
+      (Tree_input.Expert.of_wire (request 42L 43L) ~find_key:(fun id ->
+         Some (Int64.to_string id))
+       : string Tree_input.t option)];
+  [%expect {| ((Move (source 42) (destination 43) (placement Inside))) |}]
+;;

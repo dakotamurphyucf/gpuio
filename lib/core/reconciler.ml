@@ -667,7 +667,10 @@ let rec mount builder ~depth previous view =
            Option.exists (View.Expert.describe mounted.view).virtual_list ~f:(fun list ->
              Option.is_some list.on_tree_input)
          in
-         not (Bool.equal old (Option.is_some list.on_tree_input))
+         (not (Bool.equal old (Option.is_some list.on_tree_input)))
+         || Option.exists
+              (View.Expert.describe mounted.view).virtual_list
+              ~f:(fun previous -> not (Bool.equal previous.tree_moves list.tree_moves))
        | None, _ | Some _, None -> false)
       || (match description.extension, previous with
           | Some item, Some mounted ->
@@ -872,6 +875,16 @@ let rec mount builder ~depth previous view =
         tree_input (View.Expert.describe mounted.view))
     in
     if not (Bool.equal input old_input) then emit builder (Set_tree_input (id, input));
+    let moves description =
+      Option.exists description.View.Expert.virtual_list ~f:(fun list -> list.tree_moves)
+    in
+    let enabled_moves = moves description in
+    if enabled_moves && not input then fail "native tree moves require tree input";
+    let old_moves =
+      Option.exists previous ~f:(fun mounted -> moves (View.Expert.describe mounted.view))
+    in
+    if not (Bool.equal enabled_moves old_moves)
+    then emit builder (Set_tree_moves (id, enabled_moves));
     let carousel = Option.map description.carousel ~f:fst in
     let old_carousel =
       Option.bind previous ~f:(fun mounted ->
@@ -1635,7 +1648,22 @@ let dispatch t = function
        when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
        Tree_input.Expert.of_wire request ~find_key:(List_identity.key identity)
        |> Option.bind ~f:(fun input ->
-         Option.map list.on_tree_input ~f:(fun callback -> callback input))
+         let allowed =
+           match input with
+           | Tree_input.Move _ -> list.tree_moves
+           | Navigate _
+           | Select _
+           | Focus _
+           | Set_expanded _
+           | Activate _
+           | Select_active _
+           | Activate_active
+           | Typeahead _
+           | Set_selected _ -> true
+         in
+         if allowed
+         then Option.map list.on_tree_input ~f:(fun callback -> callback input)
+         else None)
      | Some _ | None -> None)
   | Wire.Event.List_viewport (window, node, handler, revision, viewport)
     when (not t.closed)

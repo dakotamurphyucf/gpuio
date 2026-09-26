@@ -709,13 +709,16 @@ module Expert : sig
     ; on_viewport : (Virtual_list.Viewport.t -> 'action) option
     ; on_retain : (Key.t list -> 'action) option
     ; on_tree_input : (Key.t Tree_input.t -> 'action) option
+    ; tree_moves : bool
     }
 
   (** Native list adapters supply the desired row set, including pinned rows.
       [on_retain] handles a native veto of stale viewport-driven eviction.
       [on_tree_input] opts into tree keyboard/pointer/accessibility requests and
       requires Tree semantics on the final list root. Reconciliation rotates the
-      handler when input is enabled/disabled, retiring already queued requests. *)
+      handler when input or [tree_moves] changes, retiring already queued requests.
+      [tree_moves] defaults to false and requires [on_tree_input]; Move delivers
+      two current keys as a proposal, never an implicit hierarchy mutation. *)
   val managed_virtual_list
     :  ?key:Key.t
     -> ?style:Style.t
@@ -727,6 +730,7 @@ module Expert : sig
     -> on_viewport:(Virtual_list.Viewport.t -> 'action)
     -> on_retain:(Key.t list -> 'action)
     -> ?on_tree_input:(Key.t Tree_input.t -> 'action)
+    -> ?tree_moves:bool
     -> (Key.t * 'action t) list
     -> 'action t Core.Or_error.t
 

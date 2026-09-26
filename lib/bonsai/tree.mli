@@ -27,6 +27,17 @@ module Controller : sig
 
   val activate : t -> Target.t -> unit Bonsai.Effect.t
 
+  (** Keyboard/menu alternative to native drag. [allow_moves] controls native
+      dragging only; explicit proposals still validate both current endpoints.
+      [on_action] owns approval; recheck [Tree_interaction.Move.is_current] before
+      applying a delayed approval. No hierarchy is mutated by this command. *)
+  val propose_move
+    :  t
+    -> source:Target.t
+    -> destination:Target.t
+    -> Gpuio.Tree_interaction.Placement.t
+    -> unit Bonsai.Effect.t
+
   (** Requests/retries require a visible expanded branch and [loading] controls.
       Cancel allows any current branch. Data work belongs to the application's
       loading scope; unmount does not close that scope. *)
@@ -58,6 +69,17 @@ end
     requests reduce in order against current data/state. Selection never pins
     rows. Only activation and application-approved move proposals reach
     [on_action]; reducing a Move never changes application data.
+
+    [allow_moves=false] by default. Opting in enables single-row, same-window,
+    same-tree native drag proposals. The top/bottom quarter of a branch requests
+    Before/After; its middle requests Inside. Leaves split at the midpoint.
+    The application handles Move in [on_action] and supplies the new snapshot
+    after approval. Invalid/self/descendant or stale endpoints are ignored.
+    Row eviction/collapse, source disable/hiding, handler retirement, Escape,
+    window deactivation/close cancel a gesture. Existing native focus pins share
+    the active-row budget; dragging adds no separate pin policy and does not
+    expand/load a hovered branch automatically. Provide a keyboard/menu move
+    alternative with [Controller.propose_move].
 
     [initial_selected]/[initial_expanded] seed each mounted source generation.
     Later seed changes do not overwrite live preferences; use controllers for
@@ -94,6 +116,7 @@ val component
   -> ?loading:Tree_rows.Loading.t B.t
   -> ?auto_load:bool B.t
   -> ?cancel_hidden:bool B.t
+  -> ?allow_moves:bool B.t
   -> ?on_action:(Gpuio.Tree_interaction.Action.t -> unit Bonsai.Effect.t) B.t
   -> ?render_item:
        (target:Target.t B.t

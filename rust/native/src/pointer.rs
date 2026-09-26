@@ -365,6 +365,7 @@ impl View {
             self.pointer_activation =
                 Some(cx.observe_window_activation(window, |view, window, cx| {
                     if !window.is_window_active() {
+                        view.cancel_tree_drag(window, cx);
                         view.cancel_number_repeats(window);
                         view.cancel_color_inputs(
                             gpuio_protocol::color_input::CancelReason::WindowInactive,

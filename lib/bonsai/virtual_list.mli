@@ -47,6 +47,8 @@ end
 
     [accessibility] annotates the native list root, not its layout wrapper.
     [on_tree_input] opts into native tree input and requires a Tree root role.
+    [tree_moves] defaults to false and requires that input callback. It enables
+    same-tree native move proposals; changing it retires the handler epoch.
     Events contain collection keys and must be reduced against current data;
     obsolete native row IDs are discarded before delivery.
     A TreeItem-annotated row container transfers its metadata to the native row
@@ -71,6 +73,7 @@ val component
   -> ?style:Gpuio.Style.t B.t
   -> ?accessibility:Gpuio.Accessibility.t B.t
   -> ?on_tree_input:('key Gpuio.Tree_input.t -> unit Bonsai.Effect.t) B.t
+  -> ?tree_moves:bool B.t
   -> ?generation:int64 B.t
   -> ?pinned:'key list B.t
   -> ?on_viewport:(Viewport.t -> unit Bonsai.Effect.t) B.t
@@ -117,6 +120,7 @@ val paged
   -> ?style:Gpuio.Style.t B.t
   -> ?accessibility:Gpuio.Accessibility.t B.t
   -> ?on_tree_input:('key Gpuio.Tree_input.t -> unit Bonsai.Effect.t) B.t
+  -> ?tree_moves:bool B.t
   -> ?pinned:'key list B.t
   -> ?auto_load:bool B.t
   -> ?on_viewport:(Viewport.t -> unit Bonsai.Effect.t) B.t
