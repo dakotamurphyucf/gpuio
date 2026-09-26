@@ -94,6 +94,8 @@ struct Calendar {
     autofocus: bool,
     metadata: Option<Arc<gpuio_protocol::accessibility::Config>>,
     _subscriptions: Vec<Subscription>,
+    #[cfg(feature = "native-tests")]
+    paint_probe: Option<(Bounds<Pixels>, Pixels)>,
 }
 impl Calendar {
     fn access(&self) -> Access {
@@ -247,7 +249,14 @@ impl Calendar {
             })
             .role(Role::Button)
             .aria_label(label)
-            .child(text);
+            .child(
+                div()
+                    .w_full()
+                    .min_w(px(0.))
+                    .text_center()
+                    .truncate()
+                    .child(text),
+            );
         if matches!(action, Some(Action::Activate(_))) {
             // AccessKit's macOS backend exposes button pressed state as an
             // AXToggle checkbox value; aria_selected alone is not exported for
@@ -321,7 +330,7 @@ impl Calendar {
     }
 }
 impl Render for Calendar {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let s = self.model.snapshot();
         let config = self.model.config();
         let labels = &config.labels;
@@ -390,7 +399,11 @@ impl Render for Calendar {
                             .flex_1()
                             .min_w(px(0.))
                             .text_center()
-                            .text_size(px(11.))
+                            .truncate()
+                            .text_size(
+                                window.text_style().font_size.to_pixels(window.rem_size())
+                                    * (11. / 13.),
+                            )
                             .child(labels.short_weekdays[index].clone()),
                     );
                 }
@@ -556,7 +569,6 @@ impl Render for Calendar {
             .flex_col()
             .gap(px(8.))
             .p(px(8.))
-            .text_size(px(13.))
             .key_context("GpuioCalendar")
             .track_focus(
                 &self
@@ -579,8 +591,15 @@ impl Render for Calendar {
             .child(
                 canvas(
                     |_, _, _| (),
-                    move |_, _, window, cx| {
+                    move |_bounds, _, window, cx| {
                         let _ = weak.update(cx, |s, cx| {
+                            #[cfg(feature = "native-tests")]
+                            {
+                                s.paint_probe = Some((
+                                    _bounds,
+                                    window.text_style().font_size.to_pixels(window.rem_size()),
+                                ));
+                            }
                             if s.autofocus
                                 && s.access() == Access::Allowed
                                 && !s.model.config().disabled
@@ -648,6 +667,8 @@ impl Instance {
                 autofocus: mount.config.auto_focus,
                 metadata: node.accessibility.clone(),
                 _subscriptions: subscriptions,
+                #[cfg(feature = "native-tests")]
+                paint_probe: None,
             }
         });
         Ok(Self { state })

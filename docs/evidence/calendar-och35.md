@@ -325,3 +325,28 @@ Success markers include `GPUIO_CALENDAR_AX_OK`, `GPUIO_CALENDAR_BOUNDARY_OK` and
 both public/popup markers. Owned processes/windows exited. The macOS CI definition
 now includes the inline AX test, but hosted results remain pending. This does not
 claim complete screen-reader, layout, workload or OCH-35 acceptance.
+
+
+## Calendar rendering checkpoint
+
+The mounted calendar passes 192 GPU readback cases combining light/dark palettes,
+1×/2× synthetic display scales, 13/20-pixel fonts, day/month/year presentations,
+296/220/144/48-pixel widths, and natural/80-pixel heights. Checks verify the caller's
+font and width, visible foreground glyphs at usable widths, no paint escaping the
+assigned bounds, and retained selection throughout. Extremely narrow/short cases
+verify clipping safety, not usability. These use actual GPUI GPU readback on macOS,
+not a Linux graphical check or a claim of testing multiple physical monitors.
+
+Long labels now preserve their beginning with a trailing ellipsis instead of cropping
+through the middle. The default font moved before caller-style application, and
+weekday typography scales with it. Actual light day/year and dark month images
+were visually inspected in `scratch/agents/root-20260924-m5/calendar-layout/`.
+The full native calendar test passes with `GPUIO_CALENDAR_APPEARANCE_OK` (192 cases),
+as does all-target native-image Clippy with warnings denied. The measured local
+native command took 18.16 seconds including incremental compilation; this is test
+runtime, not an application performance benchmark.
+
+The rebuilt public calendar and popup examples also pass `test_calendar.py` and
+`test_date_picker.py` after these layout changes. Dune `@fmt` and Cargo formatting
+pass; all owned test windows/processes exited. Full lifecycle/workload acceptance
+remains in progress.

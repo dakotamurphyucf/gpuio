@@ -197,7 +197,12 @@ focus. Its active descendant exposes the keyboard cursor separately from selecti
 Date buttons carry pressed state; the pinned macOS accessibility backend exposes
 these as AXCheckBox/AXToggle with a Boolean AXValue. The group value is a canonical
 ISO date, partial range or complete range; its localized displayed month/year is
-AXHelp. Month/year/navigation controls remain ordinary buttons. External macOS
+AXHelp. Month/year/navigation controls remain ordinary buttons. Long visual labels
+use ellipses while accessible labels retain their full text. The default width is
+296 logical pixels and the default font is 13 pixels; caller styles can override
+both. Weekday labels scale relative to the inherited font. Calendars clip overflow
+by default when deliberately constrained; applications should provide sufficient
+width and natural height for usable date controls. External macOS
 checks cover these values, AX focus/activation, OS keys and Tab/Shift-Tab order.
 
 The tree may admit a valid seed and then change constraints in the same transaction

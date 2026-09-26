@@ -14,6 +14,9 @@ use std::{
     os::fd::{AsRawFd, FromRawFd, OwnedFd},
     rc::Rc,
 };
+#[cfg(feature = "native-image-tests")]
+#[path = "calendar_appearance_test.rs"]
+mod appearance;
 fn node() -> NodeId {
     NodeId::from_parts(0, 1).unwrap()
 }
@@ -302,6 +305,8 @@ async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Tra
         c::Response::Failed(c::Error::FocusBlocked)
     );
     exercise_boundaries(cx, handle, transport).await;
+    #[cfg(feature = "native-image-tests")]
+    appearance::exercise(cx, handle, transport).await;
     let old_owner = handle
         .update(cx, |v, _, _| v.calendars[&node()].state.downgrade())
         .unwrap();

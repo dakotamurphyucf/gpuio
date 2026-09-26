@@ -152,7 +152,9 @@ picker now separates application values from native drafts, with explicit
 Apply/Cancel, revision/session guards and external-value invalidation. Local
 macOS AX/OS-input checks cover popup selection, dismissal and focus behavior.
 Inline AppKit values/cursor/selection and OS keyboard/Tab navigation also pass,
-with native civil endpoints, leap clamping and locale retention checks.
+with native civil endpoints, leap clamping and locale retention checks. Calendar
+rendering now passes 192 GPU theme/density/font/constrained-layout cases; long
+labels use ellipses and caller font overrides are honored.
 Full native acceptance remains in progress; no calendar capability is advertised.
 See [calendar design](design/calendar.md) and [model evidence](evidence/calendar-och35.md).
 No milestone-05 completion or hosted acceptance is claimed yet.
