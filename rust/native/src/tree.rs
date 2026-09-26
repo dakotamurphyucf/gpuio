@@ -47,6 +47,12 @@ pub struct OtpInputMount {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct ColorInputMount {
+    pub config: Arc<gpuio_protocol::color_input::Config>,
+    pub initial: gpuio_protocol::color_value::Value,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct CalendarMount {
     pub config: Arc<gpuio_protocol::calendar_input::Config>,
     pub initial: gpuio_protocol::calendar::Selection,
@@ -77,6 +83,7 @@ pub struct Node {
     pub number_input: Option<NumberInputMount>,
     pub otp_input: Option<OtpInputMount>,
     pub calendar: Option<CalendarMount>,
+    pub color_input: Option<ColorInputMount>,
     pub extension: Option<Arc<gpuio_protocol::extension::Config>>,
     pub extension_command: Option<Arc<gpuio_protocol::extension::Command>>,
     pub split: Option<Arc<gpuio_protocol::split::Config>>,
@@ -106,9 +113,13 @@ pub struct Node {
 
 impl Node {
     fn payload_bytes(&self) -> usize {
-        self.calendar
+        self.color_input
             .as_ref()
-            .map_or(0, |calendar| 32 + calendar.config.retained_bytes())
+            .map_or(0, |color| 32 + color.config.retained_bytes())
+            + self
+                .calendar
+                .as_ref()
+                .map_or(0, |calendar| 32 + calendar.config.retained_bytes())
             + self
                 .otp_input
                 .as_ref()
@@ -594,6 +605,18 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
+                if (node.kind == Kind::ColorInput) != node.color_input.is_some()
+                    || node.color_input.as_ref().is_some_and(|color| {
+                        !color.config.is_valid()
+                            || !node.text.is_empty()
+                            || !node.children.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                            || node.handler.is_none()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 if (node.kind == Kind::Calendar) != node.calendar.is_some()
                     || node.calendar.as_ref().is_some_and(|calendar| {
                         !calendar.config.is_valid()
@@ -809,6 +832,7 @@ impl Tree {
                     | Kind::NumberInput
                     | Kind::OtpInput
                     | Kind::Calendar
+                    | Kind::ColorInput
                     | Kind::TabPanel
                     | Kind::SplitPane
                     | Kind::Extension
@@ -1169,6 +1193,7 @@ impl Plan<'_> {
             | Op::SetSlider(id, ..)
             | Op::SetNumberInput(id, ..)
             | Op::SetOtpInput(id, ..)
+            | Op::SetColorInput(id, ..)
             | Op::SetCalendar(id, ..)
             | Op::SetListConfig(id, ..)
             | Op::SetListOrder(id, ..)
@@ -1273,6 +1298,7 @@ impl Plan<'_> {
                             number_input: None,
                             otp_input: None,
                             calendar: None,
+                            color_input: None,
                             extension: None,
                             extension_command: None,
                             split: None,
@@ -1484,6 +1510,23 @@ impl Plan<'_> {
                 self.node_mut(*id)?.slider = Some(SliderMount {
                     config: Arc::new(config.clone()),
                     initial: *initial,
+                });
+            }
+            Op::SetColorInput(id, config, initial) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::ColorInput
+                    || !config.is_valid()
+                    || (node.color_input.is_none() && !config.allows(*initial))
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let initial = node
+                    .color_input
+                    .as_ref()
+                    .map_or(*initial, |old| old.initial);
+                self.node_mut(*id)?.color_input = Some(ColorInputMount {
+                    config: Arc::new(config.as_ref().clone()),
+                    initial,
                 });
             }
             Op::SetCalendar(id, config, initial, initial_month) => {

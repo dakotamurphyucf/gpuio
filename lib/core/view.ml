@@ -44,6 +44,7 @@ module Kind = struct
     | Number_input
     | Otp_input
     | Calendar
+    | Color_input
   [@@deriving equal, sexp_of]
 end
 
@@ -99,6 +100,13 @@ type 'action otp_input =
   ; config : Otp_input.Config.t
   ; initial : Otp_input.Value.t
   ; on_event : Otp_input.Event.t -> 'action
+  }
+
+type 'action color_input =
+  { controller : Key.t
+  ; config : Color_input.Config.t
+  ; initial : Color_value.Value.t
+  ; on_event : Color_input.Event.t -> 'action
   }
 
 type 'action calendar =
@@ -247,6 +255,7 @@ type 'action t =
   ; slider : 'action slider option
   ; number_input : 'action number_input option
   ; otp_input : 'action otp_input option
+  ; color_input : 'action color_input option
   ; calendar : 'action calendar option
   ; animation : 'action animation option
   ; animation_program : 'action animation_program option
@@ -291,6 +300,7 @@ let text ?key ?(style = Style.empty) text =
   ; slider = None
   ; number_input = None
   ; otp_input = None
+  ; color_input = None
   ; calendar = None
   ; animation = None
   ; animation_program = None
@@ -427,6 +437,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; slider = None
   ; number_input = None
   ; otp_input = None
+  ; color_input = None
   ; calendar = None
   ; animation = None
   ; animation_program = None
@@ -531,6 +542,7 @@ let button
   ; slider = None
   ; number_input = None
   ; otp_input = None
+  ; color_input = None
   ; calendar = None
   ; animation = None
   ; animation_program = None
@@ -607,6 +619,7 @@ let toggle
   ; slider = None
   ; number_input = None
   ; otp_input = None
+  ; color_input = None
   ; calendar = None
   ; animation = None
   ; animation_program = None
@@ -667,6 +680,7 @@ let focus_scope ?key ?style ~config children =
   ; slider = None
   ; number_input = None
   ; otp_input = None
+  ; color_input = None
   ; calendar = None
   ; animation = None
   ; animation_program = None
@@ -982,6 +996,7 @@ let text_input
   ; slider = None
   ; number_input = None
   ; otp_input = None
+  ; color_input = None
   ; calendar = None
   ; animation = None
   ; animation_program = None
@@ -1027,6 +1042,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; slider = None
   ; number_input = None
   ; otp_input = None
+  ; color_input = None
   ; calendar = None
   ; animation = None
   ; animation_program = None
@@ -1098,6 +1114,7 @@ let combobox
   ; slider = None
   ; number_input = None
   ; otp_input = None
+  ; color_input = None
   ; calendar = None
   ; animation = None
   ; animation_program = None
@@ -1154,6 +1171,13 @@ let otp_input ?(style = Style.empty) ~controller ~config ~initial ~on_event () =
   { (text ~key:controller ~style "") with
     kind = Otp_input
   ; otp_input = Some { controller; config; initial; on_event }
+  }
+;;
+
+let color_input ?(style = Style.empty) ~controller ~config ~initial ~on_event () =
+  { (text ~key:controller ~style "") with
+    kind = Color_input
+  ; color_input = Some { controller; config; initial; on_event }
   }
 ;;
 
@@ -1328,6 +1352,13 @@ module Expert = struct
     ; on_event : Otp_input.Event.t -> 'action
     }
 
+  type nonrec 'action color_input = 'action color_input =
+    { controller : Key.t
+    ; config : Color_input.Config.t
+    ; initial : Color_value.Value.t
+    ; on_event : Color_input.Event.t -> 'action
+    }
+
   type nonrec 'action calendar = 'action calendar =
     { controller : Key.t
     ; config : Calendar.Config.t
@@ -1437,6 +1468,7 @@ module Expert = struct
     ; slider : 'action slider option
     ; number_input : 'action number_input option
     ; otp_input : 'action otp_input option
+    ; color_input : 'action color_input option
     ; calendar : 'action calendar option
     ; animation : 'action animation option
     ; animation_program : 'action animation_program option

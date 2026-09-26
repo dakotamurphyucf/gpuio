@@ -5,6 +5,8 @@
   (deps
    (sandbox preserve_file_kind)
    color-values.tsv
+   color-request.hex
+   color-events.hex
    color-config.hex
    color-preview.hex
    color-set.hex

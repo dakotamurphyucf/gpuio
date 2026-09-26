@@ -868,6 +868,7 @@ impl Decoder<'_> {
                     38 => Kind::NumberInput,
                     39 => Kind::OtpInput,
                     40 => Kind::Calendar,
+                    41 => Kind::ColorInput,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -955,6 +956,11 @@ impl Decoder<'_> {
                 }
                 Op::SetOtpInput(node, config, initial)
             }
+            47 => Op::SetColorInput(
+                self.node()?,
+                Box::new(self.color_config()?),
+                self.color_value()?,
+            ),
             46 => Op::SetCalendar(
                 self.node()?,
                 Box::new(self.calendar_config()?),

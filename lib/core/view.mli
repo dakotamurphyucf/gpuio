@@ -407,10 +407,22 @@ val otp_input
   -> unit
   -> 'action t
 
-(** Retained native calendar contract, currently under implementation. Seeds
+(** Retained color-control description. Seeds once per controller identity;
+    later configuration changes preserve the native value. Mounted rendering is
+    still being integrated; the color-input capability is not advertised yet. *)
+val color_input
+  :  ?style:Style.t
+  -> controller:Key.t
+  -> config:Color_input.Config.t
+  -> initial:Color_value.Value.t
+  -> on_event:(Color_input.Event.t -> 'action)
+  -> unit
+  -> 'action t
+
+(** Retained native calendar. Seeds
     selection and displayed month once per controller identity. Mode is immutable;
     configuration changes may invalidate a historical selection without clearing
-    it. The calendar capability is not yet advertised. *)
+    it. *)
 val calendar
   :  ?style:Style.t
   -> controller:Key.t
@@ -591,6 +603,13 @@ module Expert : sig
     ; on_event : Otp_input.Event.t -> 'action
     }
 
+  type 'action color_input =
+    { controller : Key.t
+    ; config : Color_input.Config.t
+    ; initial : Color_value.Value.t
+    ; on_event : Color_input.Event.t -> 'action
+    }
+
   type 'action calendar =
     { controller : Key.t
     ; config : Calendar.Config.t
@@ -672,6 +691,7 @@ module Expert : sig
       | Number_input
       | Otp_input
       | Calendar
+      | Color_input
     [@@deriving equal, sexp_of]
   end
 
@@ -759,6 +779,7 @@ module Expert : sig
     ; slider : 'action slider option
     ; number_input : 'action number_input option
     ; otp_input : 'action otp_input option
+    ; color_input : 'action color_input option
     ; calendar : 'action calendar option
     ; animation : 'action animation option
     ; animation_program : 'action animation_program option

@@ -72,6 +72,9 @@ impl Transport {
         self.wake_ocaml();
     }
     pub fn input(&self, event: Event) -> bool {
+        if matches!(event, Event::ColorInputEvent(..)) {
+            return self.color_batch(vec![event]);
+        }
         let success = self
             .mailbox
             .lock()
@@ -104,6 +107,16 @@ impl Transport {
     pub fn fault(&self, id: WindowId) {
         self.mailbox.lock().expect("mailbox poisoned").fault(id);
         self.wake_ocaml();
+    }
+    pub fn color_batch(&self, events: Vec<Event>) -> bool {
+        let success = self
+            .mailbox
+            .lock()
+            .expect("mailbox poisoned")
+            .color_batch(events)
+            .is_ok();
+        self.wake_ocaml();
+        success
     }
     pub fn finish(&self) {
         self.mailbox

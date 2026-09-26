@@ -105,3 +105,30 @@ GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --lib
 Final lint/format results are recorded with the checkpoint in Linear. Outer
 protocol tags, retained admission/routing, native controls and Bonsai/Eio runtime
 controllers remain pending. No color capability or GUI acceptance is claimed.
+
+## Retained bridge checkpoint — 2026-09-25
+
+Core `View.color_input` and reconciliation now connect kind 41 and operation 47
+to the retained native tree, with observation envelope 52 routed into Eio dispatch.
+Two Core expect tests and six native integration tests cover independently
+assembled full request/event fixtures (123/78 bytes), bounded decoding, stable
+seed/configuration history, callback refresh, invalid observations, stale identity
+and tree revisions, remove/remount/close, retained storage release, preview
+coalescing, ordering barriers and atomic count/byte overload rejection. A full
+queue retains the previous preview when the next required pair cannot fit.
+Same-transaction restrictive reconfiguration preserves the initially admitted seed.
+
+Local isolated macOS arm64 checks:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @test/view_api/runtest @fmt lib/eio/gpuio_eio.cmxa
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --test color_input --test calendar --test otp_input --test slider
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native --all-targets --features native-image-tests -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all --check
+```
+
+Core checks and 22 Rust integration tests pass. Final lint results accompany the
+checkpoint in Linear. No native window was opened; this is bridge acceptance,
+not mounted color-widget acceptance. Native controls, correlated runtime commands,
+popup/example, actual macOS interaction/AX/GPU/lifetime checks, capability
+advertisement and consolidated hosted gates remain pending.

@@ -166,8 +166,10 @@ models, separate from theme references. The pure native policy now tests
 preview/commit/cancel, draft/composition handling, hue memory, guarded Set/Reset,
 stale callbacks, configuration history and revision/fault lifetimes. Core control
 contracts and bounded standalone Rust/OCaml codecs now pass independent byte
-fixtures and malformed/maximum-payload checks. Mounted color controls, retained
-bridge, runtime controllers and public example remain in progress. See [color design](design/color-inputs.md)
+fixtures and malformed/maximum-payload checks. Retained descriptions, tree seed/
+history semantics, revision-checked routing and atomic bounded event batches now
+pass local bridge tests. Mounted color controls, runtime controllers and public
+example remain in progress. See [color design](design/color-inputs.md)
 and [foundation evidence](evidence/color-inputs-och36.md).
 No milestone-05 completion or hosted acceptance is claimed yet.
 

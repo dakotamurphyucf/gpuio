@@ -139,6 +139,7 @@ pub enum Kind {
     NumberInput,
     OtpInput,
     Calendar,
+    ColorInput,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -625,6 +626,11 @@ pub enum Op {
         crate::calendar::Selection,
         crate::calendar::Month,
     ),
+    SetColorInput(
+        NodeId,
+        Box<crate::color_input::Config>,
+        crate::color_value::Value,
+    ),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -795,4 +801,5 @@ pub enum Event {
         crate::calendar_input::Event,
     ),
     CalendarResult(i64, WindowId, NodeId, crate::calendar_input::Response),
+    ColorInputEvent(WindowId, NodeId, HandlerId, i64, crate::color_input::Event),
 }

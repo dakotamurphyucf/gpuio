@@ -903,6 +903,7 @@ let process t = function
     | Slider_event (id, _, _, _, _)
     | Number_input_event (id, _, _, _, _)
     | Otp_input_event (id, _, _, _, _)
+    | Color_input_event (id, _, _, _, _)
     | Calendar_event (id, _, _, _, _)
     | Rating_requested (id, _, _, _, _)
     | Choice (id, _, _, _, _)

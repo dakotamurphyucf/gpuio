@@ -57,8 +57,9 @@ let config =
 Snapshots expose the current and committed concrete values, unquantized editing
 channels, optional interaction/draft, and value-validity flags. Expert imports
 validate before constructing public snapshots. Their window/node identities stay
-separate from revisions and interaction IDs. This checkpoint does not expose a
-mounted View constructor or the Bonsai/Eio runtime controller yet.
+separate from revisions and interaction IDs. `View.color_input` describes a retained native leaf with a stable controller key,
+a configuration, an initial seed and typed observations. Native rendering and the
+Bonsai/Eio runtime controller are still being integrated.
 
 `Color_input_wire` and Rust's bounded `decode_color_*` functions encode the same
 ordered contracts. Concrete RGBA is a nonnegative bin_prot int64 in
@@ -81,16 +82,16 @@ current configuration forbids it remains the native owner's responsibility.
 
 OCaml generated wire readers are internal data readers, followed by semantic
 validation when importing public values. They are not advertised as standalone
-untrusted-input entry points. These codecs have not yet been assigned outer
-View/message/event tags or enabled in the retained bridge. Dependency pins and
-the advertised capability set remain unchanged.
+untrusted-input entry points. The retained bridge appends kind 41, operation 47 (`Set_color_input`) and event
+52 (`Color_input_event`). Correlated command/response envelopes remain pending.
+Dependency pins and the advertised capability set remain unchanged.
 
 ## Interaction policy
 
 `rust/native/src/color_input_state.rs` owns committed and preview selections,
 their HSLA representations, one optional interaction and one optional text draft.
 The corresponding Rust contract lives in `color_input.rs`. Core descriptions and
-standalone codecs share these contracts; runtime controllers and retained bridge
+standalone codecs share these contracts; runtime controllers and native widget
 integration are still in progress.
 
 Channel input uses degrees for Hue (0–360) and percentages for Saturation,
@@ -176,11 +177,34 @@ late callbacks from the old interaction. Existing editor, focus, overlay and
 ownership adapters should be reused. A mounted adapter experiment will select
 the smallest safe integration boundary before exposing control interfaces.
 
-Mounted lifecycle behavior, retained wire routing and public runtime controllers
-remain to be implemented and validated. An eyedropper remains capability-specific
+Mounted lifecycle behavior and public runtime controllers remain to be
+implemented and validated. An eyedropper remains capability-specific
 follow-on work unless a portable implementation is verified.
 
 See [local foundation evidence](../evidence/color-inputs-och36.md). Full ticket
 acceptance includes mounted native input/AX/GPU/lifetime tests, public API usage,
 Linux builds/unit tests and required hosted checks; this document does not claim
 those have passed.
+
+## Retained ownership and event admission
+
+The controller key determines retained identity. Callback-only updates and changes
+to the initial seed do not reset an existing owner. Configuration updates retain
+the original seed, including when it becomes disallowed by the new policy. A new
+identity requires an initially allowed value; a native owner created after several
+configuration operations in the same transaction preserves the tree-admitted seed.
+Removing and recreating the identity creates a new seed and event generation.
+
+The native tree accounts for retained configuration storage and enforces leaf
+shape and handler presence. Core dispatch fences window/node/handler identity,
+accepted tree revisions, monotonically increasing observation revisions and
+validated snapshots. An invalid future observation cannot advance that counter.
+
+Color event batches contain one observation or an allowed two-event transition:
+Started/Preview, Preview/Committed, or Cancelled followed by Observed/Committed.
+Pairs require the same route and consecutive revisions. Preview completion also
+requires a matching candidate and pointer/text source; text must be valid and
+not composing. Admission checks both queue count and bytes before replacing any
+previous preview. On failure the queue remains unchanged. Coalescing is limited
+to adjacent previews in the same route, interaction and committed baseline;
+commit, cancel, command-result and render events remain ordering barriers.

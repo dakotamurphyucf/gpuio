@@ -33,6 +33,9 @@ fn event_bytes(event: &Event) -> usize {
         | Event::PaletteDismissed(_, _, _, _, PaletteDismissal::Selected(id)) => id.len(),
         Event::ComboboxSelected(_, _, _, _, id, snapshot) => id.len() + snapshot.text.len(),
         Event::NumberInputEvent(_, _, _, _, event) => event.snapshot().draft.len(),
+        Event::ColorInputEvent(_, _, _, _, event) => {
+            event.snapshot().draft.as_ref().map_or(0, |d| d.text.len())
+        }
         Event::OtpInputEvent(_, _, _, _, event) => {
             event.snapshot().value.len() + event.snapshot().draft.len()
         }
@@ -66,6 +69,46 @@ fn otp_coalesces(previous: &Output, next: &Event) -> bool {
         if matches!(previous.class, Class::Input)
             && (w, n, h, r) == (window, node, handler, revision)
             && crate::otp_input_state::can_coalesce(old, new))
+}
+
+fn color_coalesces(previous: &Output, next: &Event) -> bool {
+    use gpuio_protocol::color_input::Event as ColorEvent;
+    matches!((&previous.event, next),
+        (Event::ColorInputEvent(w,n,h,r,ColorEvent::Preview(old)), Event::ColorInputEvent(w2,n2,h2,r2,ColorEvent::Preview(new)))
+        if matches!(previous.class, Class::Input) && (w,n,h,r) == (w2,n2,h2,r2)
+            && old.is_valid() && new.is_valid() && old.interaction == new.interaction
+            && old.committed == new.committed && old.committed_allowed == new.committed_allowed
+            && new.revision > old.revision)
+}
+
+fn color_pair(
+    a: &gpuio_protocol::color_input::Event,
+    b: &gpuio_protocol::color_input::Event,
+) -> bool {
+    use gpuio_protocol::color_input::{DraftStatus, Event as E, InteractionKind, Source};
+    match (a, b) {
+        (E::Cancelled(..), E::Observed(_) | E::Committed(..)) => b.snapshot().interaction.is_none(),
+        (E::Started(a), E::Preview(b)) => {
+            a.interaction == b.interaction
+                && a.committed == b.committed
+                && a.committed_allowed == b.committed_allowed
+        }
+        (E::Preview(a), E::Committed(source, b)) => {
+            a.value == b.value
+                && a.channels == b.channels
+                && a.value_allowed == b.value_allowed
+                && b.value_allowed
+                && match (a.interaction.map(|i| i.kind), source) {
+                    (Some(InteractionKind::Drag(_)), Source::Pointer) => true,
+                    (Some(InteractionKind::Text(_)), Source::Text) => a
+                        .draft
+                        .as_ref()
+                        .is_some_and(|d| !d.composing && d.status == DraftStatus::Valid),
+                    _ => false,
+                }
+        }
+        _ => false,
+    }
 }
 
 fn otp_completion_pair(events: &[Event; 2]) -> bool {
@@ -207,6 +250,11 @@ impl Mailbox {
     /// Coalesce only consecutive render observations for the same window. Never
     /// cross input/response barriers. Other input is ordered and never discarded.
     pub fn input(&mut self, event: Event) -> Result<(), Box<Event>> {
+        if matches!(event, Event::ColorInputEvent(..)) {
+            return self
+                .color_batch(vec![event])
+                .map_err(|mut events| Box::new(events.pop().expect("single color event")));
+        }
         if let Event::Rendered(id, _) = &event
             && let Some(Output {
                 event: Event::Rendered(last, revision),
@@ -430,6 +478,57 @@ impl Mailbox {
         Ok(())
     }
 
+    /// A color owner emits at most two observations per operation. Preflight
+    /// count and bytes before changing even a coalescible tail preview.
+    pub fn color_batch(&mut self, events: Vec<Event>) -> Result<(), Vec<Event>> {
+        if self.closed || events.is_empty() || events.len() > 2 {
+            return Err(events);
+        }
+        if !events.iter().all(|e| matches!(e, Event::ColorInputEvent(_,_,_,revision,event) if *revision >= 0 && event.is_valid())) {
+            return Err(events);
+        }
+        if events.len() == 2 {
+            let (Event::ColorInputEvent(w, n, h, r, a), Event::ColorInputEvent(w2, n2, h2, r2, b)) =
+                (&events[0], &events[1])
+            else {
+                unreachable!("checked event kind")
+            };
+            if (w, n, h, r) != (w2, n2, h2, r2)
+                || a.snapshot().revision.checked_add(1) != Some(b.snapshot().revision)
+                || !color_pair(a, b)
+            {
+                return Err(events);
+            }
+        }
+        let replacing = self
+            .events
+            .back()
+            .is_some_and(|old| color_coalesces(old, &events[0]));
+        let old_bytes = if replacing {
+            event_bytes(&self.events.back().unwrap().event)
+        } else {
+            0
+        };
+        let count = self.inputs + events.len() - usize::from(replacing);
+        let bytes = self.input_bytes - old_bytes + events.iter().map(event_bytes).sum::<usize>();
+        if count > MAX_INPUT_EVENTS || bytes > MAX_INPUT_BYTES {
+            return Err(events);
+        }
+        for (index, event) in events.into_iter().enumerate() {
+            if index == 0 && replacing {
+                self.events.back_mut().unwrap().event = event;
+            } else {
+                self.events.push_back(Output {
+                    event,
+                    class: Class::Input,
+                });
+            }
+        }
+        self.inputs = count;
+        self.input_bytes = bytes;
+        Ok(())
+    }
+
     /// One terminal overload notification per window generation. Reopening is
     /// refused by the host until the old window's output is drained.
     pub fn fault(&mut self, window: WindowId) {
@@ -466,6 +565,7 @@ impl Mailbox {
             | Event::NumberInputEvent(id, ..)
             | Event::OtpInputEvent(id, ..)
             | Event::CalendarEvent(id, ..)
+            | Event::ColorInputEvent(id, ..)
             | Event::Choice(id, ..)
             | Event::OverlayDismissed(id, ..)
             | Event::TooltipOpenChanged(id, ..)

@@ -12,6 +12,7 @@ module type S = sig
   module Number_input = Number_input_wire
   module Otp_input = Otp_wire
   module Calendar = Calendar_wire
+  module Color_input = Color_input_wire
   module Container_query = Container_query_wire
   module Animation_program = Animation_program_wire
   module Document = Document_wire
@@ -69,6 +70,7 @@ module type S = sig
       | Number_input
       | Otp_input
       | Calendar
+      | Color_input
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -731,6 +733,7 @@ module type S = sig
       | Set_number_input of Node_id.t * Number_input.Config.t * Number_input.Value.t
       | Set_otp_input of Node_id.t * Otp_input.Config.t * string
       | Set_calendar of Node_id.t * Calendar.Config.t * Calendar.Selection.t * int64
+      | Set_color_input of Node_id.t * Color_input.Config.t * Color_input.Value.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -963,6 +966,8 @@ module type S = sig
       | Calendar_event of
           Window_id.t * Node_id.t * Handler_id.t * int64 * Calendar.Event.t
       | Calendar_result of int64 * Window_id.t * Node_id.t * Calendar.Response.t
+      | Color_input_event of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Color_input.Event.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

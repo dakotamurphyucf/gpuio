@@ -89,6 +89,7 @@ type 'a callback =
   | Slider of Slider.Value.t * int64 ref * (Slider.Event.t -> 'a)
   | Number_input of int64 ref * (Number_input.Event.t -> 'a)
   | Otp_input of Otp_input.Policy.t * int64 ref * (Otp_input.Event.t -> 'a)
+  | Color_input of int64 ref * (Color_input.Event.t -> 'a)
   | Calendar of Calendar.Mode.t * int64 ref * (Calendar.Event.t -> 'a)
   | Combobox of Combobox.Config.t * (Combobox.Event.t -> 'a)
 
@@ -112,6 +113,7 @@ type 'a mounted =
   ; slider_seen : int64 ref
   ; number_input_seen : int64 ref
   ; otp_input_seen : int64 ref
+  ; color_input_seen : int64 ref
   ; calendar_seen : int64 ref
   ; list_identity : List_identity.t option
   ; choice_appearance : Wire.Choice_appearance.t option
@@ -251,6 +253,7 @@ let kind = function
   | Slider -> Slider
   | Number_input -> Number_input
   | Otp_input -> Otp_input
+  | Color_input -> Color_input
   | Calendar -> Calendar
   | Virtual_list -> Virtual_list
   | Canvas_view -> Canvas_view
@@ -331,6 +334,9 @@ let rec mount builder ~depth previous view =
       match previous with
       | Some mounted -> mounted.id
       | None -> new_node builder
+    in
+    let color_input_seen =
+      Option.value_map previous ~default:(ref (-1L)) ~f:(fun old -> old.color_input_seen)
     in
     let calendar_seen =
       Option.value_map previous ~default:(ref (-1L)) ~f:(fun old -> old.calendar_seen)
@@ -501,6 +507,12 @@ let rec mount builder ~depth previous view =
           (Otp_input (Otp_input.Config.policy input.config, otp_input_seen, input.on_event))
       | None, callback -> callback
       | Some _, Some _ -> fail "OTP input cannot combine another handler"
+    in
+    let callback =
+      match description.color_input, callback with
+      | Some input, None -> Some (Color_input (color_input_seen, input.on_event))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "color input cannot combine another handler"
     in
     let callback =
       match description.calendar, callback with
@@ -939,6 +951,24 @@ let rec mount builder ~depth previous view =
              ( id
              , Otp_input.Expert.config_to_wire input.config
              , Otp_input.Expert.value_to_wire input.initial )));
+    Option.iter description.color_input ~f:(fun input ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          (View.Expert.describe mounted.view).color_input)
+      in
+      if Option.is_none old && not (Color_input.Config.allows input.config input.initial)
+      then fail "color seed is disabled by its alpha/empty policy";
+      if
+        not
+          (Option.exists old ~f:(fun old ->
+             Color_input.Config.equal old.config input.config))
+      then
+        emit
+          builder
+          (Set_color_input
+             ( id
+             , Color_input.Expert.config_to_wire input.config
+             , Color_input.Expert.value_to_wire input.initial )));
     Option.iter description.calendar ~f:(fun calendar ->
       let mode = Calendar.Config.mode calendar.config in
       if not (Calendar.Selection.fits calendar.initial ~mode)
@@ -1227,15 +1257,17 @@ let rec mount builder ~depth previous view =
             , description.slider
             , description.number_input
             , description.otp_input
-            , description.calendar )
+            , description.calendar
+            , description.color_input )
           with
-          | Some editor, None, None, None, None, None -> Some editor.controller
-          | None, Some combo, None, None, None, None -> Some combo.controller
-          | None, None, Some slider, None, None, None -> Some slider.controller
-          | None, None, None, Some input, None, None -> Some input.controller
-          | None, None, None, None, Some input, None -> Some input.controller
-          | None, None, None, None, None, Some calendar -> Some calendar.controller
-          | None, None, None, None, None, None -> None
+          | Some editor, None, None, None, None, None, None -> Some editor.controller
+          | None, Some combo, None, None, None, None, None -> Some combo.controller
+          | None, None, Some slider, None, None, None, None -> Some slider.controller
+          | None, None, None, Some input, None, None, None -> Some input.controller
+          | None, None, None, None, Some input, None, None -> Some input.controller
+          | None, None, None, None, None, Some calendar, None -> Some calendar.controller
+          | None, None, None, None, None, None, None -> None
+          | None, None, None, None, None, None, Some input -> Some input.controller
           | _ -> fail "incompatible controller descriptions"
         in
         Option.value_map controller ~default:String.Set.empty ~f:(fun key ->
@@ -1295,6 +1327,7 @@ let rec mount builder ~depth previous view =
     ; slider_seen
     ; number_input_seen
     ; otp_input_seen
+    ; color_input_seen
     ; calendar_seen
     ; list_identity
     ; choice_appearance
@@ -1620,6 +1653,7 @@ let dispatch t = function
         | Slider _
         | Number_input _
         | Otp_input _
+        | Color_input _
         | Calendar _
         | Choice _
         | Combobox _
@@ -1709,6 +1743,27 @@ let dispatch t = function
        then None
        else (
          match Otp_input.Expert.event_of_wire ~window ~node event with
+         | Error _ -> None
+         | Ok event ->
+           seen := snapshot.revision;
+           Some (callback event))
+     | Some _ | None -> None)
+  | Color_input_event (window, node, handler, revision, event)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Color_input (seen, callback)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       let snapshot = Wire.Color_input.Event.snapshot event in
+       if Int64.(snapshot.revision <= !seen)
+       then None
+       else (
+         match Color_input.Expert.event_of_wire ~window ~node event with
          | Error _ -> None
          | Ok event ->
            seen := snapshot.revision;
@@ -1960,6 +2015,7 @@ let dispatch t = function
   | Number_input_result _
   | Number_input_event _
   | Otp_input_event _
+  | Color_input_event _
   | Calendar_event _
   | Container_selected _
   | List_retained _

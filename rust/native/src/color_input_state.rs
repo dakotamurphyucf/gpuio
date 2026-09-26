@@ -52,6 +52,15 @@ impl State {
         if !config.allows(seed) {
             return Err(Error::InvalidValue);
         }
+        Self::from_retained(config, seed)
+    }
+    /// The retained tree validates the seed when first admitted. Configuration
+    /// may become restrictive in the same atomic transaction before mounting.
+    /// Preserve that accepted history rather than silently coercing it.
+    pub fn from_retained(config: Arc<Config>, seed: Value) -> Result<Self, Error> {
+        if !config.is_valid() {
+            return Err(Error::InvalidConfig);
+        }
         Ok(Self {
             config,
             seed,
