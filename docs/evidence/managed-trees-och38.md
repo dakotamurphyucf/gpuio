@@ -63,3 +63,68 @@ preferences/keyboard reduction, generation-checked lazy loading, managed row
 projection, native tree semantics/input/reveal/move intents, public Eio filesystem
 usage and large/deep/full-traversal native lifecycle acceptance. Consolidated
 macOS/Linux hosted gates and merge also remain. Linux GUI acceptance is OCH-17.
+
+## Persistent preferences and logical navigation — 2026-09-26
+
+`Tree_state` now separates expansion/selection preferences and the logical active
+item from `Tree` application payloads. Its public interface was drafted before
+implementation. Selected/expanded maps carry node incarnations; the cached visible
+order/index contains IDs and minimal parent/disabled/incarnation metadata only.
+Neither this state nor the collection owns native rows, OS focus or Eio producers.
+
+The model supports validated programmatic preferences, Single/Multiple policy,
+Replace/Toggle/Range gestures and a stable range anchor. User requests ignore
+missing, hidden and disabled targets; programmatic preferences may deliberately
+include hidden/disabled members. Collapse preserves descendant preferences while
+moving an active descendant to an eligible ancestor. Reconciliation prunes removed
+or reincarnated preferences and invalid leaf expansion. Deleted/disabled active
+items use the documented ancestor/neighbor fallback without choosing a new
+selection implicitly.
+
+The pure `navigate` reducer handles Previous/Next/First/Last/Parent/Child, branch
+opening/closing, disabled-row skipping and cursor-only versus selection/range
+movement. This is logical keyboard semantics; actual GPUI keyboard delivery,
+IME priority, native focus/reveal and typeahead are still pending native integration.
+
+Passing local macOS arm64 expect tests cover:
+
+- Nested collapse/reopen keeps selected descendants and their expansion, excludes
+  hidden requests, and repairs the logical active item independently.
+- Range growth/shrink uses visible order, skips disabled nodes, preserves the
+  anchor, supports union and handles a hidden anchor through active-item fallback.
+- Duplicate/missing/leaf preferences reject; explicit disabled selection is kept;
+  changing selection mode preserves a selected active item or the first selected
+  item in full hierarchy order. Single-mode toggle remains single selection.
+- Reorder preserves the active item and preferences. Leaf conversion/deletion
+  prunes incompatible preferences and chooses an ancestor. Deletion/reintroduction
+  rejects stale selected/anchor incarnations even if the intermediate empty state
+  was never reconciled. Empty/fully disabled sources clear the logical cursor.
+- Payload-only tree updates return the same state snapshot. Selection/focus share
+  visible metadata. With 100,000 selected nodes, 1,000 logical focus changes retain
+  one visible snapshot; selection is not represented as active row computations.
+- An explicit weak-reference/major-GC test proves a 1 MiB application payload is
+  collectible while selected/visible metadata remains alive.
+- Tree keyboard reduction covers branch open/enter/parent/close, Home/End,
+  disabled skipping, Shift range extension, cursor-only movement and empty input.
+
+Commands:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 lib/core/gpuio.cma
+GPUIO_JOBS=2 ./scripts/gpuio exec dune runtest -j 2 test/view_api
+./scripts/gpuio exec ocamlformat --inplace lib/core/tree_state.ml lib/core/tree_state.mli test/view_api/tree_state_test.ml
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @runtest @fmt
+git diff --check
+```
+
+The final complete build, expect suites and formatting pass. Two intermediate
+expect runs differed only in pretty-printed line wrapping; the observed semantic
+values were checked and the exact expected whitespace corrected manually. All
+assertions, including the GC and large selection cases, pass in the final run.
+The final log is `tree-state-dune-all.log` in the agent's ignored scratch folder.
+No GUI process or Rust/protocol change was required for this pure Core checkpoint.
+
+Next are generation-checked lazy loading, managed row projection and native/public
+integration. These tests do not establish native focus/AX/IME, bounded native row
+caches across traversal, cancellation of Eio producers, or filesystem behavior.
+No tree capability, hosted validation or completed OCH-38 ticket is claimed.

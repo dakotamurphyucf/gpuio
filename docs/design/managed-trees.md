@@ -1,8 +1,8 @@
 # Managed trees (OCH-38)
 
-Status: the Core `Tree` collection is implemented. Preferences, lazy-load
-controller, managed row view, native tree input/semantics and public example are
-still to implement. No tree wire protocol or capability is advertised. This
+Status: the Core `Tree` collection and `Tree_state` expansion, selection, visible
+projection and logical navigation reducer are implemented. Lazy loading,
+managed row views, native tree input/semantics and the public example remain. No tree wire protocol or capability is advertised. This
 document preserves the full live ticket scope; model tests do not establish
 native widget acceptance.
 
@@ -105,6 +105,40 @@ versions for the future loader. They are not globally unique tokens: an Eio
 controller must pair them with its own identity/reset generation. The precise
 preferences/request and incremental splice interfaces will be drafted beside
 their model implementation before adding native tags.
+
+## Persistent state and visible projection
+
+`Tree_state` is separate from the payload-bearing `Tree`. It stores incarnation-
+checked selected/expanded ID maps, a range anchor, a logical active ID, and one
+cached visible order/index. It owns no payloads, row computations, OS focus handles
+or asynchronous producers. A full selection of 100,000 logical items therefore
+must not become 100,000 native focus pins; the native adapter still has to enforce
+that contract during managed-row integration.
+
+Constructors/programmatic setters validate duplicates, membership and leaf
+expansion. Programmatic selection/expansion may include disabled or hidden nodes;
+user selection, focus and expansion requests ignore them. Single mode treats all
+selection gestures as replacement. Multiple supports toggle and visible-range
+replacement/union, skipping disabled rows. Range anchors survive repeated Shift
+movement; hidden anchors fall back to an eligible active ID, then the target.
+Programmatic selection replacement and mode changes clear the range anchor.
+
+`reconcile` removes absent/reincarnated preferences and expansion for nodes that
+are now leaves. Collapsing preserves descendant preferences, while the logical
+cursor moves to the closest eligible visible ancestor. Deletion uses surviving
+old ancestors first, then the next enabled item at the former position, or the
+last preceding enabled item. Empty/fully disabled orders clear it. Source resets
+must create new state because collection-local incarnation numbers do not cross
+independent `Tree.create` lineages.
+
+The visible projection rebuilds after hierarchy/expansion changes. It contains
+loaded node IDs and minimal parent/incarnation/disabled metadata, not payloads.
+Payload-only changes share `Tree.preorder`, allowing state reconciliation to return
+the existing snapshot. Selection and focus operations share visible metadata.
+`Tree_state.navigate` implements Previous/Next/First/Last/Parent/Child with optional
+selection gestures: it can move the cursor without changing selection, extend a
+range, or collapse/expand while preserving selection. It is a pure reducer; native
+key delivery, OS focus/reveal, typeahead and lazy-load effects are not yet wired.
 
 ## Keyboard, focus and accessibility
 

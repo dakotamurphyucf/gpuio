@@ -85,9 +85,12 @@ OCH-38 now has a pure Core `Tree` collection with stable typed IDs, validated fl
 forest topology, revisioned replacement, parent/ancestor/sibling metadata and
 O(log n) payload updates sharing topology. Expect tests exercise malformed graphs,
 100,000-node traversal/reorder, depth/metadata limits and distinct incarnation/
-child revisions for future lazy-load admission. Preferences, loader, managed rows,
-native tree input/accessibility and public filesystem usage are still to implement;
-no tree capability is advertised. See the [managed-tree design](design/managed-trees.md).
+child revisions for future lazy-load admission. `Tree_state` now adds separate
+incarnation-checked expansion/selection preferences, cached visible order, logical
+cursor repair, single/multiple/range selection and pure tree keyboard reduction.
+Tests cover hidden/disabled/reordered/reincarnated nodes, 100,000 selections and
+application-payload collection. Loader, managed rows, native tree input/accessibility,
+typeahead and public filesystem usage remain; no tree capability is advertised. See the [managed-tree design](design/managed-trees.md).
 
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
 components pass local acceptance; OCH-24 has validated geometry, a bounded scene
