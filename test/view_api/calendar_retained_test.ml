@@ -35,6 +35,92 @@ let hex text =
   |> String.concat
 ;;
 
+let%expect_test "calendar correlated command fixtures and malformed responses" =
+  let request =
+    Wire.Message.Calendar_command
+      ( 9L
+      , window
+      , node
+      , Replace
+          { selection = Range_start (C.Expert.date_to_ordinal (day "2024-02-28") |> ok)
+          ; if_revision = Some 7L
+          } )
+  in
+  let selected =
+    { snapshot with
+      revision = 8L
+    ; mode = Range
+    ; selection =
+        C.Expert.selection_to_wire
+          (C.Selection.range
+             (C.Range.create ~first:(day "2024-03-04") ~last:(day "2024-03-05") |> ok))
+    ; month = C.Expert.month_to_wire (C.Month.of_date (day "2024-03-01") |> ok)
+    ; focused_date = C.Expert.date_to_ordinal (day "2024-03-05") |> ok
+    ; focused = true
+    }
+  in
+  let response = Wire.Event.Calendar_result (9L, window, node, Applied selected) in
+  let encoded = event_bytes [ response ] in
+  Eio_main.run (fun env ->
+    let fs = Eio.Stdenv.fs env in
+    assert (
+      String.equal
+        (Wire.Message.encode request |> ok |> hex)
+        (Eio.Path.load Eio.Path.(fs / "calendar-command-request.hex") |> String.strip));
+    assert (
+      String.equal
+        (hex encoded)
+        (Eio.Path.load Eio.Path.(fs / "calendar-command-events.hex") |> String.strip)));
+  assert (List.equal Wire.Event.equal (Wire.Event.decode encoded |> ok) [ response ]);
+  for length = 0 to String.length encoded - 1 do
+    assert (Result.is_error (Wire.Event.decode (String.prefix encoded length)))
+  done;
+  assert (Result.is_error (Wire.Event.decode (encoded ^ "\000")));
+  List.iter [ 0L; -1L; Int64.min_value ] ~f:(fun correlation ->
+    assert (
+      Result.is_error
+        (Wire.Message.encode
+           (Calendar_command (correlation, window, node, Read_snapshot))));
+    assert (
+      Result.is_error
+        (Wire.Event.decode
+           (event_bytes [ Calendar_result (correlation, window, node, Applied selected) ]))));
+  List.iter
+    [ { selected with revision = -1L }
+    ; { selected with mode = Single }
+    ; { selected with focused_date = -1L }
+    ; { selected with month = 0L }
+    ; { selected with selection = Empty; selection_allowed = false }
+    ]
+    ~f:(fun invalid ->
+      assert (
+        Result.is_error
+          (Wire.Event.decode
+             (event_bytes [ Calendar_result (9L, window, node, Applied invalid) ]))));
+  List.iter
+    [ W.Command.Move_months Int64.max_value
+    ; Move_months (-119988L)
+    ; Focus_date (-1L)
+    ; Show_month 119988L
+    ; Clear { if_revision = Some (-1L) }
+    ]
+    ~f:(fun invalid ->
+      assert (
+        Result.is_error
+          (Wire.Message.encode (Calendar_command (9L, window, node, invalid)))));
+  let failed = Wire.Event.Calendar_result (9L, window, node, Failed Stale_revision) in
+  assert (
+    List.equal
+      Wire.Event.equal
+      (Wire.Event.decode (event_bytes [ failed ]) |> ok)
+      [ failed ]);
+  print_endline
+    "message 17 / event 51: independent fixtures, correlation, bounded commands and \
+     validated snapshots";
+  [%expect
+    {| message 17 / event 51: independent fixtures, correlation, bounded commands and validated snapshots |}]
+;;
+
 let%expect_test "calendar retained envelopes use independent tags and validate events" =
   let config = Calendar_wire_test.config () in
   let request =

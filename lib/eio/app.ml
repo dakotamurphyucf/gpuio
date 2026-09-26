@@ -6,6 +6,7 @@ module Input = Gpuio.Text_input
 module Slider = Gpuio.Slider
 module Number_input = Gpuio.Number_input
 module Otp_input = Gpuio.Otp_input
+module Calendar = Gpuio.Calendar
 module Dialog = Gpuio.File_dialog
 module Native_window = Gpuio.Window
 
@@ -35,6 +36,14 @@ type otp_input_request =
   ; policy : Otp_input.Policy.t
   ; minimum_revision : Otp_input.Revision.t
   ; complete : (Otp_input.Snapshot.t, Otp_input.Command_error.t) Result.t -> unit
+  }
+
+type calendar_request =
+  { window : Window_id.t
+  ; node : Node_id.t
+  ; mode : Calendar.Mode.t
+  ; minimum_revision : Calendar.Revision.t
+  ; complete : (Calendar.Snapshot.t, Calendar.Command_error.t) Result.t -> unit
   }
 
 type window_result = (Native_window.Snapshot.t, Native_window.Error.t) Result.t
@@ -85,6 +94,7 @@ type t =
   ; mutable sliders : slider_request Int64.Map.t
   ; mutable number_inputs : number_input_request Int64.Map.t
   ; mutable otp_inputs : otp_input_request Int64.Map.t
+  ; mutable calendars : calendar_request Int64.Map.t
   ; mutable dialogs : dialog_request Int64.Map.t
   ; mutable window_requests : window_request Int64.Map.t
   ; mutable window_capabilities : Native_window.Capabilities.t option
@@ -326,6 +336,12 @@ let release_window window =
     in
     window.app.otp_inputs <- remaining_otp_inputs;
     Map.iter cancelled_otp_inputs ~f:(fun request -> request.complete (Error Closed));
+    let cancelled_calendars, remaining_calendars =
+      Map.partition_tf window.app.calendars ~f:(fun request ->
+        Window_id.equal request.window window.id)
+    in
+    window.app.calendars <- remaining_calendars;
+    Map.iter cancelled_calendars ~f:(fun request -> request.complete (Error Closed));
     Map.iter cancelled ~f:(fun request -> request.complete (Error Closed));
     let cancelled_dialogs, remaining_dialogs =
       Map.partition_tf window.app.dialogs ~f:(fun request ->
@@ -606,6 +622,36 @@ module Window = struct
                  ; complete = callback
                  };
           queue t.app (Otp_input_command (request, t.id, node, command))))
+    ;;
+
+    let calendar_command t snapshot command =
+      Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+        check t.app;
+        if is_closed t || t.app.stopping
+        then callback (Error Calendar.Command_error.Closed)
+        else if not (Window_id.equal t.id (Calendar.Expert.window snapshot))
+        then callback (Error Stale_input)
+        else (
+          match Calendar.Expert.command_to_wire command with
+          | Error _ -> callback (Error Invalid_value)
+          | Ok command ->
+            if Map.length t.app.calendars >= 64
+            then callback (Error Busy)
+            else (
+              let request = correlation t.app in
+              let node = Calendar.Expert.node snapshot in
+              t.app.calendars
+              <- Map.set
+                   t.app.calendars
+                   ~key:request
+                   ~data:
+                     { window = t.id
+                     ; node
+                     ; mode = Calendar.Snapshot.mode snapshot
+                     ; minimum_revision = Calendar.Snapshot.revision snapshot
+                     ; complete = callback
+                     };
+              queue t.app (Calendar_command (request, t.id, node, command)))))
     ;;
 
     let editor_command t snapshot command =
@@ -956,6 +1002,26 @@ let process t = function
        in
        pending.complete result
      | Some _ | None -> ())
+  | Calendar_result (request, id, node, result) ->
+    (match Map.find t.calendars request with
+     | Some pending
+       when Window_id.equal pending.window id && Node_id.equal pending.node node ->
+       t.calendars <- Map.remove t.calendars request;
+       let result =
+         match result with
+         | Failed error -> Error (Calendar.Expert.error_of_wire error)
+         | Applied snapshot ->
+           (match Calendar.Expert.snapshot_of_wire ~window:id ~node snapshot with
+            | Ok snapshot
+              when Calendar.Mode.equal pending.mode (Calendar.Snapshot.mode snapshot)
+                   && Calendar.Revision.compare
+                        (Calendar.Snapshot.revision snapshot)
+                        pending.minimum_revision
+                      >= 0 -> Ok snapshot
+            | Ok _ | Error _ -> Error Calendar.Command_error.Native_failure)
+       in
+       pending.complete result
+     | Some _ | None -> ())
   | Editor_result (request, id, node, result) ->
     (match Map.find t.editors request with
      | Some pending
@@ -1055,6 +1121,24 @@ let process t = function
     let pending = Map.find_exn t.otp_inputs request in
     t.otp_inputs <- Map.remove t.otp_inputs request;
     let error : Otp_input.Command_error.t =
+      match code with
+      | Closed -> Closed
+      | Stale_handle -> Stale_input
+      | Busy | Overloaded -> Busy
+      | Limit_exceeded -> Limit_exceeded
+      | Unsupported_version
+      | Unsupported_capability
+      | Malformed
+      | Not_ready
+      | Invalid_revision
+      | Invalid_tree
+      | Native_failure -> Native_failure
+    in
+    pending.complete (Error error)
+  | Failed (request, code) when Map.mem t.calendars request ->
+    let pending = Map.find_exn t.calendars request in
+    t.calendars <- Map.remove t.calendars request;
+    let error : Calendar.Command_error.t =
       match code with
       | Closed -> Closed
       | Stale_handle -> Stale_input
@@ -1263,6 +1347,7 @@ let worker native read ~tick_hz ~max_tasks ~motion initialize =
         ; sliders = Int64.Map.empty
         ; number_inputs = Int64.Map.empty
         ; otp_inputs = Int64.Map.empty
+        ; calendars = Int64.Map.empty
         ; dialogs = Int64.Map.empty
         ; window_requests = Int64.Map.empty
         ; window_capabilities = None

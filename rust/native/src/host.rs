@@ -1855,6 +1855,13 @@ pub fn run(transport: Arc<Transport>) {
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),
                             }
                         }
+                        Message::CalendarCommand(correlation, id, node, command) => {
+                            use gpuio_protocol::calendar_input::{Error, Response};
+                            let result = windows.get(&id).and_then(|handle| handle.update(cx, |view, window, cx| {
+                                view.calendars.get(&node).map(|input| input.command(&command, window, cx)).unwrap_or(Response::Failed(Error::StaleInput))
+                            }).ok()).unwrap_or(Response::Failed(Error::Closed));
+                            transport.respond(Event::CalendarResult(correlation, id, node, result));
+                        }
                         Message::OtpInputCommand(correlation, id, node, command) => {
                             use gpuio_protocol::otp_input::{Error, Response};
                             let result = windows.get(&id).and_then(|handle| handle.update(cx, |view, window, cx| {

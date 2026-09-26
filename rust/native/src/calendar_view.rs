@@ -126,18 +126,23 @@ impl Calendar {
         window.focus(&self.focus, cx);
         self.focus.is_focused(window)
     }
-    fn on_focus(&mut self, _: &mut Window, cx: &mut Context<Self>) {
-        let result = self.model.observe_focus(true);
+    fn on_focus(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let result = self.model.observe_focus(self.focus.is_focused(window));
         self.publish(result, cx);
     }
-    fn on_blur(&mut self, _: &mut Window, cx: &mut Context<Self>) {
-        let result = self.model.observe_focus(false);
+    fn on_blur(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let result = self.model.observe_focus(self.focus.is_focused(window));
         self.publish(result, cx);
     }
     fn hide(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.focus.is_focused(window) {
             window.blur(cx);
         }
+        // A hidden ancestor can remove the focused element from GPUI's dispatch
+        // tree before its blur subscription runs. Publish the confirmed platform
+        // state here as well; a later blur callback is an idempotent no-op.
+        let result = self.model.observe_focus(self.focus.is_focused(window));
+        self.publish(result, cx);
     }
     fn key(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
         let modifiers = event.keystroke.modifiers;
@@ -609,6 +614,54 @@ impl Instance {
     pub(super) fn focus_handle(&self, cx: &App) -> FocusHandle {
         self.state.read(cx).focus.clone()
     }
+    pub(super) fn command(
+        &self,
+        command: &c::Command,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> c::Response {
+        self.state.update(cx, |state, cx| {
+            if !state
+                .route
+                .session
+                .borrow()
+                .accepts_input(state.route.window)
+            {
+                return c::Response::Failed(c::Error::NativeFailure);
+            }
+            if !state.route.current(state.model.config()) {
+                return c::Response::Failed(c::Error::StaleInput);
+            }
+            let focus = state.focus.clone();
+            let gate = state.route.gate.clone();
+            let node = state.route.node;
+            let outcome = state.model.execute(command, || {
+                if !gate.borrow().allows(node) {
+                    return Err(c::Error::FocusBlocked);
+                }
+                window.focus(&focus, cx);
+                if focus.is_focused(window) {
+                    Ok(())
+                } else {
+                    Err(c::Error::NativeFailure)
+                }
+            });
+            if matches!(
+                outcome.response,
+                c::Response::Failed(c::Error::LimitExceeded)
+            ) {
+                state.route.fault();
+            }
+            let changed = !outcome.events.is_empty();
+            if !state.route.emit(outcome.events) {
+                return c::Response::Failed(c::Error::NativeFailure);
+            }
+            if changed {
+                cx.notify();
+            }
+            outcome.response
+        })
+    }
     pub(super) fn element(
         &self,
         base: Stateful<Div>,
@@ -679,7 +732,7 @@ impl View {
         for (id, instance) in &self.calendars {
             let s = instance.state.read(cx);
             if (!self.visited.contains(id) || s.access() == Access::Blocked)
-                && s.focus.is_focused(window)
+                && (s.focus.is_focused(window) || s.model.snapshot().focused)
             {
                 let weak = instance.state.downgrade();
                 window.defer(cx, move |w, cx| {

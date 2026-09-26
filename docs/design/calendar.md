@@ -6,8 +6,8 @@ calendar policy owner pass local tests. Retained view descriptions, tree admissi
 revision-checked event routing and atomic completion mailbox admission are connected.
 The OCaml model also provides strict date formatting/parsing. A mounted GPUI
 calendar now renders and passes initial macOS keyboard/pointer and event/lifetime
-checks. Public controllers, popup composition and full native acceptance remain
-required.
+checks. The public Bonsai/Eio controller and correlated command bridge pass local
+integration tests. Popup composition and full native acceptance remain required.
 No calendar capability is advertised yet. See the
 [foundation evidence](../evidence/calendar-och35.md).
 
@@ -120,9 +120,9 @@ Mode changes require remount. Configuration updates retain selection/navigation.
 The owner reserves event revision capacity before any mutation or native focus
 side effect, including both slots of a potential Changed/Selected pair. Exhaustion
 is conservative even when an operation might be a no-op. Read_snapshot remains
-available without advancing revisions. The GPUI/bridge adapter still must check
-leases, actual focus gates, publish event batches atomically and fault on lost
-required output; standalone policy tests do not establish those adapter behaviors.
+available without advancing revisions. The GPUI adapter checks leases and actual focus gates, publishes completion pairs
+atomically and faults on lost required output. Local mounted tests cover those
+paths separately from standalone policy tests.
 
 Standalone Rust decoders check full consumption and cap configurations at 24 KiB,
 constraint blocks at 7100 bytes, selections at 19 bytes, events/responses at 128
@@ -209,3 +209,33 @@ stale commands/events, independent windows, scale/themes/accessibility, idle wor
 and repeated disposal. Include inline and popup public examples and final OCH-46
 chat integration. macOS native acceptance and required Linux builds/tests follow
 project policy; full Linux GUI release acceptance remains OCH-17.
+
+## Public controller and correlated commands
+
+`Gpuio_eio.Calendar.create` takes a window, reactive configuration, a seed
+selection and an initial month. Place `Calendar.view controller` once. The
+controller exposes snapshots and effects for reads, focus/reveal, month navigation,
+presentation, replace and clear. `replace_if_unchanged` guards both the exact
+native lease and the supplied observation revision. An unplaced controller has
+`Not_mounted`; an old mounted lease returns `Stale_input` after removal/remount.
+The retained controller can keep its last observation while unplaced; this does
+not grant access to a replacement native owner.
+
+Protocol message 17 carries correlation/window/node/command; event 51 returns
+correlation/window/node/result. Independent fixtures freeze these tags. The Eio
+adapter admits at most 64 pending calendar requests per application, validates
+command conversion before queueing, and checks reply identity, mode and minimum
+observed revision. Closing a window completes outstanding requests; already
+admitted native reads remain ordered before close. Replies cannot replace a
+newly mounted lease or a newer observation in the controller.
+
+Explicit selection replacements remain available hidden/disabled/read-only,
+subject to current mode and constraints. Focus and reveal require actual native
+focus eligibility; failed reveal must not change navigation. Reads never advance
+revisions. Native hide cleanup observes the platform focus directly: removing a
+focused dispatch node must not leave a stale `focused=true` snapshot. Focus/blur
+subscriptions also sample actual focus, making delayed cleanup idempotent.
+
+The [Calendar Lab](../../examples/calendar/README.md) exercises both selection
+modes and supplies a real-window bridge self-test. It does not yet demonstrate a
+popup picker or establish external OS keyboard/accessibility acceptance.

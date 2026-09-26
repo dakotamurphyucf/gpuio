@@ -244,6 +244,63 @@ async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Tra
     key(cx, handle, "right");
     frame(cx, handle).await;
     assert_eq!(snapshot(cx, handle), disabled);
+    events(transport);
+    let command = |cx: &mut AsyncApp, command: c::Command| {
+        handle
+            .update(cx, |v, w, cx| v.calendars[&node()].command(&command, w, cx))
+            .unwrap()
+    };
+    assert_eq!(
+        command(cx, c::Command::ReadSnapshot),
+        c::Response::Applied(disabled.clone())
+    );
+    assert_eq!(
+        command(cx, c::Command::FocusDate(date(2030, 1, 1))),
+        c::Response::Failed(c::Error::FocusBlocked)
+    );
+    assert_eq!(snapshot(cx, handle), disabled);
+    let result = command(
+        cx,
+        c::Command::Clear {
+            if_revision: Some(disabled.revision),
+        },
+    );
+    assert!(matches!(result, c::Response::Applied(ref s) if s.selection == c::Selection::Empty));
+    assert!(
+        matches!(events(transport).as_slice(), [c::Event::Observed(s)] if s.selection == c::Selection::Empty)
+    );
+    assert_eq!(
+        command(
+            cx,
+            c::Command::Clear {
+                if_revision: Some(disabled.revision)
+            }
+        ),
+        c::Response::Failed(c::Error::StaleRevision)
+    );
+    assert!(events(transport).is_empty());
+    // Programmatic focus followed by ancestor visibility cleanup must update the
+    // snapshot even when GPUI drops the focused dispatch node before on_blur.
+    let mut enabled = config();
+    enabled.auto_focus = false;
+    apply(cx, handle, vec![set(enabled)]);
+    frame(cx, handle).await;
+    assert!(matches!(command(cx, c::Command::Focus), c::Response::Applied(s) if s.focused));
+    apply(
+        cx,
+        handle,
+        vec![Op::SetStyle(
+            node(),
+            vec![Style::Fields(vec![Field::Visibility(1)])],
+        )],
+    );
+    frame(cx, handle).await;
+    frame(cx, handle).await;
+    assert!(!snapshot(cx, handle).focused);
+    assert_eq!(
+        command(cx, c::Command::Focus),
+        c::Response::Failed(c::Error::FocusBlocked)
+    );
     let old_owner = handle
         .update(cx, |v, _, _| v.calendars[&node()].state.downgrade())
         .unwrap();
@@ -422,6 +479,15 @@ async fn exercise_range(cx: &mut AsyncApp, handle: WindowHandle<View>, transport
     handle
         .update(cx, |v, _, _| {
             assert!(!v.session.borrow().accepts_input(v.id))
+        })
+        .unwrap();
+    handle
+        .update(cx, |v, w, cx| {
+            assert_eq!(
+                v.calendars[&id].command(&c::Command::Clear { if_revision: None }, w, cx),
+                c::Response::Failed(c::Error::NativeFailure)
+            );
+            assert_eq!(v.calendars[&id].state.read(cx).model.snapshot(), after);
         })
         .unwrap();
     eprintln!(

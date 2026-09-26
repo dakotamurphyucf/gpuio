@@ -487,6 +487,7 @@ impl Mailbox {
             | Event::ComboboxSelected(id, ..)
             | Event::SliderResult(_, id, ..)
             | Event::NumberInputResult(_, id, ..)
+            | Event::CalendarResult(_, id, ..)
             | Event::OtpInputResult(_, id, ..)
             | Event::EditorResult(_, id, ..)
             | Event::FileDialogResult(_, id, ..)

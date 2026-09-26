@@ -652,6 +652,7 @@ pub enum Message {
     SliderCommand(i64, WindowId, NodeId, crate::slider::Command),
     NumberInputCommand(i64, WindowId, NodeId, crate::number_input::Command),
     OtpInputCommand(i64, WindowId, NodeId, crate::otp_input::Command),
+    CalendarCommand(i64, WindowId, NodeId, crate::calendar_input::Command),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -791,4 +792,5 @@ pub enum Event {
         i64,
         crate::calendar_input::Event,
     ),
+    CalendarResult(i64, WindowId, NodeId, crate::calendar_input::Response),
 }

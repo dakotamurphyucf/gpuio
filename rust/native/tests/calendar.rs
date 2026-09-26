@@ -465,3 +465,39 @@ fn calendar_completion_byte_admission_and_discrete_selection_order() {
     expected.push(observed);
     assert_eq!(mailbox.drain(128), expected);
 }
+
+#[test]
+fn correlated_calendar_reply_reservation_and_window_retirement_barrier() {
+    let mut mailbox = Mailbox::default();
+    let request = Message::CalendarCommand(9, window(), node(), c::Command::ReadSnapshot);
+    mailbox.submit(request.clone(), 7).unwrap();
+    assert_eq!(mailbox.pop(), Some(request));
+    let reply = Event::CalendarResult(9, window(), node(), c::Response::Applied(snapshot(1)));
+    mailbox.input(Event::Rendered(window(), 1)).unwrap();
+    mailbox.respond(reply.clone());
+    mailbox.input(Event::Rendered(window(), 2)).unwrap();
+    assert_eq!(mailbox.drain(1), vec![Event::Rendered(window(), 1)]);
+    assert!(mailbox.has_window_output(window().slot()));
+    assert_eq!(mailbox.drain(1), vec![reply]);
+    assert!(mailbox.has_window_output(window().slot()));
+    assert_eq!(mailbox.drain(1), vec![Event::Rendered(window(), 2)]);
+    assert!(!mailbox.has_window_output(window().slot()));
+    // Pending responses alone must prevent slot reuse, including failed commands.
+    mailbox
+        .submit(
+            Message::CalendarCommand(10, window(), node(), c::Command::Focus),
+            7,
+        )
+        .unwrap();
+    mailbox.pop().unwrap();
+    let failed = Event::CalendarResult(
+        10,
+        window(),
+        node(),
+        c::Response::Failed(c::Error::FocusBlocked),
+    );
+    mailbox.respond(failed.clone());
+    assert!(mailbox.has_window_output(window().slot()));
+    assert_eq!(mailbox.drain(128), vec![failed]);
+    assert!(!mailbox.has_window_output(window().slot()));
+}

@@ -161,6 +161,79 @@ fn fixture(value: &impl BinProtWrite, expected: &str) -> Vec<u8> {
 }
 
 #[test]
+fn correlated_calendar_commands_match_independent_envelopes_and_validate_payloads() {
+    use gpuio_protocol::{NodeId, WindowId, decode, v1};
+    let window = WindowId::from_parts(0, 1).unwrap();
+    let node = NodeId::from_parts(0, 1).unwrap();
+    let command = Command::Replace {
+        selection: Selection::RangeStart(date(2024, 2, 28)),
+        if_revision: Some(7),
+    };
+    let request = v1::Message::CalendarCommand(9, window, node, command.clone());
+    let encoded = fixture(
+        &request,
+        include_str!("../../../test/fixtures/calendar-command-request.hex"),
+    );
+    assert_eq!(decode(&encoded), Ok(request));
+    for end in 0..encoded.len() {
+        assert!(decode(&encoded[..end]).is_err());
+    }
+    let mut trailing = encoded;
+    trailing.push(0);
+    assert!(decode(&trailing).is_err());
+    for correlation in [0, -1, i64::MIN] {
+        assert!(
+            decode(&bytes(&v1::Message::CalendarCommand(
+                correlation,
+                window,
+                node,
+                command.clone(),
+            )))
+            .is_err()
+        );
+    }
+    for command in [
+        Command::MoveMonths(i64::MIN),
+        Command::MoveMonths(119988),
+        Command::Clear {
+            if_revision: Some(-1),
+        },
+    ] {
+        assert!(
+            decode(&bytes(&v1::Message::CalendarCommand(
+                9, window, node, command
+            )))
+            .is_err()
+        );
+    }
+    for (tag, value) in [(2, -1), (2, 119988), (4, -1), (4, 3652059)] {
+        let mut raw = vec![17, 9, 0, 1, 0, 1, tag];
+        (value as i64).binprot_write(&mut raw).unwrap();
+        assert_eq!(decode(&raw), Err(DecodeError::Malformed));
+    }
+    fixture(
+        &vec![v1::Event::CalendarResult(
+            9,
+            window,
+            node,
+            Response::Applied(Snapshot {
+                revision: 8,
+                mode: Mode::Range,
+                selection: Selection::Range(
+                    Range::new(date(2024, 3, 4), date(2024, 3, 5)).unwrap(),
+                ),
+                selection_allowed: true,
+                month: Month::new(2024, 3).unwrap(),
+                focused_date: date(2024, 3, 5),
+                presentation: Presentation::Days,
+                focused: true,
+            }),
+        )],
+        include_str!("../../../test/fixtures/calendar-command-events.hex"),
+    );
+}
+
+#[test]
 fn independent_fixtures_full_consumption_and_all_truncated_prefixes() {
     let config = config();
     let bytes = fixture(

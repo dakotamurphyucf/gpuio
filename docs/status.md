@@ -145,8 +145,11 @@ and atomic completion mailbox admission now pass paired-codec/Core/native tests.
 The mounted GPUI calendar now passes initial macOS day/month/year keyboard/pointer,
 single/range event ordering, retained historical state, hidden/read-only/disabled
 focus, pair-overload and disposal checks. Four initial light/dark GPU readbacks were
-visually reviewed. Public correlated controllers, popup-picker integration and full
-native acceptance remain in progress; no calendar capability is advertised.
+visually reviewed. Public correlated controllers now pass local real-window checks
+for commands, revision/lease guards, admission limits, policy changes and close
+ordering. Hidden focus cleanup now reports actual platform focus. Popup-picker
+integration and full native acceptance remain in progress; no calendar capability
+is advertised.
 See [calendar design](design/calendar.md) and [model evidence](evidence/calendar-och35.md).
 No milestone-05 completion or hosted acceptance is claimed yet.
 

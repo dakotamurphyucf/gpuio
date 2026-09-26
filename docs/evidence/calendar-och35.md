@@ -53,13 +53,12 @@ uses Core's uppercase weekday sexps. No failing behavior was promoted away.
 
 ## Still required for this ticket
 
-- Correlated command envelopes and public Core/Bonsai/Eio controllers.
 - Full inline calendar acceptance: actual accessibility, modal/pointer policies,
   civil boundaries, locale/format, scale/layout, independent windows, managed-list
   pins, idle and bounded workload coverage beyond the initial checks below.
 - Popup date-picker integration with the existing overlay system and explicit
   confirm/cancel/partial-selection, dismissal and focus-restoration semantics.
-- Public inline/popup examples, actual macOS input/accessibility/visual checks,
+- Public popup example, actual macOS input/accessibility/visual checks,
   stale-lifetime and independent-window tests, idle/retention/disposal workloads.
 - Required macOS/Linux consolidated CI, merge and Linear completion; final
   integration into OCH-46. Full Linux GUI release acceptance remains OCH-17.
@@ -202,3 +201,46 @@ physical OS keyboard automation or an AppKit accessibility audit. Owned windows
 and processes closed normally. CI definitions now compile/run the calendar test;
 no hosted results or Linux GUI acceptance are claimed. Public commands/controllers,
 popup semantics/examples and the remaining native acceptance matrix are next.
+
+## Public command/controller checkpoint
+
+Local macOS arm64 checks on 2026-09-25 pass for the correlated command bridge and
+`Gpuio_eio.Calendar` controller. Message 17/event 51 have independent byte fixtures,
+positive-correlation checks, bounded command decoding, full-consumption/truncation
+checks and malformed snapshot rejection in the OCaml and Rust suites. Native
+mailbox tests cover reserved replies, render-event barriers and window-slot
+retirement while a reply remains queued.
+
+The public `examples/calendar/main.exe --self-test` opens/closes a real GPUI window
+and exercises single/range mode, snapshot reads without revision changes, 64
+concurrent accepted requests plus one Busy response, actual focus, revision guards,
+wrong mode, disabled endpoints/interiors, invalid large offsets, navigation and
+presentation, disabled-date discovery, hidden/disabled/read-only policy, remount
+seeds, old-lease rejection and ordered window close. Programmatic selection changes
+do not emit Selected. Both controllers are observed before the test begins.
+
+The initial test found a hidden-calendar snapshot could retain `focused=true` even
+though focus requests were correctly blocked. Native hide and focus subscriptions
+now publish actual platform focus, including when a hidden dispatch node disappears
+before blur delivery. The public test passes after that fix. The native window
+suite also passes guarded disabled clearing, no Selected from commands,
+visibility cleanup, and command rejection without mutation after a window fault.
+Its existing keyboard/pointer/range/overload/disposal checks continue to pass.
+
+Commands (all passed locally):
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune runtest -j 2 test/view_api
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-protocol --test calendar_codec
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --test calendar
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 examples/calendar/main.exe
+_build/default/examples/calendar/main.exe --self-test
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-image-tests --test native_calendar
+```
+
+All-target native-image Clippy (`-D warnings`) and `dune build -j 2 @fmt`
+also pass locally. Rust codec suite: 7 tests; native bridge suite: 5 tests. Public output:
+`GPUIO_CALENDAR_PUBLIC_OK`. All test windows closed and processes exited.
+The CI definition includes the public self-test; hosted checks have not run.
+Popup-picker integration and the remaining full native acceptance matrix are
+still required. No new calendar capability or completed ticket is claimed.

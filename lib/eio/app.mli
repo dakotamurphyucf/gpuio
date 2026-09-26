@@ -97,6 +97,18 @@ module Window : sig
       -> (Gpuio.Otp_input.Snapshot.t, Gpuio.Otp_input.Command_error.t) Result.t
            Bonsai.Effect.t
 
+    (** Correlated calendar commands for the exact observed window/node lease.
+        At most 64 calendar requests may be pending across the app. Replies must
+        preserve mode and not precede the observed revision. Unsupported dates or
+        navigation offsets fail with [Invalid_value] before entering the queue.
+        Actual window closure completes remaining requests with [Closed]. *)
+    val calendar_command
+      :  t
+      -> Gpuio.Calendar.Snapshot.t
+      -> Gpuio.Calendar.Command.t
+      -> (Gpuio.Calendar.Snapshot.t, Gpuio.Calendar.Command_error.t) Result.t
+           Bonsai.Effect.t
+
     (** Correlated numeric commands bound to the observed window/node lease;
         at most 64 requests pending. Closing completes them with [Closed]. *)
     val number_input_command
