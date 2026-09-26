@@ -4,6 +4,11 @@
  (inline_tests
   (deps
    (sandbox preserve_file_kind)
+   table-intents.hex
+   table-config.hex
+   table-cell.hex
+   table-command.hex
+   table-request.hex
    inert-request.hex
    carousel-transaction.hex
    carousel-event.hex
@@ -275,3 +280,13 @@
 (copy_files ../fixtures/tree-selection-event.hex)
 
 (copy_files ../fixtures/tree-move-*.hex)
+
+(copy_files ../fixtures/table-config.hex)
+
+(copy_files ../fixtures/table-cell.hex)
+
+(copy_files ../fixtures/table-command.hex)
+
+(copy_files ../fixtures/table-request.hex)
+
+(copy_files ../fixtures/table-intents.hex)

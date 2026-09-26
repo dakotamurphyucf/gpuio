@@ -161,6 +161,10 @@ drags after schema refresh. Keyed pixel anchors survive native row/column reorde
 and prepend; unchanged schemas preserve resize/reorder gestures through row
 arrivals. The bridge, public widget, full paging/query reconciliation and native
 keyboard/accessibility/cache/lifecycle acceptance remain.
+Paired bounded table payload codecs and the pure Core `Table.Config` now pass
+independent byte fixtures and invalid-input/budget tests. Envelopes, native
+session accounting/rendering and the public View/Bonsai component are not yet
+connected to those types.
 See [table design](design/data-tables.md) and
 [evidence](evidence/data-tables-och39.md).
 

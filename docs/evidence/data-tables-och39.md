@@ -259,3 +259,42 @@ and existing assertions and verified failure reporting.
 These tests mutate retained native data during gestures; they do not establish
 end-to-end Eio producer races, the public table bridge, full-history cache bounds,
 foreground keyboard/clipboard, accessibility or Linux GUI acceptance.
+
+## Paired payload codecs and Core configuration
+
+`Table_wire` and Rust `protocol::table` now validate the same column schema,
+configuration, retained cell copy text, keyed selection, commands and requests.
+The manual Rust decoder bounds container lengths before allocation and tracks a
+shared schema text budget while parsing. Four independent `table-*.hex` fixtures
+fix exact field order, enum tags, UTF-8 text and floating-point encodings; both
+OCaml and Rust writers match them, and the Rust decoder reconstructs their values.
+An additional combined fixture checks all ten command cases and nineteen request
+cases across the two languages, including every selection and sort alternative.
+
+Local commands `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-protocol
+--test table --locked -j2` and `... dune build -j2 @test/view_api/runtest` **pass**.
+Coverage includes every command/request family, truncation at every byte of the
+four fixtures, trailing bytes, unknown tags, malformed UTF-8, nonfinite widths,
+oversized counts, duplicate identities, group partitions/refinement/pin crossings,
+schema text limits, empty/max/oversized copy text and invalid selection targets.
+The hard budget accepts 64 columns × 256 rows at 16,384 cells and rejects one
+extra row, column or cell allowance. Huge signed row-budget values are rejected
+before multiplication. Core schema conversion agrees with the wire validators.
+
+The public pure `Table.Config` tests cover bounded defaults, automatic reduction
+of the default row budget, rejection of incompatible explicit budgets, immutable
+accepted sort/schema changes, labels/geometry and private revision validation.
+The first expect-test build needed qualified constructors at a list concatenation;
+the correction changed no expectations. No test expectations were promoted.
+
+Consolidated local macOS validation also passes: `GPUIO_JOBS=2 ./scripts/gpuio
+exec cargo test --workspace --locked -j2`, `GPUIO_JOBS=2 ./scripts/gpuio lint`,
+`GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt`, and
+`GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all --check`. After adding the
+combined all-intents fixture, the complete Dune gate and targeted Rust table
+suite pass again. This checkpoint required no additional native windows and
+makes no new hosted or Linux GUI validation claim.
+
+These are payload/model tests. Transaction/event envelopes, live generation
+checks, retained-byte accounting, native session rendering, public Views and the
+Bonsai table component remain outstanding. No table capability is advertised.

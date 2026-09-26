@@ -190,6 +190,42 @@ These contracts pass native layout and pointer tests, including row arrival
 during resize/reorder. The paired bridge, full Eio paging/query races and bounded
 retained cell-cache policy still require implementation and acceptance.
 
+## Paired bridge descriptions and public configuration
+
+The pure Core `Table.Config` accepts typed `Table_column.Collection` values, an
+accessible label and an optional accepted sort column/direction. Defaults are
+32 logical pixels per fixed-height row, 64 pixels of overscan, at most 64 active
+rows and 4,096 active cells. A smaller cell budget reduces the default row budget;
+an explicitly incompatible row budget is rejected. Cells and rows are selectable
+by default; column selection is opt-in. Configuration owns no row data, views,
+callbacks or native handles. Immutable column/sort replacement validates the new
+combination; removing a sorted column requires clearing its accepted sort first.
+
+`Table_wire` and Rust `protocol::table` now define matching schema, config, cell,
+selection, command and request data. `Table_column.Expert` converts schemas using
+the same validated constructors as application code. Bridge schema revisions and
+query generations belong to the mounted adapter, and logical row order retains
+the existing list-order revision. Commands carry increasing serials and query
+generation; the future host must validate those against its live mount and data.
+Requests carry stable row IDs and column keys, never callbacks or borrowed data.
+
+The hard description budget is **16,384 active cells**, with
+`max_active_rows × column_count <= max_active_cells`. This counts all retained
+cells in active rows even when horizontal painting visits fewer cells. Copy text
+is a separate retained UTF-8 string, at most **65,536 bytes per cell**, without NUL;
+empty text is valid. Counts do not replace byte limits: native admission must also
+account for copy strings and schema metadata within the existing 1 MiB message
+and 64 MiB retained-tree budgets. That native accounting is not implemented yet.
+
+Rust decoders bound counts and aggregate schema text before allocation, reject
+invalid enum tags, nonfinite numbers, malformed UTF-8, truncation and trailing
+bytes. Both languages match independent schema/cell/command/request byte
+fixtures. The combined fixture covers every command and request tag. Validators
+check pin boundaries, nested header refinement and cell budgets.
+These payload types are not yet connected to transaction/event envelopes, the
+native session, public `View` constructors or a Bonsai table component. In
+particular, declaring a Copy request does not establish clipboard behavior.
+
 ## Remaining acceptance
 
 The model tests are one foundation, not a replacement for these gates:

@@ -6,7 +6,11 @@ mod accessibility;
 mod avatar;
 mod calendar;
 mod carousel;
+mod table;
 pub use carousel::{decode_carousel_config, decode_carousel_request};
+pub use table::{
+    decode_table_cell, decode_table_command, decode_table_config, decode_table_request,
+};
 mod color_input;
 pub use calendar::{
     decode_calendar_command, decode_calendar_config, decode_calendar_constraints,

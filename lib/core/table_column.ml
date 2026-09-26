@@ -302,3 +302,74 @@ module Collection = struct
       create ~header_groups columns)
   ;;
 end
+
+module Expert = struct
+  module W = Gpuio_protocol.Table_wire
+
+  let to_wire collection : W.Schema.t =
+    { columns =
+        List.map (Collection.to_list collection) ~f:(fun column ->
+          { W.Column.id = Id.to_string column.id
+          ; label = column.label
+          ; width = column.width
+          ; min_width = column.min_width
+          ; max_width = column.max_width
+          ; pin =
+              (match column.pin with
+               | Unpinned -> W.Pin.Unpinned
+               | Left -> Left)
+          ; alignment =
+              (match column.alignment with
+               | Left -> W.Alignment.Left
+               | Center -> Center
+               | Right -> Right)
+          ; resizable = column.resizable
+          ; movable = column.movable
+          ; sortable = column.sortable
+          })
+    ; headers =
+        List.map (Collection.header_groups collection) ~f:(fun groups ->
+          List.map groups ~f:(fun group ->
+            { W.Group.label = Group.label group
+            ; columns = List.map (Group.columns group) ~f:Id.to_string
+            }))
+    }
+  ;;
+
+  let of_wire (schema : W.Schema.t) =
+    let open Or_error.Let_syntax in
+    let%bind columns =
+      List.map schema.columns ~f:(fun (column : W.Column.t) ->
+        let%bind id = Id.of_string column.id in
+        create
+          ~id
+          ~label:column.label
+          ~width:column.width
+          ~min_width:column.min_width
+          ~max_width:column.max_width
+          ~pin:
+            (match column.pin with
+             | Unpinned -> Pin.Unpinned
+             | Left -> Left)
+          ~alignment:
+            (match column.alignment with
+             | Left -> Alignment.Left
+             | Center -> Center
+             | Right -> Right)
+          ~resizable:column.resizable
+          ~movable:column.movable
+          ~sortable:column.sortable
+          ())
+      |> Or_error.all
+    in
+    let%bind header_groups =
+      List.map schema.headers ~f:(fun groups ->
+        List.map groups ~f:(fun (group : W.Group.t) ->
+          let%bind columns = List.map group.columns ~f:Id.of_string |> Or_error.all in
+          Group.create ~label:group.label ~columns)
+        |> Or_error.all)
+      |> Or_error.all
+    in
+    Collection.create ~header_groups columns
+  ;;
+end

@@ -46,12 +46,14 @@ pub use decode::{
     decode_number_input_config, decode_number_input_event, decode_number_input_response,
     decode_numeric_domain, decode_otp_input_command, decode_otp_input_config,
     decode_otp_input_event, decode_otp_input_response, decode_slider_command, decode_slider_config,
-    decode_slider_event,
+    decode_slider_event, decode_table_cell, decode_table_command, decode_table_config,
+    decode_table_request,
 };
 pub use id::{HandlerId, NodeId, ResourceId, WindowId};
 
 pub mod progress;
 
+pub mod table;
 pub mod toast;
 pub mod tree_input;
 

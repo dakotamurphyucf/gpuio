@@ -111,3 +111,11 @@ module Collection : sig
       are reordered to match display order after a valid move. *)
   val move : t -> column:Id.t -> before:Id.t option -> t Or_error.t
 end
+
+module Expert : sig
+  (** Validated paired bridge schema. Decoding uses the same smart constructors
+      as application code, including group refinement and pin boundaries. *)
+  val to_wire : Collection.t -> Gpuio_protocol.Table_wire.Schema.t
+
+  val of_wire : Gpuio_protocol.Table_wire.Schema.t -> Collection.t Or_error.t
+end
