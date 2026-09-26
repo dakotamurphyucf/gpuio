@@ -10,11 +10,12 @@ use std::{
 };
 
 fn style_hidden(node: &crate::tree::Node) -> bool {
-    node.style.iter().any(|style| {
-        matches!(style,
+    crate::style::inert(&node.style)
+        || node.style.iter().any(|style| {
+            matches!(style,
         Style::Fields(fields) if fields.iter().any(|field|
             matches!(field, Field::Display(3) | Field::Visibility(1))))
-    })
+        })
 }
 
 pub(super) type Shared = Rc<RefCell<Manager>>;

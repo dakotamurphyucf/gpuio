@@ -194,7 +194,7 @@ jobs:
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/virtual_list/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-list-public.log
       - name: macOS native disclosure and navigation
         if: runner.os == 'macOS'
-        run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_navigation"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-navigation-native.log
+        run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_navigation"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-navigation-native.log
       - name: macOS public navigation and independent content lifetimes
         if: runner.os == 'macOS'
         run: python3 -c 'import subprocess; subprocess.run(["_build/default/examples/navigation/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-navigation-public.log

@@ -201,9 +201,11 @@ val toggle
     application-owned. Replacing decoration wrappers (such as adding a context menu)
     may replace their native descendants; ordinary collapse/selection does not.
     A stable native wrapper animates allocated width while content uses its target
-    width (no text reflow per frame). Offcanvas contents become hidden immediately;
-    their layout allocation animates to zero. An outgoing painted slide is still
-    pending separate native presentation/interaction gating. *)
+    width (no text reflow per frame). Retained offcanvas contents slide out while
+    becoming inert immediately: no focus/input/accessibility or nested animation
+    work. Their native resources survive, clipped at zero width after completion.
+    [Unmount] removes children immediately; only allocation animates in that mode.
+    Neither mode delays removal when the sidebar itself is unmounted. *)
 val view
   :  t
   -> ?key:Key.t

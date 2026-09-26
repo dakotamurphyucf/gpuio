@@ -312,8 +312,288 @@ pub(super) async fn exercise(
         .unwrap();
     pagination_and_breadcrumbs(cx, handle, transport).await;
     custom_disclosure_header(cx, handle, transport, (*config).clone()).await;
+    inert_content(cx, handle, transport, (*config).clone()).await;
+    inert_drag_cleanup(cx, handle, (*config).clone()).await;
     println!(
         "GPUIO_DISCLOSURE_NATIVE_OK: header traversal, single activation, nested collapse/unmount focus, retained editors, hidden scopes and disposal"
+    );
+}
+
+async fn inert_drag_cleanup(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    mut config: EditorConfig,
+) {
+    config.label = "Drag selection editor".into();
+    config.min_rows = 3;
+    config.max_rows = 3;
+    let text = (0..200)
+        .map(|i| format!("Row {i}: retained text during drag selection\n"))
+        .collect::<String>();
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Create(node(51), Kind::Container, "".into(), None),
+            Op::Create(node(52), Kind::Container, "".into(), None),
+            Op::Create(
+                node(53),
+                Kind::Textarea,
+                text,
+                Some(gpuio_protocol::HandlerId::from_parts(53, 1).unwrap()),
+            ),
+            Op::SetEditor(node(53), config),
+            Op::SetStyle(
+                node(53),
+                vec![Style::Fields(vec![
+                    Field::Width(Length::Px(300.)),
+                    Field::Height(Length::Px(80.)),
+                ])],
+            ),
+            Op::Splice(node(52), 0, 0, vec![node(53)]),
+            Op::Splice(node(51), 0, 0, vec![node(52)]),
+            Op::SetRoot(Some(node(51))),
+        ],
+    );
+    frame(cx, handle).await;
+    focus(cx, handle, 53);
+    frame(cx, handle).await;
+    let bounds = handle
+        .update(cx, |v, _, _| v.probes.borrow()[&node(53)].bounds)
+        .unwrap();
+    let start = bounds.origin + gpui::point(px(20.), px(20.));
+    let end = gpui::point(start.x, bounds.bottom() + px(40.));
+    super::super::native_test::move_mouse(cx, handle, start, false);
+    super::super::native_test::mouse(cx, handle, start, true);
+    super::super::native_test::move_mouse(cx, handle, end, true);
+    frame(cx, handle).await;
+    let active = handle.update(cx, |v, _, _| v.render_count).unwrap();
+    cx.background_executor()
+        .timer(std::time::Duration::from_millis(180))
+        .await;
+    assert!(
+        handle.update(cx, |v, _, _| v.render_count).unwrap() > active + 2,
+        "real drag auto-scroll timer was active"
+    );
+    let selection = handle
+        .update(cx, |v, w, cx| {
+            v.editors[&node(53)].snapshot(w, cx).selection
+        })
+        .unwrap();
+    apply(
+        cx,
+        handle,
+        vec![Op::SetStyle(
+            node(52),
+            vec![Style::Fields(vec![Field::Inert(true)])],
+        )],
+    );
+    frame(cx, handle).await;
+    // Drain already queued rendering before checking idle without a mouse-up.
+    cx.background_executor()
+        .timer(std::time::Duration::from_millis(80))
+        .await;
+    let stopped = handle.update(cx, |v, _, _| v.render_count).unwrap();
+    cx.background_executor()
+        .timer(std::time::Duration::from_millis(180))
+        .await;
+    assert_eq!(
+        handle.update(cx, |v, _, _| v.render_count).unwrap(),
+        stopped,
+        "inert retained editor must stop drag auto-scroll without waiting for mouse-up"
+    );
+    handle
+        .update(cx, |v, w, cx| {
+            assert_eq!(
+                v.editors[&node(53)].snapshot(w, cx).selection,
+                selection,
+                "blur preserves the actual selected range"
+            )
+        })
+        .unwrap();
+    super::super::native_test::mouse(cx, handle, end, false);
+    apply(
+        cx,
+        handle,
+        std::iter::once(Op::SetRoot(None))
+            .chain((51..=53).map(|id| Op::Remove(node(id))))
+            .collect(),
+    );
+    frame(cx, handle).await;
+    println!(
+        "GPUIO_INERT_DRAG_IDLE_OK: active textarea auto-scroll stops on inert blur before mouse-up"
+    );
+}
+
+async fn inert_content(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    transport: &Transport,
+    mut config: EditorConfig,
+) {
+    config.label = "Outgoing editor".into();
+    let panel_style = |inert| {
+        vec![Style::Fields(vec![
+            Field::Width(Length::Px(240.)),
+            Field::Height(Length::Px(180.)),
+            Field::Background(Fill::Solid(Color::Rgba(0xe13599ff))),
+            Field::Inert(inert),
+        ])]
+    };
+    let mut ops = vec![];
+    for (id, kind, label) in [
+        (45, Kind::Container, ""),
+        (46, Kind::Button, "Outside inert panel"),
+        (47, Kind::Container, ""),
+        (48, Kind::Text, "Painted outgoing content"),
+        (49, Kind::Button, "Outgoing button"),
+        (50, Kind::Input, "Retained Unicode 👨‍👩‍👧‍👦"),
+    ] {
+        let handler = matches!(kind, Kind::Button | Kind::Input)
+            .then(|| gpuio_protocol::HandlerId::from_parts(id, 1).unwrap());
+        ops.push(Op::Create(node(id), kind, label.into(), handler));
+        if kind == Kind::Button {
+            ops.push(Op::SetControl(node(id), Control::Button(false)));
+        }
+    }
+    ops.extend([
+        Op::SetEditor(node(50), config),
+        // A child declaration cannot escape its ancestor's gate.
+        Op::SetStyle(node(50), vec![Style::Fields(vec![Field::Inert(false)])]),
+        Op::SetStyle(node(47), panel_style(false)),
+        Op::Splice(node(47), 0, 0, vec![node(48), node(49), node(50)]),
+        Op::Splice(node(45), 0, 0, vec![node(46), node(47)]),
+        Op::SetRoot(Some(node(45))),
+    ]);
+    apply(cx, handle, ops);
+    frame(cx, handle).await;
+    focus(cx, handle, 50);
+    frame(cx, handle).await;
+    #[cfg(target_os = "macos")]
+    {
+        super::super::editor_test::native_text(cx, handle, "日本", true);
+        frame(cx, handle).await;
+        handle
+            .update(cx, |v, w, cx| {
+                assert!(v.editors[&node(50)].snapshot(w, cx).composition.is_some())
+            })
+            .unwrap();
+    }
+    let (bounds, editor_focus, before) = handle
+        .update(cx, |view, window, cx| {
+            (
+                view.probes.borrow()[&node(47)].bounds,
+                view.editors[&node(50)].focus_handle(cx),
+                view.editors[&node(50)].snapshot(window, cx),
+            )
+        })
+        .unwrap();
+    apply(cx, handle, vec![Op::SetStyle(node(47), panel_style(true))]);
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, window, cx| {
+            assert_eq!(
+                view.probes.borrow()[&node(47)].bounds,
+                bounds,
+                "inert preserves layout"
+            );
+            assert!(!view.focus.borrow().visible(node(50)));
+            assert!(!editor_focus.is_focused(window));
+            assert!(editor_focus == view.editors[&node(50)].focus_handle(cx));
+            assert!(matches!(
+                view.editors
+                    .get_mut(&node(50))
+                    .unwrap()
+                    .command(&EditorCommand::Focus, window, cx),
+                EditorResult::Failed(EditorError::FocusBlocked)
+            ));
+            #[cfg(feature = "native-image-tests")]
+            {
+                let image = window.render_to_image().unwrap();
+                let position = bounds.bottom_right() - gpui::point(px(4.), px(4.));
+                let scale = window.scale_factor();
+                let pixel = image.get_pixel(
+                    (f32::from(position.x) * scale) as u32,
+                    (f32::from(position.y) * scale) as u32,
+                );
+                assert_eq!(
+                    pixel.0,
+                    [0xe1, 0x35, 0x99, 0xff],
+                    "inert subtree still paints actual GPU pixels"
+                );
+            }
+        })
+        .unwrap();
+    #[cfg(target_os = "macos")]
+    {
+        let _ = accessible_with_role(cx, handle, "Outside inert panel", Some("AXButton"), false);
+        frame(cx, handle).await;
+        assert!(
+            accessible_with_role(cx, handle, "Outgoing button", Some("AXButton"), false).is_none()
+        );
+        assert!(
+            accessible_with_role(cx, handle, "Outgoing editor", Some("AXTextField"), false)
+                .is_none()
+        );
+        super::super::editor_test::native_text(cx, handle, "blocked native input", false);
+    }
+    let _ = presses(transport);
+    for id in [49, 50] {
+        let position = handle
+            .update(cx, |v, _, _| v.probes.borrow()[&node(id)].bounds.center())
+            .unwrap();
+        super::super::native_test::move_mouse(cx, handle, position, false);
+        super::super::native_test::mouse(cx, handle, position, true);
+        super::super::native_test::mouse(cx, handle, position, false);
+    }
+    key(cx, handle, "enter");
+    assert!(presses(transport).iter().all(|id| *id != node(49)));
+    assert!(!focused(cx, handle, node(50)));
+    handle
+        .update(cx, |v, w, cx| {
+            assert_eq!(v.editors[&node(50)].snapshot(w, cx).text, before.text)
+        })
+        .unwrap();
+    let position = handle
+        .update(cx, |v, _, _| v.probes.borrow()[&node(46)].bounds.center())
+        .unwrap();
+    super::super::native_test::move_mouse(cx, handle, position, false);
+    super::super::native_test::mouse(cx, handle, position, true);
+    super::super::native_test::mouse(cx, handle, position, false);
+    assert_eq!(
+        presses(transport),
+        vec![node(46)],
+        "shield does not block unrelated controls"
+    );
+    apply(cx, handle, vec![Op::SetStyle(node(47), panel_style(false))]);
+    frame(cx, handle).await;
+    focus(cx, handle, 49);
+    key(cx, handle, "enter");
+    assert_eq!(presses(transport), vec![node(49)]);
+    focus(cx, handle, 50);
+    assert!(focused(cx, handle, node(50)));
+    handle
+        .update(cx, |v, w, cx| {
+            assert!(v.editors[&node(50)].focus_handle(cx) == editor_focus);
+            assert_eq!(v.editors[&node(50)].snapshot(w, cx).text, before.text);
+        })
+        .unwrap();
+    apply(
+        cx,
+        handle,
+        std::iter::once(Op::SetRoot(None))
+            .chain((45..=50).map(|id| Op::Remove(node(id))))
+            .collect(),
+    );
+    frame(cx, handle).await;
+    handle
+        .update(cx, |v, _, _| {
+            assert!(v.editors.is_empty() && v.buttons.is_empty());
+            assert_eq!(v.session.borrow().retained_bytes(), 0);
+        })
+        .unwrap();
+    println!(
+        "GPUIO_INERT_NATIVE_OK: retained geometry/editor, focus and native-input denial, AX hiding, pointer shield, unrelated input, reactivation and teardown"
     );
 }
 
@@ -631,6 +911,25 @@ async fn custom_disclosure_header(
         .unwrap();
     #[cfg(target_os = "macos")]
     assert_eq!(expanded(cx, handle, "Expand archive"), Some(false));
+    apply(cx, handle, vec![Op::SetStyle(node(35), vec![])]);
+    frame(cx, handle).await;
+    focus(cx, handle, 36);
+    apply(
+        cx,
+        handle,
+        vec![Op::SetStyle(
+            node(35),
+            vec![Style::Fields(vec![Field::Inert(true)])],
+        )],
+    );
+    frame(cx, handle).await;
+    assert!(focused(cx, handle, node(34)));
+    handle
+        .update(cx, |v, _, _| {
+            assert!(v.focus.borrow().handle(node(40)).is_none());
+            assert!(v.focus.borrow().handle(node(43)).is_none());
+        })
+        .unwrap();
     apply(cx, handle, vec![Op::SetStyle(node(35), vec![])]);
     frame(cx, handle).await;
     focus(cx, handle, 36);

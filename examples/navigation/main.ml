@@ -94,6 +94,7 @@ module Observation = struct
 end
 
 let component
+      ~sidebar_side
       ~motion_test
       ~set_motion
       ~icon
@@ -188,6 +189,7 @@ let component
   let sidebar =
     Sidebar.view
       model.sidebar
+      ~side:sidebar_side
       ~appearance:
         (Sidebar.Appearance.create
            ~motion:
@@ -327,18 +329,31 @@ let component
           ]
       ]
   in
+  let content =
+    UI.with_accessibility
+      content
+      (Accessibility.create ~role:Group ~label:"Navigation content" () |> ok)
+    |> ok
+  in
   UI.command_scope
     ~commands
     ~style:(style [ Width full; Height full ])
     [ UI.row
         ~style:(style [ Width full; Height full; Min_width (px 0.); Min_height (px 0.) ])
-        [ sidebar; content ]
+        (match sidebar_side with
+         | Sidebar.Side.Left -> [ sidebar; content ]
+         | Right -> [ content; sidebar ])
     ]
 ;;
 
 let () =
   let self_test = Array.exists (Sys.get_argv ()) ~f:(String.equal "--self-test") in
   let motion_test = Array.exists (Sys.get_argv ()) ~f:(String.equal "--motion-test") in
+  let sidebar_side =
+    if Array.exists (Sys.get_argv ()) ~f:(String.equal "--right-sidebar")
+    then Sidebar.Side.Right
+    else Left
+  in
   let observed = ref None
   and lazy_activations = ref 0
   and lazy_deactivations = ref 0 in
@@ -361,6 +376,7 @@ let () =
            ~width:1120.
            ~height:760.
            (component
+              ~sidebar_side
               ~motion_test
               ~set_motion:(fun policy -> E.of_thunk (fun () -> App.set_motion app policy))
               ~icon

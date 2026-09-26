@@ -380,6 +380,7 @@ module type S = sig
       | User_select of bool
       | Selection_color of Color.t
       | Accessible_name of string
+      | Inert of bool
     [@@deriving bin_io, equal, sexp_of]
   end
 

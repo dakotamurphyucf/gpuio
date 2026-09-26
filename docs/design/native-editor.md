@@ -111,6 +111,15 @@ the actual focus-owning editor element. The decorator lets GPUIO attach labels,
 values, semantic state and accessibility actions without registering duplicate
 tab stops on an outer wrapper. It does not transfer callbacks across the FFI.
 
+A retained editor can lose focus while its pointer selection drag is still held
+(for example, its navigation panel becomes inert). The vendored blur path stops
+its auto-scroll task and transient drag/column/word state before returning, while
+preserving the actual selected range for menu Copy and restoration. OCH-37's
+native regression first establishes a real active textarea drag timer, then makes
+its ancestor inert without mouse-up and requires the whole window to become idle.
+The unpatched widget continued about 10 redraws per 180 ms; the adaptation passes.
+The source pin stays unchanged and the reconstructible patch digest is updated.
+
 The ordinary test command runs OCaml expect/codec/reconciliation tests and Rust
 protocol/session/mailbox tests without opening application windows. The optional
 `native-tests` feature builds an actual-window harness; run it locally for fast iteration and on macOS CI for the final gate.

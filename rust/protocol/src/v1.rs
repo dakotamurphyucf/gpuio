@@ -341,6 +341,7 @@ pub enum Field {
     UserSelect(bool),
     SelectionColor(Color),
     AccessibleName(String),
+    Inert(bool),
 }
 
 /// Initial portable refinements; adding tags requires explicit schema review.

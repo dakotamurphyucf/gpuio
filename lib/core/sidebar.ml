@@ -600,6 +600,8 @@ let view
     then appearance.compact_width
     else appearance.width
   in
+  let retain_exit = offcanvas && Content_policy.equal hidden Retain in
+  let content_width = if retain_exit then appearance.width else width in
   let border =
     match side with
     | Left -> Border_right_width 1.
@@ -608,7 +610,7 @@ let view
   let root_style =
     Style.merge
       [ style
-          [ Width (px width)
+          [ Width (px content_width)
           ; Height full
           ; Shrink 0.
           ; Min_width (px 0.)
@@ -621,8 +623,9 @@ let view
           ; border
           ]
       ; appearance.style
-      ; style [ Width (px width); Shrink 0. ]
-      ; (if offcanvas
+      ; style [ Width (px content_width); Shrink 0. ]
+      ; (if offcanvas then style [ Inert true ] else Style.empty)
+      ; (if offcanvas && not retain_exit
          then
            style
              [ Display Hidden
@@ -638,7 +641,7 @@ let view
     View.panel
       ~key:(key_of "content")
       ~label:labels.navigation
-      ~active:(not offcanvas)
+      ~active:((not offcanvas) || retain_exit)
       ~hidden
       ~style:(style [ Height full; Min_height (px 0.); Gap (px 12.) ])
       children
@@ -668,9 +671,9 @@ let view
          ; Overflow_x Hidden
          ; Overflow_y Hidden
          ; Align_items
-             (match side with
-              | Left -> Start
-              | Right -> End)
+             (match side, t.collapse with
+              | Left, Offcanvas | Right, (Icon | Never) -> End
+              | Right, Offcanvas | Left, (Icon | Never) -> Start)
          ])
     animation
     [ content ]

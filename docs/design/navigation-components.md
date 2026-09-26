@@ -252,11 +252,43 @@ so its text does not reflow with each intermediate wrapper width. Width argument
 own this geometry even if an appearance style supplies another width; other style
 refinements remain available. The inner border and clip alignment follow `Side`.
 
-Current offcanvas behavior hides its content immediately while animating allocation
-to zero; opening reveals the fixed-width content. A painted outgoing slide still
-needs separate native paint/interaction gating. This requirement, broader workloads
-and final sidebar acceptance remain pending, alongside navigation transitions.
-Retaining an interactive outgoing panel during its exit is not an acceptable shortcut.
+Retained offcanvas content now uses base-only `Style.Inert true`: its layout and
+paint survive while focus/IME, accessibility, pointer input and active nested
+popup/timer eligibility cease immediately. The fixed-width inner panel aligns
+toward the content edge, so decreasing the outer clip width slides left/right
+outward without per-frame text reflow. At zero width it stays retained and clipped;
+the shared animation owner becomes idle. Reopening clears inert state and reverses
+from the painted allocation, preserving native editor/link identity.
+
+`Content_policy.Unmount` removes descendants immediately, preserving its explicit
+native-lifetime contract; only the remaining empty allocation animates. Removing
+the sidebar itself also disposes immediately. This does not postpone reconciliation
+or transfer application task ownership to a native animation. Broader sidebar
+appearance/workload acceptance and mounted navigation transitions remain pending.
+
+### Native inert presentation boundary
+
+`Inert` appends portable field tag 65; old tags remain unchanged. Both bridge halves
+must be rebuilt together within the existing single-release compatibility policy.
+It is rejected in state refinements and follows normal last-base-declaration
+replacement on one node; a descendant `Inert false` cannot override an ancestor.
+Ordinary Display/Visibility hidden styles continue to remove paint.
+
+The existing focus manager excludes the subtree, including its modal/tooltip and
+popover scopes, and denies programmatic focus/submit. A native wrapper delegates
+exact layout and paint, marks an accessibility root hidden and registers a blocking
+hitbox after descendants. It covers specialized renderers as well as ordinary
+containers without changing child layout or native entities. Existing native
+visibility hooks suspend nested animations and other active widget work. Application
+Bonsai computations/Eio tasks remain application-owned; commands that intentionally
+edit retained buffers remain distinct from native user input. The wrapper needs no
+GPUI fork, screenshot readback in production, or cross-runtime paint callbacks.
+
+Inert content is a live retained presentation, not a frozen screenshot. Modal and
+hover surfaces are deliberately retired instead of remaining interactive or
+floating beyond the exiting panel. Navigation must still enforce at most one
+outgoing presentation and its route/focus/lifetime contract; this primitive alone
+is not a completed navigation stack.
 
 ### Independent actions inside disclosure headers
 

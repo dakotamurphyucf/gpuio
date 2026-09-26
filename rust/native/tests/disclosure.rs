@@ -36,6 +36,36 @@ fn mount() -> Transaction {
     )
 }
 #[test]
+fn inert_style_is_base_only_and_invalid_state_changes_are_atomic() {
+    let mut tree = Tree::new(window());
+    tree.apply(&mount()).unwrap();
+    tree.apply(&tx(
+        1,
+        vec![Op::SetStyle(
+            node(3),
+            vec![Style::Fields(vec![Field::Inert(true)])],
+        )],
+    ))
+    .unwrap();
+    let bytes = tree.retained_bytes();
+    for state in 1..=7 {
+        assert!(
+            tree.apply(&tx(
+                2,
+                vec![Op::SetStyle(
+                    node(3),
+                    vec![Style::State(state, vec![Field::Inert(false)])]
+                )]
+            ))
+            .is_err()
+        );
+        assert_eq!(tree.revision(), 2);
+        assert_eq!(tree.retained_bytes(), bytes);
+    }
+    tree.apply(&tx(2, vec![Op::SetStyle(node(3), vec![])]))
+        .unwrap();
+}
+#[test]
 fn independent_disclosure_envelope_fixture_and_strict_decode() {
     let message = Message::Apply(mount());
     let mut bytes = vec![];

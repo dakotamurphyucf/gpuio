@@ -3328,6 +3328,13 @@ impl<M: InputModeKind> InputBaseState<M> {
     }
 
     fn on_blur(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        // GPUIO: blur may hide or make a retained editor inert before a mouse-up
+        // arrives. Stop the drag timer and transient gesture state, preserving
+        // the actual selection range for menu Copy and later restoration.
+        self.auto_scroll.stop();
+        self.selecting = false;
+        self.column_select_start = None;
+        self.selected_word_range = None;
         if M::is_context_menu_open(self, cx) {
             return;
         }

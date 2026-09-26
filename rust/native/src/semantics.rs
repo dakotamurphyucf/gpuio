@@ -6,6 +6,68 @@ use gpui::{
 };
 use gpuio_protocol::accessibility::{Config, Current, Live, Role};
 
+/// Retain exact layout and paint while shielding hitboxes registered by the
+/// subtree. Focus/IME and active popup/timer policy is handled by focus::Manager.
+/// This wrapper also covers specialized renderers that bypass finish_element.
+pub(super) struct Inert<E>(pub E);
+impl<E: Element> IntoElement for Inert<E> {
+    type Element = Self;
+    fn into_element(self) -> Self {
+        self
+    }
+}
+impl<E: Element> Element for Inert<E> {
+    type RequestLayoutState = E::RequestLayoutState;
+    type PrepaintState = E::PrepaintState;
+    fn id(&self) -> Option<ElementId> {
+        self.0.id()
+    }
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        self.0.source_location()
+    }
+    fn request_layout(
+        &mut self,
+        id: Option<&GlobalElementId>,
+        inspector: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, Self::RequestLayoutState) {
+        self.0.request_layout(id, inspector, window, cx)
+    }
+    fn prepaint(
+        &mut self,
+        id: Option<&GlobalElementId>,
+        inspector: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        layout: &mut Self::RequestLayoutState,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Self::PrepaintState {
+        let state = self.0.prepaint(id, inspector, bounds, layout, window, cx);
+        window.insert_hitbox(bounds, gpui::HitboxBehavior::BlockMouse);
+        state
+    }
+    fn paint(
+        &mut self,
+        id: Option<&GlobalElementId>,
+        inspector: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        layout: &mut Self::RequestLayoutState,
+        prepaint: &mut Self::PrepaintState,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.0
+            .paint(id, inspector, bounds, layout, prepaint, window, cx);
+    }
+    fn a11y_role(&self) -> Option<accesskit::Role> {
+        Some(accesskit::Role::Group)
+    }
+    fn write_a11y_info(&self, node: &mut accesskit::Node) {
+        node.set_hidden();
+    }
+}
+
 fn role(role: Role) -> accesskit::Role {
     match role {
         Role::Navigation => accesskit::Role::Navigation,

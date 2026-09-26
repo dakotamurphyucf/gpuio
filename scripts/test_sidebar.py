@@ -36,8 +36,34 @@ def boolean(mac, node, attribute):
         mac.release(value)
 
 
+def sidebar_link(mac, label):
+    # Breadcrumbs also contain an "Archive" link. Search within the sidebar
+    # landmark so changing its side cannot change which control the test invokes.
+    def visit(node):
+        if mac.text(node, 'AXRole') == 'AXLink' and mac.text(node, 'AXTitle') == label:
+            return mac.retain(node)
+        children = mac.children(node)
+        try:
+            for child in children:
+                result = visit(child)
+                if result:
+                    return result
+        finally:
+            for child in children:
+                mac.release(child)
+        return None
+    root = mac.wait_find(TITLE, 'Sidebar', 'AXGroup')
+    try:
+        result = visit(root)
+        if not result:
+            raise RuntimeError(f'Sidebar link is missing: {label}')
+        return result
+    finally:
+        mac.release(root)
+
+
 def press_link(mac, label):
-    link = mac.wait_find(TITLE, label, 'AXLink')
+    link = sidebar_link(mac, label)
     try:
         mac.perform(link, 'AXPress')
     finally:
@@ -62,29 +88,36 @@ def sidebar_width(mac):
         mac.release(node)
 
 
-def content_x(mac):
-    class Point(C.Structure):
-        _fields_ = [('x', C.c_double), ('y', C.c_double)]
-    node = mac.wait_find(TITLE, 'Selected destination: Inbox', 'AXStaticText')
-    value = mac.attr(node, 'AXPosition')
+def sidebar_allocation(mac):
+    """Window width minus adjacent content: works with a left or right sidebar."""
+    class Size(C.Structure):
+        _fields_ = [('width', C.c_double), ('height', C.c_double)]
+    nodes = [mac.window(TITLE), mac.wait_find(TITLE, 'Navigation content', 'AXGroup')]
+    widths = []
     try:
-        getter = mac.ax.AXValueGetValue
-        getter.restype, getter.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
-        result = Point()
-        if not value or not getter(value, 1, C.byref(result)):
-            raise RuntimeError('Content lacks native position')
-        return result.x
+        for node in nodes:
+            value = mac.attr(node, 'AXSize')
+            try:
+                getter = mac.ax.AXValueGetValue
+                getter.restype, getter.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
+                result = Size()
+                if not value or not getter(value, 2, C.byref(result)):
+                    raise RuntimeError('Content lacks native geometry')
+                widths.append(result.width)
+            finally:
+                if value:
+                    mac.release(value)
     finally:
-        if value:
-            mac.release(value)
-        mac.release(node)
+        for node in nodes:
+            mac.release(node)
+    return widths[0] - widths[1]
 
 
-def await_x(mac, predicate, timeout=5):
+def await_allocation(mac, predicate, timeout=5):
     deadline = time.monotonic() + timeout
     values = []
     while time.monotonic() < deadline:
-        value = content_x(mac)
+        value = sidebar_allocation(mac)
         values.append(round(value, 2))
         if predicate(value):
             print('SIDEBAR_MOTION_SAMPLES', values, flush=True)
@@ -93,34 +126,42 @@ def await_x(mac, predicate, timeout=5):
     raise RuntimeError(f'Width transition did not meet expectation: {values}')
 
 
-def exercise_motion(mac):
+def exercise_motion(mac, images):
     mac.wait_text(TITLE, 'Selected destination: Inbox')
     mac.set(mac.app, 'AXFrontmost', mac.true)
-    full = content_x(mac)
+    full = sidebar_allocation(mac)
     assert 235 <= sidebar_width(mac) <= 245
     mac.press(TITLE, 'Collapse sidebar')
     absent(mac, 'Inbox', 'AXLink')
     # Outer allocation animates, while the content immediately takes icon width.
-    await_x(mac, lambda x: full - 150 < x < full - 40)
+    await_allocation(mac, lambda x: full - 150 < x < full - 40)
     assert 51 <= sidebar_width(mac) <= 61
     mac.press(TITLE, 'Expand sidebar')
-    assert content_x(mac) < full - 10, 'Interruption snapped to the target'
-    await_x(mac, lambda x: abs(x - full) < 1)
+    assert sidebar_allocation(mac) < full - 10, 'Interruption snapped to the target'
+    await_allocation(mac, lambda x: abs(x - full) < 1)
     mac.press(TITLE, 'Collapse sidebar')
     compact = full - 184
-    await_x(mac, lambda x: abs(x - compact) < 1)
+    await_allocation(mac, lambda x: abs(x - compact) < 1)
     mac.press(TITLE, 'Offcanvas mode')
     absent(mac, 'Sidebar', 'AXGroup')
-    await_x(mac, lambda x: compact - 45 < x < compact - 10)
-    await_x(mac, lambda x: abs(x - (full - 240)) < 1)
+    await_allocation(mac, lambda x: compact - 45 < x < compact - 10)
+    await_allocation(mac, lambda x: abs(x - (full - 240)) < 1)
     mac.press(TITLE, 'Expand sidebar')
-    await_x(mac, lambda x: full - 180 < x < full - 40)
-    await_x(mac, lambda x: abs(x - full) < 1)
+    await_allocation(mac, lambda x: full - 180 < x < full - 40)
+    await_allocation(mac, lambda x: abs(x - full) < 1)
+    mac.press(TITLE, 'Collapse sidebar')
+    absent(mac, 'Sidebar', 'AXGroup')
+    await_allocation(mac, lambda x: full - 75 < x < full - 35)
+    if images:
+        screenshot(mac, images / 'sidebar-exiting.png')
+    await_allocation(mac, lambda x: abs(x - (full - 240)) < 1)
+    mac.press(TITLE, 'Expand sidebar')
+    await_allocation(mac, lambda x: abs(x - full) < 1)
     mac.press(TITLE, 'Icon mode')
     mac.press(TITLE, 'Reduce motion')
     mac.press(TITLE, 'Collapse sidebar')
     # Two-second full-motion runs settle under Reduce rather than playing out.
-    await_x(mac, lambda x: abs(x - compact) < 1, timeout=0.9)
+    await_allocation(mac, lambda x: abs(x - compact) < 1, timeout=0.9)
     mac.close(TITLE)
     print('GPUIO_SIDEBAR_MOTION_AX_OK: native allocation samples, fixed inner width, interruption, offcanvas hiding/reveal, reduced motion and close')
 
@@ -171,7 +212,7 @@ def exercise(mac, images):
     node = mac.wait_find(TITLE, 'Inbox', 'AXLink')
     mac.release(node)  # Expansion survives both collapse modes.
     assert 235 <= sidebar_width(mac) <= 245
-    link = mac.wait_find(TITLE, 'Archive', 'AXLink')
+    link = sidebar_link(mac, 'Archive')
     try:
         mac.set(link, 'AXFocused', mac.true)
     finally:
@@ -187,19 +228,22 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--images', type=Path)
     parser.add_argument('--motion', action='store_true')
+    parser.add_argument('--right', action='store_true')
     args = parser.parse_args()
     repo = Path(__file__).resolve().parent.parent
     with tempfile.TemporaryFile(mode='w+') as log:
         command = [str(repo / '_build/default/examples/navigation/main.exe')]
         if args.motion:
             command.append('--motion-test')
+        if args.right:
+            command.append('--right-sidebar')
         child = subprocess.Popen(command,
                                  cwd=repo, stdout=log, stderr=subprocess.STDOUT, text=True)
         mac = None
         try:
             mac = Mac(child.pid, child)
             if args.motion:
-                exercise_motion(mac)
+                exercise_motion(mac, args.images)
             else:
                 exercise(mac, args.images)
             if child.wait(timeout=15) != 0:

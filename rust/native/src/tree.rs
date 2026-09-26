@@ -2042,6 +2042,7 @@ pub fn validate_style(style: &[Style]) -> Result<(), ErrorCode> {
                                 | Field::UserSelect(_)
                                 | Field::SelectionColor(_)
                                 | Field::AccessibleName(_)
+                                | Field::Inert(_)
                         )
                     })
             }

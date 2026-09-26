@@ -487,6 +487,24 @@ impl View {
         &mut self,
         tree: &crate::tree::Tree,
         id: NodeId,
+        interaction: Interaction,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::AnyElement {
+        let element = self.element_body(tree, id, interaction, window, cx);
+        let inert = tree
+            .get(id)
+            .is_some_and(|node| crate::style::inert(&node.style));
+        if inert {
+            crate::semantics::Inert(element).into_any_element()
+        } else {
+            element
+        }
+    }
+    fn element_body(
+        &mut self,
+        tree: &crate::tree::Tree,
+        id: NodeId,
         mut interaction: Interaction,
         window: &mut Window,
         cx: &mut Context<Self>,

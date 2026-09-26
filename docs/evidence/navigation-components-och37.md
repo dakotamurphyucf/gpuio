@@ -304,3 +304,82 @@ navigation transitions need that same paint/interaction separation. Broader side
 appearance/workload acceptance, remaining OCH-37 components and consolidated hosted
 macOS/Linux gates/merge remain required. A new hosted public-motion step is wired
 but has not run. Full Linux GUI validation remains OCH-17.
+
+## Inert retained presentation and offcanvas exit — 2026-09-26
+
+`Style.Inert` adds base-only portable field tag 65, with a manually specified
+request fixture shared by independent OCaml and Rust encoders/decoders. Old field
+tags do not move; rebuild both bridge halves together. Core rejects state variants
+and supports normal base replacement. Native decoding rejects malformed Boolean,
+truncation and trailing bytes; tree state-style rejection is atomic. The full
+protocol/native library suites and view API expect suite pass locally.
+
+The native wrapper delegates exact layout and paint, hides the AX subtree and
+places a blocking hitbox after descendants. Existing ancestor eligibility denies
+focus, pointer routing and native editing, retires popup scopes and suspends nested
+motion. A descendant `Inert false` cannot escape its ancestor; clearing the ancestor
+restores existing native resources. This adds no GPUI fork or screenshot readback
+in production. Application Eio/Bonsai lifetimes remain independent.
+
+Actual local macOS `native_navigation` passes with GPU readback enabled:
+
+- The inert panel keeps its geometry and exact background pixels.
+- A retained Unicode editor keeps its native focus identity and text; an actual
+  NSTextInputClient marked-text session cannot receive new native text while inert.
+- Programmatic focus is denied, clicks cannot activate its button/editor, AX
+  button/input objects are absent, and an unrelated external button still works.
+- Clearing inert restores keyboard activation and the same editor; teardown leaves
+  no editor/button owners or retained session bytes.
+- Retained tooltip/popover scopes inside an inert custom disclosure retire safely
+  and restore on reactivation; collapse restores the dedicated eligible trigger.
+
+The full native controls and animation suites pass. The latter separately checks
+that a repeating animation under an inert ancestor requests no frames and owns no
+deadline, then resumes after the gate clears. Feature-enabled all-target Clippy,
+Dune and Rust formatting checks pass as recorded in the checkpoint.
+
+Sidebar Retain now keeps its fixed-width content painted and inert while its outer
+allocation slides to zero. Left/right clip alignment moves content toward the
+corresponding window edge. Unmount still removes children immediately; it does not
+silently retain native leases until an endpoint. The public motion test passes on
+both sides, measuring intermediate allocations, interruption, zero-width endpoints,
+reopening and reduced-motion settling. Intermediate screenshots were captured and
+visually inspected on both sides, after AX confirmed the sidebar was absent; they
+show the retained content still painting as it exits. These are local screenshots,
+not broad theme/density acceptance. The right-side normal keyboard/AX/context-menu
+check also passes. Its first run found an ambiguous test selector (the earlier
+breadcrumb also says Archive), fixed by searching within the Sidebar landmark.
+
+Commands, isolated toolchain, local macOS arm64:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 examples/navigation/main.exe @test/view_api/runtest lib/bonsai/gpuio_bonsai.cma @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-protocol -p gpuio-native --features native-image-tests --lib --test inert --test disclosure
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-protocol
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-image-tests --test native_navigation --test native_controls --test native_animation
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-image-tests --test native_editor --test native_controls --test native_navigation
+python3 scripts/test_sidebar.py --motion --images scratch/agents/root-20260925-resumed/sidebar-exit-left
+python3 scripts/test_sidebar.py --motion --right --images scratch/agents/root-20260925-resumed/sidebar-exit-right
+python3 scripts/test_sidebar.py --right
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native --all-targets --features native-image-tests -- -D warnings
+```
+
+The public Navigation Lab lifecycle self-test also passes after the final native
+link, including the retained draft, lazy Bonsai branch and Eio scope cleanup.
+
+A further real textarea selection-drag test reproduced continued idle work after
+inert blur: whole-window renders advanced 141 -> 151 during 180 ms without mouse-up.
+The existing vendored GPUI Base blur path now stops auto-scroll and transient drag
+state while preserving the selected range. The regression establishes that the
+timer was active, applies inert, drains queued paint and requires no new renders
+before mouse-up, with the selected range preserved. It passes with the patch. `third_party/patches/gpui-base.patch`
+and its `sources.json` digest were updated, without changing source versions.
+`vendor_gpui_base.py --output scratch/agents/root-20260925-resumed/gpui-base-inert-verified-final`
+reconstructed successfully from the checksum-verified archive; recursive comparison
+matches the committed vendor tree when excluding its local Cargo.lock artifact.
+
+Hosted native-navigation now enables GPU readback; hosted checks have not run.
+Mounted navigation stack/transitions, remaining overlays/carousel, broader sidebar
+workload/appearance acceptance and consolidated gates/merge remain incomplete.
+This supersedes the preceding checkpoint's missing offcanvas painted-exit slice;
+it does not complete OCH-37 or milestone 05. Full Linux GUI validation stays OCH-17.

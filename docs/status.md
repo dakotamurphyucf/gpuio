@@ -39,8 +39,11 @@ icon/offcanvas modes, scoped icons, context commands and current-link semantics.
 Local public macOS AX checks and screenshots cover its collapse modes; native
 regressions also cover custom disclosure headers and retained hidden popup scopes.
 Native sidebar width transitions now pass public macOS geometry, interruption and
-reduced-motion checks. Outgoing offcanvas painting and navigation transitions remain
-pending alongside remaining navigation/overlay/carousel components,
+reduced-motion checks. Retained offcanvas content now slides out on either side
+while inert: native input/AX access stops immediately, editors survive, and nested
+animations/popup scopes suspend. GPU and public screenshot evidence verifies paint
+continues during exit. Mounted navigation transitions remain pending alongside
+remaining navigation/overlay/carousel components,
 expanded public examples, broader acceptance and hosted gates.
 See [navigation design](design/navigation-components.md) and
 [foundation evidence](evidence/navigation-components-och37.md).
