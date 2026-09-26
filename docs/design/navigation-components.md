@@ -442,3 +442,45 @@ scope at native admission. Existing window/node/editor quotas still apply.
 The public Navigation Lab demonstrates four drawer edges and nested safe-first
 confirmation. Local native and public evidence belongs in the OCH-37 evidence
 ledger; these adapters do not complete hover cards, carousel or the full ticket.
+
+## Interactive hover cards
+
+`Hover_card.Config` shares the `Managed { initially_open } | Controlled bool`
+ownership vocabulary with tooltips. It defaults to a 320-pixel panel, Top/Center
+placement with a six-pixel gap, 600 ms opening delay and 300 ms closing delay.
+Both delays are validated in 0..60 seconds. Content is interactive; cards neither
+consume nor populate the separate tooltip grace clock. Native admission enforces
+interactive content and zero grace even for raw protocol clients.
+
+`View.hover_card` has a focusable `anchor` and arbitrary `content`, with optional
+`on_open_change`. Its panel uses nonmodal Dialog semantics instead of Tooltip,
+and its label is not copied into the anchor's tooltip-help description. Hover
+opens without changing focus. Keyboard focus opens immediately; Tab can enter
+content and leave the card normally. Pointer movement across the trigger/panel
+gap is tolerated by the hide delay. An editor, select or nested overlay handles
+its own Escape before the card does. Escape, trigger pointer-down and outside
+pointer-down request closure. An accepted close of focused content restores the
+first eligible painted trigger control when available, otherwise using the
+normal enclosing/window fallback. It does not steal outside focus.
+Restoration does not request reopening; a fresh entry after leaving can reopen.
+
+Managed changes are native observations; Controlled changes are intents and the
+visible value follows the accepted application update. Initial managed visibility
+is mount-only, and switching back to Managed uses the accepted visible value.
+Closing retains content descriptions and native editor buffers. Hidden content
+is excluded from focus/input/accessibility. Unmount disposes resources; Bonsai
+computation and Eio task lifetimes remain explicit application decisions.
+
+The existing tooltip state/placement/focus-surface adapter provides one cancellable
+native deadline per mounted owner, weak host/generational addressing and no idle
+polling. Hiding an ancestor or unmounting cancels pending deadlines. Card closure
+also preserves parent-overlay hit routing. Original tooltip semantics remain in
+their separate Kind=11 path. HoverCard appends Kind=46 while intentionally reusing
+the existing SetTooltip configuration and TooltipOpenChanged event encodings; the
+public OCaml names remain `Hover_card` and `on_open_change`.
+
+The Navigation Lab adds a controlled contributor preview with a retained native
+note editor. The public self-test covers open/close focus eligibility and retained
+text; the dedicated native suite covers actual keyboard/pointer/IME/AX and timer
+behavior. Linux native-suite compilation is wired to the required build gate;
+Linux graphical acceptance remains OCH-17.

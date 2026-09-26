@@ -881,6 +881,7 @@ impl Decoder<'_> {
                     43 => Kind::Disclosure,
                     44 => Kind::Accordion,
                     45 => Kind::NavigationStack,
+                    46 => Kind::HoverCard,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)

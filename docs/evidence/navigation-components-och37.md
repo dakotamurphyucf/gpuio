@@ -613,3 +613,69 @@ Remaining OCH-37 scope includes hover cards, carousel, broader sidebar acceptanc
 final family integration and hosted gates. OCH-38/39/46 and the consolidated M5
 macOS/Linux CI/merge remain required. These local adapter checks do not complete
 the ticket or milestone.
+
+## Interactive hover cards — 2026-09-26
+
+`Hover_card.Config` and Core/Bonsai `View.hover_card` now use the existing native
+retained-content/timing/placement machinery with a separate nonmodal Dialog role.
+Card labels are not tooltip-help descriptions. Cards always allow interactive
+content, use no tooltip grace interval and do not update that interval on closure.
+The public contract specifies Managed observations versus Controlled requests,
+first painted eligible anchor restoration/fallback, retained editor state,
+visibility gating and native deadline cancellation.
+
+Local macOS validation:
+
+- Full `test/view_api` expect suite passes: validation, default timings, independent
+  Kind=46/config bytes, unchanged event bytes, retained identities on controlled
+  closure, callback replacement and retirement. The Rust fixture suite passes all
+  17 tests, including existing overlays/tooltips and the new hover-card request.
+  The former malformed-overlay test now uses unknown tag 7 instead of newly
+  valid SheetLeft tag 2; its Boolean-malformation checks are unchanged.
+- Native admission tests pass both tooltip and hover-card structure, two-child
+  requirements, malformed timing, hoverable/grace policy, event revision/generation
+  rejection, atomic failure and final zero retained tree accounting.
+- Actual `native_hover_card` passes nonmodal AppKit AX window exposure, keyboard
+  opening, Tab into content and Shift-Tab back, Escape/trigger suppression,
+  native marked-text Escape precedence, retained post-IME draft/focus-handle
+  identity, Controlled requests awaiting accepted values, restoration without
+  self-reopening and fresh entry after a programmatic outside close. Native hover
+  opens without stealing focus. Pointer movement into interactive content keeps
+  it open; outside pointer-down closes immediately. A card's deferred content is
+  correctly hit-routed through its parent popover. Hiding/unmounting during a
+  pending deadline cancels it and emits no stale opening event. Cards do not seed
+  the tooltip grace clock.
+- The complete `native_controls` suite passes after the shared adapter changes,
+  including the original tooltip timing/grace/keyboard checks, sheets/alerts,
+  dialog/popover/IME routing, menus/palettes, toast/progress and pointer controls.
+- Rebuilt Navigation Lab `--self-test` passes the new Controlled contributor
+  preview: hidden focus rejection, open focus eligibility, closed draft retention,
+  plus existing drawer/route/pagination/lazy/data-scope checks and normal teardown.
+- All-target feature-enabled Clippy, OCaml/Rust formatting and whitespace checks
+  pass. All owned windows/processes are closed.
+
+Commands:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune runtest -j 2 test/view_api
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native -p gpuio-protocol --features gpuio-native/native-image-tests --test tooltips --test fixtures --test native_hover_card --test native_controls
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 examples/navigation/main.exe @fmt
+_build/default/examples/navigation/main.exe --self-test
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native -p gpuio-protocol --all-targets --features gpuio-native/native-image-tests -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all --check
+git diff --check
+```
+
+Final scratch logs: `hover-card-core-test.log`, `hover-card-native-final.log`,
+`hover-card-public-build.log`, `hover-card-public-test.log`, `hover-card-clippy.log`.
+Earlier native investigation captured real platform pointer-position events
+arriving over a zero-delay trigger during window startup. The fixture now uses an
+initial opening delay and sets the synthetic outside position after first paint;
+later timed-hover tests remain explicit. An IME retention assertion was corrected
+to compare the actual post-IME draft across closure instead of pre-IME text.
+These were test assumptions, not discarded runtime failures.
+
+The dedicated native target is wired into required macOS execution and Linux
+compilation. Hosted results are still pending the consolidated M5 gates. No Linux
+GUI or VoiceOver speech acceptance is claimed. Carousel and broader OCH-37 family/
+sidebar acceptance remain pending, followed by OCH-38/39/46 and final CI/merge.

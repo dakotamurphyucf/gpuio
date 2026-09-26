@@ -49,6 +49,7 @@ module Kind = struct
     | Disclosure
     | Accordion
     | Navigation_stack
+    | Hover_card
   [@@deriving equal, sexp_of]
 end
 
@@ -856,6 +857,20 @@ let tooltip ?key ?(style = Style.empty) ~config ?on_open_change ~anchor ~content
   { (container ?key ~style:(overlay_style (Some style)) [] [ anchor; content ]) with
     kind = Tooltip
   ; tooltip = Some { config; on_open_change }
+  }
+;;
+
+let hover_card ?key ?style ~config ?on_open_change ~anchor ~content () =
+  { (tooltip
+       ?key
+       ?style
+       ~config:(Hover_card.Expert.tooltip config)
+       ?on_open_change
+       ~anchor
+       ~content
+       ())
+    with
+    kind = Hover_card
   }
 ;;
 

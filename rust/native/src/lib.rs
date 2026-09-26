@@ -223,3 +223,8 @@ pub fn run_native_color_input_test() {
 pub fn run_native_navigation_test() {
     host::control_test::run_navigation();
 }
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_hover_card_test() {
+    host::control_test::run_hover_cards();
+}

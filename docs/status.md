@@ -53,7 +53,12 @@ asynchronous dismissal infrastructure. Native macOS checks cover edge geometry,
 clamping/resize, late hover styles, editor identity, focus restoration and nested
 alert backdrop blocking. The public Navigation Lab includes drawer/confirmation
 flows; its latest validation is recorded in the evidence ledger.
-Remaining scope includes hover cards and carousel,
+Interactive hover cards now expose a separate nonmodal Dialog role while reusing
+native tooltip timing, retained content and placement. Local native tests cover
+Tab/pointer/IME/Escape, accepted controlled close, anchor restoration and timer
+cancellation; the Navigation Lab includes a contributor preview. Existing tooltips
+retain their separate help semantics and grace clock.
+Remaining scope includes carousel,
 expanded public examples, broader acceptance and hosted gates.
 See [navigation design](design/navigation-components.md) and
 [foundation evidence](evidence/navigation-components-och37.md).

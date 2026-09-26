@@ -26,7 +26,7 @@ completes data work while content is hidden, and verifies scoped shutdown. It
 closes the window on completion or a reported failure. Native tests separately
 cover actual Tab/Enter/AX activation and AppKit description readback.
 
-This example covers implemented navigation/disclosure and modal overlay adapters. Hover cards, carousel and broader acceptance remain part of OCH-37;
+This example covers implemented navigation/disclosure and modal overlay adapters. Carousel and broader acceptance remain part of OCH-37;
 Linux GUI validation remains OCH-17.
 
 The lab also includes the initial `Sidebar` composition: grouped nested links,
@@ -84,3 +84,17 @@ that background editor focus is blocked and its draft survives. Actual native
 keyboard/pointer, placement, resize, AX and dismissal routing are checked separately
 by `native_controls`. These surfaces unmount on close; their application state and
 Eio tasks are not implicitly cancelled by native visibility.
+
+## Contributor hover card
+
+Hover over or focus **Contributor preview** to open a nonmodal preview. Tab enters
+its native note editor and can leave normally. The preview remains open while
+focus or pointer is inside it; Escape closes after the editor's own IME handling.
+The **Close preview** action closes through the Bonsai model. Its draft is retained
+while hidden, and focus returns to the trigger when focused content closes.
+
+The example uses Controlled ownership: native open/close requests feed the Bonsai
+state machine. `Hover_card.Open_state.Managed` is also available for native-only
+transient visibility. The public self-test checks closed focus rejection,
+open focus eligibility and retained text. `native_hover_card` independently tests
+real input, native delays, accessibility roles and timer disposal.

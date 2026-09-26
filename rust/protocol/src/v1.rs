@@ -146,6 +146,7 @@ pub enum Kind {
     Disclosure,
     Accordion,
     NavigationStack,
+    HoverCard,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]

@@ -91,6 +91,7 @@ module View = struct
   let menu_bar = Gpuio.View.menu_bar
   let command_button = Gpuio.View.command_button
   let tooltip = Gpuio.View.tooltip
+  let hover_card = Gpuio.View.hover_card
   let extension = Gpuio.View.extension
   let split_pane = Gpuio.View.split_pane
   let tab_bar = Gpuio.View.tab_bar

@@ -284,6 +284,16 @@ module View : sig
     -> unit
     -> t
 
+  val hover_card
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Hover_card.Config.t
+    -> ?on_open_change:(bool -> unit Bonsai.Effect.t)
+    -> anchor:t
+    -> content:t
+    -> unit
+    -> t
+
   val row : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> t list -> t
 
   val extension

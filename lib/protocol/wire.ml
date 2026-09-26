@@ -73,6 +73,7 @@ module Kind = struct
     | Disclosure
     | Accordion
     | Navigation_stack
+    | Hover_card
   [@@deriving bin_io, equal, sexp_of]
 end
 

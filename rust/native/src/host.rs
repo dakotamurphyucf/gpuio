@@ -539,7 +539,7 @@ impl View {
         if node.kind == Kind::Menu {
             return self.menu_element(tree, node, interaction, window, cx);
         }
-        if node.kind == Kind::Tooltip {
+        if matches!(node.kind, Kind::Tooltip | Kind::HoverCard) {
             return self.tooltip_element(tree, node, interaction, window, cx);
         }
         let popup_priority = self.focus.borrow().layer(id) + 2;

@@ -32,6 +32,7 @@ module Action = struct
     | Route_back
     | Route_forward
     | Route_replace
+    | Preview_open of bool
     | Open_drawer of Sheet.Edge.t
     | Close_drawer
     | Confirm_drawer_close
@@ -45,6 +46,7 @@ module Model = struct
     ; lazy_content : bool
     ; sidebar : Sidebar.t
     ; inspected : bool
+    ; preview_open : bool
     ; modal : Modal.t
     ; routes : string Navigation_stack.t
     }
@@ -84,6 +86,7 @@ module Model = struct
     ; details = true
     ; lazy_content = true
     ; sidebar
+    ; preview_open = false
     ; modal = Closed
     ; inspected = false
     ; routes =
@@ -111,6 +114,7 @@ module Model = struct
     | Inspect_sidebar -> { t with inspected = true }
     | Route_back -> { t with routes = Navigation_stack.pop t.routes }
     | Route_forward -> { t with routes = Navigation_stack.forward t.routes }
+    | Preview_open preview_open -> { t with preview_open }
     | Open_drawer edge -> { t with modal = Drawer edge }
     | Close_drawer -> { t with modal = Closed }
     | Confirm_drawer_close ->
@@ -139,6 +143,7 @@ module Observation = struct
     ; inject : Action.t -> unit E.t
     ; editor : Input.t
     ; route_editor : Input.t
+    ; preview_editor : Input.t
     }
 end
 
@@ -179,6 +184,15 @@ let component
            (Text_input.Config.create ~mode:Single_line ~label:"Route draft" () |> ok))
       graph
   in
+  let preview_editor =
+    Input.create
+      window
+      ~initial_text:"A private note that survives closing the preview."
+      ~config:
+        (B.return
+           (Text_input.Config.create ~mode:Single_line ~label:"Contributor note" () |> ok))
+      graph
+  in
   let lazy_enabled =
     let%arr model = model in
     model.Model.lazy_content
@@ -202,9 +216,11 @@ let component
     (let%arr model = model
      and inject = inject
      and editor = editor
-     and route_editor = route_editor in
+     and route_editor = route_editor
+     and preview_editor = preview_editor in
      E.of_thunk (fun () ->
-       observed := Some { Observation.model; inject; editor; route_editor }))
+       observed
+       := Some { Observation.model; inject; editor; route_editor; preview_editor }))
     graph;
   let loaded = B.Expert.Var.value loaded in
   let icon = B.Expert.Var.value icon in
@@ -212,6 +228,7 @@ let component
   and inject = inject
   and editor = editor
   and route_editor = route_editor
+  and preview_editor = preview_editor
   and lazy_view = lazy_view
   and loaded = loaded
   and icon = icon in
@@ -396,6 +413,29 @@ let component
              [ Sheet.Edge.Left, "Left"; Right, "Right"; Top, "Top"; Bottom, "Bottom" ]
              ~f:(fun (edge, label) ->
                UI.button ~on_click:(inject (Open_drawer edge)) (label ^ " drawer")))
+      ; UI.hover_card
+          ~key:(Key.of_string_exn "contributor-preview")
+          ~config:
+            (Hover_card.Config.create
+               ~label:"Contributor preview"
+               ~open_state:(Controlled model.preview_open)
+               ()
+             |> ok)
+          ~on_open_change:(fun open_ -> inject (Preview_open open_))
+          ~anchor:(UI.button ~on_click:(E.return ()) "Contributor preview")
+          ~content:
+            (UI.column
+               ~style:(style [ Gap (px 12.) ])
+               [ UI.text
+                   ~style:(style [ Font_size 18.; Font_weight 600 ])
+                   "Avery · Design engineer"
+               ; UI.text
+                   "Hover or focus the trigger to preview. Tab enters this card without \
+                    trapping focus."
+               ; Input.view ~style:(style [ Width full; Height (px 40.) ]) preview_editor
+               ; UI.button ~on_click:(inject (Preview_open false)) "Close preview"
+               ])
+          ()
       ; Navigation.breadcrumbs
           crumbs
           ~label:"Archive path"
@@ -622,6 +662,20 @@ let () =
                    | Error error -> raise_s [%sexp (error : Text_input.Command_error.t)]);
                   let before = read () in
                   let route_before = route_read () in
+                  let preview_snapshot () =
+                    match on_ui (Input.read_snapshot (latest ()).preview_editor) with
+                    | Ok snapshot -> snapshot
+                    | Error error -> raise_s [%sexp (error : Text_input.Command_error.t)]
+                  in
+                  let preview_before = preview_snapshot () in
+                  assert (Result.is_error (on_ui (Input.focus (latest ()).preview_editor)));
+                  send (Preview_open true);
+                  await (fun () -> (model ()).preview_open);
+                  assert (Result.is_ok (on_ui (Input.focus (latest ()).preview_editor)));
+                  send (Preview_open false);
+                  await (fun () -> not (model ()).preview_open);
+                  assert (Result.is_error (on_ui (Input.focus (latest ()).preview_editor)));
+                  assert (Text_input.Snapshot.equal preview_before (preview_snapshot ()));
                   send (Open_drawer Right);
                   await (fun () ->
                     match (model ()).modal with

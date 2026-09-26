@@ -98,6 +98,7 @@
    menus-v1-request.hex
    commands-v1-request.hex
    commands-v1-events.hex
+   hover-card-request.hex
    tooltip-v1-request.hex
    tooltip-v1-events.hex
    placement-v1-request.hex
@@ -245,3 +246,5 @@
 (copy_files ../fixtures/navigation-stack-request.hex)
 
 (copy_files ../fixtures/overlay-kinds-request.hex)
+
+(copy_files ../fixtures/hover-card-request.hex)

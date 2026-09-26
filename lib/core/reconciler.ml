@@ -232,6 +232,7 @@ let kind = function
   | Combobox -> Combobox
   | Focus_scope -> Focus_scope
   | Tooltip -> Tooltip
+  | Hover_card -> Hover_card
   | Command_scope -> Command_scope
   | Command_button -> Command_button
   | Menu -> Menu

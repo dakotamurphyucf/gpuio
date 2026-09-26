@@ -230,3 +230,8 @@ required-features = ["native-tests"]
 name = "native_navigation"
 harness = false
 required-features = ["native-tests"]
+
+[[test]]
+name = "native_hover_card"
+harness = false
+required-features = ["native-tests"]

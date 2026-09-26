@@ -1593,6 +1593,7 @@ enum Suite {
     Controls,
     Tabs,
     Navigation,
+    HoverCards,
     Splits,
     Extensions,
     Menus,
@@ -1611,6 +1612,9 @@ pub fn run_extensions() {
 }
 pub fn run_splits() {
     run_suite(Suite::Splits);
+}
+pub fn run_hover_cards() {
+    run_suite(Suite::HoverCards);
 }
 pub fn run_navigation() {
     run_suite(Suite::Navigation);
@@ -1722,6 +1726,7 @@ fn run_suite(suite: Suite) {
             // Reserve the same generational slots used by preceding component
             // fixtures, without exercising those unrelated windows/interactions.
             let end = match suite {
+                Suite::HoverCards => 27,
                 Suite::Menus => 38,
                 Suite::Palette => 47,
                 Suite::Progress => 60,
@@ -1783,6 +1788,10 @@ fn run_suite(suite: Suite) {
                         Suite::Tabs => {
                             radio(cx, handle, &transport, Kind::TabBar, 5).await;
                             retained_tab_panel(cx, handle).await;
+                        }
+                        Suite::HoverCards => {
+                            tooltip_test::exercise_kind(cx, handle, &transport, Kind::HoverCard)
+                                .await
                         }
                         Suite::Menus => menu_test::exercise(cx, handle, &transport).await,
                         Suite::Palette => palette_test::exercise(cx, handle, &transport).await,

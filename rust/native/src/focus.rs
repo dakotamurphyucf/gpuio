@@ -259,6 +259,28 @@ impl Manager {
             .values()
             .any(|scope| scope.handle.is_focused(window))
     }
+    fn closed_card_anchor(&self, focused: NodeId) -> Option<FocusHandle> {
+        let session = self.session.borrow();
+        let tree = session.tree(self.window)?;
+        let mut child = focused;
+        while let Some(parent) = tree.get(child)?.parent {
+            let node = tree.get(parent)?;
+            if node.kind == Kind::HoverCard
+                && node.children.get(1) == Some(&child)
+                && !self.visible(child)
+            {
+                let anchor = node.children[0];
+                if let Some(entry) = self.entries.iter().find(|entry| {
+                    entry.tab_stop && self.eligible(entry.node) && self.within(entry.node, anchor)
+                }) {
+                    return Some(entry.handle.clone());
+                }
+            }
+            child = parent;
+        }
+        None
+    }
+
     pub(super) fn sync(&mut self, window: &mut Window, cx: &mut App) {
         self.sync_navigation_focus(window);
         // Keep the previous painted ancestry: removed editor nodes are already
@@ -405,6 +427,11 @@ impl Manager {
                     .find(|entry| entry.node == *trigger)
                     .map(|entry| entry.handle.clone())
             })
+        {
+            window.focus(&handle, cx);
+        }
+        if !scope_restored
+            && let Some(handle) = previous_focused.and_then(|node| self.closed_card_anchor(node))
         {
             window.focus(&handle, cx);
         }

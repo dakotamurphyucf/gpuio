@@ -210,6 +210,29 @@ val tooltip
   -> unit
   -> 'action t
 
+(** An interactive preview with nonmodal dialog semantics, rather than tooltip
+    help text. Hover never moves focus; use a focusable anchor (normally a button
+    or link) for keyboard access. Tab can enter the content and leave normally.
+    Escape and trigger pointer-down request closure until a fresh hover/focus
+    entry. Outside pointer-down also requests closure. Closing focused content
+    restores the first eligible painted anchor control when available, otherwise
+    using the normal enclosing/window fallback. It never steals outside focus.
+
+    Native content is retained while closed, including editor buffers. Hidden
+    content cannot receive input or appear in accessibility. Unmount disposes
+    native resources and timers; Bonsai models and Eio tasks keep their explicit
+    lifetimes. [style] applies to the card panel. Managed changes are observations;
+    Controlled changes are requests, with visibility following the accepted value. *)
+val hover_card
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Hover_card.Config.t
+  -> ?on_open_change:(bool -> 'action)
+  -> anchor:'action t
+  -> content:'action t
+  -> unit
+  -> 'action t
+
 val row : ?key:Key.t -> ?style:Style.t -> 'action t list -> 'action t
 val column : ?key:Key.t -> ?style:Style.t -> 'action t list -> 'action t
 
@@ -817,6 +840,7 @@ module Expert : sig
       | Disclosure
       | Accordion
       | Navigation_stack
+      | Hover_card
     [@@deriving equal, sexp_of]
   end
 

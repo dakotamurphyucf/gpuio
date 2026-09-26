@@ -22,6 +22,7 @@ fn allows_children(kind: Kind) -> bool {
             | Kind::CommandButton
             | Kind::FocusScope
             | Kind::Tooltip
+            | Kind::HoverCard
             | Kind::CommandScope
             | Kind::Menu
             | Kind::Toast
@@ -382,6 +383,7 @@ impl Tree {
         while let Some(parent) = self.get(child)?.parent {
             let node = self.get(parent)?;
             if let Some(config) = &node.tooltip
+                && node.kind == Kind::Tooltip
                 && !config.disabled
                 && node.children.first() == Some(&child)
             {
@@ -809,12 +811,18 @@ impl Tree {
                 if (node.kind == Kind::FocusScope) != node.focus_scope.is_some() {
                     return Err(ErrorCode::InvalidTree.into());
                 }
-                if (node.kind == Kind::Tooltip) != node.tooltip.is_some()
+                if matches!(node.kind, Kind::Tooltip | Kind::HoverCard) != node.tooltip.is_some()
                     || node
                         .tooltip
                         .as_ref()
                         .is_some_and(|config| !config.is_valid())
-                    || (node.kind == Kind::Tooltip && node.children.len() != 2)
+                    || (matches!(node.kind, Kind::Tooltip | Kind::HoverCard)
+                        && node.children.len() != 2)
+                    || (node.kind == Kind::HoverCard
+                        && node
+                            .tooltip
+                            .as_ref()
+                            .is_some_and(|config| !config.hoverable || config.skip_delay_ns != 0))
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
@@ -872,6 +880,7 @@ impl Tree {
                     Kind::Container
                     | Kind::FocusScope
                     | Kind::Tooltip
+                    | Kind::HoverCard
                     | Kind::Toast
                     | Kind::ToastStack
                     | Kind::PointerArea
@@ -1780,14 +1789,18 @@ impl Plan<'_> {
                 self.structural = true;
             }
             Op::SetTooltip(id, config) => {
-                if self.node(*id)?.kind != Kind::Tooltip || !config.is_valid() {
+                if !matches!(self.node(*id)?.kind, Kind::Tooltip | Kind::HoverCard)
+                    || !config.is_valid()
+                {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.tooltip = Some(Arc::new(config.clone()));
             }
             Op::SetPlacement(id, placement) => {
-                if !matches!(self.node(*id)?.kind, Kind::FocusScope | Kind::Tooltip)
-                    || placement.is_some_and(|placement| !placement.is_valid())
+                if !matches!(
+                    self.node(*id)?.kind,
+                    Kind::FocusScope | Kind::Tooltip | Kind::HoverCard
+                ) || placement.is_some_and(|placement| !placement.is_valid())
                 {
                     return Err(ErrorCode::InvalidTree);
                 }

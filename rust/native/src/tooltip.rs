@@ -16,6 +16,7 @@ use std::{
 };
 
 pub(super) struct State {
+    kind: Kind,
     config: Arc<TooltipConfig>,
     open: bool,
     requested: bool,
@@ -31,12 +32,13 @@ pub(super) struct State {
     bounds: Rc<Cell<gpui::Bounds<gpui::Pixels>>>,
 }
 impl State {
-    fn new(config: Arc<TooltipConfig>) -> Self {
+    fn new(config: Arc<TooltipConfig>, kind: Kind) -> Self {
         let open = !config.disabled
             && match config.open_state {
                 TooltipOpenState::Managed(open) | TooltipOpenState::Controlled(open) => open,
             };
         Self {
+            kind,
             config,
             open,
             requested: open,
@@ -103,6 +105,10 @@ impl State {
             self.bounds.get()
         )
     }
+    #[cfg(feature = "native-tests")]
+    pub(super) fn has_timer(&self) -> bool {
+        self.timer.is_some()
+    }
     fn interested(&self) -> bool {
         self.anchor_hover || self.focused || (self.config.hoverable && self.panel_hover)
     }
@@ -134,29 +140,42 @@ impl View {
                 while let Some(id) = stack.pop() {
                     let node = tree.get(id).expect("validated node");
                     if let Some(config) = &node.tooltip {
-                        nodes.push((id, config.clone(), node.children[1]));
+                        nodes.push((id, node.kind, config.clone(), node.children[1]));
                     }
                     stack.extend(node.children.iter().copied());
                 }
             }
             nodes
         };
-        let present = nodes.iter().map(|(id, _, _)| *id).collect::<BTreeSet<_>>();
+        let present = nodes
+            .iter()
+            .map(|(id, _, _, _)| *id)
+            .collect::<BTreeSet<_>>();
         self.tooltips.retain(|id, _| present.contains(id));
         let mut hidden = BTreeSet::new();
         let mut reschedule = Vec::new();
-        for (id, config, content) in nodes {
+        for (id, kind, config, content) in nodes {
             let state = self
                 .tooltips
                 .entry(id)
-                .or_insert_with(|| State::new(config.clone()));
+                .or_insert_with(|| State::new(config.clone(), kind));
             if state.pending.is_some() && state.config != config {
                 reschedule.push(id);
             }
             let was_open = state.open;
             state.configure(config);
             if was_open && !state.open {
-                self.tooltip_last_closed = Some(Instant::now());
+                if kind == Kind::Tooltip {
+                    self.tooltip_last_closed = Some(Instant::now());
+                } else {
+                    // Restoring an anchor after an accepted controlled close
+                    // must not generate a fresh open request from our own focus.
+                    state.focused = state
+                        .focus_handle
+                        .as_ref()
+                        .is_some_and(|handle| handle.contains_focused(window, cx));
+                    state.suppressed = state.interested();
+                }
             }
             if !state.open {
                 hidden.insert(content);
@@ -299,7 +318,9 @@ impl View {
             state.open = open;
             if !open {
                 state.panel_hover = false;
-                self.tooltip_last_closed = Some(Instant::now());
+                if state.kind == Kind::Tooltip {
+                    self.tooltip_last_closed = Some(Instant::now());
+                }
             }
         }
 
@@ -420,7 +441,11 @@ impl View {
             }
             let mut panel = div()
                 .id(("gpuio-tooltip-panel", identity))
-                .role(gpui::Role::Tooltip)
+                .role(if node.kind == Kind::HoverCard {
+                    gpui::Role::Dialog
+                } else {
+                    gpui::Role::Tooltip
+                })
                 .aria_label(config.label.clone())
                 .flex()
                 .flex_col()
@@ -446,6 +471,18 @@ impl View {
             }
             if let Some(style) = pressed {
                 panel = panel.active(move |_| style);
+            }
+            if node.kind == Kind::HoverCard {
+                let owner = cx.weak_entity();
+                let gate = self.focus.clone();
+                let anchor = anchor_bounds.clone();
+                panel = panel.on_mouse_down_out(move |event, window, cx| {
+                    if !anchor.get().contains(&event.position)
+                        && !gate.borrow().surface_contains(id, event.position)
+                    {
+                        input(owner.clone(), id, Input::Dismiss, window, cx);
+                    }
+                });
             }
             if panel_interaction.pointer {
                 panel = panel
@@ -508,7 +545,7 @@ mod tests {
             hide_delay_ns: 0,
             skip_delay_ns: 0,
         });
-        let mut state = State::new(config.clone());
+        let mut state = State::new(config.clone(), Kind::Tooltip);
         state.requested = true;
         state.panel_hover = true;
         state.configure(Arc::new(TooltipConfig {
