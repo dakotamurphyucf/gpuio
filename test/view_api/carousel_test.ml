@@ -209,3 +209,14 @@ let%expect_test "independent carousel config/request fixtures" =
   print_s [%sexp (C.Expert.request_of_wire request |> ok : C.Request.t)];
   [%expect {| (Auto_next (revision 7) (from "\206\178") (target c)) |}]
 ;;
+
+let%expect_test "navigation family capability uses the shared 64-bit handshake" =
+  let module Wire = Gpuio_protocol.Wire in
+  assert (Int64.equal (Int64.bit_and Wire.capabilities 274877906944L) 274877906944L);
+  let bytes =
+    Wire.Message.encode (Hello (Wire.version, Wire.capabilities)) |> Or_error.ok_exn
+  in
+  String.iter bytes ~f:(fun byte -> printf "%02x" (Char.to_int byte));
+  print_endline "";
+  [%expect {| 0001fcffffffff7f000000 |}]
+;;

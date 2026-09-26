@@ -216,6 +216,10 @@ impl View {
         let eligible = !state.input.active()
             && state.painted
             && !state.hovered
+            && !self
+                .focus
+                .borrow()
+                .surface_contains(id, window.mouse_position())
             && !state.config.disabled
             && window.is_window_active()
             && window.captured_hitbox().is_none()

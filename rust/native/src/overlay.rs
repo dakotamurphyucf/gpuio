@@ -6,7 +6,7 @@ use gpui::{
     LayoutId, Pixels, Stateful, Window, deferred, div, prelude::*, px, rgba,
 };
 use gpuio_protocol::v1::*;
-use std::sync::Arc;
+use std::{cell::Cell, rc::Rc, sync::Arc};
 
 fn dismiss(route: &Route, reason: Dismissal) {
     if !route.gate.borrow().top_overlay(route.node) {
@@ -140,6 +140,12 @@ pub(super) fn element(
         Some(state) => super::scroll::Frame::new(panel, state).into_any_element(),
         None => panel.into_any_element(),
     };
+    let bounds = Rc::new(Cell::new(Bounds::default()));
+    route.gate.borrow_mut().surface(route.node, bounds.clone());
+    let panel = SurfaceBounds {
+        content: panel,
+        bounds,
+    };
     let panel = crate::semantics::State {
         hidden: false,
         metadata: None,
@@ -191,6 +197,63 @@ pub(super) fn element(
         })
         .with_priority(priority)
         .into_any_element()
+    }
+}
+
+/// Measure the panel itself, outside its scrolling content. Logical ancestors
+/// must recognize a deferred popup even when it extends beyond their layout.
+struct SurfaceBounds {
+    content: AnyElement,
+    bounds: Rc<Cell<Bounds<Pixels>>>,
+}
+impl IntoElement for SurfaceBounds {
+    type Element = Self;
+    fn into_element(self) -> Self {
+        self
+    }
+}
+impl Element for SurfaceBounds {
+    type RequestLayoutState = ();
+    type PrepaintState = ();
+    fn id(&self) -> Option<gpui::ElementId> {
+        None
+    }
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+    fn request_layout(
+        &mut self,
+        _: Option<&GlobalElementId>,
+        _: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, ()) {
+        (self.content.request_layout(window, cx), ())
+    }
+    fn prepaint(
+        &mut self,
+        _: Option<&GlobalElementId>,
+        _: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _: &mut (),
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.bounds
+            .set(bounds.intersect(&window.content_mask().bounds));
+        self.content.prepaint(window, cx);
+    }
+    fn paint(
+        &mut self,
+        _: Option<&GlobalElementId>,
+        _: Option<&InspectorElementId>,
+        _: Bounds<Pixels>,
+        _: &mut (),
+        _: &mut (),
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.content.paint(window, cx);
     }
 }
 

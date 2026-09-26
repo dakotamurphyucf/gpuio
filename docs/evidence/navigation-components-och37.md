@@ -1,5 +1,39 @@
 # OCH-37 implementation evidence
 
+## Current local acceptance matrix
+
+The component scope is implemented and accepted locally on macOS arm64. OCH-37
+remains In Progress until consolidated hosted gates and the milestone merge pass.
+The dated sections below are historical checkpoints; their old pending lists are
+superseded by this matrix and the final checkpoint. No Linux GUI or VoiceOver
+speech acceptance is inferred from macOS input/AX tests.
+
+| Ticket requirement | Implementation and direct evidence |
+| --- | --- |
+| Single/multiple, nested disclosure | Core `Disclosure`, `View.disclosure/accordion`; disclosure model/view expect tests and `native_navigation`: header traversal, expanded AX state, nested collapse, focus/IME, Retain/Unmount |
+| Route replacement/pop and native motion | `Navigation_stack` and `View.navigation_stack`; pure history tests, GPU page tests, nested/modal focus, replacement and 128-page traversal with resource-quota rejection |
+| Sidebar, breadcrumbs and pagination | Public `Sidebar`/`Navigation` compositions; 4,096-item model bounds and page-partition tests; left/right public sidebar AX/context-menu and width/interruption/reduced-motion tests, offcanvas GPU screenshots; current semantics and page-count shrink |
+| Sheet/drawer, alert dialog, hover card | Public adapters over existing overlay/focus infrastructure; paired fixtures; `native_controls` four-edge/clamp/resize, nested backdrop and focus return; `native_hover_card` timing, input, IME-first Escape, retained content and timer disposal |
+| Preserve dialogs/popovers/tooltips | Existing native controls regression suite, including child deferred popup hit routing and Escape priority; overlay bounds now registered with the shared logical surface registry |
+| Controlled carousel, keyboard/pointer and auto | `Carousel`, Core/Bonsai views, native admission; exact codec fixtures; `native_carousel` axis-locked drag/GPU/capture, wheel and child-scroll priority, reduced motion, focus/hover/visibility/inactivity pause, idle and teardown |
+| Nested family and hidden-input behavior | Native marked text, retained editor identity, destination focus, popup editor keys and dismissal; carousel child popup focus/hover outside owner bounds pauses auto; hidden popup scopes retire and buffers reject further native insertion |
+| Native retention versus Bonsai/data lifetime | Public Navigation Lab self-test: retained snapshots, stale leases on explicit Unmount, fresh native remount, independent Bonsai counter/lazy branch and Eio scope cancellation |
+| Public asynchronous integration | Navigation Lab external macOS AX/keyboard test drives native requests through FFI/Eio/Bonsai, including automatic selection; no synchronous native call into OCaml |
+| Bounded state and disposal | 128-entry/page histories, item/text limits, bounded pagination, one automatic proposal/task, capture ownership, timer cancellation, zero retained tree accounting after teardown |
+| Existing tabs/splits | Uses the existing OCH-15 workspace vocabulary; this family adds page/navigation compositions, not another workspace or docking implementation |
+
+Source-level acceptance tests are under `test/view_api/`, `rust/protocol/tests/`
+and `rust/native/src/*navigation*test.rs`, `carousel*test.rs`, `overlay_test.rs`,
+`tooltip_test.rs`. Public harnesses are `scripts/test_sidebar.py` and
+`scripts/test_carousel.py`; the runnable API/lifetime lab is `examples/navigation`.
+The sidebar's model bound is not a promise to mount arbitrary decoration at that
+size outside normal tree/resource budgets. Large virtual datasets are OCH-38/39.
+App-level theme/responsive/showcase polish remains explicit OCH-46 scope.
+
+Remaining milestone work: OCH-38 managed trees, OCH-39 read-only virtual tables,
+OCH-46 chat showcase, consolidated macOS/Linux CI, reviewed merge and ticket
+completion. Linux graphical platform acceptance remains OCH-17.
+
 ## Pure application models — 2026-09-25
 
 `Navigation_stack`, `Disclosure` and `Pagination` now compile in the public Core
@@ -988,3 +1022,56 @@ Logs: `carousel-public-dune-all-final.log`, `carousel-public-self-test-final.log
 check alongside the native gesture suite and existing public navigation check.
 No hosted run, Linux GUI or completed OCH-37/milestone acceptance is claimed here;
 expanded IME/nested-family acceptance and consolidated platform gates remain.
+
+
+## Nested carousel and family capability — 2026-09-26
+
+The native carousel suite now includes an independent editing/popover fixture.
+Actual macOS marked-text input is retained across page changes; the destination
+receives focus and native insertion cannot reach the hidden editor. A deferred
+popover editor pauses auto-advance while focused, keeps arrow/Home handling,
+consumes the first Escape for IME and emits controlled dismissal on the next.
+Hiding its page retires the popup focus scope without discarding the retained
+buffer; explicit focus commands are rejected. Removing the entire tree leaves
+no editors/presenters, no delayed carousel proposal and zero retained accounting.
+
+The first run exposed a real integration omission: application-controlled overlay
+panels were absent from the focus manager's logical surface registry. Menus,
+choices and hover cards already registered their deferred bounds. Overlay panels
+now register bounds measured outside scrolling content during prepaint, clipped
+to the current content mask. The registry resets per render. Carousel scheduling
+consults those descendant surfaces in addition to its ordinary hover/focus gates;
+no new timer or polling loop is added.
+
+The regression uses a popup wider than the carousel and proves the pointer is
+outside the carousel's allocated rectangle. Hovering that popup pauses auto for
+longer than its interval. Clicking inside does not dismiss; clicking outside
+emits the overlay request, resumes the clock, and produces exactly one automatic
+proposal. This complements the existing nested child-popup and modal-backdrop
+checks in `native_controls`, which also pass with the shared panel measurement.
+
+The navigation family now advertises bit 38 (`274877906944`), for a shared mask
+of `549755813887`. OCaml and Rust independently assert Hello bytes
+`0001fcffffffff7f000000`; previous handshake expectations advance consistently.
+Wire version and dependency pins are unchanged. Mixing bridge halves is unsupported.
+
+Validation uses the isolated repository toolchain and two build jobs:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 --workspace
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @runtest @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-image-tests --test native_controls
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --features native-image-tests --test native_carousel
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native -p gpuio-protocol --all-targets --features gpuio-native/native-image-tests -- -D warnings
+_build/default/examples/navigation/main.exe --self-test
+```
+
+The workspace and full Dune suites pass, including 221 native unit tests. Native
+controls and the extended carousel suite pass on macOS. The carousel log includes
+`GPUIO_CAROUSEL_NESTED_OK` after its existing drag/wheel/presentation markers.
+Evidence logs are `navigation-family-{rust,dune,native-carousel,clippy,public}.log`
+and `carousel-nested-controls.log` in the implementing agent's ignored notepad
+folder. Public self-test and all-target feature-enabled Clippy also pass.
+Native tests close their windows; no physical trackpad, VoiceOver speech or Linux
+GUI coverage is claimed. The current matrix supersedes earlier pending-family
+notes. Hosted gates, milestone merge and OCH-38/39/46 remain outstanding.

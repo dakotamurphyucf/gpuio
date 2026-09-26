@@ -1,10 +1,12 @@
 # Disclosure, navigation and supplementary overlays (OCH-37)
 
-Status: implementation in progress. Core models, mounted disclosure, breadcrumbs
-and pagination pass the local checks recorded in the evidence ledger. Full-family
-capability and acceptance are not yet advertised. This
-specification retains the full live OCH-37 scope, including native behavior,
-examples and platform gates.
+Status: local component acceptance is complete on macOS. The family includes
+all components in the live OCH-37 scope and advertises bit 38 (`274877906944`);
+the shared required capability mask is `549755813887`. Both bridge halves must be
+rebuilt together. The [acceptance matrix](../evidence/navigation-components-och37.md#current-local-acceptance-matrix)
+links the implementation evidence. Consolidated hosted macOS/Linux checks and
+merge remain required; Linux GUI acceptance is tracked separately in OCH-17.
+OCH-46 integrates these components into the polished chat showcase.
 
 ## Ownership and component mapping
 
@@ -183,11 +185,10 @@ and verifies Unmount releases inactive widgets. Applications with many editor
 pages can explicitly unmount inactive native content and keep data/drafts under
 application ownership. No quota was widened to admit this workload.
 
-These results do not yet establish full OCH-37 family acceptance; supplementary
-overlays, carousel, broader sidebar presentation/workload and final hosted gates
-remain.
+These bounds also apply when navigation composes supplementary overlays and
+carousels; the later sections describe those implemented adapters.
 
-## Native bridge and validation still to implement
+## Native bridge and validation contract
 
 Use generation-checked node routes and ordered bounded requests. Relative
 requests must not be coalesced away. Native timers are per mounted owner with
@@ -243,10 +244,9 @@ Both standard and composed static backends use it; no global installation or GPU
 version upgrade is involved. Native AppKit getter/Press checks pass. VoiceOver
 speech and external notification observation remain distinct from those checks.
 
-This is an initial mounted disclosure implementation, not complete OCH-37
-acceptance. Broader layout/appearance, reveal/navigation motion, public examples,
-other navigation/overlay/carousel families and full lifecycle/workload acceptance
-remain to be finished before capability advertisement.
+Mounted disclosure acceptance includes nested groups, retained/unmounted native
+editors, marked text, keyboard/AX state and teardown. Navigation/sidebar motion
+and public Bonsai/Eio composition are covered by the sections below.
 
 ## Breadcrumb and pagination compositions
 
@@ -295,7 +295,7 @@ Bonsai conditional branches independently activate/deactivate lazy computation;
 a data scope outlives both visibility changes and is cancelled when its window
 closes. Lazy deactivation itself is not a promise to discard the Bonsai model.
 
-## Sidebar model and initial composition
+## Sidebar model and composition
 
 `Sidebar` owns immutable destination metadata, current ID, expanded IDs and the
 requested collapse preference. Destination IDs are unique across groups; group
@@ -355,8 +355,11 @@ from the painted allocation, preserving native editor/link identity.
 `Content_policy.Unmount` removes descendants immediately, preserving its explicit
 native-lifetime contract; only the remaining empty allocation animates. Removing
 the sidebar itself also disposes immediately. This does not postpone reconciliation
-or transfer application task ownership to a native animation. Broader sidebar
-appearance/workload acceptance and mounted navigation transitions remain pending.
+or transfer application task ownership to a native animation. Local public
+checks cover left/right placement, native width interruption, reduced motion,
+retained offcanvas exit pixels, context actions and hidden accessibility. Model
+bounds are tested separately from mounted native resource quotas. Sidebar is not
+a virtualized 4,096-row tree; managed datasets belong to OCH-38.
 
 ### Native inert presentation boundary
 
@@ -637,5 +640,11 @@ request dispatch, horizontal/vertical page presentation, keyboard, bounded wheel
 input, pointer drag/snapping and native automatic scheduling are implemented and
 locally tested on macOS. The public Navigation Lab additionally verifies keyboard/AX,
 native auto-advance, explicit unmount leases and independent Bonsai/Eio lifetimes.
-Expanded IME/nested-family acceptance and consolidated gates remain pending. No carousel capability is advertised;
-the gesture scope has not been replaced by the default buttons.
+Native marked-text and nested-popover checks also pass: hidden editors preserve
+their buffers but reject input, page changes hand off focus, popup editor keys
+stay local, and IME consumes the first Escape before dismissal. Focused or hovered
+logical descendant popups pause automatic navigation even outside the carousel's
+allocated box. Panel surface bounds are measured outside scrolling content during
+prepaint, registered per frame, and retired with hidden/unmounted overlay scopes.
+No new polling or OCaml callback is introduced. Consolidated hosted gates and
+merge remain pending.

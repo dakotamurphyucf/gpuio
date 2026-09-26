@@ -26,8 +26,9 @@ completes data work while content is hidden, and verifies scoped shutdown. It
 closes the window on completion or a reported failure. Native tests separately
 cover actual Tab/Enter/AX activation and AppKit description readback.
 
-This example covers implemented navigation/disclosure, carousel and modal overlay adapters. Broader acceptance remains part of OCH-37;
-Linux GUI validation remains OCH-17.
+This example covers the locally accepted OCH-37 navigation/disclosure, carousel
+and supplementary overlay adapters. Consolidated hosted gates and merge remain;
+Linux GUI validation is tracked separately in OCH-17.
 
 The lab also includes the initial `Sidebar` composition: grouped nested links,
 independent expansion, selected/disabled destinations, a scoped SVG icon, suffix,
@@ -67,8 +68,8 @@ examples remain independent of route visibility.
 `--self-test` additionally checks forward/replacement/back, preserved editor
 snapshots and rejection of focus commands to the inactive route. Native tests
 separately exercise GPU exit pixels, actual keyboard/AX behavior, disabled focus
-fallback, Unmount and disposal. This example is an implementation lab, not complete
-OCH-37 acceptance or the final chat showcase.
+fallback, Unmount and disposal. The final chat showcase composes these APIs in
+OCH-46; this lab keeps the ownership examples independently runnable.
 
 ## Drawers and confirmations
 
@@ -138,5 +139,6 @@ page screenshots. It closes and reaps the child on success or failure.
 
 ![Public carousel with retained draft](../../docs/images/navigation-carousel.png)
 
-These checks complement the native GPU/pointer suites; broader OCH-37 family
-acceptance and consolidated hosted gates remain tracked in Linear.
+These checks complement native GPU/pointer and marked-text/nested-popup tests.
+The local family acceptance matrix is in the OCH-37 evidence ledger; consolidated
+hosted gates and merge remain tracked in Linear.

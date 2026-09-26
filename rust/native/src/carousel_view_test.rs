@@ -648,7 +648,8 @@ pub(super) async fn standalone(
             .collect(),
     );
     frame(cx, handle).await;
-    exercise(cx, handle, config, transport).await;
+    exercise(cx, handle, config.clone(), transport).await;
+    nested::exercise(cx, handle, config, transport).await;
 }
 
 fn requests(transport: &Transport) -> Vec<Request> {
@@ -672,3 +673,6 @@ mod wheel_input;
 
 #[path = "carousel_drag_test.rs"]
 mod drag_input;
+
+#[path = "carousel_nested_test.rs"]
+mod nested;

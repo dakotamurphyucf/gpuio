@@ -71,9 +71,13 @@ axis locking, two-page preview, capture/rebinding, snap/accepted retargeting,
 in-flight grabs, child-control priority and lifecycle/foreign-capture cancellation.
 The public Navigation Lab now verifies native requests through Eio/Bonsai, AX/current
 metadata, native auto-advance and explicit unmount leases while Bonsai/data remain
-alive. Expanded IME/family acceptance and consolidated gates remain.
-Remaining scope includes completing carousel,
-expanded public examples, broader acceptance and hosted gates.
+alive. Native marked-text and nested-popup checks now pass focus handoff, hidden
+input rejection, IME-first Escape, editor key isolation, popup focus/hover pause
+outside the carousel bounds and full scope/timer disposal. Shared overlays now
+register their visible panel bounds with the existing focus manager. Local OCH-37
+component acceptance is complete; navigation bit `274877906944` is advertised
+(current aggregate `549755813887`). Consolidated hosted checks and merge remain,
+followed by final ticket completion. The chat showcase stays in OCH-46.
 See [navigation design](design/navigation-components.md) and
 [foundation evidence](evidence/navigation-components-och37.md).
 
@@ -186,7 +190,7 @@ AppKit value/action/masking, public OS keyboard/AX, GPU light/dark/density/preed
 managed-list pins, hidden/modal/capture cleanup and independent-window lifetimes
 pass locally. Three 256-owner workloads verify bounded history/coalescing, idle
 behavior and complete disposal. Capability `34359738368` advertises the family
-(current aggregate `274877906943`). Consolidated hosted gates and merge remain pending.
+(current aggregate `549755813887`). Consolidated hosted gates and merge remain pending.
 See [OTP contracts](design/otp-inputs.md).
 See [numeric design](design/numeric-inputs.md) and
 [foundation evidence](evidence/numeric-inputs-och34.md).
@@ -214,7 +218,7 @@ gates, managed-row pins, independent windows and three 64-owner idle/disposal
 cycles also pass locally. Single/range popup mode changes, nested-dialog dismissal/
 focus, actual panel bounds and right-edge placement also pass. OCH-35 local
 acceptance is complete; capability `68719476736` is advertised (aggregate
-`274877906943`). Consolidated hosted gates and merge remain pending.
+`549755813887`). Consolidated hosted gates and merge remain pending.
 See [calendar design](design/calendar.md) and [model evidence](evidence/calendar-och35.md).
 OCH-36 now has concrete Core/Rust RGBA/HSLA conversion and bounded hex-draft
 models, separate from theme references. The pure native policy now tests
@@ -238,7 +242,7 @@ swatches; native tests cover composition/managed-row pins, hidden/modal/pointer
 gates, independent-window deactivation/close and three 64-owner/320-editor
 workload/disposal cycles. A short-height clipping bug was fixed and channel
 fields now use available width without rounding native values. Color capability
-`137438953472` is advertised (aggregate `274877906943`). Consolidated hosted
+`137438953472` is advertised (aggregate `549755813887`). Consolidated hosted
 macOS/Linux gates and merge remain pending. See [color design](design/color-inputs.md)
 and [foundation evidence](evidence/color-inputs-och36.md).
 No milestone-05 completion or hosted acceptance is claimed yet.
