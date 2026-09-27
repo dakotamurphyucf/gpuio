@@ -73,7 +73,15 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
             .unwrap();
         pause(cx).await;
         let after = paint(cx, handle);
-        assert!(after.count > before.count);
+        assert!(
+            after.count > before.count,
+            "loading {kind:?}: paints {} -> {}, phase {} -> {}, reduced={}",
+            before.count,
+            after.count,
+            before.phase,
+            after.phase,
+            cx.update(|cx| cx.reduce_motion())
+        );
         assert_ne!(after.phase, before.phase);
         assert_eq!(after.bounds.size, size(px(64.), px(32.)));
         assert_eq!(after.corners, px(8.).into());
@@ -95,7 +103,9 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
                 "AXProgressIndicator"
             );
         }
-        cx.update(|cx| cx.set_reduce_motion(true));
+        cx.update(|cx| {
+            crate::motion_preference::set(gpuio_protocol::animation::Preference::Reduce, cx)
+        });
         idle(cx, handle).await;
         assert_eq!(
             paint(cx, handle).phase,
@@ -105,7 +115,9 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
                 0.
             }
         );
-        cx.update(|cx| cx.set_reduce_motion(false));
+        cx.update(|cx| {
+            crate::motion_preference::set(gpuio_protocol::animation::Preference::Full, cx)
+        });
         frame(cx, handle).await;
         let count = paint(cx, handle).count;
         pause(cx).await;

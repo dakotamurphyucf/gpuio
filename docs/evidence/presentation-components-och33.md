@@ -333,3 +333,32 @@ Local OCH-33 implementation and acceptance are complete. Consolidated hosted
 macOS/Linux build/unit gates and merge are still required before ticket closure.
 Linux GUI, physical display transitions and a complete VoiceOver user journey
 have not been claimed by these tests.
+
+
+## Hosted loading-motion fixture follow-up — 2026-09-27
+
+At source `43d82ab`, [Foundation run 36297385426](https://github.com/dakotamurphyucf/gpuio/actions/runs/36297385426)
+passed the preceding macOS extension, canvas, runtime, controls, animation and
+container-query stages, then failed the loading fixture's assertion that paint
+count increases during a 120 ms interval. The unchanged fixture passed locally.
+Explicitly starting it in reduced-motion mode reproduced the same assertion:
+skeleton paints stayed at 5 and phase stayed at 0 with `reduced=true`. No operating
+system preference was modified. The original hosted log did not record its motion
+policy, so this reproduction identifies a real fixture dependency without proving
+the remote machine's preference was its only cause.
+
+The fixture now explicitly selects Full motion after initializing the native
+policy watcher, as the animation/container fixtures already do. Its Reduce/Full
+transitions also use the application policy API, so incoming system preference
+notifications cannot override the test's selected mode. Failure diagnostics record
+indicator kind, paint counts, phases and effective reduction. Production loading
+code, the 120 ms checks and all idle/minimize/restore assertions are unchanged.
+
+The complete presentation and slider executables pass locally (both share this
+harness), including native AX/IME, actual minimize/restore, rating GPU checks and
+three 1,024-slider workload/disposal cycles. Command:
+`GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native --features native-image-tests --test native_presentation --test native_slider`.
+Logs: `ci-presentation-before.log`, `ci-presentation-reduce-reproduction.log` and
+`ci-presentation-policy-final.log` in the implementing agent's scratch directory.
+The forced-Reduce reproduction exited 101; unchanged and corrected complete local
+runs exited 0. Final hosted acceptance remains recorded on PR #13.

@@ -323,6 +323,9 @@ fn run_suite(sliders: bool) {
         cx.set_quit_mode(gpui::QuitMode::Explicit);
         gpui_base::init(cx);
         let motion_watch = crate::motion_preference::init(cx);
+        // The fixture explicitly exercises Full and Reduce; do not inherit the
+        // host's accessibility preference for the animated phase.
+        crate::motion_preference::set(gpuio_protocol::animation::Preference::Full, cx);
         let session = Rc::new(RefCell::new(Session::default()));
         session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
         session
