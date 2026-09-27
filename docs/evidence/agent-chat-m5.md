@@ -704,6 +704,47 @@ Existing public chat/M4 AppKit acceptance also passes through this presentation
 change. Aggregate animation idle/bridge metrics and simultaneous-workload evidence
 remain required; static captures do not establish those properties.
 
+## Native motion in the workspace
+
+[Chat_motion](../../examples/agent_chat/runtime/chat_motion.ml) uses public typed
+`Animation.Program` values. The stage detail page has a window-owned Show/Hide
+stage context action, reduced against the latest Bonsai state. A single spring
+retargets its height between 0 and 112 logical pixels. The nested panel unmounts
+its native context immediately on close; the remaining space contracts. This is
+not exit-presence orchestration, and it creates no application task.
+
+Workspace overview destinations use two-stage opacity reveals with short ordered
+delays. Busy response header/composer indicators use the same named native clock
+for their conversation, including when it appears in another window. Idle/error/
+cancelled responses mount no repeat members. Native hidden/reduced-motion policy
+applies. None of these wrappers installs a per-frame OCaml closure.
+
+The local macOS [motion walkthrough](../../scripts/test_agent_chat_motion.py)
+passes Full and Reduce. It measures the Next stage button's actual AX position:
+opening settles exactly 112 pixels lower; Full recorded 17 intermediate samples,
+while Reduce recorded zero. Reversing after roughly 80 ms (35.5 pixels into the
+Full reveal in this run) returns to the original baseline without accumulated
+offsets. It checks hidden context absence, keyboard opening, updated next-stage
+content, close/remount, themes, active response input/cancellation and child cleanup.
+Build, showcase expects and formatting pass. The original public chat, M4 AppKit
+and diagram regression walkthroughs pass on the same executable.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/agent_chat/main.exe @test/agent_chat_showcase/runtest @fmt
+GPUIO_SCREENSHOT_DIR=scratch/motion-images python3 scripts/test_agent_chat_motion.py
+_build/default/examples/agent_chat/main.exe --self-test
+python3 scripts/test_agent_chat.py
+python3 scripts/test_agent_chat_diagram.py
+```
+
+Actual inspected captures: [stage context/dark](../images/studio-stage-context-dark.png),
+[stage context/light, reduced motion](../images/studio-stage-context-light.png),
+[workspace overview](../images/studio-workspace-overview.png).
+The native timeline/group tests are documented in [animation programs](../design/animation-programs.md).
+These chat screenshots and AX checks do not measure shared phase at every frame
+or aggregate idle/bridge traffic; the combined workload acceptance still must
+record those ownership/performance limits.
+
 ## Remaining acceptance
 
 These flows cover the OCH-23 package integration, OCH-24 diagram, the OCH-37
@@ -711,7 +752,7 @@ navigation stack/breadcrumbs, settings sheet/confirmation and feedback
 disclosure/accordion/hover card/carousel/sidebar, OCH-34 numeric/OTP,
 OCH-35 dates, OCH-36 colors, OCH-37 pagination, OCH-38 source explorer,
 OCH-39 results table and OCH-33 presentation compositions. They do not complete
-responsive/resizable inspector, motion, or the
+responsive/resizable inspector or the
 combined streaming/input/retention/idle-traffic workload. Those all remain required
 by OCH-46, along with narrow/wide visual acceptance, the full coverage map, hosted
 macOS/Linux gates and merge. Full Linux GUI acceptance remains OCH-17.

@@ -281,7 +281,9 @@ light/dark walkthroughs pass; screenshots and source links are in the
 [showcase evidence](evidence/agent-chat-m5.md). Public message/bubble/tool-result
 cards, removable query tags, loading skeleton/shimmer/spinners, status and error
 recovery now pass the Full/Reduce local presentation walkthrough, including exact
-Unicode code/diff copy. Motion, responsive layout, combined workload and
+Unicode code/diff copy. Stage-context springs, ordered destination reveals and
+shared response activity are integrated; local Full/Reduce geometry/interruption,
+hidden context and response-input checks pass. Responsive layout, combined workload and
 hosted/merge acceptance stay open. Offscreen native-document AX activation is a
 recorded limitation requiring follow-up; visible document controls pass.
 

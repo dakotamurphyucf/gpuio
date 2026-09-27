@@ -248,3 +248,11 @@ existing Cancel and Retry response actions.
 
 Run `python3 scripts/test_agent_chat_presentation.py` for Full/Reduce presentation
 acceptance. [Screenshots and evidence](../../docs/evidence/agent-chat-m5.md#transcript-and-query-presentation).
+
+Open a stage from the run diagram and choose **Show stage context** for a spring
+reveal; toggle it again mid-motion to reverse it. Workspace overview destinations
+have short ordered reveals, and response indicators in the header/composer share
+a native clock while generation is active. Reduced motion settles the context
+immediately and keeps repeated indicators static. Run
+`python3 scripts/test_agent_chat_motion.py` for actual geometry/interruption and
+response-input checks in Full and Reduce modes.

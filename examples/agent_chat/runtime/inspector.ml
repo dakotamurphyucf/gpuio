@@ -114,6 +114,12 @@ let px = Gpuio.Length.px_exn
 let style = Gpuio.Style.create_exn
 
 let component t ~app ~window ~sources ~results ~annotation ~dark graph =
+  let context_expanded, toggle_context =
+    B.state_machine0
+      ~default_model:false
+      ~apply_action:(fun _ expanded () -> not expanded)
+      graph
+  in
   let review = Review.component ~dark graph in
   let active =
     B.map2
@@ -211,7 +217,9 @@ let component t ~app ~window ~sources ~results ~annotation ~dark graph =
   and results = results
   and review = review
   and feedback = feedback
-  and tour = tour in
+  and tour = tour
+  and context_expanded = context_expanded
+  and toggle_context = toggle_context in
   let palette = Palette.of_dark dark in
   let button ?(disabled = false) label on_click =
     V.button
@@ -308,12 +316,14 @@ let component t ~app ~window ~sources ~results ~annotation ~dark graph =
           ~style:(style [ Foreground palette.muted; Line_height (px 20.) ])
           "Explore a simulated run, inspect its stages, and keep your review progress \
            beside the conversation."
-      ; button "Take workspace tour" (navigate t Tour)
-      ; button "Explore run diagram" (navigate t Diagram)
-      ; button "Explore sources" (navigate t Sources)
-      ; button "Explore results" (navigate t Results)
-      ; button "Review checkpoints" (navigate t Review)
-      ; button "Review feedback" (navigate t Feedback)
+      ; Chat_motion.destination ~index:0 (button "Take workspace tour" (navigate t Tour))
+      ; Chat_motion.destination
+          ~index:1
+          (button "Explore run diagram" (navigate t Diagram))
+      ; Chat_motion.destination ~index:2 (button "Explore sources" (navigate t Sources))
+      ; Chat_motion.destination ~index:3 (button "Explore results" (navigate t Results))
+      ; Chat_motion.destination ~index:4 (button "Review checkpoints" (navigate t Review))
+      ; Chat_motion.destination ~index:5 (button "Review feedback" (navigate t Feedback))
       ]
     | Stage stage ->
       [ V.text ~style:(style [ Font_size 23.; Font_weight 600 ]) (Stage.name stage)
@@ -323,6 +333,16 @@ let component t ~app ~window ~sources ~results ~annotation ~dark graph =
       ; V.text
           ~style:(style [ Font_size 12.; Foreground palette.accent ])
           "SIMULATED · NO FILES ARE MODIFIED"
+      ; button
+          (if context_expanded then "Hide stage context" else "Show stage context")
+          (toggle_context ())
+      ; Chat_motion.stage_context
+          ~expanded:context_expanded
+          [ V.text ~style:(style [ Font_weight 600 ]) "Local run context"
+          ; V.text "Execution: simulated on this device"
+          ; V.text "Source files: unchanged"
+          ; V.text ("Up next: " ^ Stage.name (Stage.next stage))
+          ]
       ; button "Next stage" (navigate t ~replace:true (Stage (Stage.next stage)))
       ; button "Review checkpoints" (navigate t Review)
       ; button "Review feedback" (navigate t Feedback)

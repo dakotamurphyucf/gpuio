@@ -376,6 +376,7 @@ let conversation_panel t ~read_file ~attachment_directory window conversation gr
     | Conversation.Phase.Accepting | Streaming -> true
     | Idle | Complete | Cancelled | Failed _ -> false
   in
+  let activity_group = sprintf "chat-response-%d" (Conversation.id conversation) in
   let status =
     match phase with
     | Idle -> "Ready"
@@ -428,7 +429,11 @@ let conversation_panel t ~read_file ~attachment_directory window conversation gr
             ; View.row
                 ~style:(style [ Gap (px 7.); Align_items Center ])
                 [ (if busy
-                   then Query_loading.spinner ~dark ~label:"Generating response"
+                   then
+                     Chat_motion.activity
+                       ~key:"header-activity"
+                       ~group:activity_group
+                       (Query_loading.spinner ~dark ~label:"Generating response")
                    else dot p)
                 ; caption
                     p
@@ -520,7 +525,15 @@ let conversation_panel t ~read_file ~attachment_directory window conversation gr
                 ; View.row
                     ~style:
                       (style [ Gap (px 6.); Align_items Center; Padding_left (px 4.) ])
-                    [ dot p; caption p "Local assistant" ]
+                    [ (if busy
+                       then
+                         Chat_motion.activity
+                           ~key:"composer-activity"
+                           ~group:activity_group
+                           (dot p)
+                       else dot p)
+                    ; caption p "Local assistant"
+                    ]
                 ; spacer
                 ; (if busy
                    then
