@@ -199,3 +199,28 @@ dispatch 13.7 ms, consistent with the measurement limitations above. The public
 self-test passed and closed; no owned native test windows/processes remain.
 No hosted run or Linux GUI acceptance is claimed. The accepted local scope is
 complete; the ticket remains in progress pending consolidated CI and merge.
+
+
+## Hosted fractional-size assertion follow-up — 2026-09-27
+
+[Run 36295534606](https://github.com/dakotamurphyucf/gpuio/actions/runs/36295534606)
+passed required Linux build/unit checks, but its informational X11 sequence
+stopped at the lifecycle fixture's declared-width `300.5` assertion. That early
+loop hardcoded selection from the declaration instead of the device-snapped
+assigned logical size required by the public contract. The later scale-change
+loop already checked assigned sizes correctly.
+
+The same failure reproduced locally on macOS with GPUI's test-only window scale
+set to 1. The corrected assertion uses GPUI's snapped logical width and verifies
+the corresponding native focus/input gate. The complete native container-query
+executable then passed both with that temporary 1x override and after removing
+it. Its existing 1x/1.5x/2x scale loop, native IME/accessibility and 256-query
+workload all passed. Production selection/layout code is unchanged; this is not
+a claim of physical monitor switching or complete Linux GUI acceptance.
+
+Command: `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native --features native-image-tests --test native_container_query`.
+The failing reproduction exited 101; both corrected complete runs exited 0.
+Local logs are `ci-container-scale-before.log`,
+`ci-container-scale-after-1x.log` and `ci-container-scale-final.log` in the
+implementing agent's scratch directory. PR #13 records the final hosted revision
+and results; deferred Linux compositor/clipboard validation remains OCH-17.

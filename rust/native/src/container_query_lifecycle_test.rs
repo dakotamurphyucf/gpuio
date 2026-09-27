@@ -281,13 +281,13 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, transport: &Arc<Transport>
             .any(|e| matches!(e, Event::Press(_, id, _, _) if *id == wide(1)))
     );
 
-    // Declared logical sizes, including fractional boundaries, select natively.
+    // Selection uses assigned logical size after GPUI device-pixel snapping.
     apply(
         cx,
         window,
         vec![Op::SetContainerQuery(query(1), config(5, 300.5))],
     );
-    for (width, branch) in [(300.25, 0), (300.5, 1), (300.75, 1)] {
+    for width in [300.25, 300.5, 300.75] {
         apply(
             cx,
             window,
@@ -301,12 +301,16 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, transport: &Arc<Transport>
         );
         frame(cx, window).await;
         window
-            .update(cx, |v, _, _| {
+            .update(cx, |v, w, _| {
+                let assigned = f32::from(w.pixel_snap(px(width as f32))) as f64;
+                let expected = if assigned >= 300.5 {
+                    wide(1)
+                } else {
+                    compact(1)
+                };
                 assert!(
-                    v.focus
-                        .borrow()
-                        .allows(if branch == 0 { compact(1) } else { wide(1) }),
-                    "fractional assigned width {width}"
+                    v.focus.borrow().allows(expected),
+                    "declared width {width}, assigned width {assigned}"
                 );
             })
             .unwrap();
