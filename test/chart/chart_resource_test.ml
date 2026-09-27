@@ -1,6 +1,18 @@
 open Core
 module W = Gpuio_protocol.Chart_resource_wire
 
+let%expect_test "application chart envelopes preserve tags and validate correlation" =
+  let module Wire = Gpuio_protocol.Wire in
+  let encoded = Wire.Message.encode (Chart (7L, Create)) |> Or_error.ok_exn in
+  assert (String.equal encoded "\021\007\000");
+  assert (Result.is_error (Wire.Message.encode (Chart (0L, Create))));
+  let events = [ Wire.Event.Chart_response (7L, Ack) ] in
+  let bytes = Bin_prot.Utils.bin_dump Wire.Event.bin_writer_t (List.hd_exn events) in
+  assert (String.equal (Bigstring.to_string bytes) "\061\007\001");
+  print_endline "message 21, event 61; nonpositive correlation rejected";
+  [%expect {| message 21, event 61; nonpositive correlation rejected |}]
+;;
+
 let hex bytes =
   String.to_list bytes
   |> List.map ~f:(fun c -> sprintf "%02x" (Char.to_int c))

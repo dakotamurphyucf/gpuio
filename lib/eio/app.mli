@@ -165,6 +165,14 @@ module Expert : sig
     -> (unit -> unit Bonsai.Effect.t)
     -> (unit -> unit, Gpuio.Desktop.Error.t) Result.t
 
+  (** Raw chart resource protocol, bounded to 63 pending requests with one lane
+      reserved for the scoped adapter. Callers own release and late-reply cleanup.
+      Publish replies only after native background validation and atomic commit. *)
+  val chart
+    :  t
+    -> Gpuio_protocol.Wire.Chart.Request.t
+    -> Gpuio_protocol.Wire.Chart.Response.t Bonsai.Effect.t
+
   (** Raw correlated scene-resource protocol; at most 63 pending requests.
       Callers own release and late-reply cleanup. This registers scene data;
       it does not itself create a rendered canvas. One additional request lane
@@ -180,6 +188,12 @@ module Expert : sig
     :  t
     -> Gpuio_protocol.Wire.Document.Request.t
     -> Gpuio_protocol.Wire.Document.Response.t Bonsai.Effect.t
+
+  val register_chart
+    :  t
+    -> scope:Scope.t
+    -> Gpuio.Chart_data.t
+    -> (Chart_registry.Registration.t, Chart_registry.Error.t) Result.t Bonsai.Effect.t
 
   val register_canvas
     :  t
@@ -233,6 +247,8 @@ module Diagnostics : sig
     ; asset_source_bytes : int
     ; documents : int
     ; document_source_bytes : int
+    ; charts : int
+    ; chart_data_bytes : int
     ; canvases : int
     ; canvas_scene_bytes : int
     }

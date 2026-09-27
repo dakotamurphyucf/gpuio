@@ -2,9 +2,9 @@
 
 Status: in progress. The validated Core data model and paired bounded codecs are implemented and tested.
 The extracted Sankey layout source compiles against the existing GPUI revision.
-The native resource store and scoped Eio scheduler now pass isolated ownership
-tests; application/host wiring, widgets, interactions, accessibility and public
-graphical examples remain. This document separates implemented contracts from
+The native resource store, scoped Eio scheduler and application/host transport now
+pass local ownership and windowless macOS integration tests. Widgets, interactions,
+accessibility and public graphical examples remain. This document separates implemented contracts from
 the remaining implementation work.
 
 ## Data contract
@@ -50,8 +50,8 @@ data-table adapters without an unchecked constructor for validated datasets.
 standalone bin_prot envelope, capped at 16 MiB. The payload tags are Cartesian,
 pie, radar, candlestick and Sankey; Cartesian layer tags distinguish line/area/bar.
 Typed Core IDs convert only at this boundary. These are resource payloads, not
-large inlined view properties. The resource store below implements publication;
-its application transport wiring is still pending.
+large inlined view properties. The resource store below implements publication
+through a correlated application transport.
 
 Both readers bound list counts before allocation, cap total Cartesian points
 across all series, and charge all decoded text against the shared 8 MiB budget.
@@ -114,8 +114,8 @@ workspace and fixed bookkeeping charges are conservative admission accounting,
 not allocator/RSS measurements; later render-plan allocations need their own
 bounded budget. No chart resource capability is advertised yet.
 
-`Gpuio_eio.Chart_registry` is the isolated UI-domain scheduler, currently awaiting
-App/host integration. It permits 256 registrations, four staged uploads, one
+`Gpuio_eio.Chart_registry` is the UI-domain scheduler behind the public
+`Gpuio_eio.Chart` API. It permits 256 registrations, four staged uploads, one
 correlated request in flight and 128 MiB of conservative retained-data/encode
 charges. It prioritizes cleanup and rotates progress between registrations.
 Unstarted changes coalesce to the latest desired data; an in-flight publication
@@ -132,6 +132,25 @@ must additionally validate the selected IDs. Distinct value-equal datasets are
 charged separately; only the same physically shared immutable value is deduplicated
 within a registration. A registration's quota includes conservative conversion and
 encode space, but does not account for arbitrary application-owned data outside it.
+
+`Chart.create app ~scope data` completes after the first successful native
+publication. `Chart.set` and `Chart.reset` accept local desired updates;
+`is_published` and `error` distinguish native acceptance from pending/rejected work.
+`Chart.handle` returns the borrowed `Gpuio.Chart_resource.t` for future chart views.
+`App.Diagnostics` reports scoped chart counts and conservative source-byte charges,
+separately from serialized traffic. These are not native/GPU memory measurements.
+
+The application protocol appends Message tag 21 and Event tag 61 without changing
+existing tags. At most 63 raw Expert requests can be pending, with a further lane
+reserved for scoped upload and cleanup. The native host dispatches admitted Work
+through GPUI's background executor and returns Publish's reply only after atomic
+commit on the native thread. Its completion channel is bounded to two results;
+normal shutdown, emergency abort and OS quit close chart admission, cancel work,
+retire pending replies and wait for worker exit. Repeated closers retain the same
+completion fences, so an OS quit cannot bypass an asynchronous shutdown already
+waiting. Late replies after transport closure are discarded under the mailbox lock.
+Source-dependent redraw/interaction integration remains part of the chart widget
+work; current publication refreshes native windows.
 
 ## Pinned implementation assessment
 
@@ -165,9 +184,8 @@ retain original semantic values and cache layout outside per-frame painting.
 The native implementation must cover all seven families; the pure model and
 Sankey extraction do not replace that scope:
 
-- Wire the tested native store and Eio scheduler into the application protocol,
-  host background executor and public Eio API. Confirm correlated publication,
-  shutdown, multiple-window leases and cancellation through that complete path.
+- Connect borrowed resource handles to native chart views and validate multiple-
+  window readers, unmounting, source-dependent redraw and interaction retirement.
   Do not put large datasets in each reconciled view node.
 - Define axes, native formatting, legends, labels, palette/stroke/fill tokens and
   tooltips, including non-color distinctions. Shared Cartesian layers provide
@@ -217,4 +235,22 @@ with retained empty reader handles. Scheduler checks cover 1,000 coalesced updat
 reset/event epochs, explicit rejection/retry, cancellation at every upload boundary,
 late Create cleanup, foreign scopes, 100,000-point chunking, quota rollback,
 round-robin staging and cleanup priority. These use isolated store/scheduler APIs;
-they do not yet exercise a connected application or graphical chart.
+those isolated checks do not themselves exercise a connected application or graphical chart.
+
+The subsequent application checkpoint connects the complete resource path.
+`examples/chart_upload` passes on local macOS without opening windows: a real
+100,000-point upload with gaps, 1,000 coalesced desired updates and reset, rejected
+malformed data with unchanged native base revision, scope cleanup, 270 registration
+cycles, 63 raw requests plus reserved scoped progress, and nine shutdown callbacks.
+It asserts no rendering transactions occurred. A required macOS CI stage is added;
+hosted execution remains pending. Native Session tests additionally prove publication
+stays invisible until completion and shutdown releases pending-job accounting.
+These checks establish resource integration, not rendered-chart acceptance.
+
+Application checkpoint verification: the full local `dune build -j2 @all @runtest
+@fmt` passes, including the independent backend example. The initial broad Rust
+native/protocol regression run passes 602 tests; two additional host teardown
+tests pass after the final shutdown refinement. The independent consumer lockfile
+now includes the native macOS notification dependency without changing pinned
+package versions, and older low-level examples explicitly handle the new milestone
+6 response variants. Hosted macOS/Linux gates remain pending.

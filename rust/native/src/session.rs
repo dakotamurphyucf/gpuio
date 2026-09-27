@@ -34,7 +34,13 @@ pub struct Session {
     assets: crate::asset_store::Store,
     documents: crate::document_store::Store,
     canvases: crate::canvas_store::Store,
+    charts: crate::chart_store::Store,
     motion: std::rc::Rc<std::cell::RefCell<crate::motion_host::Store>>,
+}
+
+pub enum ChartDispatch {
+    Immediate(gpuio_protocol::chart_resource::Response),
+    Publish(crate::chart_store::Work),
 }
 
 impl Session {
@@ -316,6 +322,66 @@ impl Session {
             Ok(()) => Response::Ack,
             Err(error) => Response::Failed(error),
         }
+    }
+
+    pub fn chart_request(
+        &mut self,
+        request: gpuio_protocol::chart_resource::Request,
+    ) -> ChartDispatch {
+        use gpuio_protocol::chart_resource::{Error, Request, Response};
+        if let Err(error) = self.check_ready() {
+            return ChartDispatch::Immediate(Response::Failed(if error == ErrorCode::Closed {
+                Error::Closed
+            } else {
+                Error::NotReady
+            }));
+        }
+        let result = match request {
+            Request::Create => {
+                return ChartDispatch::Immediate(match self.charts.create() {
+                    Ok(id) => Response::Created(id),
+                    Err(error) => Response::Failed(error),
+                });
+            }
+            Request::Begin(update) => self.charts.begin(update),
+            Request::Chunk(id, revision, offset, bytes) => usize::try_from(offset)
+                .map_err(|_| Error::InvalidRange)
+                .and_then(|offset| self.charts.chunk(id, revision, offset, bytes.as_bytes())),
+            Request::Publish(id, revision) => {
+                return match self.charts.publish(id, revision) {
+                    Ok(work) => ChartDispatch::Publish(work),
+                    Err(error) => ChartDispatch::Immediate(Response::Failed(error)),
+                };
+            }
+            Request::Abort(id, revision) => self.charts.abort(id, revision),
+            Request::Release(id) => self.charts.release(id),
+        };
+        ChartDispatch::Immediate(match result {
+            Ok(()) => Response::Ack,
+            Err(error) => Response::Failed(error),
+        })
+    }
+    pub fn complete_chart(
+        &mut self,
+        completion: crate::chart_store::Completion,
+    ) -> gpuio_protocol::chart_resource::Response {
+        use gpuio_protocol::chart_resource::Response;
+        match self.charts.complete(completion) {
+            Ok(()) => Response::Ack,
+            Err(error) => Response::Failed(error),
+        }
+    }
+    pub fn chart(
+        &self,
+        id: gpuio_protocol::ResourceId,
+    ) -> Result<crate::chart_store::Lease, gpuio_protocol::chart_resource::Error> {
+        self.charts.acquire(id)
+    }
+    pub fn close_charts(&mut self) {
+        self.charts.close();
+    }
+    pub fn chart_bytes(&self) -> usize {
+        self.charts.reserved_bytes()
     }
 
     pub fn canvas_request(
@@ -976,6 +1042,7 @@ impl Session {
     pub fn shutdown(&mut self) -> Vec<Event> {
         self.motion.borrow_mut().close();
         self.canvases.close();
+        self.charts.close();
         self.assets.close();
         self.documents.close();
         let mut events = Vec::new();

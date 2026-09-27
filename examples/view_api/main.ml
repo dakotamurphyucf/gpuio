@@ -99,6 +99,11 @@ let worker native notification_read ~self_test =
       | Rejected _ | Failed _ | Overloaded _ ->
         failwith "native view example rejected an update"
       | Reopen_requested
+      | Desktop_pending
+      | Notification_pending
+      | Desktop_response _
+      | Notification_response _
+      | Chart_response _
       | Canvas_response _
       | Canvas_event _
       | Document_response _

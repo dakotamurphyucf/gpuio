@@ -78,6 +78,21 @@ impl Transport {
         self.wake_ocaml();
     }
 
+    pub(crate) fn respond_chart(
+        &self,
+        correlation: i64,
+        response: gpuio_protocol::chart_resource::Response,
+    ) {
+        let accepted = self
+            .mailbox
+            .lock()
+            .expect("mailbox poisoned")
+            .chart_response(correlation, response);
+        if accepted {
+            self.wake_ocaml();
+        }
+    }
+
     pub(crate) fn respond_desktop(
         &self,
         correlation: i64,

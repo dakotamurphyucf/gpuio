@@ -18,6 +18,7 @@ module Navigation_stack = Navigation_stack_wire
 module Container_query = Container_query_wire
 module Animation_program = Animation_program_wire
 module Document = Document_wire
+module Chart = Chart_resource_wire
 module Canvas = Canvas_resource_wire
 module Canvas_view = Canvas_view_wire
 module Window = Window_wire
@@ -904,6 +905,7 @@ module Message = struct
     | Color_input_command of int64 * Window_id.t * Node_id.t * Color_input.Command.t
     | Desktop of int64 * Desktop.Request.t
     | Notification of int64 * Notification.Request.t
+    | Chart of int64 * Chart.Request.t
   [@@deriving bin_io, equal, sexp_of]
 
   let encode t =
@@ -930,6 +932,12 @@ module Message = struct
         Int64.(correlation <= 0L) || not (Number_input.Command.valid command)
       | Slider_command (correlation, _, _, command) ->
         Int64.(correlation <= 0L) || not (Slider.Command.valid command)
+      | Chart (correlation, request) ->
+        Int64.(correlation <= 0L)
+        ||
+          (match request with
+          | Chunk (_, _, _, data) -> String.length data > Chart.max_chunk_bytes
+          | Create | Begin _ | Publish _ | Abort _ | Release _ -> false)
       | Canvas (correlation, request) ->
         Int64.(correlation <= 0L)
         ||
@@ -1084,6 +1092,7 @@ module Event = struct
     | Desktop_pending
     | Notification_response of int64 * Notification.Response.t
     | Notification_pending
+    | Chart_response of int64 * Chart.Response.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1196,6 +1205,7 @@ module Event = struct
             && frames > 0L
             && frames <= 120L
             && width_px * height_px * 4L * frames <= 67108864L))
+    | Chart_response (correlation, _)
     | Canvas_response (correlation, _)
     | Asset_response (correlation, _)
     | Document_response (correlation, _) -> Int64.(correlation > 0L)

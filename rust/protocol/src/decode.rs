@@ -1302,6 +1302,13 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
             }
             Message::OpenConfigured(correlation, id, config)
         }
+        21 => {
+            let correlation = d.int()?;
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::Chart(correlation, d.chart_request()?)
+        }
         20 => {
             let correlation = d.int()?;
             if correlation <= 0 {

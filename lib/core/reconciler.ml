@@ -2295,6 +2295,7 @@ let dispatch t = function
   | Extension_event _
   | Split_resized _
   | Canvas_event _
+  | Chart_response _
   | Canvas_response _
   | Document_response _
   | Document_navigation _

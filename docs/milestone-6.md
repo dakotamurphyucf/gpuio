@@ -10,7 +10,7 @@ and evidence remain in [the milestone 5 handoff](milestone-5.md).
 | -- | -- | -- |
 | OCH-27 | Application identity, deep-link packaging/startup/live delivery, activation, file reveal/open, document-window metadata | In progress: macOS OS acceptance passes; Linux portal file adapters pass local peer/worker tests; typed packaging and real bus arbitration pass locally; Linux GUI and consolidated hosted gates pending |
 | OCH-28 | OS notifications, permissions/capabilities, replacement/dismissal and stale-safe action routing | In progress: Core/Eio ownership, bounded paired protocol and owned macOS adapter; public packaged macOS OS actions pass; Linux worker/private-bus routing pass locally; Linux build/display and consolidated gates pending |
-| OCH-40 | Line, area, bar, pie, radar, candlestick and Sankey components with typed bounded datasets, native interaction and accessible alternatives | In progress: all-family Core data, paired codecs, isolated native resource store/Eio scheduler and tests; pinned Sankey algorithm compiles/tests against existing GPUI; application wiring, rendering and native acceptance pending |
+| OCH-40 | Line, area, bar, pie, radar, candlestick and Sankey components with typed bounded datasets, native interaction and accessible alternatives | In progress: all-family Core data, paired codecs, native resource store/Eio API and windowless 100k-point macOS integration; pinned Sankey algorithm compiles/tests against existing GPUI; rendering and native graphical acceptance pending |
 | OCH-29 | Focused graphics application consuming public canvas and an independently packaged native component; desktop workflows and one chart | Pending integration of preceding capabilities |
 
 The goal includes all four tickets, local functional acceptance, required hosted
@@ -131,3 +131,11 @@ at that codec checkpoint. The subsequent resource checkpoint implements atomic
 publication in an isolated bounded native store, off-thread decode jobs, retained
 reader accounting and a scoped Eio scheduler with coalesced updates and late-ID
 cleanup. Application/host transport wiring and rendered acceptance remain pending.
+
+The next checkpoint connects resource publication through App/Session/host and
+the public `Gpuio_eio.Chart` API. The windowless macOS application test passes real
+100,000-point uploads, coalescing/reset, malformed-update recovery, scoped cleanup,
+270 registration cycles, bounded request lanes and shutdown. Native decoding uses
+bounded background jobs; repeated async/OS closers join the same workers. Required
+hosted execution of the new macOS stage remains pending. Chart views, rendering,
+interaction/accessibility and graphical measurements are still to be implemented.

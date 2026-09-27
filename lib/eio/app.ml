@@ -111,9 +111,11 @@ type t =
   ; mutable on_reopen : unit -> unit Bonsai.Effect.t
   ; asset_registry : Asset_registry.t
   ; document_registry : Document_registry.t
+  ; chart_registry : Chart_registry.t
   ; canvas_registry : Canvas_registry.t
   ; mutable assets : (Wire.Asset.Response.t -> unit) Int64.Map.t
   ; mutable documents : (Wire.Document.Response.t -> unit) Int64.Map.t
+  ; mutable charts : (Wire.Chart.Response.t -> unit) Int64.Map.t
   ; mutable canvases : (Wire.Canvas.Response.t -> unit) Int64.Map.t
   ; mutable desktop_requests : (Wire.Desktop.Response.t -> unit) Int64.Map.t
   ; mutable desktop_pending : bool
@@ -180,6 +182,8 @@ module Diagnostics = struct
     ; asset_source_bytes : int
     ; documents : int
     ; document_source_bytes : int
+    ; charts : int
+    ; chart_data_bytes : int
     ; canvases : int
     ; canvas_scene_bytes : int
     }
@@ -194,6 +198,7 @@ let diagnostics t : Diagnostics.t =
   let documents, document_source_bytes =
     Document_registry.Expert.counts t.document_registry
   in
+  let charts, chart_data_bytes = Chart_registry.Expert.counts t.chart_registry in
   let canvases, canvas_scene_bytes = Canvas_registry.Expert.counts t.canvas_registry in
   { runtime = t.stats
   ; traffic = Gpuio_native.traffic t.native
@@ -219,6 +224,7 @@ let diagnostics t : Diagnostics.t =
       + Map.length t.window_requests
       + Map.length t.assets
       + Map.length t.documents
+      + Map.length t.charts
       + Map.length t.canvases
       + Map.length t.desktop_requests
       + Map.length t.notification_requests
@@ -227,6 +233,8 @@ let diagnostics t : Diagnostics.t =
   ; asset_source_bytes
   ; documents
   ; document_source_bytes
+  ; charts
+  ; chart_data_bytes
   ; canvases
   ; canvas_scene_bytes
   }
@@ -340,6 +348,33 @@ module Expert = struct
             t.on_notification_pending <- (fun () -> Bonsai.Effect.Ignore))))
   ;;
 
+  let chart_request t ~limit request =
+    Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+      check t;
+      let fail error = callback (Wire.Chart.Response.Failed error) in
+      if t.stopping
+      then fail Closed
+      else if not t.welcomed
+      then fail Not_ready
+      else if Map.length t.charts >= limit
+      then fail Resource_limit
+      else (
+        let oversized =
+          match request with
+          | Wire.Chart.Request.Chunk (_, _, _, data) ->
+            String.length data > Wire.Chart.max_chunk_bytes
+          | Create | Begin _ | Publish _ | Abort _ | Release _ -> false
+        in
+        if oversized
+        then fail Invalid_range
+        else (
+          let id = correlation t in
+          t.charts <- Map.set t.charts ~key:id ~data:callback;
+          queue t (Chart (id, request)))))
+  ;;
+
+  let chart t request = chart_request t ~limit:63 request
+
   let canvas_request t ~limit request =
     Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
       check t;
@@ -393,6 +428,14 @@ module Expert = struct
   ;;
 
   let document t request = document_request t ~limit:63 request
+
+  let register_chart t ~scope data =
+    Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+      check t;
+      if t.stopping
+      then callback (Error (Chart_registry.Error.Native Closed))
+      else Chart_registry.register t.chart_registry ~scope data ~on_result:callback)
+  ;;
 
   let register_canvas t ~scope scene =
     Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
@@ -559,6 +602,7 @@ let shutdown t =
     t.notification_closed <- true;
     Asset_registry.close t.asset_registry;
     Document_registry.close t.document_registry;
+    Chart_registry.close t.chart_registry;
     Canvas_registry.close t.canvas_registry;
     Scope.cancel t.scope;
     queue t Shutdown)
@@ -1197,6 +1241,12 @@ let process t = function
     Option.iter (find_window t id) ~f:(fun window ->
       if not (Window.is_closed window)
       then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))
+  | Chart_response (request, response) ->
+    (match Map.find t.charts request with
+     | None -> ()
+     | Some complete ->
+       t.charts <- Map.remove t.charts request;
+       complete (if t.stopping then Wire.Chart.Response.Failed Closed else response))
   | Canvas_response (request, response) ->
     (match Map.find t.canvases request with
      | None -> ()
@@ -1507,6 +1557,10 @@ let process t = function
        if Map.mem t.frames request
        then t.frames <- Map.remove t.frames request
        else Error.raise (native_error code))
+  | Failed (request, _) when Map.mem t.charts request ->
+    let complete = Map.find_exn t.charts request in
+    t.charts <- Map.remove t.charts request;
+    complete (Wire.Chart.Response.Failed Native_failure)
   | Failed (request, _) when Map.mem t.canvases request ->
     let complete = Map.find_exn t.canvases request in
     t.canvases <- Map.remove t.canvases request;
@@ -1537,6 +1591,7 @@ let process t = function
       complete (Wire.Notification.Response.Failed Closed));
     Asset_registry.close t.asset_registry;
     Document_registry.close t.document_registry;
+    Chart_registry.close t.chart_registry;
     Canvas_registry.close t.canvas_registry;
     let assets = t.assets in
     t.assets <- Int64.Map.empty;
@@ -1545,6 +1600,9 @@ let process t = function
     t.documents <- Int64.Map.empty;
     Map.iter documents ~f:(fun complete ->
       complete (Wire.Document.Response.Failed Closed));
+    let charts = t.charts in
+    t.charts <- Int64.Map.empty;
+    Map.iter charts ~f:(fun complete -> complete (Wire.Chart.Response.Failed Closed));
     let canvases = t.canvases in
     t.canvases <- Int64.Map.empty;
     Map.iter canvases ~f:(fun complete -> complete (Wire.Canvas.Response.Failed Closed))
@@ -1628,6 +1686,13 @@ let step t =
              ~f:(Document_registry.complete t.document_registry)));
     if t.welcomed && not t.stopping
     then
+      Option.iter (Chart_registry.next_request t.chart_registry) ~f:(fun request ->
+        Bonsai.Effect.Expert.handle
+          (Bonsai.Effect.map
+             (Expert.chart_request t ~limit:64 request)
+             ~f:(Chart_registry.complete t.chart_registry)));
+    if t.welcomed && not t.stopping
+    then
       Option.iter (Canvas_registry.next_request t.canvas_registry) ~f:(fun request ->
         Bonsai.Effect.Expert.handle
           (Bonsai.Effect.map
@@ -1698,6 +1763,8 @@ let worker native read ~tick_hz ~max_tasks ~motion ~desktop initialize =
               ~wake:(fun () -> Inbox.wake inbox)
         ; assets = Int64.Map.empty
         ; documents = Int64.Map.empty
+        ; chart_registry = Chart_registry.create ~scope ~wake:(fun () -> Inbox.wake inbox)
+        ; charts = Int64.Map.empty
         ; canvases = Int64.Map.empty
         ; desktop_requests = Int64.Map.empty
         ; desktop_pending = false
@@ -1722,11 +1789,13 @@ let worker native read ~tick_hz ~max_tasks ~motion ~desktop initialize =
         ~finally:(fun () ->
           Asset_registry.close app.asset_registry;
           Document_registry.close app.document_registry;
+          Chart_registry.close app.chart_registry;
           Canvas_registry.close app.canvas_registry;
           Scope.cancel scope;
           Map.iter app.windows ~f:release_window;
           app.assets <- Int64.Map.empty;
           app.documents <- Int64.Map.empty;
+          app.charts <- Int64.Map.empty;
           app.canvases <- Int64.Map.empty;
           app.desktop_requests <- Int64.Map.empty;
           app.desktop_pending <- false;

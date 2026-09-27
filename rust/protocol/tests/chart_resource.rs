@@ -45,6 +45,20 @@ fn independent_resource_frames_and_all_truncations() {
         let mut bytes = encode(&request);
         assert_eq!(hex(&bytes), expected);
         assert_eq!(decode_chart_request(&bytes), Ok(request));
+        let mut frame = vec![21, 7];
+        frame.extend_from_slice(&bytes);
+        assert_eq!(
+            gpuio_protocol::decode(&frame),
+            Ok(gpuio_protocol::v1::Message::Chart(
+                7,
+                decode_chart_request(&bytes).unwrap()
+            ))
+        );
+        for end in 0..frame.len() {
+            assert!(gpuio_protocol::decode(&frame[..end]).is_err());
+        }
+        frame[1] = 0;
+        assert_eq!(gpuio_protocol::decode(&frame), Err(DecodeError::Malformed));
         for end in 0..bytes.len() {
             assert!(decode_chart_request(&bytes[..end]).is_err());
         }
@@ -74,6 +88,11 @@ fn independent_resource_frames_and_all_truncations() {
         let mut bytes = encode(&response);
         assert_eq!(hex(&bytes), expected);
         assert_eq!(decode_chart_response(&bytes), Ok(response));
+        let event =
+            gpuio_protocol::v1::Event::ChartResponse(7, decode_chart_response(&bytes).unwrap());
+        let mut expected = vec![1, 61, 7];
+        expected.extend_from_slice(&bytes);
+        assert_eq!(encode(&vec![event]), expected);
         for end in 0..bytes.len() {
             assert!(decode_chart_response(&bytes[..end]).is_err());
         }

@@ -708,6 +708,7 @@ pub enum Message {
     ColorInputCommand(i64, WindowId, NodeId, crate::color_input::Command),
     Desktop(i64, crate::desktop::Request),
     Notification(i64, crate::notification::Request),
+    Chart(i64, crate::chart_resource::Request),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -857,4 +858,5 @@ pub enum Event {
     DesktopPending,
     NotificationResponse(i64, crate::notification::Response),
     NotificationPending,
+    ChartResponse(i64, crate::chart_resource::Response),
 }

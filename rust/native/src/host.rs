@@ -1893,6 +1893,7 @@ pub fn run(transport: Arc<Transport>) {
         // policy must control background applications consistently on both OSes.
         cx.set_quit_mode(gpui::QuitMode::Explicit);
         let session = Rc::new(RefCell::new(Session::default()));
+        crate::chart_host::init(&session, transport.clone(), cx);
         crate::motion_preference::bind_clocks(&session.borrow().motion(), cx);
         let mut windows: BTreeMap<WindowId, WindowHandle<View>> = BTreeMap::new();
         let dialogs = crate::file_dialog::Dialogs::default();
@@ -1930,6 +1931,7 @@ pub fn run(transport: Arc<Transport>) {
                     desktop_cleanup.wait().await;
                     motion.borrow_mut().take();
                     dialogs.clear().wait().await;
+                    crate::chart_host::shutdown(cx).await;
                     crate::canvas_host::shutdown(cx).await;
                     crate::image_host::shutdown(cx).await;
                     crate::document_host::shutdown(cx).await;
@@ -2183,6 +2185,9 @@ pub fn run(transport: Arc<Transport>) {
                             }
                             transport.respond(Event::DocumentResponse(correlation, response));
                         }
+                        Message::Chart(correlation, request) => {
+                            cx.update(|cx| crate::chart_host::dispatch(correlation, request, cx));
+                        }
                         Message::Canvas(correlation, request) => {
                             let published=match &request { gpuio_protocol::canvas_resource::Request::Publish(id,_) => Some(*id), _ => None };
                             let response=session.borrow_mut().canvas_request(request);
@@ -2204,7 +2209,8 @@ pub fn run(transport: Arc<Transport>) {
                             desktop_cleanup.wait().await;
                             motion.borrow_mut().take();
                             dialogs.clear().wait().await;
-                            crate::canvas_host::shutdown(cx).await;
+                            crate::chart_host::shutdown(cx).await;
+                    crate::canvas_host::shutdown(cx).await;
                             crate::image_host::shutdown(cx).await;
                             crate::document_host::shutdown(cx).await;
                             for event in session.borrow_mut().shutdown() {
@@ -2238,6 +2244,7 @@ pub(crate) fn stop_application(cx: &mut App) {
         foundation::NSPoint,
     };
     drag_drop::shutdown(cx);
+    crate::chart_host::finish_before_quit(cx);
     crate::canvas_host::finish_before_quit(cx);
     crate::image_host::finish_before_quit(cx);
     crate::document_host::finish_before_quit(cx);
@@ -2253,6 +2260,7 @@ pub(crate) fn stop_application(cx: &mut App) {
 #[cfg(not(target_os = "macos"))]
 pub(crate) fn stop_application(cx: &mut App) {
     drag_drop::shutdown(cx);
+    crate::chart_host::finish_before_quit(cx);
     crate::canvas_host::finish_before_quit(cx);
     crate::image_host::finish_before_quit(cx);
     crate::document_host::finish_before_quit(cx);

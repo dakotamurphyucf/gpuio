@@ -20,6 +20,7 @@ module type S = sig
   module Container_query = Container_query_wire
   module Animation_program = Animation_program_wire
   module Document = Document_wire
+  module Chart = Chart_resource_wire
   module Canvas = Canvas_resource_wire
   module Canvas_view = Canvas_view_wire
   module Window = Window_wire
@@ -873,6 +874,7 @@ module type S = sig
       | Color_input_command of int64 * Window_id.t * Node_id.t * Color_input.Command.t
       | Desktop of int64 * Desktop.Request.t
       | Notification of int64 * Notification.Request.t
+      | Chart of int64 * Chart.Request.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Bounded outgoing encoding. Native decoding additionally validates all
@@ -1006,6 +1008,7 @@ module type S = sig
       | Desktop_pending
       | Notification_response of int64 * Notification.Response.t
       | Notification_pending
+      | Chart_response of int64 * Chart.Response.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

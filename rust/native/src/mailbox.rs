@@ -310,6 +310,18 @@ impl Mailbox {
         true
     }
 
+    pub(crate) fn chart_response(
+        &mut self,
+        correlation: i64,
+        response: gpuio_protocol::chart_resource::Response,
+    ) -> bool {
+        if self.closed || self.stopped_emitted {
+            return false;
+        }
+        self.respond(Event::ChartResponse(correlation, response));
+        true
+    }
+
     pub(crate) fn notification_response(
         &mut self,
         correlation: i64,
@@ -682,6 +694,7 @@ impl Mailbox {
             | Event::Failed(..)
             | Event::AssetResponse(..)
             | Event::DocumentResponse(..)
+            | Event::ChartResponse(..)
             | Event::CanvasResponse(..)
             | Event::Stopped => false,
         })
