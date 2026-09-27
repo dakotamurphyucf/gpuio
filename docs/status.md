@@ -262,8 +262,17 @@ retained private-note disclosure, single/multiple guidance accordion, and an
 interactive contributor hover card linking to Sources. Local AppKit validation
 covers keyboard/AX, pointer hover, focus restoration, note/rating retention across
 route and inspector remounts, themes and composer preservation. Contributor initials
-are shown; a real unavailable-image fallback fixture is still pending. Existing
+are shown initially; a local SVG portrait and actual unavailable-image decode/fallback
+fixture can now be selected inside the preview. Existing
 review extension and original M4 public/AppKit regressions remain passing.
+
+The workspace tour uses a public native carousel of four attachment cards with
+real destination actions. Local normal/reduced-motion runs verify keyboard and
+control navigation, current semantics, focus/hover/hidden pauses and native
+opt-in auto-advance. Contributor portraits reuse two window-scoped registrations;
+actual native decoding failure shows initials, and switching back restores the
+SVG image. The demo accepts `--reduced-motion` without changing OS preferences.
+Remaining full M5 integration, combined workload and hosted/merge gates stay open.
 
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
 components pass local acceptance; OCH-24 has validated geometry, a bounded scene

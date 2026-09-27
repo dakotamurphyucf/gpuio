@@ -4,7 +4,9 @@
     its native editor, while guidance sections unmount their pure view content.
     Nothing is persisted or sent to an external service. *)
 val component
-  :  active:bool Bonsai.Cont.t
+  :  app:Gpuio_eio.App.t
+  -> window:Gpuio_eio.App.Window.t
+  -> active:bool Bonsai.Cont.t
   -> dark:bool Bonsai.Cont.t
   -> on_sources:unit Bonsai.Effect.t
   -> Bonsai.Cont.graph

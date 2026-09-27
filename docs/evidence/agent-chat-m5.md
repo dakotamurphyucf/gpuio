@@ -498,9 +498,7 @@ activation or cancellation.
 The contributor hover card opens on keyboard focus or pointer hover. Its public
 link navigates to the actual Sources route; Escape closes it and restores trigger
 focus. Leaving Feedback clears its accepted preview state. The avatar has an
-explicit GP initials fallback and meaningful accessible name. No image is
-registered here, so actual unavailable-image fallback remains an open chat
-showcase requirement.
+explicit GP initials fallback and meaningful accessible name. The next checkpoint adds actual portrait decoding and unavailable-image fallback.
 
 Local commands:
 
@@ -535,16 +533,94 @@ Capture with `GPUIO_SCREENSHOT_DIR`. The new walkthrough is included in the macO
 pending. Narrow/resizable and reduced-motion checks remain part of the full
 showcase acceptance.
 
+## Workspace carousel and contributor portrait fixtures
+
+[Artifact_tour](../../examples/agent_chat/runtime/artifact_tour.ml) adds
+**Workspace → Take workspace tour**, a four-item public carousel of Sources,
+Results, Diagram and Feedback attachment cards. Each action navigates to the
+corresponding working inspector route. A bounded application model owns selection;
+native transitions and the optional four-second deadline never call OCaml per frame.
+Manual navigation is the default. Start/Pause explicitly changes the native policy.
+Leaving the route invalidates outstanding automatic proposals; returning preserves
+selection and starts a fresh eligible interval rather than catching up hidden time.
+
+[Contributor_portrait](../../examples/agent_chat/runtime/contributor_portrait.ml)
+extends the feedback hover card with **Local portrait** and **Unavailable portrait**.
+The first request registers a valid local SVG and deliberately malformed PNM in the
+window's Eio scope. Successful publication is distinct from decoding: the malformed
+source reaches the native decoder, emits Failed, and the actual avatar renders GP
+initials. Restoring SVG emits Ready and renders the image. The two handles are cached
+across source/route/inspector toggles; a pending registration is not duplicated.
+If the second registration fails, the first is explicitly released before retry.
+Closing the window retires both through the scope. No filesystem/network source is
+acquired, and no demo-only bridge or fabricated image state is used.
+
+The demo now supports `--reduced-motion` and `--full-motion` as mutually exclusive
+native policy overrides. Omitting both follows System. They leave OS preferences
+unchanged. The [native tour walkthrough](../../scripts/test_agent_chat_tour.py)
+launches one child for each explicit policy, serially, with 180-second deadlines
+and guaranteed process cleanup.
+
+Local commands:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/agent_chat/main.exe \
+  @test/agent_chat_showcase/runtest @fmt
+python3 scripts/test_agent_chat_tour.py
+python3 scripts/test_agent_chat_feedback.py
+_build/default/examples/agent_chat/main.exe --self-test
+python3 scripts/test_agent_chat.py
+```
+
+The tour checks native Right/Home/End and numbered/current-item semantics, manual
+controls and pointer swipe, destination navigation, 4.7-second focus and hover
+pauses, eligible auto-advance under Full and non-advance under Reduce, hidden
+inspector/remount without catch-up, Pause, theme switching, preserved composer,
+real SVG/invalid-image fallback/restoration and window cleanup. The test's initial
+Results-heading assertion was corrected to the actual existing label. Reopening
+a hover card after Escape requires a fresh focus entry, so the test moves focus
+to Back before returning to its trigger.
+
+Actual rendered captures were inspected after refining card borders/corners:
+
+- [Workspace tour, dark](../images/studio-tour-dark.png) / [light](../images/studio-tour-light.png)
+- [SVG portrait, dark](../images/studio-contributor-portrait-dark.png) / [light](../images/studio-contributor-portrait-light.png)
+- [Decode-failure initials, dark](../images/studio-contributor-fallback-dark.png) / [light](../images/studio-contributor-fallback-light.png)
+
+The final full-motion scenario passes. In the subsequent reduced-motion scenario,
+macOS accessibility stopped exposing the window at inspector close while the child
+was still running; cleanup reaped it. A separate reduced-motion run passed the
+complete scenario. This isolated window-query failure is retained as evidence,
+without claiming a diagnosed product cause or silently retrying inside the test.
+Earlier combined normal/reduced runs also passed before the final pointer/all-link
+coverage and explicit Full override were added. The hosted step still runs both
+policies; hosted checks and broader workload acceptance remain pending.
+
+The feedback regression also explicitly moves the pointer out and back after
+Escape, matching the native hover-card suppression contract, and verifies that
+the preview is absent while Sources is active. It places focus/pointer outside
+the card again after route return before checking closure. With this setup, the
+existing feedback walkthrough passes including rating, retained notes and hover
+without stealing focus. The original chat public self-test and AppKit acceptance
+also pass on the final executable. These are test changes; native hover behavior is unchanged.
+
+This checkpoint demonstrates attachment cards and carousel behavior in the chat;
+it does not substitute for remaining transcript/message/bubble/tool-result
+composition, springs/sequences, responsive layouts or simultaneous-workload
+resource/traffic measurement. Native image policy is covered here by observable
+Ready/Failed and real rendered captures, not by inferring decode success from
+asset registration.
+
 ## Remaining acceptance
 
 These flows cover the OCH-23 package integration, OCH-24 diagram, the OCH-37
 navigation stack/breadcrumbs, settings sheet/confirmation and feedback
-disclosure/accordion/hover card, OCH-34 numeric/OTP,
+disclosure/accordion/hover card/carousel, OCH-34 numeric/OTP,
 OCH-35 dates, OCH-36 colors, OCH-37 pagination, OCH-38 source explorer,
 OCH-39 results table and a subset of OCH-33's
 presentation compositions. They do not complete the other component families,
 responsive/resizable inspector, motion, other
-navigation families/tour, or the
+navigation families, or the
 combined streaming/input/retention/idle-traffic workload. Those all remain required
 by OCH-46, along with narrow/wide visual acceptance, the full coverage map, hosted
 macOS/Linux gates and merge. Full Linux GUI acceptance remains OCH-17.

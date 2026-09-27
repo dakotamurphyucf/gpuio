@@ -86,7 +86,8 @@ let apply (model : Model.t) = function
   | Preview preview -> { model with preview }
 ;;
 
-let component ~active ~dark ~on_sources graph =
+let component ~app ~window ~active ~dark ~on_sources graph =
+  let portrait = Contributor_portrait.component ~app ~window ~dark graph in
   let model, inject =
     B.state_machine0
       ~default_model:Model.initial
@@ -101,7 +102,8 @@ let component ~active ~dark ~on_sources graph =
       (B.map inject ~f:(fun inject active ->
          if active then Bonsai.Effect.Ignore else inject (Preview false)))
     graph;
-  let%arr model = model
+  let%arr portrait = portrait
+  and model = model
   and inject = inject
   and dark = dark in
   let p = Palette.of_dark dark in
@@ -123,21 +125,6 @@ let component ~active ~dark ~on_sources graph =
   in
   let button ?(disabled = false) label action =
     V.button ~disabled ~style:button_style ~on_click:action label
-  in
-  let avatar =
-    V.avatar
-      ~style:
-        (style
-           [ Background (Gpuio.Background.solid p.accent_surface)
-           ; Foreground p.accent
-           ; Width (px 36.)
-           ; Height (px 36.)
-           ; Font_size 13.
-           ])
-      (Gpuio.Avatar.Config.create
-         ~fallback:(Gpuio.Avatar.Fallback.create "GP" |> ok)
-         ~description:(Gpuio.Image.Description.label "GPUIO local assistant" |> ok)
-         ())
   in
   let note =
     Gpuio.View.text_input
@@ -199,11 +186,7 @@ let component ~active ~dark ~on_sources graph =
         ~content:
           (V.column
              ~style:(style [ Gap (px 12.) ])
-             [ V.row
-                 ~style:(style [ Gap (px 10.); Align_items Center ])
-                 [ avatar
-                 ; V.text ~style:(style [ Font_weight 600 ]) "GPUIO · Local assistant"
-                 ]
+             [ portrait
              ; text
                  "A deterministic demo contributor. Review its sample sources and \
                   outputs before drawing conclusions."

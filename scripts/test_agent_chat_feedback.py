@@ -101,6 +101,7 @@ class Feedback(DatesColors):
         self.absent('Open contributor sources', 'AXLink')
         self.button_state('About this contributor', 'AXFocused', True)
         self.focus('Run usefulness', 'AXSlider')
+        self.hover('Back')  # Escape also requires a fresh pointer leave/entry.
         self.hover('About this contributor')
         self.release(self.wait_find(TITLE, 'Open contributor sources', 'AXLink'))
         rating = self.wait_find(TITLE, 'Run usefulness', 'AXSlider')
@@ -114,11 +115,15 @@ class Feedback(DatesColors):
         finally:
             self.release(link)
         self.wait_text(TITLE, 'Context, close at hand.')
+        self.absent('Open contributor sources', 'AXLink')
         self.hover('Back')  # Avoid a fresh hover opening the remounted preview.
         self.focus('Back')  # AXPress alone does not transfer keyboard focus.
         self.button_state('Back', 'AXFocused', True)
         self.press(TITLE, 'Back')
         self.wait_text(TITLE, 'Run usefulness: 4 of 5')
+        self.hover('Back')
+        self.focus('Back')
+        self.button_state('Back', 'AXFocused', True)
         self.absent('Open contributor sources', 'AXLink')
         self.press(TITLE, 'Private review notes')
         assert self.field(TITLE, 'Private review note', 'AXTextArea') == 'Verify Unicode λ and cancellation.'

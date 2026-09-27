@@ -25,9 +25,9 @@ let expect_editor result =
   | Error error -> raise_s [%sexp (error : Input.Command_error.t)]
 ;;
 
-let run ~self_test ~native_test ~attachment_directory =
+let run ~self_test ~native_test ~attachment_directory ~motion =
   let passed = ref false in
-  App.run (fun env app ->
+  App.run ~motion (fun env app ->
     let clock = Eio.Stdenv.clock env in
     let sleep = Eio.Time.sleep clock in
     let app_scope = App.scope app in
@@ -393,8 +393,16 @@ let () =
         then failwith "--directory requires an absolute path";
         Gpuio.File_path.of_string args.(index + 1) |> Or_error.ok_exn)
   in
+  let motion =
+    match flag "--reduced-motion", flag "--full-motion" with
+    | true, true -> failwith "Choose only one motion override"
+    | true, false -> Gpuio.Animation.Preference.Reduce
+    | false, true -> Full
+    | false, false -> System
+  in
   run
     ~attachment_directory
+    ~motion
     ~self_test:(flag "--self-test")
     ~native_test:(flag "--native-test")
 ;;

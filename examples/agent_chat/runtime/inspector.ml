@@ -11,6 +11,7 @@ module Route = struct
     | Diagram
     | Review
     | Feedback
+    | Tour
     | Sources
     | Results
     | Stage of Stage.t
@@ -21,6 +22,7 @@ module Route = struct
     | Diagram -> "Run"
     | Review -> "Review"
     | Feedback -> "Feedback"
+    | Tour -> "Tour"
     | Sources -> "Sources"
     | Results -> "Results"
     | Stage stage -> Stage.name stage
@@ -91,7 +93,7 @@ let component t ~app ~window ~sources ~results ~annotation ~dark graph =
         && Option.exists (N.current routes) ~f:(fun entry ->
           match N.Entry.data entry with
           | Diagram -> true
-          | Overview | Review | Feedback | Sources | Results | Stage _ -> false))
+          | Overview | Review | Feedback | Tour | Sources | Results | Stage _ -> false))
   in
   let diagram =
     Diagram.component
@@ -113,7 +115,7 @@ let component t ~app ~window ~sources ~results ~annotation ~dark graph =
         && Option.exists (N.current routes) ~f:(fun entry ->
           match N.Entry.data entry with
           | Sources -> true
-          | Overview | Diagram | Review | Feedback | Results | Stage _ -> false))
+          | Overview | Diagram | Review | Feedback | Tour | Results | Stage _ -> false))
   in
   let sources = Sources.component sources ~active:sources_active ~dark graph in
   let results_active =
@@ -125,7 +127,7 @@ let component t ~app ~window ~sources ~results ~annotation ~dark graph =
         && Option.exists (N.current routes) ~f:(fun entry ->
           match N.Entry.data entry with
           | Results -> true
-          | Overview | Diagram | Review | Feedback | Sources | Stage _ -> false))
+          | Overview | Diagram | Review | Feedback | Tour | Sources | Stage _ -> false))
   in
   let results = Results.component results ~active:results_active ~dark graph in
   let feedback_active =
@@ -139,9 +141,34 @@ let component t ~app ~window ~sources ~results ~annotation ~dark graph =
   in
   let feedback =
     Review_feedback.component
+      ~app
+      ~window
       ~active:feedback_active
       ~dark
       ~on_sources:(navigate t Sources)
+      graph
+  in
+  let tour_active =
+    B.map2
+      (B.Expert.Var.value t.opened)
+      (B.Expert.Var.value t.routes)
+      ~f:(fun opened routes ->
+        opened
+        && Option.exists (N.current routes) ~f:(fun entry ->
+          Route.equal (N.Entry.data entry) Tour))
+  in
+  let tour =
+    Artifact_tour.component
+      ~active:tour_active
+      ~dark
+      ~on_open:(fun page ->
+        navigate
+          t
+          (match page with
+           | Artifact_tour.Page.Sources -> Sources
+           | Results -> Results
+           | Diagram -> Diagram
+           | Feedback -> Feedback))
       graph
   in
   let open B.Let_syntax in
@@ -152,7 +179,8 @@ let component t ~app ~window ~sources ~results ~annotation ~dark graph =
   and sources = sources
   and results = results
   and review = review
-  and feedback = feedback in
+  and feedback = feedback
+  and tour = tour in
   let palette = Palette.of_dark dark in
   let button ?(disabled = false) label on_click =
     V.button
@@ -239,6 +267,7 @@ let component t ~app ~window ~sources ~results ~annotation ~dark graph =
     match N.Entry.data entry with
     | Route.Review -> [ review; button "Review feedback" (navigate t Feedback) ]
     | Feedback -> [ feedback ]
+    | Tour -> [ tour ]
     | Diagram -> [ diagram ]
     | Sources -> [ sources ]
     | Results -> [ results ]
@@ -248,6 +277,7 @@ let component t ~app ~window ~sources ~results ~annotation ~dark graph =
           ~style:(style [ Foreground palette.muted; Line_height (px 20.) ])
           "Explore a simulated run, inspect its stages, and keep your review progress \
            beside the conversation."
+      ; button "Take workspace tour" (navigate t Tour)
       ; button "Explore run diagram" (navigate t Diagram)
       ; button "Explore sources" (navigate t Sources)
       ; button "Explore results" (navigate t Results)

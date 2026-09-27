@@ -208,3 +208,24 @@ Hover or focus **About this contributor** to open an interactive preview, then
 follow **Open contributor sources** to the source explorer. Escape closes the
 preview. Run `python3 scripts/test_agent_chat_feedback.py` for keyboard/pointer,
 focus, native note retention, rating, navigation and theme acceptance.
+
+Choose **Workspace → Take workspace tour** for a four-card carousel of Sources,
+Results, Diagram and Feedback. Its attachment cards open those working pages.
+Use arrows, Home/End, the numbered controls or swipe to navigate. The tour is
+manual by default; **Start guided tour** opts into a four-second native timer.
+Hovering, keyboard focus in the carousel, a hidden view or reduced motion pauses
+automatic navigation. Returning preserves selection without catching up hidden
+time. **Pause guided tour** turns automatic navigation off.
+
+Inside **About this contributor**, **Local portrait** loads a bundled SVG fixture;
+**Unavailable portrait** intentionally supplies malformed local image data so
+native decoding falls back to GP initials. Switching back restores the portrait.
+Both sources are registered once in the window scope and reused. No files or URLs
+are fetched.
+
+Run `python3 scripts/test_agent_chat_tour.py` to exercise both default and reduced
+motion, plus actual image decoding/fallback. Launch the demo with
+`_build/default/examples/agent_chat/main.exe --reduced-motion` to force the native
+reduced-motion policy without changing system preferences. `--full-motion` forces
+full motion for comparison; omit both to follow the system. Supplying both
+overrides is rejected.
