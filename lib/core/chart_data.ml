@@ -466,6 +466,7 @@ module Expert = struct
   [@@deriving equal, sexp_of]
 
   let contents t = t.contents
+  let retained_bytes t = 65_536 + (512 * t.value_count) + (4 * t.text_bytes)
 
   module Wire = Gpuio_protocol.Chart_data_wire
 

@@ -23,7 +23,9 @@ desktop presentation validation pending; see
 OCH-40's typed chart data model now covers all seven families and mixed Cartesian
 layers, with bounded paired codecs and local expect tests including 100,000
 points, independent binary fixtures and exhaustive small-graph cycle checks. A pinned Sankey algorithm extraction compiles/tests against the
-unchanged GPUI revision; native chart rendering/interaction is still pending. See
+unchanged GPUI revision. The bounded native resource store and scoped Eio scheduler
+now pass isolated publication/cancellation/retention tests; application wiring and
+native chart rendering/interaction are still pending. See
 [chart contracts and remaining work](design/charts.md).
 The detailed entries below record implementation checkpoints chronologically;
 their earlier pending-gate statements are superseded by this delivery record.

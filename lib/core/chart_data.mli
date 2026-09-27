@@ -191,6 +191,11 @@ module Expert : sig
 
   val contents : t -> contents
 
+  (** Conservative registration charge for the immutable data, conversion records
+      and bounded encode buffers. Shared identical values can be charged once;
+      this is an admission estimate, not an OCaml heap/RSS measurement. *)
+  val retained_bytes : t -> int
+
   (** Raw wire conversion does not bypass the validating domain constructors. *)
   val to_wire : t -> Gpuio_protocol.Chart_data_wire.t
 

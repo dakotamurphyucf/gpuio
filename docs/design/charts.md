@@ -2,9 +2,10 @@
 
 Status: in progress. The validated Core data model and paired bounded codecs are implemented and tested.
 The extracted Sankey layout source compiles against the existing GPUI revision.
-Native chart resources, widgets, interactions, accessibility and public graphical
-examples are not implemented yet. This document separates the current data
-contract from the remaining implementation work.
+The native resource store and scoped Eio scheduler now pass isolated ownership
+tests; application/host wiring, widgets, interactions, accessibility and public
+graphical examples remain. This document separates implemented contracts from
+the remaining implementation work.
 
 ## Data contract
 
@@ -49,7 +50,8 @@ data-table adapters without an unchecked constructor for validated datasets.
 standalone bin_prot envelope, capped at 16 MiB. The payload tags are Cartesian,
 pie, radar, candlestick and Sankey; Cartesian layer tags distinguish line/area/bar.
 Typed Core IDs convert only at this boundary. These are resource payloads, not
-large inlined view properties; resource publication is still to be implemented.
+large inlined view properties. The resource store below implements publication;
+its application transport wiring is still pending.
 
 Both readers bound list counts before allocation, cap total Cartesian points
 across all series, and charge all decoded text against the shared 8 MiB budget.
@@ -74,6 +76,62 @@ compare their writers/readers against those same bytes. Every fixture truncation
 and an appended trailing byte are rejected. Malformed domains, huge advertised
 counts, per-series-valid but aggregate-oversized datasets, text-budget overflow
 and a valid 100,000-point native decode are also covered.
+
+## Resource ownership and publication
+
+`Chart_resource` is a borrowed, application-owned identity. A registration owns
+the dataset independently of any mounted chart; copying a handle cannot extend
+the registration's lifetime. The wire operations are Create, Begin, Chunk,
+Publish, Abort and Release. Begin names the expected published revision, its
+successor revision, logical generation and encoded byte count. Initial revision
+and generation are both 1. A reset may advance generation by exactly one on a
+successful publication; ordinary updates retain it. Slots have a separate native
+generation and never wrap. Chunks are contiguous, nonempty and <=256 KiB; the
+complete encoded dataset remains <=16 MiB.
+
+`rust/native/src/chart_store.rs` admits at most 256 registrations, four staged
+uploads and two decode jobs. It reserves a conservative 64 MiB validation
+workspace before issuing each sendable job, with 256 MiB total charged native
+resources, input buffers, jobs and retained snapshots. Decoding runs without GPUI
+or OCaml access. Cancellation is checked before and after the bounded decode;
+it does not interrupt every decoded element. Cancelled work and completed-but-not-
+consumed work keep worker/staging permits until actually reaped. Release cannot
+create additional worker capacity while an old worker is still running.
+
+Publication replaces the live reader slot only after successful decode/validation
+and exact upload-token validation. The private token also fences an aborted upload
+followed by a retry of the same revision, or a completion from another store with
+the same numeric IDs. A failed decode consumes its upload and preserves the prior
+publication. Abort of the next unpublished revision is idempotent, allowing uniform
+cleanup after either admission or decode failure. Release/close invalidates live
+leases immediately. Immutable snapshots already acquired by workers remain valid
+and charged until their final reader drops them. Retired empty lease handles retain
+their fixed bookkeeping charge too, until the last handle is dropped. A worker must return its completion
+to the store; a host deliberately dropping an unrun job must abort its upload.
+
+Retained native charges use actual vector/string capacities after decoding. The
+workspace and fixed bookkeeping charges are conservative admission accounting,
+not allocator/RSS measurements; later render-plan allocations need their own
+bounded budget. No chart resource capability is advertised yet.
+
+`Gpuio_eio.Chart_registry` is the isolated UI-domain scheduler, currently awaiting
+App/host integration. It permits 256 registrations, four staged uploads, one
+correlated request in flight and 128 MiB of conservative retained-data/encode
+charges. It prioritizes cleanup and rotates progress between registrations.
+Unstarted changes coalesce to the latest desired data; an in-flight publication
+finishes before the latest update begins. Rejection preserves accepted data and
+requires explicit retry. Scope cancellation suppresses late callbacks and releases
+an allocation even when its Create response arrives after cancellation. Application
+shutdown must also close the native store.
+
+Reset intent has a separate OCaml epoch so coalesced resets never skip native
+generations. Semantic revision admission rejects old reset epochs immediately,
+including queued events from a currently publishing upload. Events from the exact
+current Publish may precede its acknowledgement; later widget payload validation
+must additionally validate the selected IDs. Distinct value-equal datasets are
+charged separately; only the same physically shared immutable value is deduplicated
+within a registration. A registration's quota includes conservative conversion and
+encode space, but does not account for arbitrary application-owned data outside it.
 
 ## Pinned implementation assessment
 
@@ -107,11 +165,10 @@ retain original semantic values and cache layout outside per-frame painting.
 The native implementation must cover all seven families; the pure model and
 Sankey extraction do not replace that scope:
 
-- Build revisioned, application-owned chart resources on the paired bounded codecs.
-  Scoped Eio ownership should follow existing canvas/document registration, with
-  coalesced desired updates, atomic publication, stale-generation rejection and
-  explicit release/window-unmount behavior. Do not put large datasets in each
-  reconciled view node.
+- Wire the tested native store and Eio scheduler into the application protocol,
+  host background executor and public Eio API. Confirm correlated publication,
+  shutdown, multiple-window leases and cancellation through that complete path.
+  Do not put large datasets in each reconciled view node.
 - Define axes, native formatting, legends, labels, palette/stroke/fill tokens and
   tooltips, including non-color distinctions. Shared Cartesian layers provide
   useful custom combinations. Preserve the pinned families' applicable styling
@@ -146,7 +203,18 @@ Three additional Core codec expect tests and four Rust codec tests exercise the
 paired boundary described above. These are model/codec/algorithm checks; native
 chart acceptance is still outstanding.
 
-Codec regression checkpoint: all **12 Core chart expect tests** and **191 Rust
+Previous codec regression checkpoint: all **12 Core chart expect tests** and **191 Rust
 protocol tests** pass locally, including four chart-codec tests. Strict all-target
 protocol Clippy and both formatters pass. No graphical chart acceptance is claimed
 from these checks.
+
+The resource checkpoint adds independent request/response byte fixtures in both
+languages, eight native store tests and scoped scheduler expect tests. Native
+checks include actual worker-thread execution with 100,000 points, atomic reader
+visibility, failed publication, cancelled-worker capacity, same-revision retries,
+foreign/closed/stale completions, memory admission and 1,024 create/release cycles
+with retained empty reader handles. Scheduler checks cover 1,000 coalesced updates,
+reset/event epochs, explicit rejection/retry, cancellation at every upload boundary,
+late Create cleanup, foreign scopes, 100,000-point chunking, quota rollback,
+round-robin staging and cleanup priority. These use isolated store/scheduler APIs;
+they do not yet exercise a connected application or graphical chart.
