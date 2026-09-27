@@ -771,6 +771,31 @@ let component
     |> Option.value_map ~default:"" ~f:Input.Snapshot.text
     |> String.lowercase
   in
+  let brand ~compact =
+    View.row
+      ~style:
+        (style
+           [ Gap (px 10.)
+           ; Align_items Center
+           ; Padding_top (px 6.)
+           ; Padding_bottom (px 8.)
+           ])
+      ([ View.column
+           ~style:
+             (style
+                [ Width (px 34.)
+                ; Height (px 34.)
+                ; Radius 10.
+                ; Background (solid p.accent_surface)
+                ; Foreground p.accent
+                ; Align_items Center
+                ; Justify_content Center
+                ])
+           [ Icons.view icons Spark ]
+       ; View.text ~style:(style [ Font_size 18.; Font_weight 650 ]) "GPUIO"
+       ]
+       @ if compact then [] else [ caption p "STUDIO" ])
+  in
   let sidebar =
     View.column
       ~style:
@@ -782,29 +807,12 @@ let component
            ; Background (solid p.sidebar)
            ; Foreground p.text
            ])
-      ([ View.row
-           ~style:
-             (style
-                [ Gap (px 10.)
-                ; Align_items Center
-                ; Padding_top (px 6.)
-                ; Padding_bottom (px 8.)
-                ])
-           [ View.column
-               ~style:
-                 (style
-                    [ Width (px 34.)
-                    ; Height (px 34.)
-                    ; Radius 10.
-                    ; Background (solid p.accent_surface)
-                    ; Foreground p.accent
-                    ; Align_items Center
-                    ; Justify_content Center
-                    ])
-               [ Icons.view icons Spark ]
-           ; View.text ~style:(style [ Font_size 18.; Font_weight 650 ]) "GPUIO"
-           ; caption p "STUDIO"
-           ]
+      ([ Responsive.at_width
+           ~key:"sidebar-brand"
+           ~height:48.
+           ~breakpoint:200.
+           ~compact:(brand ~compact:true)
+           ~wide:(brand ~compact:false)
        ; View.row
            ~style:
              (style
@@ -930,6 +938,91 @@ let component
              ]
          ])
   in
+  let toolbar ~compact =
+    View.row
+      ~style:
+        (style
+           [ Width full
+           ; Height (px 45.)
+           ; Shrink 0.
+           ; Gap (px 4.)
+           ; Align_items Center
+           ; Padding_left (px 14.)
+           ; Padding_right (px 12.)
+           ; Border_bottom_width 1.
+           ; Border_color p.line
+           ; Background (solid p.sidebar)
+           ])
+      [ (if compact
+         then
+           View.text
+             ~style:
+               (style
+                  [ Grow 1.
+                  ; Min_width (px 0.)
+                  ; White_space No_wrap
+                  ; Text_overflow Ellipsis
+                  ; Font_size 12.
+                  ; Font_weight 600
+                  ])
+             (Option.value_map active ~default:"No open tabs" ~f:(fun id ->
+                Conversation.title (find t id)))
+         else if List.is_empty (Tabs.tabs tabs)
+         then caption p "No open tabs"
+         else
+           View.tab_bar
+             ~style:
+               (Gpuio.Style.with_state_exn
+                  (style [ Font_size 12.; Foreground p.muted ])
+                  Selected
+                  [ Border_color p.accent; Foreground p.text ])
+             ~config:(Tabs.choices tabs ~label:"Conversation tabs" |> Or_error.ok_exn)
+             ~on_select:(fun id ->
+               action (fun () -> select t (Int.of_string (Tabs.Id.to_string id))))
+             ())
+      ; icon_button
+          dark
+          icons
+          Close
+          ~label:"Close tab"
+          (action (fun () -> Option.iter active ~f:(close_tab t)))
+      ; spacer
+      ; (if compact
+         then
+           icon_button
+             dark
+             icons
+             Sliders
+             ~label:"Settings"
+             (action (fun () -> Settings.toggle t.settings))
+         else button dark "Settings" (action (fun () -> Settings.toggle t.settings)))
+      ; (if compact
+         then
+           icon_button
+             dark
+             icons
+             Code
+             ~label:"Explore workspace"
+             (action (fun () -> Inspector.toggle t.inspector))
+         else
+           button
+             dark
+             "Explore workspace"
+             (action (fun () -> Inspector.toggle t.inspector)))
+      ; icon_button
+          dark
+          icons
+          External
+          ~label:"New window"
+          (action (fun () -> open_window selected))
+      ; icon_button
+          dark
+          icons
+          Command
+          ~label:"Commands"
+          (action (fun () -> B.Expert.Var.set t.palette true))
+      ]
+  in
   let content =
     View.column
       ~style:
@@ -941,58 +1034,12 @@ let component
            ; Background (background dark)
            ; Foreground (foreground dark)
            ])
-      ([ View.row
-           ~style:
-             (style
-                [ Width full
-                ; Height (px 45.)
-                ; Shrink 0.
-                ; Gap (px 4.)
-                ; Align_items Center
-                ; Padding_left (px 14.)
-                ; Padding_right (px 12.)
-                ; Border_bottom_width 1.
-                ; Border_color p.line
-                ; Background (solid p.sidebar)
-                ])
-           [ (if List.is_empty (Tabs.tabs tabs)
-              then caption p "No open tabs"
-              else
-                View.tab_bar
-                  ~style:
-                    (Gpuio.Style.with_state_exn
-                       (style [ Font_size 12.; Foreground p.muted ])
-                       Selected
-                       [ Border_color p.accent; Foreground p.text ])
-                  ~config:(Tabs.choices tabs ~label:"Conversation tabs" |> Or_error.ok_exn)
-                  ~on_select:(fun id ->
-                    action (fun () -> select t (Int.of_string (Tabs.Id.to_string id))))
-                  ())
-           ; icon_button
-               dark
-               icons
-               Close
-               ~label:"Close tab"
-               (action (fun () -> Option.iter active ~f:(close_tab t)))
-           ; spacer
-           ; button dark "Settings" (action (fun () -> Settings.toggle t.settings))
-           ; button
-               dark
-               "Explore workspace"
-               (action (fun () -> Inspector.toggle t.inspector))
-           ; icon_button
-               dark
-               icons
-               External
-               ~label:"New window"
-               (action (fun () -> open_window selected))
-           ; icon_button
-               dark
-               icons
-               Command
-               ~label:"Commands"
-               (action (fun () -> B.Expert.Var.set t.palette true))
-           ]
+      ([ Responsive.at_width
+           ~key:"conversation-toolbar"
+           ~height:45.
+           ~breakpoint:720.
+           ~compact:(toolbar ~compact:true)
+           ~wide:(toolbar ~compact:false)
        ]
        @ List.map panels ~f:(fun (id, view) ->
          View.tab_panel
@@ -1019,15 +1066,28 @@ let component
          |> Or_error.ok_exn)
       ~first:sidebar
       ~second:
-        (View.row
+        (View.split_pane
+           ~key:(key "inspector-split")
            ~style:
-             (style [ Width full; Height full; Min_width (px 0.); Min_height (px 0.) ])
-           [ View.column
-               ~key:(key "conversation-area")
-               ~style:(style [ Grow 1.; Basis (px 0.); Min_width (px 0.); Height full ])
-               [ content ]
-           ; inspector
-           ])
+             (style
+                [ Width full
+                ; Height full
+                ; Min_width (px 0.)
+                ; Min_height (px 0.)
+                ; Foreground p.line
+                ])
+           ~config:
+             (Gpuio.Split_pane.Config.create
+                ~label:"Artifact inspector width"
+                ~initial_first:550.
+                ~minimum_first:360.
+                ~maximum_first:1400.
+                ~minimum_second:320.
+                ()
+              |> Or_error.ok_exn)
+           ~first:content
+           ~second:inspector
+           ())
       ()
   in
   let close_dialog =

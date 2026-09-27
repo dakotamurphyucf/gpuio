@@ -256,3 +256,17 @@ a native clock while generation is active. Reduced motion settles the context
 immediately and keeps repeated indicators static. Run
 `python3 scripts/test_agent_chat_motion.py` for actual geometry/interruption and
 response-input checks in Full and Reduce modes.
+
+Drag the divider beside the artifact inspector to give either side more room.
+The divider also accepts focus and arrow keys. Closing the inspector expands the
+conversation; reopening restores its previous width and preserves the composer
+draft. Conversation actions, sidebar branding and inspector controls adapt to
+their own assigned widths through native container queries. Compact conversation
+actions keep their accessible labels; use the sidebar or conversation commands
+to switch tabs when the compact toolbar shows only the current title.
+
+Run `python3 scripts/test_agent_chat_responsive.py` for pointer/keyboard resizing,
+draft retention, hidden-branch accessibility, independent windows and Full/Reduce
+checks at desktop widths of 1000–1360 logical pixels. Pane minimum sizes remain
+constraints; close the inspector when a smaller window cannot fit all three
+columns. [Responsive evidence](../../docs/evidence/agent-chat-m5.md#responsive-inspector-and-conversation).

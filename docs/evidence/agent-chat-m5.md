@@ -810,6 +810,60 @@ python3 scripts/test_agent_chat.py
 This removes a confirmed per-parse oscillation, not normal movement from actual
 content growth or explicit document expansion. Required hosted gates remain open.
 
+## Responsive inspector and conversation
+
+The chat now keeps a stable nested `View.split_pane` around the conversation and
+inspector. The native divider owns live geometry and accepts pointer, keyboard
+and accessibility resizing. Closing the inspector's immediate panel reclaims its
+space; reopening restores its native sizes without reparenting the conversation
+or recreating its editor. The library composition contract and native marked-text
+regression are documented in [workspace ownership](../design/agent-workspace.md).
+
+[Responsive](../../examples/agent_chat/runtime/responsive.ml) builds small,
+fixed-height alternatives using public `Container_query`. The conversation
+toolbar switches at 720 logical pixels; inspector heading/navigation at 420/400;
+sidebar branding at 200. These are the query's actual assigned widths (including
+the effect of surrounding padding), not window-size callbacks. No OCaml size
+observation drives layout. Editors, documents, source/table models and application
+tasks remain outside these alternatives. Compact actions retain accessible names;
+conversation selection remains available in the sidebar and commands.
+
+The [AppKit walkthrough](../../scripts/test_agent_chat_responsive.py) passes in
+Full and Reduce modes. It exercises an actual pointer drag and 16-pixel keyboard
+steps, two inspector close/reopen cycles, exact Unicode draft retention, one
+reachable copy of toolbar controls, mutually exclusive inspector headings,
+sidebar adaptation, light/dark themes and independent windows. It validates
+1000/1180/1360-pixel desktop widths. Composer width changed from 722 to 328.5
+pixels after the drag, returned to 722 while closed, and returned to 328.5 on
+reopening. Child windows and processes closed and were reaped.
+
+AppKit accessibility element handles can change when their native layout ancestry
+changes; the public test reacquires them. This is separate from native editor
+identity: the native split test verifies the same editor/focus handle and marked
+composition survive while its sibling closes. Public draft assertions alone are
+not evidence of IME identity. Below the combined pane minimum sizes, the layout
+may clip as documented by `Split_pane.Config`; closing the inspector reclaims room.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/agent_chat/main.exe @fmt @test/agent_chat_showcase/runtest
+GPUIO_SCREENSHOT_DIR=scratch/responsive-images python3 scripts/test_agent_chat_responsive.py
+_build/default/examples/agent_chat/main.exe --self-test
+python3 scripts/test_agent_chat.py
+python3 scripts/test_agent_chat_streaming_layout.py
+python3 scripts/test_agent_chat_motion.py
+```
+
+The app build/format/showcase expects, public self-test, existing M4 AppKit and
+streaming geometry regression pass on the integrated layout. The streaming check
+records 90 samples over 3.51 seconds, ten growth steps and zero downward jumps.
+Motion checks pass in Full/Reduce on this final layout: 112-pixel settled context,
+16 intermediate Full positions and none under Reduce, interruption, navigation,
+stream/input/cancel and cleanup. Actual inspected captures: [resized inspector,
+dark](../images/studio-responsive-inspector-dark.png), [narrow,
+light](../images/studio-responsive-narrow-light.png), [wide,
+light](../images/studio-responsive-wide-light.png). Hosted gates and the
+combined workload/resource/idle-traffic measurements remain pending.
+
 ## Remaining acceptance
 
 These flows cover the OCH-23 package integration, OCH-24 diagram, the OCH-37
@@ -817,7 +871,6 @@ navigation stack/breadcrumbs, settings sheet/confirmation and feedback
 disclosure/accordion/hover card/carousel/sidebar, OCH-34 numeric/OTP,
 OCH-35 dates, OCH-36 colors, OCH-37 pagination, OCH-38 source explorer,
 OCH-39 results table and OCH-33 presentation compositions. They do not complete
-responsive/resizable inspector or the
-combined streaming/input/retention/idle-traffic workload. Those all remain required
-by OCH-46, along with narrow/wide visual acceptance, the full coverage map, hosted
+the combined streaming/input/retention/idle-traffic workload. That remains required
+by OCH-46, along with the full coverage map, hosted
 macOS/Linux gates and merge. Full Linux GUI acceptance remains OCH-17.

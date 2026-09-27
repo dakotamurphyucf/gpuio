@@ -221,9 +221,10 @@ let component t ~app ~window ~sources ~results ~annotation ~dark graph =
   and context_expanded = context_expanded
   and toggle_context = toggle_context in
   let palette = Palette.of_dark dark in
-  let button ?(disabled = false) label on_click =
+  let button ?(disabled = false) ?accessible_name label on_click =
     V.button
       ~disabled
+      ?accessible_name
       ~on_click
       label
       ~style:
@@ -348,6 +349,58 @@ let component t ~app ~window ~sources ~results ~annotation ~dark graph =
       ; button "Review feedback" (navigate t Feedback)
       ]
   in
+  let heading ~compact =
+    V.row
+      ~style:
+        (style
+           [ Height (px 45.)
+           ; Shrink 0.
+           ; Align_items Center
+           ; Justify_content Space_between
+           ; Padding_left (px 20.)
+           ; Padding_right (px 12.)
+           ; Border_bottom_width 1.
+           ; Border_color palette.line
+           ])
+      [ V.text
+          ~style:(style [ Font_size 12.; Font_weight 600 ])
+          (if compact then "ARTIFACTS" else "ARTIFACT WORKSPACE")
+      ; V.button
+          ~accessible_name:"Close workspace inspector"
+          ~style:
+            (style
+               [ Foreground palette.text
+               ; Background (Gpuio.Background.solid palette.raised)
+               ; Border_color palette.line
+               ; Border_width 1.
+               ; Padding (px 8.)
+               ; Radius 8.
+               ])
+          ~on_click:(E.of_thunk (fun () -> B.Expert.Var.set t.opened false))
+          "Close"
+      ]
+  in
+  let navigation ~compact =
+    V.row
+      ~style:
+        (style
+           [ Width (Gpuio.Length.percent_exn 100.)
+           ; Height (px 36.)
+           ; Gap (px 6.)
+           ; Align_items Center
+           ])
+      [ button ~disabled:(not (N.can_pop routes)) "Back" (change t N.pop)
+      ; button ~disabled:(not (N.can_forward routes)) "Forward" (change t N.forward)
+      ; button
+          ~accessible_name:"Workspace"
+          (if compact then "Home" else "Workspace")
+          (change t N.pop_to_root)
+      ; button
+          ~accessible_name:"Diagram"
+          (if compact then "Run" else "Diagram")
+          (navigate t Diagram)
+      ]
+  in
   V.panel
     ~key:(Gpuio.Key.of_string_exn "artifact-inspector")
     ~label:"Artifact workspace"
@@ -355,7 +408,7 @@ let component t ~app ~window ~sources ~results ~annotation ~dark graph =
     ~hidden:Unmount
     ~style:
       (style
-         [ Width (px 380.)
+         [ Width (Gpuio.Length.percent_exn 100.)
          ; Height (Gpuio.Length.percent_exn 100.)
          ; Shrink 0.
          ; Min_height (px 0.)
@@ -364,42 +417,20 @@ let component t ~app ~window ~sources ~results ~annotation ~dark graph =
          ; Border_left_width 1.
          ; Border_color palette.line
          ])
-    [ V.row
-        ~style:
-          (style
-             [ Height (px 45.)
-             ; Shrink 0.
-             ; Align_items Center
-             ; Justify_content Space_between
-             ; Padding_left (px 20.)
-             ; Padding_right (px 12.)
-             ; Border_bottom_width 1.
-             ; Border_color palette.line
-             ])
-        [ V.text ~style:(style [ Font_size 12.; Font_weight 600 ]) "ARTIFACT WORKSPACE"
-        ; V.button
-            ~accessible_name:"Close workspace inspector"
-            ~style:
-              (style
-                 [ Foreground palette.text
-                 ; Background (Gpuio.Background.solid palette.raised)
-                 ; Border_color palette.line
-                 ; Border_width 1.
-                 ; Padding (px 8.)
-                 ; Radius 8.
-                 ])
-            ~on_click:(E.of_thunk (fun () -> B.Expert.Var.set t.opened false))
-            "Close"
-        ]
+    [ Responsive.at_width
+        ~key:"inspector-heading"
+        ~height:45.
+        ~breakpoint:420.
+        ~compact:(heading ~compact:true)
+        ~wide:(heading ~compact:false)
     ; V.column
         ~style:(style [ Padding (px 14.); Gap (px 10.); Shrink 0. ])
-        [ V.row
-            ~style:(style [ Gap (px 6.) ])
-            [ button ~disabled:(not (N.can_pop routes)) "Back" (change t N.pop)
-            ; button ~disabled:(not (N.can_forward routes)) "Forward" (change t N.forward)
-            ; button "Workspace" (change t N.pop_to_root)
-            ; button "Diagram" (navigate t Diagram)
-            ]
+        [ Responsive.at_width
+            ~key:"inspector-navigation"
+            ~height:36.
+            ~breakpoint:400.
+            ~compact:(navigation ~compact:true)
+            ~wide:(navigation ~compact:false)
         ; breadcrumb
         ]
     ; V.navigation_stack

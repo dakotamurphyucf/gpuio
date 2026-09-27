@@ -283,7 +283,11 @@ cards, removable query tags, loading skeleton/shimmer/spinners, status and error
 recovery now pass the Full/Reduce local presentation walkthrough, including exact
 Unicode code/diff copy. Stage-context springs, ordered destination reveals and
 shared response activity are integrated; local Full/Reduce geometry/interruption,
-hidden context and response-input checks pass. Responsive layout, combined workload and
+hidden context and response-input checks pass. The responsive inspector now passes
+local Full/Reduce pointer/keyboard resizing, close/reopen geometry, Unicode draft
+retention, hidden-alternative accessibility and independent-window checks at
+1000–1360-pixel desktop widths. Native split tests also preserve marked IME text
+and editor identity when the sibling pane closes. Combined workload and
 hosted/merge acceptance stay open. Native documents now expose labelled groups
 and dispatch toolbar/Markdown copy accessibility actions directly. The chat
 regression verifies exact Unicode copy from a retained offscreen toolbar without
