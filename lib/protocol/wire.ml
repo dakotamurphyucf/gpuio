@@ -23,6 +23,7 @@ module Canvas_view = Canvas_view_wire
 module Window = Window_wire
 module Split = Split_wire
 module Extension = Extension_wire
+module Desktop = Desktop_wire
 
 let version = 1L
 let capabilities = 2199023255551L
@@ -900,11 +901,14 @@ module Message = struct
     | Otp_input_command of int64 * Window_id.t * Node_id.t * Otp_input.Command.t
     | Calendar_command of int64 * Window_id.t * Node_id.t * Calendar.Command.t
     | Color_input_command of int64 * Window_id.t * Node_id.t * Color_input.Command.t
+    | Desktop of int64 * Desktop.Request.t
   [@@deriving bin_io, equal, sexp_of]
 
   let encode t =
     let invalid_asset =
       match t with
+      | Desktop (correlation, request) ->
+        Int64.(correlation <= 0L) || not (Desktop.Request.valid request)
       | Window_command (correlation, _, command) ->
         Int64.(correlation <= 0L) || Result.is_error (Window.Command.validate command)
       | Open_configured (correlation, _, config) ->
@@ -1072,6 +1076,8 @@ module Event = struct
         Window_id.t * Node_id.t * Handler_id.t * int64 * Carousel.Request.t
     | Tree_input of Window_id.t * Node_id.t * Handler_id.t * int64 * Tree_input.Request.t
     | Table_input of Window_id.t * Node_id.t * Handler_id.t * int64 * Table.Input.t
+    | Desktop_response of int64 * Desktop.Response.t
+    | Desktop_pending
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1091,6 +1097,9 @@ module Event = struct
   ;;
 
   let rec valid_event = function
+    | Desktop_response (correlation, response) ->
+      Int64.(correlation > 0L) && Desktop.Response.valid response
+    | Desktop_pending -> true
     | Canvas_event
         (_, _, _, revision, source, scene_revision, scene_generation, observation) ->
       let identified = Int64.(scene_revision > 0L && scene_generation > 0L) in

@@ -14,21 +14,10 @@ module Scheme = struct
   type t = string [@@deriving equal, compare, sexp_of]
 
   let of_string value =
-    let valid_char c =
-      ascii_letter c
-      || digit c
-      ||
-      match c with
-      | '+' | '-' | '.' -> true
-      | _ -> false
-    in
-    if
-      String.is_empty value
-      || String.length value > 64
-      || (not (ascii_letter value.[0]))
-      || not (String.for_all value ~f:valid_char)
+    let normalized = String.lowercase value in
+    if not (Gpuio_protocol.Desktop_wire.valid_scheme normalized)
     then Or_error.error_string "scheme must be 1..64 ASCII scheme characters"
-    else Ok (String.lowercase value)
+    else Ok normalized
   ;;
 
   let to_string t = t
@@ -56,7 +45,7 @@ type t =
   }
 [@@deriving equal, sexp_of]
 
-let max_bytes = 16_384
+let max_bytes = Gpuio_protocol.Desktop_wire.max_link_bytes
 
 let unreserved c =
   ascii_letter c

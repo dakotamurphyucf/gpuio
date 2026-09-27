@@ -115,6 +115,10 @@ type t =
   ; mutable assets : (Wire.Asset.Response.t -> unit) Int64.Map.t
   ; mutable documents : (Wire.Document.Response.t -> unit) Int64.Map.t
   ; mutable canvases : (Wire.Canvas.Response.t -> unit) Int64.Map.t
+  ; mutable desktop_requests : (Wire.Desktop.Response.t -> unit) Int64.Map.t
+  ; mutable desktop_pending : bool
+  ; mutable on_desktop_pending : unit -> unit Bonsai.Effect.t
+  ; desktop_identity : Gpuio.Desktop.Identity.t option
   ; mutable correlation : int64
   ; mutable motion : Gpuio.Animation.Preference.t option
   ; mutable welcomed : bool
@@ -140,6 +144,11 @@ and window =
   }
 
 let check t = Guard.check t.guard
+
+let desktop_identity t =
+  check t;
+  t.desktop_identity
+;;
 
 let scope t =
   check t;
@@ -205,6 +214,7 @@ let diagnostics t : Diagnostics.t =
       + Map.length t.assets
       + Map.length t.documents
       + Map.length t.canvases
+      + Map.length t.desktop_requests
   ; assets
   ; asset_uploads
   ; asset_source_bytes
@@ -235,6 +245,33 @@ let set_motion t preference =
 ;;
 
 module Expert = struct
+  let desktop t request =
+    Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+      check t;
+      let fail error = callback (Wire.Desktop.Response.Failed error) in
+      if t.stopping
+      then fail Closed
+      else if not (Wire.Desktop.Request.valid request)
+      then fail Invalid_request
+      else if Map.length t.desktop_requests >= 16
+      then fail Busy
+      else (
+        let id = correlation t in
+        t.desktop_requests <- Map.set t.desktop_requests ~key:id ~data:callback;
+        queue t (Desktop (id, request))))
+  ;;
+
+  let on_desktop_pending t callback =
+    check t;
+    if not t.stopping
+    then (
+      t.on_desktop_pending <- callback;
+      if t.desktop_pending
+      then
+        Scope.Expert.enqueue t.scope (fun () ->
+          if not t.stopping then Bonsai.Effect.Expert.handle (t.on_desktop_pending ())))
+  ;;
+
   let canvas_request t ~limit request =
     Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
       check t;
@@ -445,6 +482,8 @@ let shutdown t =
   if not t.stopping
   then (
     t.stopping <- true;
+    t.on_desktop_pending <- (fun () -> Bonsai.Effect.Ignore);
+    t.desktop_pending <- false;
     Asset_registry.close t.asset_registry;
     Document_registry.close t.document_registry;
     Canvas_registry.close t.canvas_registry;
@@ -928,6 +967,21 @@ let find_window t id =
 let native_error code = Error.create_s (Wire.Error_code.sexp_of_t code)
 
 let process t = function
+  | Wire.Event.Desktop_pending ->
+    if not t.stopping
+    then (
+      t.desktop_pending <- true;
+      enqueue t (fun () ->
+        if not t.stopping then Bonsai.Effect.Expert.handle (t.on_desktop_pending ())))
+  | Desktop_response (request, response) ->
+    (match Map.find t.desktop_requests request with
+     | None -> ()
+     | Some complete ->
+       t.desktop_requests <- Map.remove t.desktop_requests request;
+       (match response with
+        | Links _ -> t.desktop_pending <- false
+        | Configured | Capabilities _ | Requested | Registered | Failed _ -> ());
+       complete (if t.stopping then Wire.Desktop.Response.Failed Closed else response))
   | Wire.Event.Close_requested id ->
     Option.iter (find_window t id) ~f:Window.request_close
   | Quit_requested -> request_quit t
@@ -1173,6 +1227,10 @@ let process t = function
          if not (Window.is_closed window)
          then Bonsai.Effect.Expert.handle (callback ~revision))
      | Some _ | None -> ())
+  | Failed (request, _) when Map.mem t.desktop_requests request ->
+    let complete = Map.find_exn t.desktop_requests request in
+    t.desktop_requests <- Map.remove t.desktop_requests request;
+    complete (Wire.Desktop.Response.Failed Native_failure)
   | Failed (request, _) when Map.mem t.window_requests request ->
     let pending = Map.find_exn t.window_requests request in
     t.window_requests <- Map.remove t.window_requests request;
@@ -1347,6 +1405,12 @@ let process t = function
   | Stopped ->
     t.stopped <- true;
     t.stopping <- true;
+    t.on_desktop_pending <- (fun () -> Bonsai.Effect.Ignore);
+    t.desktop_pending <- false;
+    let desktop_requests = t.desktop_requests in
+    t.desktop_requests <- Int64.Map.empty;
+    Map.iter desktop_requests ~f:(fun complete ->
+      complete (Wire.Desktop.Response.Failed Closed));
     Asset_registry.close t.asset_registry;
     Document_registry.close t.document_registry;
     Canvas_registry.close t.canvas_registry;
@@ -1465,7 +1529,7 @@ let step t =
         | (Opening | Closing_before_open | Closing | Closed), _ | Open, _ -> ())))
 ;;
 
-let worker native read ~tick_hz ~max_tasks ~motion initialize =
+let worker native read ~tick_hz ~max_tasks ~motion ~desktop initialize =
   Eio_main.run (fun env ->
     Eio.Switch.run (fun sw ->
       let inbox = Inbox.create ~capacity:1024 () in
@@ -1511,6 +1575,10 @@ let worker native read ~tick_hz ~max_tasks ~motion initialize =
         ; assets = Int64.Map.empty
         ; documents = Int64.Map.empty
         ; canvases = Int64.Map.empty
+        ; desktop_requests = Int64.Map.empty
+        ; desktop_pending = false
+        ; on_desktop_pending = (fun () -> Bonsai.Effect.Ignore)
+        ; desktop_identity = desktop
         ; correlation = 0L
         ; motion = Some motion
         ; welcomed = false
@@ -1530,6 +1598,9 @@ let worker native read ~tick_hz ~max_tasks ~motion initialize =
           app.assets <- Int64.Map.empty;
           app.documents <- Int64.Map.empty;
           app.canvases <- Int64.Map.empty;
+          app.desktop_requests <- Int64.Map.empty;
+          app.desktop_pending <- false;
+          app.on_desktop_pending <- (fun () -> Bonsai.Effect.Ignore);
           app.frames <- Int64.Map.empty;
           app.closes <- Int64.Map.empty;
           app.opens <- Int64.Map.empty;
@@ -1562,6 +1633,20 @@ let worker native read ~tick_hz ~max_tasks ~motion initialize =
           Gpuio_native.submit native (Hello (Wire.version, Wire.capabilities))
           |> Result.map_error ~f:native_error
           |> Or_error.ok_exn;
+          Option.iter desktop ~f:(fun identity ->
+            Bonsai.Effect.Expert.handle
+              (Bonsai.Effect.map
+                 (Expert.desktop
+                    app
+                    (Configure (Gpuio.Desktop.Expert.identity_to_wire identity)))
+                 ~f:(function
+                   | Wire.Desktop.Response.Configured -> ()
+                   | Failed Closed when app.stopping -> ()
+                   | response ->
+                     raise_s
+                       [%sexp
+                         "desktop initialization failed"
+                       , (response : Wire.Desktop.Response.t)])));
           initialize (env :> Eio_unix.Stdenv.base) app;
           while not app.stopped do
             step app;
@@ -1584,6 +1669,7 @@ let run
       ?(max_tasks = 1024)
       ?(exit_on_last_window = true)
       ?(motion = Gpuio.Animation.Preference.System)
+      ?desktop
       initialize
   =
   if (not (Float.is_finite tick_hz)) || Float.(tick_hz < 0.01 || tick_hz > 240.)
@@ -1603,7 +1689,7 @@ let run
       Eio.Flow.close write;
       let domain =
         Domain.spawn (fun () ->
-          try worker native read ~tick_hz ~max_tasks ~motion initialize with
+          try worker native read ~tick_hz ~max_tasks ~motion ~desktop initialize with
           | exn ->
             let bt = Stdlib.Printexc.get_raw_backtrace () in
             Gpuio_native.abort native;

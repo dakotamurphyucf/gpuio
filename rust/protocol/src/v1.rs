@@ -704,6 +704,7 @@ pub enum Message {
     OtpInputCommand(i64, WindowId, NodeId, crate::otp_input::Command),
     CalendarCommand(i64, WindowId, NodeId, crate::calendar_input::Command),
     ColorInputCommand(i64, WindowId, NodeId, crate::color_input::Command),
+    Desktop(i64, crate::desktop::Request),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -849,4 +850,6 @@ pub enum Event {
     CarouselRequested(WindowId, NodeId, HandlerId, i64, crate::carousel::Request),
     TreeInput(WindowId, NodeId, HandlerId, i64, crate::tree_input::Request),
     TableInput(WindowId, NodeId, HandlerId, i64, crate::table::Input),
+    DesktopResponse(i64, crate::desktop::Response),
+    DesktopPending,
 }

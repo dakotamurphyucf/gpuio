@@ -8,7 +8,7 @@ and evidence remain in [the milestone 5 handoff](milestone-5.md).
 
 | Ticket | Deliverable | Current state |
 | -- | -- | -- |
-| OCH-27 | Application identity, deep-link packaging/startup/live delivery, activation, file reveal/open, document-window metadata | In progress: pure link parser and readiness inbox tested; native/platform integration pending |
+| OCH-27 | Application identity, deep-link packaging/startup/live delivery, activation, file reveal/open, document-window metadata | In progress: parser/readiness inbox, identity/protocol and early native capture implemented; public routing, remaining OS services and packaged acceptance pending |
 | OCH-28 | OS notifications, permissions/capabilities, replacement/dismissal and stale-safe action routing | Pending OCH-27 application identity/routing |
 | OCH-40 | Line, area, bar, pie, radar, candlestick and Sankey components with typed bounded datasets, native interaction and accessible alternatives | Pending native adapter evaluation; existing pins retained |
 | OCH-29 | Focused graphics application consuming public canvas and an independently packaged native component; desktop workflows and one chart | Pending integration of preceding capabilities |
@@ -46,6 +46,12 @@ GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 \
   @test/desktop/runtest @test/view_api/runtest @fmt
 ```
 
-No native desktop capability bit is advertised yet. Next: application identity
-and protocol contracts, early native event capture with bounded admission,
-Core/Eio routing, packaging and actual cold/warm OS invocation checks.
+Identity, native input admission, correlated desktop requests and availability
+signals now have paired OCaml/Rust fixtures and native state/mailbox unit tests.
+These cover pre-configuration input, preserved malformed values for app rejection,
+overflow reporting, shutdown, independent input-lane saturation and bounded
+response batches. `App.run ~desktop` queues identity before application windows.
+The Eio bridge compiles with the targeted expect/format checks passing.
+
+No full desktop capability bit is advertised yet. Next: public Core/Eio routing,
+remaining OS services, packaging and actual cold/warm OS invocation checks.

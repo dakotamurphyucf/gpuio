@@ -13,6 +13,8 @@ pub mod canvas_paint;
 pub mod canvas_plan;
 pub mod canvas_state;
 pub mod canvas_store;
+mod desktop_host;
+pub mod desktop_state;
 mod document_highlight;
 pub mod document_host;
 pub mod document_jobs;

@@ -15,6 +15,9 @@ pub const MAX_INPUT_BYTES: usize = 4 * MAX_MESSAGE_BYTES;
 // Drain includes those prefixes when fitting a response batch into 1 MiB.
 fn event_bytes(event: &Event) -> usize {
     256 + match event {
+        Event::DesktopResponse(_, gpuio_protocol::desktop::Response::Links(batch)) => {
+            batch.links.iter().map(|link| link.len() + 9).sum()
+        }
         Event::TableInput(_, _, _, _, input) => input.request.payload_bytes(),
         Event::TreeInput(
             _,
@@ -223,6 +226,7 @@ impl Mailbox {
             (Event::CloseRequested(a), Event::CloseRequested(b)) => a == b,
             (Event::WindowChanged(a, _), Event::WindowChanged(b, _)) => a == b,
             (Event::QuitRequested, Event::QuitRequested)
+            | (Event::DesktopPending, Event::DesktopPending)
             | (Event::ReopenRequested, Event::ReopenRequested)
             | (Event::WindowCapabilities(_), Event::WindowCapabilities(_)) => true,
             _ => false,
@@ -238,9 +242,10 @@ impl Mailbox {
                 | Event::QuitRequested
                 | Event::ReopenRequested
                 | Event::WindowCapabilities(_)
+                | Event::DesktopPending
         ));
         assert!(
-            self.controls < MAX_WINDOWS * 2 + 3,
+            self.controls < MAX_WINDOWS * 2 + 4,
             "undrained lifecycle generations"
         );
         self.controls += 1;
@@ -618,6 +623,8 @@ impl Mailbox {
             | Event::FileDialogResult(_, id, ..)
             | Event::Overloaded(id) => id.slot() == window_slot,
             Event::QuitRequested
+            | Event::DesktopPending
+            | Event::DesktopResponse(..)
             | Event::ReopenRequested
             | Event::WindowCapabilities(_)
             | Event::Welcome(..)
@@ -760,5 +767,89 @@ mod table_input_tests {
         }
         assert_eq!(drained, vec![event; MAX_INPUT_EVENTS]);
         assert_eq!(mailbox.input_bytes, 0);
+    }
+}
+
+#[cfg(test)]
+mod desktop_tests {
+    use super::*;
+    use binprot::BinProtWrite;
+    use gpuio_protocol::desktop::{LinkBatch, MAX_LINK_BYTES, Request, Response};
+
+    #[test]
+    fn availability_is_coalesced_and_independent_of_window_input_capacity() {
+        let mut mailbox = Mailbox::default();
+        for _ in 0..MAX_INPUT_EVENTS {
+            mailbox
+                .input(Event::Press(
+                    WindowId::from_parts(0, 1).unwrap(),
+                    gpuio_protocol::NodeId::from_parts(0, 1).unwrap(),
+                    gpuio_protocol::HandlerId::from_parts(0, 1).unwrap(),
+                    1,
+                ))
+                .unwrap();
+        }
+        for _ in 0..1000 {
+            mailbox.control(Event::DesktopPending);
+        }
+        assert_eq!(mailbox.controls, 1);
+        mailbox
+            .submit(Message::Desktop(7, Request::TakeLinks), 3)
+            .unwrap();
+        assert!(matches!(
+            mailbox.pop(),
+            Some(Message::Desktop(7, Request::TakeLinks))
+        ));
+        let response = Event::DesktopResponse(
+            7,
+            Response::Links(LinkBatch {
+                links: vec!["x".repeat(MAX_LINK_BYTES); 16],
+                dropped: 1,
+            }),
+        );
+        mailbox.respond(response.clone());
+        let all = mailbox.drain(256);
+        assert_eq!(all.len(), MAX_INPUT_EVENTS + 2);
+        assert_eq!(all[MAX_INPUT_EVENTS], Event::DesktopPending);
+        assert_eq!(all[MAX_INPUT_EVENTS + 1], response);
+        assert_eq!(mailbox.controls, 0);
+        assert!(!mailbox.has_window_output(0));
+    }
+
+    #[test]
+    fn large_batches_are_charged_and_split_before_transport_limit() {
+        let mut mailbox = Mailbox::default();
+        for correlation in 1..=8 {
+            mailbox
+                .submit(Message::Desktop(correlation, Request::TakeLinks), 3)
+                .unwrap();
+            mailbox.pop().unwrap();
+            let event = Event::DesktopResponse(
+                correlation,
+                Response::Links(LinkBatch {
+                    links: vec!["x".repeat(MAX_LINK_BYTES); 16],
+                    dropped: 0,
+                }),
+            );
+            let mut encoded = Vec::new();
+            event.binprot_write(&mut encoded).unwrap();
+            assert!(event_bytes(&event) >= encoded.len());
+            mailbox.respond(event);
+        }
+        let mut count = 0;
+        loop {
+            let batch = mailbox.drain(256);
+            if batch.is_empty() {
+                break;
+            }
+            assert!(batch.len() < 8);
+            count += batch.len();
+            let mut bytes = Vec::new();
+            batch.binprot_write(&mut bytes).unwrap();
+            assert!(bytes.len() <= MAX_MESSAGE_BYTES);
+        }
+        assert_eq!(count, 8);
+        assert_eq!(mailbox.responses, 0);
+        assert_eq!(mailbox.reserved, 0);
     }
 }

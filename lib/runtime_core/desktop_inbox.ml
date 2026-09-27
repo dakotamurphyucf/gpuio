@@ -20,8 +20,8 @@ type t =
   ; mutable phase : phase
   }
 
-let max_entries = 64
-let max_bytes = 262_144
+let max_entries = Gpuio_protocol.Desktop_wire.max_links
+let max_bytes = Gpuio_protocol.Desktop_wire.max_link_batch_bytes
 let create () = { queue = Queue.create (); bytes = 0; phase = Waiting }
 
 let push t value =

@@ -18,6 +18,7 @@ pub mod color_value;
 mod command;
 pub mod container_query;
 mod decode;
+pub mod desktop;
 pub mod document;
 pub mod drag_drop;
 pub mod extension;
@@ -42,12 +43,12 @@ pub use decode::{
     decode_calendar_response, decode_calendar_selection, decode_canvas_scene,
     decode_canvas_view_config, decode_carousel_config, decode_carousel_request,
     decode_color_command, decode_color_config, decode_color_event, decode_color_response,
-    decode_container_query, decode_navigation_stack, decode_number_input_command,
-    decode_number_input_config, decode_number_input_event, decode_number_input_response,
-    decode_numeric_domain, decode_otp_input_command, decode_otp_input_config,
-    decode_otp_input_event, decode_otp_input_response, decode_slider_command, decode_slider_config,
-    decode_slider_event, decode_table_cell, decode_table_command, decode_table_config,
-    decode_table_request,
+    decode_container_query, decode_desktop_request, decode_navigation_stack,
+    decode_number_input_command, decode_number_input_config, decode_number_input_event,
+    decode_number_input_response, decode_numeric_domain, decode_otp_input_command,
+    decode_otp_input_config, decode_otp_input_event, decode_otp_input_response,
+    decode_slider_command, decode_slider_config, decode_slider_event, decode_table_cell,
+    decode_table_command, decode_table_config, decode_table_request,
 };
 pub use id::{HandlerId, NodeId, ResourceId, WindowId};
 

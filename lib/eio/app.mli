@@ -131,6 +131,20 @@ module Window : sig
 end
 
 module Expert : sig
+  (** Application-scoped desktop protocol. At most 16 pending requests; closing
+      resolves them with [Closed]. Requesting [Take_links] consumes the native
+      FIFO and its overflow counter, without routing or interpreting its values. *)
+  val desktop
+    :  t
+    -> Gpuio_protocol.Desktop_wire.Request.t
+    -> Gpuio_protocol.Desktop_wire.Response.t Bonsai.Effect.t
+
+  (** Single application handler, replaced by subsequent registration. A pending
+      signal received before registration is retained. The callback runs on the
+      UI domain and must explicitly request input when ready. Native signals are
+      coalesced availability hints, not one callback per incoming URL. *)
+  val on_desktop_pending : t -> (unit -> unit Bonsai.Effect.t) -> unit
+
   (** Raw correlated scene-resource protocol; at most 63 pending requests.
       Callers own release and late-reply cleanup. This registers scene data;
       it does not itself create a rendered canvas. One additional request lane
@@ -217,6 +231,10 @@ val request_quit : t -> unit
 val window_capabilities : t -> Gpuio.Window.Capabilities.t option
 val on_reopen : t -> (unit -> unit Bonsai.Effect.t) -> unit
 
+(** Immutable identity declared to [run]. Native configuration is queued before
+    initialization can enqueue windows or desktop requests. *)
+val desktop_identity : t -> Gpuio.Desktop.Identity.t option
+
 (** Application-wide native motion policy. [System] follows available platform
     preferences and defaults to full motion when no preference is available.
     [Reduce] and [Full] override the platform until [System] is selected again.
@@ -258,6 +276,7 @@ val run
   -> ?max_tasks:int
   -> ?exit_on_last_window:bool
   -> ?motion:Gpuio.Animation.Preference.t
+  -> ?desktop:Gpuio.Desktop.Identity.t
   -> (Eio_unix.Stdenv.base -> t -> unit)
   -> unit
 

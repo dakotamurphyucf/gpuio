@@ -2,8 +2,11 @@
 
 OCH-27 / OCH-28 implementation design, started 2026-09-27. This document
 distinguishes proposed contracts from working integration. The pure `Deep_link`
-parser and runtime readiness inbox pass local expect tests; native services are
-not yet advertised.
+parser and runtime readiness inbox pass local expect tests. Identity, a correlated
+desktop protocol, native early-link capture and application activation are now
+wired, with native state/mailbox unit coverage. Public routing, the remaining OS
+adapters and real packaged OS invocation acceptance are still pending. The full
+desktop bridge capability is not yet advertised.
 
 ## Ownership and delivery
 
@@ -18,8 +21,30 @@ The implemented runtime inbox retains at most 64 entries and 256 KiB of raw
 input. Each URL is at most 16 KiB. Overflow rejects the newest input without
 reordering retained entries; the adapter must report admission failure. Readiness
 is monotonic, repeated identical requests remain distinct, and closing permanently
-clears the queue. Pop removes the entry before executing application code. Native
-pre-configuration admission and observable overflow reporting remain to implement.
+clears the queue. Pop removes the entry before executing application code.
+
+Native capture now uses the same bounds before configuration, with a saturating
+dropped-link counter. Its callback emits one coalesced `Desktop_pending` control
+event on transition to pending input; this event is independent of window-input
+capacity. `Take_links` atomically drains accepted links and the overflow count
+through a reserved command response. Its output is charged to the transport byte
+limit. Early signals survive until a UI-domain handler is installed. Both queues
+are bounded; the public routing adapter will control transfer/readiness rather
+than polling while idle. Equal links are separate requests, not a deduplication key.
+
+`App.run ~desktop:identity` queues one immutable identity declaration before user
+initialization can queue native windows. Desktop requests may be queued during
+initialization and wait for the normal bridge handshake. Duplicate native
+configuration is rejected. At most 16 desktop requests may be pending; final
+shutdown completes them with `Closed` and releases callback captures. The expert
+request/subscription interface is runtime machinery; application convenience
+operations and semantic routing remain to implement.
+
+Identity uses a validated lowercase reverse-DNS identifier (128 bytes maximum),
+a UTF-8 display name (256 bytes maximum, no ASCII controls), and up to 16 unique
+normalized schemes. Declaring identity configures process state; it does not
+rewrite bundle metadata or install default handlers. `Requested` means the
+platform accepted an operation request; it does not certify visible presentation.
 
 Readiness is separate from the first window opening. A ready application can have
 zero windows. Quit cancels delivery and releases pending requests. Any command
@@ -61,6 +86,11 @@ best-effort requests. Do not wrap a void/no-op GPUI call and report confirmed
 delivery. Native workers handle potentially blocking OS calls; ordinary
 application file/network work stays in Eio. Permission and service failures need
 typed outcomes, with submission distinct from user-visible presentation.
+
+Current native capability snapshots enable incoming links and application
+activation only on macOS. Registration, file reveal/open and document metadata
+remain false until their adapters are implemented and validated; this is an
+implementation checkpoint, not the intended OCH-27 endpoint.
 
 ## Packaging and validation plan
 

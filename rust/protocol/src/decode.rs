@@ -3,6 +3,8 @@ use binprot::BinProtRead;
 use std::io::{Cursor, Read};
 
 mod accessibility;
+mod desktop;
+pub use desktop::decode_desktop_request;
 mod avatar;
 mod calendar;
 mod carousel;
@@ -1287,6 +1289,13 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
                 return Err(DecodeError::Malformed);
             }
             Message::OpenConfigured(correlation, id, config)
+        }
+        19 => {
+            let correlation = d.int()?;
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::Desktop(correlation, d.desktop_request()?)
         }
         18 => {
             let correlation = d.int()?;

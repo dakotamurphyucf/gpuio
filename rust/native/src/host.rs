@@ -1875,6 +1875,7 @@ pub fn run(transport: Arc<Transport>) {
     let stopping = Rc::new(Cell::new(false));
     let platform = gpui_platform::current_platform(false);
     let application = gpui::Application::with_platform(platform.clone());
+    let desktop = crate::desktop_host::install(&application, transport.clone());
     let reopen_transport = transport.clone();
     application.on_reopen(move |_| window_host::control(&reopen_transport, Event::ReopenRequested));
     application.run(move |cx: &mut App| {
@@ -1896,7 +1897,9 @@ pub fn run(transport: Arc<Transport>) {
         let dialogs = crate::file_dialog::Dialogs::default();
         let quit_dialogs = dialogs.clone();
         let quit_motion = motion.clone();
+        let quit_desktop = desktop.clone();
         cx.on_app_quit(move |cx| {
+            quit_desktop.borrow_mut().close();
             quit_motion.borrow_mut().take();
             drag_drop::shutdown(cx);
             quit_dialogs.finish_before_quit();
@@ -1918,6 +1921,7 @@ pub fn run(transport: Arc<Transport>) {
                     .aborting
                     .load(std::sync::atomic::Ordering::Acquire)
                 {
+                    desktop.borrow_mut().close();
                     motion.borrow_mut().take();
                     dialogs.clear().wait().await;
                     crate::canvas_host::shutdown(cx).await;
@@ -2145,6 +2149,15 @@ pub fn run(transport: Arc<Transport>) {
                             };
                             transport.respond(Event::WindowResponse(correlation,id,result));
                         }
+                        Message::Desktop(correlation, request) => {
+                            match session.borrow().check_ready() {
+                                Ok(()) => {
+                                    let response = cx.update(|cx| crate::desktop_host::request(&desktop, request, cx));
+                                    transport.respond(Event::DesktopResponse(correlation, response));
+                                }
+                                Err(error) => transport.respond(Event::Failed(correlation, error)),
+                            }
+                        }
                         Message::Asset(correlation, request) => {
                             let response = session.borrow_mut().asset_request(request);
                             transport.respond(Event::AssetResponse(correlation, response));
@@ -2174,6 +2187,7 @@ pub fn run(transport: Arc<Transport>) {
                             }
                         }
                         Message::Shutdown => {
+                            desktop.borrow_mut().close();
                             motion.borrow_mut().take();
                             dialogs.clear().wait().await;
                             crate::canvas_host::shutdown(cx).await;
