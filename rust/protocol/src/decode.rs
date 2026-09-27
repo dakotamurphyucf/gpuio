@@ -4,8 +4,10 @@ use std::io::{Cursor, Read};
 
 mod accessibility;
 mod chart_data;
+mod chart_options;
 mod chart_resource;
 mod chart_sampling;
+pub use chart_options::decode_chart_options;
 pub use chart_resource::{decode_chart_request, decode_chart_response};
 pub use chart_sampling::decode_chart_sampling;
 mod desktop;

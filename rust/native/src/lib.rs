@@ -13,6 +13,7 @@ pub mod canvas_paint;
 pub mod canvas_plan;
 pub mod canvas_state;
 pub mod canvas_store;
+pub mod chart_geometry;
 mod chart_host;
 pub mod chart_reduce;
 pub mod chart_store;

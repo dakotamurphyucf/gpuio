@@ -28,7 +28,10 @@ now pass publication/cancellation/retention tests and a connected windowless mac
 application check with 100,000 points through the public Eio API. Native chart
 rendering/interaction is still pending. Explicit line/area envelopes, bar sum/mean
 and candle OHLC policies now have paired types and a tested native reduction kernel
-that preserves gaps and aggregate source ranges. See
+that preserves gaps and aggregate source ranges. Validated native plotting options
+and retained logical geometry now cover all seven families, with passing local
+extreme/degenerate, 100k exact/sampled and crowded Sankey tests. Mounted GPU paint,
+input/accessibility, the Chart Lab and graphical performance measurements remain. See
 [chart contracts and remaining work](design/charts.md).
 The detailed entries below record implementation checkpoints chronologically;
 their earlier pending-gate statements are superseded by this delivery record.

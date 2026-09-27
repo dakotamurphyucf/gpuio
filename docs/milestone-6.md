@@ -10,7 +10,7 @@ and evidence remain in [the milestone 5 handoff](milestone-5.md).
 | -- | -- | -- |
 | OCH-27 | Application identity, deep-link packaging/startup/live delivery, activation, file reveal/open, document-window metadata | In progress: macOS OS acceptance passes; Linux portal file adapters pass local peer/worker tests; typed packaging and real bus arbitration pass locally; Linux GUI and consolidated hosted gates pending |
 | OCH-28 | OS notifications, permissions/capabilities, replacement/dismissal and stale-safe action routing | In progress: Core/Eio ownership, bounded paired protocol and owned macOS adapter; public packaged macOS OS actions pass; Linux worker/private-bus routing pass locally; Linux build/display and consolidated gates pending |
-| OCH-40 | Line, area, bar, pie, radar, candlestick and Sankey components with typed bounded datasets, native interaction and accessible alternatives | In progress: all-family Core data, paired codecs, native resource store/Eio API and windowless 100k-point macOS integration; pinned Sankey algorithm compiles/tests against existing GPUI; rendering and native graphical acceptance pending |
+| OCH-40 | Line, area, bar, pie, radar, candlestick and Sankey components with typed bounded datasets, native interaction and accessible alternatives | In progress: typed data/options/codecs, native resources/Eio API, 100k-point macOS resource integration, explicit sampling and all-family logical geometry; mounted GPU paint/input/accessibility and graphical acceptance pending |
 | OCH-29 | Focused graphics application consuming public canvas and an independently packaged native component; desktop workflows and one chart | Pending integration of preceding capabilities |
 
 The goal includes all four tickets, local functional acceptance, required hosted
@@ -144,6 +144,11 @@ Explicit chart reduction is now implemented as Core/protocol policies and a pure
 native preparation kernel: line/area extrema envelopes with gap preservation,
 optional bar sum/mean and optional candle OHLC with source-range provenance.
 Defaults keep bars/candles exact. Independent grouping, degenerate/extreme values,
-100,000-point and 50,000-separated-run checks pass. The kernel still needs to be
-consumed by retained native geometry, views and semantic selection; no graphical
-acceptance is inferred from these preparation tests.
+100,000-point and 50,000-separated-run checks pass. The next checkpoint consumes
+the kernel in retained logical geometry for every family, with validated Core
+presentation options and paired native codecs. Axes/formatters, all three curve
+styles, grouped/oriented bars, donut/radar, OHLC and normalized Sankey layout now
+pass local preparation checks, including 100k exact area/candles and crowded
+columns at small plot sizes. Mounted views, cached GPU meshes, semantic selection,
+accessibility and graphical measurements still remain; pure geometry checks are
+not graphical acceptance.

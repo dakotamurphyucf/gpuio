@@ -3,7 +3,8 @@
 Status: in progress. The validated Core data model and paired bounded codecs are implemented and tested.
 The extracted Sankey layout source compiles against the existing GPUI revision.
 The native resource store, scoped Eio scheduler and application/host transport now
-pass local ownership and windowless macOS integration tests. Widgets, interactions,
+pass local ownership and windowless macOS integration tests. Typed plotting options
+and retained logical-pixel geometry now cover all seven families. Widgets, GPU paint, interactions,
 accessibility and public graphical examples remain. This document separates implemented contracts from
 the remaining implementation work.
 
@@ -231,12 +232,12 @@ Sankey extraction do not replace that scope:
 - Connect borrowed resource handles to native chart views and validate multiple-
   window readers, unmounting, source-dependent redraw and interaction retirement.
   Do not put large datasets in each reconciled view node.
-- Define axes, native formatting, legends, labels, palette/stroke/fill tokens and
-  tooltips, including non-color distinctions. Shared Cartesian layers provide
+- Connect implemented axes/formatting/labels to mounted presentation; define
+  legends, palette/stroke/fill tokens and tooltips, including non-color distinctions. Shared Cartesian layers provide
   useful custom combinations. Preserve the pinned families' applicable styling
   and plotting options while keeping the public API typed.
-- Connect the implemented exact/envelope/sum/mean/OHLC policies to prepared geometry
-  and semantic selection. Bound native geometry/cache memory separately from
+- Connect the implemented policies and logical geometry to cached GPU meshes
+  and semantic selection. Bound native worker/geometry/cache memory separately from
   source data. Expose complete source provenance for aggregates; never substitute
   line sampling for bar or candle aggregation.
 - Rust owns layout, retained paint geometry, hit testing, hover and drag. Reuse
@@ -251,6 +252,53 @@ Sankey extraction do not replace that scope:
 - Measure named-hardware dataset size, CPU/frame work, transport bytes and retained
   memory. Integrate a chart into OCH-29's broader application without replacing its
   custom-canvas and independent-extension requirements.
+
+## Presentation options and prepared geometry
+
+`Gpuio.Chart_options` is a validated, source-independent value with grouped
+options for axes, Cartesian layers, pie/donut, radar, candlesticks and Sankey.
+Irrelevant family options are retained but have no effect. Its version-1 binary
+record has a bounded native reader (256 bytes), independent paired fixtures and
+validation after decoding. Color/theme, legends, tooltips and the accessible
+description belong to the forthcoming mounted-view configuration.
+
+- Axes use linear numeric domains, 2–12 ticks and native Compact/Fixed/Scientific/
+  Percent formatting with 0–6 decimal places. Percent changes labels only.
+  Empty domains use [0,1]; constant domains center their value. Source x extents
+  survive aggregation; bar values use the selected exact/sum/mean policy. Bar and
+  area domains include zero. Tiny domains deduplicate ticks after f64 rounding.
+- Cartesian options select Linear, Natural (uniform Catmull–Rom) or StepAfter,
+  dots, vertical/horizontal orientation and grouped bar width. Natural curves
+  can overshoot and require the mounted plot's clip. Every curve reaches its last
+  data point. Missing values split runs, and singleton runs have visible dots
+  even when ordinary dots are disabled. Mixed layers share both numeric domains;
+  bars are grouped by layer, not implicitly stacked.
+- Pie/donut uses a 0–0.95 hole fraction and 0–0.2 radians of padding, clamped per
+  slice. Zero slices have no area; all-zero input has no wedges. Labels sit within
+  the ring when enabled. Radar uses data-defined axis maxima, 1–12 grid levels,
+  optional labels/dots, and matches values by axis ID rather than input order.
+- Candlestick body width is a fraction of nearest x spacing; OHLC source spans
+  remain attached to marks. The future painter must draw rising bodies hollow,
+  falling bodies filled and equal open/close as a horizontal mark, in addition
+  to colors. Geometry retains all four values for that distinction.
+- Sankey exposes all four alignments, Linear/Sqrt weights, node width/padding,
+  0–32 relaxation iterations and labels. Raw flows normalize in f64 before the
+  pinned layout engine's f32 coordinates. Fitting uses actual layer/column counts,
+  preserving configured width when it fits and leaving positive node area in
+  crowded columns. Original values remain in the immutable source snapshot.
+
+`chart_geometry::prepare` consumes the implemented reduction policies and returns
+paths, marks with revision-relative source provenance, labels and grid lines for
+all families. Horizontal Cartesian plots use height as the sampling extent.
+It performs no window operations, text shaping or OCaml callbacks. Plans report
+actual retained vector/string capacities and reject more than 64 MiB; this is
+not an application-wide allocator/RSS bound. The future worker must reserve peak
+preparation space and charge retained geometry/tessellation separately from data.
+The plan alone does not retain a resource or authorize stale data: its owner must
+hold and validate the exact immutable snapshot.
+
+These are logical plotting primitives, not yet cached GPU meshes or a mounted
+chart element. Native frame/paint/interaction measurements remain outstanding.
 
 ## Current local evidence
 
@@ -308,3 +356,21 @@ continuous fixture retains <=3,200 vertices at logical width 800; exact mode
 retains 100,000. The alternating-gap fixture retains all 50,000 separate defined
 runs at width 1. These counts and vector-capacity bounds are pure preparation
 evidence, not native CPU/frame/RSS or graphical acceptance measurements.
+
+Presentation/geometry checkpoint: 18 Core chart expect tests and two additional
+Rust options-codec tests pass. The options fixture fixes 66 default bytes
+independently in each language; native tests cover every truncation, malformed
+tags/booleans/bounds, and 192 valid option combinations. Ten native geometry tests
+pass all families, curve endpoints/gaps and singleton visibility, numeric grouped
+bars, negative/aggregated OHLC provenance, donut proportions, reordered radar
+values, empty/constant/subnormal/extreme domains and bounded native formatting.
+They also cover all Sankey alignments/scales at five flow magnitudes and a
+256-node two-column graph at sizes from 0.125 to 32,768 logical pixels. Exact
+100,000-point area/candle plans fit the 64 MiB retained-plan admission bound;
+sampled and 50,000-isolated-run fixtures stay below 16 MiB. These are capacity
+checks in unit tests, not operating-system/GPU memory measurements. Strict native,
+protocol and plot all-target Clippy passes on the unchanged toolchain/GPUI pin.
+The full local Dune `@all @runtest @fmt` build passes, including the independent
+extension backend; 639 Rust native/protocol/plot tests pass across 93 targets.
+Both backend lockfiles add only the existing local `gpuio-plot` dependency.
+Required hosted macOS/Linux validation remains part of the final milestone gate.

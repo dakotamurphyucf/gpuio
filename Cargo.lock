@@ -2491,6 +2491,7 @@ dependencies = [
  "gpui-base",
  "gpui_platform",
  "gpuio-extension-sdk",
+ "gpuio-plot",
  "gpuio-portal",
  "gpuio-protocol",
  "gpuio-table-adapter",

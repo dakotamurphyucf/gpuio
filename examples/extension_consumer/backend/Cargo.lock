@@ -2473,6 +2473,7 @@ dependencies = [
  "gpui-base",
  "gpui_platform",
  "gpuio-extension-sdk",
+ "gpuio-plot",
  "gpuio-portal",
  "gpuio-protocol",
  "gpuio-table-adapter",
@@ -2492,6 +2493,13 @@ dependencies = [
  "syntect",
  "two-face",
  "unicode-segmentation",
+]
+
+[[package]]
+name = "gpuio-plot"
+version = "0.0.0"
+dependencies = [
+ "gpui",
 ]
 
 [[package]]
