@@ -289,6 +289,14 @@ and dispatch toolbar/Markdown copy accessibility actions directly. The chat
 regression verifies exact Unicode copy from a retained offscreen toolbar without
 misrouting a click to another visible control, in Full and Reduce modes.
 
+Streaming transcript jitter is also fixed: already installed documents no longer
+insert/remove an Updating line for each pending parse, and initial preparation
+does not paint a dummy source editor that disappears with the first Markdown
+result. A failing native geometry
+regression now passes in Flow/Viewport layouts, and the actual chat probe changed
+from repeated 29-pixel rebounds to no downward steps while the composer stayed
+fixed. See the [streaming evidence](evidence/agent-chat-m5.md#streaming-transcript-geometry-regression).
+
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
 components pass local acceptance; OCH-24 has validated geometry, a bounded scene
 codec, native resource ownership and a tested OCaml/Rust upload bridge. The

@@ -762,6 +762,54 @@ These chat screenshots and AX checks do not measure shared phase at every frame
 or aggregate idle/bridge traffic; the combined workload acceptance still must
 record those ownership/performance limits.
 
+## Streaming transcript geometry regression
+
+The owner reported a second jitter case while Markdown/code streamed, after the
+small-scroll row-retention fix. The native document renderer inserted a flow
+`Updating…` line above already installed content on every pending parse, then
+removed it on completion. Paginated source metadata was also gated on readiness.
+These transient layout changes were unrelated to real new lines.
+
+A failing native geometry regression demonstrated the installed body moving from
+Y=24 to Y=56 solely when preparation became pending. The fixed renderer retains
+installed content/metadata. The initial notice occupies the existing toolbar,
+and no dummy source editor is painted before the first prepared result.
+The test now checks pending/ready geometry in both Flow and Viewport layouts for
+code, Markdown, diff and first/last pages of a large source fallback. It holds the
+pending state deterministically so worker speed cannot hide the layout defect;
+existing tests separately exercise real worker/source updates and lifetime cleanup.
+
+An actual slow-stream AppKit probe measured the preceding artifact repeatedly
+moving down/up by 29 logical pixels (16 downward 29-pixel steps in 80 samples),
+while the composer stayed at Y=813.5. The same probe after the fix recorded 81
+samples with **zero downward steps**; messages moved upward only as content grew,
+and the composer remained fixed. The stricter permanent test then caught a
+separate initial 91-pixel rebound: an empty dummy source editor disappeared when
+the first empty Markdown result arrived. Moving the notice into the toolbar and
+omitting that dummy body fixed it. The final run recorded **122 samples over 3.50
+seconds, nine upward growth steps, zero downward steps**, and a stable composer.
+These measurements apply to the deterministic fixture/default window, not every
+font, width or arbitrary Markdown edit.
+
+The permanent [streaming-layout walkthrough](../../scripts/test_agent_chat_streaming_layout.py)
+checks real streaming through the public chat application, multiple growth steps,
+no downward bounce of the preceding card, composer stability and window/process
+cleanup. Native document, native Clippy, app build/format/showcase expects and
+original public/M4 chat regressions pass locally on macOS. The M4 check preserved
+the newer composer draft with the concurrent edit issued 15 ms after Send:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native --features native-tests --test native_document
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j2 -p gpuio-native --features native-tests --all-targets -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/agent_chat/main.exe @fmt @test/agent_chat_showcase/runtest
+python3 scripts/test_agent_chat_streaming_layout.py
+_build/default/examples/agent_chat/main.exe --self-test
+python3 scripts/test_agent_chat.py
+```
+
+This removes a confirmed per-parse oscillation, not normal movement from actual
+content growth or explicit document expansion. Required hosted gates remain open.
+
 ## Remaining acceptance
 
 These flows cover the OCH-23 package integration, OCH-24 diagram, the OCH-37

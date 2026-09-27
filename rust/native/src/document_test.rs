@@ -144,6 +144,69 @@ async fn settle(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) -> En
     }
     panic!("document preparation did not settle in ten seconds");
 }
+fn pending_preparation_keeps_installed_geometry(
+    cx: &mut gpui::AsyncApp,
+    window: gpui::WindowHandle<View>,
+    presentation: &Entity<Presentation>,
+) {
+    let bounds = |p: &Presentation, cx: &App| {
+        if p.source_mode {
+            p.editor.read(cx).input_bounds()
+        } else {
+            p.markdown.as_ref().unwrap().read(cx).bounds()
+        }
+    };
+    for layout in [Layout::Flow, Layout::Viewport(300.)] {
+        window
+            .update(cx, |view, window, cx| {
+                let (base, mut config) = {
+                    let session = view.session.borrow();
+                    let tree = session.tree(id()).unwrap();
+                    (
+                        tree.revision(),
+                        (**tree.get(node()).unwrap().document.as_ref().unwrap()).clone(),
+                    )
+                };
+                config.layout = layout;
+                let applied = view
+                    .session
+                    .borrow_mut()
+                    .apply(&Transaction {
+                        window: id(),
+                        base,
+                        revision: base + 1,
+                        operations: vec![Op::SetDocument(node(), config)],
+                    })
+                    .unwrap();
+                view.update_editors(&applied.dirty, window, cx);
+            })
+            .unwrap();
+        draw(cx, window);
+        let settled = presentation.read_with(cx, bounds);
+        assert!(settled.size.height > px(0.));
+        // Hold the exact between-chunks state after an installed document. The
+        // worker result was already consumed by settle, so drawing cannot race a
+        // background completion. Existing content must keep its painted geometry
+        // while the next parse is pending, regardless of worker speed.
+        presentation.update(cx, |p, cx| {
+            assert!(p.ready && p.installed.is_some());
+            p.ready = false;
+            cx.notify();
+        });
+        draw(cx, window);
+        let pending = presentation.read_with(cx, bounds);
+        assert_eq!(
+            pending, settled,
+            "pending parsing must not insert/remove flow content above the installed document"
+        );
+        presentation.update(cx, |p, cx| {
+            p.ready = true;
+            cx.notify();
+        });
+        draw(cx, window);
+        assert_eq!(presentation.read_with(cx, bounds), settled);
+    }
+}
 async fn exercise(
     cx: &mut gpui::AsyncApp,
     window: gpui::WindowHandle<View>,
@@ -156,6 +219,7 @@ async fn exercise(
     publish(&mut session.borrow_mut(), source, 0, 1, 0, text);
     configure(cx, window, source, Mode::Code("ml".into()), "");
     let presentation = settle(cx, window).await;
+    pending_preparation_keeps_installed_geometry(cx, window, &presentation);
     window
         .update(cx, |_, window, cx| {
             presentation.update(cx, |p, cx| {
@@ -294,6 +358,7 @@ async fn exercise(
         .unwrap()
         .release(image)
         .unwrap();
+    pending_preparation_keeps_installed_geometry(cx, window, &markdown);
     let selected = markdown.update(cx, |p, cx| {
         let state = p.markdown.as_ref().unwrap();
         state.update(cx, |state, cx| state.select_all(cx));
@@ -335,6 +400,7 @@ async fn exercise(
     );
     configure(cx, window, source, Mode::Diff, "");
     let diff = settle(cx, window).await;
+    pending_preparation_keeps_installed_geometry(cx, window, &diff);
     diff.read_with(cx, |p, _| {
         assert!(p.error.is_none(), "{:?}", p.error);
         assert_eq!(p.diff.as_ref().unwrap().lines.len(), 5);
@@ -343,6 +409,7 @@ async fn exercise(
     publish(&mut session.borrow_mut(), source, 5, 4, 0, &huge);
     configure(cx, window, source, Mode::Markdown, "last λ target");
     let huge_view = settle(cx, window).await;
+    pending_preparation_keeps_installed_geometry(cx, window, &huge_view);
     window
         .update(cx, |_, window, cx| {
             huge_view.update(cx, |p, cx| {
@@ -358,6 +425,8 @@ async fn exercise(
             })
         })
         .unwrap();
+    draw(cx, window);
+    pending_preparation_keeps_installed_geometry(cx, window, &huge_view);
     drop(huge_view);
     // Registration release leaves a mounted lease readable, while unmount
     // drops presentations and their worker/cache reservations.

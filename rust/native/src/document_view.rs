@@ -148,7 +148,7 @@ impl Presentation {
         }
     }
     fn primary_focus(&self, cx: &App) -> gpui::FocusHandle {
-        if self.collapsed
+        if (self.collapsed || self.installed.is_none())
             && let Some(focus) = self.buttons.get("document-collapse")
         {
             return focus.clone();
@@ -558,6 +558,10 @@ impl Render for Presentation {
                 0x656a76
             }))
             .child(div().flex_1().child(self.config.label.clone()))
+            .when(
+                !self.collapsed && !self.ready && self.installed.is_none(),
+                |toolbar| toolbar.child("Updating…"),
+            )
             .child(self.button(
                 "document-collapse",
                 if self.collapsed { "Expand" } else { "Collapse" },
@@ -676,7 +680,7 @@ impl Render for Presentation {
         if navigation.is_some() {
             order.push(self.buttons["document-location"].clone());
         }
-        if !self.collapsed {
+        if !self.collapsed && self.installed.is_some() {
             order.push(self.primary_focus(cx));
         }
         let root_view = self.root.clone();
@@ -727,8 +731,12 @@ impl Render for Presentation {
         if let Some(error) = &self.error {
             root = root.child(error.clone());
         }
-        if !self.ready {
-            root = root.child("Updating…");
+        // Keep the last installed document geometrically stable while a newer
+        // parse is pending. Before the first result, the toolbar carries the
+        // loading notice; do not paint a dummy source editor that will collapse
+        // when an initially empty Markdown document becomes ready.
+        if !self.ready && self.installed.is_none() {
+            return root.into_any_element();
         }
         let height = match self.config.layout {
             Layout::Viewport(height) => height as f32,
@@ -792,12 +800,14 @@ impl Render for Presentation {
                 content
             });
         } else {
-            if self.ready && (self.page_start > 0 || self.page_end < self.snapshot.text.len()) {
+            if let Some(installed) = self.installed.as_ref()
+                && (self.page_start > 0 || self.page_end < installed.text.len())
+            {
                 root = root.child(format!(
                     "Source bytes {}–{} of {}",
                     self.page_start,
                     self.page_end,
-                    self.snapshot.text.len()
+                    installed.text.len()
                 ));
             }
             root = root.child(

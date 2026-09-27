@@ -123,3 +123,17 @@ presentation through a weak entity; they do not retain a disposed document or
 scroll/focus an offscreen toolbar as a side effect. The chat presentation test
 checks exact source copy from a geometrically offscreen retained toolbar in both
 Full and Reduce modes.
+
+## Stable geometry during preparation
+
+After a document has installed prepared content, subsequent source updates keep
+that content in place while the next parse/highlight job runs. The initial
+Updating notice occupies the existing toolbar before any content has been
+installed; no dummy source editor is painted while waiting for the first result.
+Keyboard traversal uses the toolbar until a real body exists. Inserting a
+normal-flow notice for every chunk would enlarge and then shrink the row on each
+parse, moving preceding messages in a tail-following transcript even when the
+new text did not add a line. Paginated source metadata likewise describes the
+installed snapshot and remains present while newer preparation is pending.
+Actual content growth, Markdown interpretation and explicit expand/collapse can
+still change row height; this does not freeze document layout or tail following.
