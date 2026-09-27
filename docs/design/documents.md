@@ -110,3 +110,16 @@ acceptance. The reference app also exercises native document expansion through
 macOS accessibility; toolbar actions have explicit accessible names. Code/source
 uses the native platform monospace family. See the [M4 evidence ledger](../evidence/agent-workspace-m4.md)
 for measurements and consolidated platform validation. Linux GUI remains deferred.
+
+## Native document accessibility actions
+
+The native presentation exposes its configured document label as a Group.
+Toolbar copy/collapse/search/paging/navigation/rendered-view controls use direct
+accessibility action handlers sharing the same operation as pointer/keyboard
+activation. Markdown code/table copy actions do the same. This avoids GPUI's
+coordinate-click fallback hitting a different control when a virtualized document
+is retained outside the visible transcript. Actions resolve the current retained
+presentation through a weak entity; they do not retain a disposed document or
+scroll/focus an offscreen toolbar as a side effect. The chat presentation test
+checks exact source copy from a geometrically offscreen retained toolbar in both
+Full and Reduce modes.

@@ -284,8 +284,10 @@ recovery now pass the Full/Reduce local presentation walkthrough, including exac
 Unicode code/diff copy. Stage-context springs, ordered destination reveals and
 shared response activity are integrated; local Full/Reduce geometry/interruption,
 hidden context and response-input checks pass. Responsive layout, combined workload and
-hosted/merge acceptance stay open. Offscreen native-document AX activation is a
-recorded limitation requiring follow-up; visible document controls pass.
+hosted/merge acceptance stay open. Native documents now expose labelled groups
+and dispatch toolbar/Markdown copy accessibility actions directly. The chat
+regression verifies exact Unicode copy from a retained offscreen toolbar without
+misrouting a click to another visible control, in Full and Reduce modes.
 
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
 components pass local acceptance; OCH-24 has validated geometry, a bounded scene

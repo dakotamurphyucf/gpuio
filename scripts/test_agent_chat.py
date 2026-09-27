@@ -310,9 +310,27 @@ def exercise(mac, attachment):
     node = mac.wait_find(first, one, 'AXButton')
     mac.release(node)
     mac.draft(first, one, 'Native Send button λ')
-    mac.press(first, 'Send')
-    mac.wait_text(first, 'Sending…')
-    mac.draft(first, one, 'Keep this newer draft')
+    # The composer is retained throughout submission. Resolve it before the
+    # one-second acceptance fixture starts; a whole-window AX search after Send
+    # can consume that interval as the growing transcript mounts documents.
+    composer = mac.wait_find(first, 'Message · ' + one, 'AXTextArea')
+    status = mac.wait_find(first, ' messages ·', 'AXStaticText', contains=True)
+    newer = mac.string('Keep this newer draft')
+    try:
+        mac.press(first, 'Send')
+        started = time.monotonic()
+        deadline = started + 3
+        while 'Sending…' not in (mac.text(status, 'AXTitle') or ''):
+            if time.monotonic() >= deadline:
+                raise RuntimeError('Retained status did not enter Sending')
+            time.sleep(.005)
+        mac.set(composer, 'AXFocused', mac.true)
+        mac.set(composer, 'AXValue', newer)
+        print('NATIVE_ACCEPTANCE_EDIT_MS', round((time.monotonic() - started) * 1000), flush=True)
+    finally:
+        mac.release(newer)
+        mac.release(composer)
+        mac.release(status)
     mac.wait_text(first, 'your newer draft was kept')
     mac.wait_text(first, '· Complete')
     actual = mac.draft(first, one)

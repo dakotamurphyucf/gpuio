@@ -500,6 +500,34 @@ impl Presentation {
         });
     }
 }
+impl Presentation {
+    // Native document controls are not protocol buttons. Handle accessibility
+    // activation directly: GPUI's fallback click at the un-clipped center can
+    // target an unrelated control when a retained row is outside its viewport.
+    fn button(
+        &self,
+        id: &'static str,
+        label: &'static str,
+        action: impl Fn(&mut Self, &mut Window, &mut Context<Self>) + 'static,
+        cx: &mut Context<Self>,
+    ) -> gpui_base::Button {
+        let action = Rc::new(action);
+        let pointer_action = action.clone();
+        let owner = cx.weak_entity();
+        gpui_base::Button::new(id)
+            .aria_label(label)
+            .track_focus(&self.buttons[id])
+            .cursor_pointer()
+            .child(label)
+            .on_click(cx.listener(move |this, _, window, cx| {
+                pointer_action(this, window, cx);
+            }))
+            .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
+                let _ = owner.update(cx, |this, cx| action(this, window, cx));
+                cx.stop_propagation();
+            })
+    }
+}
 impl Render for Presentation {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.refresh(self.config.clone(), cx);
@@ -530,42 +558,37 @@ impl Render for Presentation {
                 0x656a76
             }))
             .child(div().flex_1().child(self.config.label.clone()))
-            .child(
-                gpui_base::Button::new("document-collapse")
-                    .aria_label(if self.collapsed { "Expand" } else { "Collapse" })
-                    .track_focus(&self.buttons["document-collapse"])
-                    .cursor_pointer()
-                    .child(if self.collapsed { "Expand" } else { "Collapse" })
-                    .on_click(cx.listener(|this, _, _, cx| {
-                        this.collapsed = !this.collapsed;
-                        this.invalidate_row(cx);
-                        cx.notify();
-                    })),
-            )
-            .child(
-                gpui_base::Button::new("document-copy")
-                    .aria_label("Copy source")
-                    .track_focus(&self.buttons["document-copy"])
-                    .cursor_pointer()
-                    .child("Copy source")
-                    .on_click(cx.listener(|this, _, _, cx| {
-                        cx.write_to_clipboard(gpui::ClipboardItem::new_string(
-                            this.snapshot.text.to_string(),
-                        ));
-                    })),
-            );
+            .child(self.button(
+                "document-collapse",
+                if self.collapsed { "Expand" } else { "Collapse" },
+                |this, _, cx| {
+                    this.collapsed = !this.collapsed;
+                    this.invalidate_row(cx);
+                    cx.notify();
+                },
+                cx,
+            ))
+            .child(self.button(
+                "document-copy",
+                "Copy source",
+                |this, _, cx| {
+                    cx.write_to_clipboard(gpui::ClipboardItem::new_string(
+                        this.snapshot.text.to_string(),
+                    ));
+                },
+                cx,
+            ));
         if self.source_mode && self.markdown.is_some() {
-            toolbar = toolbar.child(
-                gpui_base::Button::new("document-rendered")
-                    .aria_label("Rendered view")
-                    .track_focus(&self.buttons["document-rendered"])
-                    .child("Rendered view")
-                    .on_click(cx.listener(|this, _, _, cx| {
-                        this.source_mode = false;
-                        this.invalidate_row(cx);
-                        cx.notify();
-                    })),
-            );
+            toolbar = toolbar.child(self.button(
+                "document-rendered",
+                "Rendered view",
+                |this, _, cx| {
+                    this.source_mode = false;
+                    this.invalidate_row(cx);
+                    cx.notify();
+                },
+                cx,
+            ));
         }
         if !self.config.search.is_empty() {
             toolbar = toolbar
@@ -578,70 +601,55 @@ impl Render for Presentation {
                         ""
                     }
                 ))
-                .child(
-                    gpui_base::Button::new("document-search-previous")
-                        .aria_label("Previous match")
-                        .track_focus(&self.buttons["document-search-previous"])
-                        .cursor_pointer()
-                        .child("Previous match")
-                        .on_click(
-                            cx.listener(|this, _, window, cx| this.next_match(false, window, cx)),
-                        ),
-                )
-                .child(
-                    gpui_base::Button::new("document-search-next")
-                        .aria_label("Next match")
-                        .track_focus(&self.buttons["document-search-next"])
-                        .cursor_pointer()
-                        .child("Next match")
-                        .on_click(
-                            cx.listener(|this, _, window, cx| this.next_match(true, window, cx)),
-                        ),
-                );
+                .child(self.button(
+                    "document-search-previous",
+                    "Previous match",
+                    |this, window, cx| this.next_match(false, window, cx),
+                    cx,
+                ))
+                .child(self.button(
+                    "document-search-next",
+                    "Next match",
+                    |this, window, cx| this.next_match(true, window, cx),
+                    cx,
+                ));
         }
         if self.page_start > 0 {
-            toolbar = toolbar.child(
-                gpui_base::Button::new("document-previous")
-                    .aria_label("Previous source page")
-                    .track_focus(&self.buttons["document-previous"])
-                    .cursor_pointer()
-                    .child("Previous source page")
-                    .on_click(cx.listener(|this, _, window, cx| {
-                        this.page_start = this.previous_pages.pop().unwrap_or(0);
-                        this.show_page(window, cx);
-                        cx.notify();
-                    })),
-            );
+            toolbar = toolbar.child(self.button(
+                "document-previous",
+                "Previous source page",
+                |this, window, cx| {
+                    this.page_start = this.previous_pages.pop().unwrap_or(0);
+                    this.show_page(window, cx);
+                    cx.notify();
+                },
+                cx,
+            ));
         }
         if (self.markdown.is_none() || self.source_mode)
             && self.ready
             && self.page_end < self.snapshot.text.len()
         {
-            toolbar = toolbar.child(
-                gpui_base::Button::new("document-next")
-                    .aria_label("Next source page")
-                    .track_focus(&self.buttons["document-next"])
-                    .cursor_pointer()
-                    .child("Next source page")
-                    .on_click(cx.listener(|this, _, window, cx| {
-                        this.previous_pages.push(this.page_start);
-                        this.page_start = this.page_end;
-                        this.show_page(window, cx);
-                        cx.notify();
-                    })),
-            );
+            toolbar = toolbar.child(self.button(
+                "document-next",
+                "Next source page",
+                |this, window, cx| {
+                    this.previous_pages.push(this.page_start);
+                    this.page_start = this.page_end;
+                    this.show_page(window, cx);
+                    cx.notify();
+                },
+                cx,
+            ));
         }
         let navigation = self.navigation_at_caret(cx);
         if let Some(navigation) = navigation.clone() {
-            toolbar = toolbar.child(
-                gpui_base::Button::new("document-location")
-                    .aria_label("Go to line")
-                    .track_focus(&self.buttons["document-location"])
-                    .child("Open line")
-                    .on_click(
-                        cx.listener(move |this, _, _, cx| this.navigate(navigation.clone(), cx)),
-                    ),
-            );
+            toolbar = toolbar.child(self.button(
+                "document-location",
+                "Go to line",
+                move |this, _, cx| this.navigate(navigation.clone(), cx),
+                cx,
+            ));
         }
         let mut order = vec![
             self.buttons["document-collapse"].clone(),
@@ -674,6 +682,9 @@ impl Render for Presentation {
         let root_view = self.root.clone();
         let node = self.node;
         let mut root = div()
+            .id("document-presentation")
+            .role(gpui::Role::Group)
+            .aria_label(self.config.label.clone())
             .flex()
             .flex_col()
             .w_full()
@@ -738,18 +749,32 @@ impl Render for Presentation {
                 .markdown_extensions(document_markdown::extensions(images))
                 .table_actions(|table, _, _| {
                     let markdown = table.markdown.clone();
+                    let accessible_markdown = markdown.clone();
                     gpui_base::Button::new("copy-table")
                         .aria_label("Copy table")
                         .child("Copy table")
+                        .on_a11y_action(gpui::AccessibleAction::Click, move |_, _, cx| {
+                            cx.write_to_clipboard(gpui::ClipboardItem::new_string(
+                                accessible_markdown.clone(),
+                            ));
+                            cx.stop_propagation();
+                        })
                         .on_click(move |_, _, cx| {
                             cx.write_to_clipboard(gpui::ClipboardItem::new_string(markdown.clone()))
                         })
                 })
                 .code_block_actions(|block, _, _| {
                     let code = block.code();
+                    let accessible_code = code.clone();
                     gpui_base::Button::new("copy-code")
                         .aria_label("Copy code")
                         .child("Copy code")
+                        .on_a11y_action(gpui::AccessibleAction::Click, move |_, _, cx| {
+                            cx.write_to_clipboard(gpui::ClipboardItem::new_string(
+                                accessible_code.to_string(),
+                            ));
+                            cx.stop_propagation();
+                        })
                         .on_click(move |_, _, cx| {
                             cx.write_to_clipboard(gpui::ClipboardItem::new_string(code.to_string()))
                         })

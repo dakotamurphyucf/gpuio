@@ -61,74 +61,33 @@ class Presentation(Feedback):
         finally:
             self.release(root)
 
-    def document_action(self, expected, action):
-        # Native document labels are painted text, not separate AX nodes. Identify
-        # each real document by its exact copied source inside the transcript.
-        root = self.wait_find(TITLE, '', 'AXList')
-        buttons = []
-        def bounds(node):
-            position, size = Point(), Point()
-            for name, kind, target in [('AXPosition', 1, position), ('AXSize', 2, size)]:
-                raw = self.attr(node, name)
-                try:
-                    if not raw or not self.value(raw, kind, C.byref(target)):
-                        raise RuntimeError('Missing document geometry')
-                finally:
-                    if raw:
-                        self.release(raw)
-            return position.x, position.y, size.x, size.y
-        left, top, width, height = bounds(root)
-        def visit(node):
-            if (self.text(node, 'AXRole') == 'AXButton'
-                    and self.text(node, 'AXTitle') == 'Copy source'):
-                buttons.append(self.retain(node))
-            children = self.children(node)
-            try:
-                for child in children:
-                    visit(child)
-            finally:
-                for child in children:
-                    self.release(child)
+    def document_action(self, label, action):
+        self.release(self.wait_find(TITLE, label, 'AXGroup'))
+        node = self.within(label, action, 'AXButton')
+        if not node:
+            raise RuntimeError(f'Missing {action} in document {label}')
         try:
-            visit(root)
-            for copy in buttons:
-                x, y, w, h = bounds(copy)
-                # Managed overscan rows can retain offscreen descendants. Their
-                # AXPress fallback is a click; never click outside the viewport.
-                if not (left <= x + w / 2 <= left + width
-                        and top <= y + h / 2 <= top + height):
-                    continue
-                self.perform(copy, 'AXPress')
-                time.sleep(.1)
-                actual = subprocess.run(['/usr/bin/pbpaste'], capture_output=True,
-                                        text=True, encoding='utf-8', check=True,
-                                        env={**os.environ, 'LC_ALL': 'en_US.UTF-8'}).stdout
-                if actual != expected:
-                    continue
-                if action == 'Copy source':
-                    return
-                parent = self.attr(copy, 'AXParent')
-                if not parent:
-                    raise RuntimeError('Document button has no parent')
-                children = self.children(parent)
-                try:
-                    for child in children:
-                        if (self.text(child, 'AXRole') == 'AXButton'
-                                and self.text(child, 'AXTitle') == action):
-                            self.perform(child, 'AXPress')
-                            time.sleep(.15)
-                            return
-                finally:
-                    for child in children:
-                        self.release(child)
-                    self.release(parent)
-                raise RuntimeError('Document control missing: ' + action)
-            self.dump(TITLE)
-            raise RuntimeError('Expected document source not available')
+            self.perform(node, 'AXPress')
         finally:
-            for button in buttons:
-                self.release(button)
-            self.release(root)
+            self.release(node)
+        time.sleep(.15)
+
+    def clipboard(self):
+        return subprocess.run(['/usr/bin/pbpaste'], capture_output=True,
+                              text=True, encoding='utf-8', check=True,
+                              env={**os.environ, 'LC_ALL': 'en_US.UTF-8'}).stdout
+
+    def rect(self, node):
+        position, size = Point(), Point()
+        for name, kind, target in [('AXPosition', 1, position), ('AXSize', 2, size)]:
+            raw = self.attr(node, name)
+            try:
+                if not raw or not self.value(raw, kind, C.byref(target)):
+                    raise RuntimeError('Missing document geometry')
+            finally:
+                if raw:
+                    self.release(raw)
+        return position.x, position.y, size.x, size.y
 
     def artifacts(self, suffix):
         self.release(self.wait_find(TITLE, 'Expand', 'AXButton'))
@@ -140,15 +99,40 @@ class Presentation(Feedback):
                                '+let status = "ready"\n let language = "OCaml"\n'),
         }
         for label, expected in sources.items():
-            self.document_action(expected, 'Expand')
-            self.document_action(expected, 'Copy source')
-            actual = subprocess.run(['/usr/bin/pbpaste'], capture_output=True,
-                                    text=True, encoding='utf-8', check=True,
-                                        env={**os.environ, 'LC_ALL': 'en_US.UTF-8'}).stdout
+            self.document_action(label, 'Expand')
+            self.document_action(label, 'Copy source')
+            actual = self.clipboard()
             assert actual == expected, (label, actual)
             self.capture('presentation-artifact-' + ('code-' if label == 'greeting.ml' else 'diff-') + suffix + '.png')
-            self.document_action(expected, 'Collapse')
-        print('PRESENTATION_DOCUMENT_CONTROLS_OK', flush=True)
+            self.document_action(label, 'Collapse')
+        # Both expanded artifacts exceed the viewport. The code toolbar stays in
+        # native overscan above the transcript. AX activation must invoke that
+        # exact control, never synthesize a click into the window header.
+        self.document_action('greeting.ml', 'Expand')
+        self.document_action('Proposed patch', 'Expand')
+        self.press(TITLE, 'Latest')
+        time.sleep(.3)
+        root = self.wait_find(TITLE, '', 'AXList')
+        copy = self.within('greeting.ml', 'Copy source', 'AXButton')
+        assert copy, 'Expected retained code toolbar'
+        try:
+            _, top, _, height = self.rect(root)
+            _, y, _, h = self.rect(copy)
+            assert not top <= y + h / 2 <= top + height, (top, height, y, h)
+            subprocess.run(['/usr/bin/pbcopy'], input='AX source sentinel', text=True,
+                           encoding='utf-8', check=True,
+                           env={**os.environ, 'LC_ALL': 'en_US.UTF-8'})
+            self.perform(copy, 'AXPress')
+            time.sleep(.15)
+            assert self.clipboard() == sources['greeting.ml']
+        finally:
+            self.release(copy)
+            self.release(root)
+        self.absent('Close workspace inspector', 'AXButton')
+        self.document_action('greeting.ml', 'Collapse')
+        self.document_action('Proposed patch', 'Collapse')
+        print('PRESENTATION_DOCUMENT_CONTROLS_OK: labelled documents, exact source, '
+              'offscreen AX action without unrelated clicks', flush=True)
 
     def exercise(self, reduced):
         suffix = 'reduced' if reduced else 'full'
@@ -221,6 +205,12 @@ class Presentation(Feedback):
         self.wait_text(TITLE, '· Complete')
         self.absent('Response interrupted')
         self.absent('Generating response', 'AXProgressIndicator')
+        self.document_action('Complete', 'Copy code')
+        assert self.clipboard() == 'let greeting = "Hello, λ 👨‍👩‍👧‍👦"\nlet answer = 42'
+        self.document_action('Complete', 'Copy table')
+        table = self.clipboard()
+        assert table.startswith('| Check | Result |') and '| Unicode | Preserved |' in table, repr(table)
+        assert '| Streaming | Complete |' in table, repr(table)
         self.draft(TITLE, CONVERSATION, 'Keep this presentation draft')
         self.close(TITLE)
         self.press(TITLE, 'Discard drafts and close')

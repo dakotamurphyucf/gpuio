@@ -687,11 +687,28 @@ nodes together. Earlier sequential whole-window searches missed this state;
 a live capture/AX dump confirmed the indicators existed. This was not diagnosed
 as a production deadlock. Clipboard subprocesses explicitly use UTF-8.
 
-Document actions are limited to buttons whose centers are inside the transcript
-viewport. Retained offscreen document controls were present in AX, and activating
-them during test development could target unrelated visible content through the
-native click fallback. This walkthrough does not certify offscreen document
-activation; that accessibility behavior needs separate investigation.
+Follow-up fixes the offscreen document accessibility defect exposed here. Native
+document toolbar controls now handle Click directly through their retained owner,
+sharing their operation with pointer/keyboard activation. Markdown copy-code and
+copy-table actions also handle accessibility directly. A labelled Group exposes
+each document's existing config label, making source identity discoverable.
+Previously GPUI's fallback synthesized a click at a retained offscreen button's
+unclipped center, which could hit an unrelated window control.
+
+The final presentation regression expands both artifacts, verifies the code Copy
+source button is outside the transcript viewport, replaces the clipboard with a
+sentinel, invokes AXPress and checks exact Unicode source plus absence of an
+unexpected inspector. Full and Reduce pass, including Markdown code/table copy. The final combined
+run completed Full; its following Reduce run lost AX window discovery during the
+unrelated query-cancellation step while the child remained alive. Cleanup reaped
+it, and a standalone Reduce run passed the complete final scenario. This recurring
+AX discovery symptom is not diagnosed here as a product failure. The earlier
+viewport-only document test workaround has been removed. Native document and original public regressions pass; native feature-enabled
+Clippy passes. The M4 AppKit regression also passes after resolving the retained status/composer
+before its one-second acceptance fixture. The direct status observation and edit
+took 30 ms in the passing run; earlier whole-window searches missed the transient
+state or edited after acceptance. The application fixture delay is unchanged. This is direct command dispatch,
+not automatic scrolling/focus of an offscreen document.
 
 Actual captures were inspected: [loading](../images/studio-results-loading.png),
 [filter/light](../images/studio-results-filter-light.png),
