@@ -46,6 +46,20 @@ type t =
 
 let check t = Guard.check t.shared.guard
 
+module Stats = struct
+  type t =
+    { scopes : int
+    ; tasks : int
+    ; cleanups : int
+    }
+  [@@deriving sexp_of]
+end
+
+let stats t : Stats.t =
+  check t;
+  { scopes = t.shared.scopes; tasks = t.shared.tasks; cleanups = t.shared.cleanups }
+;;
+
 let is_active t =
   check t;
   t.active

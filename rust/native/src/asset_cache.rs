@@ -225,6 +225,16 @@ impl Cache {
         }
         self.request_variant(handle.0.source.clone(), request)
     }
+    pub(crate) fn request_svg(
+        &mut self,
+        source: Lease,
+        request: asset_svg::Request,
+    ) -> Result<Handle, Error> {
+        if source.source().format() != gpuio_protocol::asset::Format::Svg {
+            return Err(Error::Decode(asset_decode::Error::Unsupported));
+        }
+        self.request_variant(source, request)
+    }
     fn request_variant(
         &mut self,
         source: Lease,
@@ -655,6 +665,40 @@ mod tests {
         assert!(!cache.complete(completion));
         assert_eq!(cache.stats().charged_pixels, 0);
     }
+    #[test]
+    fn direct_svg_size_queues_one_variant_and_reuses_a_retired_encoded_lease() {
+        let mut store = Store::default();
+        let bytes = br#"<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><rect width="4" height="4" fill="red"/></svg>"#;
+        let id = store.begin(Format::Svg, bytes.len()).unwrap();
+        store.append(id, 0, bytes).unwrap();
+        store.finish(id).unwrap();
+        let lease = store.acquire(id).unwrap();
+        store.release(id).unwrap();
+        let mut cache = Cache::default();
+        let params = asset_svg::Request {
+            size: asset_svg::Size::Exact(asset_svg::RasterSize::new(12, 8).unwrap()),
+            ..Default::default()
+        };
+        let first = cache.request_svg(lease.clone(), params).unwrap();
+        let second = cache.request_svg(lease, params).unwrap();
+        assert!(Rc::ptr_eq(&first.0, &second.0));
+        assert_eq!((cache.stats().entries, cache.stats().pending), (1, 1));
+        let work = cache.next_work().unwrap();
+        assert!(cache.complete(work.run()));
+        let image = ready(&cache, &first);
+        assert_eq!(u32::from(image.size(0).width), 12);
+        assert_eq!(u32::from(image.size(0).height), 8);
+        assert!(store.acquire(id).is_err());
+        assert!(matches!(
+            cache.request_svg(source(&mut store), params),
+            Err(Error::Decode(asset_decode::Error::Unsupported))
+        ));
+        drop((first, second, image));
+        cache.close();
+        drop(cache.take_evictions());
+        assert_eq!(cache.stats().charged_pixels, 0);
+    }
+
     #[test]
     fn svg_variants_share_by_size_fit_density_and_tint_without_reacquiring_retired_sources() {
         let mut store = Store::default();

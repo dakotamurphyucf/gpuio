@@ -31,6 +31,8 @@ type t =
   ; close_pending : bool B.Expert.Var.t
   ; mutable close_answer : (Gpuio.Window.Close_decision.t -> unit) option
   ; panels : (int, Panel.t) Hashtbl.t
+  ; inspector : Inspector.t
+  ; settings : Settings.t
   }
 
 let px = Gpuio.Length.px_exn
@@ -62,6 +64,8 @@ let create ~icons conversations ~selected =
   ; close_pending = B.Expert.Var.create false
   ; close_answer = None
   ; panels = Int.Table.create ()
+  ; inspector = Inspector.create ()
+  ; settings = Settings.create ()
   }
 ;;
 
@@ -310,86 +314,15 @@ let document_view t dark message =
 ;;
 
 let message_view t dark icons message =
-  let p = Palette.of_dark dark in
-  let user = String.equal message.Conversation.Message.author "You" in
-  let artifact =
-    match message.body with
-    | Rich (_, (Code _ | Diff)) -> true
-    | Rich (_, Markdown) | Plain _ -> false
+  let kind =
+    if String.equal message.Conversation.Message.author "You"
+    then Chat_message.Kind.User
+    else (
+      match message.body with
+      | Rich (_, (Code _ | Diff)) -> Artifact
+      | Rich (_, Markdown) | Plain _ -> Assistant)
   in
-  let avatar =
-    View.column
-      ~style:
-        (style
-           [ Width (px (if artifact then 22. else 27.))
-           ; Height (px (if artifact then 22. else 27.))
-           ; Shrink 0.
-           ; Radius 8.
-           ; Align_items Center
-           ; Justify_content Center
-           ; Background (solid (if user then p.raised else p.accent_surface))
-           ; Foreground p.accent
-           ; Font_size 11.
-           ; Font_weight 600
-           ])
-      [ (if user
-         then View.text "Y"
-         else Icons.view icons (if artifact then Code else Spark))
-      ]
-  in
-  View.column
-    ~style:
-      (style
-         [ Width full
-         ; Align_items Center
-         ; Padding_left (px 28.)
-         ; Padding_right (px 28.)
-         ; Padding_top (px 8.)
-         ; Padding_bottom (px 8.)
-         ])
-    [ View.column
-        ~style:
-          (style
-             [ Width full
-             ; Max_width (px 760.)
-             ; Gap (px (if artifact then 6. else 12.))
-             ; Padding (px (if artifact then 12. else 6.))
-             ; Background (solid (if artifact then p.surface else p.canvas))
-             ; Radius 12.
-             ; Border_width (if artifact then 1. else 0.)
-             ; Border_color p.line
-             ; Foreground p.text
-             ])
-        [ View.row
-            ~style:(style [ Align_items Center; Gap (px 9.) ])
-            [ avatar
-            ; View.text
-                ~style:(style [ Font_size 12.; Font_weight 600 ])
-                (if user then "You" else if artifact then "Workspace" else "GPUIO")
-            ; caption
-                p
-                (if artifact
-                 then "Artifact · ready to review"
-                 else if user
-                 then "Just now"
-                 else "Local assistant")
-            ; spacer
-            ; (if artifact
-               then
-                 View.row
-                   ~style:
-                     (style
-                        [ Gap (px 4.)
-                        ; Align_items Center
-                        ; Foreground p.success
-                        ; Font_size 10.
-                        ])
-                   [ Icons.view icons Check; View.text "Ready" ]
-               else View.text "")
-            ]
-        ; document_view t dark message
-        ]
-    ]
+  Chat_message.view ~kind ~dark ~icons ~content:(document_view t dark message)
 ;;
 
 let conversation_panel t ~read_file ~attachment_directory window conversation graph =
@@ -443,6 +376,7 @@ let conversation_panel t ~read_file ~attachment_directory window conversation gr
     | Conversation.Phase.Accepting | Streaming -> true
     | Idle | Complete | Cancelled | Failed _ -> false
   in
+  let activity_group = sprintf "chat-response-%d" (Conversation.id conversation) in
   let status =
     match phase with
     | Idle -> "Ready"
@@ -496,20 +430,10 @@ let conversation_panel t ~read_file ~attachment_directory window conversation gr
                 ~style:(style [ Gap (px 7.); Align_items Center ])
                 [ (if busy
                    then
-                     View.progress
-                       ~style:
-                         (style
-                            [ Width (px 28.)
-                            ; Height (px 3.)
-                            ; Foreground p.accent
-                            ; Background (solid p.raised)
-                            ])
-                       ~config:
-                         (Gpuio.Progress.Config.create
-                            ~label:"Generating response"
-                            ~value:Gpuio.Progress.Value.indeterminate
-                          |> Or_error.ok_exn)
-                       ()
+                     Chat_motion.activity
+                       ~key:"header-activity"
+                       ~group:activity_group
+                       (Query_loading.spinner ~dark ~label:"Generating response")
                    else dot p)
                 ; caption
                     p
@@ -536,17 +460,19 @@ let conversation_panel t ~read_file ~attachment_directory window conversation gr
     ; List_view.Output.view list
     ; (match phase with
        | Failed error ->
-         View.row
+         Gpuio.Presentation.alert
+           (if dark
+            then Gpuio.Presentation.Appearance.dark
+            else Gpuio.Presentation.Appearance.light)
+           ~tone:Warning
+           ~title:"Response interrupted"
            ~style:
              (style
                 [ Margin_left (px 28.)
                 ; Margin_right (px 28.)
                 ; Margin_top (px 8.)
                 ; Padding (px 10.)
-                ; Radius 8.
                 ; Shrink 0.
-                ; Background (solid p.accent_surface)
-                ; Foreground p.accent
                 ; Font_size 12.
                 ])
            [ View.text ~style:(style [ White_space Normal ]) error ]
@@ -599,7 +525,15 @@ let conversation_panel t ~read_file ~attachment_directory window conversation gr
                 ; View.row
                     ~style:
                       (style [ Gap (px 6.); Align_items Center; Padding_left (px 4.) ])
-                    [ dot p; caption p "Local assistant" ]
+                    [ (if busy
+                       then
+                         Chat_motion.activity
+                           ~key:"composer-activity"
+                           ~group:activity_group
+                           (dot p)
+                       else dot p)
+                    ; caption p "Local assistant"
+                    ]
                 ; spacer
                 ; (if busy
                    then
@@ -682,7 +616,53 @@ let install_close_handler t window =
 let command_id text = Command.Id.of_string text |> Or_error.ok_exn
 let shortcut key modifiers = Gpuio.Shortcut.create ~key ~modifiers () |> Or_error.ok_exn
 
-let component t ~open_window ~read_file ~attachment_directory window graph =
+let component
+      t
+      ~app
+      ~sources
+      ~results
+      ~open_window
+      ~read_file
+      ~attachment_directory
+      window
+      graph
+  =
+  B.Edge.on_change
+    (B.Expert.Var.value t.dark)
+    ~equal:Bool.equal
+    ~callback:
+      (B.return (fun dark ->
+         E.of_thunk (fun () ->
+           App.Window.set_theme window (Palette.theme (Palette.of_dark dark)))))
+    graph;
+  let artifact_navigation =
+    Inspector.navigation
+      t.inspector
+      ~icons:(Icons.value t.icons)
+      ~dark:(B.Expert.Var.value t.dark)
+      graph
+  in
+  let inspector =
+    Inspector.component
+      t.inspector
+      ~app
+      ~window
+      ~sources
+      ~results
+      ~annotation:(Settings.annotation t.settings)
+      ~dark:(B.Expert.Var.value t.dark)
+      graph
+  in
+  let settings =
+    Settings.component
+      t.settings
+      ~window
+      ~results
+      ~on_generation:(fun generation ->
+        set_backend t (Generation_settings.backend generation))
+      ~dark:(B.Expert.Var.value t.dark)
+      graph
+  in
   let search =
     Editor.create
       window
@@ -713,6 +693,9 @@ let component t ~open_window ~read_file ~attachment_directory window graph =
   and icons = Icons.value t.icons
   and pending_close = B.Expert.Var.value t.close_pending
   and search = search
+  and inspector = inspector
+  and artifact_navigation = artifact_navigation
+  and settings = settings
   and panels = panels in
   let p = Palette.of_dark dark in
   let active = Option.map (Tabs.active tabs) ~f:Tabs.Tab.data in
@@ -751,6 +734,10 @@ let component t ~open_window ~read_file ~attachment_directory window graph =
           "Previous conversation tab"
           (fun () -> B.Expert.Var.set t.tabs (Tabs.previous (B.Expert.Var.get t.tabs)))
       ; make_command "theme" "Toggle light/dark theme" (fun () -> toggle_theme t)
+      ; make_command "settings" "Workspace settings" (fun () ->
+          Settings.toggle t.settings)
+      ; make_command "explore" "Explore workspace" (fun () ->
+          Inspector.toggle t.inspector)
       ; make_command
           ~shortcuts:[ shortcut "w" [ Primary ] ]
           "close-tab"
@@ -771,6 +758,7 @@ let component t ~open_window ~read_file ~attachment_directory window graph =
       ; Command (command_id "previous-tab")
       ; Separator
       ; Command (command_id "theme")
+      ; Command (command_id "explore")
       ; Command (command_id "copy")
       ; Separator
       ; Command (command_id "close-tab")
@@ -783,6 +771,31 @@ let component t ~open_window ~read_file ~attachment_directory window graph =
     |> Option.value_map ~default:"" ~f:Input.Snapshot.text
     |> String.lowercase
   in
+  let brand ~compact =
+    View.row
+      ~style:
+        (style
+           [ Gap (px 10.)
+           ; Align_items Center
+           ; Padding_top (px 6.)
+           ; Padding_bottom (px 8.)
+           ])
+      ([ View.column
+           ~style:
+             (style
+                [ Width (px 34.)
+                ; Height (px 34.)
+                ; Radius 10.
+                ; Background (solid p.accent_surface)
+                ; Foreground p.accent
+                ; Align_items Center
+                ; Justify_content Center
+                ])
+           [ Icons.view icons Spark ]
+       ; View.text ~style:(style [ Font_size 18.; Font_weight 650 ]) "GPUIO"
+       ]
+       @ if compact then [] else [ caption p "STUDIO" ])
+  in
   let sidebar =
     View.column
       ~style:
@@ -790,33 +803,16 @@ let component t ~open_window ~read_file ~attachment_directory window graph =
            [ Width full
            ; Height full
            ; Padding (px 18.)
-           ; Gap (px 20.)
+           ; Gap (px 12.)
            ; Background (solid p.sidebar)
            ; Foreground p.text
            ])
-      ([ View.row
-           ~style:
-             (style
-                [ Gap (px 10.)
-                ; Align_items Center
-                ; Padding_top (px 6.)
-                ; Padding_bottom (px 8.)
-                ])
-           [ View.column
-               ~style:
-                 (style
-                    [ Width (px 34.)
-                    ; Height (px 34.)
-                    ; Radius 10.
-                    ; Background (solid p.accent_surface)
-                    ; Foreground p.accent
-                    ; Align_items Center
-                    ; Justify_content Center
-                    ])
-               [ Icons.view icons Spark ]
-           ; View.text ~style:(style [ Font_size 18.; Font_weight 650 ]) "GPUIO"
-           ; caption p "STUDIO"
-           ]
+      ([ Responsive.at_width
+           ~key:"sidebar-brand"
+           ~height:48.
+           ~breakpoint:200.
+           ~compact:(brand ~compact:true)
+           ~wide:(brand ~compact:false)
        ; View.row
            ~style:
              (style
@@ -865,7 +861,7 @@ let component t ~open_window ~read_file ~attachment_directory window graph =
                           (button_style dark)
                           (style
                              [ Width full
-                             ; Padding (px 10.)
+                             ; Padding (px 8.)
                              ; Font_size 12.
                              ; Gap (px 9.)
                              ; Justify_content Start
@@ -878,39 +874,13 @@ let component t ~open_window ~read_file ~attachment_directory window graph =
                        (action (fun () -> select t (Conversation.id conversation)))
                      (Conversation.title conversation)))
               else None))
-       ; spacer
-       ; View.column
-           ~style:
-             (style
-                [ Gap (px 10.)
-                ; Padding (px 12.)
-                ; Radius 10.
-                ; Border_width 1.
-                ; Border_color p.line
-                ])
-           [ View.row
-               ~style:(style [ Gap (px 7.); Align_items Center ])
-               [ dot p
-               ; View.text
-                   ~style:(style [ Font_size 12.; Font_weight 500 ])
-                   "A little room to explore"
-               ]
-           ; View.text
-               ~style:
-                 (style
-                    [ Font_size 11.
-                    ; Foreground p.muted
-                    ; White_space Normal
-                    ; Line_height (px 17.)
-                    ])
-               "A native workspace, powered by OCaml. Everything here runs locally."
-           ; button
-               dark
-               ~icons
-               ~icon:Sliders
-               "Demo controls"
-               (action (fun () -> B.Expert.Var.set t.demo_controls (not demo_controls)))
-           ]
+       ; artifact_navigation
+       ; button
+           dark
+           ~icons
+           ~icon:Sliders
+           "Demo controls"
+           (action (fun () -> B.Expert.Var.set t.demo_controls (not demo_controls)))
        ]
        @ (if demo_controls
           then
@@ -968,6 +938,91 @@ let component t ~open_window ~read_file ~attachment_directory window graph =
              ]
          ])
   in
+  let toolbar ~compact =
+    View.row
+      ~style:
+        (style
+           [ Width full
+           ; Height (px 45.)
+           ; Shrink 0.
+           ; Gap (px 4.)
+           ; Align_items Center
+           ; Padding_left (px 14.)
+           ; Padding_right (px 12.)
+           ; Border_bottom_width 1.
+           ; Border_color p.line
+           ; Background (solid p.sidebar)
+           ])
+      [ (if compact
+         then
+           View.text
+             ~style:
+               (style
+                  [ Grow 1.
+                  ; Min_width (px 0.)
+                  ; White_space No_wrap
+                  ; Text_overflow Ellipsis
+                  ; Font_size 12.
+                  ; Font_weight 600
+                  ])
+             (Option.value_map active ~default:"No open tabs" ~f:(fun id ->
+                Conversation.title (find t id)))
+         else if List.is_empty (Tabs.tabs tabs)
+         then caption p "No open tabs"
+         else
+           View.tab_bar
+             ~style:
+               (Gpuio.Style.with_state_exn
+                  (style [ Font_size 12.; Foreground p.muted ])
+                  Selected
+                  [ Border_color p.accent; Foreground p.text ])
+             ~config:(Tabs.choices tabs ~label:"Conversation tabs" |> Or_error.ok_exn)
+             ~on_select:(fun id ->
+               action (fun () -> select t (Int.of_string (Tabs.Id.to_string id))))
+             ())
+      ; icon_button
+          dark
+          icons
+          Close
+          ~label:"Close tab"
+          (action (fun () -> Option.iter active ~f:(close_tab t)))
+      ; spacer
+      ; (if compact
+         then
+           icon_button
+             dark
+             icons
+             Sliders
+             ~label:"Settings"
+             (action (fun () -> Settings.toggle t.settings))
+         else button dark "Settings" (action (fun () -> Settings.toggle t.settings)))
+      ; (if compact
+         then
+           icon_button
+             dark
+             icons
+             Code
+             ~label:"Explore workspace"
+             (action (fun () -> Inspector.toggle t.inspector))
+         else
+           button
+             dark
+             "Explore workspace"
+             (action (fun () -> Inspector.toggle t.inspector)))
+      ; icon_button
+          dark
+          icons
+          External
+          ~label:"New window"
+          (action (fun () -> open_window selected))
+      ; icon_button
+          dark
+          icons
+          Command
+          ~label:"Commands"
+          (action (fun () -> B.Expert.Var.set t.palette true))
+      ]
+  in
   let content =
     View.column
       ~style:
@@ -979,53 +1034,12 @@ let component t ~open_window ~read_file ~attachment_directory window graph =
            ; Background (background dark)
            ; Foreground (foreground dark)
            ])
-      ([ View.row
-           ~style:
-             (style
-                [ Width full
-                ; Height (px 45.)
-                ; Shrink 0.
-                ; Gap (px 4.)
-                ; Align_items Center
-                ; Padding_left (px 14.)
-                ; Padding_right (px 12.)
-                ; Border_bottom_width 1.
-                ; Border_color p.line
-                ; Background (solid p.sidebar)
-                ])
-           [ (if List.is_empty (Tabs.tabs tabs)
-              then caption p "No open tabs"
-              else
-                View.tab_bar
-                  ~style:
-                    (Gpuio.Style.with_state_exn
-                       (style [ Font_size 12.; Foreground p.muted ])
-                       Selected
-                       [ Border_color p.accent; Foreground p.text ])
-                  ~config:(Tabs.choices tabs ~label:"Conversation tabs" |> Or_error.ok_exn)
-                  ~on_select:(fun id ->
-                    action (fun () -> select t (Int.of_string (Tabs.Id.to_string id))))
-                  ())
-           ; icon_button
-               dark
-               icons
-               Close
-               ~label:"Close tab"
-               (action (fun () -> Option.iter active ~f:(close_tab t)))
-           ; spacer
-           ; icon_button
-               dark
-               icons
-               External
-               ~label:"New window"
-               (action (fun () -> open_window selected))
-           ; icon_button
-               dark
-               icons
-               Command
-               ~label:"Commands"
-               (action (fun () -> B.Expert.Var.set t.palette true))
-           ]
+      ([ Responsive.at_width
+           ~key:"conversation-toolbar"
+           ~height:45.
+           ~breakpoint:720.
+           ~compact:(toolbar ~compact:true)
+           ~wide:(toolbar ~compact:false)
        ]
        @ List.map panels ~f:(fun (id, view) ->
          View.tab_panel
@@ -1051,7 +1065,29 @@ let component t ~open_window ~read_file ~attachment_directory window graph =
            ()
          |> Or_error.ok_exn)
       ~first:sidebar
-      ~second:content
+      ~second:
+        (View.split_pane
+           ~key:(key "inspector-split")
+           ~style:
+             (style
+                [ Width full
+                ; Height full
+                ; Min_width (px 0.)
+                ; Min_height (px 0.)
+                ; Foreground p.line
+                ])
+           ~config:
+             (Gpuio.Split_pane.Config.create
+                ~label:"Artifact inspector width"
+                ~initial_first:550.
+                ~minimum_first:360.
+                ~maximum_first:1400.
+                ~minimum_second:320.
+                ()
+              |> Or_error.ok_exn)
+           ~first:content
+           ~second:inspector
+           ())
       ()
   in
   let close_dialog =
@@ -1136,6 +1172,7 @@ let component t ~open_window ~read_file ~attachment_directory window graph =
               ; Background (solid p.sidebar)
               ])
          notice
+     ; settings
      ; close_dialog
      ]
      @
@@ -1171,6 +1208,8 @@ let component t ~open_window ~read_file ~attachment_directory window graph =
                      ; "next-tab"
                      ; "previous-tab"
                      ; "theme"
+                     ; "explore"
+                     ; "settings"
                      ; "copy"
                      ; "close-tab"
                      ; "close-window"

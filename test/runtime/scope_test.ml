@@ -6,6 +6,53 @@ module E = Bonsai.Effect
 
 let drain inbox = List.iter (Inbox.take_turn inbox) ~f:(fun f -> f ())
 
+let%expect_test
+    "diagnostics distinguish live tasks, queued results and cancellation cleanup"
+  =
+  Eio_mock.Backend.run (fun () ->
+    Eio.Switch.run (fun sw ->
+      let inbox = Inbox.create ~capacity:8 () in
+      let root = Scope.Expert.create ~sw ~inbox ~max_tasks:8 in
+      let child = Scope.child root ~name:"observed" |> Or_error.ok_exn in
+      let print () =
+        print_s [%sexp (Scope.stats root : Scope.Stats.t), (Inbox.length inbox : int)]
+      in
+      let unregister = Scope.on_cancel child Fn.id |> Or_error.ok_exn in
+      ignore
+        (Scope.start
+           child
+           ~f:Eio.Fiber.await_cancel
+           ~on_result:(fun (_ : unit Or_error.t) ->
+             failwith "cancelled producer delivered")
+         |> Or_error.ok_exn
+         : Scope.Task.t);
+      ignore
+        (Scope.start
+           child
+           ~f:(fun () -> ())
+           ~on_result:(fun _ -> failwith "cancelled completion delivered")
+         |> Or_error.ok_exn
+         : Scope.Task.t);
+      Eio.Fiber.yield ();
+      print ();
+      Scope.cancel child;
+      unregister ();
+      Eio.Fiber.yield ();
+      print ();
+      drain inbox;
+      print ();
+      Scope.cancel root;
+      print ();
+      Inbox.close inbox));
+  [%expect
+    {|
+    (((scopes 2) (tasks 1) (cleanups 1)) 1)
+    (((scopes 1) (tasks 0) (cleanups 0)) 1)
+    (((scopes 1) (tasks 0) (cleanups 0)) 0)
+    (((scopes 0) (tasks 0) (cleanups 0)) 0)
+    |}]
+;;
+
 let%expect_test "scope cancellation is selective; queued task completion is suppressed" =
   Eio_mock.Backend.run (fun () ->
     Eio.Switch.run (fun sw ->

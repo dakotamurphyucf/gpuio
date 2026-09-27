@@ -1,0 +1,20 @@
+(executable
+ (name main)
+ (modules main)
+ (libraries core gpuio gpuio.bonsai gpuio.eio bonsai eio_main)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))
+
+(executable
+ (name number)
+ (modules number)
+ (libraries core gpuio gpuio.bonsai gpuio.eio bonsai eio_main)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))
+
+(executable
+ (name otp)
+ (modules otp)
+ (libraries core gpuio gpuio.bonsai gpuio.eio bonsai eio_main)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

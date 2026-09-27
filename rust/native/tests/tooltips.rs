@@ -5,6 +5,13 @@ fn node(slot: i64) -> NodeId {
 }
 #[test]
 fn tooltip_structure_validation_visibility_events_and_disposal_are_atomic() {
+    exercise(Kind::Tooltip);
+}
+#[test]
+fn hover_card_structure_policy_events_and_disposal_are_atomic() {
+    exercise(Kind::HoverCard);
+}
+fn exercise(kind: Kind) {
     let window = WindowId::from_parts(0, 1).unwrap();
     let handler = HandlerId::from_parts(0, 1).unwrap();
     let config = TooltipConfig {
@@ -15,7 +22,11 @@ fn tooltip_structure_validation_visibility_events_and_disposal_are_atomic() {
         hoverable: true,
         show_delay_ns: 250_000_000,
         hide_delay_ns: 80_000_000,
-        skip_delay_ns: 300_000_000,
+        skip_delay_ns: if kind == Kind::Tooltip {
+            300_000_000
+        } else {
+            0
+        },
     };
     let tx = |base, operations| Transaction {
         window,
@@ -27,7 +38,7 @@ fn tooltip_structure_validation_visibility_events_and_disposal_are_atomic() {
     session.hello(VERSION, CAPABILITIES).unwrap();
     session.open(1, window, "tooltip", 300., 200.).unwrap();
     let mut ops = vec![
-        Op::Create(node(0), Kind::Tooltip, "".into(), Some(handler)),
+        Op::Create(node(0), kind, "".into(), Some(handler)),
         Op::SetTooltip(node(0), config.clone()),
         Op::SetRoot(Some(node(0))),
     ];
@@ -44,13 +55,37 @@ fn tooltip_structure_validation_visibility_events_and_disposal_are_atomic() {
     session.apply(&tx(0, ops)).unwrap();
     assert_eq!(
         session.tree(window).unwrap().tooltip_description(node(1)),
-        Some("Details")
+        if kind == Kind::Tooltip {
+            Some("Details")
+        } else {
+            None
+        }
     );
     assert_eq!(
         session.tree(window).unwrap().tooltip_description(node(2)),
         None
     );
     let retained = session.retained_bytes();
+    if kind == Kind::HoverCard {
+        for invalid in [
+            TooltipConfig {
+                hoverable: false,
+                ..config.clone()
+            },
+            TooltipConfig {
+                skip_delay_ns: 1,
+                ..config.clone()
+            },
+        ] {
+            assert_eq!(
+                session.apply(&tx(1, vec![Op::SetTooltip(node(0), invalid)])),
+                Err(ErrorCode::InvalidTree)
+            );
+            assert_eq!(session.retained_bytes(), retained);
+            assert_eq!(session.tree(window).unwrap().revision(), 1);
+        }
+    }
+
     for invalid in [
         TooltipConfig {
             width: f64::NAN,

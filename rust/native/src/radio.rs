@@ -130,6 +130,8 @@ pub(super) fn element<T: 'static>(
             }
         }
         base = base.child(crate::semantics::State {
+            hidden: false,
+            metadata: None,
             live: None,
             element: option,
             disabled,

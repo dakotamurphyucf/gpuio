@@ -3327,7 +3327,18 @@ impl<M: InputModeKind> InputBaseState<M> {
         cx.emit(InputEvent::Focus);
     }
 
+    fn cancel_drag_selection(&mut self) {
+        self.auto_scroll.stop();
+        self.selecting = false;
+        self.column_select_start = None;
+        self.selected_word_range = None;
+    }
+
     fn on_blur(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        // GPUIO: blur may hide or make a retained editor inert before a mouse-up
+        // arrives. Stop the drag timer and transient gesture state, preserving
+        // the actual selection range for menu Copy and later restoration.
+        self.cancel_drag_selection();
         if M::is_context_menu_open(self, cx) {
             return;
         }
@@ -3426,20 +3437,34 @@ impl<M: InputModeKind> InputBaseState<M> {
             let delta = AutoScroll::compute_delta(event.position.y, self.input_bounds);
             // Input's ScrollHandle uses negative-y-is-down; negate the positive-towards-bottom delta.
             let scroll_delta = delta.map(|d| -d);
-            self.auto_scroll.set(scroll_delta, cx, |delta, state, cx| {
-                let current = state.scroll_handle.offset();
-                state.update_scroll_offset(Some(point(current.x, current.y + delta)), cx);
-                if let Some(pos) = state.auto_scroll.last_drag_position {
-                    let (offset, line_end_affinity, columns_past_line_end) =
-                        state.resolve_mouse_position(pos);
-                    if let Some(start) = state.column_select_start {
-                        let end = ColumnarPoint::new(offset, columns_past_line_end);
-                        state.build_columnar_selection(start, end, cx);
-                    } else {
-                        state.select_to_with_affinity(offset, line_end_affinity, cx);
+            let window_handle = window.window_handle();
+            self.auto_scroll
+                .set(scroll_delta, cx, move |delta, state, cx| {
+                    // GPUI delivers blur listeners after drawing. A ready timer can
+                    // run after Window::blur but before that notification; it must
+                    // not extend selection in the intervening frame.
+                    let focused = cx
+                        .update_window(window_handle, |_, window, _| {
+                            window.is_window_active() && state.focus_handle.is_focused(window)
+                        })
+                        .unwrap_or(false);
+                    if !focused {
+                        state.cancel_drag_selection();
+                        return;
                     }
-                }
-            });
+                    let current = state.scroll_handle.offset();
+                    state.update_scroll_offset(Some(point(current.x, current.y + delta)), cx);
+                    if let Some(pos) = state.auto_scroll.last_drag_position {
+                        let (offset, line_end_affinity, columns_past_line_end) =
+                            state.resolve_mouse_position(pos);
+                        if let Some(start) = state.column_select_start {
+                            let end = ColumnarPoint::new(offset, columns_past_line_end);
+                            state.build_columnar_selection(start, end, cx);
+                        } else {
+                            state.select_to_with_affinity(offset, line_end_affinity, cx);
+                        }
+                    }
+                });
         }
     }
 

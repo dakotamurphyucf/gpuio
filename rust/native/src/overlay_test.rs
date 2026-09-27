@@ -31,7 +31,7 @@ fn panel(slot: i64, config: OverlayConfig) -> Vec<Op> {
         Op::SetFocusScope(
             node(slot),
             FocusScopeConfig {
-                trap: config.kind == OverlayKind::Dialog,
+                trap: config.kind.is_modal(),
                 auto_focus: true,
                 restore_focus: true,
             },
@@ -234,6 +234,35 @@ pub(super) async fn exercise(
         dismissals(transport),
         [(node(21), Dismissal::OutsidePointer)]
     );
+    // Same mounted modal becomes an alert. A backdrop click must neither close
+    // it nor leak to the enclosing dialog, even though that dialog allows it.
+    let mut alert = config(OverlayKind::AlertDialog, "Confirm removal");
+    alert.dismiss_on_outside_pointer = false;
+    apply(cx, handle, vec![Op::SetOverlay(node(21), Some(alert))]);
+    frame(cx, handle).await;
+    assert!(focused(cx, handle, node(22)));
+    events(transport);
+    click(cx, handle, gpui::point(px(3.), px(3.)));
+    frame(cx, handle).await;
+    assert!(
+        events(transport).is_empty(),
+        "alert backdrop is not an action"
+    );
+    assert!(focused(cx, handle, node(22)));
+    #[cfg(target_os = "macos")]
+    assert_eq!(
+        accessible(cx, handle, "Confirm removal", false)
+            .unwrap()
+            .role,
+        "AXWindow"
+    );
+    key(cx, handle, "escape");
+    frame(cx, handle).await;
+    assert_eq!(dismissals(transport), [(node(21), Dismissal::Escape)]);
+    assert!(
+        focused(cx, handle, node(22)),
+        "alert waits for accepted close"
+    );
     apply(
         cx,
         handle,
@@ -248,6 +277,112 @@ pub(super) async fn exercise(
         focused(cx, handle, node(20)),
         "nested close restores editor"
     );
+    // A sheet owns window-edge geometry even when panel styles contain stale
+    // dimensions/margins. Changing edges retains the editor and focus scope.
+    let editor_entity = handle
+        .update(cx, |view, _, cx| view.editors[&node(20)].focus_handle(cx))
+        .unwrap();
+    for (kind, extent) in [
+        (OverlayKind::SheetLeft, 220.),
+        (OverlayKind::SheetRight, 220.),
+        (OverlayKind::SheetTop, 160.),
+        (OverlayKind::SheetBottom, 160.),
+        (OverlayKind::SheetRight, 16384.),
+    ] {
+        let mut sheet = config(kind, "Settings drawer");
+        sheet.width = extent;
+        apply(
+            cx,
+            handle,
+            vec![
+                Op::SetOverlay(node(17), Some(sheet)),
+                Op::SetStyle(
+                    node(17),
+                    vec![Style::Fields(vec![
+                        Field::Width(Length::Px(17.)),
+                        Field::Height(Length::Px(19.)),
+                        Field::MaxWidth(Length::Px(20.)),
+                        Field::MaxHeight(Length::Px(20.)),
+                        Field::MarginLeft(Length::Px(15.)),
+                        Field::MarginTop(Length::Px(15.)),
+                    ])],
+                ),
+            ],
+        );
+        frame(cx, handle).await;
+        let unhovered = bounds(cx, handle, 17);
+        // Pointer entry triggers a late GPUI hover refinement. Geometry remains
+        // edge-owned even when that state asks for contradictory dimensions.
+        let geometry = vec![
+            Field::Width(Length::Px(10.)),
+            Field::Height(Length::Px(10.)),
+            Field::MaxWidth(Length::Px(10.)),
+            Field::MaxHeight(Length::Px(10.)),
+            Field::MarginLeft(Length::Px(40.)),
+            Field::MarginTop(Length::Px(40.)),
+        ];
+        apply(
+            cx,
+            handle,
+            vec![Op::SetStyle(node(17), vec![Style::State(2, geometry)])],
+        );
+        super::super::native_test::move_mouse(cx, handle, unhovered.center(), false);
+        frame(cx, handle).await;
+        let actual = bounds(cx, handle, 17);
+        // Probes cover the inner border box; allow the one-pixel border inset.
+        let (x, y, width, height) = match kind {
+            OverlayKind::SheetLeft => (0., 0., 220., 280.),
+            OverlayKind::SheetRight if extent < 400. => (180., 0., 220., 280.),
+            OverlayKind::SheetRight => (0., 0., 400., 280.),
+            OverlayKind::SheetTop => (0., 0., 400., 160.),
+            OverlayKind::SheetBottom => (0., 120., 400., 160.),
+            _ => unreachable!(),
+        };
+        assert!(
+            (actual.left() - px(x)).abs() <= px(2.),
+            "{kind:?}: {actual:?}"
+        );
+        assert!(
+            (actual.top() - px(y)).abs() <= px(2.),
+            "{kind:?}: {actual:?}"
+        );
+        assert!(
+            (actual.size.width - px(width)).abs() <= px(2.),
+            "{kind:?}: {actual:?}"
+        );
+        assert!(
+            (actual.size.height - px(height)).abs() <= px(2.),
+            "{kind:?}: {actual:?}"
+        );
+        assert!(focused(cx, handle, node(20)));
+        handle
+            .update(cx, |view, _, cx| {
+                assert_eq!(view.editors[&node(20)].focus_handle(cx), editor_entity)
+            })
+            .unwrap();
+        events(transport);
+        key(cx, handle, "tab");
+        frame(cx, handle).await;
+        assert!(focused(cx, handle, node(18)), "sheet wraps focus");
+        key(cx, handle, "shift-tab");
+        frame(cx, handle).await;
+        assert!(focused(cx, handle, node(20)));
+        key(cx, handle, "escape");
+        frame(cx, handle).await;
+        assert_eq!(dismissals(transport), [(node(17), Dismissal::Escape)]);
+    }
+    for (width, height) in [(300., 180.), (500., 320.), (400., 280.)] {
+        handle
+            .update(cx, |_, window, _| {
+                window.resize(gpui::size(px(width), px(height)))
+            })
+            .unwrap();
+        frame(cx, handle).await;
+        let actual = bounds(cx, handle, 17);
+        assert!((actual.size.width - px(width)).abs() <= px(2.));
+        assert!((actual.size.height - px(height)).abs() <= px(2.));
+        assert!(focused(cx, handle, node(20)));
+    }
     apply(
         cx,
         handle,
@@ -404,6 +539,6 @@ pub(super) async fn exercise(
         })
         .unwrap();
     println!(
-        "GPUIO_OVERLAYS_OK: dialog/popover geometry, nested focus/restoration, controlled dismissal, child popup hit routing, Escape/IME and cleanup"
+        "GPUIO_OVERLAYS_OK: four-edge sheet geometry/clamping, alert backdrop policy, dialog/popover geometry, nested focus/restoration, controlled dismissal, child popup hit routing, Escape/IME and cleanup"
     );
 }

@@ -1,10 +1,20 @@
 //! Real-window control activation, focus traversal and native accessibility.
+#[path = "carousel_view_test.rs"]
+mod carousel_view_test;
 #[path = "command_test.rs"]
 mod command_test;
 #[path = "drag_drop_test.rs"]
 mod drag_drop_test;
+#[path = "extension_test.rs"]
+mod extension_test;
 #[path = "menu_test.rs"]
 mod menu_test;
+#[path = "navigation_lifecycle_test.rs"]
+mod navigation_lifecycle_test;
+#[path = "navigation_stack_test.rs"]
+mod navigation_stack_test;
+#[path = "navigation_test.rs"]
+mod navigation_test;
 #[path = "overlay_test.rs"]
 mod overlay_test;
 #[path = "palette_test.rs"]
@@ -19,6 +29,14 @@ mod split_test;
 mod toast_test;
 #[path = "tooltip_test.rs"]
 mod tooltip_test;
+#[path = "tree_drag_lifecycle_test.rs"]
+mod tree_drag_lifecycle_test;
+#[path = "tree_focus_test.rs"]
+mod tree_focus_test;
+#[path = "tree_history_test.rs"]
+mod tree_history_test;
+#[path = "tree_view_test.rs"]
+mod tree_view_test;
 use super::editor_test::{frame, key};
 use super::*;
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
@@ -1214,24 +1232,33 @@ fn select_is_open(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> bool {
 fn apply(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, operations: Vec<Op>) {
     handle
         .update(cx, |view, window, cx| {
-            let base = view.session.borrow().tree(view.id).unwrap().revision();
-            let transaction = Transaction {
-                window: view.id,
-                base,
-                revision: base + 1,
-                operations,
-            };
-            let applied = view
-                .session
-                .borrow_mut()
-                .apply(&transaction)
-                .unwrap_or_else(|error| {
-                    panic!("native test transaction rejected: {error:?}: {transaction:?}")
-                });
-            view.update_editors(&applied.dirty, window, cx);
-            cx.notify();
+            apply_in_update(view, window, cx, operations);
         })
         .unwrap();
+}
+fn apply_in_update(
+    view: &mut View,
+    window: &mut Window,
+    cx: &mut Context<View>,
+    operations: Vec<Op>,
+) {
+    let base = view.session.borrow().tree(view.id).unwrap().revision();
+    let transaction = Transaction {
+        window: view.id,
+        base,
+        revision: base + 1,
+        operations,
+    };
+    let applied = view
+        .session
+        .borrow_mut()
+        .apply(&transaction)
+        .unwrap_or_else(|error| {
+            panic!("native test transaction rejected: {error:?}: {transaction:?}")
+        });
+    view.update_editors(&applied.dirty, window, cx);
+    view.list_actions(&applied.lists, window, cx);
+    cx.notify();
 }
 fn focused(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, id: NodeId) -> bool {
     handle
@@ -1287,6 +1314,9 @@ enum AccessibilityRequest<'a> {
     Press,
     Focus,
     SetValue(&'a str),
+    SetSelected(bool),
+    SetExpanded(bool),
+    SetDisclosed(bool),
     Increment,
     Decrement,
 }
@@ -1369,6 +1399,21 @@ fn accessible_request(
                     AccessibilityRequest::SetValue(value) => {
                         let value = NSString::from_str(value);
                         let _: () = msg_send![object, setAccessibilityValue: &*value];
+                    }
+                    AccessibilityRequest::SetSelected(value) => {
+                        let allowed: Bool = msg_send![object, isAccessibilitySelectorAllowed:objc2::sel!(setAccessibilitySelected:)];
+                        assert!(allowed.as_bool());
+                        let _: () = msg_send![object, setAccessibilitySelected: value];
+                    }
+                    AccessibilityRequest::SetExpanded(value) => {
+                        let allowed: Bool = msg_send![object, isAccessibilitySelectorAllowed:objc2::sel!(setAccessibilityExpanded:)];
+                        assert!(allowed.as_bool());
+                        let _: () = msg_send![object, setAccessibilityExpanded: value];
+                    }
+                    AccessibilityRequest::SetDisclosed(value) => {
+                        let allowed: Bool = msg_send![object, isAccessibilitySelectorAllowed:objc2::sel!(setAccessibilityDisclosed:)];
+                        assert!(allowed.as_bool());
+                        let _: () = msg_send![object, setAccessibilityDisclosed: value];
                     }
                 }
                 return Some(Accessible {
@@ -1584,7 +1629,12 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
 enum Suite {
     Controls,
     Tabs,
+    Navigation,
+    Trees,
+    Carousel,
+    HoverCards,
     Splits,
+    Extensions,
     Menus,
     Palette,
     Progress,
@@ -1595,8 +1645,24 @@ enum Suite {
 pub fn run() {
     run_suite(Suite::Controls);
 }
+pub fn run_extensions() {
+    extension_test::install();
+    run_suite(Suite::Extensions);
+}
 pub fn run_splits() {
     run_suite(Suite::Splits);
+}
+pub fn run_hover_cards() {
+    run_suite(Suite::HoverCards);
+}
+pub fn run_carousel() {
+    run_suite(Suite::Carousel);
+}
+pub fn run_navigation() {
+    run_suite(Suite::Navigation);
+}
+pub fn run_trees() {
+    run_suite(Suite::Trees);
 }
 pub fn run_tabs() {
     run_suite(Suite::Tabs);
@@ -1698,17 +1764,32 @@ fn run_suite(suite: Suite) {
             Op::Splice(node(0), 0, 0, vec![node(1), node(2), node(3), node(4)]),
             Op::SetRoot(Some(node(0))),
         ]);
-        if suite != Suite::Controls && suite != Suite::Tabs && suite != Suite::Splits {
+        if !matches!(
+            suite,
+            Suite::Controls
+                | Suite::Tabs
+                | Suite::Navigation
+                | Suite::Trees
+                | Suite::Splits
+                | Suite::Extensions
+        ) {
             // Reserve the same generational slots used by preceding component
             // fixtures, without exercising those unrelated windows/interactions.
             let end = match suite {
+                Suite::Carousel => 460,
+                Suite::HoverCards => 27,
                 Suite::Menus => 38,
                 Suite::Palette => 47,
                 Suite::Progress => 60,
                 Suite::Toast => 61,
                 Suite::Pointer => 82,
                 Suite::DragDrop => 90,
-                Suite::Controls | Suite::Tabs | Suite::Splits => unreachable!(),
+                Suite::Controls
+                | Suite::Tabs
+                | Suite::Navigation
+                | Suite::Trees
+                | Suite::Splits
+                | Suite::Extensions => unreachable!(),
             };
             for slot in 5..end {
                 operations.push(Op::Create(node(slot), Kind::Text, String::new(), None));
@@ -1751,10 +1832,34 @@ fn run_suite(suite: Suite) {
                 if suite != Suite::Controls {
                     frame(cx, handle).await;
                     match suite {
+                        Suite::Extensions => extension_test::exercise(cx, handle, &transport).await,
                         Suite::Splits => split_test::exercise(cx, handle, &transport).await,
+                        Suite::Carousel => {
+                            carousel_view_test::standalone(cx, handle, &transport).await
+                        }
+                        Suite::Navigation => {
+                            navigation_test::exercise(cx, handle, &transport).await
+                        }
+                        Suite::Trees => {
+                            tree_view_test::exercise(cx, handle).await;
+                            tree_focus_test::exercise(cx, handle).await;
+                            tree_drag_lifecycle_test::exercise(cx, handle).await;
+                            let cached_text = tree_history_test::exercise(cx, handle).await;
+                            handle
+                                .update(cx, |_, window, _| window.remove_window())
+                                .unwrap();
+                            assert!(
+                                cached_text.iter().all(|weak| weak.strong_count() == 0),
+                                "closed tree window retained text cache"
+                            );
+                        }
                         Suite::Tabs => {
                             radio(cx, handle, &transport, Kind::TabBar, 5).await;
                             retained_tab_panel(cx, handle).await;
+                        }
+                        Suite::HoverCards => {
+                            tooltip_test::exercise_kind(cx, handle, &transport, Kind::HoverCard)
+                                .await
                         }
                         Suite::Menus => menu_test::exercise(cx, handle, &transport).await,
                         Suite::Palette => palette_test::exercise(cx, handle, &transport).await,
@@ -1764,9 +1869,11 @@ fn run_suite(suite: Suite) {
                         Suite::Pointer => pointer_test::exercise(cx, handle, &transport).await,
                         Suite::Controls => unreachable!(),
                     }
-                    handle
-                        .update(cx, |_, window, _| window.remove_window())
-                        .unwrap();
+                    if !matches!(suite, Suite::Extensions | Suite::Trees) {
+                        handle
+                            .update(cx, |_, window, _| window.remove_window())
+                            .unwrap();
+                    }
                 } else {
                     exercise(cx, handle, transport).await;
                 }

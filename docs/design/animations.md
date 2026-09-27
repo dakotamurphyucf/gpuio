@@ -147,7 +147,8 @@ fabricated numeric accessibility value. Full motion resumes its native cycle.
 OCH-12 completion requires the final-head macOS functionality and Linux build/test
 gates and merge. Linux GUI checks remain informational for OCH-17.
 
-Springs, sequences and synchronized repetition belong to OCH-25. This does not
+Springs, sequences and synchronized repetition belong to OCH-25; its
+[implementation design](animation-programs.md) preserves this baseline. This does not
 remove any OCH-12 baseline requirement or OCH-11's shared basic-transition scope.
 
 ## Local evidence

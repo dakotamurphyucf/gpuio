@@ -39,8 +39,6 @@ dependencies = [
 [[package]]
 name = "accesskit_macos"
 version = "0.26.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce02dc63b43f0c9296af9ac946312a2dc8814427d7a64d2d600971dac55b6076"
 dependencies = [
  "accesskit",
  "accesskit_consumer",
@@ -2450,6 +2448,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpuio-example-counter"
+version = "0.0.0"
+dependencies = [
+ "gpuio-extension-sdk",
+]
+
+[[package]]
+name = "gpuio-extension-sdk"
+version = "0.0.0"
+dependencies = [
+ "gpui",
+]
+
+[[package]]
 name = "gpuio-foundation"
 version = "0.0.0"
 dependencies = [
@@ -2477,11 +2489,14 @@ dependencies = [
  "gpui",
  "gpui-base",
  "gpui_platform",
+ "gpuio-extension-sdk",
  "gpuio-portal",
  "gpuio-protocol",
+ "gpuio-table-adapter",
  "gpuio-wayland",
  "image",
  "libc",
+ "lyon",
  "objc2 0.6.4",
  "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",
@@ -2491,6 +2506,7 @@ dependencies = [
  "ropey",
  "roxmltree 0.21.1",
  "syntect",
+ "taffy",
  "two-face",
  "unicode-segmentation",
 ]
@@ -2511,6 +2527,15 @@ name = "gpuio-protocol"
 version = "0.0.0"
 dependencies = [
  "binprot",
+]
+
+[[package]]
+name = "gpuio-table-adapter"
+version = "0.0.0"
+dependencies = [
+ "gpui",
+ "gpui-base",
+ "gpui_platform",
 ]
 
 [[package]]
@@ -5772,8 +5797,6 @@ dependencies = [
 [[package]]
 name = "taffy"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c034e05f6ee85a12daa63863c2245797715075c70649947aa0da54f3f2ab1d0f"
 dependencies = [
  "arrayvec",
  "serde",

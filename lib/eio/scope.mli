@@ -19,6 +19,27 @@ val child : t -> name:string -> t Or_error.t
 val cancel : t -> unit
 val is_active : t -> bool
 
+module Stats : sig
+  (** Counts shared by the entire application scope tree. Tasks remain counted
+      until their producer fiber unwinds, including cancellation; queued result
+      delivery is measured by the scheduler inbox instead. *)
+  type t =
+    { scopes : int
+    ; tasks : int
+    ; cleanups : int
+    }
+  [@@deriving sexp_of]
+end
+
+val stats : t -> Stats.t
+
+(** Register window/application resource cleanup on the owning UI domain.
+    It runs once, synchronously after the scope becomes inactive and its children
+    are cancelled. The callback must not raise, block or perform I/O. Returns an
+    idempotent unregister function; a closed scope or exhausted shared cleanup
+    limit (4096 registrations) returns Error without registering the callback. *)
+val on_cancel : t -> (unit -> unit) -> (unit -> unit) Or_error.t
+
 (** [f] runs as an Eio fiber. Pass I/O capabilities in its closure. CPU work may
     use Eio's domain manager, but it must not access Bonsai from another domain.
     [on_result] and its returned effect execute on the UI loop. *)

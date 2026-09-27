@@ -197,6 +197,13 @@ fn configure<M: InputModeKind>(
             }
         }
         crate::semantics::State {
+            hidden: false,
+            metadata: route
+                .session
+                .borrow()
+                .tree(route.window)
+                .and_then(|tree| tree.get(route.node))
+                .and_then(|node| node.accessibility.clone()),
             live: None,
             element,
             disabled: config.disabled,
@@ -207,7 +214,7 @@ fn configure<M: InputModeKind>(
     }));
 }
 
-fn apply<M: InputModeKind>(
+pub(super) fn apply<M: InputModeKind>(
     state: &mut InputBaseState<M>,
     command: &EditorCommand,
     single_line: bool,
@@ -287,11 +294,20 @@ enum State {
 pub(super) struct Instance {
     state: State,
     config: EditorConfig,
+    accessibility: Option<Arc<gpuio_protocol::accessibility::Config>>,
     route: Rc<Route>,
     _subscriptions: Vec<Subscription>,
     combobox: Option<Rc<RefCell<super::combobox::State>>>,
 }
 impl Instance {
+    #[cfg(feature = "native-tests")]
+    pub(super) fn input_bounds(&self, cx: &App) -> gpui::Bounds<gpui::Pixels> {
+        match &self.state {
+            State::Input(state) => state.read(cx).input_bounds(),
+            State::Textarea(state) => state.read(cx).input_bounds(),
+        }
+    }
+
     #[cfg(feature = "native-tests")]
     pub(super) fn liveness_probe(&self) -> Box<dyn Fn() -> bool> {
         match &self.state {
@@ -359,6 +375,7 @@ impl Instance {
         let instance = Self {
             state,
             config,
+            accessibility: node.accessibility.clone(),
             route,
             _subscriptions: subscriptions,
             combobox,
@@ -374,7 +391,20 @@ impl Instance {
             .publish(instance.snapshot(window, cx), EditorEventKind::Changed);
         instance
     }
-    pub(super) fn configure(&mut self, config: &EditorConfig, window: &mut Window, cx: &mut App) {
+    pub(super) fn configure(
+        &mut self,
+        config: &EditorConfig,
+        accessibility: &Option<Arc<gpuio_protocol::accessibility::Config>>,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        if self.accessibility != *accessibility {
+            self.accessibility = accessibility.clone();
+            match &self.state {
+                State::Input(entity) => entity.update(cx, |_, cx| cx.notify()),
+                State::Textarea(entity) => entity.update(cx, |_, cx| cx.notify()),
+            }
+        }
         if &self.config == config {
             return;
         }

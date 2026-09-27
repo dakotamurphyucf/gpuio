@@ -156,3 +156,18 @@ These checks ran locally with real macOS windows. Linux GUI acceptance and the
 three system-libwayland protocol tests remain unverified on this machine; the
 latter are explicitly ignored on macOS and enabled for the Linux build/test gate.
 No hosted CI or merge is claimed for this checkpoint; OCH-11 remains In Progress.
+
+## Milestone-05 regression: saved picker view mode
+
+The consolidated native run exposed a test-driver assumption: the local picker
+was in column view, whose file entries are `AXGroup` children of `AXList`, rather
+than list-view `AXRow` entries. The driver now uses the corresponding container's
+`AXSelectedChildren` for column entries while preserving `AXSelectedRows` for
+list-view multi-selection. It leaves the user's saved view preference alone.
+Actual single-file, two-file, directory and save-path selection, cancellation,
+Busy/generation/response ownership and window cleanup pass again on macOS.
+This changes test automation, not production picker behavior.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native --features native-image-tests,native-canvas-tests --test native_file_dialog --test native_scroll
+```

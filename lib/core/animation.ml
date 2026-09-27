@@ -1,5 +1,6 @@
 open Core
 module W = Gpuio_protocol.Wire.Animation
+module P = Gpuio_protocol.Wire.Animation_program
 
 module Property = struct
   type t =
@@ -93,12 +94,232 @@ module Easing = struct
   ;;
 end
 
+module Spring = struct
+  type t = W.Spring.t [@@deriving equal, sexp_of]
+
+  let create
+        ?(epsilon = 0.001)
+        ?(max_duration = Time_ns.Span.of_sec 10.)
+        ~stiffness
+        ~damping
+        ~mass
+        ()
+    =
+    let bounded value ~lower ~upper =
+      Float.is_finite value && Float.(value >= lower && value <= upper)
+    in
+    let milliseconds = Time_ns.Span.to_ms max_duration in
+    if
+      not
+        (bounded stiffness ~lower:0.01 ~upper:10_000.
+         && bounded damping ~lower:0. ~upper:1_000.
+         && bounded mass ~lower:0.01 ~upper:1_000.
+         && bounded epsilon ~lower:0.0001 ~upper:1.
+         && Float.(milliseconds > 0. && milliseconds <= 60_000.))
+    then Or_error.error_string "spring parameters or maximum duration are out of bounds"
+    else
+      Ok
+        ({ stiffness
+         ; damping
+         ; mass
+         ; epsilon
+         ; max_duration_ms = Float.iround_up_exn milliseconds |> Int64.of_int
+         }
+         : W.Spring.t)
+  ;;
+end
+
 module Repeat = struct
   type t = W.Repeat.t =
     | Once
     | Loop
     | Alternate
   [@@deriving equal, sexp_of]
+end
+
+let milliseconds span =
+  let value = Time_ns.Span.to_ms span in
+  if Float.(value < 0. || value > 86_400_000.)
+  then Or_error.error_string "animation time must be between zero and one day"
+  else Ok (Float.iround_up_exn value |> Int64.of_int)
+;;
+
+module Timing = struct
+  type t = P.Timing.t [@@deriving equal, sexp_of]
+
+  let tween ?(easing = Easing.linear) duration =
+    Or_error.map (milliseconds duration) ~f:(fun duration ->
+      P.Timing.Tween (duration, easing))
+  ;;
+
+  let spring parameters = P.Timing.Spring parameters
+
+  let maximum_duration = function
+    | P.Timing.Tween (duration, _) -> duration
+    | Spring parameters -> parameters.W.Spring.max_duration_ms
+  ;;
+end
+
+module Stage = struct
+  type t = P.Stage.t [@@deriving equal, sexp_of]
+
+  let create ?(delay = Time_ns.Span.zero) ~timing ~target () =
+    Or_error.map (milliseconds delay) ~f:(fun delay_ms ->
+      ({ targets = target; timing; delay_ms } : P.Stage.t))
+  ;;
+end
+
+module Clock = struct
+  type t = P.Clock.t [@@deriving equal, sexp_of]
+
+  let independent = P.Clock.Independent
+  let application = P.Clock.Application
+
+  let group name =
+    if
+      String.is_empty name
+      || String.length name > 128
+      || String.contains name '\000'
+      || not (Stdlib.String.is_valid_utf_8 name)
+    then
+      Or_error.error_string "animation group name must be 1..128 UTF-8 bytes without NUL"
+    else Ok (P.Clock.Group name)
+  ;;
+end
+
+module Playback = struct
+  type t = P.Playback.t =
+    | Running
+    | Paused
+    | Cancelled
+  [@@deriving equal, sexp_of]
+end
+
+module Run_id = struct
+  type t = int64 [@@deriving equal, compare, sexp_of]
+
+  let to_int64 t = t
+end
+
+module Program = struct
+  module Stage_result = struct
+    type t = P.Stage_result.t =
+      | Played
+      | Reduced_motion
+    [@@deriving equal, sexp_of]
+  end
+
+  module Cancel_reason = struct
+    type t = P.Cancel_reason.t =
+      | Replaced
+      | Removed
+      | Window_closed
+      | Requested
+    [@@deriving equal, sexp_of]
+  end
+
+  module Observation = struct
+    type t =
+      | Stage_completed of int * Stage_result.t
+      | Finished
+      | Cancelled of Cancel_reason.t
+    [@@deriving equal, sexp_of]
+  end
+
+  module Event = struct
+    type t =
+      { run_id : Run_id.t
+      ; observations : Observation.t list
+      }
+    [@@deriving equal, sexp_of]
+  end
+
+  type t =
+    { program : P.Program.t
+    ; playback : Playback.t
+    ; restart : int64
+    }
+  [@@deriving equal, sexp_of]
+
+  let create
+        ?initial
+        ?(delay = Time_ns.Span.zero)
+        ?(repeat = Repeat.Once)
+        ?(clock = Clock.independent)
+        stages
+    =
+    let open Or_error.Let_syntax in
+    let%bind delay_ms = milliseconds delay in
+    let matches a b =
+      List.equal
+        W.Property.equal
+        (List.map a ~f:(fun item -> item.W.Target.property))
+        (List.map b ~f:(fun item -> item.W.Target.property))
+    in
+    match stages with
+    | [] -> Or_error.error_string "animation program must contain 1..32 stages"
+    | first :: rest ->
+      let period =
+        List.fold stages ~init:0L ~f:(fun sum (stage : Stage.t) ->
+          Int64.(sum + stage.delay_ms + Timing.maximum_duration stage.timing))
+      in
+      let shared = not (P.Clock.equal clock Independent) in
+      if List.length stages > 32
+      then Or_error.error_string "animation program must contain 1..32 stages"
+      else if
+        (not
+           (List.for_all rest ~f:(fun (stage : Stage.t) ->
+              matches first.targets stage.targets)))
+        || Option.exists initial ~f:(fun values -> not (matches first.targets values))
+      then Or_error.error_string "every animation stage must name the same properties"
+      else if
+        ((not (List.is_empty rest)) || not (Repeat.equal repeat Once))
+        && Option.is_none initial
+      then Or_error.error_string "sequences and repeats require initial values"
+      else if Int64.(period > 86_400_000L)
+      then Or_error.error_string "animation cycle exceeds one day"
+      else if (not (Repeat.equal repeat Once)) && Int64.(period <= 0L)
+      then Or_error.error_string "repeating animation needs a positive cycle duration"
+      else if
+        shared
+        && (Repeat.equal repeat Once
+            || (not (Int64.equal delay_ms 0L))
+            || List.exists stages ~f:(fun (stage : Stage.t) ->
+              match stage.timing with
+              | Spring _ -> true
+              | Tween _ -> false))
+      then
+        Or_error.error_string
+          "shared clocks require timed repetition without initial delay"
+      else
+        Ok
+          { program = { initial; stages; delay_ms; repeat; clock }
+          ; playback = Running
+          ; restart = 0L
+          }
+  ;;
+
+  let with_playback t playback = { t with playback }
+
+  let restart t =
+    if Int64.equal t.restart Int64.max_value
+    then Or_error.error_string "animation restart token exhausted"
+    else Ok { t with restart = Int64.succ t.restart; playback = Running }
+  ;;
+
+  let reverse t =
+    match t.program.initial with
+    | None -> Or_error.error_string "reversing an animation requires initial values"
+    | Some initial ->
+      let final, reversed =
+        List.fold
+          t.program.stages
+          ~init:(initial, [])
+          ~f:(fun (previous, reversed) (stage : Stage.t) ->
+            stage.targets, { stage with targets = previous } :: reversed)
+      in
+      Ok { t with program = { t.program with initial = Some final; stages = reversed } }
+  ;;
 end
 
 module Preference = struct
@@ -156,12 +377,6 @@ module Config = struct
   ;;
 end
 
-module Run_id = struct
-  type t = int64 [@@deriving equal, compare, sexp_of]
-
-  let to_int64 t = t
-end
-
 module Cancel_reason = struct
   type t = W.Cancel_reason.t =
     | Replaced
@@ -186,6 +401,36 @@ module Event = struct
 end
 
 module Expert = struct
+  let program_event_of_wire signals =
+    if not (P.Signal.valid_batch signals)
+    then Or_error.error_string "invalid animation observation batch"
+    else (
+      let observations =
+        List.map signals ~f:(fun (signal : P.Signal.t) ->
+          match signal.observation with
+          | Stage_completed (index, result) ->
+            Program.Observation.Stage_completed (Int64.to_int_exn index, result)
+          | Finished -> Finished
+          | Cancelled reason -> Cancelled reason)
+      in
+      Ok ({ run_id = (List.hd_exn signals).generation; observations } : Program.Event.t))
+  ;;
+
+  let spring_to_wire (spring : Spring.t) = spring
+
+  let program_to_wire (config : Program.t) ~generation =
+    if Int64.(generation <= 0L)
+    then Or_error.error_string "animation generation must be positive"
+    else
+      Ok
+        ({ generation
+         ; program = config.program
+         ; playback = config.playback
+         ; restart = config.restart
+         }
+         : P.Config.t)
+  ;;
+
   let event_of_wire ({ generation; outcome } : W.Endpoint.t) =
     if Int64.(generation <= 0L)
     then Or_error.error_string "invalid animation run"

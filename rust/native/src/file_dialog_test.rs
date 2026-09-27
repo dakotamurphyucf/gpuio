@@ -105,12 +105,27 @@ fn picker_action_sync(pid: libc::pid_t, label: &str, action: PickerAction, diagn
                 string(element, "AXDescription")
             );
         }
-        if select_file && role.as_deref() == Some("AXRow") && has_filename(element, label, 0) {
-            if matches!(action, PickerAction::ExtendSelection) {
+        // NSOpenPanel remembers the user's view mode. List view exposes rows;
+        // column view exposes file groups directly under each column's AXList.
+        // Select those through their container without changing that preference.
+        let column_item = select_file
+            && role.as_deref() == Some("AXGroup")
+            && attribute(element, "AXParent")
+                .is_some_and(|parent| string(parent.0, "AXRole").as_deref() == Some("AXList"));
+        if select_file
+            && (role.as_deref() == Some("AXRow") || column_item)
+            && has_filename(element, label, 0)
+        {
+            if matches!(action, PickerAction::ExtendSelection) || column_item {
                 let Some(parent) = attribute(element, "AXParent") else {
                     return false;
                 };
-                let Some(selected) = attribute(parent.0, "AXSelectedRows") else {
+                let selection_attribute = if column_item {
+                    "AXSelectedChildren"
+                } else {
+                    "AXSelectedRows"
+                };
+                let Some(selected) = attribute(parent.0, selection_attribute) else {
                     return false;
                 };
                 unsafe {
@@ -121,7 +136,12 @@ fn picker_action_sync(pid: libc::pid_t, label: &str, action: PickerAction, diagn
                     if count > 128 {
                         return false;
                     }
-                    let mut rows: Vec<_> = (0..count)
+                    let retained_count = if matches!(action, PickerAction::ExtendSelection) {
+                        count
+                    } else {
+                        0
+                    };
+                    let mut rows: Vec<_> = (0..retained_count)
                         .map(|index| CFArrayGetValueAtIndex(selected.0, index))
                         .collect();
                     rows.push(element);
@@ -137,7 +157,7 @@ fn picker_action_sync(pid: libc::pid_t, label: &str, action: PickerAction, diagn
                         return false;
                     }
                     let rows = Value(raw);
-                    let name = NSString::from_str("AXSelectedRows");
+                    let name = NSString::from_str(selection_attribute);
                     return AXUIElementSetAttributeValue(
                         parent.0,
                         Retained::as_ptr(&name).cast(),

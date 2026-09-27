@@ -131,3 +131,35 @@ after stabilization. This avoids retaining paths for every recently visited
 virtual row while leaving within-batch dependency decisions intact. The additive
 option defaults to upstream `Keep_recent`; it changes cache lifetime, not row
 reset semantics. See the [managed-list memory evidence](managed-lists.md).
+
+## Read-only runtime diagnostics
+
+`App.diagnostics` samples the owning UI domain without submitting a native
+request, scheduling a frame or changing a component. It combines the existing
+scheduler/commit counters with serialized bridge traffic, current queued jobs
+and commands, correlated requests, scope-tree task/cleanup counts, and registered
+asset/document/canvas reservations. `Scope.stats` covers the entire shared scope
+tree; cancelled producer tasks remain counted until their fibers unwind. A
+completed task can leave a queued result, which the inbox reports separately.
+Expect coverage verifies cancellation clears registrations, suppresses queued
+results and eventually returns scope/task/queue counts to zero.
+
+`Gpuio_native.traffic` counts valid encoded submission attempts, accepted messages
+and their bytes, drain calls/bytes and decoded events. Native rejection/retry
+does not increase accepted traffic. Empty drain buffers still count toward
+drains/bytes: the current clock-polling adapter calls drain during ordinary
+scheduler turns even if the event list is empty. An unchanged event/commit count
+during native animation therefore means no additional event/transaction traffic,
+not an absence of FFI polling or clock work. Sampling obeys the same single UI
+domain ownership as submission/drain; native run/dispose retain their OS-thread
+contract. The underlying Rust FFI still receives the same integer handle.
+
+Registry byte counts are OCaml-side reservations for encoded assets, canonical
+sources and canvas scenes. They are not native decoded-cache/GPU allocation or
+total process-memory measurements. Combine them with actual workload sizes,
+native retained-row/cell observations and separate process memory measurements.
+The chat's opt-in `--workload-metrics` mode prints bounded-frequency snapshots
+through Eio and uses two-second inter-chunk gaps for reproducible observation;
+ordinary demo operation starts no metrics task. The monitor itself is one scoped
+task, included in task counts. The combined acceptance evidence records actual
+results rather than inferring performance from these interfaces alone.

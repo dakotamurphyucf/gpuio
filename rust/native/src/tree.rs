@@ -1,3 +1,5 @@
+#[path = "table_tree.rs"]
+mod table;
 use gpuio_protocol::{HandlerId, NodeId, WindowId, v1::*};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -9,13 +11,21 @@ fn allows_children(kind: Kind) -> bool {
         kind,
         Kind::Container
             | Kind::TabPanel
+            | Kind::Panel
+            | Kind::Disclosure
+            | Kind::Accordion
+            | Kind::NavigationStack
+            | Kind::Carousel
             | Kind::SplitPane
             | Kind::VirtualList
             | Kind::Animated
+            | Kind::AnimationProgram
+            | Kind::ContainerQuery
             | Kind::Button
             | Kind::CommandButton
             | Kind::FocusScope
             | Kind::Tooltip
+            | Kind::HoverCard
             | Kind::CommandScope
             | Kind::Menu
             | Kind::Toast
@@ -24,6 +34,37 @@ fn allows_children(kind: Kind) -> bool {
             | Kind::DragSource
             | Kind::DropTarget
     )
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SliderMount {
+    pub config: Arc<gpuio_protocol::slider::Config>,
+    pub initial: gpuio_protocol::slider::Value,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct NumberInputMount {
+    pub config: Arc<gpuio_protocol::number_input::Config>,
+    pub initial: gpuio_protocol::number_input::Value,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct OtpInputMount {
+    pub config: Arc<gpuio_protocol::otp_input::Config>,
+    pub initial: Arc<str>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ColorInputMount {
+    pub config: Arc<gpuio_protocol::color_input::Config>,
+    pub initial: gpuio_protocol::color_value::Value,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct CalendarMount {
+    pub config: Arc<gpuio_protocol::calendar_input::Config>,
+    pub initial: gpuio_protocol::calendar::Selection,
+    pub initial_month: gpuio_protocol::calendar::Month,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -42,10 +83,31 @@ pub struct Node {
     pub menu: Option<Arc<MenuConfig>>,
     pub palette: Option<Arc<PaletteConfig>>,
     pub progress: Option<Arc<ProgressConfig>>,
+    pub loading: Option<Arc<gpuio_protocol::loading::Config>>,
     pub image: Option<Arc<ImageConfig>>,
+    pub avatar: Option<Arc<gpuio_protocol::avatar::Config>>,
+    pub rating: Option<Arc<gpuio_protocol::rating::Config>>,
+    pub slider: Option<SliderMount>,
+    pub number_input: Option<NumberInputMount>,
+    pub otp_input: Option<OtpInputMount>,
+    pub calendar: Option<CalendarMount>,
+    pub color_input: Option<ColorInputMount>,
+    pub extension: Option<Arc<gpuio_protocol::extension::Config>>,
+    pub extension_command: Option<Arc<gpuio_protocol::extension::Command>>,
     pub split: Option<Arc<gpuio_protocol::split::Config>>,
     pub document: Option<Arc<gpuio_protocol::document::Config>>,
+    pub canvas: Option<Arc<gpuio_protocol::canvas_view::Config>>,
     pub animation: Option<Arc<gpuio_protocol::animation::Config>>,
+    pub animation_program: Option<Arc<gpuio_protocol::animation_program::Config>>,
+    pub navigation_stack: Option<gpuio_protocol::navigation_stack::Config>,
+    pub carousel: Option<Arc<gpuio_protocol::carousel::Config>>,
+    pub table: Option<Arc<gpuio_protocol::table::Config>>,
+    pub table_cell: Option<Arc<gpuio_protocol::table::Cell>>,
+    pub table_serial: i64,
+    pub tree_input: bool,
+    pub tree_moves: bool,
+    pub container_query: Option<Arc<gpuio_protocol::container_query::Config>>,
+    pub accessibility: Option<Arc<gpuio_protocol::accessibility::Config>>,
     pub list_config: Option<Arc<gpuio_protocol::list::Config>>,
     pub list_order: Option<Arc<gpuio_protocol::list::Order>>,
     pub list_index: Option<Arc<crate::list_index::Index>>,
@@ -66,7 +128,74 @@ pub struct Node {
 
 impl Node {
     fn payload_bytes(&self) -> usize {
-        self.text.len()
+        self.table
+            .as_ref()
+            .map_or(0, |config| config.retained_bytes())
+            + self
+                .table_cell
+                .as_ref()
+                .map_or(0, |cell| cell.retained_bytes())
+            + self
+                .carousel
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
+            + self
+                .color_input
+                .as_ref()
+                .map_or(0, |color| 32 + color.config.retained_bytes())
+            + self
+                .calendar
+                .as_ref()
+                .map_or(0, |calendar| 32 + calendar.config.retained_bytes())
+            + self
+                .otp_input
+                .as_ref()
+                .map_or(0, |s| s.config.retained_bytes() + s.initial.len())
+            + self
+                .number_input
+                .as_ref()
+                .map_or(0, |s| s.config.retained_bytes())
+            + self
+                .slider
+                .as_ref()
+                .map_or(0, |s| s.config.retained_bytes())
+            + self.rating.as_ref().map_or(0, |c| c.retained_bytes())
+            + self.avatar.as_ref().map_or(0, |c| c.retained_bytes())
+            + self.loading.as_ref().map_or(0, |c| c.retained_bytes())
+            + self.navigation_stack.map_or(0, |_| {
+                std::mem::size_of::<gpuio_protocol::navigation_stack::Config>()
+            })
+            + self.text.len()
+            + self
+                .accessibility
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
+            + self
+                .container_query
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
+            + self
+                .animation_program
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
+            + self
+                .canvas
+                .as_ref()
+                .map_or(0, |config| config.label.len() + 256)
+            + self.extension.as_ref().map_or(0, |config| {
+                256 + config.schema.name.len()
+                    + config.schema.fingerprint.len()
+                    + config.label.len()
+                    + config.properties.0.len()
+                    + config
+                        .command
+                        .as_ref()
+                        .map_or(0, |command| command.payload.0.len())
+            })
+            + self
+                .extension_command
+                .as_ref()
+                .map_or(0, |command| command.payload.0.len() + 32)
             + self
                 .split
                 .as_ref()
@@ -185,6 +314,8 @@ pub struct Tree {
     root: Option<NodeId>,
     slots: Vec<Slot>,
     node_count: usize,
+    extension_count: usize,
+    canvas_count: usize,
     retained_bytes: usize,
 }
 
@@ -195,6 +326,7 @@ pub struct Applied {
     pub validated_nodes: usize,
     pub dirty: Vec<NodeId>,
     pub lists: Vec<ListAction>,
+    pub tables: Vec<(NodeId, gpuio_protocol::table::Command)>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -211,6 +343,8 @@ impl Tree {
             root: None,
             slots: Vec::new(),
             node_count: 0,
+            extension_count: 0,
+            canvas_count: 0,
             retained_bytes: 0,
         }
     }
@@ -231,6 +365,32 @@ impl Tree {
         self.node_count == 0
     }
 
+    /// The only toggle in either supported disclosure header shape. Custom
+    /// content is independent; no arbitrary descendant search can steal a link.
+    pub fn disclosure_trigger(&self, id: NodeId) -> Option<NodeId> {
+        let disclosure = self.get(id)?;
+        if disclosure.kind != Kind::Disclosure {
+            return None;
+        }
+        let header = self.get(*disclosure.children.first()?)?;
+        let trigger = match header.kind {
+            Kind::Button => header,
+            Kind::Container => self.get(*header.children.last()?)?,
+            _ => return None,
+        };
+        (trigger.kind == Kind::Button).then_some(trigger.id)
+    }
+
+    pub fn disclosure_for_trigger(&self, id: NodeId) -> Option<&Node> {
+        let parent = self.get(self.get(id)?.parent?)?;
+        let disclosure = if parent.kind == Kind::Container {
+            self.get(parent.parent?)?
+        } else {
+            parent
+        };
+        (self.disclosure_trigger(disclosure.id) == Some(id)).then_some(disclosure)
+    }
+
     pub fn get(&self, id: NodeId) -> Option<&Node> {
         self.slots
             .get(id.slot())
@@ -245,6 +405,7 @@ impl Tree {
         while let Some(parent) = self.get(child)?.parent {
             let node = self.get(parent)?;
             if let Some(config) = &node.tooltip
+                && node.kind == Kind::Tooltip
                 && !config.disabled
                 && node.children.first() == Some(&child)
             {
@@ -300,6 +461,16 @@ impl Tree {
         budget: usize,
         pins: &[gpuio_protocol::list::Retained],
     ) -> Result<Applied, ApplyFailure> {
+        self.apply_with_admission(tx, budget, pins, |_| Ok(()))
+    }
+
+    pub(crate) fn apply_with_admission(
+        &mut self,
+        tx: &Transaction,
+        budget: usize,
+        pins: &[gpuio_protocol::list::Retained],
+        admit: impl FnOnce(&[ProgramChange]) -> Result<(), ErrorCode>,
+    ) -> Result<Applied, ApplyFailure> {
         if tx.window != self.window {
             return Err(ErrorCode::StaleHandle.into());
         }
@@ -315,13 +486,62 @@ impl Tree {
             root: self.root,
             slot_count: self.slots.len(),
             node_count: self.node_count,
+            extension_count: self.extension_count,
+            canvas_count: self.canvas_count,
             retained_bytes: self.retained_bytes,
             budget: budget.min(MAX_RETAINED_BYTES),
             structural: false,
             lists: Vec::new(),
+            tables: Vec::new(),
         };
+        let mut extension_updates = BTreeSet::new();
+        let mut canvas_updates = BTreeSet::new();
+        let mut program_updates = BTreeSet::new();
+        let mut query_updates = BTreeSet::new();
+        let mut table_updates = BTreeSet::new();
         for op in &tx.operations {
+            if let Op::SetTable(id, _) = op
+                && !table_updates.insert(*id)
+            {
+                return Err(ErrorCode::InvalidTree.into());
+            }
+            if let Op::SetContainerQuery(id, _) = op
+                && !query_updates.insert(*id)
+            {
+                return Err(ErrorCode::InvalidTree.into());
+            }
+            if let Op::SetAnimationProgram(id, _) = op
+                && !program_updates.insert(*id)
+            {
+                return Err(ErrorCode::InvalidTree.into());
+            }
+            if let Op::SetExtension(id, _) = op
+                && !extension_updates.insert(*id)
+            {
+                return Err(ErrorCode::InvalidTree.into());
+            }
+            if let Op::SetCanvas(id, _) = op
+                && !canvas_updates.insert(*id)
+            {
+                // Each command must reach the mounted state; a later config in
+                // this transaction cannot silently replace an earlier one.
+                return Err(ErrorCode::InvalidTree.into());
+            }
             plan.operation(op)?;
+        }
+        // A viewport-only update must also validate its unchanged carousel owner.
+        // Include it in dirty output so owner scheduling sees the admitted snapshot.
+        let carousel_parents = plan
+            .changes
+            .values()
+            .filter_map(|slot| {
+                let parent = slot.node.as_ref()?.parent?;
+                plan.node(parent).ok()?.carousel.as_ref()?;
+                Some(parent)
+            })
+            .collect::<BTreeSet<_>>();
+        for parent in carousel_parents {
+            plan.node_mut(parent)?;
         }
         for slot in plan.changes.values() {
             if let Some(node) = &slot.node {
@@ -407,6 +627,27 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
+                if (node.kind == Kind::ContainerQuery) != node.container_query.is_some()
+                    || node.container_query.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || !node.text.is_empty()
+                            || node.children.len() != config.branches.len()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::AnimationProgram) != node.animation_program.is_some()
+                    || node.animation_program.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || !node.text.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 if (node.kind == Kind::Animated) != node.animation.is_some()
                     || node.animation.as_ref().is_some_and(|config| {
                         !config.is_valid()
@@ -417,13 +658,114 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
-                if matches!(node.kind, Kind::Image | Kind::Icon) != node.image.is_some()
+                if (matches!(node.kind, Kind::Image | Kind::Icon)
+                    || node.avatar.as_ref().is_some_and(|c| c.source.is_some()))
+                    != node.image.is_some()
                     || node.image.as_ref().is_some_and(|config| {
                         !config.is_valid()
                             || !node.text.is_empty()
                             || !node.children.is_empty()
                             || node.control.is_some()
                             || node.choice.is_some()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::Slider) != node.slider.is_some()
+                    || node.slider.as_ref().is_some_and(|slider| {
+                        !slider.config.is_valid()
+                            || !slider.initial.is_valid()
+                            || !node.text.is_empty()
+                            || !node.children.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                            || node.handler.is_none()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::ColorInput) != node.color_input.is_some()
+                    || node.color_input.as_ref().is_some_and(|color| {
+                        !color.config.is_valid()
+                            || !node.text.is_empty()
+                            || !node.children.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                            || node.handler.is_none()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::Calendar) != node.calendar.is_some()
+                    || node.calendar.as_ref().is_some_and(|calendar| {
+                        !calendar.config.is_valid()
+                            || !calendar.initial.fits(calendar.config.mode)
+                            || !node.text.is_empty()
+                            || !node.children.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                            || node.handler.is_none()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::OtpInput) != node.otp_input.is_some()
+                    || node.otp_input.as_ref().is_some_and(|input| {
+                        !input.config.is_valid()
+                            || !input.config.policy.canonical(&input.initial)
+                            || !node.text.is_empty()
+                            || !node.children.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                            || node.handler.is_none()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::NumberInput) != node.number_input.is_some()
+                    || node.number_input.as_ref().is_some_and(|number_input| {
+                        !number_input.config.is_valid()
+                            || !number_input.initial.is_valid()
+                            || !node.text.is_empty()
+                            || !node.children.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                            || node.handler.is_none()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::Rating) != node.rating.is_some()
+                    || node.rating.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || !node.text.is_empty()
+                            || !node.children.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                            || (!config.disabled && !config.read_only && node.handler.is_none())
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::Avatar) != node.avatar.is_some()
+                    || node.avatar.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || !config.matches_image(node.image.as_deref())
+                            || !node.text.is_empty()
+                            || !node.children.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                            || (config.source.is_none() && node.handler.is_some())
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::Extension) != node.extension.is_some()
+                    || node.extension.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || !node.text.is_empty()
+                            || !node.children.is_empty()
+                            || node.handler.is_none()
                     })
                 {
                     return Err(ErrorCode::InvalidTree.into());
@@ -436,9 +778,28 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
+                if (node.kind == Kind::CanvasView) != node.canvas.is_some()
+                    || node.canvas.as_ref().is_some_and(|config| {
+                        !config.is_valid() || !node.text.is_empty() || !node.children.is_empty()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 if (node.kind == Kind::DocumentView) != node.document.is_some()
                     || node.document.as_ref().is_some_and(|config| {
                         !config.is_valid() || !node.text.is_empty() || !node.children.is_empty()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::Loading) != node.loading.is_some()
+                    || node.loading.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || node.handler.is_some()
+                            || !node.text.is_empty()
+                            || !node.children.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
                     })
                 {
                     return Err(ErrorCode::InvalidTree.into());
@@ -493,12 +854,18 @@ impl Tree {
                 if (node.kind == Kind::FocusScope) != node.focus_scope.is_some() {
                     return Err(ErrorCode::InvalidTree.into());
                 }
-                if (node.kind == Kind::Tooltip) != node.tooltip.is_some()
+                if matches!(node.kind, Kind::Tooltip | Kind::HoverCard) != node.tooltip.is_some()
                     || node
                         .tooltip
                         .as_ref()
                         .is_some_and(|config| !config.is_valid())
-                    || (node.kind == Kind::Tooltip && node.children.len() != 2)
+                    || (matches!(node.kind, Kind::Tooltip | Kind::HoverCard)
+                        && node.children.len() != 2)
+                    || (node.kind == Kind::HoverCard
+                        && node
+                            .tooltip
+                            .as_ref()
+                            .is_some_and(|config| !config.hoverable || config.skip_delay_ns != 0))
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
@@ -509,9 +876,69 @@ impl Tree {
                     && (node.kind != Kind::FocusScope
                         || !config.is_valid()
                         || node.handler.is_none()
-                        || (config.kind == OverlayKind::Dialog
+                        || (config.kind.is_modal()
                             && !node.focus_scope.is_some_and(|scope| scope.trap))
                         || (config.kind == OverlayKind::Popover && Some(node.id) == plan.root))
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if node.tree_moves && !node.tree_input {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if node.tree_input
+                    && (node.kind != Kind::VirtualList
+                        || node.handler.is_none()
+                        || !node.accessibility.as_ref().is_some_and(|metadata| {
+                            matches!(
+                                metadata.role,
+                                Some(gpuio_protocol::accessibility::Role::Tree(_))
+                            )
+                        }))
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::Carousel) != node.carousel.is_some()
+                    || node.carousel.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || node.handler.is_none()
+                            || node.text.is_empty()
+                            || node.text.len() > 4096
+                            || node.text.contains('\0')
+                            || !(1..=2).contains(&node.children.len())
+                            || node.children.first().is_none_or(|child| {
+                                plan.node(*child).map_or(true, |viewport| {
+                                    viewport.kind != Kind::NavigationStack
+                                        || viewport.children.len() != config.ids.len()
+                                        || viewport.navigation_stack.is_none_or(|presentation| {
+                                            presentation.selected != config.selected
+                                        })
+                                })
+                            })
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::NavigationStack) != node.navigation_stack.is_some()
+                    || node.navigation_stack.is_some_and(|config| {
+                        !config.valid_children(node.children.len())
+                            || node.handler.is_some()
+                            || node.text.is_empty()
+                            || node.text.len() > 4096
+                            || node.text.contains('\0')
+                            || node.children.iter().enumerate().any(|(index, child)| {
+                                plan.node(*child).map_or(true, |child| {
+                                    child.kind != Kind::Panel
+                                        || (!config.retain
+                                            && config.selected != Some(index as i64)
+                                            && !child.children.is_empty())
+                                })
+                            })
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if node.kind == Kind::Panel
+                    && (node.text.is_empty() || node.text.len() > 4096 || node.text.contains('\0'))
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
@@ -532,6 +959,7 @@ impl Tree {
                     Kind::Container
                     | Kind::FocusScope
                     | Kind::Tooltip
+                    | Kind::HoverCard
                     | Kind::Toast
                     | Kind::ToastStack
                     | Kind::PointerArea
@@ -542,12 +970,29 @@ impl Tree {
                     | Kind::Menu
                     | Kind::CommandPalette
                     | Kind::Progress
+                    | Kind::Loading
                     | Kind::Image
+                    | Kind::Avatar
+                    | Kind::Rating
+                    | Kind::Slider
+                    | Kind::NumberInput
+                    | Kind::OtpInput
+                    | Kind::Calendar
+                    | Kind::ColorInput
                     | Kind::TabPanel
+                    | Kind::Panel
+                    | Kind::Disclosure
+                    | Kind::Accordion
+                    | Kind::NavigationStack
+                    | Kind::Carousel
                     | Kind::SplitPane
+                    | Kind::Extension
+                    | Kind::CanvasView
                     | Kind::DocumentView
                     | Kind::Icon
                     | Kind::Animated
+                    | Kind::AnimationProgram
+                    | Kind::ContainerQuery
                     | Kind::VirtualList
                     | Kind::Text
                     | Kind::Button => {
@@ -593,9 +1038,13 @@ impl Tree {
         }
         for id in &dirty {
             plan.validate_button_icons(*id)?;
+            plan.validate_table(plan.node(*id)?)?;
         }
         if let Some(root) = plan.root {
             dirty.insert(root);
+        }
+        for (node, command) in plan.tables.clone() {
+            plan.validate_table_command(node, &command)?;
         }
         let touched_records = plan.changes.len();
         for action in &plan.lists {
@@ -630,25 +1079,50 @@ impl Tree {
         if !retained.is_empty() {
             return Err(ApplyFailure::Retained(retained));
         }
+        let mut programs = Vec::new();
+        for (index, slot) in &plan.changes {
+            let before = self.slots.get(*index).and_then(|s| s.node.as_ref());
+            let after = slot.node.as_ref();
+            if before.and_then(|n| n.animation_program.as_ref())
+                == after.and_then(|n| n.animation_program.as_ref())
+                && before.map(|n| n.id) == after.map(|n| n.id)
+            {
+                continue;
+            }
+            if let Some(node) = before.filter(|n| n.animation_program.is_some()) {
+                programs.push((node.id, None));
+            }
+            if let Some(node) = after
+                && let Some(config) = &node.animation_program
+            {
+                programs.push((node.id, Some(config.clone())));
+            }
+        }
         let Plan {
             changes,
             root,
             slot_count,
             node_count,
+            extension_count,
+            canvas_count,
             retained_bytes,
             lists,
+            tables,
             ..
         } = plan;
         // All validation has succeeded. Reserve before mutating semantic state.
         self.slots
             .try_reserve(slot_count - self.slots.len())
             .map_err(|_| ErrorCode::LimitExceeded)?;
+        admit(&programs)?;
         self.slots.resize_with(slot_count, Slot::default);
         for (index, slot) in changes {
             self.slots[index] = slot;
         }
         self.root = root;
         self.node_count = node_count;
+        self.extension_count = extension_count;
+        self.canvas_count = canvas_count;
         self.retained_bytes = retained_bytes;
         self.revision = tx.revision;
         Ok(Applied {
@@ -657,9 +1131,15 @@ impl Tree {
             validated_nodes,
             dirty: dirty.into_iter().collect(),
             lists,
+            tables,
         })
     }
 }
+
+pub(crate) type ProgramChange = (
+    NodeId,
+    Option<Arc<gpuio_protocol::animation_program::Config>>,
+);
 
 /// Invalid transactions and stale row-eviction attempts have different retry semantics.
 #[derive(Debug, PartialEq, Eq)]
@@ -688,10 +1168,13 @@ struct Plan<'a> {
     root: Option<NodeId>,
     slot_count: usize,
     node_count: usize,
+    extension_count: usize,
+    canvas_count: usize,
     retained_bytes: usize,
     budget: usize,
     structural: bool,
     lists: Vec<ListAction>,
+    tables: Vec<(NodeId, gpuio_protocol::table::Command)>,
 }
 
 impl Plan<'_> {
@@ -755,6 +1238,9 @@ impl Plan<'_> {
                 }
             }
             ListAction::Scroll(_, request) => {
+                if node.table.is_some() {
+                    return Err(ErrorCode::InvalidTree);
+                }
                 use gpuio_protocol::list::ScrollTarget;
                 if request.serial < 1 {
                     return Err(ErrorCode::InvalidTree);
@@ -767,6 +1253,12 @@ impl Plan<'_> {
                         Some(row)
                     }
                     ScrollTarget::Reveal(row) => Some(row),
+                    ScrollTarget::FocusTreeRow(row) => {
+                        if !node.tree_input {
+                            return Err(ErrorCode::InvalidTree);
+                        }
+                        Some(row)
+                    }
                     ScrollTarget::End => None,
                 };
                 if !Self::list_contains(index, row.into_iter()) {
@@ -859,13 +1351,33 @@ impl Plan<'_> {
             | Op::SetMenu(id, ..)
             | Op::SetPalette(id, ..)
             | Op::SetAnimation(id, ..)
+            | Op::SetAnimationProgram(id, ..)
+            | Op::SetNavigationStack(id, ..)
+            | Op::SetTreeInput(id, ..)
+            | Op::SetTable(id, ..)
+            | Op::SetTableCell(id, ..)
+            | Op::TableCommand(id, ..)
+            | Op::SetTreeMoves(id, ..)
+            | Op::SetCarousel(id, ..)
+            | Op::SetContainerQuery(id, ..)
+            | Op::SetAccessibility(id, ..)
+            | Op::SetLoading(id, ..)
+            | Op::SetAvatar(id, ..)
+            | Op::SetRating(id, ..)
+            | Op::SetSlider(id, ..)
+            | Op::SetNumberInput(id, ..)
+            | Op::SetOtpInput(id, ..)
+            | Op::SetColorInput(id, ..)
+            | Op::SetCalendar(id, ..)
             | Op::SetListConfig(id, ..)
             | Op::SetListOrder(id, ..)
             | Op::SetListRows(id, ..)
             | Op::InvalidateListRows(id, ..)
             | Op::ScrollList(id, ..)
             | Op::SetImage(id, ..)
+            | Op::SetCanvas(id, ..)
             | Op::SetDocument(id, ..)
+            | Op::SetExtension(id, ..)
             | Op::SetSplit(id, ..)
             | Op::SetProgress(id, ..)
             | Op::SetToast(id, ..)
@@ -918,6 +1430,18 @@ impl Plan<'_> {
                 if id.slot() == self.slot_count {
                     self.slot_count += 1;
                 }
+                if *kind == Kind::CanvasView {
+                    if self.canvas_count == 128 {
+                        return Err(ErrorCode::LimitExceeded);
+                    }
+                    self.canvas_count += 1;
+                }
+                if *kind == Kind::Extension {
+                    if self.extension_count == 256 {
+                        return Err(ErrorCode::LimitExceeded);
+                    }
+                    self.extension_count += 1;
+                }
                 self.node_count += 1;
                 self.changes.insert(
                     id.slot(),
@@ -940,10 +1464,31 @@ impl Plan<'_> {
                             menu: None,
                             palette: None,
                             progress: None,
+                            loading: None,
                             image: None,
+                            avatar: None,
+                            rating: None,
+                            slider: None,
+                            number_input: None,
+                            otp_input: None,
+                            calendar: None,
+                            color_input: None,
+                            extension: None,
+                            extension_command: None,
                             split: None,
                             document: None,
+                            canvas: None,
                             animation: None,
+                            animation_program: None,
+                            navigation_stack: None,
+                            carousel: None,
+                            table: None,
+                            table_cell: None,
+                            table_serial: 0,
+                            tree_input: false,
+                            tree_moves: false,
+                            container_query: None,
+                            accessibility: None,
                             list_config: None,
                             list_order: None,
                             list_index: None,
@@ -964,7 +1509,12 @@ impl Plan<'_> {
                 self.structural = true;
             }
             Op::Remove(id) => {
-                self.node(*id)?;
+                if self.node(*id)?.kind == Kind::CanvasView {
+                    self.canvas_count -= 1;
+                }
+                if self.node(*id)?.kind == Kind::Extension {
+                    self.extension_count -= 1;
+                }
                 self.changes.insert(
                     id.slot(),
                     Slot {
@@ -1025,6 +1575,103 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.toast_stack = Some(Arc::new(config.clone()));
+            }
+            Op::SetTable(id, config) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::VirtualList
+                    || !config.is_valid()
+                    || node.table.as_ref().is_some_and(|old| {
+                        config.schema_revision < old.schema_revision
+                            || config.query_generation < old.query_generation
+                            || ((config.schema != old.schema || config.sort != old.sort)
+                                && config.schema_revision <= old.schema_revision)
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.table = Some(Arc::new(config.clone()));
+            }
+            Op::SetTableCell(id, cell) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::Container
+                    || !cell.is_valid()
+                    || node
+                        .table_cell
+                        .as_ref()
+                        .is_some_and(|old| old.column != cell.column)
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.table_cell = Some(Arc::new(cell.clone()));
+            }
+            Op::TableCommand(id, command) => {
+                self.tables.push((*id, command.clone()));
+            }
+            Op::SetTreeInput(id, enabled) => {
+                if self.node(*id)?.kind != Kind::VirtualList {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.tree_input = *enabled;
+            }
+            Op::SetTreeMoves(id, enabled) => {
+                if self.node(*id)?.kind != Kind::VirtualList {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.tree_moves = *enabled;
+            }
+            Op::SetCarousel(id, config) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::Carousel
+                    || !config.is_valid()
+                    || node
+                        .carousel
+                        .as_ref()
+                        .is_some_and(|old| !config.can_replace(old))
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.carousel = Some(Arc::new(config.clone()));
+            }
+            Op::SetNavigationStack(id, config) => {
+                if self.node(*id)?.kind != Kind::NavigationStack || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.navigation_stack = Some(*config);
+            }
+            Op::SetContainerQuery(id, config) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::ContainerQuery
+                    || !config.is_valid()
+                    || node.container_query.as_ref().is_some_and(|old| {
+                        config != old.as_ref() && config.generation <= old.generation
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.container_query = Some(Arc::new(config.clone()));
+            }
+            Op::SetAccessibility(id, config) => {
+                let kind = self.node(*id)?.kind;
+                if config
+                    .as_ref()
+                    .is_some_and(|c| !c.is_valid() || !c.supports(kind))
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.accessibility = config.clone().map(Arc::new);
+            }
+            Op::SetAnimationProgram(id, config) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::AnimationProgram
+                    || !config.is_valid()
+                    || node.animation_program.as_ref().is_some_and(|old| {
+                        (config != old.as_ref() && config.generation <= old.generation)
+                            || (config.program == old.program && config.restart < old.restart)
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.animation_program = Some(Arc::new(config.clone()));
             }
             Op::SetAnimation(id, config) => {
                 let node = self.node(*id)?;
@@ -1091,11 +1738,149 @@ impl Plan<'_> {
             Op::ScrollList(id, request) => {
                 self.lists.push(ListAction::Scroll(*id, *request));
             }
+            Op::SetSlider(id, config, initial) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::Slider
+                    || !config.is_valid()
+                    || !initial.is_valid()
+                    || node
+                        .slider
+                        .as_ref()
+                        .is_some_and(|old| !old.initial.same_mode(*initial))
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.slider = Some(SliderMount {
+                    config: Arc::new(config.clone()),
+                    initial: *initial,
+                });
+            }
+            Op::SetColorInput(id, config, initial) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::ColorInput
+                    || !config.is_valid()
+                    || (node.color_input.is_none() && !config.allows(*initial))
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let initial = node
+                    .color_input
+                    .as_ref()
+                    .map_or(*initial, |old| old.initial);
+                self.node_mut(*id)?.color_input = Some(ColorInputMount {
+                    config: Arc::new(config.as_ref().clone()),
+                    initial,
+                });
+            }
+            Op::SetCalendar(id, config, initial, initial_month) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::Calendar
+                    || !config.is_valid()
+                    || !initial.fits(config.mode)
+                    || node
+                        .calendar
+                        .as_ref()
+                        .is_some_and(|old| old.config.mode != config.mode)
+                    || (node.calendar.is_none()
+                        && !config.constraints.allows_selection(*initial, config.mode))
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let (initial, initial_month) = node
+                    .calendar
+                    .as_ref()
+                    .map_or((*initial, *initial_month), |old| {
+                        (old.initial, old.initial_month)
+                    });
+                self.node_mut(*id)?.calendar = Some(CalendarMount {
+                    config: Arc::new(config.as_ref().clone()),
+                    initial,
+                    initial_month,
+                });
+            }
+            Op::SetOtpInput(id, config, initial) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::OtpInput
+                    || !config.is_valid()
+                    || !config.policy.canonical(initial)
+                    || node
+                        .otp_input
+                        .as_ref()
+                        .is_some_and(|old| old.config.policy != config.policy)
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                // Rerendered seeds never replace an existing placement's original seed.
+                let initial = node
+                    .otp_input
+                    .as_ref()
+                    .map_or_else(|| Arc::from(initial.as_str()), |old| old.initial.clone());
+                self.node_mut(*id)?.otp_input = Some(OtpInputMount {
+                    config: Arc::new(config.clone()),
+                    initial,
+                });
+            }
+            Op::SetNumberInput(id, config, initial) => {
+                if self.node(*id)?.kind != Kind::NumberInput
+                    || !config.is_valid()
+                    || !initial.is_valid()
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.number_input = Some(NumberInputMount {
+                    config: Arc::new(config.clone()),
+                    initial: *initial,
+                });
+            }
+            Op::SetRating(id, config) => {
+                if self.node(*id)?.kind != Kind::Rating || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.rating = Some(Arc::new(config.clone()));
+            }
+            Op::SetAvatar(id, config) => {
+                if self.node(*id)?.kind != Kind::Avatar || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let node = self.node_mut(*id)?;
+                node.image = config.image().map(Arc::new);
+                node.avatar = Some(Arc::new(config.clone()));
+            }
             Op::SetImage(id, config) => {
                 if !matches!(self.node(*id)?.kind, Kind::Image | Kind::Icon) || !config.is_valid() {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.image = Some(Arc::new(config.clone()));
+            }
+            Op::SetExtension(id, config) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::Extension
+                    || !config.is_valid()
+                    || node.extension.as_ref().is_some_and(|old| {
+                        config.schema != old.schema || config.generation < old.generation
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let same_generation = node
+                    .extension
+                    .as_ref()
+                    .is_some_and(|old| old.generation == config.generation);
+                if same_generation
+                    && let (Some(old), Some(next)) = (&node.extension_command, &config.command)
+                    && (next.sequence < old.sequence
+                        || (next.sequence == old.sequence && next != old.as_ref()))
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let node = self.node_mut(*id)?;
+                if !same_generation {
+                    node.extension_command = None;
+                }
+                if let Some(command) = &config.command {
+                    node.extension_command = Some(Arc::new(command.clone()));
+                }
+                node.extension = Some(Arc::new(config.clone()));
             }
             Op::SetSplit(id, config) => {
                 let node = self.node(*id)?;
@@ -1110,11 +1895,23 @@ impl Plan<'_> {
                 }
                 self.node_mut(*id)?.split = Some(Arc::new(config.clone()));
             }
+            Op::SetCanvas(id, config) => {
+                if self.node(*id)?.kind != Kind::CanvasView || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.canvas = Some(Arc::new(config.clone()));
+            }
             Op::SetDocument(id, config) => {
                 if self.node(*id)?.kind != Kind::DocumentView || !config.is_valid() {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.document = Some(Arc::new(config.clone()));
+            }
+            Op::SetLoading(id, config) => {
+                if self.node(*id)?.kind != Kind::Loading || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.loading = Some(Arc::new(config.clone()));
             }
             Op::SetProgress(id, config) => {
                 if self.node(*id)?.kind != Kind::Progress || !config.is_valid() {
@@ -1156,14 +1953,18 @@ impl Plan<'_> {
                 self.structural = true;
             }
             Op::SetTooltip(id, config) => {
-                if self.node(*id)?.kind != Kind::Tooltip || !config.is_valid() {
+                if !matches!(self.node(*id)?.kind, Kind::Tooltip | Kind::HoverCard)
+                    || !config.is_valid()
+                {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.tooltip = Some(Arc::new(config.clone()));
             }
             Op::SetPlacement(id, placement) => {
-                if !matches!(self.node(*id)?.kind, Kind::FocusScope | Kind::Tooltip)
-                    || placement.is_some_and(|placement| !placement.is_valid())
+                if !matches!(
+                    self.node(*id)?.kind,
+                    Kind::FocusScope | Kind::Tooltip | Kind::HoverCard
+                ) || placement.is_some_and(|placement| !placement.is_valid())
                 {
                     return Err(ErrorCode::InvalidTree);
                 }
@@ -1287,6 +2088,30 @@ impl Plan<'_> {
                         .children
                         .iter()
                         .any(|id| !self.node(*id).is_ok_and(|node| node.kind == Kind::Toast)))
+            {
+                return Err(ErrorCode::InvalidTree);
+            }
+            if node.kind == Kind::Disclosure
+                && (node.children.len() != 2
+                    || self.node(node.children[1])?.kind != Kind::Panel
+                    || {
+                        let header = self.node(node.children[0])?;
+                        !(header.kind == Kind::Button
+                            || (header.kind == Kind::Container
+                                && header.children.last().is_some_and(|id| {
+                                    self.node(*id).is_ok_and(|node| node.kind == Kind::Button)
+                                })))
+                    })
+            {
+                return Err(ErrorCode::InvalidTree);
+            }
+            if node.kind == Kind::Accordion
+                && (node.children.len() > 4096
+                    || node.children.iter().any(|id| {
+                        !self
+                            .node(*id)
+                            .is_ok_and(|child| child.kind == Kind::Disclosure)
+                    }))
             {
                 return Err(ErrorCode::InvalidTree);
             }
@@ -1427,6 +2252,7 @@ pub fn validate_style(style: &[Style]) -> Result<(), ErrorCode> {
                                 | Field::UserSelect(_)
                                 | Field::SelectionColor(_)
                                 | Field::AccessibleName(_)
+                                | Field::Inert(_)
                         )
                     })
             }

@@ -99,11 +99,14 @@ let worker native notification_read ~self_test =
       | Rejected _ | Failed _ | Overloaded _ ->
         failwith "native view example rejected an update"
       | Reopen_requested
+      | Canvas_response _
+      | Canvas_event _
       | Document_response _
       | Document_navigation _
       | Window_changed _
       | Window_response _
       | Window_capabilities _
+      | Extension_event _
       | Split_resized _
       | Rendered _
       | Frame_requested _
@@ -113,6 +116,22 @@ let worker native notification_read ~self_test =
       | Asset_response _
       | List_retained _
       | List_viewport _
+      | Slider_result _
+      | Slider_event _
+      | Otp_input_result _
+      | Number_input_result _
+      | Number_input_event _
+      | Otp_input_event _
+      | Rating_requested _
+      | Calendar_event _
+      | Calendar_result _
+      | Color_input_event _
+      | Color_input_result _
+      | Carousel_requested _
+      | Container_selected _
+      | Animation_program_event _
+      | Tree_input _
+      | Table_input _
       | Animation_endpoint _
       | File_dialog_result _ -> ()
     in

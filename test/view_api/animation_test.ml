@@ -203,3 +203,73 @@ let%expect_test "application motion preference wire tags" =
     (9 1)
     (9 2) |}]
 ;;
+
+let%expect_test "spring parameters validate before native admission" =
+  let invalid result = assert (Result.is_error result) in
+  let create ?epsilon ?max_duration ~stiffness ~damping ~mass () =
+    Animation.Spring.create ?epsilon ?max_duration ~stiffness ~damping ~mass ()
+  in
+  List.iter [ Float.nan; Float.infinity; Float.neg_infinity; -1. ] ~f:(fun value ->
+    invalid (create ~stiffness:value ~damping:10. ~mass:1. ());
+    invalid (create ~stiffness:100. ~damping:value ~mass:1. ());
+    invalid (create ~stiffness:100. ~damping:10. ~mass:value ());
+    invalid (create ~epsilon:value ~stiffness:100. ~damping:10. ~mass:1. ()));
+  List.iter
+    [ Time_ns.Span.zero; Time_ns.Span.of_ns (-1.); Time_ns.Span.of_sec 61. ]
+    ~f:(fun max_duration ->
+      invalid (create ~max_duration ~stiffness:100. ~damping:10. ~mass:1. ()));
+  invalid (create ~stiffness:10_001. ~damping:10. ~mass:1. ());
+  invalid (create ~stiffness:100. ~damping:1_001. ~mass:1. ());
+  invalid (create ~stiffness:100. ~damping:10. ~mass:1_001. ());
+  invalid (create ~epsilon:1.01 ~stiffness:100. ~damping:10. ~mass:1. ());
+  let lower =
+    create
+      ~epsilon:0.0001
+      ~max_duration:(Time_ns.Span.of_ns 1.)
+      ~stiffness:0.01
+      ~damping:0.
+      ~mass:0.01
+      ()
+    |> Or_error.ok_exn
+    |> Animation.Expert.spring_to_wire
+  in
+  assert (Int64.equal lower.max_duration_ms 1L);
+  ignore
+    (create
+       ~epsilon:1.
+       ~max_duration:(Time_ns.Span.of_sec 60.)
+       ~stiffness:10_000.
+       ~damping:1_000.
+       ~mass:1_000.
+       ()
+     |> Or_error.ok_exn
+     : Animation.Spring.t);
+  print_endline
+    "finite physical parameters; admitted endpoints; undamped allowed; bounded deadline";
+  [%expect
+    {| finite physical parameters; admitted endpoints; undamped allowed; bounded deadline |}]
+;;
+
+let%expect_test "spring parameters share an independent Rust wire fixture" =
+  let module W = Gpuio_protocol.Wire.Animation.Spring in
+  let parameters =
+    Animation.Spring.create ~stiffness:100. ~damping:10. ~mass:1. ()
+    |> Or_error.ok_exn
+    |> Animation.Expert.spring_to_wire
+  in
+  let bytes = Bin_prot.Utils.bin_dump [%bin_writer: W.t] parameters in
+  let hex =
+    Bigstring.to_string bytes
+    |> String.concat_map ~f:(fun byte -> sprintf "%02x" (Char.to_int byte))
+  in
+  Eio_main.run (fun env ->
+    let expected =
+      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "animation-spring.hex") |> String.strip
+    in
+    assert (String.equal expected hex));
+  let pos_ref = ref 0 in
+  assert (W.equal parameters (W.bin_read_t bytes ~pos_ref));
+  assert (Int.equal !pos_ref (Bigstring.length bytes));
+  print_endline hex;
+  [%expect {| 00000000000059400000000000002440000000000000f03ffca9f1d24d62503ffe1027 |}]
+;;

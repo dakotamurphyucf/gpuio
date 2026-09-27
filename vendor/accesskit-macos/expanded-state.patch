@@ -1,0 +1,42 @@
+--- a/src/node.rs
++++ b/src/node.rs
+@@ -533,6 +533,12 @@
+             .flatten()
+         }
+ 
++        #[method(isAccessibilityExpanded)]
++        fn is_expanded(&self) -> bool {
++            self.resolve(|node| node.data().is_expanded().unwrap_or(false))
++                .unwrap_or(false)
++        }
++
+         #[method_id(accessibilityValue)]
+         fn value(&self) -> Option<Id<NSObject>> {
+             self.resolve(|node| {
+@@ -1238,6 +1244,9 @@
+                 if selector == sel!(setAccessibilityValue:) {
+                     return (node.supports_text_ranges() && !node.is_read_only()) || node.supports_action(Action::SetValue, &filter);
+                 }
++                if selector == sel!(isAccessibilityExpanded) {
++                    return node.data().is_expanded().is_some();
++                }
+                 if selector == sel!(isAccessibilitySelected) {
+                     let wrapper = NodeWrapper(node);
+                     return wrapper.is_item_like();
+--- a/src/event.rs
++++ b/src/event.rs
+@@ -263,6 +263,14 @@
+             self.events.push(QueuedEvent::Generic {
+                 node_id,
+                 notification: unsafe { NSAccessibilityTitleChangedNotification },
++            });
++        }
++        // Expanded is independent of the widget's ordinary value. Expose its
++        // change to assistive clients even when the label/value are unchanged.
++        if old_node.data().is_expanded() != new_node.data().is_expanded() {
++            self.events.push(QueuedEvent::Generic {
++                node_id,
++                notification: unsafe { NSAccessibilityValueChangedNotification },
+             });
+         }
+         let new_value = new_wrapper.value();

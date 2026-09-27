@@ -92,6 +92,7 @@ module Scroll_target = struct
     | Offset of int64 * float
     | Reveal of int64
     | End
+    | Focus_tree_row of int64
   [@@deriving bin_io, equal, sexp_of]
 end
 

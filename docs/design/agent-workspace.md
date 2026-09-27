@@ -42,6 +42,27 @@ coalesced document changes rather than rebuilding a transcript per chunk.
 Markdown and highlighting use bounded native background workers; limits and
 fallbacks are specified in [documents](documents.md).
 
+Split panes also compose with hidden immediate children. A base `Display Hidden`
+(including an inactive `View.panel` or `View.tab_panel`) removes that child's
+space and the divider. The displayed sibling fills the assigned split rectangle;
+two hidden children paint no content. `Visibility Hidden` and inert children
+still occupy space. The native two-pane state survives, so reopening restores
+previous sizes subject to current container constraints. Axis/reset-generation
+changes retain their existing reset semantics. Hiding either pane cancels a
+captured resize without emitting a completed-gesture event; an absent divider
+cannot retain keyboard focus or accept stale accessibility resize requests.
+Each child's declared retention policy still controls its native descendants.
+Applications can therefore keep one stable split around a conversation/editor
+while closing an inspector, without reparenting or duplicating the editor.
+
+Local macOS native split acceptance (`cargo test --locked -p gpuio-native
+--features native-tests --test native_split`) covers either/both hidden children,
+full-space geometry, preserved composer identity/focus/marked text, closing
+during a drag, absent AX splitter, resizing the assigned container while closed,
+reopening with proportional sizes and the distinct visibility-hidden behavior.
+The existing keyboard/pointer/reset/disposal cases and feature-enabled Clippy
+also pass. Hosted/Linux gates and chat-level responsive acceptance remain open.
+
 Integration added three general composition operations:
 
 - `List_paging.append` appends only when `After = End`, atomically rejects

@@ -7,9 +7,8 @@
   gpuio
   gpuio.bonsai
   gpuio.eio
+  gpuio_counter_backend
   bonsai
   eio_main)
- (link_flags
-  (:include ../../lib/native/link_flags.sexp))
  (preprocess
   (pps ppx_jane bonsai.ppx_bonsai)))

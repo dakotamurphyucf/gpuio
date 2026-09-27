@@ -1,8 +1,25 @@
 #[path = "animation_view.rs"]
 mod animation;
+#[path = "animation_program_view.rs"]
+mod animation_program;
+#[cfg(feature = "native-tests")]
+#[path = "animation_program_test.rs"]
+pub(super) mod animation_program_test;
 #[cfg(feature = "native-tests")]
 #[path = "animation_test.rs"]
 pub(super) mod animation_test;
+#[path = "canvas_view.rs"]
+pub(crate) mod canvas_view;
+#[path = "container_query_view.rs"]
+mod container_query;
+#[cfg(feature = "native-tests")]
+#[path = "container_query_test.rs"]
+pub(super) mod container_query_test;
+#[path = "extension_view.rs"]
+mod extension_view;
+#[cfg(feature = "native-tests")]
+#[path = "presentation_test.rs"]
+pub(super) mod presentation_test;
 use crate::{session::Session, transport::Transport};
 use gpui::Focusable;
 use gpui::{
@@ -27,10 +44,18 @@ mod window_host;
 mod window_macos;
 
 type SharedSession = Rc<RefCell<Session>>;
+#[path = "avatar.rs"]
+mod avatar;
+#[path = "calendar_view.rs"]
+pub(super) mod calendar_view;
+#[path = "carousel_view.rs"]
+mod carousel;
 #[path = "choice.rs"]
 mod choice;
 #[path = "choice_popup.rs"]
 mod choice_popup;
+#[path = "color_input_view.rs"]
+pub(super) mod color_input_view;
 #[path = "combobox.rs"]
 mod combobox;
 #[path = "command.rs"]
@@ -55,10 +80,18 @@ pub(crate) mod image_view;
 pub(super) mod list_test;
 #[path = "list_view.rs"]
 mod list_view;
+#[path = "loading.rs"]
+mod loading;
 #[path = "menu.rs"]
 mod menu;
 #[path = "menu_platform.rs"]
 mod menu_platform;
+#[path = "navigation_view.rs"]
+mod navigation;
+#[path = "number_input_view.rs"]
+pub(super) mod number_input_view;
+#[path = "otp_input_view.rs"]
+pub(super) mod otp_input_view;
 #[path = "overlay.rs"]
 mod overlay;
 #[path = "palette.rs"]
@@ -71,6 +104,8 @@ mod popup;
 mod progress;
 #[path = "radio.rs"]
 mod radio;
+#[path = "rating.rs"]
+mod rating;
 #[path = "scroll.rs"]
 mod scroll;
 #[cfg(feature = "native-tests")]
@@ -78,6 +113,8 @@ mod scroll;
 pub(super) mod scroll_test;
 #[path = "select.rs"]
 mod select;
+#[path = "slider_view.rs"]
+mod slider_view;
 #[path = "split_view.rs"]
 mod split_view;
 #[path = "toast.rs"]
@@ -86,6 +123,12 @@ mod toast;
 mod toast_clock;
 #[path = "tooltip.rs"]
 mod tooltip;
+#[path = "tree_drag.rs"]
+mod tree_drag;
+#[path = "tree_input_view.rs"]
+mod tree_input;
+#[path = "tree_typeahead.rs"]
+mod tree_typeahead;
 #[path = "typeahead.rs"]
 mod typeahead;
 struct ButtonState {
@@ -107,6 +150,9 @@ impl Default for Interaction {
     }
 }
 
+#[path = "table_view.rs"]
+pub(super) mod table_view;
+
 struct View {
     id: WindowId,
     window_title: String,
@@ -114,6 +160,9 @@ struct View {
     transport: Arc<Transport>,
     images: BTreeMap<NodeId, image_view::State>,
     documents: BTreeMap<NodeId, document_view::State>,
+    extensions: BTreeMap<NodeId, extension_view::State>,
+    canvases: BTreeMap<NodeId, Rc<RefCell<canvas_view::State>>>,
+    canvas_budget: Rc<RefCell<crate::canvas_paint::FrameBudget>>,
     splits: BTreeMap<NodeId, split_view::State>,
     split_activation: Option<gpui::Subscription>,
     buttons: BTreeMap<NodeId, Rc<ButtonState>>,
@@ -123,6 +172,12 @@ struct View {
     focus: focus::Shared,
     selects: BTreeMap<NodeId, Rc<RefCell<select::State>>>,
     radios: BTreeMap<NodeId, Rc<RefCell<choice::State>>>,
+    ratings: BTreeMap<NodeId, Rc<RefCell<rating::State>>>,
+    sliders: BTreeMap<NodeId, slider_view::Shared>,
+    numbers: BTreeMap<NodeId, number_input_view::Instance>,
+    otps: BTreeMap<NodeId, otp_input_view::Instance>,
+    calendars: BTreeMap<NodeId, calendar_view::Instance>,
+    color_inputs: BTreeMap<NodeId, color_input_view::Instance>,
     tooltips: BTreeMap<NodeId, tooltip::State>,
     tooltip_last_closed: Option<std::time::Instant>,
     command_subscription: Option<gpui::Subscription>,
@@ -138,9 +193,18 @@ struct View {
     probes: Rc<RefCell<BTreeMap<NodeId, native_test::Probe>>>,
     #[cfg(feature = "native-tests")]
     progress_probes: BTreeMap<NodeId, progress::Probe>,
+    #[cfg(feature = "native-tests")]
+    loading_probes: BTreeMap<NodeId, loading::Probe>,
     scrolls: BTreeMap<NodeId, Rc<scroll::State>>,
     lists: BTreeMap<NodeId, Rc<RefCell<list_view::State>>>,
+    tables: BTreeMap<NodeId, Rc<RefCell<table_view::State>>>,
+    tree_drag: std::rc::Weak<tree_drag::Lease>,
     animations: BTreeMap<NodeId, Rc<RefCell<animation::State>>>,
+    navigation: BTreeMap<NodeId, Rc<RefCell<navigation::State>>>,
+    carousels: BTreeMap<NodeId, Rc<RefCell<carousel::State>>>,
+    carousel_activation: Option<gpui::Subscription>,
+    animation_programs: BTreeMap<NodeId, Rc<RefCell<animation_program::State>>>,
+    container_queries: BTreeMap<NodeId, container_query::State>,
     #[cfg(feature = "native-tests")]
     render_count: u64,
 }
@@ -297,6 +361,27 @@ fn apply_styles(
     (element, states)
 }
 
+// Pointer-event inheritance uses the nearest explicit field, matching View rendering.
+fn pointer_enabled(tree: &crate::tree::Tree, mut id: NodeId) -> bool {
+    loop {
+        let Some(node) = tree.get(id) else {
+            return false;
+        };
+        for style in node.style.iter().rev() {
+            if let Style::Fields(fields) = style {
+                for field in fields.iter().rev() {
+                    if let Field::PointerEvents(enabled) = field {
+                        return *enabled;
+                    }
+                }
+            }
+        }
+        let Some(parent) = node.parent else {
+            return true;
+        };
+        id = parent;
+    }
+}
 impl View {
     fn new(id: WindowId, session: SharedSession, transport: Arc<Transport>) -> Self {
         Self {
@@ -307,6 +392,9 @@ impl View {
             transport,
             images: BTreeMap::new(),
             documents: BTreeMap::new(),
+            extensions: BTreeMap::new(),
+            canvases: BTreeMap::new(),
+            canvas_budget: Default::default(),
             splits: BTreeMap::new(),
             split_activation: None,
             buttons: BTreeMap::new(),
@@ -314,6 +402,12 @@ impl View {
             editors: BTreeMap::new(),
             root_focus: None,
             radios: BTreeMap::new(),
+            ratings: BTreeMap::new(),
+            sliders: BTreeMap::new(),
+            numbers: BTreeMap::new(),
+            otps: BTreeMap::new(),
+            calendars: BTreeMap::new(),
+            color_inputs: BTreeMap::new(),
             tooltips: BTreeMap::new(),
             tooltip_last_closed: None,
             command_subscription: None,
@@ -330,9 +424,18 @@ impl View {
             probes: Default::default(),
             #[cfg(feature = "native-tests")]
             progress_probes: Default::default(),
+            #[cfg(feature = "native-tests")]
+            loading_probes: Default::default(),
             scrolls: Default::default(),
             lists: Default::default(),
+            tables: Default::default(),
+            tree_drag: Default::default(),
             animations: Default::default(),
+            navigation: Default::default(),
+            carousels: Default::default(),
+            carousel_activation: None,
+            animation_programs: Default::default(),
+            container_queries: Default::default(),
             #[cfg(feature = "native-tests")]
             render_count: 0,
         }
@@ -341,14 +444,30 @@ impl View {
         self.install_command_interceptor(window, cx);
         self.install_pointer_observer(window, cx);
         self.install_menu_observers(window, cx);
+        self.sync_container_queries(dirty);
+        self.sync_navigation(dirty);
         self.sync_lists(dirty, cx);
+        self.sync_tables(dirty, window, cx);
         self.sync_images(dirty, window, cx);
         self.sync_documents(dirty, window, cx);
+        self.sync_extensions(dirty, window, cx);
         self.sync_animations(dirty, cx);
+        self.sync_programs(dirty, cx);
         self.sync_palettes(window, cx);
         self.sync_toasts(cx);
         self.sync_tooltips(window, cx);
+        self.sync_carousels(window, cx);
+        self.sync_canvases(dirty, window, cx);
         self.sync_splits(window, cx);
+        self.sync_sliders(dirty, window, cx);
+        self.sync_numbers(dirty, window, cx);
+        self.sync_otps(dirty, window, cx);
+        self.sync_calendars(dirty, window, cx);
+        self.sync_color_inputs(dirty, window, cx);
+        // An unselected query branch is hidden even before the first layout.
+        // Do not count time waiting for its first visible paint as active motion.
+        self.suspend_hidden_animations();
+        self.suspend_hidden_programs();
         let nodes = {
             let session = self.session.borrow();
             let Some(tree) = session.tree(self.id) else {
@@ -370,7 +489,12 @@ impl View {
         };
         for node in nodes {
             if let Some(editor) = self.editors.get_mut(&node.id) {
-                editor.configure(node.editor.as_ref().expect("validated editor"), window, cx);
+                editor.configure(
+                    node.editor.as_ref().expect("validated editor"),
+                    &node.accessibility,
+                    window,
+                    cx,
+                );
             } else {
                 let editor = editor::Instance::new(
                     self.id,
@@ -389,13 +513,40 @@ impl View {
         &mut self,
         tree: &crate::tree::Tree,
         id: NodeId,
+        interaction: Interaction,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::AnyElement {
+        let element = self.element_body(tree, id, interaction, window, cx);
+        let inert = tree
+            .get(id)
+            .is_some_and(|node| crate::style::inert(&node.style));
+        if inert {
+            crate::semantics::Inert(element).into_any_element()
+        } else {
+            element
+        }
+    }
+    fn element_body(
+        &mut self,
+        tree: &crate::tree::Tree,
+        id: NodeId,
         mut interaction: Interaction,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let node = tree.get(id).expect("validated retained node");
+        if node.kind == Kind::CanvasView {
+            return self.canvas_element(node, interaction, window, cx);
+        }
+        if node.kind == Kind::Extension {
+            return self.extension_element(tree, node, interaction, window, cx);
+        }
         if node.kind == Kind::DocumentView {
             return self.document_element(tree, node, interaction, window, cx);
+        }
+        if node.table.is_some() {
+            return self.table_element(tree, node, interaction, window, cx);
         }
         if node.kind == Kind::VirtualList {
             return self.list_element(tree, node, interaction, window, cx);
@@ -412,7 +563,7 @@ impl View {
         if node.kind == Kind::Menu {
             return self.menu_element(tree, node, interaction, window, cx);
         }
-        if node.kind == Kind::Tooltip {
+        if matches!(node.kind, Kind::Tooltip | Kind::HoverCard) {
             return self.tooltip_element(tree, node, interaction, window, cx);
         }
         let popup_priority = self.focus.borrow().layer(id) + 2;
@@ -443,6 +594,24 @@ impl View {
             }
         }
         let mut element = div().id(("gpuio-node", identity));
+        // Native controls inside a tree/table row own pointer input. The input widget
+        // may focus on mouse-down without consuming mouse-up; block the row's
+        // ancestor click hitbox while preserving wheel propagation to the list.
+        if (node.editor.is_some()
+            || node.control.is_some()
+            || node.choice.is_some()
+            || node.rating.is_some()
+            || node.slider.is_some()
+            || node.number_input.is_some()
+            || node.otp_input.is_some()
+            || node.calendar.is_some()
+            || node.color_input.is_some()
+            || (node.kind == Kind::Text && interaction.selectable))
+            && tree_input::within_input_collection(tree, id)
+        {
+            element = element.block_mouse_except_scroll();
+        }
+
         if node.kind == Kind::Text && !interaction.selectable && !node.text.is_empty() {
             element = element
                 .role(gpui::Role::Label)
@@ -455,10 +624,18 @@ impl View {
             node.kind,
             Kind::Container
                 | Kind::Animated
+                | Kind::AnimationProgram
+                | Kind::ContainerQuery
                 | Kind::TabPanel
+                | Kind::Panel
+                | Kind::Disclosure
+                | Kind::Accordion
+                | Kind::NavigationStack
+                | Kind::Carousel
                 | Kind::FocusScope
                 | Kind::CommandScope
                 | Kind::RadioGroup
+                | Kind::Rating
                 | Kind::TabBar
                 | Kind::PointerArea
                 | Kind::DragSource
@@ -475,6 +652,9 @@ impl View {
                 .border_1()
                 .border_color(rgba(0x80808080))
                 .rounded(px(4.));
+        }
+        if node.container_query.is_some() || node.navigation_stack.is_some() {
+            element = element.size_full();
         }
         if let Some(config) = &node.drag_source {
             element = element
@@ -496,6 +676,94 @@ impl View {
             let (image, corners) = self.image_element(tree, node, config, element, window, cx);
             element = image;
             image_corners = Some(corners);
+        }
+        if node.rating.is_some() {
+            element = element
+                .flex()
+                .flex_row()
+                .items_center()
+                .flex_nowrap()
+                .border_1()
+                .border_color(gpui::transparent_black())
+                .rounded(px(4.))
+                .text_color(rgba(0xe8ad36ff))
+                .focus(|style| style.border_color(rgba(0x6688ffff)));
+        }
+        if node.color_input.is_some() {
+            element = element
+                .w(px(296.))
+                .min_w(px(0.))
+                .text_size(px(13.))
+                .overflow_hidden();
+        }
+        if node.calendar.is_some() {
+            element = element
+                .w(px(296.))
+                .min_w(px(0.))
+                .text_size(px(13.))
+                .overflow_hidden();
+        }
+        if let Some(otp) = &node.otp_input {
+            element = element
+                .min_w(px(40.))
+                .w(px(otp.config.policy.length() as f32 * 37. - 5.))
+                .h(px(40.));
+        }
+        if node.number_input.is_some() {
+            element = element.min_w(px(80.)).w(px(180.)).min_h(px(40.));
+        }
+        if let Some(slider) = &node.slider {
+            element = element
+                .relative()
+                .min_w(px(24.))
+                .min_h(px(24.))
+                .text_color(rgba(0x6688ffff));
+            element = match slider.config.axis {
+                gpuio_protocol::slider::Axis::Horizontal => element.w(px(180.)).h(px(24.)),
+                gpuio_protocol::slider::Axis::Vertical => element.w(px(24.)).h(px(180.)),
+            };
+        }
+        if let Some(config) = &node.avatar {
+            element = element
+                .w(px(32.))
+                .h(px(32.))
+                .rounded(px(999.))
+                .overflow_hidden()
+                .bg(rgba(0x71809630))
+                .text_color(rgba(0x718096ff))
+                .text_size(px(12.));
+            if let Some(label) = &config.label {
+                element = element.role(gpui::Role::Image).aria_label(label.clone());
+            }
+            if config.source.is_none() {
+                element = element.child(avatar::fallback(config.fallback.clone().into()));
+            }
+        }
+        if let Some(config) = &node.loading {
+            let corners = image_corners::Shared::default();
+            image_corners = Some(corners.clone());
+            let spinner = config.kind == gpuio_protocol::loading::Kind::Spinner;
+            element = element
+                .w(px(if spinner { 20. } else { 160. }))
+                .h(px(if spinner { 20. } else { 16. }))
+                .rounded(px(4.))
+                .overflow_hidden()
+                .text_color(rgba(0x8b98abff))
+                .role(gpui::Role::ProgressIndicator)
+                .aria_label(config.label.clone())
+                .on_mouse_down(gpui::MouseButton::Left, |_, window, _| {
+                    window.prevent_default()
+                });
+            if self.focus.borrow().visible(id) {
+                element = element.child(loading::indicator(
+                    config,
+                    identity,
+                    cx.reduce_motion(),
+                    corners,
+                    #[cfg(feature = "native-tests")]
+                    self.loading_probes.entry(id).or_default().clone(),
+                ));
+            }
         }
         if let Some(config) = &node.progress {
             element = element
@@ -551,6 +819,18 @@ impl View {
                 .is_some_and(|config| config.disabled())
             || node.pointer.as_ref().is_some_and(|config| config.disabled)
             || node.choice.as_ref().is_some_and(|config| config.disabled)
+            || node
+                .number_input
+                .as_ref()
+                .is_some_and(|n| n.config.disabled)
+            || node.otp_input.as_ref().is_some_and(|n| n.config.disabled)
+            || node.calendar.as_ref().is_some_and(|n| n.config.disabled)
+            || node.color_input.as_ref().is_some_and(|n| n.config.disabled)
+            || node.rating.as_ref().is_some_and(|config| config.disabled)
+            || node
+                .slider
+                .as_ref()
+                .is_some_and(|slider| slider.config.disabled)
             || node.control.is_some_and(Control::disabled)
             || node.editor.as_ref().is_some_and(|config| config.disabled);
         let checked = command
@@ -560,10 +840,11 @@ impl View {
                 node.control,
                 Some(Control::Checkbox(CheckState::Checked, _) | Control::Switch(true, _))
             );
-        let indeterminate = node
-            .progress
-            .as_ref()
-            .is_some_and(|config| config.fraction.is_none())
+        let indeterminate = node.loading.is_some()
+            || node
+                .progress
+                .as_ref()
+                .is_some_and(|config| config.fraction.is_none())
             || matches!(
                 node.control,
                 Some(Control::Checkbox(CheckState::Indeterminate, _))
@@ -578,6 +859,7 @@ impl View {
                 | Kind::Checkbox
                 | Kind::Switch
                 | Kind::RadioGroup
+                | Kind::Rating
                 | Kind::TabBar
                 | Kind::Select
         ) {
@@ -614,6 +896,7 @@ impl View {
                     Kind::Checkbox => gpui::Role::CheckBox,
                     Kind::Switch => gpui::Role::Switch,
                     Kind::RadioGroup => gpui::Role::RadioGroup,
+                    Kind::Rating => gpui::Role::Slider,
                     Kind::TabBar => gpui::Role::TabList,
                     Kind::Select => gpui::Role::ComboBox,
                     _ => gpui::Role::Button,
@@ -632,24 +915,70 @@ impl View {
                     gpui::accesskit::Toggled::False
                 });
             }
-            if interaction.pointer && !disabled {
+            if interaction.pointer
+                && !disabled
+                && !node.rating.as_ref().is_some_and(|config| config.read_only)
+            {
                 element = element.cursor_pointer();
             }
         }
         if node.kind == Kind::TabBar {
             element = element.flex_row();
         }
-        if node.kind == Kind::TabPanel {
+        if matches!(
+            node.kind,
+            Kind::TabPanel | Kind::Panel | Kind::NavigationStack | Kind::Carousel
+        ) {
             element = element
-                .role(gpui::Role::TabPanel)
+                .role(if node.kind == Kind::TabPanel {
+                    gpui::Role::TabPanel
+                } else {
+                    gpui::Role::Region
+                })
                 .aria_label(accessible_name);
         }
+        if matches!(node.kind, Kind::Disclosure | Kind::Accordion) {
+            element = element.role(gpui::Role::Group);
+        }
+        if let Some(parent) = tree.disclosure_for_trigger(id) {
+            let expanded = self.focus.borrow().visible(parent.children[1]);
+            let gate = self.focus.clone();
+            element = element
+                .aria_expanded(expanded)
+                .on_key_down(move |event, window, cx| {
+                    let modifiers = event.keystroke.modifiers;
+                    if !modifiers.control
+                        && !modifiers.alt
+                        && !modifiers.platform
+                        && !modifiers.shift
+                        && gate
+                            .borrow()
+                            .disclosure_key(id, &event.keystroke.key, window, cx)
+                    {
+                        cx.stop_propagation();
+                    }
+                });
+        }
+        if node.carousel.is_some() {
+            element = self.carousel_element(element, node, cx);
+        }
         let animation = self.animation_frame(node, window, cx);
+        let program = self.program_frame(node, window, cx);
         let styles = animation
             .as_ref()
             .map(|(state, _)| state.borrow().styles.clone())
+            .or_else(|| {
+                program
+                    .as_ref()
+                    .map(|(state, _)| state.borrow().styles.clone())
+            })
             .unwrap_or_else(|| node.style.clone());
-        let (styled, states) = apply_styles(element, &styles, interaction, disabled);
+        let (styled, mut states) = apply_styles(element, &styles, interaction, disabled);
+        if let Some(config) = &node.overlay {
+            for state in states.iter_mut().flatten() {
+                overlay::constrain_state_style(config.kind, state);
+            }
+        }
         element = styled;
         let [
             focused,
@@ -673,6 +1002,31 @@ impl View {
         if let Some(style) = focused {
             if let Some(editor) = self.editors.get(&id) {
                 if editor.focus_handle(cx).is_focused(window) {
+                    element.style().refine(&style);
+                }
+            } else if let Some(color) = self.color_inputs.get(&id) {
+                if color.focused(window, cx) {
+                    element.style().refine(&style);
+                }
+            } else if let Some(calendar) = self.calendars.get(&id) {
+                if calendar.focus_handle(cx).is_focused(window) {
+                    element.style().refine(&style);
+                }
+            } else if let Some(otp) = self.otps.get(&id) {
+                if otp.focus_handle(cx).is_focused(window) {
+                    element.style().refine(&style);
+                }
+            } else if let Some(number) = self.numbers.get(&id) {
+                if number.focus_handle(cx).is_focused(window) {
+                    element.style().refine(&style);
+                }
+            } else if let Some(slider) = self.sliders.get(&id) {
+                if slider
+                    .borrow()
+                    .focus
+                    .iter()
+                    .any(|(_, focus)| focus.is_focused(window))
+                {
                     element.style().refine(&style);
                 }
             } else {
@@ -703,6 +1057,9 @@ impl View {
         }
         if let Some((_, sample)) = &animation {
             animation::apply(element.style(), &sample.values);
+        }
+        if let Some((_, sample)) = &program {
+            animation::apply(element.style(), &sample.frame.values);
         }
         let scrolling = if scroll::declared(&node.style)
             || element.style().overflow.x == Some(gpui::Overflow::Scroll)
@@ -745,6 +1102,49 @@ impl View {
                     route,
                     pointer: interaction.pointer,
                     selected_style,
+                },
+                window,
+                cx,
+            );
+        } else if let Some(color) = self.color_inputs.get(&id) {
+            self.visited.insert(id);
+            element = color.element(element, interaction.pointer, cx);
+        } else if let Some(calendar) = self.calendars.get(&id) {
+            self.visited.insert(id);
+            element = calendar.element(element, interaction.pointer, cx);
+        } else if let Some(otp) = self.otps.get(&id) {
+            self.visited.insert(id);
+            element = otp.element(element, interaction.pointer, cx);
+        } else if let Some(number) = self.numbers.get(&id) {
+            self.visited.insert(id);
+            element = number.element(element, interaction.pointer, cx);
+        } else if node.slider.is_some() {
+            self.visited.insert(id);
+            if let Some(state) = self.sliders.get(&id) {
+                element = slider_view::element(element, state.clone(), interaction.pointer, window);
+            }
+        } else if let Some(config) = &node.rating {
+            let state = self.ratings.entry(id).or_default().clone();
+            let route = node
+                .handler
+                .filter(|_| !disabled && !config.read_only)
+                .map(|handler| choice::Route {
+                    window: self.id,
+                    node: id,
+                    handler,
+                    revision: tree.revision(),
+                    session: self.session.clone(),
+                    gate: self.focus.clone(),
+                    transport: self.transport.clone(),
+                });
+            element = rating::element(
+                element,
+                rating::Render {
+                    config,
+                    state,
+                    focus: self.buttons[&id].focus.clone(),
+                    route,
+                    pointer: interaction.pointer,
                 },
                 window,
                 cx,
@@ -859,7 +1259,12 @@ impl View {
             {
                 element = element.child(self.element(tree, *trailing, interaction, window, cx));
             }
-        } else if !label.is_empty() && node.kind != Kind::TabPanel {
+        } else if !label.is_empty()
+            && !matches!(
+                node.kind,
+                Kind::TabPanel | Kind::Panel | Kind::NavigationStack | Kind::Carousel
+            )
+        {
             element = element.child(gpui::SharedString::from(label));
         }
         for child in node.children.iter() {
@@ -867,8 +1272,8 @@ impl View {
                 .get(*child)
                 .and_then(|node| node.overlay.as_ref())
                 .is_some_and(|config| config.kind == OverlayKind::Popover)
+                && let Some(anchor) = self.focus.borrow().anchor(*child)
             {
-                let anchor = self.focus.borrow().anchor(*child).expect("mounted scope");
                 element = element.child(
                     canvas(move |bounds, _, _| anchor.set(bounds), |_, _, _, _| {})
                         .absolute()
@@ -878,7 +1283,11 @@ impl View {
                 );
             }
         }
-        if node.split.is_some() {
+        if node.navigation_stack.is_some() {
+            element = element.child(self.navigation_element(tree, node, interaction, window, cx));
+        } else if node.container_query.is_some() {
+            element = element.child(self.container_query_element(tree, node, interaction, cx));
+        } else if node.split.is_some() {
             element = element.child(self.split_element(tree, node, interaction, window, cx));
         } else {
             element = element.children(
@@ -915,10 +1324,17 @@ impl View {
             && node.commands.is_none()
             && node.editor.is_none()
             && node.choice.is_none()
+            && node.rating.is_none()
+            && node.slider.is_none()
+            && node.number_input.is_none()
+            && node.otp_input.is_none()
+            && node.calendar.is_none()
+            && node.color_input.is_none()
             && node.overlay.is_none()
             && node.pointer.is_none()
             && node.image.is_none()
             && node.animation.is_none()
+            && node.animation_program.is_none()
             && node.split.is_none()
             && !disabled
         {
@@ -971,6 +1387,13 @@ impl View {
             .editors
             .get(&id)
             .map(|editor| editor.focus_handle(cx))
+            .or_else(|| self.numbers.get(&id).map(|number| number.focus_handle(cx)))
+            .or_else(|| self.otps.get(&id).map(|otp| otp.focus_handle(cx)))
+            .or_else(|| {
+                self.calendars
+                    .get(&id)
+                    .map(|calendar| calendar.focus_handle(cx))
+            })
             .or_else(|| self.buttons.get(&id).map(|button| button.focus.clone()))
             .or_else(|| {
                 self.selections
@@ -1062,6 +1485,9 @@ impl View {
         if let Some((state, sample)) = animation {
             element = element.child(animation::paint(&state, sample));
         }
+        if let Some((state, sample)) = program {
+            element = element.child(animation_program::paint(&state, sample));
+        }
         if let Some(corners) = image_corners {
             let image = image_corners::Rounded::capture(element, corners);
             return match &scrolling {
@@ -1092,13 +1518,54 @@ impl View {
         disabled: bool,
     ) -> gpui::AnyElement {
         let id = node.id;
+        // The managed list row wrapper owns this metadata and the row focus
+        // handle. Rendering it again on the description would duplicate AX rows.
+        let tree_row_metadata = node
+            .parent
+            .is_some_and(|parent| self.lists.contains_key(&parent))
+            && node.accessibility.as_ref().is_some_and(|metadata| {
+                matches!(
+                    metadata.role,
+                    Some(gpuio_protocol::accessibility::Role::TreeItem(_))
+                )
+            });
         let element = crate::semantics::State {
+            hidden: !self.focus.borrow().visible(node.id),
+            metadata: if node.editor.is_none()
+                && !tree_row_metadata
+                && node.number_input.is_none()
+                && node.otp_input.is_none()
+                && node.calendar.is_none()
+                && node.color_input.is_none()
+            {
+                node.accessibility.clone()
+            } else {
+                None
+            },
             live: None,
             element,
             disabled,
-            read_only: false,
+            read_only: node
+                .number_input
+                .as_ref()
+                .is_some_and(|n| n.config.read_only)
+                || node.otp_input.as_ref().is_some_and(|n| n.config.read_only)
+                || node.rating.as_ref().is_some_and(|config| config.read_only)
+                || node
+                    .slider
+                    .as_ref()
+                    .is_some_and(|slider| slider.config.read_only),
             modal: false,
         };
+        if node.slider.is_some()
+            && let Some(state) = self.sliders.get(&id)
+        {
+            return slider_view::Region {
+                element,
+                state: state.clone(),
+            }
+            .into_any_element();
+        }
         if node.drop_target.is_some() {
             return drag_drop::Region {
                 element,
@@ -1152,10 +1619,25 @@ impl Render for View {
             .clone();
         let tab_focus = self.focus.clone();
         let begin_focus = self.focus.clone();
+        let program_begin = cx.entity().downgrade();
+        let canvas_budget = self.canvas_budget.clone();
+        let canvases: Vec<_> = self.canvases.values().map(Rc::downgrade).collect();
         let drag_window = self.id;
         let mut root = drag_drop::root(div(), self.id, cx)
             .capture_key_down(cx.listener(|view, event: &gpui::KeyDownEvent, window, cx| {
-                if event.keystroke.key == "escape" && view.cancel_split_drag(window, cx) {
+                if event.keystroke.key == "escape"
+                    && (view.cancel_color_inputs(
+                        gpuio_protocol::color_input::CancelReason::Escape,
+                        window,
+                        cx,
+                    ) | view.cancel_tree_drag(window, cx)
+                        | view.cancel_carousel_drags(window, cx)
+                        | view.cancel_split_drag(window, cx)
+                        | view.cancel_slider_drags(
+                            gpuio_protocol::slider::CancelReason::Escape,
+                            window,
+                        ))
+                {
                     cx.stop_propagation();
                 }
             }))
@@ -1182,6 +1664,17 @@ impl Render for View {
                     |_, _, _| (),
                     move |_, _, window, cx| {
                         begin_focus.borrow_mut().begin_frame();
+                        let _ = program_begin.update(cx, |view, _| {
+                            view.begin_carousel_paint();
+                            view.begin_program_paint();
+                            view.begin_query_paint();
+                        });
+                        *canvas_budget.borrow_mut() = Default::default();
+                        for state in &canvases {
+                            if let Some(state) = state.upgrade() {
+                                state.borrow_mut().flush_canvas_frame(window, cx);
+                            }
+                        }
                         drag_drop::install_cleanup(drag_window, window, cx);
                     },
                 )
@@ -1210,8 +1703,16 @@ impl Render for View {
                 state.presentation = None;
             }
         }
+        self.hide_unvisited_extensions();
+        self.hide_unvisited_canvases(window);
+        self.hide_unvisited_sliders(window, cx);
+        self.hide_unvisited_numbers(window, cx);
+        self.hide_unvisited_otps(window, cx);
+        self.hide_unvisited_calendars(window, cx);
+        self.hide_unvisited_color_inputs(window, cx);
         self.buttons.retain(|id, _| self.visited.contains(id));
         self.radios.retain(|id, _| self.visited.contains(id));
+        self.ratings.retain(|id, _| self.visited.contains(id));
         self.selects.retain(|id, _| self.visited.contains(id));
         self.menus.retain(|id, _| self.visited.contains(id));
         self.sync_platform_menus(window, cx);
@@ -1221,6 +1722,13 @@ impl Render for View {
                 .tree(self.id)
                 .and_then(|tree| tree.get(*id))
                 .is_some_and(|node| node.progress.is_some())
+        });
+        #[cfg(feature = "native-tests")]
+        self.loading_probes.retain(|id, _| {
+            session
+                .tree(self.id)
+                .and_then(|tree| tree.get(*id))
+                .is_some_and(|node| node.loading.is_some())
         });
         self.selections.retain(|id, _| self.visited.contains(id));
         // GPUI routes key events along the focused element's ancestry. Keep a
@@ -1241,11 +1749,54 @@ impl Render for View {
                     .splits
                     .values()
                     .any(|state| state.focus.is_focused(window))
+                || self
+                    .tables
+                    .values()
+                    .any(|state| state.borrow().focused(window, cx))
+                || self.lists.values().any(|state| {
+                    let state = state.borrow();
+                    state.tree_focus.is_some() && state.owns_tree_focus(window)
+                })
                 || self.focus.borrow().contains_focus(window)
+                || self
+                    .carousels
+                    .values()
+                    .any(|state| state.borrow().focused(window))
+                || self
+                    .numbers
+                    .values()
+                    .any(|number| number.focus_handle(cx).is_focused(window))
+                || self
+                    .otps
+                    .values()
+                    .any(|otp| otp.focus_handle(cx).is_focused(window))
+                || self
+                    .calendars
+                    .values()
+                    .any(|calendar| calendar.focus_handle(cx).is_focused(window))
+                || self
+                    .color_inputs
+                    .values()
+                    .any(|state| state.focused(window, cx))
+                || self.sliders.values().any(|state| {
+                    state
+                        .borrow()
+                        .focus
+                        .iter()
+                        .any(|(_, focus)| focus.is_focused(window))
+                })
                 || self
                     .documents
                     .values()
                     .any(|state| state.focused(window, cx))
+                || self
+                    .extensions
+                    .values()
+                    .any(|state| state.focus.contains_focused(window, cx))
+                || self
+                    .canvases
+                    .values()
+                    .any(|state| state.borrow().canvas_focused(window))
                 || root_focus.is_focused(window)
                 || self
                     .buttons
@@ -1265,10 +1816,35 @@ impl Render for View {
         let id = self.id;
         let session = self.session.clone();
         let transport = self.transport.clone();
+        let program_finish = cx.entity().downgrade();
+        let navigation_focus = self.focus.clone();
         root.child(
             canvas(
                 |_, _, _| (),
-                move |_, _, _, _| {
+                move |_, _, window, cx| {
+                    // Deferred popups paint after the root tree. Sweep only once
+                    // the complete effect cycle has painted; never request a frame.
+                    if program_finish
+                        .update(cx, |view, _| {
+                            !view.animation_programs.is_empty()
+                                || !view.container_queries.is_empty()
+                                || !view.carousels.is_empty()
+                        })
+                        .unwrap_or(false)
+                    {
+                        window.defer(cx, move |window, cx| {
+                            let _ = program_finish.update(cx, |view, cx| {
+                                view.finish_query_paint(window, cx);
+                                view.finish_program_paint();
+                                view.schedule_carousels(window, cx);
+                            });
+                        });
+                    }
+                    if navigation_focus.borrow().navigation_pending() {
+                        window.defer(cx, move |window, cx| {
+                            navigation_focus.borrow_mut().finish_navigation(window, cx);
+                        });
+                    }
                     let events = session.borrow_mut().painted(id, revision);
                     for event in events {
                         if matches!(event, Event::FrameRequested(..)) {
@@ -1308,12 +1884,14 @@ pub fn run(transport: Arc<Transport>) {
         window_macos::install(cx,transport.clone());
         window_host::control(&transport,Event::WindowCapabilities(window_host::capabilities()));
         gpui_base::init(cx);
+        gpuio_table_adapter::init(cx);
         crate::image_host::init(cx);
         let motion = crate::motion_preference::init(cx);
         // GPUI defaults to last-window exit on Linux. Our explicit lifecycle
         // policy must control background applications consistently on both OSes.
         cx.set_quit_mode(gpui::QuitMode::Explicit);
         let session = Rc::new(RefCell::new(Session::default()));
+        crate::motion_preference::bind_clocks(&session.borrow().motion(), cx);
         let mut windows: BTreeMap<WindowId, WindowHandle<View>> = BTreeMap::new();
         let dialogs = crate::file_dialog::Dialogs::default();
         let quit_dialogs = dialogs.clone();
@@ -1342,8 +1920,9 @@ pub fn run(transport: Arc<Transport>) {
                 {
                     motion.borrow_mut().take();
                     dialogs.clear().wait().await;
+                    crate::canvas_host::shutdown(cx).await;
                     crate::image_host::shutdown(cx).await;
-                            crate::document_host::shutdown(cx).await;
+                    crate::document_host::shutdown(cx).await;
                     if !stopping.replace(true) {
                         cx.update(stop_application);
                     }
@@ -1438,7 +2017,8 @@ pub fn run(transport: Arc<Transport>) {
                                     if let Some(window) = windows.get(&tx.window) {
                                         let _ = window.update(cx, |view, window, cx| {
                                             view.update_editors(&applied.dirty, window, cx);
-                                            view.list_actions(&applied.lists);
+                                            view.list_actions(&applied.lists, window, cx);
+                                            view.table_actions(&applied.tables, window, cx);
                                             cx.notify();
                                         });
                                     }
@@ -1460,6 +2040,45 @@ pub fn run(transport: Arc<Transport>) {
                                 }
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),
                             }
+                        }
+                        Message::ColorInputCommand(correlation, id, node, command) => {
+                            use gpuio_protocol::color_input::{Error, Response};
+                            let result = windows.get(&id).and_then(|handle| handle.update(cx, |view, window, cx| {
+                                view.color_inputs.get(&node).map(|input| input.command(&command, window, cx)).unwrap_or(Response::Failed(Error::StaleColorInput))
+                            }).ok()).unwrap_or(Response::Failed(Error::Closed));
+                            transport.respond(Event::ColorInputResult(correlation, id, node, result));
+                        }
+                        Message::CalendarCommand(correlation, id, node, command) => {
+                            use gpuio_protocol::calendar_input::{Error, Response};
+                            let result = windows.get(&id).and_then(|handle| handle.update(cx, |view, window, cx| {
+                                view.calendars.get(&node).map(|input| input.command(&command, window, cx)).unwrap_or(Response::Failed(Error::StaleInput))
+                            }).ok()).unwrap_or(Response::Failed(Error::Closed));
+                            transport.respond(Event::CalendarResult(correlation, id, node, result));
+                        }
+                        Message::OtpInputCommand(correlation, id, node, command) => {
+                            use gpuio_protocol::otp_input::{Error, Response};
+                            let result = windows.get(&id).and_then(|handle| handle.update(cx, |view, window, cx| {
+                                view.otps.get(&node).map(|input| input.command(&command, window, cx)).unwrap_or(Response::Failed(Error::StaleInput))
+                            }).ok()).unwrap_or(Response::Failed(Error::Closed));
+                            transport.respond(Event::OtpInputResult(correlation, id, node, result));
+                        }
+                        Message::NumberInputCommand(correlation, id, node, command) => {
+                            use gpuio_protocol::number_input::{Error, Response};
+                            let result = windows.get(&id).and_then(|handle| handle.update(cx, |view, window, cx| {
+                                let result = view.numbers.get(&node).map(|number| number.command(&command, window, cx)).unwrap_or(Response::Failed(Error::StaleInput));
+                                cx.notify();
+                                result
+                            }).ok()).unwrap_or(Response::Failed(Error::Closed));
+                            transport.respond(Event::NumberInputResult(correlation, id, node, result));
+                        }
+                        Message::SliderCommand(correlation, id, node, command) => {
+                            use gpuio_protocol::slider::{Error, Response};
+                            let result = windows.get(&id)
+                                .and_then(|handle| handle.update(cx, |view, window, cx| {
+                                    view.slider_command(node, command, window, cx)
+                                }).ok())
+                                .unwrap_or(Response::Failed(Error::Closed));
+                            transport.respond(Event::SliderResult(correlation, id, node, result));
                         }
                         Message::EditorCommand(correlation, id, node, command) => {
                             let result = match windows.get(&id) {
@@ -1513,7 +2132,7 @@ pub fn run(transport: Arc<Transport>) {
                                     transport.respond(Event::Closed(correlation, id));
                                     if let Some(window) = windows.remove(&id) {
                                         let _ = window
-                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); view.cancel_split_drag(window, cx); window.remove_window(); });
+                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); view.cancel_tree_drag(window, cx); view.close_color_inputs(window, cx); view.cancel_split_drag(window, cx); view.extensions.clear(); for state in view.canvases.values() { state.borrow_mut().close(window); } view.canvases.clear(); window.remove_window(); });
                                     }
                                 }
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),
@@ -1540,6 +2159,14 @@ pub fn run(transport: Arc<Transport>) {
                             }
                             transport.respond(Event::DocumentResponse(correlation, response));
                         }
+                        Message::Canvas(correlation, request) => {
+                            let published=match &request { gpuio_protocol::canvas_resource::Request::Publish(id,_) => Some(*id), _ => None };
+                            let response=session.borrow_mut().canvas_request(request);
+                            if let Some(source)=published && matches!(response,gpuio_protocol::canvas_resource::Response::Ack) {
+                                for handle in windows.values() { let _=handle.update(cx,|view,window,cx|view.canvas_changed(source,window,cx)); }
+                            }
+                            transport.respond(Event::CanvasResponse(correlation,response));
+                        }
                         Message::SetMotion(preference) => {
                             match session.borrow().check_ready() {
                                 Ok(()) => cx.update(|cx| crate::motion_preference::set(preference, cx)),
@@ -1549,6 +2176,7 @@ pub fn run(transport: Arc<Transport>) {
                         Message::Shutdown => {
                             motion.borrow_mut().take();
                             dialogs.clear().wait().await;
+                            crate::canvas_host::shutdown(cx).await;
                             crate::image_host::shutdown(cx).await;
                             crate::document_host::shutdown(cx).await;
                             for event in session.borrow_mut().shutdown() {
@@ -1582,6 +2210,7 @@ pub(crate) fn stop_application(cx: &mut App) {
         foundation::NSPoint,
     };
     drag_drop::shutdown(cx);
+    crate::canvas_host::finish_before_quit(cx);
     crate::image_host::finish_before_quit(cx);
     crate::document_host::finish_before_quit(cx);
     cx.shutdown();
@@ -1596,6 +2225,7 @@ pub(crate) fn stop_application(cx: &mut App) {
 #[cfg(not(target_os = "macos"))]
 pub(crate) fn stop_application(cx: &mut App) {
     drag_drop::shutdown(cx);
+    crate::canvas_host::finish_before_quit(cx);
     crate::image_host::finish_before_quit(cx);
     crate::document_host::finish_before_quit(cx);
     cx.quit();

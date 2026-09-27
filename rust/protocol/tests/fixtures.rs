@@ -239,9 +239,10 @@ fn overlays_match_ocaml_and_reject_malformed_envelopes() {
     for length in 0..expected.len() {
         assert!(gpuio_protocol::decode(&expected[..length]).is_err());
     }
-    for index in [24, expected.len() - 6, expected.len() - 5] {
+    // Overlay kind tags 2..6 are now sheets/alerts; 7 remains unknown.
+    for (index, value) in [(24, 7), (expected.len() - 6, 2), (expected.len() - 5, 2)] {
         let mut malformed = expected.clone();
-        malformed[index] = 2;
+        malformed[index] = value;
         assert!(gpuio_protocol::decode(&malformed).is_err());
     }
     actual.clear();
@@ -522,4 +523,68 @@ fn pointer_capture_request_and_phase_fixtures_match_ocaml() {
         .binprot_write(&mut actual)
         .unwrap();
     assert_eq!(actual, events);
+}
+
+#[test]
+fn hover_card_kind_and_shared_ownership_events_match_ocaml() {
+    use gpuio_protocol::{HandlerId, NodeId, WindowId, v1::*};
+    let window = WindowId::from_parts(0, 1).unwrap();
+    let node = NodeId::from_parts(0, 1).unwrap();
+    let handler = HandlerId::from_parts(0, 1).unwrap();
+    let config = TooltipConfig {
+        label: "Details".into(),
+        width: 200.,
+        open_state: TooltipOpenState::Managed(false),
+        disabled: false,
+        hoverable: true,
+        show_delay_ns: 600_000_000,
+        hide_delay_ns: 300_000_000,
+        skip_delay_ns: 0,
+    };
+    let request = Message::Apply(Transaction {
+        window,
+        base: 0,
+        revision: 1,
+        operations: vec![
+            Op::Create(node, Kind::HoverCard, "".into(), Some(handler)),
+            Op::SetTooltip(node, config.clone()),
+            Op::SetTooltip(
+                node,
+                TooltipConfig {
+                    open_state: TooltipOpenState::Controlled(true),
+                    ..config
+                },
+            ),
+            Op::SetPlacement(
+                node,
+                Some(Placement {
+                    side: Side::Top,
+                    align: Align::Center,
+                    offset: 6.,
+                }),
+            ),
+        ],
+    });
+    let expected = bytes(include_str!(
+        "../../../test/fixtures/hover-card-request.hex"
+    ));
+    let mut actual = Vec::new();
+    request.binprot_write(&mut actual).unwrap();
+    assert_eq!(actual, expected);
+    assert_eq!(gpuio_protocol::decode(&actual).unwrap(), request);
+    for end in 0..actual.len() {
+        assert!(gpuio_protocol::decode(&actual[..end]).is_err());
+    }
+    actual.push(0);
+    assert!(gpuio_protocol::decode(&actual).is_err());
+    let events = [true, false]
+        .into_iter()
+        .map(|open| Event::TooltipOpenChanged(window, node, handler, 1, open))
+        .collect::<Vec<_>>();
+    actual.clear();
+    events.binprot_write(&mut actual).unwrap();
+    assert_eq!(
+        actual,
+        bytes(include_str!("../../../test/fixtures/tooltip-v1-events.hex"))
+    );
 }

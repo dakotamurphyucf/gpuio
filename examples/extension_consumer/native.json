@@ -1,0 +1,5 @@
+{
+  "library": "gpuio_counter_backend",
+  "gpuio": "../..",
+  "components": [{"path": "../extension_package/rust", "factory": "factory"}]
+}

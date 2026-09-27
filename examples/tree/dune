@@ -1,0 +1,34 @@
+(library
+ (name tree_example_model)
+ (modules outline_data)
+ (libraries core gpuio)
+ (preprocess
+  (pps ppx_jane)))
+
+(library
+ (name tree_example_tests)
+ (modules outline_test)
+ (libraries core gpuio tree_example_model)
+ (inline_tests)
+ (preprocess
+  (pps ppx_jane)))
+
+(executable
+ (name main)
+ (modules
+  main
+  filesystem
+  filesystem_demo
+  outline_demo
+  lifecycle_demo
+  support)
+ (libraries
+  core
+  gpuio
+  gpuio.bonsai
+  gpuio.eio
+  bonsai
+  eio_main
+  tree_example_model)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

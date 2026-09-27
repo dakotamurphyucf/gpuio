@@ -50,3 +50,14 @@ timeouts. Logs are `scroll-*.log` in the implementing agent's ignored scratch
 directory. The checked-in workflow builds the scroll test on both platforms and
 runs it as a required macOS check, with informational X11/Wayland runs. Hosted
 execution remains deferred until the consolidated OCH-11 delivery.
+
+## Milestone-05 regression: visible frame-based test
+
+The consolidated scroll test waited without producing its completion marker
+while its `focus: false` window was behind the foreground application. The test
+now uses a focused window and activates its application before awaiting real
+layout frames, matching the owner's local GUI-test policy. It completes the
+existing nested-axis, boundary routing, composer, popup/modal and disposal
+assertions. Input remains synthetic GPUI dispatch; activation does not turn
+this into physical-trackpad validation. Production window activation is unchanged.
+The focused command is recorded in the [picker regression evidence](native-file-dialogs-och11.md#milestone-05-regression-saved-picker-view-mode).

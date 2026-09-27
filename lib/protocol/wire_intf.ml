@@ -4,8 +4,26 @@ module type S = sig
   module Asset = Asset_wire
   module Image = Image_wire
   module Animation = Animation_wire
+  module Accessibility = Accessibility_wire
+  module Loading = Loading_wire
+  module Avatar = Avatar_wire
+  module Rating = Rating_wire
+  module Slider = Slider_wire
+  module Number_input = Number_input_wire
+  module Otp_input = Otp_wire
+  module Calendar = Calendar_wire
+  module Color_input = Color_input_wire
+  module Table = Table_wire
+  module Tree_input = Tree_input_wire
+  module Carousel = Carousel_wire
+  module Navigation_stack = Navigation_stack_wire
+  module Container_query = Container_query_wire
+  module Animation_program = Animation_program_wire
   module Document = Document_wire
+  module Canvas = Canvas_resource_wire
+  module Canvas_view = Canvas_view_wire
   module Window = Window_wire
+  module Extension = Extension_wire
   module Split = Split_wire
   module Drag_and_drop = Drag_and_drop_wire
 
@@ -45,6 +63,24 @@ module type S = sig
       | Tab_bar
       | Tab_panel
       | Split_pane
+      | Extension
+      | Canvas_view
+      | Animation_program
+      | Container_query
+      | Loading
+      | Avatar
+      | Rating
+      | Slider
+      | Number_input
+      | Otp_input
+      | Calendar
+      | Color_input
+      | Panel
+      | Disclosure
+      | Accordion
+      | Navigation_stack
+      | Hover_card
+      | Carousel
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -175,6 +211,11 @@ module type S = sig
     type t =
       | Dialog
       | Popover
+      | Sheet_left
+      | Sheet_right
+      | Sheet_top
+      | Sheet_bottom
+      | Alert_dialog
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -351,6 +392,7 @@ module type S = sig
       | User_select of bool
       | Selection_color of Color.t
       | Accessible_name of string
+      | Inert of bool
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -695,6 +737,26 @@ module type S = sig
       | Scroll_list of Node_id.t * List_wire.Scroll_request.t
       | Set_document of Node_id.t * Document.Config.t
       | Set_split of Node_id.t * Split.Config.t
+      | Set_extension of Node_id.t * Extension.Config.t
+      | Set_canvas of Node_id.t * Canvas_view.Config.t
+      | Set_animation_program of Node_id.t * Animation_program.Config.t
+      | Set_container_query of Node_id.t * Container_query.Config.t
+      | Set_accessibility of Node_id.t * Accessibility.Config.t option
+      | Set_loading of Node_id.t * Loading.Config.t
+      | Set_avatar of Node_id.t * Avatar.Config.t
+      | Set_rating of Node_id.t * Rating.Config.t
+      | Set_slider of Node_id.t * Slider.Config.t * Slider.Value.t
+      | Set_number_input of Node_id.t * Number_input.Config.t * Number_input.Value.t
+      | Set_otp_input of Node_id.t * Otp_input.Config.t * string
+      | Set_calendar of Node_id.t * Calendar.Config.t * Calendar.Selection.t * int64
+      | Set_color_input of Node_id.t * Color_input.Config.t * Color_input.Value.t
+      | Set_navigation_stack of Node_id.t * Navigation_stack.Config.t
+      | Set_carousel of Node_id.t * Carousel.Config.t
+      | Set_tree_input of Node_id.t * bool
+      | Set_tree_moves of Node_id.t * bool
+      | Set_table of Node_id.t * Table.Config.t
+      | Set_table_cell of Node_id.t * Table.Cell.t
+      | Table_command of Node_id.t * Table.Command.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -801,6 +863,12 @@ module type S = sig
       | Document of int64 * Document.Request.t
       | Window_command of int64 * Window_id.t * Window.Command.t
       | Open_configured of int64 * Window_id.t * Window.Config.t
+      | Canvas of int64 * Canvas.Request.t
+      | Slider_command of int64 * Window_id.t * Node_id.t * Slider.Command.t
+      | Number_input_command of int64 * Window_id.t * Node_id.t * Number_input.Command.t
+      | Otp_input_command of int64 * Window_id.t * Node_id.t * Otp_input.Command.t
+      | Calendar_command of int64 * Window_id.t * Node_id.t * Calendar.Command.t
+      | Color_input_command of int64 * Window_id.t * Node_id.t * Color_input.Command.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Bounded outgoing encoding. Native decoding additionally validates all
@@ -893,6 +961,43 @@ module type S = sig
       | Window_capabilities of Window.Capabilities.t
       | Split_resized of
           Window_id.t * Node_id.t * Handler_id.t * int64 * int64 * Split.Snapshot.t
+      | Extension_event of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * int64 * Extension.Signal.t
+      | Canvas_response of int64 * Canvas.Response.t
+      | Canvas_event of
+          Window_id.t
+          * Node_id.t
+          * Handler_id.t
+          * int64
+          * Resource_id.t option
+          * int64
+          * int64
+          * Canvas_view.Observation.t
+      | Animation_program_event of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Animation_program.Batch.t
+      | Container_selected of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Container_query.Snapshot.t
+      | Rating_requested of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Rating.Request.t
+      | Slider_event of Window_id.t * Node_id.t * Handler_id.t * int64 * Slider.Event.t
+      | Slider_result of int64 * Window_id.t * Node_id.t * Slider.Response.t
+      | Number_input_event of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Number_input.Event.t
+      | Number_input_result of int64 * Window_id.t * Node_id.t * Number_input.Response.t
+      | Otp_input_event of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Otp_input.Event.t
+      | Otp_input_result of int64 * Window_id.t * Node_id.t * Otp_input.Response.t
+      | Calendar_event of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Calendar.Event.t
+      | Calendar_result of int64 * Window_id.t * Node_id.t * Calendar.Response.t
+      | Color_input_event of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Color_input.Event.t
+      | Color_input_result of int64 * Window_id.t * Node_id.t * Color_input.Response.t
+      | Carousel_requested of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Carousel.Request.t
+      | Tree_input of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Tree_input.Request.t
+      | Table_input of Window_id.t * Node_id.t * Handler_id.t * int64 * Table.Input.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

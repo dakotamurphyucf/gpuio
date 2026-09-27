@@ -91,6 +91,26 @@ impl Easing {
         curve((low + high) / 2., y1, y2)
     }
 }
+/// Validated finite-duration physical motion; no callback crosses the bridge.
+#[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
+pub struct Spring {
+    pub stiffness: f64,
+    pub damping: f64,
+    pub mass: f64,
+    pub epsilon: f64,
+    pub max_duration_ms: i64,
+}
+impl Spring {
+    pub fn is_valid(self) -> bool {
+        let bounded =
+            |value: f64, low: f64, high: f64| value.is_finite() && (low..=high).contains(&value);
+        bounded(self.stiffness, 0.01, 10_000.)
+            && bounded(self.damping, 0., 1_000.)
+            && bounded(self.mass, 0.01, 1_000.)
+            && bounded(self.epsilon, 0.0001, 1.)
+            && (1..=60_000).contains(&self.max_duration_ms)
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Repeat {
     Once,

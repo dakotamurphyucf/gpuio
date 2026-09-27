@@ -120,3 +120,30 @@ clipboard (restoring its previous contents). Do not interact with that window
 during the short test. The feature enables paint probes only in this test build.
 Ordinary `test` remains headless. CI requires these graphical checks on macOS;
 Linux graphical results remain informational, while builds and pure tests are required.
+
+The macOS GUI fixtures include 1360×820 window-resize cases. CI therefore checks
+for at least a 1440×1000-point desktop with 1400×900 usable points before building.
+`scripts/ci_macos_display.swift --apply` selects an available mode for the CI login
+session only, preferring the existing pixel density; it refuses changes outside
+GitHub Actions. A separate `--check` process verifies the resulting desktop and
+records full/usable bounds and modes in the uploaded logs. If no suitable mode is
+available, this prerequisite fails explicitly instead of running cropped fixtures.
+No test assertions or required outcomes are skipped. Local `--check` is read-only:
+
+```sh
+xcrun swift scripts/ci_macos_display.swift --check
+```
+
+The helper uses Apple's [display-configuration API](https://developer.apple.com/documentation/coregraphics/cgcompletedisplayconfiguration(_:_:))
+with `kCGConfigureForSession`; it does not save permanent display preferences.
+This test-desktop requirement is not a minimum window size imposed by the library.
+
+
+Once native test compilation and the independent extension-consumer build pass,
+CI runs subsequent independent macOS GUI families even if an earlier family
+fails. Each failure still fails the required job; no macOS check is informational.
+Cancellation stops subsequent families, and missing build prerequisites skip them.
+Component checks and agent-chat walkthroughs each have their own step so one
+failure does not hide later independent scenarios. Other multi-command families
+retain their existing fail-fast behavior. Inspect all
+failed steps and their uploaded logs before fixing the next batch of CI issues.

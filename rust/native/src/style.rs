@@ -1,5 +1,36 @@
 //! Semantic validation and retained allocation accounting for portable refinements.
 use gpuio_protocol::v1::*;
+/// Layout participation follows the last base display declaration. Visibility
+/// and interaction gating are separate: an invisible/inert pane still has size.
+pub(crate) fn display_none(styles: &[Style]) -> bool {
+    styles
+        .iter()
+        .rev()
+        .find_map(|style| match style {
+            Style::Fields(fields) => fields.iter().rev().find_map(|field| match field {
+                Field::Display(value) => Some(*value == 3),
+                _ => None,
+            }),
+            _ => None,
+        })
+        .unwrap_or(false)
+}
+
+/// Interaction gating follows the last base declaration on this node; an
+/// ancestor's gate is independently enforced by the focus manager.
+pub(crate) fn inert(styles: &[Style]) -> bool {
+    styles
+        .iter()
+        .rev()
+        .find_map(|style| match style {
+            Style::Fields(fields) => fields.iter().rev().find_map(|field| match field {
+                Field::Inert(value) => Some(*value),
+                _ => None,
+            }),
+            _ => None,
+        })
+        .unwrap_or(false)
+}
 fn bounded(v: f64) -> bool {
     v.is_finite() && v.abs() <= 1_000_000.
 }
@@ -124,7 +155,7 @@ pub fn validate_fields(fields: &[Field]) -> Result<(), ErrorCode> {
                 }
                 true
             }
-            Field::PointerEvents(_) | Field::UserSelect(_) => true,
+            Field::PointerEvents(_) | Field::UserSelect(_) | Field::Inert(_) => true,
             Field::AccessibleName(v) => !v.is_empty() && v.len() <= 1024,
         };
         if !valid {
@@ -390,7 +421,8 @@ pub fn refine(style: &mut gpui::StyleRefinement, fields: &[Field]) {
             Field::PointerEvents(_)
             | Field::UserSelect(_)
             | Field::SelectionColor(_)
-            | Field::AccessibleName(_) => (),
+            | Field::AccessibleName(_)
+            | Field::Inert(_) => (),
         }
     }
 }

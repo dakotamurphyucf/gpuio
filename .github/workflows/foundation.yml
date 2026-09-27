@@ -52,6 +52,12 @@ jobs:
             brew list "$package" >/dev/null || brew install "$package"
           done
           echo "$(brew --prefix gpatch)/libexec/gnubin" >> "$GITHUB_PATH"
+      - name: macOS GUI desktop space
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p .cache/ci
+          xcrun swift -module-cache-path .cache/macos-display-modules scripts/ci_macos_display.swift --apply 2>&1 | tee .cache/ci/macos-display-setup.log
+          xcrun swift -module-cache-path .cache/macos-display-modules scripts/ci_macos_display.swift --check 2>&1 | tee .cache/ci/macos-display-check.log
       - name: Install pinned opam
         run: python3 scripts/ci_opam.py
       - name: Restore dependency caches
@@ -94,75 +100,301 @@ jobs:
         id: lint
         run: ./scripts/gpuio lint 2>&1 | tee .cache/ci/lint.log
       - name: Build and lint native UI tests
+        id: native-ui-build
         run: |
+          ./scripts/gpuio exec cargo test --locked -p gpuio-table-adapter --features native-tests --test native_table --no-run
+          ./scripts/gpuio exec cargo clippy --locked -p gpuio-table-adapter --features native-tests --all-targets -- -D warnings
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_ui --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_editor --no-run
-          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_controls --no-run
-          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_scroll --test native_list --test native_document --test native_window --test native_tabs --test native_split --no-run
-          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_animation --test native_drag_drop --test native_file_dialog --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_controls --test native_table_host --test native_table_history --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_scroll --test native_list --test native_document --test native_window --test native_tabs --test native_navigation --test native_tree --test native_carousel --test native_hover_card --test native_split --test native_extension --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_animation --test native_animation_program --test native_presentation --test native_slider --test native_number_input --test native_otp_input --test native_calendar --test native_color_input --test native_drag_drop --test native_file_dialog --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-tests --all-targets -- -D warnings
-          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_images --test native_image_views --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_images --test native_image_views --test native_container_query --test native_presentation --test native_slider --test native_number_input --test native_otp_input --test native_calendar --test native_color_input --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-image-tests --all-targets -- -D warnings
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-canvas-tests --test native_canvas --test native_canvas_view --test native_canvas_input --no-run
+          ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-canvas-tests --all-targets -- -D warnings
+      - name: Independent native extension consumer
+        id: extension-consumer
+        run: python3 scripts/test_extension_consumer.py 2>&1 | tee .cache/ci/extension-consumer.log
+      # Independent GUI families continue after another family's failure once
+      # their build prerequisites pass. Failures remain required/red; cancellation
+      # still stops subsequent tests. This collects diagnostics in one CI run.
+      - name: macOS native extension checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_extension"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-extension-native.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/extension_consumer/main.exe", "--smoke"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-extension-consumer.log
+      - name: macOS canvas scene uploads without windows
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: python3 -c 'import subprocess; subprocess.run(["_build/default/examples/canvas_upload/main.exe"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-canvas-upload.log
+      - name: macOS canvas rendering, input and accessibility checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-canvas-tests", "--test", "native_canvas", "--test", "native_canvas_view", "--test", "native_canvas_input"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-canvas-native.log
+      - name: macOS public canvas checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/canvas/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-canvas-public.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/canvas/main.exe", "--self-test", "--large"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-canvas-large.log
+          python3 scripts/test_canvas.py 2>&1 | tee .cache/ci/macos-canvas-public-native.log
       - name: Document worker measurements
         run: ./scripts/gpuio exec cargo test --locked -p gpuio-native --lib document_jobs::tests::measurement_report -- --nocapture 2>&1 | tee .cache/ci/document-worker-measurements.log
       - name: macOS public runtime checks
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
           python3 -c 'import subprocess; [subprocess.run(["_build/default/examples/runtime/main.exe", flag], check=True, timeout=90) for flag in ["--self-test", "--shutdown-test", "--last-window-test"]]' 2>&1 | tee .cache/ci/macos-runtime.log
           python3 -c 'import subprocess; [subprocess.run(["_build/default/examples/runtime/bench.exe", str(windows)] + mode, check=True, timeout=90) for windows in [1, 4] for mode in [[], ["--clock"]]]' 2>&1 | tee .cache/ci/macos-runtime-measurements.log
           _build/default/examples/runtime/bench_input.exe 2>&1 | tee .cache/ci/macos-runtime-input-core.log
       - name: macOS typed UI checks
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_ui"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-typed-native.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/view_api/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-typed-bridge.log
       - name: macOS native control checks
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_controls"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-controls-native.log
       - name: macOS native drag-drop and public lifecycle checks
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_drag_drop"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-drag-drop-native.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/drag_drop/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-drag-drop-public.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/file_dialogs/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-file-dialogs-public.log
       - name: macOS native and public animations
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
-          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_animation"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-animation-native.log
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_animation", "--test", "native_animation_program"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-animation-native.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/animation/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-animation-public.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/animation_program/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-animation-program-public.log
+      - name: macOS native and public container queries
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_container_query"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-container-query-native.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/container_query/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-container-query-public.log
+      - name: macOS components - Native presentation
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_presentation"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-presentation-native.log
+      - name: macOS components - Native slider
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_slider"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-slider-native.log
+      - name: macOS components - Native numeric input
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_number_input"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-number-input-native.log
+      - name: macOS components - Native OTP input
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_otp_input"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-otp-input-native.log
+      - name: macOS components - Native calendar
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_calendar"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-calendar-native.log
+      - name: macOS components - Native color input
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_color_input"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-color-input-native.log
+      - name: macOS components - Public color input
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/color_input/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-color-input-public.log
+      - name: macOS components - Public color picker
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/color_input/picker.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-color-picker-public.log
+      - name: macOS components - Color picker accessibility
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_color_picker.py"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-color-picker-ax.log
+      - name: macOS components - Public presentation
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/presentation/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-presentation-public.log
+      - name: macOS components - Public slider
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/numeric/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-numeric-public.log
+      - name: macOS components - Public numeric input
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/numeric/number.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-number-public.log
+      - name: macOS components - Public OTP input
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/numeric/otp.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-otp-public.log
+      - name: macOS components - Public calendar
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/calendar/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-calendar-public.log
+      - name: macOS components - Calendar accessibility
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_calendar.py"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-calendar-ax.log
+      - name: macOS components - Public date picker
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/calendar/picker.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-date-picker-public.log
+      - name: macOS components - Date picker accessibility
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_date_picker.py"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-date-picker-ax.log
+      - name: macOS components - Slider accessibility
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_numeric.py"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-numeric-ax.log
+      - name: macOS components - Numeric input accessibility
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_number_input.py"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-number-ax.log
+      - name: macOS components - OTP input accessibility
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_otp_input.py"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-otp-ax.log
+      - name: macOS components - Presentation accessibility
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_presentation.py"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-presentation-ax.log
+      - name: macOS components - Presentation content
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_presentation_content.py"], check=True, timeout=240)' 2>&1 | tee .cache/ci/macos-presentation-content.log
       - name: macOS native nested scrolling
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_scroll"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-scroll-native.log
       - name: macOS managed lists and public paging
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_list"], check=True, timeout=180)' 2>&1 | tee .cache/ci/macos-list-native.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/virtual_list/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-list-public.log
+      - name: macOS native disclosure and navigation
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_navigation"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-navigation-native.log
+      - name: macOS native managed tree semantics
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_tree"], check=True, timeout=300)' 2>&1 | tee .cache/ci/macos-tree-native.log
+      - name: macOS native table adapter
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: python3 scripts/test_table_adapter.py 2>&1 | tee .cache/ci/macos-table-native.log
+      - name: macOS retained table host
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: python3 scripts/test_table_host.py 2>&1 | tee .cache/ci/macos-table-host-native.log
+      - name: macOS native table full-history retention
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: python3 scripts/test_table_history.py 2>&1 | tee .cache/ci/macos-table-history-native.log
+      - name: macOS public Bonsai table and paging
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 scripts/test_table_public.py 2>&1 | tee .cache/ci/macos-table-public.log
+          python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_table_appkit.py"], check=True, timeout=150)' 2>&1 | tee .cache/ci/macos-table-public-appkit.log
+      - name: macOS public managed trees and approved moves
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/tree/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-tree-filesystem-public.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/tree/main.exe", "--lifecycle-self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-tree-lifecycle-public.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/tree/main.exe", "--outline", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-tree-outline-public.log
+          python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_tree_outline.py"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-tree-outline-appkit.log
+      - name: macOS native interactive hover cards
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_hover_card"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-hover-card-native.log
+      - name: Native carousel gestures, keyboard, timing and presentation
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_carousel"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-carousel-native.log
+      - name: macOS public navigation and independent content lifetimes
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: python3 -c 'import subprocess; subprocess.run(["_build/default/examples/navigation/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-navigation-public.log
+      - name: macOS public carousel keyboard, accessibility and native lifetimes
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_carousel.py"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-carousel-public-ax.log
+      - name: macOS public sidebar accessibility and context commands
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_sidebar.py"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-sidebar-ax.log
+      - name: macOS public sidebar width motion
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: python3 -c 'import subprocess; subprocess.run(["python3", "scripts/test_sidebar.py", "--motion"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-sidebar-motion-ax.log
       - name: macOS native tabs and retained panels
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_tabs"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-tabs-native.log
       - name: macOS native split panes
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_split"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-split-native.log
       - name: macOS window lifecycle
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_window"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-window-native.log
           python3 -c 'import subprocess; [subprocess.run(["_build/default/examples/window_lifecycle/main.exe"] + flags, check=True, timeout=90) for flags in [[], ["--last-window"]]]' 2>&1 | tee .cache/ci/macos-window-public.log
       - name: macOS streaming documents
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_document"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-documents-native.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/documents/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-documents-public.log
-      - name: macOS agent workspace
-        if: runner.os == 'macOS'
+      - name: macOS agent workspace - Self-test
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/agent_chat/main.exe", "--self-test"], check=True, timeout=120)' 2>&1 | tee .cache/ci/macos-agent-chat-public.log
+      - name: macOS agent workspace - Native workspace
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
           python3 scripts/test_agent_chat.py 2>&1 | tee .cache/ci/macos-agent-chat-native.log
+      - name: macOS agent workspace - Review extension
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 scripts/test_agent_chat_review.py 2>&1 | tee .cache/ci/macos-agent-chat-review.log
+      - name: macOS agent workspace - Diagram
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 scripts/test_agent_chat_diagram.py 2>&1 | tee .cache/ci/macos-agent-chat-diagram.log
+      - name: macOS agent workspace - Sources
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 scripts/test_agent_chat_sources.py 2>&1 | tee .cache/ci/macos-agent-chat-sources.log
+      - name: macOS agent workspace - Results
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 scripts/test_agent_chat_results.py 2>&1 | tee .cache/ci/macos-agent-chat-results.log
+      - name: macOS agent workspace - Settings
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 scripts/test_agent_chat_settings.py 2>&1 | tee .cache/ci/macos-agent-chat-settings.log
+      - name: macOS agent workspace - Dates and colors
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 scripts/test_agent_chat_dates_colors.py 2>&1 | tee .cache/ci/macos-agent-chat-dates-colors.log
+      - name: macOS agent workspace - Feedback
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 scripts/test_agent_chat_feedback.py 2>&1 | tee .cache/ci/macos-agent-chat-feedback.log
+      - name: macOS agent workspace - Feature tour
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 scripts/test_agent_chat_tour.py 2>&1 | tee .cache/ci/macos-agent-chat-tour.log
+      - name: macOS agent workspace - Sidebar
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 scripts/test_agent_chat_sidebar.py 2>&1 | tee .cache/ci/macos-agent-chat-sidebar.log
+      - name: macOS agent workspace - Presentation
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 scripts/test_agent_chat_presentation.py 2>&1 | tee .cache/ci/macos-agent-chat-presentation.log
+      - name: macOS agent workspace - Motion
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 scripts/test_agent_chat_motion.py 2>&1 | tee .cache/ci/macos-agent-chat-motion.log
+      - name: macOS agent workspace - Streaming geometry
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 scripts/test_agent_chat_streaming_layout.py 2>&1 | tee .cache/ci/macos-agent-chat-streaming-layout.log
+      - name: macOS agent workspace - Responsive layout
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 scripts/test_agent_chat_responsive.py 2>&1 | tee .cache/ci/macos-agent-chat-responsive.log
+      - name: macOS agent workspace - Combined workload
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 scripts/test_agent_chat_combined.py 2>&1 | tee .cache/ci/macos-agent-chat-combined.log
       - name: macOS native image pixels and cleanup
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_images"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-images-native.log
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_image_views"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-image-views-native.log
@@ -170,17 +402,17 @@ jobs:
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/images/main.exe", "--self-test", "--svg"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-svg-public.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/images/main.exe", "--self-test", "--icon"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-icons-public.log
       - name: macOS native editor checks
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_editor"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-editor-native.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/text_input/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-editor-public.log
       - name: macOS native smoke
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "smoke", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-native.log
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "smoke", "--two-windows"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-two-windows.log
       - name: macOS production bridge smoke
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: python3 -c 'import subprocess; subprocess.run(["_build/default/examples/bridge/main.exe"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-bridge.log
       - name: Linux X11 native smoke
         id: x11-smoke

@@ -76,6 +76,167 @@ fn begin_drag(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
     draw(cx, handle);
     assert!(resizing(cx, handle), "divider owns native drag");
 }
+fn pane_style(hidden: bool) -> Vec<Style> {
+    vec![Style::Fields(vec![
+        Field::Width(Length::Percent(100.)),
+        Field::Height(Length::Percent(100.)),
+        Field::Display(if hidden { 3 } else { 0 }),
+    ])]
+}
+async fn collapsed_panes(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    transport: &Transport,
+) {
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::SetStyle(node(6), pane_style(false)),
+            Op::SetStyle(node(7), pane_style(false)),
+        ],
+    );
+    draw(cx, handle);
+    let before = sizes(cx, handle);
+    let editor_focus = handle
+        .update(cx, |view, window, cx| {
+            let focus = view.editors[&node(8)].focus_handle(cx);
+            window.focus(&focus, cx);
+            focus
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    #[cfg(target_os = "macos")]
+    super::super::editor_test::native_text(cx, handle, "に", true);
+    let editor_before = handle
+        .update(cx, |view, window, cx| {
+            view.editors[&node(8)].snapshot(window, cx)
+        })
+        .unwrap();
+    events(transport);
+    apply(cx, handle, vec![Op::SetStyle(node(7), pane_style(true))]);
+    draw(cx, handle);
+    handle
+        .update(cx, |view, window, cx| {
+            assert_eq!(view.probes.borrow()[&node(6)].bounds.size.width, px(400.));
+            assert!(editor_focus.is_focused(window));
+            assert_eq!(view.editors[&node(8)].focus_handle(cx), editor_focus);
+            let after = view.editors[&node(8)].snapshot(window, cx);
+            assert_eq!(after.text, editor_before.text);
+            assert_eq!(after.composition, editor_before.composition);
+        })
+        .unwrap();
+    assert_eq!(
+        sizes(cx, handle),
+        before,
+        "collapsed layout preserves split preferences"
+    );
+    #[cfg(target_os = "macos")]
+    {
+        frame(cx, handle).await;
+        assert!(
+            accessible_request(
+                cx,
+                handle,
+                "Workspace divider",
+                Some("AXSplitter"),
+                AccessibilityRequest::Increment
+            )
+            .is_none()
+        );
+    }
+    // Reopen at a different assigned size; native constraints/redistribution
+    // still apply, without a synthetic completed-user-gesture event.
+    let mut wider = style(false);
+    wider.push(Style::Fields(vec![Field::Width(Length::Px(500.))]));
+    apply(cx, handle, vec![Op::SetStyle(node(5), wider)]);
+    draw(cx, handle);
+    handle
+        .update(cx, |view, _, _| {
+            assert_eq!(view.probes.borrow()[&node(6)].bounds.size.width, px(500.));
+        })
+        .unwrap();
+    apply(cx, handle, vec![Op::SetStyle(node(7), pane_style(false))]);
+    frame(cx, handle).await;
+    draw(cx, handle);
+    assert_sizes(sizes(cx, handle), before.first * 1.25, before.second * 1.25);
+    assert!(events(transport).is_empty());
+    apply(cx, handle, vec![Op::SetStyle(node(5), style(false))]);
+    frame(cx, handle).await;
+    draw(cx, handle);
+    assert_eq!(sizes(cx, handle), before);
+    // Cancel composition before deliberately hiding its own pane below.
+    #[cfg(target_os = "macos")]
+    super::super::editor_test::native_text(cx, handle, "", false);
+    begin_drag(cx, handle);
+    handle
+        .update(cx, |view, window, cx| {
+            window.focus(&view.splits[&node(5)].focus, cx)
+        })
+        .unwrap();
+    let retained = sizes(cx, handle);
+    apply(cx, handle, vec![Op::SetStyle(node(6), pane_style(true))]);
+    assert!(
+        !resizing(cx, handle),
+        "hiding a pane cancels the captured drag immediately"
+    );
+    handle
+        .update(cx, |view, window, _| {
+            assert!(!view.splits[&node(5)].focus.is_focused(window));
+        })
+        .unwrap();
+    // The preceding paint may still expose an AX listener until the next draw.
+    #[cfg(target_os = "macos")]
+    let _ = accessible_request(
+        cx,
+        handle,
+        "Workspace divider",
+        Some("AXSplitter"),
+        AccessibilityRequest::Increment,
+    );
+    super::super::native_test::mouse(cx, handle, gpui::point(px(260.), px(100.)), false);
+    draw(cx, handle);
+    assert_eq!(sizes(cx, handle), retained);
+    assert!(events(transport).is_empty());
+    handle
+        .update(cx, |view, _, _| {
+            assert_eq!(view.probes.borrow()[&node(7)].bounds.size.width, px(400.));
+            view.probes.borrow_mut().clear();
+        })
+        .unwrap();
+    apply(cx, handle, vec![Op::SetStyle(node(7), pane_style(true))]);
+    draw(cx, handle);
+    handle
+        .update(cx, |view, _, _| {
+            assert!(!view.probes.borrow().contains_key(&node(6)));
+            assert!(!view.probes.borrow().contains_key(&node(7)));
+        })
+        .unwrap();
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::SetStyle(node(6), pane_style(false)),
+            Op::SetStyle(node(7), pane_style(false)),
+        ],
+    );
+    draw(cx, handle);
+    assert_eq!(sizes(cx, handle), retained);
+    let mut invisible = pane_style(false);
+    invisible.push(Style::Fields(vec![Field::Visibility(1)]));
+    apply(cx, handle, vec![Op::SetStyle(node(7), invisible)]);
+    draw(cx, handle);
+    handle
+        .update(cx, |view, _, _| {
+            assert_eq!(
+                view.probes.borrow()[&node(6)].bounds.size.width,
+                px(retained.first as f32)
+            );
+        })
+        .unwrap();
+    apply(cx, handle, vec![Op::SetStyle(node(7), pane_style(false))]);
+    draw(cx, handle);
+}
 pub(super) async fn exercise(
     cx: &mut gpui::AsyncApp,
     handle: WindowHandle<View>,
@@ -203,6 +364,7 @@ pub(super) async fn exercise(
     let editor_focus = handle
         .update(cx, |view, _, cx| view.editors[&node(8)].focus_handle(cx))
         .unwrap();
+    collapsed_panes(cx, handle, transport).await;
     events(transport);
     begin_drag(cx, handle);
     super::super::native_test::move_mouse(cx, handle, gpui::point(px(210.), px(100.)), true);

@@ -11,6 +11,11 @@ module Controller : sig
 
   val scroll_to : 'key t -> ?offset:float -> 'key -> unit Bonsai.Effect.t Or_error.t
   val reveal : 'key t -> 'key -> unit Bonsai.Effect.t
+
+  (** Requires [on_tree_input]. Reveals and requests eventual native row focus;
+      the current target must expose enabled TreeItem semantics when mounted. *)
+  val focus_tree_row : 'key t -> 'key -> unit Bonsai.Effect.t
+
   val jump_to_latest : _ t -> unit Bonsai.Effect.t
 end
 
@@ -40,14 +45,28 @@ end
     application-owned retention to the native focus/composition/selection pins.
     Pins count toward [Config.max_active]; excess pins produce an error.
 
+    [accessibility] annotates the native list root, not its layout wrapper.
+    [on_tree_input] opts into native tree input and requires a Tree root role.
+    [tree_moves] defaults to false and requires that input callback. It enables
+    same-tree native move proposals; changing it retires the handler epoch.
+    Events contain collection keys and must be reduced against current data;
+    obsolete native row IDs are discarded before delivery.
+    A TreeItem-annotated row container transfers its metadata to the native row
+    wrapper, preserving one semantic row and its existing focus handle.
+
     The viewport must have a bounded height, supplied by [style] or its parent.
     The list fills its assigned area. Initial layout uses native placeholders,
     then asynchronously mounts the requested rows. No OCaml code runs in native
     layout callbacks. [on_viewport] is optional application observation, not a
     requirement to manage the active set.
 
+    While native layout reports tail following, the bounded newest rows are
+    prefetched in the same update as collection appends. Pins retain priority;
+    native layout still controls scrolling. A paused tail uses its requested
+    history instead. Prefetch never exceeds [Config.max_active].
+
     Collection/order metadata and one accepted immutable collection snapshot are
-    O(logical rows). Only the requested/pinned subset creates row computations.
+    O(logical rows). Only the requested/pinned/prefetched subset creates row computations.
     Height invalidations compare against the accepted snapshot, including when
     streaming updates coalesce while native acceptance is pending. *)
 val component
@@ -57,6 +76,9 @@ val component
   -> config:Config.t
   -> ?key:Gpuio.Key.t
   -> ?style:Gpuio.Style.t B.t
+  -> ?accessibility:Gpuio.Accessibility.t B.t
+  -> ?on_tree_input:('key Gpuio.Tree_input.t -> unit Bonsai.Effect.t) B.t
+  -> ?tree_moves:bool B.t
   -> ?generation:int64 B.t
   -> ?pinned:'key list B.t
   -> ?on_viewport:(Viewport.t -> unit Bonsai.Effect.t) B.t
@@ -101,6 +123,9 @@ val paged
   -> config:Config.t
   -> ?key:Gpuio.Key.t
   -> ?style:Gpuio.Style.t B.t
+  -> ?accessibility:Gpuio.Accessibility.t B.t
+  -> ?on_tree_input:('key Gpuio.Tree_input.t -> unit Bonsai.Effect.t) B.t
+  -> ?tree_moves:bool B.t
   -> ?pinned:'key list B.t
   -> ?auto_load:bool B.t
   -> ?on_viewport:(Viewport.t -> unit Bonsai.Effect.t) B.t

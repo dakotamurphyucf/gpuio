@@ -25,9 +25,9 @@ let expect_editor result =
   | Error error -> raise_s [%sexp (error : Input.Command_error.t)]
 ;;
 
-let run ~self_test ~native_test ~attachment_directory =
+let run ~self_test ~native_test ~workload_metrics ~attachment_directory ~motion =
   let passed = ref false in
-  App.run (fun env app ->
+  App.run ~motion (fun env app ->
     let clock = Eio.Stdenv.clock env in
     let sleep = Eio.Time.sleep clock in
     let app_scope = App.scope app in
@@ -60,9 +60,43 @@ let run ~self_test ~native_test ~attachment_directory =
             ~title:(sprintf "GPUIO · Agent workspace %d" !window_serial)
             ~width:1180.
             ~height:820.
-            (Workspace.component workspace ~open_window ~read_file ~attachment_directory)
+            (fun window ->
+               let sources =
+                 Gpuio_agent_chat_runtime.Sources.create
+                   ~scope:(App.Window.scope window)
+                   ~sleep
+                   ~build_large:(fun () ->
+                     Eio.Domain_manager.run
+                       (Eio.Stdenv.domain_mgr env)
+                       Gpuio_agent_chat_runtime.Source_data.large)
+                 |> Or_error.ok_exn
+               in
+               let results =
+                 Gpuio_agent_chat_runtime.Results.create
+                   ~scope:(App.Window.scope window)
+                   ~sleep
+                   ~build:(fun source query ->
+                     Eio.Domain_manager.run (Eio.Stdenv.domain_mgr env) (fun () ->
+                       Gpuio_agent_chat_runtime.Result_data.replace source query
+                       |> Or_error.ok_exn))
+                 |> Or_error.ok_exn
+               in
+               Workspace.component
+                 workspace
+                 ~app
+                 ~sources
+                 ~results
+                 ~open_window
+                 ~read_file
+                 ~attachment_directory
+                 window)
           |> Or_error.ok_exn
         in
+        if workload_metrics
+        then
+          Workspace.set_backend
+            workspace
+            (Backend.Config.create ~chunk_bytes:7 ~delay_seconds:5. () |> Or_error.ok_exn);
         Workspace.install_close_handler workspace window;
         App.Window.on_change window (fun _snapshot ->
           if !resources_started
@@ -81,6 +115,36 @@ let run ~self_test ~native_test ~attachment_directory =
         (snd (List.hd_exn !windows))
         (Backend.Config.create ~accept_delay_seconds:1.0 () |> Or_error.ok_exn);
     App.on_reopen app (fun () -> E.of_thunk (fun () -> open_window 1));
+    if workload_metrics
+    then (
+      let started = Eio.Time.now clock in
+      Scope.start
+        app_scope
+        ~f:(fun () ->
+          while true do
+            sleep 0.5;
+            let diagnostics = App.diagnostics app in
+            let response_bytes =
+              List.sum
+                (module Int)
+                conversations
+                ~f:(fun conversation ->
+                  Conversation.last_document conversation
+                  |> Option.bind ~f:Document.source
+                  |> Option.value_map ~default:0 ~f:Source.byte_length)
+            in
+            Eio.Flow.copy_string
+              (sprintf
+                 "GPUIO_CHAT_WORKLOAD elapsed_ms=%.0f response=(response_bytes %d) \
+                  diagnostics=%s\n"
+                 ((Eio.Time.now clock -. started) *. 1000.)
+                 response_bytes
+                 (Sexp.to_string (App.Diagnostics.sexp_of_t diagnostics)))
+              (Eio.Stdenv.stdout env)
+          done)
+        ~on_result:(fun result -> E.of_thunk (fun () -> Or_error.ok_exn result))
+      |> Or_error.ok_exn
+      |> (ignore : Scope.Task.t -> unit));
     if self_test
     then (
       let first, workspace = List.hd_exn !windows in
@@ -326,6 +390,17 @@ let run ~self_test ~native_test ~attachment_directory =
           Eio.Time.with_timeout_exn clock 5. (fun () -> Eio.Promise.await rendered);
           passed := true;
           let stats = App.stats app in
+          let diagnostics = App.diagnostics app in
+          assert (
+            diagnostics.traffic.submission_attempts
+            >= diagnostics.traffic.submitted_messages);
+          assert (diagnostics.traffic.submitted_messages >= stats.commits);
+          assert (diagnostics.traffic.submitted_bytes > 0);
+          assert (
+            diagnostics.traffic.attempted_bytes >= diagnostics.traffic.submitted_bytes);
+          assert (diagnostics.traffic.drain_calls = stats.turns);
+          assert (diagnostics.traffic.drained_bytes > 0);
+          assert (diagnostics.traffic.received_events > stats.rendered);
           Eio.Flow.copy_string
             (sprintf
                "GPUIO_AGENT_CHAT_METRICS elapsed_ms=%.0f stats=%s\n"
@@ -364,8 +439,17 @@ let () =
         then failwith "--directory requires an absolute path";
         Gpuio.File_path.of_string args.(index + 1) |> Or_error.ok_exn)
   in
+  let motion =
+    match flag "--reduced-motion", flag "--full-motion" with
+    | true, true -> failwith "Choose only one motion override"
+    | true, false -> Gpuio.Animation.Preference.Reduce
+    | false, true -> Full
+    | false, false -> System
+  in
   run
     ~attachment_directory
+    ~motion
     ~self_test:(flag "--self-test")
     ~native_test:(flag "--native-test")
+    ~workload_metrics:(flag "--workload-metrics")
 ;;

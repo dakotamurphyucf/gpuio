@@ -24,8 +24,33 @@ val submit
 
 val drain : t -> Gpuio_protocol.Wire.Event.t list Or_error.t
 
+module Traffic : sig
+  (** Cumulative counters for one handle, sampled on the same UI domain as
+      [submit]/[drain]. Counts serialized buffers, not allocator or GPU memory.
+      Attempts and attempted bytes include native rejections/retries; accepted
+      bytes count successful submissions only. Drains include empty event batches
+      (for example clock polling); [received_events] counts decoded events, not polling calls.
+      Catalog initialization and emergency abort/dispose calls are excluded. *)
+  type t =
+    { submission_attempts : int
+    ; attempted_bytes : int
+    ; submitted_messages : int
+    ; submitted_bytes : int
+    ; drain_calls : int
+    ; drained_bytes : int
+    ; received_events : int
+    }
+  [@@deriving sexp_of]
+end
+
+val traffic : t -> Traffic.t
+
 (** Emergency wake-and-stop, independent of command queue capacity. Cancels all
     outstanding requests. Used when the OCaml worker fails. *)
 val abort : t -> unit
 
 val dispose : t -> unit
+
+(** The immutable, statically linked component schemas. Initializes the selected
+    backend and freezes registration. Call on the OS main thread before [run]. *)
+val extension_catalog : unit -> Gpuio_protocol.Extension_wire.Schema.t list Or_error.t

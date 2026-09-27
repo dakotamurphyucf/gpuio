@@ -78,6 +78,7 @@ pub enum ScrollTarget {
     Offset(i64, f64),
     Reveal(i64),
     End,
+    FocusTreeRow(i64),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]

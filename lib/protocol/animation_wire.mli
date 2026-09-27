@@ -35,6 +35,17 @@ module Easing : sig
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Spring : sig
+  type t =
+    { stiffness : float
+    ; damping : float
+    ; mass : float
+    ; epsilon : float
+    ; max_duration_ms : int64
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Repeat : sig
   type t =
     | Once

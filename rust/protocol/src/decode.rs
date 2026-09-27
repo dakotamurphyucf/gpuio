@@ -2,6 +2,51 @@ use crate::{HandlerId, NodeId, WindowId, v1::*};
 use binprot::BinProtRead;
 use std::io::{Cursor, Read};
 
+mod accessibility;
+mod avatar;
+mod calendar;
+mod carousel;
+mod table;
+pub use carousel::{decode_carousel_config, decode_carousel_request};
+pub use table::{
+    decode_table_cell, decode_table_command, decode_table_config, decode_table_request,
+};
+mod color_input;
+pub use calendar::{
+    decode_calendar_command, decode_calendar_config, decode_calendar_constraints,
+    decode_calendar_event, decode_calendar_response, decode_calendar_selection,
+};
+pub use color_input::{
+    decode_color_command, decode_color_config, decode_color_event, decode_color_response,
+};
+mod loading;
+mod navigation_stack;
+pub use navigation_stack::decode_navigation_stack;
+mod number_input;
+mod otp_input;
+pub use otp_input::{
+    decode_otp_input_command, decode_otp_input_config, decode_otp_input_event,
+    decode_otp_input_response,
+};
+mod numeric;
+pub use number_input::{
+    decode_number_input_command, decode_number_input_config, decode_number_input_event,
+    decode_number_input_response,
+};
+mod rating;
+mod slider;
+pub use accessibility::decode_accessibility;
+pub use numeric::decode_numeric_domain;
+pub use slider::{decode_slider_command, decode_slider_config, decode_slider_event};
+mod container_query;
+pub use container_query::decode_container_query;
+mod animation_program;
+pub use animation_program::decode_animation_program;
+mod canvas;
+mod canvas_view;
+pub use canvas::decode_canvas_scene;
+pub use canvas_view::decode_canvas_view_config;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DecodeError {
     Malformed,
@@ -65,6 +110,43 @@ impl Decoder<'_> {
         Ok(value)
     }
 
+    fn extension_payload(
+        &mut self,
+        maximum: usize,
+    ) -> Result<crate::extension::Payload, DecodeError> {
+        let count = self.count(maximum)?;
+        let start = self.0.position() as usize;
+        let payload = self.0.get_ref()[start..start + count].to_vec();
+        self.0.set_position((start + count) as u64);
+        Ok(crate::extension::Payload(payload))
+    }
+
+    fn extension_config(&mut self) -> Result<crate::extension::Config, DecodeError> {
+        use crate::extension::*;
+        let config = Config {
+            schema: Schema {
+                name: self.bounded_text(128)?,
+                version: self.int()?,
+                fingerprint: self.bounded_text(64)?,
+            },
+            generation: self.int()?,
+            label: self.bounded_text(1024)?,
+            disabled: self.boolean()?,
+            properties: self.extension_payload(MAX_PROPERTIES)?,
+            command: self.option(|decoder| {
+                Ok(Command {
+                    sequence: decoder.int()?,
+                    payload: decoder.extension_payload(MAX_MESSAGE)?,
+                })
+            })?,
+        };
+        if config.is_valid() {
+            Ok(config)
+        } else {
+            Err(DecodeError::Malformed)
+        }
+    }
+
     fn file_path(&mut self) -> Result<crate::file_path::FilePath, DecodeError> {
         let count = self.count(crate::file_path::MAX_PATH_BYTES)?;
         let start = self.0.position() as usize;
@@ -103,7 +185,7 @@ impl Decoder<'_> {
             .collect()
     }
     fn animation_config(&mut self) -> Result<crate::animation::Config, DecodeError> {
-        use crate::animation::{Config, Easing, Repeat};
+        use crate::animation::{Config, Repeat};
         let generation = self.int()?;
         let targets = self.animation_targets()?;
         let initial = match self.tag()? {
@@ -113,15 +195,7 @@ impl Decoder<'_> {
         };
         let duration_ms = self.int()?;
         let delay_ms = self.int()?;
-        let easing = match self.tag()? {
-            0 => Easing::Linear,
-            1 => Easing::Ease,
-            2 => Easing::EaseIn,
-            3 => Easing::EaseOut,
-            4 => Easing::EaseInOut,
-            5 => Easing::CubicBezier(self.float()?, self.float()?, self.float()?, self.float()?),
-            _ => return Err(DecodeError::Malformed),
-        };
+        let easing = self.animation_easing()?;
         let repeat = match self.tag()? {
             0 => Repeat::Once,
             1 => Repeat::Loop,
@@ -525,6 +599,7 @@ impl Decoder<'_> {
             62 => Field::UserSelect(self.boolean()?),
             63 => Field::SelectionColor(self.color()?),
             64 => Field::AccessibleName(self.text()?),
+            65 => Field::Inert(self.boolean()?),
             _ => return Err(DecodeError::Malformed),
         })
     }
@@ -685,6 +760,7 @@ impl Decoder<'_> {
                 0 => crate::list::ScrollTarget::Offset(self.int()?, self.float()?),
                 1 => crate::list::ScrollTarget::Reveal(self.int()?),
                 2 => crate::list::ScrollTarget::End,
+                3 => crate::list::ScrollTarget::FocusTreeRow(self.int()?),
                 _ => return Err(DecodeError::Malformed),
             },
         };
@@ -692,7 +768,8 @@ impl Decoder<'_> {
             crate::list::ScrollTarget::Offset(row, offset) => {
                 row > 0 && (0.0..=1_000_000.0).contains(&offset)
             }
-            crate::list::ScrollTarget::Reveal(row) => row > 0,
+            crate::list::ScrollTarget::Reveal(row)
+            | crate::list::ScrollTarget::FocusTreeRow(row) => row > 0,
             crate::list::ScrollTarget::End => true,
         };
         if request.serial < 1 || !valid_target {
@@ -748,6 +825,11 @@ impl Decoder<'_> {
             kind: match self.tag()? {
                 0 => OverlayKind::Dialog,
                 1 => OverlayKind::Popover,
+                2 => OverlayKind::SheetLeft,
+                3 => OverlayKind::SheetRight,
+                4 => OverlayKind::SheetTop,
+                5 => OverlayKind::SheetBottom,
+                6 => OverlayKind::AlertDialog,
                 _ => return Err(DecodeError::Malformed),
             },
             label: self.text()?,
@@ -791,6 +873,24 @@ impl Decoder<'_> {
                     27 => Kind::TabBar,
                     28 => Kind::TabPanel,
                     29 => Kind::SplitPane,
+                    30 => Kind::Extension,
+                    31 => Kind::CanvasView,
+                    32 => Kind::AnimationProgram,
+                    33 => Kind::ContainerQuery,
+                    34 => Kind::Loading,
+                    35 => Kind::Avatar,
+                    36 => Kind::Rating,
+                    37 => Kind::Slider,
+                    38 => Kind::NumberInput,
+                    39 => Kind::OtpInput,
+                    40 => Kind::Calendar,
+                    41 => Kind::ColorInput,
+                    42 => Kind::Panel,
+                    43 => Kind::Disclosure,
+                    44 => Kind::Accordion,
+                    45 => Kind::NavigationStack,
+                    46 => Kind::HoverCard,
+                    47 => Kind::Carousel,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -859,6 +959,43 @@ impl Decoder<'_> {
             ),
             26 => Op::SetImage(self.node()?, self.image_config()?),
             33 => Op::SetDocument(self.node()?, self.document_config()?),
+            35 => Op::SetExtension(self.node()?, self.extension_config()?),
+            36 => Op::SetCanvas(self.node()?, self.canvas_view_config()?),
+            37 => Op::SetAnimationProgram(self.node()?, self.animation_program_config()?),
+            38 => Op::SetContainerQuery(self.node()?, self.container_query_config()?),
+            39 => Op::SetAccessibility(self.node()?, self.option(|d| d.accessibility_config())?),
+            40 => Op::SetLoading(self.node()?, self.loading_config()?),
+            41 => Op::SetAvatar(self.node()?, self.avatar_config()?),
+            42 => Op::SetRating(self.node()?, self.rating_config()?),
+            43 => Op::SetSlider(self.node()?, self.slider_config()?, self.slider_value()?),
+            44 => Op::SetNumberInput(self.node()?, self.number_config()?, self.number_value()?),
+            45 => {
+                let node = self.node()?;
+                let config = self.otp_config()?;
+                let initial = self.bounded_text(32)?;
+                if !config.policy.canonical(&initial) {
+                    return Err(DecodeError::Malformed);
+                }
+                Op::SetOtpInput(node, config, initial)
+            }
+            48 => Op::SetNavigationStack(self.node()?, self.navigation_stack_config()?),
+            49 => Op::SetCarousel(self.node()?, self.carousel_config()?),
+            50 => Op::SetTreeInput(self.node()?, self.boolean()?),
+            51 => Op::SetTreeMoves(self.node()?, self.boolean()?),
+            52 => Op::SetTable(self.node()?, self.table_config()?),
+            53 => Op::SetTableCell(self.node()?, self.table_cell()?),
+            54 => Op::TableCommand(self.node()?, self.table_command()?),
+            47 => Op::SetColorInput(
+                self.node()?,
+                Box::new(self.color_config()?),
+                self.color_value()?,
+            ),
+            46 => Op::SetCalendar(
+                self.node()?,
+                Box::new(self.calendar_config()?),
+                self.calendar_selection()?,
+                self.calendar_month()?,
+            ),
             34 => {
                 let id = self.node()?;
                 let config = crate::split::Config {
@@ -1150,6 +1287,48 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
                 return Err(DecodeError::Malformed);
             }
             Message::OpenConfigured(correlation, id, config)
+        }
+        18 => {
+            let correlation = d.int()?;
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::ColorInputCommand(correlation, d.window()?, d.node()?, d.color_command()?)
+        }
+        17 => {
+            let correlation = d.int()?;
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::CalendarCommand(correlation, d.window()?, d.node()?, d.calendar_command()?)
+        }
+        16 => {
+            let correlation = d.int()?;
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::OtpInputCommand(correlation, d.window()?, d.node()?, d.otp_command()?)
+        }
+        15 => {
+            let correlation = d.int()?;
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::NumberInputCommand(correlation, d.window()?, d.node()?, d.number_command()?)
+        }
+        14 => {
+            let correlation = d.int()?;
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::SliderCommand(correlation, d.window()?, d.node()?, d.slider_command()?)
+        }
+        13 => {
+            let correlation = d.int()?;
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::Canvas(correlation, d.canvas_request()?)
         }
         _ => return Err(DecodeError::Malformed),
     };

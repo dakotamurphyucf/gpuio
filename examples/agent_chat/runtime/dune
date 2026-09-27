@@ -6,6 +6,7 @@
   gpuio
   gpuio.bonsai
   gpuio.eio
+  gpuio_example_counter
   bonsai
   eio)
  (preprocess

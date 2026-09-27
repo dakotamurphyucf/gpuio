@@ -91,6 +91,41 @@ class Mac:
                 self.release(window)
         return None
 
+    def node_values(self, node):
+        # Five separate IPC round trips per element can exhaust a full-tree
+        # search deadline during animation. One batch also observes one snapshot.
+        fields = ('AXRole', 'AXTitle', 'AXDescription', 'AXValue', 'AXChildren')
+        names = [self.string(n) for n in fields]
+        array = self.cf.CFArrayCreate
+        array.restype = C.c_void_p
+        array.argtypes = [C.c_void_p, C.POINTER(C.c_void_p), C.c_long, C.c_void_p]
+        multiple = self.ax.AXUIElementCopyMultipleAttributeValues
+        multiple.restype = C.c_int
+        multiple.argtypes = [C.c_void_p, C.c_void_p, C.c_uint32, C.POINTER(C.c_void_p)]
+        attrs = array(None, (C.c_void_p * len(names))(*names), len(names), None)
+        values = C.c_void_p()
+        try:
+            if multiple(node, attrs, 0, C.byref(values)) or not values.value:
+                return ['', '', '', ''], []
+            texts = []
+            for i in range(4):
+                value = self.item(values, i)
+                buffer = C.create_string_buffer(262145)
+                is_text = (self.type_id(value) == self.string_type
+                           and self.get_string(value, buffer, len(buffer), 0x08000100))
+                texts.append(buffer.value.decode() if is_text else '')
+            children = self.item(values, 4)
+            count = self.count(children) if self.type_id(children) == self.array_type else 0
+            if count > 4096:
+                raise RuntimeError('Unexpected AX tree size')
+            return texts, [self.retain(self.item(children, i)) for i in range(count)]
+        finally:
+            if values.value:
+                self.release(values)
+            self.release(attrs)
+            for name in names:
+                self.release(name)
+
     def find(self, title, label, role=None, contains=False, search_files=False):
         root = self.window(title)
         if not root:
@@ -99,16 +134,16 @@ class Mac:
         def visit(node, depth):
             if depth > 48 or time.monotonic() >= deadline:
                 return None
-            values = [self.text(node, field) or '' for field in ['AXTitle', 'AXDescription', 'AXValue']]
-            matches = any(label in value if contains else label == value for value in values)
-            if matches and (role is None or self.text(node, 'AXRole') == role):
-                return self.retain(node)
-            if not search_files and role != 'AXTextField' and self.text(node, 'AXRole') in ['AXTable', 'AXOutline', 'AXBrowser']:
-                return None
-            children = self.children(node)
-            if search_files:
-                children.reverse()  # Current column precedes ancestor directory columns.
+            values, children = self.node_values(node)
+            node_role = values[0]
             try:
+                matches = any(label in value if contains else label == value for value in values[1:])
+                if matches and (role is None or node_role == role):
+                    return self.retain(node)
+                if not search_files and role != 'AXTextField' and node_role in ['AXTable', 'AXOutline', 'AXBrowser']:
+                    return None
+                if search_files:
+                    children.reverse()  # Current column precedes ancestor directory columns.
                 for child in children:
                     found = visit(child, depth + 1)
                     if found:
@@ -310,9 +345,27 @@ def exercise(mac, attachment):
     node = mac.wait_find(first, one, 'AXButton')
     mac.release(node)
     mac.draft(first, one, 'Native Send button λ')
-    mac.press(first, 'Send')
-    mac.wait_text(first, 'Sending…')
-    mac.draft(first, one, 'Keep this newer draft')
+    # The composer is retained throughout submission. Resolve it before the
+    # one-second acceptance fixture starts; a whole-window AX search after Send
+    # can consume that interval as the growing transcript mounts documents.
+    composer = mac.wait_find(first, 'Message · ' + one, 'AXTextArea')
+    status = mac.wait_find(first, ' messages ·', 'AXStaticText', contains=True)
+    newer = mac.string('Keep this newer draft')
+    try:
+        mac.press(first, 'Send')
+        started = time.monotonic()
+        deadline = started + 3
+        while 'Sending…' not in (mac.text(status, 'AXTitle') or ''):
+            if time.monotonic() >= deadline:
+                raise RuntimeError('Retained status did not enter Sending')
+            time.sleep(.005)
+        mac.set(composer, 'AXFocused', mac.true)
+        mac.set(composer, 'AXValue', newer)
+        print('NATIVE_ACCEPTANCE_EDIT_MS', round((time.monotonic() - started) * 1000), flush=True)
+    finally:
+        mac.release(newer)
+        mac.release(composer)
+        mac.release(status)
     mac.wait_text(first, 'your newer draft was kept')
     mac.wait_text(first, '· Complete')
     actual = mac.draft(first, one)

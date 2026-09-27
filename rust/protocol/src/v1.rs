@@ -39,7 +39,31 @@ pub const CAP_ANIMATIONS: i64 = 33554432;
 pub const CAP_VIRTUAL_LISTS: i64 = 67108864;
 pub const CAP_DOCUMENTS: i64 = 134217728;
 pub const CAP_WINDOWS: i64 = 268435456;
-pub const CAPABILITIES: i64 = CAP_WINDOWS
+pub const CAP_EXTENSIONS: i64 = 536870912;
+pub const CAP_CANVAS_RESOURCES: i64 = 1073741824;
+pub const CAP_CANVAS: i64 = 2147483648;
+pub const CAP_ANIMATION_PROGRAMS: i64 = 4294967296;
+pub const CAP_CONTAINER_QUERIES: i64 = 8589934592;
+pub const CAP_PRESENTATION: i64 = 1_i64 << 34;
+pub const CAP_NUMERIC_INPUTS: i64 = 1_i64 << 35;
+pub const CAP_CALENDARS: i64 = 1_i64 << 36;
+pub const CAP_COLOR_INPUTS: i64 = 1_i64 << 37;
+pub const CAP_NAVIGATION_COMPONENTS: i64 = 1_i64 << 38;
+pub const CAP_MANAGED_TREES: i64 = 1_i64 << 39;
+pub const CAP_MANAGED_TABLES: i64 = 1_i64 << 40;
+pub const CAPABILITIES: i64 = CAP_MANAGED_TABLES
+    | CAP_MANAGED_TREES
+    | CAP_NAVIGATION_COMPONENTS
+    | CAP_COLOR_INPUTS
+    | CAP_CALENDARS
+    | CAP_NUMERIC_INPUTS
+    | CAP_PRESENTATION
+    | CAP_CONTAINER_QUERIES
+    | CAP_ANIMATION_PROGRAMS
+    | CAP_CANVAS
+    | CAP_CANVAS_RESOURCES
+    | CAP_EXTENSIONS
+    | CAP_WINDOWS
     | CAP_DOCUMENTS
     | CAP_VIRTUAL_LISTS
     | CAP_ANIMATIONS
@@ -112,6 +136,24 @@ pub enum Kind {
     TabBar,
     TabPanel,
     SplitPane,
+    Extension,
+    CanvasView,
+    AnimationProgram,
+    ContainerQuery,
+    Loading,
+    Avatar,
+    Rating,
+    Slider,
+    NumberInput,
+    OtpInput,
+    Calendar,
+    ColorInput,
+    Panel,
+    Disclosure,
+    Accordion,
+    NavigationStack,
+    HoverCard,
+    Carousel,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -308,6 +350,7 @@ pub enum Field {
     UserSelect(bool),
     SelectionColor(Color),
     AccessibleName(String),
+    Inert(bool),
 }
 
 /// Initial portable refinements; adding tags requires explicit schema review.
@@ -510,7 +553,26 @@ impl TooltipConfig {
 pub enum OverlayKind {
     Dialog,
     Popover,
+    SheetLeft,
+    SheetRight,
+    SheetTop,
+    SheetBottom,
+    AlertDialog,
 }
+impl OverlayKind {
+    pub fn is_modal(self) -> bool {
+        match self {
+            Self::Dialog
+            | Self::SheetLeft
+            | Self::SheetRight
+            | Self::SheetTop
+            | Self::SheetBottom
+            | Self::AlertDialog => true,
+            Self::Popover => false,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Dismissal {
     Escape,
@@ -531,6 +593,7 @@ impl OverlayConfig {
             && !self.label.contains('\0')
             && self.width.is_finite()
             && (1.0..=16384.0).contains(&self.width)
+            && (self.kind != OverlayKind::AlertDialog || !self.dismiss_on_outside_pointer)
     }
     pub fn allows(&self, reason: Dismissal) -> bool {
         match reason {
@@ -577,6 +640,39 @@ pub enum Op {
     ScrollList(NodeId, crate::list::ScrollRequest),
     SetDocument(NodeId, crate::document::Config),
     SetSplit(NodeId, crate::split::Config),
+    SetExtension(NodeId, crate::extension::Config),
+    SetCanvas(NodeId, crate::canvas_view::Config),
+    SetAnimationProgram(NodeId, crate::animation_program::Config),
+    SetContainerQuery(NodeId, crate::container_query::Config),
+    SetAccessibility(NodeId, Option<crate::accessibility::Config>),
+    SetLoading(NodeId, crate::loading::Config),
+    SetAvatar(NodeId, crate::avatar::Config),
+    SetRating(NodeId, crate::rating::Config),
+    SetSlider(NodeId, crate::slider::Config, crate::slider::Value),
+    SetNumberInput(
+        NodeId,
+        crate::number_input::Config,
+        crate::number_input::Value,
+    ),
+    SetOtpInput(NodeId, crate::otp_input::Config, String),
+    SetCalendar(
+        NodeId,
+        Box<crate::calendar_input::Config>,
+        crate::calendar::Selection,
+        crate::calendar::Month,
+    ),
+    SetColorInput(
+        NodeId,
+        Box<crate::color_input::Config>,
+        crate::color_value::Value,
+    ),
+    SetNavigationStack(NodeId, crate::navigation_stack::Config),
+    SetCarousel(NodeId, crate::carousel::Config),
+    SetTreeInput(NodeId, bool),
+    SetTreeMoves(NodeId, bool),
+    SetTable(NodeId, crate::table::Config),
+    SetTableCell(NodeId, crate::table::Cell),
+    TableCommand(NodeId, crate::table::Command),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -602,6 +698,12 @@ pub enum Message {
     Document(i64, crate::document::Request),
     WindowCommand(i64, WindowId, crate::window::Command),
     OpenConfigured(i64, WindowId, crate::window::Config),
+    Canvas(i64, crate::canvas_resource::Request),
+    SliderCommand(i64, WindowId, NodeId, crate::slider::Command),
+    NumberInputCommand(i64, WindowId, NodeId, crate::number_input::Command),
+    OtpInputCommand(i64, WindowId, NodeId, crate::otp_input::Command),
+    CalendarCommand(i64, WindowId, NodeId, crate::calendar_input::Command),
+    ColorInputCommand(i64, WindowId, NodeId, crate::color_input::Command),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -694,4 +796,57 @@ pub enum Event {
         i64,
         crate::split::Snapshot,
     ),
+    ExtensionEvent(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        i64,
+        crate::extension::Signal,
+    ),
+    CanvasResponse(i64, crate::canvas_resource::Response),
+    CanvasEvent(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        Option<crate::ResourceId>,
+        i64,
+        i64,
+        crate::canvas_view::Observation,
+    ),
+    AnimationProgramEvent(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        Vec<crate::animation_program::Signal>,
+    ),
+    ContainerSelected(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::container_query::Snapshot,
+    ),
+    RatingRequested(WindowId, NodeId, HandlerId, i64, crate::rating::Request),
+    SliderEvent(WindowId, NodeId, HandlerId, i64, crate::slider::Event),
+    SliderResult(i64, WindowId, NodeId, crate::slider::Response),
+    NumberInputEvent(WindowId, NodeId, HandlerId, i64, crate::number_input::Event),
+    NumberInputResult(i64, WindowId, NodeId, crate::number_input::Response),
+    OtpInputEvent(WindowId, NodeId, HandlerId, i64, crate::otp_input::Event),
+    OtpInputResult(i64, WindowId, NodeId, crate::otp_input::Response),
+    CalendarEvent(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::calendar_input::Event,
+    ),
+    CalendarResult(i64, WindowId, NodeId, crate::calendar_input::Response),
+    ColorInputEvent(WindowId, NodeId, HandlerId, i64, crate::color_input::Event),
+    ColorInputResult(i64, WindowId, NodeId, crate::color_input::Response),
+    CarouselRequested(WindowId, NodeId, HandlerId, i64, crate::carousel::Request),
+    TreeInput(WindowId, NodeId, HandlerId, i64, crate::tree_input::Request),
+    TableInput(WindowId, NodeId, HandlerId, i64, crate::table::Input),
 }

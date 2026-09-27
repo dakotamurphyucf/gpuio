@@ -11,11 +11,12 @@ module Command = struct
   type t =
     | Offset of Key.t * float
     | Reveal of Key.t
+    | Focus_tree_row of Key.t
     | End
   [@@deriving equal, sexp_of]
 
   let target = function
-    | Offset (key, _) | Reveal key -> Some key
+    | Offset (key, _) | Reveal key | Focus_tree_row key -> Some key
     | End -> None
   ;;
 
@@ -23,6 +24,7 @@ module Command = struct
     match t with
     | Offset (key, offset) -> V.Scroll_request.to_row ~serial ~offset key
     | Reveal key -> V.Scroll_request.reveal ~serial key
+    | Focus_tree_row key -> V.Scroll_request.focus_tree_row ~serial key
     | End -> V.Scroll_request.to_end ~serial ()
   ;;
 end
@@ -41,6 +43,7 @@ module Controller = struct
   ;;
 
   let reveal t key = t.submit (Reveal (t.key key))
+  let focus_tree_row t key = t.submit (Focus_tree_row (t.key key))
   let jump_to_latest t = t.submit End
 end
 
@@ -64,6 +67,7 @@ module Metadata = struct
   type 'key t =
     { order : V.Order.t
     ; by_wire : 'key String.Map.t
+    ; reversed : Key.t list
     }
 
   let create keys ~row_key =
@@ -74,7 +78,7 @@ module Metadata = struct
       List.map pairs ~f:(fun (wire, key) -> Key.to_string wire, key)
       |> String.Map.of_alist_or_error
     in
-    { order; by_wire }
+    { order; by_wire; reversed = List.rev (V.Order.keys order) }
   ;;
 end
 
@@ -84,6 +88,7 @@ module Model = struct
     ; pins : Key.t list
     ; viewport : Viewport.t option
     ; viewport_revision : int64 option
+    ; observed_tail : Key.t option
     ; serial : int64
     ; scroll : V.Scroll_request.t option
     }
@@ -94,6 +99,7 @@ module Model = struct
     ; pins = []
     ; viewport = None
     ; viewport_revision = None
+    ; observed_tail = None
     ; serial = 0L
     ; scroll = None
     }
@@ -102,7 +108,7 @@ end
 
 module Action = struct
   type t =
-    | Observe of int64 * Viewport.t
+    | Observe of int64 * Key.t option * Viewport.t
     | Retain of Key.t list
     | Scroll of Command.t
   [@@deriving sexp_of]
@@ -129,12 +135,13 @@ let apply_action _ input model action =
   | Bonsai.Computation_status.Inactive | Active (Error _) -> model
   | Active (Ok metadata) ->
     (match action with
-     | Action.Observe (revision, viewport) ->
+     | Action.Observe (revision, tail, viewport) ->
        { model with
          Model.requested = viewport.requested
        ; pins = viewport.pinned
        ; viewport = Some viewport
        ; viewport_revision = Some revision
+       ; observed_tail = tail
        }
      | Retain pins ->
        { model with pins = List.dedup_and_sort (pins @ model.pins) ~compare:Key.compare }
@@ -166,7 +173,18 @@ let active_keys (metadata : _ Metadata.t) model extra_pins ~max_active =
   if List.length pins > max_active
   then Or_error.error_string "virtual list pinned rows exceed the active budget"
   else (
-    let requested = live model.requested in
+    (* Native scrolling still owns tail-following policy. While it reports that
+       policy active, supply the bounded newest rows in the same transaction as
+       an append, rather than first painting estimated-height placeholders. *)
+    let tail =
+      if Option.exists model.viewport ~f:(fun viewport -> viewport.following_tail)
+      then
+        List.take metadata.reversed (max_active - List.length pins)
+        |> List.take_while ~f:(fun key ->
+          not (Option.exists model.observed_tail ~f:(Key.equal key)))
+      else []
+    in
+    let requested = tail @ live model.requested in
     let _, reversed =
       List.fold
         (pins @ requested)
@@ -190,6 +208,9 @@ let inner
       ~row_key
       ~config
       ~style
+      ~accessibility
+      ~on_tree_input
+      ~tree_moves
       ~generation
       ~pinned
       ~on_viewport
@@ -299,12 +320,15 @@ let inner
     and invalidated = invalidated
     and checkpoint = checkpoint
     and style = style
+    and accessibility = accessibility
     and generation = generation
-    and observe = on_viewport in
+    and observe = on_viewport
+    and on_tree_input = on_tree_input
+    and tree_moves = tree_moves in
     let open Or_error.Let_syntax in
     let%bind metadata = metadata in
     let%bind active = active in
-    let%map view =
+    let%bind view =
       Gpuio.View.Expert.managed_virtual_list
         ~key:(Key.of_string_exn (Int64.to_string generation))
         ~style
@@ -314,9 +338,26 @@ let inner
         ~invalidated
         ~invalidation_revision:checkpoint.revision
         ~on_viewport:(fun viewport ->
-          E.Many [ inject (Observe (checkpoint.revision, viewport)); observe viewport ])
+          E.Many
+            [ inject (Observe (checkpoint.revision, List.hd metadata.reversed, viewport))
+            ; observe viewport
+            ])
         ~on_retain:(fun keys -> inject (Retain keys))
+        ~tree_moves
+        ?on_tree_input:
+          (Option.map on_tree_input ~f:(fun callback input ->
+             match
+               Gpuio.Tree_input.filter_map input ~f:(fun key ->
+                 Map.find metadata.by_wire (Key.to_string key))
+             with
+             | None -> E.Ignore
+             | Some input -> callback input))
         (Map.to_alist rows |> List.map ~f:(fun (key, view) -> row_key key, view))
+    in
+    let%map view =
+      match accessibility with
+      | None -> Ok view
+      | Some accessibility -> Gpuio.View.with_accessibility view accessibility
     in
     { Output.view
     ; controller =
@@ -354,6 +395,9 @@ let component
       ~config
       ?key
       ?(style = B.return fill)
+      ?accessibility
+      ?on_tree_input
+      ?(tree_moves = B.return false)
       ?(generation = B.return 0L)
       ?(pinned = B.return [])
       ?(on_viewport = B.return (fun _ -> E.Ignore))
@@ -361,6 +405,8 @@ let component
       graph
   =
   let open B.Let_syntax in
+  let accessibility = B.transpose_opt accessibility in
+  let on_tree_input = B.transpose_opt on_tree_input in
   let generations =
     let%arr generation = generation
     and source = source in
@@ -377,6 +423,9 @@ let component
           ~row_key
           ~config
           ~style:(B.return fill)
+          ~accessibility
+          ~on_tree_input
+          ~tree_moves
           ~generation
           ~pinned
           ~on_viewport
@@ -430,6 +479,9 @@ let paged
       ~config
       ?key
       ?style
+      ?accessibility
+      ?on_tree_input
+      ?(tree_moves = B.return false)
       ?pinned
       ?(auto_load = B.return true)
       ?on_viewport
@@ -451,6 +503,9 @@ let paged
       ~config
       ?key
       ?style
+      ?accessibility
+      ?on_tree_input
+      ~tree_moves
       ~generation
       ?pinned
       ?on_viewport

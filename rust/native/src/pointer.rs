@@ -365,6 +365,21 @@ impl View {
             self.pointer_activation =
                 Some(cx.observe_window_activation(window, |view, window, cx| {
                     if !window.is_window_active() {
+                        view.cancel_tree_drag(window, cx);
+                        view.cancel_number_repeats(window);
+                        view.cancel_color_inputs(
+                            gpuio_protocol::color_input::CancelReason::WindowInactive,
+                            window,
+                            cx,
+                        );
+                        view.cancel_slider_drags(
+                            gpuio_protocol::slider::CancelReason::WindowInactive,
+                            window,
+                        );
+                        for state in view.canvases.values() {
+                            state.borrow_mut().cancel_input(window);
+                        }
+                        window.refresh();
                         super::drag_drop::cancel(
                             view.id,
                             gpuio_protocol::drag_drop::CancelReason::WindowInactive,

@@ -209,6 +209,12 @@ module Property : sig
     | User_select of bool
     | Selection_color of Color.t
     | Accessible_name of string
+    | Inert of bool
+    (** [Inert true] retains layout and paint while excluding this subtree from
+        native focus, keyboard/pointer/IME input and accessibility. Descendants
+        cannot override an inert ancestor. It does not deactivate Bonsai or cancel
+        application tasks. Base style only; ordinary hidden style still removes
+        paint. Intended for outgoing retained visual content. *)
     | Padding of Length.t
     | Margin of Length.t
     | Gap of Length.t
@@ -284,6 +290,7 @@ module Property : sig
       | User_select
       | Selection_color
       | Accessible_name
+      | Inert
     [@@deriving compare, equal, sexp_of]
   end
 end

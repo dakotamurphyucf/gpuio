@@ -3,7 +3,23 @@
     domain, after generation validation, using the latest accepted closure. *)
 type 'action t
 
+(** Preserve keyed identity while applying validated native semantics. General
+    presentation roles apply to containers/text; Navigation requires a container.
+    Link applies to buttons. Current-item metadata supports text/buttons only. Field
+    metadata applies to native input/textarea/combobox, checkbox/switch and
+    radio/select roots. Ambiguous or unsupported placements return an error. *)
+val with_accessibility : 'action t -> Accessibility.t -> 'action t Core.Or_error.t
+
 val text : ?key:Key.t -> ?style:Style.t -> string -> 'action t
+
+(** Retained native canvas backed by a scoped scene registration. Style determines
+    its size. Native interaction observations enqueue application actions. *)
+val canvas
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?on_event:(Canvas.Event.t -> 'action)
+  -> Canvas.Config.t
+  -> 'action t
 
 (** Native Markdown/code/unified-diff display, backed by a scoped document
     resource. Parsing, selection and copy are native; navigation is asynchronous. *)
@@ -146,6 +162,30 @@ val dialog
   -> 'action t option
   -> 'action t
 
+(** A modal edge-attached drawer, sharing dialog focus/restoration and dismissal
+    ordering. [None] unmounts native content immediately; application models and
+    Eio task lifetimes remain the caller's responsibility. No close animation
+    retains removed resources. *)
+val sheet
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Sheet.Config.t
+  -> on_dismiss:(Overlay.Dismissal.t -> 'action)
+  -> 'action t option
+  -> 'action t
+
+(** An alert dialog enters its first eligible control. Put the safe/cancel action
+    first in content order, especially for destructive confirmation. Confirmation
+    uses ordinary buttons; Enter never implicitly confirms on the panel itself.
+    [None] closes and unmounts. Backdrop clicks are ignored. *)
+val alert_dialog
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Alert_dialog.Config.t
+  -> on_dismiss:(Overlay.Dismissal.t -> 'action)
+  -> 'action t option
+  -> 'action t
+
 (** The anchor remains mounted when closed. Content is positioned against its
     current frame's bounds, enters focus without trapping, and restores on close. *)
 val popover
@@ -164,6 +204,29 @@ val tooltip
   :  ?key:Key.t
   -> ?style:Style.t
   -> config:Tooltip.Config.t
+  -> ?on_open_change:(bool -> 'action)
+  -> anchor:'action t
+  -> content:'action t
+  -> unit
+  -> 'action t
+
+(** An interactive preview with nonmodal dialog semantics, rather than tooltip
+    help text. Hover never moves focus; use a focusable anchor (normally a button
+    or link) for keyboard access. Tab can enter the content and leave normally.
+    Escape and trigger pointer-down request closure until a fresh hover/focus
+    entry. Outside pointer-down also requests closure. Closing focused content
+    restores the first eligible painted anchor control when available, otherwise
+    using the normal enclosing/window fallback. It never steals outside focus.
+
+    Native content is retained while closed, including editor buffers. Hidden
+    content cannot receive input or appear in accessibility. Unmount disposes
+    native resources and timers; Bonsai models and Eio tasks keep their explicit
+    lifetimes. [style] applies to the card panel. Managed changes are observations;
+    Controlled changes are requests, with visibility following the accepted value. *)
+val hover_card
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Hover_card.Config.t
   -> ?on_open_change:(bool -> 'action)
   -> anchor:'action t
   -> content:'action t
@@ -213,9 +276,26 @@ val radio_group
   -> unit
   -> 'action t
 
+(** A statically registered native component. Changing its schema replaces the
+    node; increasing its generation resets native state. Events are delivered
+    asynchronously and obsolete property callbacks are rejected. *)
+val extension
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> on_event:('event Extension.Event.t -> 'action)
+  -> 'event Extension.Instance.t
+  -> 'action t
+
 (** A native-owned divider between two retained children. Give the parent a
     bounded size. Pointer resizing stays in Rust; the optional callback reports
-    completed resizes. Keyboard and accessibility actions share native limits. *)
+    completed resizes. Keyboard and accessibility actions share native limits.
+    An immediate child with base [Display Hidden] (including an inactive [panel]
+    or [tab_panel]) takes no space: the other child fills the split and the
+    divider is absent. Hiding either child cancels an active resize without a
+    completion event. Reopening preserves the previous native sizes, adjusted
+    for the current container. Both hidden children produce an empty split.
+    Child identities remain retained according to their own lifetime policy;
+    [Visibility Hidden] and [Inert true] still occupy space. *)
 val split_pane
   :  ?key:Key.t
   -> ?style:Style.t
@@ -246,6 +326,135 @@ val tab_panel
   -> active:bool
   -> ?style:Style.t
   -> 'action t list
+  -> 'action t
+
+(** A generic labelled region. [hidden] is an explicit native lifetime policy.
+    Inactive regions remain absent from layout and native input, regardless of
+    supplied style. This does not deactivate a Bonsai computation that the caller
+    continues evaluating. A label is nonempty UTF-8 without NUL, at most 4096
+    bytes; invalid literal labels raise as with [Style.create_exn]. *)
+val panel
+  :  key:Key.t
+  -> label:string
+  -> active:bool
+  -> hidden:Content_policy.t
+  -> ?style:Style.t
+  -> 'action t list
+  -> 'action t
+
+(** Present application-owned history in an assigned-size native viewport.
+    Retain builds every keyed page; Unmount calls [content] only for the current
+    entry and removes inactive descendants immediately. Hiding/removing a page
+    does not cancel application Eio tasks or deactivate separately built Bonsai
+    computations. At most one retained outgoing page paints, already inert.
+    Removed pages never delay resource disposal for an exit animation.
+
+    The 128-entry history bound does not bypass native resource quotas. Retained
+    hidden editors still consume the ordinary editor admission budget. Use
+    Unmount when inactive native resources should be released while application
+    data remains available.
+
+    Native timing and focus restoration follow [Navigation_stack.Motion]. The
+    container clips pages to its assigned size; give it explicit dimensions or
+    flex allocation. Label must be nonempty UTF-8 without NUL, at most 4096 bytes. *)
+val navigation_stack
+  :  'data Navigation_stack.t
+  -> ?key:Key.t
+  -> ?style:Style.t
+  -> ?page_style:Style.t
+  -> ?motion:Navigation_stack.Motion.t
+  -> hidden:Content_policy.t
+  -> label:string
+  -> content:('data Navigation_stack.Entry.t -> 'action t list)
+  -> unit
+  -> 'action t
+
+(** Application-owned carousel selection. The viewport reuses retained navigation
+    pages; [hidden] controls native resources independently of Bonsai/Eio lifetimes.
+    Give the owner or [viewport_style] an assigned height. Stable item IDs key pages.
+    Default controls include first/previous/numbered/next/last navigation; disable
+    them to supply application controls outside the component. Requests must be
+    reduced against the latest model using [Carousel.apply_request].
+
+    The focusable carousel surface and its ordinary controls handle Home/End and
+    arrows on the selected axis; child editors and other native widgets keep their
+    own keys. Optional auto-advance runs on native deadlines after settled visible
+    paint, pausing for interaction, hidden/inactive windows and reduced motion.
+    Pointer dragging previews the accepted and adjacent pages natively, emitting
+    one request on release. Ignored requests snap back; accepted updates retarget
+    from painted geometry. Child native controls keep input precedence. Wheel
+    input respects the configured axis and groups momentum into bounded bursts.
+    Full component accessibility acceptance remains under implementation. *)
+val carousel
+  :  'data Carousel.t
+  -> ?key:Key.t
+  -> ?style:Style.t
+  -> ?viewport_style:Style.t
+  -> ?page_style:Style.t
+  -> ?controls_style:Style.t
+  -> ?control_style:Style.t
+  -> ?show_controls:bool
+  -> ?axis:Carousel.Axis.t
+  -> ?motion:Carousel.Motion.t
+  -> hidden:Content_policy.t
+  -> label:string
+  -> on_request:(Carousel.Request.t -> 'action)
+  -> content:('data Carousel.Item.t -> 'action t list)
+  -> unit
+  -> 'action t
+
+(** Controlled collapsible content with a native button trigger and labelled
+    region. Enter/Space, pointer and accessibility activation emit one intent;
+    reduce it against current application state. Collapsing focused content
+    restores its eligible trigger, respecting enclosing modal focus policy.
+    Styles refine the outer, trigger and panel boxes independently. *)
+val disclosure
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?trigger_style:Style.t
+  -> ?panel_style:Style.t
+  -> label:string
+  -> expanded:bool
+  -> ?disabled:bool
+  -> hidden:Content_policy.t
+  -> on_toggle:(unit -> 'action)
+  -> 'action t list
+  -> 'action t
+
+(** Disclosure with independent header content and a dedicated toggle button.
+    [trigger] must be a plain [button]; other kinds return an error. The helper
+    assigns stable internal keys and places arbitrary header views beside it.
+    Only the toggle receives expanded semantics and collapse-focus restoration;
+    other header actions (for example a navigation link) remain independent. *)
+val disclosure_with_header
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?header_style:Style.t
+  -> ?panel_style:Style.t
+  -> label:string
+  -> expanded:bool
+  -> hidden:Content_policy.t
+  -> header:'action t list
+  -> trigger:'action t
+  -> 'action t list
+  -> 'action t Core.Or_error.t
+
+(** Ordered disclosures with stable item IDs. Up/Down/Home/End move among eligible
+    headers; Enter/Space request a toggle. Content runs on the OCaml domain when
+    building this description, never in native layout/paint. With [Unmount], it
+    is not called for collapsed items; this alone does not deactivate a Bonsai
+    computation evaluated outside that callback. Nested accordions have separate
+    header navigation groups. *)
+val accordion
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?trigger_style:Style.t
+  -> ?panel_style:Style.t
+  -> model:Disclosure.t
+  -> hidden:Content_policy.t
+  -> on_request:(Disclosure.Request.t -> 'action)
+  -> content:(Choice.Id.t -> 'action t list)
+  -> unit
   -> 'action t
 
 (** A native select with a bounded, scrollable option popup. Focus remains on
@@ -289,6 +498,34 @@ val animate
   -> 'action t list
   -> 'action t
 
+(** Native assigned-size selection among retained, stable named presentations.
+    All branches remain mounted in Bonsai. Hidden branches retain editing state,
+    but do not paint or receive native input. The selected child's intrinsic size
+    cannot size the outer query. Supply a meaningful parent/explicit size.
+    [on_select] observes painted selection asynchronously; it never drives layout.
+    Rejects duplicate, missing or extra presentation IDs before reconciliation. *)
+val container_query
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?on_select:(Container_query.Selection.t -> 'action)
+  -> Container_query.Config.t
+  -> (Container_query.Branch_id.t * 'action t) list
+  -> 'action t Core.Or_error.t
+
+(** Retained springs/sequences/shared repeats. Animated targets own matching
+    numeric style fields. Playback-only changes preserve run identity; new bodies
+    retarget from painted values and a higher restart token resets initial values.
+    Events arrive in ordered batches using the latest accepted closure. Hidden
+    content pauses independent timing; shared members rejoin the group phase.
+    Reduced motion and widget/window disposal are handled natively. *)
+val animate_program
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?on_event:(Animation.Program.Event.t -> 'action)
+  -> Animation.Program.t
+  -> 'action t list
+  -> 'action t
+
 (** Encoded assets registered with [Gpuio_eio.Asset]. Layout comes from [style];
     [config] declares fit and accessibility. State changes are asynchronous and
     refer to the currently mounted source. Retired registrations keep existing
@@ -308,6 +545,103 @@ val icon
   -> ?on_change:(Image.State.t -> 'action)
   -> Icon.Config.t
   -> 'action t
+
+(** Native-owned single/range slider. [controller] identifies one mounted owner;
+    [initial] seeds it only on mount. Use a new controller key to change between
+    single and range mode. Observations do not reset the native drag or value.
+    Disabled/read-only owners still report programmatic observations.
+    [Style.Foreground] controls the selected rail, thumbs and native focus ring;
+    the unselected rail uses the same color at 25% opacity. Focus state styles
+    apply while either thumb is focused. Width/height set the available travel;
+    background and border styles decorate the outer control. *)
+val slider
+  :  ?style:Style.t
+  -> controller:Key.t
+  -> config:Slider.Config.t
+  -> initial:Slider.Value.t
+  -> on_event:(Slider.Event.t -> 'action)
+  -> unit
+  -> 'action t
+
+(** Native numeric editor placement. The stable controller identifies one native
+    owner. [initial] seeds it once; observations never reset draft/selection.
+    Explicit commands update live state. Configuration changes preserve the
+    draft and normalize the committed value in the new domain. *)
+val number_input
+  :  ?style:Style.t
+  -> controller:Key.t
+  -> config:Number_input.Config.t
+  -> initial:Number_input.Value.t
+  -> on_event:(Number_input.Event.t -> 'action)
+  -> unit
+  -> 'action t
+
+(** One native segmented OTP editor. [initial] seeds a mount once and must fit
+    [config] policy. Changing a retained length/alphabet rejects; use a new
+    controller identity to remount deliberately. Observations never replace text.
+    Use [Gpuio_eio.Otp_input] for the mounted Bonsai command controller. The
+    numeric-input capability covers this native editor and its command/event
+    contract. *)
+val otp_input
+  :  ?style:Style.t
+  -> controller:Key.t
+  -> config:Otp_input.Config.t
+  -> initial:Otp_input.Value.t
+  -> on_event:(Otp_input.Event.t -> 'action)
+  -> unit
+  -> 'action t
+
+(** Retained color-control description. Seeds once per controller identity;
+    later configuration changes preserve the native value. Rust owns native
+    channels, palette selection and editable drafts. Use [Gpuio_eio.Color_input]
+    for correlated commands, or [Gpuio_eio.Color_picker] for a controlled popup. *)
+val color_input
+  :  ?style:Style.t
+  -> controller:Key.t
+  -> config:Color_input.Config.t
+  -> initial:Color_value.Value.t
+  -> on_event:(Color_input.Event.t -> 'action)
+  -> unit
+  -> 'action t
+
+(** Retained native calendar. Seeds
+    selection and displayed month once per controller identity. Mode is immutable;
+    configuration changes may invalidate a historical selection without clearing
+    it. *)
+val calendar
+  :  ?style:Style.t
+  -> controller:Key.t
+  -> config:Calendar.Config.t
+  -> initial:Calendar.Selection.t
+  -> initial_month:Calendar.Month.t
+  -> on_event:(Calendar.Event.t -> 'action)
+  -> unit
+  -> 'action t
+
+(** Controlled integer rating. Apply each request against the latest application
+    state with [Rating.Config.apply_request]. Hover stays native; keyboard and
+    accessibility report ordered requests without a second committed model. *)
+val rating
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Rating.Config.t
+  -> on_request:(Rating.Request.t -> 'action)
+  -> unit
+  -> 'action t
+
+(** Stable native avatar with image/fallback selection. Image observations use the
+    existing source-generation fences; no asset means no observation. *)
+val avatar
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?on_change:(Image.State.t -> 'action)
+  -> Avatar.Config.t
+  -> 'action t
+
+(** Noninteractive skeleton/shimmer/spinner. Styles set size, color and placeholder
+    corners; motion and hidden/reduced/static behavior remain native. No events or
+    progress value are produced. See [Loading.Config]. *)
+val loading : ?key:Key.t -> ?style:Style.t -> config:Loading.Config.t -> unit -> 'action t
 
 (** A noninteractive native progress bar. Root Background styles the track and
     Foreground styles the indicator. Indeterminate motion stays on the native side;
@@ -372,6 +706,14 @@ val toast_stack
   -> 'action t Core.Or_error.t
 
 module Expert : sig
+  type 'action table =
+    { source_key : Key.t option
+    ; config : Table.Config.t
+    ; query_generation : int64
+    ; commands : Key.t Table.Command.t list
+    ; on_input : Key.t Table.Request.t -> 'action
+    }
+
   type 'action virtual_list =
     { config : Virtual_list.Config.t
     ; order : Virtual_list.Order.t
@@ -381,10 +723,18 @@ module Expert : sig
     ; scroll : Virtual_list.Scroll_request.t option
     ; on_viewport : (Virtual_list.Viewport.t -> 'action) option
     ; on_retain : (Key.t list -> 'action) option
+    ; on_tree_input : (Key.t Tree_input.t -> 'action) option
+    ; tree_moves : bool
+    ; table : 'action table option
     }
 
   (** Native list adapters supply the desired row set, including pinned rows.
-      [on_retain] handles a native veto of stale viewport-driven eviction. *)
+      [on_retain] handles a native veto of stale viewport-driven eviction.
+      [on_tree_input] opts into tree keyboard/pointer/accessibility requests and
+      requires Tree semantics on the final list root. Reconciliation rotates the
+      handler when input or [tree_moves] changes, retiring already queued requests.
+      [tree_moves] defaults to false and requires [on_tree_input]; Move delivers
+      two current keys as a proposal, never an implicit hierarchy mutation. *)
   val managed_virtual_list
     :  ?key:Key.t
     -> ?style:Style.t
@@ -395,12 +745,57 @@ module Expert : sig
     -> order:Virtual_list.Order.t
     -> on_viewport:(Virtual_list.Viewport.t -> 'action)
     -> on_retain:(Key.t list -> 'action)
+    -> ?on_tree_input:(Key.t Tree_input.t -> 'action)
+    -> ?tree_moves:bool
     -> (Key.t * 'action t) list
     -> 'action t Core.Or_error.t
+
+  (** Native retained table adapter. Rows contain exactly one cell per schema
+      column in schema order; wrappers are generated with stable column keys.
+      Only [config]'s bounded active rows are accepted. No arbitrary row wrapper,
+      native handle or synchronous renderer crosses this interface.
+
+      Query generations must not decrease during a mount. A query reset retires
+      callbacks/viewport observations while preserving surviving row IDs. The
+      reconciler generates schema revisions from accepted column/sort changes.
+      Commands are ordered batches of at most 64 items; a retained equal batch
+      executes once, new serials strictly increase across the mount (also across
+      omitted batches and query resets). Delayed obsolete targets are errors;
+      higher-level controllers should filter them before constructing a View.
+      Changing [source_key] replaces the entire native mount independently of
+      the sibling [key]; keep it stable for point updates and query changes. *)
+  val managed_table
+    :  ?key:Key.t
+    -> ?source_key:Key.t
+    -> ?style:Style.t
+    -> ?commands:Key.t Table.Command.t list
+    -> config:Table.Config.t
+    -> query_generation:int64
+    -> order:Virtual_list.Order.t
+    -> on_viewport:(Virtual_list.Viewport.t -> 'action)
+    -> on_retain:(Key.t list -> 'action)
+    -> on_input:(Key.t Table.Request.t -> 'action)
+    -> (Key.t * (Table.Cell.t * 'action t) list) list
+    -> 'action t Core.Or_error.t
+
+  type 'action container_query =
+    { config : Container_query.Config.t
+    ; on_select : (Container_query.Selection.t -> 'action) option
+    }
+
+  type 'action animation_program =
+    { config : Animation.Program.t
+    ; on_event : (Animation.Program.Event.t -> 'action) option
+    }
 
   type 'action animation =
     { config : Animation.Config.t
     ; on_event : (Animation.Event.t -> 'action) option
+    }
+
+  type 'action extension =
+    { config : Gpuio_protocol.Extension_wire.Config.t
+    ; on_event : Gpuio_protocol.Extension_wire.Signal.t -> 'action
     }
 
   type 'action split_pane =
@@ -408,9 +803,55 @@ module Expert : sig
     ; on_resize : (Split_pane.Snapshot.t -> 'action) option
     }
 
+  type 'action canvas =
+    { config : Canvas.Config.t
+    ; on_event : (Canvas.Event.t -> 'action) option
+    }
+
   type 'action document =
     { config : Document.Config.t
     ; on_navigate : (Document.Navigation.t -> 'action) option
+    }
+
+  type 'action slider =
+    { controller : Key.t
+    ; config : Slider.Config.t
+    ; initial : Slider.Value.t
+    ; on_event : Slider.Event.t -> 'action
+    }
+
+  type 'action number_input =
+    { controller : Key.t
+    ; config : Number_input.Config.t
+    ; initial : Number_input.Value.t
+    ; on_event : Number_input.Event.t -> 'action
+    }
+
+  type 'action otp_input =
+    { controller : Key.t
+    ; config : Otp_input.Config.t
+    ; initial : Otp_input.Value.t
+    ; on_event : Otp_input.Event.t -> 'action
+    }
+
+  type 'action color_input =
+    { controller : Key.t
+    ; config : Color_input.Config.t
+    ; initial : Color_value.Value.t
+    ; on_event : Color_input.Event.t -> 'action
+    }
+
+  type 'action calendar =
+    { controller : Key.t
+    ; config : Calendar.Config.t
+    ; initial : Calendar.Selection.t
+    ; initial_month : Calendar.Month.t
+    ; on_event : Calendar.Event.t -> 'action
+    }
+
+  type 'action rating =
+    { config : Rating.Config.t
+    ; on_request : Rating.Request.t -> 'action
     }
 
   type 'action image =
@@ -470,6 +911,24 @@ module Expert : sig
       | Tab_bar
       | Tab_panel
       | Split_pane
+      | Extension
+      | Canvas_view
+      | Animation_program
+      | Container_query
+      | Loading
+      | Avatar
+      | Rating
+      | Slider
+      | Number_input
+      | Otp_input
+      | Calendar
+      | Color_input
+      | Panel
+      | Disclosure
+      | Accordion
+      | Navigation_stack
+      | Hover_card
+      | Carousel
     [@@deriving equal, sexp_of]
   end
 
@@ -551,14 +1010,31 @@ module Expert : sig
     ; notification : 'action notification option
     ; toast_stack : Toast.Stack.t option
     ; progress : Progress.Config.t option
+    ; loading : Loading.Config.t option
+    ; avatar : Avatar.Config.t option
+    ; rating : 'action rating option
+    ; slider : 'action slider option
+    ; number_input : 'action number_input option
+    ; otp_input : 'action otp_input option
+    ; color_input : 'action color_input option
+    ; calendar : 'action calendar option
     ; animation : 'action animation option
+    ; animation_program : 'action animation_program option
+    ; navigation_stack : Gpuio_protocol.Navigation_stack_wire.Config.t option
+    ; carousel :
+        (Gpuio_protocol.Carousel_wire.Config.t * (Carousel.Request.t -> 'action)) option
+    ; container_query : 'action container_query option
+    ; accessibility : Accessibility.t option
     ; image : 'action image option
+    ; extension : 'action extension option
     ; split_pane : 'action split_pane option
     ; document : 'action document option
+    ; canvas : 'action canvas option
     ; palette : 'action palette option
     ; menu : menu option
     ; focus_scope : Focus_scope.t option
     ; virtual_list : 'action virtual_list option
+    ; table_cell : Table.Cell.t option
     ; children : 'action t list
     }
 

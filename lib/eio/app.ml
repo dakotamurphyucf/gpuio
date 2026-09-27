@@ -3,6 +3,11 @@ open Gpuio_protocol
 module Guard = Gpuio_runtime_core.Domain_guard
 module Driver = Gpuio_runtime_core.Window_driver
 module Input = Gpuio.Text_input
+module Slider = Gpuio.Slider
+module Number_input = Gpuio.Number_input
+module Otp_input = Gpuio.Otp_input
+module Calendar = Gpuio.Calendar
+module Color_input = Gpuio.Color_input
 module Dialog = Gpuio.File_dialog
 module Native_window = Gpuio.Window
 
@@ -12,6 +17,41 @@ type editor_request =
   { window : Window_id.t
   ; node : Node_id.t
   ; complete : editor_result -> unit
+  }
+
+type slider_request =
+  { window : Window_id.t
+  ; node : Node_id.t
+  ; complete : (Slider.Snapshot.t, Slider.Command_error.t) Result.t -> unit
+  }
+
+type number_input_request =
+  { window : Window_id.t
+  ; node : Node_id.t
+  ; complete : (Number_input.Snapshot.t, Number_input.Command_error.t) Result.t -> unit
+  }
+
+type otp_input_request =
+  { window : Window_id.t
+  ; node : Node_id.t
+  ; policy : Otp_input.Policy.t
+  ; minimum_revision : Otp_input.Revision.t
+  ; complete : (Otp_input.Snapshot.t, Otp_input.Command_error.t) Result.t -> unit
+  }
+
+type calendar_request =
+  { window : Window_id.t
+  ; node : Node_id.t
+  ; mode : Calendar.Mode.t
+  ; minimum_revision : Calendar.Revision.t
+  ; complete : (Calendar.Snapshot.t, Calendar.Command_error.t) Result.t -> unit
+  }
+
+type color_input_request =
+  { window : Window_id.t
+  ; node : Node_id.t
+  ; minimum_revision : Color_input.Revision.t
+  ; complete : (Color_input.Snapshot.t, Color_input.Command_error.t) Result.t -> unit
   }
 
 type window_result = (Native_window.Snapshot.t, Native_window.Error.t) Result.t
@@ -59,6 +99,11 @@ type t =
   ; mutable closes : Window_id.t Int64.Map.t
   ; mutable frames : (Window_id.t * (revision:int64 -> unit Bonsai.Effect.t)) Int64.Map.t
   ; mutable editors : editor_request Int64.Map.t
+  ; mutable sliders : slider_request Int64.Map.t
+  ; mutable number_inputs : number_input_request Int64.Map.t
+  ; mutable otp_inputs : otp_input_request Int64.Map.t
+  ; mutable calendars : calendar_request Int64.Map.t
+  ; mutable color_inputs : color_input_request Int64.Map.t
   ; mutable dialogs : dialog_request Int64.Map.t
   ; mutable window_requests : window_request Int64.Map.t
   ; mutable window_capabilities : Native_window.Capabilities.t option
@@ -66,8 +111,10 @@ type t =
   ; mutable on_reopen : unit -> unit Bonsai.Effect.t
   ; asset_registry : Asset_registry.t
   ; document_registry : Document_registry.t
+  ; canvas_registry : Canvas_registry.t
   ; mutable assets : (Wire.Asset.Response.t -> unit) Int64.Map.t
   ; mutable documents : (Wire.Document.Response.t -> unit) Int64.Map.t
+  ; mutable canvases : (Wire.Canvas.Response.t -> unit) Int64.Map.t
   ; mutable correlation : int64
   ; mutable motion : Gpuio.Animation.Preference.t option
   ; mutable welcomed : bool
@@ -104,6 +151,70 @@ let stats t =
   t.stats
 ;;
 
+module Diagnostics = struct
+  type t =
+    { runtime : Stats.t
+    ; traffic : Gpuio_native.Traffic.t
+    ; scopes : Scope.Stats.t
+    ; windows : int
+    ; queued_jobs : int
+    ; queued_commands : int
+    ; pending_requests : int
+    ; assets : int
+    ; asset_uploads : int
+    ; asset_source_bytes : int
+    ; documents : int
+    ; document_source_bytes : int
+    ; canvases : int
+    ; canvas_scene_bytes : int
+    }
+  [@@deriving sexp_of]
+end
+
+let diagnostics t : Diagnostics.t =
+  check t;
+  let assets, asset_uploads, asset_source_bytes =
+    Asset_registry.Expert.counts t.asset_registry
+  in
+  let documents, document_source_bytes =
+    Document_registry.Expert.counts t.document_registry
+  in
+  let canvases, canvas_scene_bytes = Canvas_registry.Expert.counts t.canvas_registry in
+  { runtime = t.stats
+  ; traffic = Gpuio_native.traffic t.native
+  ; scopes = Scope.stats t.scope
+  ; windows =
+      Map.count t.windows ~f:(fun window ->
+        match window.phase with
+        | Closed -> false
+        | Opening | Open | Closing_before_open | Closing -> true)
+  ; queued_jobs = Inbox.length t.inbox
+  ; queued_commands = Queue.length t.commands
+  ; pending_requests =
+      Map.length t.opens
+      + Map.length t.closes
+      + Map.length t.frames
+      + Map.length t.editors
+      + Map.length t.sliders
+      + Map.length t.number_inputs
+      + Map.length t.otp_inputs
+      + Map.length t.calendars
+      + Map.length t.color_inputs
+      + Map.length t.dialogs
+      + Map.length t.window_requests
+      + Map.length t.assets
+      + Map.length t.documents
+      + Map.length t.canvases
+  ; assets
+  ; asset_uploads
+  ; asset_source_bytes
+  ; documents
+  ; document_source_bytes
+  ; canvases
+  ; canvas_scene_bytes
+  }
+;;
+
 let correlation t =
   if Int64.equal t.correlation Int64.max_value then failwith "request identity exhausted";
   t.correlation <- Int64.succ t.correlation;
@@ -124,6 +235,33 @@ let set_motion t preference =
 ;;
 
 module Expert = struct
+  let canvas_request t ~limit request =
+    Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+      check t;
+      let fail error = callback (Wire.Canvas.Response.Failed error) in
+      if t.stopping
+      then fail Closed
+      else if not t.welcomed
+      then fail Not_ready
+      else if Map.length t.canvases >= limit
+      then fail Resource_limit
+      else (
+        let oversized =
+          match request with
+          | Wire.Canvas.Request.Chunk (_, _, _, data) ->
+            String.length data > Wire.Canvas.max_chunk_bytes
+          | Create | Begin _ | Publish _ | Abort _ | Release _ -> false
+        in
+        if oversized
+        then fail Invalid_range
+        else (
+          let id = correlation t in
+          t.canvases <- Map.set t.canvases ~key:id ~data:callback;
+          queue t (Canvas (id, request)))))
+  ;;
+
+  let canvas t request = canvas_request t ~limit:63 request
+
   let document_request t ~limit request =
     Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
       check t;
@@ -150,6 +288,14 @@ module Expert = struct
   ;;
 
   let document t request = document_request t ~limit:63 request
+
+  let register_canvas t ~scope scene =
+    Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+      check t;
+      if t.stopping
+      then callback (Error (Canvas_registry.Error.Native Closed))
+      else Canvas_registry.register t.canvas_registry ~scope scene ~on_result:callback)
+  ;;
 
   let register_document t ~scope source =
     Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
@@ -245,6 +391,36 @@ let release_window window =
         Window_id.equal request.window window.id)
     in
     window.app.editors <- remaining;
+    let cancelled_sliders, remaining_sliders =
+      Map.partition_tf window.app.sliders ~f:(fun request ->
+        Window_id.equal request.window window.id)
+    in
+    window.app.sliders <- remaining_sliders;
+    Map.iter cancelled_sliders ~f:(fun request -> request.complete (Error Closed));
+    let cancelled_number_inputs, remaining_number_inputs =
+      Map.partition_tf window.app.number_inputs ~f:(fun request ->
+        Window_id.equal request.window window.id)
+    in
+    window.app.number_inputs <- remaining_number_inputs;
+    Map.iter cancelled_number_inputs ~f:(fun request -> request.complete (Error Closed));
+    let cancelled_otp_inputs, remaining_otp_inputs =
+      Map.partition_tf window.app.otp_inputs ~f:(fun request ->
+        Window_id.equal request.window window.id)
+    in
+    window.app.otp_inputs <- remaining_otp_inputs;
+    Map.iter cancelled_otp_inputs ~f:(fun request -> request.complete (Error Closed));
+    let cancelled_calendars, remaining_calendars =
+      Map.partition_tf window.app.calendars ~f:(fun request ->
+        Window_id.equal request.window window.id)
+    in
+    window.app.calendars <- remaining_calendars;
+    Map.iter cancelled_calendars ~f:(fun request -> request.complete (Error Closed));
+    let cancelled_color_inputs, remaining_color_inputs =
+      Map.partition_tf window.app.color_inputs ~f:(fun request ->
+        Window_id.equal request.window window.id)
+    in
+    window.app.color_inputs <- remaining_color_inputs;
+    Map.iter cancelled_color_inputs ~f:(fun request -> request.complete (Error Closed));
     Map.iter cancelled ~f:(fun request -> request.complete (Error Closed));
     let cancelled_dialogs, remaining_dialogs =
       Map.partition_tf window.app.dialogs ~f:(fun request ->
@@ -271,6 +447,7 @@ let shutdown t =
     t.stopping <- true;
     Asset_registry.close t.asset_registry;
     Document_registry.close t.document_registry;
+    Canvas_registry.close t.canvas_registry;
     Scope.cancel t.scope;
     queue t Shutdown)
 ;;
@@ -420,6 +597,168 @@ module Window = struct
         ~f:Dialog.Expert.capabilities_of_wire
     ;;
 
+    let slider_command t snapshot command =
+      Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+        check t.app;
+        if is_closed t || t.app.stopping
+        then callback (Error Slider.Command_error.Closed)
+        else if not (Window_id.equal t.id (Slider.Expert.window snapshot))
+        then callback (Error Stale_slider)
+        else if Map.length t.app.sliders >= 64
+        then callback (Error Busy)
+        else (
+          let request = correlation t.app in
+          let node = Slider.Expert.node snapshot in
+          t.app.sliders
+          <- Map.set
+               t.app.sliders
+               ~key:request
+               ~data:{ window = t.id; node; complete = callback };
+          queue
+            t.app
+            (Slider_command (request, t.id, node, Slider.Expert.command_to_wire command))))
+    ;;
+
+    let number_input_command t snapshot command =
+      Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+        check t.app;
+        let command = Number_input.Expert.command_to_wire command in
+        let invalid : Number_input.Command_error.t option =
+          let module W = Gpuio_protocol.Number_input_wire in
+          match command with
+          | W.Command.Replace_draft { text; selection; _ } ->
+            if String.length text > Number_input.max_draft_bytes
+            then Some Limit_exceeded
+            else if not (W.valid_text text)
+            then Some Invalid_text
+            else if not (W.Selection_policy.within selection text)
+            then Some Invalid_selection
+            else None
+          | Replace_value { value; selection; _ } ->
+            if not (W.Value.valid value)
+            then Some Invalid_value
+            else if not (W.Selection_policy.valid selection)
+            then Some Invalid_selection
+            else None
+          | Select selection ->
+            if W.Selection.valid selection then None else Some Invalid_selection
+          | Focus | Undo | Redo | Commit | Cancel | Step _ | Read_snapshot -> None
+        in
+        if is_closed t || t.app.stopping
+        then callback (Error Number_input.Command_error.Closed)
+        else if Option.is_some invalid
+        then callback (Error (Option.value_exn invalid))
+        else if not (Window_id.equal t.id (Number_input.Expert.window snapshot))
+        then callback (Error Stale_input)
+        else if Map.length t.app.number_inputs >= 64
+        then callback (Error Busy)
+        else (
+          let request = correlation t.app in
+          let node = Number_input.Expert.node snapshot in
+          t.app.number_inputs
+          <- Map.set
+               t.app.number_inputs
+               ~key:request
+               ~data:{ window = t.id; node; complete = callback };
+          queue t.app (Number_input_command (request, t.id, node, command))))
+    ;;
+
+    let otp_input_command t snapshot command =
+      Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+        check t.app;
+        let command = Otp_input.Expert.command_to_wire command in
+        let invalid : Otp_input.Command_error.t option =
+          let module W = Gpuio_protocol.Otp_wire in
+          match command with
+          | W.Command.Replace { value; selection; _ } ->
+            if not (W.Selection_policy.within selection value)
+            then Some Invalid_selection
+            else None
+          | Select selection ->
+            if W.Selection.valid selection then None else Some Invalid_selection
+          | Clear _ | Focus | Undo | Redo | Cancel_composition | Read_snapshot -> None
+        in
+        if is_closed t || t.app.stopping
+        then callback (Error Otp_input.Command_error.Closed)
+        else if Option.is_some invalid
+        then callback (Error (Option.value_exn invalid))
+        else if not (Window_id.equal t.id (Otp_input.Expert.window snapshot))
+        then callback (Error Stale_input)
+        else if Map.length t.app.otp_inputs >= 64
+        then callback (Error Busy)
+        else (
+          let request = correlation t.app in
+          let node = Otp_input.Expert.node snapshot in
+          t.app.otp_inputs
+          <- Map.set
+               t.app.otp_inputs
+               ~key:request
+               ~data:
+                 { window = t.id
+                 ; node
+                 ; policy = Otp_input.Snapshot.policy snapshot
+                 ; minimum_revision = Otp_input.Snapshot.revision snapshot
+                 ; complete = callback
+                 };
+          queue t.app (Otp_input_command (request, t.id, node, command))))
+    ;;
+
+    let calendar_command t snapshot command =
+      Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+        check t.app;
+        if is_closed t || t.app.stopping
+        then callback (Error Calendar.Command_error.Closed)
+        else if not (Window_id.equal t.id (Calendar.Expert.window snapshot))
+        then callback (Error Stale_input)
+        else (
+          match Calendar.Expert.command_to_wire command with
+          | Error _ -> callback (Error Invalid_value)
+          | Ok command ->
+            if Map.length t.app.calendars >= 64
+            then callback (Error Busy)
+            else (
+              let request = correlation t.app in
+              let node = Calendar.Expert.node snapshot in
+              t.app.calendars
+              <- Map.set
+                   t.app.calendars
+                   ~key:request
+                   ~data:
+                     { window = t.id
+                     ; node
+                     ; mode = Calendar.Snapshot.mode snapshot
+                     ; minimum_revision = Calendar.Snapshot.revision snapshot
+                     ; complete = callback
+                     };
+              queue t.app (Calendar_command (request, t.id, node, command)))))
+    ;;
+
+    let color_input_command t snapshot command =
+      Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+        check t.app;
+        if is_closed t || t.app.stopping
+        then callback (Error Color_input.Command_error.Closed)
+        else if not (Window_id.equal t.id (Color_input.Expert.window snapshot))
+        then callback (Error Stale_color_input)
+        else if Map.length t.app.color_inputs >= 64
+        then callback (Error Busy)
+        else (
+          let command = Color_input.Expert.command_to_wire command in
+          let request = correlation t.app in
+          let node = Color_input.Expert.node snapshot in
+          t.app.color_inputs
+          <- Map.set
+               t.app.color_inputs
+               ~key:request
+               ~data:
+                 { window = t.id
+                 ; node
+                 ; minimum_revision = Color_input.Snapshot.revision snapshot
+                 ; complete = callback
+                 };
+          queue t.app (Color_input_command (request, t.id, node, command))))
+    ;;
+
     let editor_command t snapshot command =
       Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
         check t.app;
@@ -545,6 +884,7 @@ let open_window_config t ?(theme = Gpuio.Theme.default) config component =
           Driver.create
             ~asset_owner:(Asset_registry.Expert.owner t.asset_registry)
             ~document_owner:(Document_registry.Expert.owner t.document_registry)
+            ~canvas_owner:(Canvas_registry.Expert.owner t.canvas_registry)
             id
             ~start:(t.now ())
             ~theme
@@ -642,15 +982,38 @@ let process t = function
         Option.iter window.driver ~f:(fun driver ->
           Driver.acknowledge driver ~revision |> Or_error.ok_exn));
     Inbox.wake t.inbox
+  | Canvas_event (id, _, _, _, source, scene_revision, scene_generation, observation) as
+    event ->
+    if
+      Canvas_registry.accepts_event
+        t.canvas_registry
+        source
+        ~scene_revision
+        ~scene_generation
+        observation
+    then
+      Option.iter (find_window t id) ~f:(fun window ->
+        if not (Window.is_closed window)
+        then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))
   | Document_navigation (id, _, _, _, source, generation, _) as event ->
     if Document_registry.accepts_navigation t.document_registry source ~generation
     then
       Option.iter (find_window t id) ~f:(fun window ->
         if not (Window.is_closed window)
         then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))
-  | ( Split_resized (id, _, _, _, _, _)
+  | ( Extension_event (id, _, _, _, _, _)
+    | Split_resized (id, _, _, _, _, _)
     | Press (id, _, _, _)
     | Editor_event (id, _, _, _, _, _)
+    | Slider_event (id, _, _, _, _)
+    | Number_input_event (id, _, _, _, _)
+    | Otp_input_event (id, _, _, _, _)
+    | Color_input_event (id, _, _, _, _)
+    | Calendar_event (id, _, _, _, _)
+    | Rating_requested (id, _, _, _, _)
+    | Table_input (id, _, _, _, _)
+    | Tree_input (id, _, _, _, _)
+    | Carousel_requested (id, _, _, _, _)
     | Choice (id, _, _, _, _)
     | Combobox_selected (id, _, _, _, _, _)
     | Palette_dismissed (id, _, _, _, _)
@@ -658,6 +1021,8 @@ let process t = function
     | Drag_source_event (id, _, _, _, _)
     | Image_state (id, _, _, _, _)
     | Animation_endpoint (id, _, _, _, _)
+    | Container_selected (id, _, _, _, _)
+    | Animation_program_event (id, _, _, _, _)
     | List_viewport (id, _, _, _, _)
     | Drop_target_event (id, _, _, _, _)
     | Pointer_event (id, _, _, _, _)
@@ -667,6 +1032,12 @@ let process t = function
     Option.iter (find_window t id) ~f:(fun window ->
       if not (Window.is_closed window)
       then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))
+  | Canvas_response (request, response) ->
+    (match Map.find t.canvases request with
+     | None -> ()
+     | Some complete ->
+       t.canvases <- Map.remove t.canvases request;
+       complete (if t.stopping then Wire.Canvas.Response.Failed Closed else response))
   | Document_response (request, response) ->
     (match Map.find t.documents request with
      | None -> ()
@@ -687,6 +1058,95 @@ let process t = function
          match find_window t id with
          | Some window when (not (Window.is_closed window)) && not t.stopping -> result
          | Some _ | None -> Wire.File_dialog.Result.Failed Closed
+       in
+       pending.complete result
+     | Some _ | None -> ())
+  | Slider_result (request, id, node, result) ->
+    (match Map.find t.sliders request with
+     | Some pending
+       when Window_id.equal pending.window id && Node_id.equal pending.node node ->
+       t.sliders <- Map.remove t.sliders request;
+       let result =
+         match result with
+         | Failed error -> Error (Slider.Expert.error_of_wire error)
+         | Applied snapshot ->
+           Slider.Expert.snapshot_of_wire ~window:id ~node snapshot
+           |> Result.map_error ~f:(fun _ -> Slider.Command_error.Native_failure)
+       in
+       pending.complete result
+     | Some _ | None -> ())
+  | Number_input_result (request, id, node, result) ->
+    (match Map.find t.number_inputs request with
+     | Some pending
+       when Window_id.equal pending.window id && Node_id.equal pending.node node ->
+       t.number_inputs <- Map.remove t.number_inputs request;
+       let result =
+         match result with
+         | Failed error -> Error (Number_input.Expert.error_of_wire error)
+         | Applied snapshot ->
+           Number_input.Expert.snapshot_of_wire ~window:id ~node snapshot
+           |> Result.map_error ~f:(fun _ -> Number_input.Command_error.Native_failure)
+       in
+       pending.complete result
+     | Some _ | None -> ())
+  | Otp_input_result (request, id, node, result) ->
+    (match Map.find t.otp_inputs request with
+     | Some pending
+       when Window_id.equal pending.window id && Node_id.equal pending.node node ->
+       t.otp_inputs <- Map.remove t.otp_inputs request;
+       let result =
+         match result with
+         | Failed error -> Error (Otp_input.Expert.error_of_wire error)
+         | Applied snapshot ->
+           (match Otp_input.Expert.snapshot_of_wire ~window:id ~node snapshot with
+            | Ok snapshot
+              when Otp_input.Policy.equal
+                     pending.policy
+                     (Otp_input.Snapshot.policy snapshot)
+                   && Otp_input.Revision.compare
+                        (Otp_input.Snapshot.revision snapshot)
+                        pending.minimum_revision
+                      >= 0 -> Ok snapshot
+            | Ok _ | Error _ -> Error Otp_input.Command_error.Native_failure)
+       in
+       pending.complete result
+     | Some _ | None -> ())
+  | Calendar_result (request, id, node, result) ->
+    (match Map.find t.calendars request with
+     | Some pending
+       when Window_id.equal pending.window id && Node_id.equal pending.node node ->
+       t.calendars <- Map.remove t.calendars request;
+       let result =
+         match result with
+         | Failed error -> Error (Calendar.Expert.error_of_wire error)
+         | Applied snapshot ->
+           (match Calendar.Expert.snapshot_of_wire ~window:id ~node snapshot with
+            | Ok snapshot
+              when Calendar.Mode.equal pending.mode (Calendar.Snapshot.mode snapshot)
+                   && Calendar.Revision.compare
+                        (Calendar.Snapshot.revision snapshot)
+                        pending.minimum_revision
+                      >= 0 -> Ok snapshot
+            | Ok _ | Error _ -> Error Calendar.Command_error.Native_failure)
+       in
+       pending.complete result
+     | Some _ | None -> ())
+  | Color_input_result (request, id, node, result) ->
+    (match Map.find t.color_inputs request with
+     | Some pending
+       when Window_id.equal pending.window id && Node_id.equal pending.node node ->
+       t.color_inputs <- Map.remove t.color_inputs request;
+       let result =
+         match result with
+         | Failed error -> Error (Color_input.Expert.error_of_wire error)
+         | Applied snapshot ->
+           (match Color_input.Expert.snapshot_of_wire ~window:id ~node snapshot with
+            | Ok snapshot
+              when Color_input.Revision.compare
+                     (Color_input.Snapshot.revision snapshot)
+                     pending.minimum_revision
+                   >= 0 -> Ok snapshot
+            | Ok _ | Error _ -> Error Color_input.Command_error.Native_failure)
        in
        pending.complete result
      | Some _ | None -> ())
@@ -749,6 +1209,96 @@ let process t = function
         Native_failure
     in
     pending.complete (Wire.File_dialog.Result.Failed error)
+  | Failed (request, code) when Map.mem t.sliders request ->
+    let pending = Map.find_exn t.sliders request in
+    t.sliders <- Map.remove t.sliders request;
+    let error : Slider.Command_error.t =
+      match code with
+      | Closed -> Closed
+      | Stale_handle -> Stale_slider
+      | Busy | Overloaded -> Busy
+      | Limit_exceeded -> Limit_exceeded
+      | Unsupported_version
+      | Unsupported_capability
+      | Malformed
+      | Not_ready
+      | Invalid_revision
+      | Invalid_tree
+      | Native_failure -> Native_failure
+    in
+    pending.complete (Error error)
+  | Failed (request, code) when Map.mem t.number_inputs request ->
+    let pending = Map.find_exn t.number_inputs request in
+    t.number_inputs <- Map.remove t.number_inputs request;
+    let error : Number_input.Command_error.t =
+      match code with
+      | Closed -> Closed
+      | Stale_handle -> Stale_input
+      | Busy | Overloaded -> Busy
+      | Limit_exceeded -> Limit_exceeded
+      | Unsupported_version
+      | Unsupported_capability
+      | Malformed
+      | Not_ready
+      | Invalid_revision
+      | Invalid_tree
+      | Native_failure -> Native_failure
+    in
+    pending.complete (Error error)
+  | Failed (request, code) when Map.mem t.otp_inputs request ->
+    let pending = Map.find_exn t.otp_inputs request in
+    t.otp_inputs <- Map.remove t.otp_inputs request;
+    let error : Otp_input.Command_error.t =
+      match code with
+      | Closed -> Closed
+      | Stale_handle -> Stale_input
+      | Busy | Overloaded -> Busy
+      | Limit_exceeded -> Limit_exceeded
+      | Unsupported_version
+      | Unsupported_capability
+      | Malformed
+      | Not_ready
+      | Invalid_revision
+      | Invalid_tree
+      | Native_failure -> Native_failure
+    in
+    pending.complete (Error error)
+  | Failed (request, code) when Map.mem t.calendars request ->
+    let pending = Map.find_exn t.calendars request in
+    t.calendars <- Map.remove t.calendars request;
+    let error : Calendar.Command_error.t =
+      match code with
+      | Closed -> Closed
+      | Stale_handle -> Stale_input
+      | Busy | Overloaded -> Busy
+      | Limit_exceeded -> Limit_exceeded
+      | Unsupported_version
+      | Unsupported_capability
+      | Malformed
+      | Not_ready
+      | Invalid_revision
+      | Invalid_tree
+      | Native_failure -> Native_failure
+    in
+    pending.complete (Error error)
+  | Failed (request, code) when Map.mem t.color_inputs request ->
+    let pending = Map.find_exn t.color_inputs request in
+    t.color_inputs <- Map.remove t.color_inputs request;
+    let error : Color_input.Command_error.t =
+      match code with
+      | Closed -> Closed
+      | Stale_handle -> Stale_color_input
+      | Busy | Overloaded -> Busy
+      | Limit_exceeded -> Limit_exceeded
+      | Unsupported_version
+      | Unsupported_capability
+      | Malformed
+      | Not_ready
+      | Invalid_revision
+      | Invalid_tree
+      | Native_failure -> Native_failure
+    in
+    pending.complete (Error error)
   | Failed (request, code) when Map.mem t.editors request ->
     let pending = Map.find_exn t.editors request in
     t.editors <- Map.remove t.editors request;
@@ -784,6 +1334,10 @@ let process t = function
        if Map.mem t.frames request
        then t.frames <- Map.remove t.frames request
        else Error.raise (native_error code))
+  | Failed (request, _) when Map.mem t.canvases request ->
+    let complete = Map.find_exn t.canvases request in
+    t.canvases <- Map.remove t.canvases request;
+    complete (Wire.Canvas.Response.Failed Native_failure)
   | Failed (request, _) when Map.mem t.documents request ->
     let complete = Map.find_exn t.documents request in
     t.documents <- Map.remove t.documents request;
@@ -795,13 +1349,17 @@ let process t = function
     t.stopping <- true;
     Asset_registry.close t.asset_registry;
     Document_registry.close t.document_registry;
+    Canvas_registry.close t.canvas_registry;
     let assets = t.assets in
     t.assets <- Int64.Map.empty;
     Map.iter assets ~f:(fun complete -> complete (Wire.Asset.Response.Failed Closed));
     let documents = t.documents in
     t.documents <- Int64.Map.empty;
     Map.iter documents ~f:(fun complete ->
-      complete (Wire.Document.Response.Failed Closed))
+      complete (Wire.Document.Response.Failed Closed));
+    let canvases = t.canvases in
+    t.canvases <- Int64.Map.empty;
+    Map.iter canvases ~f:(fun complete -> complete (Wire.Canvas.Response.Failed Closed))
 ;;
 
 let submit_commands t =
@@ -880,6 +1438,13 @@ let step t =
           (Bonsai.Effect.map
              (Expert.document_request t ~limit:64 request)
              ~f:(Document_registry.complete t.document_registry)));
+    if t.welcomed && not t.stopping
+    then
+      Option.iter (Canvas_registry.next_request t.canvas_registry) ~f:(fun request ->
+        Bonsai.Effect.Expert.handle
+          (Bonsai.Effect.map
+             (Expert.canvas_request t ~limit:64 request)
+             ~f:(Canvas_registry.complete t.canvas_registry)));
     submit_commands t;
     if not t.stopping
     then (
@@ -909,6 +1474,9 @@ let worker native read ~tick_hz ~max_tasks ~motion initialize =
         Time_ns.of_span_since_epoch
           (Time_ns.Span.of_sec (Eio.Time.now (Eio.Stdenv.clock env)))
       in
+      let asset_registry =
+        Asset_registry.create ~scope ~wake:(fun () -> Inbox.wake inbox)
+      in
       let app =
         { guard = Guard.create ()
         ; native
@@ -922,16 +1490,27 @@ let worker native read ~tick_hz ~max_tasks ~motion initialize =
         ; closes = Int64.Map.empty
         ; frames = Int64.Map.empty
         ; editors = Int64.Map.empty
+        ; sliders = Int64.Map.empty
+        ; number_inputs = Int64.Map.empty
+        ; otp_inputs = Int64.Map.empty
+        ; calendars = Int64.Map.empty
+        ; color_inputs = Int64.Map.empty
         ; dialogs = Int64.Map.empty
         ; window_requests = Int64.Map.empty
         ; window_capabilities = None
         ; quit_pending = None
         ; on_reopen = (fun () -> Bonsai.Effect.Ignore)
-        ; asset_registry = Asset_registry.create ~scope ~wake:(fun () -> Inbox.wake inbox)
+        ; asset_registry
         ; document_registry =
             Document_registry.create ~scope ~wake:(fun () -> Inbox.wake inbox)
+        ; canvas_registry =
+            Canvas_registry.create
+              ~scope
+              ~asset_owner:(Asset_registry.Expert.owner asset_registry)
+              ~wake:(fun () -> Inbox.wake inbox)
         ; assets = Int64.Map.empty
         ; documents = Int64.Map.empty
+        ; canvases = Int64.Map.empty
         ; correlation = 0L
         ; motion = Some motion
         ; welcomed = false
@@ -945,10 +1524,12 @@ let worker native read ~tick_hz ~max_tasks ~motion initialize =
         ~finally:(fun () ->
           Asset_registry.close app.asset_registry;
           Document_registry.close app.document_registry;
+          Canvas_registry.close app.canvas_registry;
           Scope.cancel scope;
           Map.iter app.windows ~f:release_window;
           app.assets <- Int64.Map.empty;
           app.documents <- Int64.Map.empty;
+          app.canvases <- Int64.Map.empty;
           app.frames <- Int64.Map.empty;
           app.closes <- Int64.Map.empty;
           app.opens <- Int64.Map.empty;
@@ -1034,4 +1615,9 @@ let run
       Gpuio_native.dispose native;
       reraise_result worker_result;
       reraise_result native_result))
+;;
+
+let extension_catalog () =
+  let%bind.Or_error schemas = Gpuio_native.extension_catalog () in
+  List.map schemas ~f:Gpuio.Extension.Schema.Expert.of_wire |> Or_error.all
 ;;

@@ -33,9 +33,63 @@ pub struct Session {
     retained_bytes: usize,
     assets: crate::asset_store::Store,
     documents: crate::document_store::Store,
+    canvases: crate::canvas_store::Store,
+    motion: std::rc::Rc<std::cell::RefCell<crate::motion_host::Store>>,
 }
 
 impl Session {
+    pub fn motion(&self) -> std::rc::Rc<std::cell::RefCell<crate::motion_host::Store>> {
+        self.motion.clone()
+    }
+    pub fn container_selected(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        snapshot: gpuio_protocol::container_query::Snapshot,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let current = state.tree.get(node)?;
+        let config = current.container_query.as_ref()?;
+        (!state.overloaded
+            && current.handler == Some(handler)
+            && revision >= 0
+            && revision <= state.tree.revision()
+            && snapshot.is_valid()
+            && snapshot.generation == config.generation
+            && config.select(snapshot.width, snapshot.height) == Some(snapshot.branch as usize))
+        .then_some(Event::ContainerSelected(
+            window, node, handler, revision, snapshot,
+        ))
+    }
+    pub fn animation_program_event(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        signals: Vec<gpuio_protocol::animation_program::Signal>,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let current = state.tree.get(node)?;
+        let config = current.animation_program.as_ref()?;
+        (!state.overloaded
+            && current.handler == Some(handler)
+            && revision >= 0
+            && revision <= state.tree.revision()
+            && gpuio_protocol::animation_program::Signal::valid_batch(&signals)
+            && signals[0].generation <= config.generation)
+            .then_some(Event::AnimationProgramEvent(
+                window, node, handler, revision, signals,
+            ))
+    }
+
+    #[cfg(feature = "native-canvas-tests")]
+    pub(crate) fn retained_canvas_bytes(&self) -> usize {
+        self.canvases.reserved_bytes()
+    }
+
     pub fn hello(&mut self, version: i64, capabilities: i64) -> Result<Event, ErrorCode> {
         if self.stopped {
             return Err(ErrorCode::Closed);
@@ -76,6 +130,75 @@ impl Session {
     ) -> Result<crate::asset_store::Lease, ImageError> {
         self.check_ready().map_err(|_| ImageError::Released)?;
         self.assets.acquire(id).map_err(|_| ImageError::Released)
+    }
+
+    pub fn table_input(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        input: gpuio_protocol::table::Input,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let current = state.tree.get(node)?;
+        let config = current.table.as_ref()?;
+        let index = current.list_index.as_ref()?;
+        (!state.overloaded
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision()
+            && input.is_valid()
+            && input.schema_revision == config.schema_revision
+            && input.query_generation == config.query_generation
+            && config.allows_request(&input.request, |row| index.position(row).is_some()))
+        .then_some(Event::TableInput(window, node, handler, revision, input))
+    }
+
+    pub fn tree_input(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: gpuio_protocol::HandlerId,
+        revision: i64,
+        request: gpuio_protocol::tree_input::Request,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let current = state.tree.get(node)?;
+        if state.overloaded
+            || !current.tree_input
+            || !request.is_valid()
+            || !state.tree.accepts_handler(node, handler)
+            || revision < 0
+            || revision > state.tree.revision()
+        {
+            return None;
+        }
+        if matches!(request, gpuio_protocol::tree_input::Request::Move { .. })
+            && !current.tree_moves
+        {
+            return None;
+        }
+        for target in request.targets() {
+            let row = current.list_rows.iter().find(|row| row.id == target)?;
+            let item = state.tree.get(row.node)?;
+            let Some(gpuio_protocol::accessibility::Role::TreeItem(metadata)) =
+                item.accessibility.as_ref()?.role
+            else {
+                return None;
+            };
+            if metadata.disabled
+                || (matches!(
+                    request,
+                    gpuio_protocol::tree_input::Request::SetExpanded(..)
+                ) && metadata.expanded.is_none())
+                || (matches!(request, gpuio_protocol::tree_input::Request::Move { destination, placement: gpuio_protocol::tree_input::Placement::Inside, .. } if destination == target)
+                    && metadata.expanded.is_none())
+            {
+                return None;
+            }
+        }
+        Some(Event::TreeInput(window, node, handler, revision, request))
     }
 
     pub fn list_viewport(
@@ -193,6 +316,54 @@ impl Session {
             Ok(()) => Response::Ack,
             Err(error) => Response::Failed(error),
         }
+    }
+
+    pub fn canvas_request(
+        &mut self,
+        request: gpuio_protocol::canvas_resource::Request,
+    ) -> gpuio_protocol::canvas_resource::Response {
+        use gpuio_protocol::canvas_resource::{Error, Request, Response};
+        if let Err(error) = self.check_ready() {
+            return Response::Failed(if error == ErrorCode::Closed {
+                Error::Closed
+            } else {
+                Error::NotReady
+            });
+        }
+        let result = match request {
+            Request::Create => {
+                return match self.canvases.create() {
+                    Ok(id) => Response::Created(id),
+                    Err(error) => Response::Failed(error),
+                };
+            }
+            Request::Begin(update) => self.canvases.begin(update),
+            Request::Chunk(id, revision, offset, bytes) => usize::try_from(offset)
+                .map_err(|_| Error::InvalidRange)
+                .and_then(|offset| self.canvases.chunk(id, revision, offset, bytes.as_bytes())),
+            Request::Publish(id, revision) => self.canvases.publish(id, revision, &self.assets),
+            Request::Abort(id, revision) => self.canvases.abort(id, revision),
+            Request::Release(id) => self.canvases.release(id),
+        };
+        match result {
+            Ok(()) => Response::Ack,
+            Err(error) => Response::Failed(error),
+        }
+    }
+
+    pub fn canvas(
+        &self,
+        id: gpuio_protocol::ResourceId,
+    ) -> Result<crate::canvas_store::Lease, gpuio_protocol::canvas_resource::Error> {
+        use gpuio_protocol::canvas_resource::Error;
+        self.check_ready().map_err(|error| {
+            if error == ErrorCode::Closed {
+                Error::Closed
+            } else {
+                Error::NotReady
+            }
+        })?;
+        self.canvases.acquire(id)
     }
 
     pub fn document(
@@ -316,6 +487,10 @@ impl Session {
     pub fn tree(&self, id: WindowId) -> Option<&Tree> {
         self.window(id).ok().map(|w| &w.tree)
     }
+    /// Closed or terminally overloaded windows must not accept further input.
+    pub fn accepts_input(&self, id: WindowId) -> bool {
+        self.window(id).is_ok_and(|window| !window.overloaded)
+    }
     pub fn retained_bytes(&self) -> usize {
         self.retained_bytes
     }
@@ -334,10 +509,20 @@ impl Session {
         if window.overloaded {
             return Err(ErrorCode::Overloaded.into());
         }
+        for operation in &tx.operations {
+            if let Op::SetExtension(_, config) = operation {
+                crate::extensions::validate(config).map_err(|_| ErrorCode::InvalidTree)?;
+            }
+        }
         let before = window.tree.retained_bytes();
         let budget = MAX_SESSION_BYTES - (self.retained_bytes - before);
+        let motion = self.motion.clone();
         let window = self.window_mut(tx.window)?;
-        let result = window.tree.apply_guarded(tx, budget, pins)?;
+        let result = window
+            .tree
+            .apply_with_admission(tx, budget, pins, |changes| {
+                motion.borrow_mut().admit(tx.window, changes)
+            })?;
         let after = window.tree.retained_bytes();
         self.retained_bytes = self.retained_bytes - before + after;
         Ok(result)
@@ -383,10 +568,151 @@ impl Session {
             && revision <= window.tree.revision()
             && revision >= 0
             && window.tree.get(node).is_some_and(|node| {
-                node.image.is_none() && !node.control.is_some_and(Control::disabled)
+                node.image.is_none()
+                    && node.slider.is_none()
+                    && node.number_input.is_none()
+                    && node.otp_input.is_none()
+                    && node.calendar.is_none()
+                    && node.color_input.is_none()
+                    && !node.control.is_some_and(Control::disabled)
             })
             && window.tree.accepts_handler(node, handler))
         .then_some(Event::Press(id, node, handler, revision))
+    }
+
+    pub fn slider_event(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        event: gpuio_protocol::slider::Event,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        let slider = window.tree.get(node)?.slider.as_ref()?;
+        (!window.overloaded
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && window.tree.accepts_handler(node, handler)
+            && event.is_valid()
+            && slider.initial.same_mode(event.snapshot().value))
+        .then_some(Event::SliderEvent(id, node, handler, revision, event))
+    }
+
+    pub fn color_input_event(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        event: gpuio_protocol::color_input::Event,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        window.tree.get(node)?.color_input.as_ref()?;
+        (!window.overloaded
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && window.tree.accepts_handler(node, handler)
+            && event.is_valid())
+        .then_some(Event::ColorInputEvent(id, node, handler, revision, event))
+    }
+
+    pub fn calendar_event(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        event: gpuio_protocol::calendar_input::Event,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        let mount = window.tree.get(node)?.calendar.as_ref()?;
+        (!window.overloaded
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && window.tree.accepts_handler(node, handler)
+            && event.is_valid()
+            && event.snapshot().mode == mount.config.mode)
+            .then_some(Event::CalendarEvent(id, node, handler, revision, event))
+    }
+
+    pub fn otp_input_event(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        event: gpuio_protocol::otp_input::Event,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        let mount = window.tree.get(node)?.otp_input.as_ref()?;
+        (!window.overloaded
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && window.tree.accepts_handler(node, handler)
+            && event.is_valid()
+            && event.snapshot().policy == mount.config.policy)
+            .then_some(Event::OtpInputEvent(id, node, handler, revision, event))
+    }
+
+    pub fn number_input_event(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        event: gpuio_protocol::number_input::Event,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        window.tree.get(node)?.number_input.as_ref()?;
+        (!window.overloaded
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && window.tree.accepts_handler(node, handler)
+            && event.is_valid())
+        .then_some(Event::NumberInputEvent(id, node, handler, revision, event))
+    }
+
+    pub fn request_carousel(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        request: gpuio_protocol::carousel::Request,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        (!window.overloaded
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && window.tree.accepts_handler(node, handler)
+            && request.is_valid()
+            && window
+                .tree
+                .get(node)?
+                .carousel
+                .as_ref()?
+                .accepts_request(&request))
+        .then_some(Event::CarouselRequested(
+            id, node, handler, revision, request,
+        ))
+    }
+
+    pub fn request_rating(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        request: gpuio_protocol::rating::Request,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        (!window.overloaded
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && window.tree.accepts_handler(node, handler)
+            && window.tree.get(node)?.rating.as_ref()?.can_apply(request))
+        .then_some(Event::RatingRequested(id, node, handler, revision, request))
     }
 
     pub fn choose(
@@ -643,10 +969,13 @@ impl Session {
             .take()
             .expect("validated window");
         self.retained_bytes -= window.tree.retained_bytes();
+        self.motion.borrow_mut().close_window(id);
         Ok(window.requested_frame)
     }
 
     pub fn shutdown(&mut self) -> Vec<Event> {
+        self.motion.borrow_mut().close();
+        self.canvases.close();
         self.assets.close();
         self.documents.close();
         let mut events = Vec::new();

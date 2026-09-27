@@ -6,6 +6,10 @@ cd "$GPUIO_ROOT"
 GPUIO_OPAM_ROOT="$GPUIO_ROOT/.opam-root"
 GPUIO_JOBS=${GPUIO_JOBS:-4}
 export GPUIO_JOBS
+# Keep direct Cargo tests and Dune's archive build on the same macOS target.
+case "$(uname -s)" in
+  Darwin) export MACOSX_DEPLOYMENT_TARGET=14.4 ;;
+esac
 export CARGO_TARGET_DIR="$GPUIO_ROOT/target"
 opam_run() {
   opam exec --root "$GPUIO_OPAM_ROOT" --switch gpuio -- "$@"

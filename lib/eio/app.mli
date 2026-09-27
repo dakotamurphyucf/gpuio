@@ -77,16 +77,81 @@ module Window : sig
       -> Gpuio.Text_input.Command.t
       -> (Gpuio.Text_input.Snapshot.t, Gpuio.Text_input.Command_error.t) Result.t
            Bonsai.Effect.t
+
+    (** Correlated slider commands bound to the exact observed window/node lease. *)
+    val slider_command
+      :  t
+      -> Gpuio.Slider.Snapshot.t
+      -> Gpuio.Slider.Command.t
+      -> (Gpuio.Slider.Snapshot.t, Gpuio.Slider.Command_error.t) Result.t Bonsai.Effect.t
+
+    (** Correlated OTP commands for the exact observed window/node lease. At most
+        64 requests may be pending across the app. Closing rejects new requests;
+        already-admitted commands can reply before native closure. Actual closure
+        completes remaining requests with [Closed].
+        Applied replies must preserve policy and not precede the observed revision. *)
+    val otp_input_command
+      :  t
+      -> Gpuio.Otp_input.Snapshot.t
+      -> Gpuio.Otp_input.Command.t
+      -> (Gpuio.Otp_input.Snapshot.t, Gpuio.Otp_input.Command_error.t) Result.t
+           Bonsai.Effect.t
+
+    (** Correlated calendar commands for the exact observed window/node lease.
+        At most 64 calendar requests may be pending across the app. Replies must
+        preserve mode and not precede the observed revision. Unsupported dates or
+        navigation offsets fail with [Invalid_value] before entering the queue.
+        Actual window closure completes remaining requests with [Closed]. *)
+    val calendar_command
+      :  t
+      -> Gpuio.Calendar.Snapshot.t
+      -> Gpuio.Calendar.Command.t
+      -> (Gpuio.Calendar.Snapshot.t, Gpuio.Calendar.Command_error.t) Result.t
+           Bonsai.Effect.t
+
+    (** Correlated color commands for the observed window/node lease. At most 64
+        color requests may be pending across the app. Replies cannot precede the
+        observed revision. Closing completes remaining requests with [Closed]. *)
+    val color_input_command
+      :  t
+      -> Gpuio.Color_input.Snapshot.t
+      -> Gpuio.Color_input.Command.t
+      -> (Gpuio.Color_input.Snapshot.t, Gpuio.Color_input.Command_error.t) Result.t
+           Bonsai.Effect.t
+
+    (** Correlated numeric commands bound to the observed window/node lease;
+        at most 64 requests pending. Closing completes them with [Closed]. *)
+    val number_input_command
+      :  t
+      -> Gpuio.Number_input.Snapshot.t
+      -> Gpuio.Number_input.Command.t
+      -> (Gpuio.Number_input.Snapshot.t, Gpuio.Number_input.Command_error.t) Result.t
+           Bonsai.Effect.t
   end
 end
 
 module Expert : sig
+  (** Raw correlated scene-resource protocol; at most 63 pending requests.
+      Callers own release and late-reply cleanup. This registers scene data;
+      it does not itself create a rendered canvas. One additional request lane
+      is reserved for the scoped adapter. *)
+  val canvas
+    :  t
+    -> Gpuio_protocol.Wire.Canvas.Request.t
+    -> Gpuio_protocol.Wire.Canvas.Response.t Bonsai.Effect.t
+
   (** Internal correlated document-resource lane. Bounded to 64 requests.
       Public applications use the scoped document adapter. *)
   val document
     :  t
     -> Gpuio_protocol.Wire.Document.Request.t
     -> Gpuio_protocol.Wire.Document.Response.t Bonsai.Effect.t
+
+  val register_canvas
+    :  t
+    -> scope:Scope.t
+    -> Gpuio.Canvas_scene.t
+    -> (Canvas_registry.Registration.t, Canvas_registry.Error.t) Result.t Bonsai.Effect.t
 
   val register_document
     :  t
@@ -113,6 +178,34 @@ end
 
 val scope : t -> Scope.t
 val stats : t -> Stats.t
+
+module Diagnostics : sig
+  (** Read-only UI-domain snapshot. Registry bytes are conservative OCaml-side
+      reservations for encoded assets, canonical source snapshots and scenes;
+      they exclude native decoded caches, GPU allocations and model payloads.
+      Pending requests include correlated lifecycle, input, resource and frame
+      requests; queued commands have not yet been accepted by the native host.
+      Sampling creates no bridge command and does not request a frame. *)
+  type t =
+    { runtime : Stats.t
+    ; traffic : Gpuio_native.Traffic.t
+    ; scopes : Scope.Stats.t
+    ; windows : int
+    ; queued_jobs : int
+    ; queued_commands : int
+    ; pending_requests : int
+    ; assets : int
+    ; asset_uploads : int
+    ; asset_source_bytes : int
+    ; documents : int
+    ; document_source_bytes : int
+    ; canvases : int
+    ; canvas_scene_bytes : int
+    }
+  [@@deriving sexp_of]
+end
+
+val diagnostics : t -> Diagnostics.t
 
 (** Force application cleanup, bypassing decisions. *)
 val shutdown : t -> unit
@@ -167,3 +260,8 @@ val run
   -> ?motion:Gpuio.Animation.Preference.t
   -> (Eio_unix.Stdenv.base -> t -> unit)
   -> unit
+
+(** Read the linked component schemas on the OS main thread before [run].
+    This initializes the selected backend and freezes native registration.
+    Compare with package definitions before constructing application windows. *)
+val extension_catalog : unit -> Gpuio.Extension.Schema.t list Or_error.t

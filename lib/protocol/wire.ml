@@ -2,12 +2,30 @@ open Core
 module Asset = Asset_wire
 module Image = Image_wire
 module Animation = Animation_wire
+module Accessibility = Accessibility_wire
+module Loading = Loading_wire
+module Avatar = Avatar_wire
+module Rating = Rating_wire
+module Slider = Slider_wire
+module Number_input = Number_input_wire
+module Otp_input = Otp_wire
+module Calendar = Calendar_wire
+module Color_input = Color_input_wire
+module Table = Table_wire
+module Tree_input = Tree_input_wire
+module Carousel = Carousel_wire
+module Navigation_stack = Navigation_stack_wire
+module Container_query = Container_query_wire
+module Animation_program = Animation_program_wire
 module Document = Document_wire
+module Canvas = Canvas_resource_wire
+module Canvas_view = Canvas_view_wire
 module Window = Window_wire
 module Split = Split_wire
+module Extension = Extension_wire
 
 let version = 1L
-let capabilities = 536870911L
+let capabilities = 2199023255551L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -42,6 +60,24 @@ module Kind = struct
     | Tab_bar
     | Tab_panel
     | Split_pane
+    | Extension
+    | Canvas_view
+    | Animation_program
+    | Container_query
+    | Loading
+    | Avatar
+    | Rating
+    | Slider
+    | Number_input
+    | Otp_input
+    | Calendar
+    | Color_input
+    | Panel
+    | Disclosure
+    | Accordion
+    | Navigation_stack
+    | Hover_card
+    | Carousel
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -172,6 +208,11 @@ module Overlay_kind = struct
   type t =
     | Dialog
     | Popover
+    | Sheet_left
+    | Sheet_right
+    | Sheet_top
+    | Sheet_bottom
+    | Alert_dialog
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -347,6 +388,7 @@ module Field = struct
     | User_select of bool
     | Selection_color of Color.t
     | Accessible_name of string
+    | Inert of bool
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -693,6 +735,26 @@ module Op = struct
     | Scroll_list of Node_id.t * List_wire.Scroll_request.t
     | Set_document of Node_id.t * Document.Config.t
     | Set_split of Node_id.t * Split.Config.t
+    | Set_extension of Node_id.t * Extension.Config.t
+    | Set_canvas of Node_id.t * Canvas_view.Config.t
+    | Set_animation_program of Node_id.t * Animation_program.Config.t
+    | Set_container_query of Node_id.t * Container_query.Config.t
+    | Set_accessibility of Node_id.t * Accessibility.Config.t option
+    | Set_loading of Node_id.t * Loading.Config.t
+    | Set_avatar of Node_id.t * Avatar.Config.t
+    | Set_rating of Node_id.t * Rating.Config.t
+    | Set_slider of Node_id.t * Slider.Config.t * Slider.Value.t
+    | Set_number_input of Node_id.t * Number_input.Config.t * Number_input.Value.t
+    | Set_otp_input of Node_id.t * Otp_input.Config.t * string
+    | Set_calendar of Node_id.t * Calendar.Config.t * Calendar.Selection.t * int64
+    | Set_color_input of Node_id.t * Color_input.Config.t * Color_input.Value.t
+    | Set_navigation_stack of Node_id.t * Navigation_stack.Config.t
+    | Set_carousel of Node_id.t * Carousel.Config.t
+    | Set_tree_input of Node_id.t * bool
+    | Set_tree_moves of Node_id.t * bool
+    | Set_table of Node_id.t * Table.Config.t
+    | Set_table_cell of Node_id.t * Table.Cell.t
+    | Table_command of Node_id.t * Table.Command.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -832,6 +894,12 @@ module Message = struct
     | Document of int64 * Document.Request.t
     | Window_command of int64 * Window_id.t * Window.Command.t
     | Open_configured of int64 * Window_id.t * Window.Config.t
+    | Canvas of int64 * Canvas.Request.t
+    | Slider_command of int64 * Window_id.t * Node_id.t * Slider.Command.t
+    | Number_input_command of int64 * Window_id.t * Node_id.t * Number_input.Command.t
+    | Otp_input_command of int64 * Window_id.t * Node_id.t * Otp_input.Command.t
+    | Calendar_command of int64 * Window_id.t * Node_id.t * Calendar.Command.t
+    | Color_input_command of int64 * Window_id.t * Node_id.t * Color_input.Command.t
   [@@deriving bin_io, equal, sexp_of]
 
   let encode t =
@@ -844,6 +912,22 @@ module Message = struct
         || not
              (Window.valid_title config.title
               && Window.valid_size config.width config.height)
+      | Color_input_command (correlation, _, _, command) ->
+        Int64.(correlation <= 0L) || not (Color_input.Command.valid command)
+      | Calendar_command (correlation, _, _, command) ->
+        Int64.(correlation <= 0L) || not (Calendar.Command.valid command)
+      | Otp_input_command (correlation, _, _, command) ->
+        Int64.(correlation <= 0L) || not (Otp_input.Command.valid command)
+      | Number_input_command (correlation, _, _, command) ->
+        Int64.(correlation <= 0L) || not (Number_input.Command.valid command)
+      | Slider_command (correlation, _, _, command) ->
+        Int64.(correlation <= 0L) || not (Slider.Command.valid command)
+      | Canvas (correlation, request) ->
+        Int64.(correlation <= 0L)
+        ||
+          (match request with
+          | Chunk (_, _, _, data) -> String.length data > Canvas.max_chunk_bytes
+          | Create | Begin _ | Publish _ | Abort _ | Release _ -> false)
       | Document (correlation, request) ->
         Int64.(correlation <= 0L)
         ||
@@ -953,6 +1037,41 @@ module Event = struct
     | Window_capabilities of Window.Capabilities.t
     | Split_resized of
         Window_id.t * Node_id.t * Handler_id.t * int64 * int64 * Split.Snapshot.t
+    | Extension_event of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * int64 * Extension.Signal.t
+    | Canvas_response of int64 * Canvas.Response.t
+    | Canvas_event of
+        Window_id.t
+        * Node_id.t
+        * Handler_id.t
+        * int64
+        * Resource_id.t option
+        * int64
+        * int64
+        * Canvas_view.Observation.t
+    | Animation_program_event of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Animation_program.Batch.t
+    | Container_selected of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Container_query.Snapshot.t
+    | Rating_requested of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Rating.Request.t
+    | Slider_event of Window_id.t * Node_id.t * Handler_id.t * int64 * Slider.Event.t
+    | Slider_result of int64 * Window_id.t * Node_id.t * Slider.Response.t
+    | Number_input_event of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Number_input.Event.t
+    | Number_input_result of int64 * Window_id.t * Node_id.t * Number_input.Response.t
+    | Otp_input_event of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Otp_input.Event.t
+    | Otp_input_result of int64 * Window_id.t * Node_id.t * Otp_input.Response.t
+    | Calendar_event of Window_id.t * Node_id.t * Handler_id.t * int64 * Calendar.Event.t
+    | Calendar_result of int64 * Window_id.t * Node_id.t * Calendar.Response.t
+    | Color_input_event of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Color_input.Event.t
+    | Color_input_result of int64 * Window_id.t * Node_id.t * Color_input.Response.t
+    | Carousel_requested of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Carousel.Request.t
+    | Tree_input of Window_id.t * Node_id.t * Handler_id.t * int64 * Tree_input.Request.t
+    | Table_input of Window_id.t * Node_id.t * Handler_id.t * int64 * Table.Input.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -972,6 +1091,22 @@ module Event = struct
   ;;
 
   let rec valid_event = function
+    | Canvas_event
+        (_, _, _, revision, source, scene_revision, scene_generation, observation) ->
+      let identified = Int64.(scene_revision > 0L && scene_generation > 0L) in
+      let failure_before_scene =
+        Int64.(scene_revision = 0L && scene_generation = 0L)
+        &&
+        match observation with
+        | Canvas_view.Observation.Failed _ -> true
+        | _ -> false
+      in
+      Int64.(revision >= 0L)
+      && Canvas_view.Observation.valid observation
+      && (identified || failure_before_scene)
+      && (Option.is_some source || failure_before_scene)
+    | Extension_event (_, _, _, revision, generation, signal) ->
+      Int64.(revision >= 0L && generation > 0L) && Extension.Signal.valid signal
     | Split_resized (_, _, _, revision, generation, snapshot) ->
       Int64.(revision >= 0L && generation >= 0L) && Split.Snapshot.valid snapshot
     | Window_changed (_, snapshot) | Window_response (_, _, Observed snapshot) ->
@@ -995,6 +1130,38 @@ module Event = struct
       Int64.(revision > 0L) && Or_error.is_ok (List_wire.Retained.validate_all notices)
     | List_viewport (_, _, _, revision, viewport) ->
       Int64.(revision >= 0L) && Or_error.is_ok (List_wire.Viewport.validate viewport)
+    | Slider_result (request, _, _, result) ->
+      Int64.(request > 0L) && Slider.Response.valid result
+    | Color_input_result (request, _, _, result) ->
+      Int64.(request > 0L) && Color_input.Response.valid result
+    | Calendar_result (request, _, _, result) ->
+      Int64.(request > 0L) && Calendar.Response.valid result
+    | Otp_input_result (request, _, _, result) ->
+      Int64.(request > 0L) && Otp_input.Response.valid result
+    | Number_input_result (request, _, _, result) ->
+      Int64.(request > 0L) && Number_input.Response.valid result
+    | Color_input_event (_, _, _, revision, event) ->
+      Int64.(revision >= 0L) && Color_input.Event.valid event
+    | Calendar_event (_, _, _, revision, event) ->
+      Int64.(revision >= 0L) && Calendar.Event.valid event
+    | Otp_input_event (_, _, _, revision, event) ->
+      Int64.(revision >= 0L) && Otp_input.Event.valid event
+    | Number_input_event (_, _, _, revision, event) ->
+      Int64.(revision >= 0L) && Number_input.Event.valid event
+    | Slider_event (_, _, _, revision, event) ->
+      Int64.(revision >= 0L) && Slider.Event.valid event
+    | Table_input (_, _, _, revision, input) ->
+      Int64.(revision >= 0L) && Table.Input.valid input
+    | Tree_input (_, _, _, revision, request) ->
+      Int64.(revision >= 0L) && Tree_input.Request.valid request
+    | Carousel_requested (_, _, _, revision, request) ->
+      Int64.(revision >= 0L) && Carousel.Request.valid request
+    | Rating_requested (_, _, _, revision, request) ->
+      Int64.(revision >= 0L) && Rating.Request.valid request
+    | Container_selected (_, _, _, revision, snapshot) ->
+      Int64.(revision >= 0L) && Container_query.Snapshot.valid snapshot
+    | Animation_program_event (_, _, _, revision, signals) ->
+      Int64.(revision >= 0L) && Animation_program.Signal.valid_batch signals
     | Animation_endpoint (_, _, _, revision, endpoint) ->
       Int64.(revision >= 0L && endpoint.generation > 0L)
     | Image_state (_, _, _, revision, state) ->
@@ -1011,8 +1178,9 @@ module Event = struct
             && frames > 0L
             && frames <= 120L
             && width_px * height_px * 4L * frames <= 67108864L))
-    | Asset_response (correlation, _) | Document_response (correlation, _) ->
-      Int64.(correlation > 0L)
+    | Canvas_response (correlation, _)
+    | Asset_response (correlation, _)
+    | Document_response (correlation, _) -> Int64.(correlation > 0L)
     | File_dialog_result (request, _, Selected paths) ->
       Int64.(request > 0L)
       && (not (List.is_empty paths))
@@ -1112,6 +1280,7 @@ module Event = struct
       | Bin_prot.Common.Read_error _
       | Generational_id.Invalid_wire_handle
       | Drag_and_drop.Invalid_wire_data
+      | Animation_program.Invalid_wire_batch
       | File_dialog.Invalid_wire_result ->
         Or_error.error_string "malformed event envelope")
   ;;

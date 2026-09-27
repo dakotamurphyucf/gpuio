@@ -43,26 +43,15 @@ fn sizes(entity: &Entity<ResizableState>, cx: &App) -> Option<Snapshot> {
     };
     snapshot.is_valid().then_some(snapshot)
 }
-// Pointer-event inheritance uses the nearest explicit field, matching View rendering.
-fn pointer_enabled(tree: &crate::tree::Tree, mut id: NodeId) -> bool {
-    loop {
-        let Some(node) = tree.get(id) else {
-            return false;
-        };
-        for style in node.style.iter().rev() {
-            if let Style::Fields(fields) = style {
-                for field in fields.iter().rev() {
-                    if let Field::PointerEvents(enabled) = field {
-                        return *enabled;
-                    }
-                }
-            }
-        }
-        let Some(parent) = node.parent else {
-            return true;
-        };
-        id = parent;
-    }
+fn displayed(tree: &crate::tree::Tree, node: &crate::tree::Node) -> [bool; 2] {
+    std::array::from_fn(|index| {
+        tree.get(node.children[index])
+            .is_some_and(|child| !crate::style::display_none(&child.style))
+    })
+}
+fn has_divider(tree: &crate::tree::Tree, id: NodeId) -> bool {
+    tree.get(id)
+        .is_some_and(|node| node.split.is_some() && displayed(tree, node) == [true, true])
 }
 impl View {
     pub(super) fn cancel_split_drag(&mut self, window: &mut Window, cx: &mut App) -> bool {
@@ -91,11 +80,16 @@ impl View {
                 config.axis == state.config.axis
                     && config.reset_generation == state.config.reset_generation
             });
+            let collapsed = tree.is_none_or(|tree| !has_divider(tree, *id));
             if !keep
+                || collapsed
                 || !self.focus.borrow().allows(*id)
                 || tree.is_none_or(|tree| !pointer_enabled(tree, *id))
             {
                 state.cancel(window, cx);
+            }
+            if collapsed && state.focus.is_focused(window) {
+                window.blur(cx);
             }
             if let Some(config) = config {
                 state.config = config.clone();
@@ -121,6 +115,9 @@ impl View {
             let Some(tree) = session.tree(self.id) else {
                 return;
             };
+            if !has_divider(tree, id) {
+                return;
+            }
             let Some(node) = tree.get(id) else {
                 return;
             };
@@ -163,6 +160,14 @@ impl View {
         if !self.focus.borrow().allows(id) {
             return;
         }
+        if self
+            .session
+            .borrow()
+            .tree(self.id)
+            .is_none_or(|tree| !has_divider(tree, id))
+        {
+            return;
+        }
         let Some(state) = self.splits.get(&id) else {
             return;
         };
@@ -196,6 +201,17 @@ impl View {
             .or_insert_with(|| State::new(id, config.clone(), window, cx));
         let native = state.native.clone();
         let focus = state.focus.clone();
+        let displayed = displayed(tree, node);
+        if displayed != [true, true] {
+            // Do not run the resizable group with a single child: it would
+            // overwrite retained two-pane geometry. The surviving native child
+            // keeps its identity and takes the entire assigned split rectangle.
+            let child = displayed
+                .iter()
+                .position(|visible| *visible)
+                .map(|index| self.element(tree, node.children[index], interaction, window, cx));
+            return div().size_full().children(child).into_any_element();
+        }
         let value = sizes(&native, cx).map_or(config.initial_first, |snapshot| snapshot.first);
         let axis = match config.axis {
             Axis::Horizontal => gpui::Axis::Horizontal,
@@ -232,10 +248,20 @@ impl View {
                 };
                 let focus_action = focus.clone();
                 let focus_gate = gate.clone();
+                let focus_owner = owner.clone();
                 handle =
                     handle.on_a11y_action(gpui::AccessibleAction::Focus, move |_, window, cx| {
                         if focus_gate.borrow().allows(id) {
-                            window.focus(&focus_action, cx);
+                            let _ = focus_owner.update(cx, |view, cx| {
+                                if view
+                                    .session
+                                    .borrow()
+                                    .tree(view.id)
+                                    .is_some_and(|tree| has_divider(tree, id))
+                                {
+                                    window.focus(&focus_action, cx);
+                                }
+                            });
                         }
                     });
                 for (action, resize) in [

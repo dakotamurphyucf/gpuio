@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shlex
 import shutil
 import subprocess
@@ -13,14 +14,15 @@ import sys
 root = Path(__file__).resolve().parent.parent
 profile = sys.argv[1]
 package = sys.argv[2] if len(sys.argv) > 2 else "gpuio-foundation"
-if package not in {"gpuio-foundation", "gpuio-native"}:
-    raise SystemExit("unsupported native package")
+manifest = Path(sys.argv[3]).resolve() if len(sys.argv) > 3 else root / "Cargo.toml"
+if not re.fullmatch(r"[a-z][a-z0-9_-]*", package):
+    raise SystemExit("invalid native package name")
 archive = "lib" + package.replace("-", "_") + ".a"
 target = Path(os.environ.get("CARGO_TARGET_DIR", root / "target"))
 env = os.environ.copy()
 if platform.system() == "Darwin":
     env["MACOSX_DEPLOYMENT_TARGET"] = "14.4"
-args = ["cargo", "rustc", "--manifest-path", str(root / "Cargo.toml"),
+args = ["cargo", "rustc", "--manifest-path", str(manifest),
         "--package", package, "--lib", "--locked",
         "--target-dir", str(target), "-j", env.get("GPUIO_JOBS", "4")]
 release = profile == "release"

@@ -33,7 +33,7 @@ fn apply(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, operations: Vec<Op
                 .apply(&tx)
                 .unwrap_or_else(|error| panic!("{error:?}: {tx:?}"));
             view.update_editors(&applied.dirty, window, cx);
-            view.list_actions(&applied.lists);
+            view.list_actions(&applied.lists, window, cx);
             cx.notify();
         })
         .unwrap();
@@ -600,7 +600,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: WindowHandle<View>) {
             ));
             let applied = view.session.borrow_mut().apply_guarded(&tx, &pins).unwrap();
             view.update_editors(&applied.dirty, window, cx);
-            view.list_actions(&applied.lists);
+            view.list_actions(&applied.lists, window, cx);
             cx.notify();
         })
         .unwrap();
@@ -676,16 +676,253 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: WindowHandle<View>) {
 // Resource traversal measures real GPUI layout/paint caches, independently of
 // display-link cadence or whether the user's desktop occludes this test window.
 // Interaction/IME checks above still require actual platform frames.
+fn layout_frame(cx: &mut gpui::AsyncApp, window: WindowHandle<View>) {
+    let arena = cx
+        .update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx)
+        })
+        .unwrap();
+    cx.update(|cx| arena.clear(cx));
+}
 fn layout_frames(cx: &mut gpui::AsyncApp, window: WindowHandle<View>) {
     for _ in 0..3 {
-        let arena = cx
-            .update_window(window.into(), |_, window, cx| {
-                window.refresh();
-                window.draw(cx)
-            })
-            .unwrap();
-        cx.update(|cx| arena.clear(cx));
+        layout_frame(cx, window);
     }
+}
+
+// Model the managed OCaml consumer: materialize exactly the requested rows and
+// evict the others. Static row fixtures miss oscillation between cached overdraw
+// (no render callback) and newly admitted rows (measurement invalidated).
+fn demand_convergence(cx: &mut gpui::AsyncApp, window: WindowHandle<View>) {
+    let root = node(269);
+    let config = Config {
+        estimated_height: 32.,
+        overscan: 64.,
+        max_active: 24,
+        scroll_policy: ScrollPolicy::KeepPosition,
+        scrollbar: true,
+        managed: true,
+    };
+    apply(
+        cx,
+        window,
+        vec![
+            Op::Create(root, Kind::VirtualList, String::new(), None),
+            Op::SetStyle(root, dimensions(420., 264.)),
+            Op::SetListConfig(root, config.clone()),
+            Op::SetListOrder(
+                root,
+                Order {
+                    revision: 1,
+                    runs: vec![IdRun {
+                        first: 1,
+                        count: 100_000,
+                    }],
+                },
+            ),
+            Op::ScrollList(
+                root,
+                ScrollRequest {
+                    serial: 1,
+                    target: ScrollTarget::Offset(50_001, 8.),
+                },
+            ),
+            Op::SetRoot(Some(root)),
+        ],
+    );
+    let mut live = Vec::<Row>::new();
+    let mut generations = [0_i64; 24];
+    let mut settle = |cx: &mut gpui::AsyncApp, live: &mut Vec<Row>| -> Viewport {
+        let mut stable = 0;
+        let mut admissions = 0;
+        for _ in 0..16 {
+            layout_frame(cx, window);
+            let observed = window
+                .update(cx, |view, _, _| {
+                    view.lists[&root].borrow().observed.clone().unwrap()
+                })
+                .unwrap();
+            assert!(observed.pinned.is_empty());
+            assert!(observed.requested.len() <= 24);
+            if live
+                .iter()
+                .map(|row| row.id)
+                .eq(observed.requested.iter().copied())
+            {
+                stable += 1;
+                if stable == 6 {
+                    assert!(admissions <= 3, "excessive materialization: {admissions}");
+                    return observed;
+                }
+                continue;
+            }
+            stable = 0;
+            admissions += 1;
+            let next: Vec<_> = observed
+                .requested
+                .iter()
+                .enumerate()
+                .map(|(slot, id)| {
+                    generations[slot] += 1;
+                    Row {
+                        id: *id,
+                        node: NodeId::from_parts(270 + slot as i64, generations[slot]).unwrap(),
+                    }
+                })
+                .collect();
+            let mut ops: Vec<_> = live.iter().map(|row| Op::Remove(row.node)).collect();
+            for row in &next {
+                ops.extend([
+                    Op::Create(row.node, Kind::Text, format!("Source {}", row.id), None),
+                    Op::SetStyle(
+                        row.node,
+                        dimensions(400., if row.id % 2 == 0 { 48. } else { 80. }),
+                    ),
+                ]);
+            }
+            ops.extend([
+                Op::Splice(
+                    root,
+                    0,
+                    live.len() as i64,
+                    next.iter().map(|row| row.node).collect(),
+                ),
+                Op::SetListRows(root, next.clone()),
+            ]);
+            apply(cx, window, ops);
+            *live = next;
+        }
+        panic!("managed demand did not converge after 16 frames ({admissions} admissions)");
+    };
+    let first = settle(cx, &mut live);
+    assert_eq!(first.anchor, Some((50_001, 8.)));
+    assert!(
+        first.requested.iter().any(|id| *id < 50_001),
+        "leading overscan missing: {first:?}"
+    );
+    assert!(first.requested.len() > (first.visible_last - first.visible_first) as usize);
+    // Moving one pixel within the same visible rows must not discard already
+    // measured leading/trailing overscan. Doing so replaces a cached row with
+    // an estimate just before a subsequent wheel event exposes it.
+    apply(
+        cx,
+        window,
+        vec![Op::ScrollList(
+            root,
+            ScrollRequest {
+                serial: 2,
+                target: ScrollTarget::Offset(50_001, 9.),
+            },
+        )],
+    );
+    layout_frame(cx, window);
+    let nudged = window
+        .update(cx, |view, _, _| {
+            view.lists[&root].borrow().observed.clone().unwrap()
+        })
+        .unwrap();
+    assert_eq!(nudged.visible_first, first.visible_first);
+    assert_eq!(nudged.visible_last, first.visible_last);
+    assert!(
+        first
+            .requested
+            .iter()
+            .all(|id| nudged.requested.contains(id)),
+        "small scroll evicted measured overscan: before={first:?} after={nudged:?}"
+    );
+
+    // Traverse and reverse through unequal row heights with a sparse consumer.
+    // Each newly leading row must already be warm before the consumer responds;
+    // the repeated settle helper also enforces the 24-row retention cap.
+    let mut serial = 2;
+    for step in (1..40).chain((0..40).rev()) {
+        serial += 1;
+        let row = 50_001 + step;
+        assert!(
+            live.iter().any(|item| item.id == row),
+            "next leading row was cold: {row}"
+        );
+        apply(
+            cx,
+            window,
+            vec![Op::ScrollList(
+                root,
+                ScrollRequest {
+                    serial,
+                    target: ScrollTarget::Offset(row, 9.),
+                },
+            )],
+        );
+        let moved = settle(cx, &mut live);
+        assert_eq!(moved.anchor, Some((row, 9.)));
+    }
+    apply(
+        cx,
+        window,
+        vec![Op::ScrollList(
+            root,
+            ScrollRequest {
+                serial: serial + 1,
+                target: ScrollTarget::Offset(90_001, 8.),
+            },
+        )],
+    );
+    let moved = settle(cx, &mut live);
+    assert_eq!(moved.anchor, Some((90_001, 8.)));
+    assert!(
+        moved
+            .requested
+            .iter()
+            .all(|id| !first.requested.contains(id))
+    );
+    apply(
+        cx,
+        window,
+        vec![Op::SetListConfig(
+            root,
+            Config {
+                overscan: 0.,
+                ..config
+            },
+        )],
+    );
+    let zero = settle(cx, &mut live);
+    assert_eq!(
+        zero.requested.len(),
+        (zero.visible_last - zero.visible_first) as usize
+    );
+    apply(cx, window, vec![Op::SetStyle(root, dimensions(420., 136.))]);
+    let smaller = settle(cx, &mut live);
+    assert!(smaller.requested.len() < zero.requested.len());
+    // Source replacement atomically retires descriptions from the old order.
+    let mut replace: Vec<_> = live.iter().map(|row| Op::Remove(row.node)).collect();
+    replace.extend([
+        Op::Splice(root, 0, live.len() as i64, vec![]),
+        Op::SetListRows(root, vec![]),
+        Op::SetListOrder(
+            root,
+            Order {
+                revision: 2,
+                runs: vec![IdRun {
+                    first: 200_001,
+                    count: 100_000,
+                }],
+            },
+        ),
+    ]);
+    apply(cx, window, replace);
+    live.clear();
+    let replaced = settle(cx, &mut live);
+    assert_eq!(replaced.order_revision, 2);
+    assert!(replaced.requested.iter().all(|id| *id >= 200_001));
+    let mut ops = vec![Op::SetRoot(None), Op::Remove(root)];
+    ops.extend(live.iter().map(|row| Op::Remove(row.node)));
+    apply(cx, window, ops);
+    layout_frames(cx, window);
+    eprintln!(
+        "GPUIO_NATIVE_LIST_DEMAND_OK: bounded materialization settles with cached leading/trailing overscan; scroll, configuration, resize and source replacement retire old demand"
+    );
 }
 
 // Traverse every logical row twice with disjoint native identities. Weak probes
@@ -902,6 +1139,7 @@ pub(crate) fn run() {
                 apply(cx, window, initial());
                 exercise(cx, window).await;
                 let cached_text = history(cx, window).await;
+                demand_convergence(cx, window);
                 window
                     .update(cx, |_, window, _| window.remove_window())
                     .unwrap();

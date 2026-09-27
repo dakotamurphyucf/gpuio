@@ -51,7 +51,7 @@ virtualization makes retained application data constant-space.
 
 The simple list retains every supplied description but builds GPUI elements only
 for the native requested range. The managed list retains descriptions and row
-computations for viewport plus overscan and explicitly pinned rows. Both use
+computations for viewport plus overscan, bounded tail prefetch and explicitly pinned rows. Both use
 the pinned GPUI `ListState` for variable-height measurement and scrolling. Its
 synchronous render closure consumes available Rust descriptions or a positive
 estimated-height placeholder; it never calls OCaml.
@@ -117,6 +117,28 @@ expansion; this conservative quota is not a measurement of RSS. The tree and
 native list share one immutable index. Viewport events include order revision and
 are rejected after that source order changes or their tree revision becomes stale. Requests prioritize pinned rows,
 then visible rows, then overscan, with an explicit budget-exhaustion diagnostic.
+
+GPUI may reuse measured overscan without invoking its row renderer. Missing
+callbacks alone must not evict those rows, including during small scrolls: otherwise
+nearby content is replaced with estimated placeholders before coming into view.
+The host merges previous bounded demand with current render demand while the
+previous requested range overlaps the current visible rows. After pinned/visible
+rows, nearest neighbours win the remaining active-row budget. This keeps a bounded
+warm set, not a history of visited rows; the count includes all retained rows and
+never exceeds `max_active`. Overscan is a prefetch distance, not a strict lifetime
+boundary. Disjoint jumps, source replacement, configuration/viewport changes and
+zero overscan retire prior warm demand.
+
+While the last native observation reports active tail following, the Bonsai
+presenter also prefetches rows appended after that observation's final key.
+Their descriptions arrive in the same transaction as the new order, avoiding a
+frame of estimated-height placeholders followed by a backwards correction.
+Pins take priority, then the newest appended rows, then prior native requests;
+the combined set stays within `max_active`. The observed final key is captured
+with the viewport callback, and prefetch survives acceptance until native demand
+catches up. No extra historical rows are prefetched for an unchanged tail, and
+paused following retains the requested history. Native layout still owns scroll
+position, tail-following decisions and authoritative focus/composition pins.
 
 Native focus can change after OCaml receives a viewport event. The host therefore
 snapshots actual row focus, editor focus/composition and active text-selection

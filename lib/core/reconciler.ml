@@ -2,6 +2,7 @@ module Ui_command = Command
 open Core
 open Gpuio_protocol
 module Wire = Wire
+module TW = Gpuio_protocol.Table_wire
 
 exception Cannot_prepare of Error.t
 
@@ -64,9 +65,14 @@ module Identity = struct
 end
 
 type 'a callback =
+  | Container_query of
+      Wire.Container_query.Config.t * int64 ref * (Container_query.Selection.t -> 'a)
+  | Extension of Wire.Extension.Config.t * (Wire.Extension.Signal.t -> 'a)
   | Split_pane of Split_pane.Config.t * (Split_pane.Snapshot.t -> 'a)
+  | Canvas of Wire.Canvas_view.Config.t * (Canvas.Event.t -> 'a)
   | Document of Text_source.Handle.t * (Document.Navigation.t -> 'a)
-  | Virtual_list of List_identity.t * 'a View.Expert.virtual_list
+  | Virtual_list of List_identity.t * 'a View.Expert.virtual_list * TW.Config.t option
+  | Animation_program of int64 * (int64 * int64) ref * (Animation.Program.Event.t -> 'a)
   | Animation of int64 * int64 ref * (Animation.Event.t -> 'a)
   | Image of (Image.State.t -> 'a)
   | Pointer of (Pointer.Event.t -> 'a)
@@ -80,6 +86,13 @@ type 'a callback =
   | Tooltip of Tooltip.Config.t * (bool -> 'a)
   | Editor of (Text_input.Event.t -> 'a)
   | Choice of Choice.Config.t * (Choice.Id.t -> 'a)
+  | Carousel of Wire.Carousel.Config.t * (Carousel.Request.t -> 'a)
+  | Rating of Rating.Config.t * (Rating.Request.t -> 'a)
+  | Slider of Slider.Value.t * int64 ref * (Slider.Event.t -> 'a)
+  | Number_input of int64 ref * (Number_input.Event.t -> 'a)
+  | Otp_input of Otp_input.Policy.t * int64 ref * (Otp_input.Event.t -> 'a)
+  | Color_input of int64 ref * (Color_input.Event.t -> 'a)
+  | Calendar of Calendar.Mode.t * int64 ref * (Calendar.Event.t -> 'a)
   | Combobox of Combobox.Config.t * (Combobox.Event.t -> 'a)
 
 type 'a binding =
@@ -95,7 +108,18 @@ type 'a mounted =
   ; style : Wire.Style.t list
   ; animation : Wire.Animation.Config.t option
   ; animation_seen : int64 ref
+  ; animation_program : Wire.Animation_program.Config.t option
+  ; program_seen : (int64 * int64) ref
+  ; container_query : Wire.Container_query.Config.t option
+  ; query_seen : int64 ref
+  ; slider_seen : int64 ref
+  ; number_input_seen : int64 ref
+  ; otp_input_seen : int64 ref
+  ; color_input_seen : int64 ref
+  ; calendar_seen : int64 ref
   ; list_identity : List_identity.t option
+  ; table_config : TW.Config.t option
+  ; table_serial : int64
   ; choice_appearance : Wire.Choice_appearance.t option
   ; children : 'a mounted list
   ; controllers : String.Set.t
@@ -120,6 +144,7 @@ type 'a t =
   { owner : unit ref
   ; asset_owner : Asset.Expert.Owner.t option
   ; document_owner : Text_source.Expert.Owner.t option
+  ; canvas_owner : Canvas_scene.Expert.Owner.t option
   ; window : Window_id.t
   ; mutable state : 'a state
   ; mutable closed : bool
@@ -143,12 +168,14 @@ type 'a builder =
   ; theme_unchanged : bool
   ; asset_owner : Asset.Expert.Owner.t option
   ; document_owner : Text_source.Expert.Owner.t option
+  ; canvas_owner : Canvas_scene.Expert.Owner.t option
   }
 
-let create ?asset_owner ?document_owner window =
+let create ?asset_owner ?document_owner ?canvas_owner window =
   { owner = ref ()
   ; asset_owner
   ; document_owner
+  ; canvas_owner
   ; window
   ; closed = false
   ; state =
@@ -209,6 +236,8 @@ let kind = function
   | Combobox -> Combobox
   | Focus_scope -> Focus_scope
   | Tooltip -> Tooltip
+  | Hover_card -> Hover_card
+  | Carousel -> Carousel
   | Command_scope -> Command_scope
   | Command_button -> Command_button
   | Menu -> Menu
@@ -222,17 +251,51 @@ let kind = function
   | Image -> Image
   | Icon -> Icon
   | Animated -> Animated
+  | Animation_program -> Animation_program
+  | Container_query -> Container_query
+  | Loading -> Loading
+  | Avatar -> Avatar
+  | Rating -> Rating
+  | Slider -> Slider
+  | Number_input -> Number_input
+  | Otp_input -> Otp_input
+  | Color_input -> Color_input
+  | Panel -> Panel
+  | Disclosure -> Disclosure
+  | Accordion -> Accordion
+  | Navigation_stack -> Navigation_stack
+  | Calendar -> Calendar
   | Virtual_list -> Virtual_list
+  | Canvas_view -> Canvas_view
   | Document_view -> Document_view
   | Tab_bar -> Tab_bar
   | Tab_panel -> Tab_panel
   | Split_pane -> Split_pane
+  | Extension -> Extension
 ;;
 
 let compatible mounted view =
   let old = View.Expert.describe mounted.view
   and next = View.Expert.describe view in
-  View.Expert.Kind.equal old.kind next.kind && Option.equal Key.equal old.key next.key
+  View.Expert.Kind.equal old.kind next.kind
+  && Option.equal Key.equal old.key next.key
+  && Bool.equal
+       (Option.exists old.virtual_list ~f:(fun list -> Option.is_some list.table))
+       (Option.exists next.virtual_list ~f:(fun list -> Option.is_some list.table))
+  && Option.equal
+       Key.equal
+       (Option.bind old.virtual_list ~f:(fun list ->
+          Option.bind list.table ~f:(fun table -> table.source_key)))
+       (Option.bind next.virtual_list ~f:(fun list ->
+          Option.bind list.table ~f:(fun table -> table.source_key)))
+  && Option.equal
+       Table_column.Id.equal
+       (Option.map old.table_cell ~f:Table.Cell.column)
+       (Option.map next.table_cell ~f:Table.Cell.column)
+  && Option.equal
+       Wire.Extension.Schema.equal
+       (Option.map old.extension ~f:(fun item -> item.config.schema))
+       (Option.map next.extension ~f:(fun item -> item.config.schema))
 ;;
 
 let splice builder id old_children new_children =
@@ -295,6 +358,30 @@ let rec mount builder ~depth previous view =
       | Some mounted -> mounted.id
       | None -> new_node builder
     in
+    let color_input_seen =
+      Option.value_map previous ~default:(ref (-1L)) ~f:(fun old -> old.color_input_seen)
+    in
+    let calendar_seen =
+      Option.value_map previous ~default:(ref (-1L)) ~f:(fun old -> old.calendar_seen)
+    in
+    let otp_input_seen =
+      Option.value_map previous ~default:(ref (-1L)) ~f:(fun old -> old.otp_input_seen)
+    in
+    let number_input_seen =
+      Option.value_map previous ~default:(ref (-1L)) ~f:(fun old -> old.number_input_seen)
+    in
+    let slider_seen =
+      Option.value_map previous ~default:(ref (-1L)) ~f:(fun old -> old.slider_seen)
+    in
+    Option.iter description.slider ~f:(fun item ->
+      Option.iter previous ~f:(fun mounted ->
+        Option.iter (View.Expert.describe mounted.view).slider ~f:(fun old ->
+          if
+            not
+              (Wire.Slider.Value.same_mode
+                 (Slider.Expert.value_to_wire old.initial)
+                 (Slider.Expert.value_to_wire item.initial))
+          then fail "slider mode changes require a new controller key")));
     let old_handler = Option.bind previous ~f:(fun mounted -> mounted.handler) in
     let old_commands =
       Option.value_map previous ~default:[] ~f:(fun mounted -> mounted.commands)
@@ -322,6 +409,55 @@ let rec mount builder ~depth previous view =
               builder.command_generation
           in
           { candidate with generation }))
+    in
+    let query_seen =
+      Option.value_map previous ~default:(ref 0L) ~f:(fun old -> old.query_seen)
+    in
+    let container_query =
+      Option.map description.container_query ~f:(fun item ->
+        let old = Option.bind previous ~f:(fun mounted -> mounted.container_query) in
+        let old_config =
+          Option.bind previous ~f:(fun mounted ->
+            Option.map (View.Expert.describe mounted.view).container_query ~f:(fun old ->
+              old.config))
+        in
+        let generation =
+          match old with
+          | None -> 1L
+          | Some old
+            when Option.equal Container_query.Config.equal old_config (Some item.config)
+            -> old.generation
+          | Some old ->
+            if Int64.equal old.generation Int64.max_value
+            then fail "container query generation exhausted";
+            Int64.succ old.generation
+        in
+        Container_query.Expert.to_wire item.config ~generation |> value)
+    in
+    let program_seen =
+      Option.value_map previous ~default:(ref (0L, 0L)) ~f:(fun old -> old.program_seen)
+    in
+    let animation_program =
+      Option.map description.animation_program ~f:(fun item ->
+        let old = Option.bind previous ~f:(fun mounted -> mounted.animation_program) in
+        let old_config =
+          Option.bind previous ~f:(fun mounted ->
+            Option.map
+              (View.Expert.describe mounted.view).animation_program
+              ~f:(fun old -> old.config))
+        in
+        let generation =
+          match old with
+          | None -> 1L
+          | Some old
+            when Option.equal Animation.Program.equal old_config (Some item.config) ->
+            old.generation
+          | Some old ->
+            if Int64.equal old.generation Int64.max_value
+            then fail "animation program generation exhausted";
+            Int64.succ old.generation
+        in
+        Animation.Expert.program_to_wire item.config ~generation |> value)
     in
     let animation_seen =
       Option.value_map previous ~default:(ref 0L) ~f:(fun old -> old.animation_seen)
@@ -376,6 +512,58 @@ let rec mount builder ~depth previous view =
       | _ -> fail "a view cannot combine incompatible handler kinds"
     in
     let callback =
+      match description.slider, callback with
+      | Some slider, None -> Some (Slider (slider.initial, slider_seen, slider.on_event))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "slider cannot combine another handler"
+    in
+    let callback =
+      match description.number_input, callback with
+      | Some input, None -> Some (Number_input (number_input_seen, input.on_event))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "numeric input cannot combine another handler"
+    in
+    let callback =
+      match description.otp_input, callback with
+      | Some input, None ->
+        Some
+          (Otp_input (Otp_input.Config.policy input.config, otp_input_seen, input.on_event))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "OTP input cannot combine another handler"
+    in
+    let callback =
+      match description.color_input, callback with
+      | Some input, None -> Some (Color_input (color_input_seen, input.on_event))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "color input cannot combine another handler"
+    in
+    let callback =
+      match description.calendar, callback with
+      | Some calendar, None ->
+        Some
+          (Calendar
+             (Calendar.Config.mode calendar.config, calendar_seen, calendar.on_event))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "calendar cannot combine another handler"
+    in
+    let callback =
+      match description.carousel, callback with
+      | Some (config, on_request), None -> Some (Carousel (config, on_request))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "carousel cannot combine another handler"
+    in
+    let callback =
+      match description.rating, callback with
+      | Some rating, None ->
+        if
+          Rating.Config.is_disabled rating.config
+          || Rating.Config.is_read_only rating.config
+        then None
+        else Some (Rating (rating.config, rating.on_request))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "rating cannot combine another handler"
+    in
+    let callback =
       match description.palette, callback with
       | Some palette, None -> Some (Palette (palette.config, palette.on_dismiss))
       | None, callback -> callback
@@ -406,11 +594,25 @@ let rec mount builder ~depth previous view =
       | Some _, Some _ -> fail "drop_target cannot combine another handler"
     in
     let callback =
+      match description.extension, callback with
+      | Some item, None -> Some (Extension (item.config, item.on_event))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "extension cannot combine another handler"
+    in
+    let callback =
       match description.split_pane, callback with
       | Some item, None ->
         Option.map item.on_resize ~f:(fun callback -> Split_pane (item.config, callback))
       | None, _ -> callback
       | Some _, Some _ -> fail "split pane cannot combine another handler"
+    in
+    let callback =
+      match description.canvas, callback with
+      | Some item, None ->
+        Option.map item.on_event ~f:(fun callback ->
+          Canvas (Canvas.Expert.to_wire item.config ~owner:builder.canvas_owner, callback))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "canvas cannot combine another handler"
     in
     let callback =
       match description.document, callback with
@@ -435,6 +637,26 @@ let rec mount builder ~depth previous view =
       | Some _, _, Some _ -> fail "animation cannot combine another handler"
       | Some _, None, None | None, Some _, _ -> fail "missing animation configuration"
     in
+    let callback =
+      match description.animation_program, animation_program, callback with
+      | Some item, Some config, None ->
+        Option.map item.on_event ~f:(fun callback ->
+          Animation_program (config.generation, program_seen, callback))
+      | None, None, callback -> callback
+      | Some _, _, Some _ -> fail "animation program cannot combine another handler"
+      | Some _, None, None | None, Some _, _ ->
+        fail "missing animation program configuration"
+    in
+    let callback =
+      match description.container_query, container_query, callback with
+      | Some item, Some config, None ->
+        Option.map item.on_select ~f:(fun callback ->
+          Container_query (config, query_seen, callback))
+      | None, None, callback -> callback
+      | Some _, _, Some _ -> fail "container query cannot combine another handler"
+      | Some _, None, None | None, Some _, _ ->
+        fail "missing container query configuration"
+    in
     let list_identity =
       Option.map description.virtual_list ~f:(fun list ->
         List_identity.prepare
@@ -442,21 +664,77 @@ let rec mount builder ~depth previous view =
           list.order
         |> value)
     in
+    let table = Option.bind description.virtual_list ~f:(fun list -> list.table) in
+    let old_table_config = Option.bind previous ~f:(fun old -> old.table_config) in
+    let table_config =
+      Option.map table ~f:(fun table ->
+        let candidate =
+          Table.Expert.to_wire
+            table.config
+            ~schema_revision:1L
+            ~query_generation:table.query_generation
+          |> value
+        in
+        match old_table_config with
+        | None -> candidate
+        | Some old ->
+          if Int64.(candidate.query_generation < old.query_generation)
+          then fail "table query generation went backwards";
+          let changed =
+            (not (TW.Schema.equal old.schema candidate.schema))
+            || not (Option.equal TW.Sort.equal old.sort candidate.sort)
+          in
+          if changed && Int64.equal old.schema_revision Int64.max_value
+          then fail "table schema revision exhausted";
+          { candidate with
+            schema_revision =
+              (if changed then Int64.succ old.schema_revision else old.schema_revision)
+          })
+    in
     let callback =
       match description.virtual_list, list_identity, callback with
       | Some list, Some identity, None ->
-        if Option.is_some list.on_viewport || Option.is_some list.on_retain
-        then Some (Virtual_list (identity, list))
+        if
+          Option.is_some list.on_viewport
+          || Option.is_some list.on_retain
+          || Option.is_some list.on_tree_input
+        then Some (Virtual_list (identity, list, table_config))
         else None
       | None, None, callback -> callback
       | _ -> fail "incompatible virtual list callback"
     in
     let rotate_handler =
-      (match description.split_pane, previous with
-       | Some item, Some mounted ->
-         Option.exists (View.Expert.describe mounted.view).split_pane ~f:(fun old ->
-           not (Split_pane.Config.equal old.config item.config))
-       | None, _ | Some _, None -> false)
+      (match table_config, old_table_config with
+       | Some next, Some old ->
+         not (Int64.equal next.query_generation old.query_generation)
+       | Some _, None | None, _ -> false)
+      || (match description.virtual_list, previous with
+          | Some list, Some mounted ->
+            let old =
+              Option.exists
+                (View.Expert.describe mounted.view).virtual_list
+                ~f:(fun list -> Option.is_some list.on_tree_input)
+            in
+            (not (Bool.equal old (Option.is_some list.on_tree_input)))
+            || Option.exists
+                 (View.Expert.describe mounted.view).virtual_list
+                 ~f:(fun previous -> not (Bool.equal previous.tree_moves list.tree_moves))
+          | None, _ | Some _, None -> false)
+      || (match description.extension, previous with
+          | Some item, Some mounted ->
+            Option.exists (View.Expert.describe mounted.view).extension ~f:(fun old ->
+              not (Wire.Extension.Config.equal old.config item.config))
+          | None, _ | Some _, None -> false)
+      || (match description.split_pane, previous with
+          | Some item, Some mounted ->
+            Option.exists (View.Expert.describe mounted.view).split_pane ~f:(fun old ->
+              not (Split_pane.Config.equal old.config item.config))
+          | None, _ | Some _, None -> false)
+      || (match description.canvas, previous with
+          | Some item, Some mounted ->
+            Option.exists (View.Expert.describe mounted.view).canvas ~f:(fun old ->
+              not (Canvas.Config.equal old.config item.config))
+          | None, _ | Some _, None -> false)
       || (match description.document, previous with
           | Some document, Some mounted ->
             Option.exists (View.Expert.describe mounted.view).document ~f:(fun old ->
@@ -603,10 +881,115 @@ let rec mount builder ~depth previous view =
       in
       if not (Option.equal Toast.Stack.equal old (Some config))
       then emit builder (Set_toast_stack (id, Toast.Expert.stack_to_wire config)));
+    let accessibility = description.accessibility in
+    let old_accessibility =
+      Option.bind previous ~f:(fun mounted ->
+        (View.Expert.describe mounted.view).accessibility)
+    in
+    if not (Option.equal Accessibility.equal accessibility old_accessibility)
+    then
+      emit
+        builder
+        (Set_accessibility (id, Option.map accessibility ~f:Accessibility.Expert.to_wire));
+    Option.iter description.table_cell ~f:(fun cell ->
+      let old =
+        Option.bind previous ~f:(fun old -> (View.Expert.describe old.view).table_cell)
+      in
+      if not (Option.equal Table.Cell.equal old (Some cell))
+      then emit builder (Set_table_cell (id, Table.Expert.cell_to_wire cell)));
+    Option.iter table_config ~f:(fun config ->
+      if not (Option.equal TW.Config.equal old_table_config (Some config))
+      then emit builder (Set_table (id, config)));
+    let tree_input description =
+      Option.exists description.View.Expert.virtual_list ~f:(fun list ->
+        Option.is_some list.on_tree_input)
+    in
+    let input = tree_input description in
+    if
+      input
+      && not
+           (Option.exists description.accessibility ~f:(fun metadata ->
+              match (Accessibility.Expert.to_wire metadata).role with
+              | Some (Tree _) -> true
+              | None
+              | Some
+                  ( Group
+                  | Label
+                  | Link
+                  | Separator
+                  | Description_list
+                  | Term
+                  | Definition
+                  | Status
+                  | Alert
+                  | Image
+                  | Heading _
+                  | Navigation
+                  | Tree_item _ ) -> false))
+    then fail "native tree input requires Tree accessibility on its managed list root";
+    let old_input =
+      Option.exists previous ~f:(fun mounted ->
+        tree_input (View.Expert.describe mounted.view))
+    in
+    if not (Bool.equal input old_input) then emit builder (Set_tree_input (id, input));
+    let moves description =
+      Option.exists description.View.Expert.virtual_list ~f:(fun list -> list.tree_moves)
+    in
+    let enabled_moves = moves description in
+    if enabled_moves && not input then fail "native tree moves require tree input";
+    let old_moves =
+      Option.exists previous ~f:(fun mounted -> moves (View.Expert.describe mounted.view))
+    in
+    if not (Bool.equal enabled_moves old_moves)
+    then emit builder (Set_tree_moves (id, enabled_moves));
+    let carousel = Option.map description.carousel ~f:fst in
+    let old_carousel =
+      Option.bind previous ~f:(fun mounted ->
+        Option.map (View.Expert.describe mounted.view).carousel ~f:fst)
+    in
+    Option.iter carousel ~f:(fun config ->
+      if
+        Option.exists old_carousel ~f:(fun old ->
+          not (Wire.Carousel.Config.can_replace config old))
+      then fail "carousel model revision must advance when selection or policy changes";
+      if not (Option.equal Wire.Carousel.Config.equal carousel old_carousel)
+      then emit builder (Set_carousel (id, config)));
+    let navigation = description.navigation_stack in
+    let old_navigation =
+      Option.bind previous ~f:(fun mounted ->
+        (View.Expert.describe mounted.view).navigation_stack)
+    in
+    if not (Option.equal Wire.Navigation_stack.Config.equal navigation old_navigation)
+    then
+      Option.iter navigation ~f:(fun config ->
+        emit builder (Set_navigation_stack (id, config)));
+    let old_query = Option.bind previous ~f:(fun mounted -> mounted.container_query) in
+    if not (Option.equal Wire.Container_query.Config.equal container_query old_query)
+    then
+      Option.iter container_query ~f:(fun config ->
+        emit builder (Set_container_query (id, config)));
+    let old_program =
+      Option.bind previous ~f:(fun mounted -> mounted.animation_program)
+    in
+    if
+      not (Option.equal Wire.Animation_program.Config.equal animation_program old_program)
+    then
+      Option.iter animation_program ~f:(fun config ->
+        emit builder (Set_animation_program (id, config)));
     let old_animation = Option.bind previous ~f:(fun mounted -> mounted.animation) in
     if not (Option.equal Wire.Animation.Config.equal animation old_animation)
     then
       Option.iter animation ~f:(fun config -> emit builder (Set_animation (id, config)));
+    Option.iter description.extension ~f:(fun item ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).extension ~f:(fun old ->
+            old.config))
+      in
+      if Option.exists old ~f:(fun old -> Int64.(item.config.generation < old.generation))
+      then fail "extension generation must not decrease";
+      if not (Option.equal Wire.Extension.Config.equal old (Some item.config))
+      then emit builder (Set_extension (id, item.config)));
     Option.iter description.split_pane ~f:(fun item ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -620,6 +1003,16 @@ let rec mount builder ~depth previous view =
       then fail "split-pane reset_generation must not decrease";
       if not (Option.equal Split_pane.Config.equal old (Some item.config))
       then emit builder (Set_split (id, Split_pane.Expert.to_wire item.config)));
+    Option.iter description.canvas ~f:(fun item ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).canvas ~f:(fun old -> old.config))
+      in
+      if not (Option.equal Canvas.Config.equal old (Some item.config))
+      then
+        emit
+          builder
+          (Set_canvas (id, Canvas.Expert.to_wire item.config ~owner:builder.canvas_owner)));
     Option.iter description.document ~f:(fun document ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -636,17 +1029,150 @@ let rec mount builder ~depth previous view =
                  document.config
                  ~owner:builder.document_owner
                  ~asset_owner:builder.asset_owner )));
-    Option.iter description.image ~f:(fun image ->
+    if Option.is_none description.avatar
+    then
+      Option.iter description.image ~f:(fun image ->
+        let old =
+          Option.bind previous ~f:(fun mounted ->
+            Option.map (View.Expert.describe mounted.view).image ~f:(fun image ->
+              image.config))
+        in
+        if not (Option.equal Image.Config.equal old (Some image.config))
+        then
+          emit
+            builder
+            (Set_image (id, Image.Expert.to_wire image.config ~owner:builder.asset_owner)));
+    Option.iter description.slider ~f:(fun slider ->
       let old =
         Option.bind previous ~f:(fun mounted ->
-          Option.map (View.Expert.describe mounted.view).image ~f:(fun image ->
-            image.config))
+          (View.Expert.describe mounted.view).slider)
       in
-      if not (Option.equal Image.Config.equal old (Some image.config))
+      if
+        not
+          (Option.exists old ~f:(fun old ->
+             Slider.Config.equal old.config slider.config
+             && Slider.Value.equal old.initial slider.initial))
       then
         emit
           builder
-          (Set_image (id, Image.Expert.to_wire image.config ~owner:builder.asset_owner)));
+          (Set_slider
+             ( id
+             , Slider.Expert.config_to_wire slider.config
+             , Slider.Expert.value_to_wire slider.initial )));
+    Option.iter description.number_input ~f:(fun number_input ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          (View.Expert.describe mounted.view).number_input)
+      in
+      if
+        not
+          (Option.exists old ~f:(fun old ->
+             Number_input.Config.equal old.config number_input.config
+             && Number_input.Value.equal old.initial number_input.initial))
+      then
+        emit
+          builder
+          (Set_number_input
+             ( id
+             , Number_input.Expert.config_to_wire number_input.config
+             , Number_input.Expert.value_to_wire number_input.initial )));
+    Option.iter description.otp_input ~f:(fun input ->
+      let policy = Otp_input.Config.policy input.config in
+      if not (Otp_input.Value.fits input.initial ~policy)
+      then fail "OTP initial value is incompatible with its policy";
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          (View.Expert.describe mounted.view).otp_input)
+      in
+      Option.iter old ~f:(fun old ->
+        if not (Otp_input.Policy.equal (Otp_input.Config.policy old.config) policy)
+        then fail "OTP policy is immutable; remount with a new controller identity");
+      if
+        not
+          (Option.exists old ~f:(fun old ->
+             Otp_input.Config.equal old.config input.config))
+      then
+        emit
+          builder
+          (Set_otp_input
+             ( id
+             , Otp_input.Expert.config_to_wire input.config
+             , Otp_input.Expert.value_to_wire input.initial )));
+    Option.iter description.color_input ~f:(fun input ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          (View.Expert.describe mounted.view).color_input)
+      in
+      if Option.is_none old && not (Color_input.Config.allows input.config input.initial)
+      then fail "color seed is disabled by its alpha/empty policy";
+      if
+        not
+          (Option.exists old ~f:(fun old ->
+             Color_input.Config.equal old.config input.config))
+      then
+        emit
+          builder
+          (Set_color_input
+             ( id
+             , Color_input.Expert.config_to_wire input.config
+             , Color_input.Expert.value_to_wire input.initial )));
+    Option.iter description.calendar ~f:(fun calendar ->
+      let mode = Calendar.Config.mode calendar.config in
+      if not (Calendar.Selection.fits calendar.initial ~mode)
+      then fail "calendar seed does not fit mode";
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          (View.Expert.describe mounted.view).calendar)
+      in
+      (match old with
+       | None ->
+         if
+           not
+             (Calendar.Constraints.allows_selection
+                (Calendar.Config.constraints calendar.config)
+                calendar.initial
+                ~mode)
+         then fail "calendar seed is disabled by its constraints"
+       | Some old ->
+         if not (Calendar.Mode.equal (Calendar.Config.mode old.config) mode)
+         then fail "calendar mode is immutable; remount with a new controller identity");
+      if
+        not
+          (Option.exists old ~f:(fun old ->
+             Calendar.Config.equal old.config calendar.config))
+      then
+        emit
+          builder
+          (Set_calendar
+             ( id
+             , Calendar.Expert.config_to_wire calendar.config
+             , Calendar.Expert.selection_to_wire calendar.initial
+             , Calendar.Expert.month_to_wire calendar.initial_month )));
+    Option.iter description.rating ~f:(fun rating ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).rating ~f:(fun item ->
+            item.config))
+      in
+      if not (Option.equal Rating.Config.equal old (Some rating.config))
+      then emit builder (Set_rating (id, Rating.Expert.to_wire rating.config)));
+    Option.iter description.avatar ~f:(fun config ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          (View.Expert.describe mounted.view).avatar)
+      in
+      if not (Option.equal Avatar.Config.equal old (Some config))
+      then
+        emit
+          builder
+          (Set_avatar (id, Avatar.Expert.to_wire config ~owner:builder.asset_owner)));
+    Option.iter description.loading ~f:(fun config ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          (View.Expert.describe mounted.view).loading)
+      in
+      if not (Option.equal Loading.Config.equal old (Some config))
+      then emit builder (Set_loading (id, Loading.Expert.to_wire config)));
     Option.iter description.progress ~f:(fun progress ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -861,29 +1387,81 @@ let rec mount builder ~depth previous view =
       if not (Option.equal Virtual_list.Scroll_request.equal old_scroll list.scroll)
       then
         Option.iter list.scroll ~f:(fun request ->
-          emit
-            builder
-            (Scroll_list
-               ( id
-               , Virtual_list.Expert.scroll_to_wire
-                   request
-                   ~find_id:(List_identity.id identity)
-                 |> value ))));
+          let request =
+            Virtual_list.Expert.scroll_to_wire
+              request
+              ~find_id:(List_identity.id identity)
+            |> value
+          in
+          (match request.target with
+           | Gpuio_protocol.List_wire.Scroll_target.Focus_tree_row _ ->
+             if Option.is_none list.on_tree_input
+             then fail "tree row focus requires native tree input"
+           | Offset _ | Reveal _ | End -> ());
+          emit builder (Scroll_list (id, request))));
+    let table_serial =
+      let serial =
+        Option.value_map previous ~default:0L ~f:(fun old -> old.table_serial)
+      in
+      match table with
+      | None -> serial
+      | Some table ->
+        let old_commands =
+          Option.value_map previous ~default:[] ~f:(fun old ->
+            Option.bind (View.Expert.describe old.view).virtual_list ~f:(fun list ->
+              list.table)
+            |> Option.value_map ~default:[] ~f:(fun table -> table.commands))
+        in
+        if List.equal (Table.Command.equal Key.equal) old_commands table.commands
+        then serial
+        else
+          List.fold table.commands ~init:serial ~f:(fun serial command ->
+            if Int64.compare (Table.Command.serial command) serial <= 0
+            then fail "table command serial did not advance";
+            if
+              not
+                (Int64.equal
+                   (Table.Command.query_generation command)
+                   table.query_generation)
+            then fail "table command belongs to an obsolete query";
+            let request =
+              Table.Expert.command_to_wire
+                table.config
+                command
+                ~find_id:(List_identity.id (Option.value_exn list_identity))
+              |> value
+            in
+            emit builder (Table_command (id, request));
+            request.serial)
+    in
     let controllers =
       let own =
         let controller =
-          match description.editor, description.combobox with
-          | Some editor, None -> Some editor.controller
-          | None, Some combo -> Some combo.controller
-          | None, None -> None
-          | Some _, Some _ -> fail "incompatible controller descriptions"
+          match
+            ( description.editor
+            , description.combobox
+            , description.slider
+            , description.number_input
+            , description.otp_input
+            , description.calendar
+            , description.color_input )
+          with
+          | Some editor, None, None, None, None, None, None -> Some editor.controller
+          | None, Some combo, None, None, None, None, None -> Some combo.controller
+          | None, None, Some slider, None, None, None, None -> Some slider.controller
+          | None, None, None, Some input, None, None, None -> Some input.controller
+          | None, None, None, None, Some input, None, None -> Some input.controller
+          | None, None, None, None, None, Some calendar, None -> Some calendar.controller
+          | None, None, None, None, None, None, None -> None
+          | None, None, None, None, None, None, Some input -> Some input.controller
+          | _ -> fail "incompatible controller descriptions"
         in
         Option.value_map controller ~default:String.Set.empty ~f:(fun key ->
           String.Set.singleton (Key.to_string key))
       in
       List.fold children ~init:own ~f:(fun keys child ->
         if not (Set.is_empty (Set.inter keys child.controllers))
-        then fail "text input controller appears more than once in a window";
+        then fail "native controller appears more than once in a window";
         Set.union keys child.controllers)
     in
     let menu_commands =
@@ -928,7 +1506,18 @@ let rec mount builder ~depth previous view =
     ; style
     ; animation
     ; animation_seen
+    ; animation_program
+    ; program_seen
+    ; container_query
+    ; query_seen
+    ; slider_seen
+    ; number_input_seen
+    ; otp_input_seen
+    ; color_input_seen
+    ; calendar_seen
     ; list_identity
+    ; table_config
+    ; table_serial
     ; choice_appearance
     ; children
     ; controllers
@@ -957,6 +1546,7 @@ let prepare t ~theme view =
         ; theme_unchanged = Theme.equal theme t.state.theme
         ; asset_owner = t.asset_owner
         ; document_owner = t.document_owner
+        ; canvas_owner = t.canvas_owner
         }
       in
       let root =
@@ -1039,7 +1629,7 @@ let retain_list_rows t notices =
           t.state.bindings
           (node_slot notice.Gpuio_protocol.List_wire.Retained.node)
       with
-      | Some { node; callback = Virtual_list (identity, list); _ }
+      | Some { node; callback = Virtual_list (identity, list, _); _ }
         when Node_id.equal node notice.node ->
         let%bind callback =
           Option.value_map
@@ -1062,6 +1652,24 @@ let retain_list_rows t notices =
 ;;
 
 let dispatch t = function
+  | Wire.Event.Extension_event (window, node, handler, revision, generation, signal)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Extension (config, callback)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Int64.equal generation config.generation
+            && Wire.Extension.Signal.valid signal ->
+       (match signal with
+        | Data _ when config.disabled -> None
+        | Data _ | Mounted | Command_completed _ | Failed _ -> Some (callback signal))
+     | Some _ | None -> None)
   | Wire.Event.Split_resized (window, node, handler, revision, generation, snapshot)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -1076,6 +1684,33 @@ let dispatch t = function
             && Handler_id.equal handler expected_handler
             && Int64.equal generation (Split_pane.Expert.generation config) ->
        Split_pane.Expert.snapshot_of_wire snapshot |> Result.ok |> Option.map ~f:callback
+     | Some _ | None -> None)
+  | Wire.Event.Canvas_event
+      ( window
+      , node
+      , handler
+      , revision
+      , source
+      , scene_revision
+      , scene_generation
+      , observation )
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Canvas (config, callback)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Option.equal Resource_id.equal source config.source
+            && (Option.is_some source
+                || Int64.(scene_revision = 0L && scene_generation = 0L)) ->
+       Canvas.Expert.event ~scene_revision ~scene_generation observation
+       |> Result.ok
+       |> Option.map ~f:callback
      | Some _ | None -> None)
   | Wire.Event.Document_navigation (window, node, handler, revision, source, _, navigation)
     when (not t.closed)
@@ -1094,6 +1729,57 @@ let dispatch t = function
                  (Text_source.Expert.native_id expected_source) ->
        Document.Expert.navigation navigation |> Result.ok |> Option.map ~f:callback
      | Some _ | None -> None)
+  | Wire.Event.Table_input (window, node, handler, revision, input)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Virtual_list (identity, list, Some config)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Int64.equal input.schema_revision config.schema_revision
+            && Int64.equal input.query_generation config.query_generation ->
+       Option.bind list.table ~f:(fun table ->
+         Table.Expert.request_of_wire
+           table.config
+           input.request
+           ~find_key:(List_identity.key identity)
+         |> Option.map ~f:table.on_input)
+     | Some _ | None -> None)
+  | Wire.Event.Tree_input (window, node, handler, revision, request)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Virtual_list (identity, list, _)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       Tree_input.Expert.of_wire request ~find_key:(List_identity.key identity)
+       |> Option.bind ~f:(fun input ->
+         let allowed =
+           match input with
+           | Tree_input.Move _ -> list.tree_moves
+           | Navigate _
+           | Select _
+           | Focus _
+           | Set_expanded _
+           | Activate _
+           | Select_active _
+           | Activate_active
+           | Typeahead _
+           | Set_selected _ -> true
+         in
+         if allowed
+         then Option.map list.on_tree_input ~f:(fun callback -> callback input)
+         else None)
+     | Some _ | None -> None)
   | Wire.Event.List_viewport (window, node, handler, revision, viewport)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -1102,7 +1788,7 @@ let dispatch t = function
      | Some
          { node = expected
          ; handler = expected_handler
-         ; callback = Virtual_list (identity, list)
+         ; callback = Virtual_list (identity, list, _)
          }
        when Node_id.equal node expected
             && Handler_id.equal handler expected_handler
@@ -1114,6 +1800,52 @@ let dispatch t = function
        |> Result.ok
        |> Option.bind ~f:(fun viewport ->
          Option.map list.on_viewport ~f:(fun callback -> callback viewport))
+     | Some _ | None -> None)
+  | Wire.Event.Container_selected (window, node, handler, revision, snapshot)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Container_query (config, seen, callback)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Int64.(snapshot.sequence > !seen) ->
+       (match Container_query.Expert.selection_of_wire config snapshot with
+        | Error _ -> None
+        | Ok selection ->
+          seen := snapshot.sequence;
+          Some (callback selection))
+     | Some _ | None -> None)
+  | Wire.Event.Animation_program_event (window, node, handler, revision, signals)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision)
+         && Wire.Animation_program.Signal.valid_batch signals ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Animation_program (generation, seen, callback)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       let first = List.hd_exn signals in
+       let seen_run, seen_index = !seen in
+       if Int64.(first.generation > generation || first.generation < seen_run)
+       then None
+       else (
+         let fresh =
+           List.filter signals ~f:(fun signal ->
+             Int64.(signal.generation > seen_run || signal.index > seen_index))
+         in
+         match Animation.Expert.program_event_of_wire fresh with
+         | Error _ -> None
+         | Ok event ->
+           seen := first.generation, (List.last_exn fresh).index;
+           Some (callback event))
      | Some _ | None -> None)
   | Wire.Event.Animation_endpoint (window, node, handler, revision, endpoint)
     when (not t.closed)
@@ -1156,6 +1888,13 @@ let dispatch t = function
        (match binding.callback with
         | Click callback -> Some (callback ())
         | Editor _
+        | Rating _
+        | Carousel _
+        | Slider _
+        | Number_input _
+        | Otp_input _
+        | Color_input _
+        | Calendar _
         | Choice _
         | Combobox _
         | Dismiss _
@@ -1167,11 +1906,169 @@ let dispatch t = function
         | Drag_source _
         | Drop_target _
         | Animation _
+        | Animation_program _
+        | Container_query _
         | Image _
         | Virtual_list _
+        | Extension _
         | Split_pane _
+        | Canvas _
         | Document _ -> None)
      | Some _ | None -> None)
+  | Slider_event (window, node, handler, revision, event)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Slider (initial, seen, callback)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       let snapshot = Wire.Slider.Event.snapshot event in
+       if
+         Int64.(snapshot.revision <= !seen)
+         || not
+              (Wire.Slider.Value.same_mode
+                 (Slider.Expert.value_to_wire initial)
+                 snapshot.value)
+       then None
+       else (
+         match Slider.Expert.event_of_wire ~window ~node event with
+         | Error _ -> None
+         | Ok event ->
+           seen := snapshot.revision;
+           Some (callback event))
+     | Some _ | None -> None)
+  | Number_input_event (window, node, handler, revision, event)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Number_input (seen, callback)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       let snapshot = Wire.Number_input.Event.snapshot event in
+       if Int64.(snapshot.revision <= !seen)
+       then None
+       else (
+         match Number_input.Expert.event_of_wire ~window ~node event with
+         | Error _ -> None
+         | Ok event ->
+           seen := snapshot.revision;
+           Some (callback event))
+     | Some _ | None -> None)
+  | Otp_input_event (window, node, handler, revision, event)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Otp_input (policy, seen, callback)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       let snapshot = Wire.Otp_input.Event.snapshot event in
+       if
+         Int64.(snapshot.revision <= !seen)
+         || not
+              (Wire.Otp_input.Policy.equal
+                 snapshot.policy
+                 (Otp_input.Expert.policy_to_wire policy))
+       then None
+       else (
+         match Otp_input.Expert.event_of_wire ~window ~node event with
+         | Error _ -> None
+         | Ok event ->
+           seen := snapshot.revision;
+           Some (callback event))
+     | Some _ | None -> None)
+  | Color_input_event (window, node, handler, revision, event)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Color_input (seen, callback)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       let snapshot = Wire.Color_input.Event.snapshot event in
+       if Int64.(snapshot.revision <= !seen)
+       then None
+       else (
+         match Color_input.Expert.event_of_wire ~window ~node event with
+         | Error _ -> None
+         | Ok event ->
+           seen := snapshot.revision;
+           Some (callback event))
+     | Some _ | None -> None)
+  | Calendar_event (window, node, handler, revision, event)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Calendar (mode, seen, callback)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       let snapshot = Wire.Calendar.Event.snapshot event in
+       let event_mode =
+         match snapshot.mode with
+         | Single -> Calendar.Mode.Single
+         | Range -> Calendar.Mode.Range
+       in
+       if Int64.(snapshot.revision <= !seen) || not (Calendar.Mode.equal event_mode mode)
+       then None
+       else (
+         match Calendar.Expert.event_of_wire ~window ~node event with
+         | Error _ -> None
+         | Ok event ->
+           seen := snapshot.revision;
+           Some (callback event))
+     | Some _ | None -> None)
+  | Carousel_requested (window, node, handler, revision, request)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match
+       Map.find t.state.bindings (node_slot node), Carousel.Expert.request_of_wire request
+     with
+     | ( Some
+           { node = expected
+           ; handler = expected_handler
+           ; callback = Carousel (config, callback)
+           }
+       , Ok decoded )
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Wire.Carousel.accepts_request config request -> Some (callback decoded)
+     | _ -> None)
+  | Rating_requested (window, node, handler, revision, request)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match
+       Map.find t.state.bindings (node_slot node), Rating.Expert.request_of_wire request
+     with
+     | ( Some
+           { node = expected
+           ; handler = expected_handler
+           ; callback = Rating (config, callback)
+           }
+       , Some request )
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Rating.Expert.can_apply config request -> Some (callback request)
+     | _ -> None)
   | Choice (window, node, handler, revision, selected)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -1366,6 +2263,22 @@ let dispatch t = function
   | File_dialog_result _
   | Image_state _
   | Animation_endpoint _
+  | Animation_program_event _
+  | Rating_requested _
+  | Carousel_requested _
+  | Tree_input _
+  | Table_input _
+  | Slider_result _
+  | Slider_event _
+  | Color_input_result _
+  | Calendar_result _
+  | Otp_input_result _
+  | Number_input_result _
+  | Number_input_event _
+  | Otp_input_event _
+  | Color_input_event _
+  | Calendar_event _
+  | Container_selected _
   | List_retained _
   | List_viewport _
   | Asset_response _
@@ -1375,7 +2288,10 @@ let dispatch t = function
   | Window_changed _
   | Window_response _
   | Window_capabilities _
+  | Extension_event _
   | Split_resized _
+  | Canvas_event _
+  | Canvas_response _
   | Document_response _
   | Document_navigation _
   | Editor_result _

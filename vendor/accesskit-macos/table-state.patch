@@ -1,0 +1,109 @@
+--- a/src/node.rs
++++ b/src/node.rs
+@@ -1070 +1070 @@
+-                wrapper.is_item_like()
++                (wrapper.is_item_like() || table_item(node))
+@@ -1080 +1080,4 @@
+-                if supports_tree_selection(node) {
++                if supports_tree_selection(node) || supports_table_selection(node) {
++                    let (select, deselect) = if supports_tree_selection(node) {
++                        (TREE_SELECT, TREE_DESELECT)
++                    } else { (TABLE_SELECT, TABLE_DESELECT) };
+@@ -1088 +1091 @@
+-                            data: Some(ActionData::CustomAction(if selected { TREE_SELECT } else { TREE_DESELECT })),
++                            data: Some(ActionData::CustomAction(if selected { select } else { deselect })),
+@@ -1127,0 +1131,31 @@
++        #[method(accessibilityRowCount)]
++        fn row_count(&self) -> NSInteger {
++            self.resolve(|node| node.data().row_count().unwrap_or(0) as NSInteger).unwrap_or(0)
++        }
++        #[method(accessibilityColumnCount)]
++        fn column_count(&self) -> NSInteger {
++            self.resolve(|node| node.data().column_count().unwrap_or(0) as NSInteger).unwrap_or(0)
++        }
++        #[method(accessibilityIndex)]
++        fn index(&self) -> NSInteger {
++            self.resolve(|node| node.data().row_index().unwrap_or(0) as NSInteger).unwrap_or(0)
++        }
++        #[method(accessibilityRowIndexRange)]
++        fn row_index_range(&self) -> NSRange {
++            self.resolve(|node| NSRange::new(node.data().row_index().unwrap_or(0), node.data().row_span().unwrap_or(1)))
++                .unwrap_or(NSRange::new(0, 0))
++        }
++        #[method(accessibilityColumnIndexRange)]
++        fn column_index_range(&self) -> NSRange {
++            self.resolve(|node| NSRange::new(node.data().column_index().unwrap_or(0), node.data().column_span().unwrap_or(1)))
++                .unwrap_or(NSRange::new(0, 0))
++        }
++        #[method(accessibilitySortDirection)]
++        fn sort_direction(&self) -> NSAccessibilitySortDirection {
++            self.resolve(|node| match node.data().sort_direction() {
++                Some(accesskit::SortDirection::Ascending) => NSAccessibilitySortDirection::Ascending,
++                Some(accesskit::SortDirection::Descending) => NSAccessibilitySortDirection::Descending,
++                _ => NSAccessibilitySortDirection::Unknown,
++            }).unwrap_or(NSAccessibilitySortDirection::Unknown)
++        }
++
+@@ -1131,0 +1166,6 @@
++                if table_container(node) {
++                    let platform_nodes = node.filtered_children(table_row_filter)
++                                                .map(|child| context.get_or_create_platform_node(child.id()))
++                        .collect::<Vec<Id<PlatformNode>>>();
++                    return Some(NSArray::from_vec(platform_nodes));
++                }
+@@ -1147,0 +1188,7 @@
++                if table_container(node) {
++                    let platform_nodes = node.filtered_children(table_row_filter)
++                        .filter(|row| row.is_selected() == Some(true))
++                        .map(|child| context.get_or_create_platform_node(child.id()))
++                        .collect::<Vec<Id<PlatformNode>>>();
++                    return Some(NSArray::from_vec(platform_nodes));
++                }
+@@ -1303,0 +1351,14 @@
++                if selector == sel!(accessibilityRowCount) { return table_container(node); }
++                if selector == sel!(accessibilityColumnCount) {
++                    return table_container(node) && node.data().column_count().is_some();
++                }
++                if selector == sel!(accessibilityIndex) {
++                    return node.role() == Role::Row && node.data().row_index().is_some();
++                }
++                if selector == sel!(accessibilityRowIndexRange) {
++                    return table_item(node) && node.data().row_index().is_some();
++                }
++                if selector == sel!(accessibilityColumnIndexRange) {
++                    return table_item(node) && node.data().column_index().is_some();
++                }
++                if selector == sel!(accessibilitySortDirection) { return node.role() == Role::ColumnHeader; }
+@@ -1306 +1367 @@
+-                    return wrapper.is_item_like();
++                    return wrapper.is_item_like() || table_item(node);
+@@ -1312,3 +1373,3 @@
+-                    return wrapper.is_container_with_selectable_children()
+-                }
+-                if selector == sel!(setAccessibilitySelected:) && supports_tree_selection(node) {
++                    return wrapper.is_container_with_selectable_children() || table_container(node)
++                }
++                if selector == sel!(setAccessibilitySelected:) && (supports_tree_selection(node) || supports_table_selection(node)) {
+@@ -1370,0 +1432,22 @@
++const TABLE_SELECT: i32 = 0x4750_0011;
++const TABLE_DESELECT: i32 = 0x4750_0012;
++fn table_item(node: &Node) -> bool {
++    matches!(node.role(), Role::Row | Role::Cell | Role::ColumnHeader)
++}
++fn table_container(node: &Node) -> bool {
++    node.role() == Role::Table && node.data().row_count().is_some()
++}
++fn table_row_filter(node: &Node) -> FilterResult {
++    match filter(node) {
++        FilterResult::ExcludeSubtree => FilterResult::ExcludeSubtree,
++        _ if node.role() == Role::Row => FilterResult::Include,
++        _ if matches!(node.role(), Role::Table | Role::Grid | Role::Tree | Role::TreeGrid) => FilterResult::ExcludeSubtree,
++        _ => FilterResult::ExcludeNode,
++    }
++}
++fn supports_table_selection(node: &Node) -> bool {
++    table_item(node) && node.is_selectable()
++        && node.supports_action(Action::CustomAction, &filter)
++        && [TABLE_SELECT, TABLE_DESELECT].iter().all(|id| node.data().custom_actions().iter().any(|a| a.id == *id))
++}
++

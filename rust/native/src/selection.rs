@@ -113,13 +113,15 @@ pub fn element(
             },
         )]
     };
-    let text = StyledText::new(SharedString::from(text)).with_highlights(highlights);
+    let label = SharedString::from(text);
+    let text = StyledText::new(label.clone()).with_highlights(highlights);
     let layout = text.layout().clone();
     let mut element = div()
         .id("selectable-text")
         .track_focus(&focus)
         .tab_index(0)
         .role(gpui::Role::Label)
+        .aria_label(label)
         .child(text);
     if pointer {
         element = element.cursor_text();

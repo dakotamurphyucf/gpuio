@@ -178,10 +178,34 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, transport
             .unwrap(),
         revision
     );
-    let stopped = window.update(cx, |view, _, _| view.render_count).unwrap();
+    let requests = window
+        .update(cx, |view, _, _| {
+            view.animations[&node(1)].borrow().frame_requests
+        })
+        .unwrap();
+    assert!(requests > 0, "running animation exercised the wake counter");
+    // A previously queued GPUI/platform refresh can arrive after the frame
+    // helper returns. Count animation-originated requests across both intervals,
+    // then require the whole window to remain quiet after that queue drains.
+    let initial_renders = window.update(cx, |view, _, _| view.render_count).unwrap();
     cx.background_executor()
         .timer(Duration::from_millis(180))
         .await;
+    let stopped = window.update(cx, |view, _, _| view.render_count).unwrap();
+    eprintln!("GPUIO_ANIMATION_IDLE_DRAIN: renders {initial_renders} -> {stopped}");
+    cx.background_executor()
+        .timer(Duration::from_millis(180))
+        .await;
+    window
+        .update(cx, |view, _, _| {
+            let animation = view.animations[&node(1)].borrow();
+            assert_eq!(
+                animation.frame_requests, requests,
+                "finished animation requested a frame"
+            );
+            assert!(!animation.has_deadline());
+        })
+        .unwrap();
     assert_eq!(
         window.update(cx, |view, _, _| view.render_count).unwrap(),
         stopped,
@@ -237,6 +261,42 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, transport
     apply(cx, window, vec![Op::SetStyle(node(0), vec![])]);
     frame(cx, window).await;
     assert!(window.update(cx, |view, _, _| view.render_count).unwrap() > hidden);
+    apply(
+        cx,
+        window,
+        vec![Op::SetStyle(
+            node(0),
+            vec![Style::Fields(vec![Field::Inert(true)])],
+        )],
+    );
+    frame(cx, window).await;
+    let inert_requests = window
+        .update(cx, |v, _, _| v.animations[&node(1)].borrow().frame_requests)
+        .unwrap();
+    cx.background_executor()
+        .timer(Duration::from_millis(180))
+        .await;
+    window
+        .update(cx, |v, _, _| {
+            let state = v.animations[&node(1)].borrow();
+            assert_eq!(
+                state.frame_requests, inert_requests,
+                "inert ancestor suspends nested repeat scheduling"
+            );
+            assert!(!state.has_deadline());
+        })
+        .unwrap();
+    apply(cx, window, vec![Op::SetStyle(node(0), vec![])]);
+    frame(cx, window).await;
+    cx.background_executor()
+        .timer(Duration::from_millis(60))
+        .await;
+    assert!(
+        window
+            .update(cx, |v, _, _| v.animations[&node(1)].borrow().frame_requests)
+            .unwrap()
+            > inert_requests
+    );
     cx.update(|cx| {
         crate::motion_preference::set(gpuio_protocol::animation::Preference::Reduce, cx)
     });

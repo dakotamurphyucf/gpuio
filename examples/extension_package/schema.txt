@@ -1,0 +1,4 @@
+example.counter/v1
+properties: value:u8[0..100],step:u8[1..10]
+command: value:u8[0..100]
+event: value:u8[0..100]

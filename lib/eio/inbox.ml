@@ -29,6 +29,11 @@ let wake t =
   Eio.Condition.broadcast t.changed
 ;;
 
+let length t =
+  Guard.check t.guard;
+  Queue.length t.jobs
+;;
+
 let try_push t job =
   Guard.check t.guard;
   if t.closed || Queue.length t.jobs >= t.capacity

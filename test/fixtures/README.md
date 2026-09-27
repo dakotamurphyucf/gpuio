@@ -31,3 +31,16 @@ using `emit_choice_fixture` (request) and `emit_choice_fixture -- --events`
 kind, both filter tags, and an exact selection snapshot with multibyte UTF-8 and
 reversed byte selection. Literal fixture bytes and independent OCaml/Rust value
 constructors agree; the request is a codec fixture, not a complete valid UI tree.
+
+`canvas-v1-path.hex` fixes the retained-canvas Move/Line/Quadratic/Cubic/Close
+tags, control-point order and little-endian float encoding. The OCaml expect test
+in `test/canvas/path_test.ml` and Rust `canvas::tests` construct the path
+independently. It is a geometry codec fixture; it does not claim implemented scene
+upload, resource ownership or native rendering.
+
+`canvas-v1-scene.hex` covers scene version/description, path/text/image resources,
+all shape/drawing kinds, paint options, transform/clip records and interactive
+rectangle/ellipse/polygon hit regions. Rust constructs it in
+`tests/common/canvas_fixture.rs`; OCaml independently constructs it in
+`test/canvas/scene_codec_test.ml`. Both decode and compare the complete value.
+Regenerate deliberately with `cargo run -p gpuio-protocol --example emit_canvas_fixture`.

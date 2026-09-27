@@ -21,6 +21,7 @@ struct Binding {
     rendered: asset_svg::Request,
     intrinsic: Option<ImageMetadata>,
     resize_error: Option<ImageError>,
+    layout_error: Option<ImageError>,
     svg: bool,
 }
 impl Binding {
@@ -33,6 +34,7 @@ impl Binding {
             rendered: Default::default(),
             intrinsic: None,
             resize_error: None,
+            layout_error: None,
             svg,
         }
     }
@@ -70,7 +72,7 @@ impl Binding {
                 Ok(None) => (),
             }
         }
-        let status = if let Some(error) = self.resize_error {
+        let status = if let Some(error) = self.layout_error.or(self.resize_error) {
             ImageState::Failed(error)
         } else {
             match &observed {
@@ -84,6 +86,11 @@ impl Binding {
         (observed.ok().flatten(), status)
     }
     fn request(&mut self, request: asset_svg::Request, window: &mut Window, cx: &mut gpui::App) {
+        // An invalid layout size does not poison a previously successful raster
+        // request. Keep it separate from a real decode/upload failure.
+        if self.layout_error.take().is_some() {
+            window.refresh();
+        }
         if self.intrinsic.is_none() || self.requested == Some(request) {
             return;
         }
@@ -113,6 +120,9 @@ fn vector(
     fitting: ImageFit,
     icon: bool,
     corners: image_corners::Shared,
+    fallback: Option<Arc<str>>,
+    owner: gpui::WeakEntity<View>,
+    rendered_status: ImageState,
 ) -> impl gpui::IntoElement {
     let weak = Rc::downgrade(binding);
     canvas(
@@ -147,13 +157,30 @@ fn vector(
                 Ok(request) => binding.request(request, window, cx),
                 Err(error_) => {
                     let error = error(image_host::Error::Decode(error_));
-                    if binding.resize_error != Some(error) {
-                        binding.resize_error = Some(error);
+                    if binding.layout_error != Some(error) {
+                        binding.layout_error = Some(error);
                         window.refresh();
                     }
                 }
             }
-            let (image, _) = binding.observe(window, cx);
+            let (image, status) = binding.observe(window, cx);
+            // Layout failures/recovery arise during paint, after the view has
+            // observed the source. Invalidate its cached render so the normal
+            // deferred, source-checked bridge emits the changed state.
+            if status != rendered_status {
+                let owner = owner.clone();
+                window.defer(cx, move |window, cx| {
+                    if owner.update(cx, |_, cx| cx.notify()).is_ok() {
+                        window.refresh();
+                    }
+                });
+            }
+            if let Some(text) = &fallback
+                && (image.is_none() || matches!(status, ImageState::Failed(_)))
+            {
+                super::avatar::paint(text, bounds, window, cx);
+                return;
+            }
             if let Some(image) = image {
                 if icon && binding.rendered.tint.is_none() {
                     return;
@@ -294,7 +321,14 @@ impl View {
                 config.fit,
                 node.kind == Kind::Icon,
                 corners.clone(),
+                node.avatar.as_ref().map(|c| c.fallback.clone().into()),
+                cx.entity().downgrade(),
+                status,
             ));
+        } else if let Some(avatar) = &node.avatar
+            && (observed.is_none() || matches!(status, ImageState::Failed(_)))
+        {
+            element = element.child(super::avatar::fallback(avatar.fallback.clone().into()));
         } else if let Some(image) = observed {
             element = element.child(image_corners::Rounded::apply(
                 img(image.clone())

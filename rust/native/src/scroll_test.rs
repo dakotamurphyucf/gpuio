@@ -478,12 +478,14 @@ pub(crate) fn run() {
                         size(px(480.), px(420.)),
                         cx,
                     ))),
-                    focus: false,
                     ..Default::default()
                 },
                 |_, cx| cx.new(|_| View::new(window_id(), session.clone(), transport.clone())),
             )
             .unwrap();
+        // This test awaits real layout frames. AppKit can withhold the first
+        // frame of an occluded background window indefinitely.
+        cx.activate(true);
         cx.spawn(async move |cx| {
             let result = super::native_test::protect(async {
                 apply(cx, window, initial());

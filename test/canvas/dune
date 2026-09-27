@@ -1,0 +1,14 @@
+(library
+ (name gpuio_canvas_tests)
+ (libraries core expect_test_helpers_core gpuio gpuio.protocol eio_main)
+ (inline_tests
+  (deps
+   (sandbox preserve_file_kind)
+   canvas-v1-scene.hex
+   canvas-v1-view.hex))
+ (preprocess
+  (pps ppx_jane ppx_expect)))
+
+(copy_files ../fixtures/canvas-v1-scene.hex)
+
+(copy_files ../fixtures/canvas-v1-view.hex)

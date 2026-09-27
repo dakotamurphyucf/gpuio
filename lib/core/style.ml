@@ -322,6 +322,7 @@ module Property = struct
     | User_select of bool
     | Selection_color of Color.t
     | Accessible_name of string
+    | Inert of bool
     | Padding of Length.t
     | Margin of Length.t
     | Gap of Length.t
@@ -398,6 +399,7 @@ module Property = struct
         | User_select
         | Selection_color
         | Accessible_name
+        | Inert
       [@@deriving compare, equal, sexp]
     end
 
@@ -470,6 +472,7 @@ module Property = struct
     | Pointer_events _ -> Name.Pointer_events
     | User_select _ -> Name.User_select
     | Selection_color _ -> Name.Selection_color
+    | Inert _ -> Name.Inert
     | Accessible_name _ -> Name.Accessible_name
     | Padding _ | Margin _ | Gap _ | Border_width _ | Radius _ | Overflow _ ->
       assert false
@@ -565,7 +568,7 @@ module Property = struct
       | Overflow_x _ -> true
       | Overflow_y _ -> true
       | Cursor _ -> true
-      | Pointer_events _ | User_select _ | Selection_color _ -> true
+      | Pointer_events _ | User_select _ | Selection_color _ | Inert _ -> true
       | Accessible_name v -> (not (String.is_empty v)) && String.length v <= 1024
       | Padding _ | Margin _ | Gap _ | Border_width _ | Radius _ | Overflow _ ->
         assert false
@@ -596,7 +599,8 @@ let with_state t state properties =
             , ( Property.Pointer_events _
               | User_select _
               | Selection_color _
-              | Accessible_name _ ) ) ->
+              | Accessible_name _
+              | Inert _ ) ) ->
             Or_error.error_string "interaction properties belong to the base style"
           | _, _ -> Ok ()
         in
@@ -741,6 +745,7 @@ module Expert = struct
     | Property.Overflow_x v -> Ok (Wire.Field.Overflow_x (Overflow.to_int64 v))
     | Property.Overflow_y v -> Ok (Wire.Field.Overflow_y (Overflow.to_int64 v))
     | Property.Cursor v -> Ok (Wire.Field.Cursor (Cursor.to_int64 v))
+    | Property.Inert v -> Ok (Wire.Field.Inert v)
     | Property.Pointer_events v -> Ok (Wire.Field.Pointer_events v)
     | Property.User_select v -> Ok (Wire.Field.User_select v)
     | Property.Selection_color v ->

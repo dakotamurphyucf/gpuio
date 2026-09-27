@@ -1,10 +1,14 @@
 module Managed_rows = Managed_rows
 module Virtual_list = Virtual_list
+module Tree_rows = Tree_rows
+module Tree = Tree
+module Table = Table
 
 module View = struct
   type t = unit Bonsai.Effect.t Gpuio.View.t
   type toast = unit Bonsai.Effect.t Gpuio.View.toast
 
+  let with_accessibility = Gpuio.View.with_accessibility
   let drag_source = Gpuio.View.drag_source
   let drop_target = Gpuio.View.drop_target
   let pointer_area = Gpuio.View.pointer_area
@@ -12,6 +16,9 @@ module View = struct
   let toast_stack = Gpuio.View.toast_stack
   let icon = Gpuio.View.icon
   let animate = Gpuio.View.animate
+  let container_query = Gpuio.View.container_query
+  let animate_program = Gpuio.View.animate_program
+  let canvas = Gpuio.View.canvas
   let document = Gpuio.View.document
   let image = Gpuio.View.image
   let text = Gpuio.View.text
@@ -72,8 +79,14 @@ module View = struct
   let row = Gpuio.View.row
   let focus_scope = Gpuio.View.focus_scope
   let dialog = Gpuio.View.dialog
+  let sheet = Gpuio.View.sheet
+  let alert_dialog = Gpuio.View.alert_dialog
   let popover = Gpuio.View.popover
   let command_scope = Gpuio.View.command_scope
+  let slider = Gpuio.View.slider
+  let rating = Gpuio.View.rating
+  let avatar = Gpuio.View.avatar
+  let loading = Gpuio.View.loading
   let progress = Gpuio.View.progress
   let command_palette = Gpuio.View.command_palette
   let menu_button = Gpuio.View.menu_button
@@ -81,9 +94,42 @@ module View = struct
   let menu_bar = Gpuio.View.menu_bar
   let command_button = Gpuio.View.command_button
   let tooltip = Gpuio.View.tooltip
+  let hover_card = Gpuio.View.hover_card
+  let extension = Gpuio.View.extension
   let split_pane = Gpuio.View.split_pane
   let tab_bar = Gpuio.View.tab_bar
   let tab_panel = Gpuio.View.tab_panel
+  let panel = Gpuio.View.panel
+  let carousel = Gpuio.View.carousel
+  let navigation_stack = Gpuio.View.navigation_stack
+  let accordion = Gpuio.View.accordion
+  let disclosure_with_header = Gpuio.View.disclosure_with_header
+
+  let disclosure
+        ?key
+        ?style
+        ?trigger_style
+        ?panel_style
+        ~label
+        ~expanded
+        ?disabled
+        ~hidden
+        ~on_toggle
+        children
+    =
+    Gpuio.View.disclosure
+      ?key
+      ?style
+      ?trigger_style
+      ?panel_style
+      ~label
+      ~expanded
+      ?disabled
+      ~hidden
+      ~on_toggle:(fun () -> on_toggle)
+      children
+  ;;
+
   let radio_group = Gpuio.View.radio_group
   let select = Gpuio.View.select
   let combobox = Gpuio.View.combobox

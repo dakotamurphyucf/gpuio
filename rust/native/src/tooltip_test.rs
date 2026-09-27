@@ -33,21 +33,37 @@ pub(super) async fn exercise(
     handle: WindowHandle<View>,
     transport: &Transport,
 ) {
+    exercise_kind(cx, handle, transport, Kind::Tooltip).await;
+}
+pub(super) async fn exercise_kind(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    transport: &Transport,
+    kind: Kind,
+) {
     let mut config = TooltipConfig {
         label: "Tooltip details".into(),
         width: 220.,
         open_state: TooltipOpenState::Managed(false),
         disabled: false,
         hoverable: true,
-        show_delay_ns: 0,
+        // Initial platform pointer-position events can land on the trigger before
+        // the synthetic test pointer is set after its first paint.
+        show_delay_ns: 10_000_000_000,
         hide_delay_ns: 0,
-        skip_delay_ns: 300_000_000,
+        skip_delay_ns: if kind == Kind::Tooltip {
+            300_000_000
+        } else {
+            0
+        },
     };
     handle
         .update(cx, |view, window, cx| {
             window.focus(&view.editors[&node(4)].focus_handle(cx), cx)
         })
         .unwrap();
+    frame(cx, handle).await;
+    super::super::native_test::move_mouse(cx, handle, gpui::point(px(390.), px(270.)), false);
     frame(cx, handle).await;
     apply(
         cx,
@@ -63,7 +79,7 @@ pub(super) async fn exercise(
                     Field::Width(Length::Px(140.)),
                 ])],
             ),
-            Op::Create(node(28), Kind::Tooltip, "".into(), Some(handler(28))),
+            Op::Create(node(28), kind, "".into(), Some(handler(28))),
             Op::SetTooltip(node(28), config.clone()),
             Op::Create(
                 node(29),
@@ -104,7 +120,20 @@ pub(super) async fn exercise(
         ],
     );
     frame(cx, handle).await;
-    assert!(!visible(cx, handle));
+    super::super::native_test::move_mouse(cx, handle, gpui::point(px(390.), px(270.)), false);
+    frame(cx, handle).await;
+    assert!(
+        !visible(cx, handle),
+        "initially closed: {}",
+        handle
+            .update(cx, |view, window, _| format!(
+                "mouse={:?}, focused={:?}, {}",
+                window.mouse_position(),
+                view.focus.borrow().focused_node(window),
+                view.tooltips[&node(28)].diagnostics()
+            ))
+            .unwrap()
+    );
     assert!(
         focused(cx, handle, node(4)),
         "hidden editor must not autofocus"
@@ -141,10 +170,30 @@ pub(super) async fn exercise(
             accessible(cx, handle, "Tooltip details", false)
                 .unwrap()
                 .role,
-            "AXGroup"
+            if kind == Kind::Tooltip {
+                "AXGroup"
+            } else {
+                "AXWindow"
+            }
         );
     }
 
+    if kind == Kind::HoverCard {
+        handle
+            .update(cx, |view, _, _| {
+                assert!(view.focus.borrow().allows(node(2)))
+            })
+            .unwrap();
+        key(cx, handle, "tab");
+        frame(cx, handle).await;
+        assert!(
+            focused(cx, handle, node(30)),
+            "Tab enters interactive card content"
+        );
+        key(cx, handle, "shift-tab");
+        frame(cx, handle).await;
+        assert!(focused(cx, handle, node(29)));
+    }
     key(cx, handle, "escape");
     frame(cx, handle).await;
     assert!(!visible(cx, handle));
@@ -171,6 +220,24 @@ pub(super) async fn exercise(
         visible(cx, handle),
         "interactive content focus keeps tooltip open"
     );
+    #[cfg(target_os = "macos")]
+    if kind == Kind::HoverCard {
+        super::super::editor_test::native_text(cx, handle, "に", true);
+        frame(cx, handle).await;
+        events(transport);
+        key(cx, handle, "escape");
+        frame(cx, handle).await;
+        assert!(
+            visible(cx, handle),
+            "IME cancels before the card consumes Escape"
+        );
+        assert!(events(transport).is_empty());
+    }
+    let draft_before_close = handle
+        .update(cx, |view, window, cx| {
+            view.editors[&node(30)].snapshot(window, cx).text
+        })
+        .unwrap();
     key(cx, handle, "escape");
     frame(cx, handle).await;
     frame(cx, handle).await;
@@ -179,6 +246,16 @@ pub(super) async fn exercise(
         !focused(cx, handle, node(30)),
         "closed content cannot retain keyboard focus"
     );
+    if kind == Kind::HoverCard {
+        assert!(
+            focused(cx, handle, node(29)),
+            "closing card content restores its anchor"
+        );
+        assert!(
+            !visible(cx, handle),
+            "restoration does not reopen a dismissed card"
+        );
+    }
     config.open_state = TooltipOpenState::Controlled(false);
     apply(cx, handle, vec![Op::SetTooltip(node(28), config.clone())]);
     focus(cx, handle, 2);
@@ -195,6 +272,11 @@ pub(super) async fn exercise(
     apply(cx, handle, vec![Op::SetTooltip(node(28), config.clone())]);
     frame(cx, handle).await;
     assert!(visible(cx, handle));
+    if kind == Kind::HoverCard {
+        key(cx, handle, "tab");
+        frame(cx, handle).await;
+        assert!(focused(cx, handle, node(30)));
+    }
     key(cx, handle, "escape");
     frame(cx, handle).await;
     assert!(
@@ -206,12 +288,23 @@ pub(super) async fn exercise(
     apply(cx, handle, vec![Op::SetTooltip(node(28), config.clone())]);
     frame(cx, handle).await;
     assert!(!visible(cx, handle));
+    if kind == Kind::HoverCard {
+        frame(cx, handle).await;
+        assert!(
+            focused(cx, handle, node(29)),
+            "accepted close restores trigger"
+        );
+        assert!(
+            events(transport).is_empty(),
+            "focus restoration does not request reopening"
+        );
+    }
     handle
         .update(cx, |view, window, cx| {
             assert_eq!(view.editors[&node(30)].focus_handle(cx), editor);
             assert_eq!(
                 view.editors[&node(30)].snapshot(window, cx).text,
-                "Retained é"
+                draft_before_close
             );
         })
         .unwrap();
@@ -378,6 +471,10 @@ pub(super) async fn exercise(
             .unwrap()
     );
     assert_eq!(events(transport), [true]);
+    assert!(
+        focused(cx, handle, node(2)),
+        "hover opening does not steal focus"
+    );
     let content = handle
         .update(cx, |view, _, _| {
             view.probes.borrow()[&node(30)].bounds.center()
@@ -416,16 +513,58 @@ pub(super) async fn exercise(
     frame(cx, handle).await;
     assert!(!visible(cx, handle));
     assert_eq!(events(transport), [false]);
-    config.show_delay_ns = 10_000_000_000;
-    config.skip_delay_ns = 1_000_000_000;
-    apply(cx, handle, vec![Op::SetTooltip(node(28), config.clone())]);
-    super::super::native_test::move_mouse(cx, handle, anchor, false);
-    frame(cx, handle).await;
-    assert!(
-        visible(cx, handle),
-        "recent closure skips the normal hover delay"
-    );
-    assert_eq!(events(transport), [true]);
+    if kind == Kind::HoverCard {
+        focus(cx, handle, 29);
+        frame(cx, handle).await;
+        key(cx, handle, "tab");
+        frame(cx, handle).await;
+        assert!(focused(cx, handle, node(30)));
+        events(transport);
+        super::super::native_test::move_mouse(cx, handle, outside, false);
+        super::super::native_test::mouse(cx, handle, outside, true);
+        super::super::native_test::mouse(cx, handle, outside, false);
+        frame(cx, handle).await;
+        assert!(
+            !visible(cx, handle),
+            "outside click dismisses without waiting for hide delay"
+        );
+        assert_eq!(events(transport), [false]);
+        focus(cx, handle, 2);
+        frame(cx, handle).await;
+        // A programmatic close while focus/pointer are elsewhere must not
+        // suppress the next genuinely fresh focus entry.
+        config.open_state = TooltipOpenState::Controlled(true);
+        apply(cx, handle, vec![Op::SetTooltip(node(28), config.clone())]);
+        frame(cx, handle).await;
+        assert!(focused(cx, handle, node(2)));
+        config.open_state = TooltipOpenState::Controlled(false);
+        apply(cx, handle, vec![Op::SetTooltip(node(28), config.clone())]);
+        frame(cx, handle).await;
+        events(transport);
+        focus(cx, handle, 29);
+        frame(cx, handle).await;
+        assert!(!visible(cx, handle));
+        assert_eq!(
+            events(transport),
+            [true],
+            "fresh entry requests opening after an external close"
+        );
+        focus(cx, handle, 2);
+        frame(cx, handle).await;
+        events(transport);
+    }
+    if kind == Kind::Tooltip {
+        config.show_delay_ns = 10_000_000_000;
+        config.skip_delay_ns = 1_000_000_000;
+        apply(cx, handle, vec![Op::SetTooltip(node(28), config.clone())]);
+        super::super::native_test::move_mouse(cx, handle, anchor, false);
+        frame(cx, handle).await;
+        assert!(
+            visible(cx, handle),
+            "recent closure skips the normal hover delay"
+        );
+        assert_eq!(events(transport), [true]);
+    }
     config.open_state = TooltipOpenState::Controlled(false);
     apply(cx, handle, vec![Op::SetTooltip(node(28), config.clone())]);
     super::super::native_test::move_mouse(cx, handle, outside, false);
@@ -438,6 +577,67 @@ pub(super) async fn exercise(
     super::super::native_test::move_mouse(cx, handle, anchor, false);
     frame(cx, handle).await;
     assert!(!visible(cx, handle));
+    if kind == Kind::HoverCard {
+        handle
+            .update(cx, |view, _, _| {
+                assert!(view.tooltips[&node(28)].has_timer());
+                assert!(
+                    view.tooltip_last_closed.is_none(),
+                    "cards do not seed tooltip grace"
+                );
+            })
+            .unwrap();
+        apply(
+            cx,
+            handle,
+            vec![Op::SetStyle(
+                node(27),
+                vec![Style::Fields(vec![Field::Display(3)])],
+            )],
+        );
+        frame(cx, handle).await;
+        handle
+            .update(cx, |view, _, _| {
+                assert!(
+                    !view.tooltips[&node(28)].has_timer(),
+                    "hiding cancels delayed opening"
+                );
+                assert!(view.focus.borrow().handle(node(28)).is_none());
+            })
+            .unwrap();
+        cx.background_executor()
+            .timer(std::time::Duration::from_millis(240))
+            .await;
+        frame(cx, handle).await;
+        assert!(
+            events(transport).is_empty(),
+            "hidden timer cannot deliver a stale open"
+        );
+        apply(
+            cx,
+            handle,
+            vec![Op::SetStyle(
+                node(27),
+                vec![Style::Fields(vec![
+                    Field::Position(1),
+                    Field::Left(Length::Px(100.)),
+                    Field::Top(Length::Px(180.)),
+                    Field::Width(Length::Px(140.)),
+                    Field::Height(Length::Px(28.)),
+                ])],
+            )],
+        );
+        frame(cx, handle).await;
+        super::super::native_test::move_mouse(cx, handle, outside, false);
+        frame(cx, handle).await;
+        super::super::native_test::move_mouse(cx, handle, anchor, false);
+        frame(cx, handle).await;
+        handle
+            .update(cx, |view, _, _| {
+                assert!(view.tooltips[&node(28)].has_timer())
+            })
+            .unwrap();
+    }
     apply(
         cx,
         handle,
@@ -465,10 +665,16 @@ pub(super) async fn exercise(
         events(transport).is_empty(),
         "unmount cancels delayed callbacks"
     );
-    println!(
-        "GPUIO_TOOLTIP_POINTER_OK: delayed hover, cancellation, interactive content, shared grace interval and unmount timer disposal"
-    );
-    println!(
-        "GPUIO_TOOLTIP_KEYBOARD_OK: focus/Escape, managed/controlled opening, hidden editor focus denial, native identity retention and disposal"
-    );
+    if kind == Kind::HoverCard {
+        println!(
+            "GPUIO_HOVER_CARD_NATIVE_OK: nonmodal AX dialog, actual Tab/pointer/IME/Escape, retained draft, accepted controlled close and anchor restoration, outside dismissal, native delay cancellation on hide/unmount and tooltip grace isolation"
+        );
+    } else {
+        println!(
+            "GPUIO_TOOLTIP_POINTER_OK: delayed hover, cancellation, interactive content, shared grace interval and unmount timer disposal"
+        );
+        println!(
+            "GPUIO_TOOLTIP_KEYBOARD_OK: focus/Escape, managed/controlled opening, hidden editor focus denial, native identity retention and disposal"
+        );
+    }
 }

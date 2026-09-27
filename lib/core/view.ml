@@ -33,6 +33,24 @@ module Kind = struct
     | Tab_bar
     | Tab_panel
     | Split_pane
+    | Extension
+    | Canvas_view
+    | Animation_program
+    | Container_query
+    | Loading
+    | Avatar
+    | Rating
+    | Slider
+    | Number_input
+    | Otp_input
+    | Calendar
+    | Color_input
+    | Panel
+    | Disclosure
+    | Accordion
+    | Navigation_stack
+    | Hover_card
+    | Carousel
   [@@deriving equal, sexp_of]
 end
 
@@ -67,6 +85,47 @@ type 'action editor =
   { controller : Key.t
   ; config : Text_input.Config.t
   ; on_event : Text_input.Event.t -> 'action
+  }
+
+type 'action slider =
+  { controller : Key.t
+  ; config : Slider.Config.t
+  ; initial : Slider.Value.t
+  ; on_event : Slider.Event.t -> 'action
+  }
+
+type 'action number_input =
+  { controller : Key.t
+  ; config : Number_input.Config.t
+  ; initial : Number_input.Value.t
+  ; on_event : Number_input.Event.t -> 'action
+  }
+
+type 'action otp_input =
+  { controller : Key.t
+  ; config : Otp_input.Config.t
+  ; initial : Otp_input.Value.t
+  ; on_event : Otp_input.Event.t -> 'action
+  }
+
+type 'action color_input =
+  { controller : Key.t
+  ; config : Color_input.Config.t
+  ; initial : Color_value.Value.t
+  ; on_event : Color_input.Event.t -> 'action
+  }
+
+type 'action calendar =
+  { controller : Key.t
+  ; config : Calendar.Config.t
+  ; initial : Calendar.Selection.t
+  ; initial_month : Calendar.Month.t
+  ; on_event : Calendar.Event.t -> 'action
+  }
+
+type 'action rating =
+  { config : Rating.Config.t
+  ; on_request : Rating.Request.t -> 'action
   }
 
 type 'action choice =
@@ -125,14 +184,34 @@ type 'action notification =
   ; on_dismiss : Toast.Dismissal.t -> 'action
   }
 
+type 'action container_query =
+  { config : Container_query.Config.t
+  ; on_select : (Container_query.Selection.t -> 'action) option
+  }
+
+type 'action animation_program =
+  { config : Animation.Program.t
+  ; on_event : (Animation.Program.Event.t -> 'action) option
+  }
+
 type 'action animation =
   { config : Animation.Config.t
   ; on_event : (Animation.Event.t -> 'action) option
   }
 
+type 'action extension =
+  { config : Gpuio_protocol.Extension_wire.Config.t
+  ; on_event : Gpuio_protocol.Extension_wire.Signal.t -> 'action
+  }
+
 type 'action split_pane =
   { config : Split_pane.Config.t
   ; on_resize : (Split_pane.Snapshot.t -> 'action) option
+  }
+
+type 'action canvas =
+  { config : Canvas.Config.t
+  ; on_event : (Canvas.Event.t -> 'action) option
   }
 
 type 'action document =
@@ -145,6 +224,14 @@ type 'action image =
   ; on_change : (Image.State.t -> 'action) option
   }
 
+type 'action table =
+  { source_key : Key.t option
+  ; config : Table.Config.t
+  ; query_generation : int64
+  ; commands : Key.t Table.Command.t list
+  ; on_input : Key.t Table.Request.t -> 'action
+  }
+
 type 'action virtual_list =
   { config : Virtual_list.Config.t
   ; order : Virtual_list.Order.t
@@ -154,6 +241,9 @@ type 'action virtual_list =
   ; scroll : Virtual_list.Scroll_request.t option
   ; on_viewport : (Virtual_list.Viewport.t -> 'action) option
   ; on_retain : (Key.t list -> 'action) option
+  ; on_tree_input : (Key.t Tree_input.t -> 'action) option
+  ; tree_moves : bool
+  ; table : 'action table option
   }
 
 type 'action t =
@@ -176,14 +266,31 @@ type 'action t =
   ; notification : 'action notification option
   ; toast_stack : Toast.Stack.t option
   ; progress : Progress.Config.t option
+  ; loading : Loading.Config.t option
+  ; avatar : Avatar.Config.t option
+  ; rating : 'action rating option
+  ; slider : 'action slider option
+  ; number_input : 'action number_input option
+  ; otp_input : 'action otp_input option
+  ; color_input : 'action color_input option
+  ; calendar : 'action calendar option
   ; animation : 'action animation option
+  ; animation_program : 'action animation_program option
+  ; navigation_stack : Gpuio_protocol.Navigation_stack_wire.Config.t option
+  ; carousel :
+      (Gpuio_protocol.Carousel_wire.Config.t * (Carousel.Request.t -> 'action)) option
+  ; container_query : 'action container_query option
+  ; accessibility : Accessibility.t option
   ; image : 'action image option
+  ; extension : 'action extension option
   ; split_pane : 'action split_pane option
   ; document : 'action document option
+  ; canvas : 'action canvas option
   ; palette : 'action palette option
   ; menu : menu option
   ; focus_scope : Focus_scope.t option
   ; virtual_list : 'action virtual_list option
+  ; table_cell : Table.Cell.t option
   ; children : 'action t list
   }
 
@@ -208,17 +315,111 @@ let text ?key ?(style = Style.empty) text =
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; loading = None
+  ; avatar = None
+  ; rating = None
+  ; slider = None
+  ; number_input = None
+  ; otp_input = None
+  ; color_input = None
+  ; calendar = None
   ; animation = None
+  ; animation_program = None
+  ; navigation_stack = None
+  ; carousel = None
+  ; container_query = None
+  ; accessibility = None
   ; image = None
+  ; extension = None
   ; split_pane = None
   ; document = None
+  ; canvas = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
   ; virtual_list = None
+  ; table_cell = None
   ; control = None
   ; children = []
   }
+;;
+
+let animate_program ?key ?(style = Style.empty) ?on_event config children =
+  { (text ?key ~style "") with
+    kind = Animation_program
+  ; animation_program = Some { config; on_event }
+  ; children
+  }
+;;
+
+let with_accessibility t accessibility =
+  let metadata = Accessibility.Expert.to_wire accessibility in
+  let supported =
+    match metadata.field, metadata.role, t.kind with
+    | ( Some _
+      , None
+      , ( Input
+        | Textarea
+        | Combobox
+        | Checkbox
+        | Switch
+        | Radio_group
+        | Select
+        | Rating
+        | Slider
+        | Number_input
+        | Otp_input
+        | Calendar
+        | Color_input ) ) -> true
+    | None, Some Link, (Button | Command_button) -> true
+    | None, Some Navigation, Container -> true
+    | None, Some (Tree _), Virtual_list -> true
+    | None, Some (Tree_item _), Container -> true
+    | ( None
+      , Some
+          ( Group
+          | Label
+          | Separator
+          | Description_list
+          | Term
+          | Definition
+          | Status
+          | Alert
+          | Image
+          | Heading _ )
+      , (Container | Text) ) -> true
+    | ( None
+      , None
+      , ( Container
+        | Virtual_list
+        | Text
+        | Button
+        | Command_button
+        | Input
+        | Textarea
+        | Combobox
+        | Checkbox
+        | Switch
+        | Radio_group
+        | Select
+        | Rating
+        | Slider
+        | Number_input
+        | Otp_input
+        | Calendar
+        | Color_input ) ) -> true
+    | _ -> false
+  in
+  let current_supported =
+    Option.is_none metadata.current
+    ||
+    match t.kind with
+    | Text | Button | Command_button -> true
+    | _ -> false
+  in
+  if supported && current_supported
+  then Ok { t with accessibility = Some accessibility }
+  else Or_error.error_string "accessibility metadata is incompatible with this view kind"
 ;;
 
 let animate ?key ?(style = Style.empty) ?on_event config children =
@@ -231,6 +432,10 @@ let animate ?key ?(style = Style.empty) ?on_event config children =
 
 let image ?key ?(style = Style.empty) ?on_change config =
   { (text ?key ~style "") with kind = Image; image = Some { config; on_change } }
+;;
+
+let canvas ?key ?(style = Style.empty) ?on_event config =
+  { (text ?key ~style "") with kind = Canvas_view; canvas = Some { config; on_event } }
 ;;
 
 let document ?key ?(style = Style.empty) ?on_navigate config =
@@ -263,14 +468,30 @@ let container ?key ?(style = Style.empty) defaults children =
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; loading = None
+  ; avatar = None
+  ; rating = None
+  ; slider = None
+  ; number_input = None
+  ; otp_input = None
+  ; color_input = None
+  ; calendar = None
   ; animation = None
+  ; animation_program = None
+  ; navigation_stack = None
+  ; carousel = None
+  ; container_query = None
+  ; accessibility = None
   ; image = None
+  ; extension = None
   ; split_pane = None
   ; document = None
+  ; canvas = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
   ; virtual_list = None
+  ; table_cell = None
   ; control = None
   ; children
   }
@@ -355,14 +576,30 @@ let button
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; loading = None
+  ; avatar = None
+  ; rating = None
+  ; slider = None
+  ; number_input = None
+  ; otp_input = None
+  ; color_input = None
+  ; calendar = None
   ; animation = None
+  ; animation_program = None
+  ; navigation_stack = None
+  ; carousel = None
+  ; container_query = None
+  ; accessibility = None
   ; image = None
+  ; extension = None
   ; split_pane = None
   ; document = None
+  ; canvas = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
   ; virtual_list = None
+  ; table_cell = None
   ; control = Some (Button { disabled })
   ; children
   }
@@ -419,14 +656,30 @@ let toggle
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; loading = None
+  ; avatar = None
+  ; rating = None
+  ; slider = None
+  ; number_input = None
+  ; otp_input = None
+  ; color_input = None
+  ; calendar = None
   ; animation = None
+  ; animation_program = None
+  ; navigation_stack = None
+  ; carousel = None
+  ; container_query = None
+  ; accessibility = None
   ; image = None
+  ; extension = None
   ; split_pane = None
   ; document = None
+  ; canvas = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
   ; virtual_list = None
+  ; table_cell = None
   ; control = Some control
   ; children = []
   }
@@ -467,10 +720,25 @@ let focus_scope ?key ?style ~config children =
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; loading = None
+  ; avatar = None
+  ; rating = None
+  ; slider = None
+  ; number_input = None
+  ; otp_input = None
+  ; color_input = None
+  ; calendar = None
   ; animation = None
+  ; animation_program = None
+  ; navigation_stack = None
+  ; carousel = None
+  ; container_query = None
+  ; accessibility = None
   ; image = None
+  ; extension = None
   ; split_pane = None
   ; document = None
+  ; canvas = None
   ; palette = None
   ; menu = None
   ; focus_scope = Some config
@@ -488,7 +756,7 @@ let overlay_style style =
     ]
 ;;
 
-let dialog ?key ?style ~config ~on_dismiss content =
+let modal_overlay ?key ?style ~kind ~config ~on_dismiss content =
   match content with
   | None ->
     container
@@ -502,8 +770,32 @@ let dialog ?key ?style ~config ~on_dismiss content =
          ~config:(Focus_scope.create ~trap:true ())
          [ content ])
       with
-      overlay = Some { kind = Dialog; config; on_dismiss }
+      overlay = Some { kind; config; on_dismiss }
     }
+;;
+
+let dialog ?key ?style ~config ~on_dismiss content =
+  modal_overlay ?key ?style ~kind:Dialog ~config ~on_dismiss content
+;;
+
+let sheet ?key ?style ~config ~on_dismiss content =
+  modal_overlay
+    ?key
+    ?style
+    ~kind:(Sheet.Expert.kind config)
+    ~config:(Sheet.Expert.overlay config)
+    ~on_dismiss
+    content
+;;
+
+let alert_dialog ?key ?style ~config ~on_dismiss content =
+  modal_overlay
+    ?key
+    ?style
+    ~kind:Alert_dialog
+    ~config:(Alert_dialog.Expert.overlay config)
+    ~on_dismiss
+    content
 ;;
 
 let popover ?key ?style ~config ~on_dismiss ~anchor content =
@@ -595,11 +887,70 @@ let tooltip ?key ?(style = Style.empty) ~config ?on_open_change ~anchor ~content
   }
 ;;
 
+let hover_card ?key ?style ~config ?on_open_change ~anchor ~content () =
+  { (tooltip
+       ?key
+       ?style
+       ~config:(Hover_card.Expert.tooltip config)
+       ?on_open_change
+       ~anchor
+       ~content
+       ())
+    with
+    kind = Hover_card
+  }
+;;
+
+let extension ?key ?(style = Style.empty) ~on_event instance =
+  { (text ?key ~style "") with
+    kind = Extension
+  ; extension =
+      Some
+        { config = Extension.Instance.Expert.to_wire instance
+        ; on_event =
+            (fun signal -> on_event (Extension.Instance.Expert.event instance signal))
+        }
+  }
+;;
+
 let split_pane ?key ?(style = Style.empty) ?on_resize ~config ~first ~second () =
   { (container ?key ~style [] [ first; second ]) with
     kind = Split_pane
   ; split_pane = Some { config; on_resize }
   }
+;;
+
+let container_query ?key ?(style = Style.empty) ?on_select config presentations =
+  let expected = Container_query.Config.branches config in
+  if
+    List.length presentations <> List.length expected
+    || List.contains_dup
+         (List.map presentations ~f:(fun (id, _) ->
+            Container_query.Branch_id.to_string id))
+         ~compare:String.compare
+  then Or_error.error_string "container query needs exactly one presentation per branch"
+  else
+    let open Or_error.Let_syntax in
+    let%map children =
+      List.map expected ~f:(fun id ->
+        match
+          List.find presentations ~f:(fun (candidate, _) ->
+            Container_query.Branch_id.equal candidate id)
+        with
+        | None -> Or_error.error_string "missing container query presentation"
+        | Some (_, child) ->
+          let key = Key.of_string_exn (Container_query.Branch_id.to_string id) in
+          Ok
+            (container
+               ~key
+               [ Width (Length.percent_exn 100.); Height (Length.percent_exn 100.) ]
+               [ child ]))
+      |> Or_error.all
+    in
+    { (container ?key ~style [] children) with
+      kind = Container_query
+    ; container_query = Some { config; on_select }
+    }
 ;;
 
 let row ?key ?style children =
@@ -621,6 +972,314 @@ let tab_panel ~key ~label ~active ?(style = Style.empty) children =
   { (column ~key ~style children) with kind = Tab_panel; text = label }
 ;;
 
+let panel ~key ~label ~active ~hidden ?(style = Style.empty) children =
+  if not (Gpuio_protocol.Accessibility_wire.valid_text label)
+  then invalid_arg "panel label must be nonempty UTF-8 without NUL, at most 4096 bytes";
+  let children =
+    match hidden with
+    | Content_policy.Retain -> children
+    | Unmount -> if active then children else []
+  in
+  let style =
+    Style.merge
+      [ style; (if active then Style.empty else Style.create_exn [ Display Hidden ]) ]
+  in
+  { (column ~key ~style children) with kind = Panel; text = label }
+;;
+
+let navigation_stack
+      model
+      ?key
+      ?style
+      ?page_style
+      ?(motion = Navigation_stack.Motion.default)
+      ~hidden
+      ~label
+      ~content
+      ()
+  =
+  if not (Gpuio_protocol.Accessibility_wire.valid_text label)
+  then
+    invalid_arg "navigation label must be nonempty UTF-8 without NUL, at most 4096 bytes";
+  let selected =
+    Option.map (Navigation_stack.current model) ~f:Navigation_stack.Entry.id
+  in
+  let children =
+    List.map (Navigation_stack.entries model) ~f:(fun entry ->
+      let id = Navigation_stack.Entry.id entry in
+      let active = Option.exists selected ~f:(Navigation_stack.Id.equal id) in
+      let children =
+        match hidden with
+        | Content_policy.Retain -> content entry
+        | Unmount -> if active then content entry else []
+      in
+      panel
+        ~key:(Key.of_string_exn (Navigation_stack.Id.to_string id))
+        ~label:(Navigation_stack.Entry.label entry)
+        ~active:true
+        ~hidden:Content_policy.Retain
+        ?style:page_style
+        children)
+  in
+  { (column ?key ?style children) with
+    kind = Navigation_stack
+  ; text = label
+  ; navigation_stack =
+      Some (Navigation_stack.Expert.presentation_config model ~hidden ~motion)
+  }
+;;
+
+let carousel
+      model
+      ?key
+      ?style
+      ?viewport_style
+      ?page_style
+      ?controls_style
+      ?control_style
+      ?(show_controls = true)
+      ?(axis = Carousel.Axis.Horizontal)
+      ?(motion = Carousel.Motion.default)
+      ~hidden
+      ~label
+      ~on_request
+      ~content
+      ()
+  =
+  if not (Gpuio_protocol.Accessibility_wire.valid_text label)
+  then invalid_arg "carousel label must be nonempty UTF-8 without NUL, at most 4096 bytes";
+  let config = Carousel.Expert.to_wire model ~axis in
+  let children =
+    List.mapi (Carousel.items model) ~f:(fun index item ->
+      let active = Option.equal Int64.equal config.selected (Some (Int64.of_int index)) in
+      let children =
+        match hidden with
+        | Content_policy.Retain -> content item
+        | Unmount -> if active then content item else []
+      in
+      panel
+        ~key:(Key.of_string_exn (Carousel.Id.to_string (Carousel.Item.id item)))
+        ~label:(Carousel.Item.label item)
+        ~active:true
+        ~hidden:Content_policy.Retain
+        ?style:page_style
+        children)
+  in
+  let viewport_style =
+    Style.merge
+      [ Style.create_exn [ Grow 1.; Min_height (Length.px_exn 0.) ]
+      ; Option.value viewport_style ~default:Style.empty
+      ]
+  in
+  let viewport =
+    { (column ~key:(Key.of_string_exn "viewport") ~style:viewport_style children) with
+      kind = Navigation_stack
+    ; text = label
+    ; navigation_stack =
+        Some
+          (Navigation_stack.Expert.motion_config motion ~hidden ~selected:config.selected)
+    }
+  in
+  let controls =
+    if not show_controls
+    then []
+    else (
+      let current = Option.map config.selected ~f:(fun i -> Int64.to_int_exn i + 1) in
+      let pages =
+        Pagination.create
+          ~total_pages:(List.length config.ids)
+          ?current
+          ~disabled:config.disabled
+          ()
+        |> Or_error.ok_exn
+      in
+      let control key label enabled request =
+        button
+          ~key:(Key.of_string_exn key)
+          ?style:control_style
+          ~disabled:(not enabled)
+          ~on_click:(fun () -> on_request request)
+          label
+      in
+      let numbered =
+        List.map (Pagination.items pages) ~f:(function
+          | Pagination.Item.Gap { first = _; last = _ } -> text "…"
+          | Page page ->
+            let item = List.nth_exn (Carousel.items model) (page - 1) in
+            let selected = Option.equal Int.equal current (Some page) in
+            let view =
+              control
+                (Carousel.Id.to_string (Carousel.Item.id item))
+                (Int.to_string page)
+                (not config.disabled)
+                (Carousel.Request.select (Carousel.Item.id item))
+            in
+            let metadata =
+              Accessibility.create
+                ?current:(if selected then Some Page else None)
+                ?description:(if selected then Some "Current item" else None)
+                ()
+              |> Or_error.ok_exn
+            in
+            with_accessibility view metadata |> Or_error.ok_exn)
+      in
+      [ row
+          ~key:(Key.of_string_exn "controls")
+          ~style:
+            (Style.merge
+               [ Style.create_exn [ Gap (Length.px_exn 6.); Align_items Center ]
+               ; Option.value controls_style ~default:Style.empty
+               ])
+          ([ control
+               "first"
+               "First"
+               ((not config.disabled) && Option.exists current ~f:(fun n -> n > 1))
+               Carousel.Request.first
+           ; control
+               "previous"
+               "Previous"
+               (Carousel.can_previous model)
+               Carousel.Request.previous
+           ]
+           @ [ row
+                 ~key:(Key.of_string_exn "pages")
+                 ~style:(Style.create_exn [ Gap (Length.px_exn 6.) ])
+                 numbered
+             ]
+           @ [ control "next" "Next" (Carousel.can_next model) Carousel.Request.next
+             ; control
+                 "last"
+                 "Last"
+                 ((not config.disabled)
+                  && Option.exists current ~f:(fun n -> n < List.length config.ids))
+                 Carousel.Request.last
+             ])
+      ])
+  in
+  { (column ?key ?style (viewport :: controls)) with
+    kind = Carousel
+  ; text = label
+  ; carousel = Some (config, on_request)
+  }
+;;
+
+let disclosure
+      ?key
+      ?style
+      ?trigger_style
+      ?panel_style
+      ~label
+      ~expanded
+      ?(disabled = false)
+      ~hidden
+      ~on_toggle
+      children
+  =
+  let trigger =
+    button
+      ~key:(Key.of_string_exn "trigger")
+      ?style:trigger_style
+      ~disabled
+      ~on_click:on_toggle
+      label
+  in
+  let panel =
+    panel
+      ~key:(Key.of_string_exn "panel")
+      ~label
+      ~active:expanded
+      ~hidden
+      ?style:panel_style
+      children
+  in
+  { (column ?key ?style [ trigger; panel ]) with kind = Disclosure }
+;;
+
+let disclosure_with_header
+      ?key
+      ?style
+      ?header_style
+      ?panel_style
+      ~label
+      ~expanded
+      ~hidden
+      ~header
+      ~trigger
+      children
+  =
+  if not (Gpuio_protocol.Accessibility_wire.valid_text label)
+  then Or_error.error_string "invalid disclosure region label"
+  else (
+    match trigger.kind with
+    | Button ->
+      let trigger = { trigger with key = Some (Key.of_string_exn "trigger") } in
+      let header =
+        row
+          ~key:(Key.of_string_exn "header")
+          ~style:
+            (Style.merge
+               [ Style.create_exn
+                   [ Align_items Center
+                   ; Gap (Length.px_exn 6.)
+                   ; Min_width (Length.px_exn 0.)
+                   ]
+               ; Option.value header_style ~default:Style.empty
+               ])
+          [ row
+              ~key:(Key.of_string_exn "content")
+              ~style:
+                (Style.create_exn
+                   [ Grow 1.; Min_width (Length.px_exn 0.); Align_items Center ])
+              header
+          ; trigger
+          ]
+      in
+      let panel =
+        panel
+          ~key:(Key.of_string_exn "panel")
+          ~label
+          ~active:expanded
+          ~hidden
+          ?style:panel_style
+          children
+      in
+      Ok { (column ?key ?style [ header; panel ]) with kind = Disclosure }
+    | _ -> Or_error.error_string "disclosure trigger must be a button")
+;;
+
+let accordion
+      ?key
+      ?style
+      ?trigger_style
+      ?panel_style
+      ~model
+      ~hidden
+      ~on_request
+      ~content
+      ()
+  =
+  let children =
+    Choice.Collection.to_list (Disclosure.items model)
+    |> List.map ~f:(fun item ->
+      let id = Choice.id item in
+      let expanded = Disclosure.is_expanded model id in
+      let children =
+        if expanded || Content_policy.equal hidden Retain then content id else []
+      in
+      disclosure
+        ~key:(Key.of_string_exn (Choice.Id.to_string id))
+        ?trigger_style
+        ?panel_style
+        ~label:(Choice.label item)
+        ~expanded
+        ~disabled:(Disclosure.is_disabled model || Choice.is_disabled item)
+        ~hidden
+        ~on_toggle:(fun () -> on_request (Disclosure.Request.Toggle id))
+        children)
+  in
+  { (column ?key ?style children) with kind = Accordion }
+;;
+
 let make_virtual_list
       ?key
       ?style
@@ -632,6 +1291,8 @@ let make_virtual_list
       ~scroll
       ~on_viewport
       ~on_retain
+      ~on_tree_input
+      ~tree_moves
       rows
   =
   let keys = List.map rows ~f:(fun (key, _) -> Key.to_string key) in
@@ -648,7 +1309,30 @@ let make_virtual_list
   else (
     let row_style = Virtual_list.Expert.row_style config in
     let children =
-      List.map rows ~f:(fun (key, view) -> column ~key ~style:row_style [ view ])
+      List.map rows ~f:(fun (key, view) ->
+        match
+          Option.bind view.accessibility ~f:(fun a ->
+            (Accessibility.Expert.to_wire a).role)
+        with
+        | Some (Tree_item _) ->
+          { (column ~key ~style:row_style [ { view with accessibility = None } ]) with
+            accessibility = view.accessibility
+          }
+        | None
+        | Some
+            ( Group
+            | Label
+            | Link
+            | Separator
+            | Description_list
+            | Term
+            | Definition
+            | Status
+            | Alert
+            | Image
+            | Heading _
+            | Navigation
+            | Tree _ ) -> column ~key ~style:row_style [ view ])
     in
     Ok
       { (column ?key ?style children) with
@@ -663,6 +1347,9 @@ let make_virtual_list
             ; scroll
             ; on_viewport
             ; on_retain
+            ; on_tree_input
+            ; tree_moves
+            ; table = None
             }
       })
 ;;
@@ -681,6 +1368,8 @@ let virtual_list ?key ?style ?on_viewport ?scroll ~config rows =
     ~scroll
     ~on_viewport
     ~on_retain:None
+    ~on_tree_input:None
+    ~tree_moves:false
     rows
 ;;
 
@@ -725,14 +1414,30 @@ let text_input
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; loading = None
+  ; avatar = None
+  ; rating = None
+  ; slider = None
+  ; number_input = None
+  ; otp_input = None
+  ; color_input = None
+  ; calendar = None
   ; animation = None
+  ; animation_program = None
+  ; navigation_stack = None
+  ; carousel = None
+  ; container_query = None
+  ; accessibility = None
   ; image = None
+  ; extension = None
   ; split_pane = None
   ; document = None
+  ; canvas = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
   ; virtual_list = None
+  ; table_cell = None
   ; control = None
   ; children = []
   }
@@ -758,14 +1463,30 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; loading = None
+  ; avatar = None
+  ; rating = None
+  ; slider = None
+  ; number_input = None
+  ; otp_input = None
+  ; color_input = None
+  ; calendar = None
   ; animation = None
+  ; animation_program = None
+  ; navigation_stack = None
+  ; carousel = None
+  ; container_query = None
+  ; accessibility = None
   ; image = None
+  ; extension = None
   ; split_pane = None
   ; document = None
+  ; canvas = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
   ; virtual_list = None
+  ; table_cell = None
   ; children = []
   }
 ;;
@@ -817,14 +1538,30 @@ let combobox
   ; notification = None
   ; toast_stack = None
   ; progress = None
+  ; loading = None
+  ; avatar = None
+  ; rating = None
+  ; slider = None
+  ; number_input = None
+  ; otp_input = None
+  ; color_input = None
+  ; calendar = None
   ; animation = None
+  ; animation_program = None
+  ; navigation_stack = None
+  ; carousel = None
+  ; container_query = None
+  ; accessibility = None
   ; image = None
+  ; extension = None
   ; split_pane = None
   ; document = None
+  ; canvas = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
   ; virtual_list = None
+  ; table_cell = None
   ; children = []
   }
 ;;
@@ -847,6 +1584,66 @@ let command_palette
     kind = Command_palette
   ; palette = Some { config; appearance; on_dismiss }
   }
+;;
+
+let slider ?(style = Style.empty) ~controller ~config ~initial ~on_event () =
+  { (text ~key:controller ~style "") with
+    kind = Slider
+  ; slider = Some { controller; config; initial; on_event }
+  }
+;;
+
+let number_input ?(style = Style.empty) ~controller ~config ~initial ~on_event () =
+  { (text ~key:controller ~style "") with
+    kind = Number_input
+  ; number_input = Some { controller; config; initial; on_event }
+  }
+;;
+
+let otp_input ?(style = Style.empty) ~controller ~config ~initial ~on_event () =
+  { (text ~key:controller ~style "") with
+    kind = Otp_input
+  ; otp_input = Some { controller; config; initial; on_event }
+  }
+;;
+
+let color_input ?(style = Style.empty) ~controller ~config ~initial ~on_event () =
+  { (text ~key:controller ~style "") with
+    kind = Color_input
+  ; color_input = Some { controller; config; initial; on_event }
+  }
+;;
+
+let calendar
+      ?(style = Style.empty)
+      ~controller
+      ~config
+      ~initial
+      ~initial_month
+      ~on_event
+      ()
+  =
+  { (text ~key:controller ~style "") with
+    kind = Calendar
+  ; calendar = Some { controller; config; initial; initial_month; on_event }
+  }
+;;
+
+let rating ?key ?(style = Style.empty) ~config ~on_request () =
+  { (text ?key ~style "") with kind = Rating; rating = Some { config; on_request } }
+;;
+
+let avatar ?key ?(style = Style.empty) ?on_change config =
+  { (text ?key ~style "") with
+    kind = Avatar
+  ; avatar = Some config
+  ; image =
+      Option.map (Avatar.Expert.image config) ~f:(fun config -> { config; on_change })
+  }
+;;
+
+let loading ?key ?(style = Style.empty) ~config () =
+  { (text ?key ~style "") with kind = Loading; loading = Some config }
 ;;
 
 let progress ?key ?(style = Style.empty) ~config () =
@@ -895,6 +1692,14 @@ let toast_stack ?key ?(style = Style.empty) ?(config = Toast.Stack.default) item
 ;;
 
 module Expert = struct
+  type nonrec 'action table = 'action table =
+    { source_key : Key.t option
+    ; config : Table.Config.t
+    ; query_generation : int64
+    ; commands : Key.t Table.Command.t list
+    ; on_input : Key.t Table.Request.t -> 'action
+    }
+
   type nonrec 'action virtual_list = 'action virtual_list =
     { config : Virtual_list.Config.t
     ; order : Virtual_list.Order.t
@@ -904,6 +1709,9 @@ module Expert = struct
     ; scroll : Virtual_list.Scroll_request.t option
     ; on_viewport : (Virtual_list.Viewport.t -> 'action) option
     ; on_retain : (Key.t list -> 'action) option
+    ; on_tree_input : (Key.t Tree_input.t -> 'action) option
+    ; tree_moves : bool
+    ; table : 'action table option
     }
 
   let managed_virtual_list
@@ -916,6 +1724,8 @@ module Expert = struct
         ~order
         ~on_viewport
         ~on_retain
+        ?on_tree_input
+        ?(tree_moves = false)
         rows
     =
     make_virtual_list
@@ -929,12 +1739,100 @@ module Expert = struct
       ~scroll
       ~on_viewport:(Some on_viewport)
       ~on_retain:(Some on_retain)
+      ~on_tree_input
+      ~tree_moves
       rows
   ;;
+
+  let managed_table
+        ?key
+        ?source_key
+        ?style
+        ?(commands = [])
+        ~config
+        ~query_generation
+        ~order
+        ~on_viewport
+        ~on_retain
+        ~on_input
+        rows
+    =
+    let open Or_error.Let_syntax in
+    let%bind (_ : Gpuio_protocol.Table_wire.Config.t) =
+      Table.Expert.to_wire config ~schema_revision:1L ~query_generation
+    in
+    let columns =
+      Table_column.Collection.to_list (Table.Config.columns config)
+      |> List.map ~f:Table_column.id
+    in
+    if
+      List.length commands > 64
+      || not
+           (List.for_all rows ~f:(fun (_, cells) ->
+              List.equal
+                Table_column.Id.equal
+                columns
+                (List.map cells ~f:(fun (cell, _) -> Table.Cell.column cell))))
+    then Or_error.error_string "table rows must match schema columns; at most 64 commands"
+    else (
+      let%map root =
+        make_virtual_list
+          ?key
+          ?style
+          ~config:(Table.Expert.list_config config)
+          ~order
+          ~managed:true
+          ~invalidated:[]
+          ~invalidation_revision:0L
+          ~scroll:None
+          ~on_viewport:(Some on_viewport)
+          ~on_retain:(Some on_retain)
+          ~on_tree_input:None
+          ~tree_moves:false
+          (List.map rows ~f:(fun (key, _) -> key, column []))
+      in
+      let children =
+        List.map rows ~f:(fun (key, cells) ->
+          column
+            ~key
+            (List.map cells ~f:(fun (metadata, child) ->
+               { (column
+                    ~key:
+                      (Key.of_string_exn
+                         (Table_column.Id.to_string (Table.Cell.column metadata)))
+                    [ child ])
+                 with
+                 table_cell = Some metadata
+               })))
+      in
+      { root with
+        children
+      ; virtual_list =
+          Option.map root.virtual_list ~f:(fun list ->
+            { list with
+              table = Some { source_key; config; query_generation; commands; on_input }
+            })
+      })
+  ;;
+
+  type nonrec 'action container_query = 'action container_query =
+    { config : Container_query.Config.t
+    ; on_select : (Container_query.Selection.t -> 'action) option
+    }
+
+  type nonrec 'action animation_program = 'action animation_program =
+    { config : Animation.Program.t
+    ; on_event : (Animation.Program.Event.t -> 'action) option
+    }
 
   type nonrec 'action animation = 'action animation =
     { config : Animation.Config.t
     ; on_event : (Animation.Event.t -> 'action) option
+    }
+
+  type nonrec 'action extension = 'action extension =
+    { config : Gpuio_protocol.Extension_wire.Config.t
+    ; on_event : Gpuio_protocol.Extension_wire.Signal.t -> 'action
     }
 
   type nonrec 'action split_pane = 'action split_pane =
@@ -942,9 +1840,55 @@ module Expert = struct
     ; on_resize : (Split_pane.Snapshot.t -> 'action) option
     }
 
+  type nonrec 'action canvas = 'action canvas =
+    { config : Canvas.Config.t
+    ; on_event : (Canvas.Event.t -> 'action) option
+    }
+
   type nonrec 'action document = 'action document =
     { config : Document.Config.t
     ; on_navigate : (Document.Navigation.t -> 'action) option
+    }
+
+  type nonrec 'action slider = 'action slider =
+    { controller : Key.t
+    ; config : Slider.Config.t
+    ; initial : Slider.Value.t
+    ; on_event : Slider.Event.t -> 'action
+    }
+
+  type nonrec 'action number_input = 'action number_input =
+    { controller : Key.t
+    ; config : Number_input.Config.t
+    ; initial : Number_input.Value.t
+    ; on_event : Number_input.Event.t -> 'action
+    }
+
+  type nonrec 'action otp_input = 'action otp_input =
+    { controller : Key.t
+    ; config : Otp_input.Config.t
+    ; initial : Otp_input.Value.t
+    ; on_event : Otp_input.Event.t -> 'action
+    }
+
+  type nonrec 'action color_input = 'action color_input =
+    { controller : Key.t
+    ; config : Color_input.Config.t
+    ; initial : Color_value.Value.t
+    ; on_event : Color_input.Event.t -> 'action
+    }
+
+  type nonrec 'action calendar = 'action calendar =
+    { controller : Key.t
+    ; config : Calendar.Config.t
+    ; initial : Calendar.Selection.t
+    ; initial_month : Calendar.Month.t
+    ; on_event : Calendar.Event.t -> 'action
+    }
+
+  type nonrec 'action rating = 'action rating =
+    { config : Rating.Config.t
+    ; on_request : Rating.Request.t -> 'action
     }
 
   type nonrec 'action image = 'action image =
@@ -1037,14 +1981,31 @@ module Expert = struct
     ; notification : 'action notification option
     ; toast_stack : Toast.Stack.t option
     ; progress : Progress.Config.t option
+    ; loading : Loading.Config.t option
+    ; avatar : Avatar.Config.t option
+    ; rating : 'action rating option
+    ; slider : 'action slider option
+    ; number_input : 'action number_input option
+    ; otp_input : 'action otp_input option
+    ; color_input : 'action color_input option
+    ; calendar : 'action calendar option
     ; animation : 'action animation option
+    ; animation_program : 'action animation_program option
+    ; navigation_stack : Gpuio_protocol.Navigation_stack_wire.Config.t option
+    ; carousel :
+        (Gpuio_protocol.Carousel_wire.Config.t * (Carousel.Request.t -> 'action)) option
+    ; container_query : 'action container_query option
+    ; accessibility : Accessibility.t option
     ; image : 'action image option
+    ; extension : 'action extension option
     ; split_pane : 'action split_pane option
     ; document : 'action document option
+    ; canvas : 'action canvas option
     ; palette : 'action palette option
     ; menu : menu option
     ; focus_scope : Focus_scope.t option
     ; virtual_list : 'action virtual_list option
+    ; table_cell : Table.Cell.t option
     ; children : 'action t list
     }
 

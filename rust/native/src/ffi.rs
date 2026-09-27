@@ -118,6 +118,14 @@ pub fn gpuio_v1_submit(
     status(result).to_ocaml(cr)
 }
 #[ocaml_interop::export]
+pub fn gpuio_v1_extension_catalog(cr: &mut OCamlRuntime, _unit: OCaml<()>) -> OCaml<OCamlBytes> {
+    let mut bytes = Vec::new();
+    crate::extensions::catalog()
+        .binprot_write(&mut bytes)
+        .expect("encode extension catalog");
+    bytes.to_ocaml(cr)
+}
+#[ocaml_interop::export]
 pub fn gpuio_v1_drain(cr: &mut OCamlRuntime, id: OCaml<OCamlInt>) -> OCaml<OCamlBytes> {
     let transport = lookup(id.to_rust());
     let (events, more) = {

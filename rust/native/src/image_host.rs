@@ -204,6 +204,25 @@ fn pump(service: &Shared, cx: &mut App) {
 /// Acquire once for a new/replaced mounted binding. The Lease must come from
 /// this application's native encoded store, after validating its generation.
 pub fn request(source: Lease, window: &mut Window, cx: &mut App) -> Result<Handle, Error> {
+    request_image(source, None, window, cx)
+}
+
+/// Admit a known SVG raster size directly, without queuing an unused intrinsic
+/// decode first. The source is an existing application-owned encoded lease.
+pub fn request_svg(
+    source: Lease,
+    request: crate::asset_svg::Request,
+    window: &mut Window,
+    cx: &mut App,
+) -> Result<Handle, Error> {
+    request_image(source, Some(request), window, cx)
+}
+fn request_image(
+    source: Lease,
+    variant: Option<crate::asset_svg::Request>,
+    window: &mut Window,
+    cx: &mut App,
+) -> Result<Handle, Error> {
     init(cx);
     let service = cx.global::<Global>().0.clone();
     let window_handle = window.window_handle();
@@ -215,7 +234,10 @@ pub fn request(source: Lease, window: &mut Window, cx: &mut App) -> Result<Handl
     {
         return Err(Error::ResourceLimit);
     }
-    let lease = state.cache.request(source)?;
+    let lease = match variant {
+        Some(request) => state.cache.request_svg(source, request)?,
+        None => state.cache.request(source)?,
+    };
     state
         .windows
         .entry(window_handle.window_id())

@@ -122,3 +122,63 @@ CI requires macOS functional checks and Linux builds/unit tests. The Linux GUI
 runs are informational under OCH-17; compilation alone does not count as GUI
 acceptance. The linked PR and OCH-13 completion record identify the final checked head and
 merged revision.
+
+## Small-scroll row stability (OCH-46 follow-up)
+
+During the milestone-5 chat work the owner reported messages jumping while
+scrolling the transcript. A 90-event actual macOS wheel probe kept the composer's
+bounds exactly fixed, while the owner observed the transcript jump. A slower AX
+row sampler showed correct settled movement; it did not observe the transient
+handoff and therefore did not disprove the report.
+
+The native regression identified a concrete adapter defect: a one-pixel change
+from key 50001/offset 8 to offset 9 kept the same nine visible rows but dropped four
+prepared overscan rows (13 requested descriptions became 9). GPUI reuses measured
+overdraw without a render callback. The adapter mistook that absence for eviction
+whenever the anchor changed, permitting estimated placeholders to replace nearby
+content during later scrolls.
+
+The adapter now keeps previous bounded requests when they overlap the new visible
+range. Pinned and visible rows remain first; nearest neighbours fill the remaining
+`max_active` budget. Disjoint jumps, source/configuration/size changes, and zero
+overscan discard prior warm requests. No additional history or unbounded cache is
+introduced. The public contract now explicitly describes overscan as a prefetch
+distance, with bounded warm retention rather than immediate boundary eviction.
+
+Local macOS native acceptance passes after the change:
+
+- The one-pixel regression retains prepared overscan.
+- Sparse materialization uses alternating 48/80-pixel rows against a 32-pixel
+  estimate. 79 forward/reverse transitions verify that each incoming leading row
+  is already materialized, exact key/pixel anchoring, convergence and a 24-row cap.
+- Disjoint jump, zero-overscan configuration, resizing and source replacement
+  discard stale demand.
+- Existing native wheel/tail/scrollbar/focus/IME/selection/disposal checks and two
+  full 100,000-row traversals pass. Retired selection/text payload checks remain
+  bounded and final cleanup passes.
+
+Commands:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native --features native-tests --test native_list
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j2 -p gpuio-native --features native-tests --all-targets -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/agent_chat/main.exe @fmt @test/agent_chat_showcase/runtest
+```
+
+Clippy and the chat rebuild pass. Replaying the original 90-event macOS wheel
+probe in the rebuilt chat also completes with fixed composer bounds. This is a
+verified fix for premature row eviction; it does not claim exhaustive physical
+trackpad/frame-pacing acceptance or establish that every possible source of
+visible jitter has been eliminated. The follow-up remains part of M5's integrated
+validation and consolidated hosted gates.
+
+The rebuilt chat also passes its public self-test, original M4 AppKit walkthrough
+and source-explorer walkthrough (including 100,000 nodes). These exercise the
+shared list adapter through the public Bonsai/Eio bridge, preserving streaming,
+drafts, native input, history, independent windows and cleanup:
+
+```sh
+_build/default/examples/agent_chat/main.exe --self-test
+python3 scripts/test_agent_chat.py
+python3 scripts/test_agent_chat_sources.py
+```

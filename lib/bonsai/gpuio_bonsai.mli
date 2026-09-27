@@ -1,12 +1,34 @@
 open Core
 module Managed_rows = Managed_rows
 module Virtual_list = Virtual_list
+module Tree_rows = Tree_rows
+module Tree = Tree
+module Table = Table
 
 (** The pure view API specialized to Bonsai effects. No driver, I/O runtime or
     scheduling policy is introduced here; window lifecycle scheduling is OCH-9. *)
 module View : sig
   type t = unit Bonsai.Effect.t Gpuio.View.t
   type toast = unit Bonsai.Effect.t Gpuio.View.toast
+
+  val with_accessibility : t -> Gpuio.Accessibility.t -> t Or_error.t
+
+  val container_query
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?on_select:(Gpuio.Container_query.Selection.t -> unit Bonsai.Effect.t)
+    -> Gpuio.Container_query.Config.t
+    -> (Gpuio.Container_query.Branch_id.t * t) list
+    -> t Or_error.t
+
+  (** Native springs, ordered sequences and synchronized repeating programs. *)
+  val animate_program
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?on_event:(Gpuio.Animation.Program.Event.t -> unit Bonsai.Effect.t)
+    -> Gpuio.Animation.Program.t
+    -> t list
+    -> t
 
   (** Retained native motion; endpoint callbacks execute as Bonsai effects. *)
   val animate
@@ -15,6 +37,13 @@ module View : sig
     -> ?on_event:(Gpuio.Animation.Event.t -> unit Bonsai.Effect.t)
     -> Gpuio.Animation.Config.t
     -> t list
+    -> t
+
+  val canvas
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?on_event:(Gpuio.Canvas.Event.t -> unit Bonsai.Effect.t)
+    -> Gpuio.Canvas.Config.t
     -> t
 
   (** Revisioned native documents; register source with [Gpuio_eio.Document]. *)
@@ -121,6 +150,37 @@ module View : sig
     -> string
     -> t
 
+  val slider
+    :  ?style:Gpuio.Style.t
+    -> controller:Gpuio.Key.t
+    -> config:Gpuio.Slider.Config.t
+    -> initial:Gpuio.Slider.Value.t
+    -> on_event:(Gpuio.Slider.Event.t -> unit Bonsai.Effect.t)
+    -> unit
+    -> t
+
+  val rating
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Rating.Config.t
+    -> on_request:(Gpuio.Rating.Request.t -> unit Bonsai.Effect.t)
+    -> unit
+    -> t
+
+  val avatar
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?on_change:(Gpuio.Image.State.t -> unit Bonsai.Effect.t)
+    -> Gpuio.Avatar.Config.t
+    -> t
+
+  val loading
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Loading.Config.t
+    -> unit
+    -> t
+
   val progress
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
@@ -192,6 +252,22 @@ module View : sig
     -> t option
     -> t
 
+  val sheet
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Sheet.Config.t
+    -> on_dismiss:(Gpuio.Overlay.Dismissal.t -> unit Bonsai.Effect.t)
+    -> t option
+    -> t
+
+  val alert_dialog
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Alert_dialog.Config.t
+    -> on_dismiss:(Gpuio.Overlay.Dismissal.t -> unit Bonsai.Effect.t)
+    -> t option
+    -> t
+
   val popover
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
@@ -211,7 +287,24 @@ module View : sig
     -> unit
     -> t
 
+  val hover_card
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Hover_card.Config.t
+    -> ?on_open_change:(bool -> unit Bonsai.Effect.t)
+    -> anchor:t
+    -> content:t
+    -> unit
+    -> t
+
   val row : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> t list -> t
+
+  val extension
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> on_event:('event Gpuio.Extension.Event.t -> unit Bonsai.Effect.t)
+    -> 'event Gpuio.Extension.Instance.t
+    -> t
 
   val split_pane
     :  ?key:Gpuio.Key.t
@@ -237,6 +330,89 @@ module View : sig
     -> active:bool
     -> ?style:Gpuio.Style.t
     -> t list
+    -> t
+
+  (** Generic region and disclosure lifetimes follow [Gpuio.View.panel] and
+      [Gpuio.View.disclosure]; hiding native content does not itself deactivate
+      its Bonsai computation or cancel application tasks. *)
+  val panel
+    :  key:Gpuio.Key.t
+    -> label:string
+    -> active:bool
+    -> hidden:Gpuio.Content_policy.t
+    -> ?style:Gpuio.Style.t
+    -> t list
+    -> t
+
+  (** See [Gpuio.View.carousel] for selection and native lifetime contracts. *)
+  val carousel
+    :  'data Gpuio.Carousel.t
+    -> ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?viewport_style:Gpuio.Style.t
+    -> ?page_style:Gpuio.Style.t
+    -> ?controls_style:Gpuio.Style.t
+    -> ?control_style:Gpuio.Style.t
+    -> ?show_controls:bool
+    -> ?axis:Gpuio.Carousel.Axis.t
+    -> ?motion:Gpuio.Carousel.Motion.t
+    -> hidden:Gpuio.Content_policy.t
+    -> label:string
+    -> on_request:(Gpuio.Carousel.Request.t -> unit Bonsai.Effect.t)
+    -> content:('data Gpuio.Carousel.Item.t -> t list)
+    -> unit
+    -> t
+
+  (** Native route presentation; see [Gpuio.View.navigation_stack] for lifetime,
+      geometry and focus rules. Content may contain ordinary Bonsai effects. *)
+  val navigation_stack
+    :  'data Gpuio.Navigation_stack.t
+    -> ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?page_style:Gpuio.Style.t
+    -> ?motion:Gpuio.Navigation_stack.Motion.t
+    -> hidden:Gpuio.Content_policy.t
+    -> label:string
+    -> content:('data Gpuio.Navigation_stack.Entry.t -> t list)
+    -> unit
+    -> t
+
+  val disclosure
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?trigger_style:Gpuio.Style.t
+    -> ?panel_style:Gpuio.Style.t
+    -> label:string
+    -> expanded:bool
+    -> ?disabled:bool
+    -> hidden:Gpuio.Content_policy.t
+    -> on_toggle:unit Bonsai.Effect.t
+    -> t list
+    -> t
+
+  val disclosure_with_header
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?header_style:Gpuio.Style.t
+    -> ?panel_style:Gpuio.Style.t
+    -> label:string
+    -> expanded:bool
+    -> hidden:Gpuio.Content_policy.t
+    -> header:t list
+    -> trigger:t
+    -> t list
+    -> t Or_error.t
+
+  val accordion
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?trigger_style:Gpuio.Style.t
+    -> ?panel_style:Gpuio.Style.t
+    -> model:Gpuio.Disclosure.t
+    -> hidden:Gpuio.Content_policy.t
+    -> on_request:(Gpuio.Disclosure.Request.t -> unit Bonsai.Effect.t)
+    -> content:(Gpuio.Choice.Id.t -> t list)
+    -> unit
     -> t
 
   val radio_group

@@ -9,6 +9,7 @@ type 'action update
 val create
   :  ?asset_owner:Asset.Expert.Owner.t
   -> ?document_owner:Text_source.Expert.Owner.t
+  -> ?canvas_owner:Canvas_scene.Expert.Owner.t
   -> Gpuio_protocol.Window_id.t
   -> 'action t
 

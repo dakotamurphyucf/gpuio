@@ -1,8 +1,18 @@
+pub mod extensions;
+pub use gpuio_extension_sdk as extension_sdk;
 mod appearance;
 pub mod asset_cache;
 pub mod asset_decode;
 pub mod asset_store;
 pub mod asset_svg;
+pub mod canvas_content;
+pub mod canvas_host;
+pub mod canvas_jobs;
+pub mod canvas_mesh;
+pub mod canvas_paint;
+pub mod canvas_plan;
+pub mod canvas_state;
+pub mod canvas_store;
 mod document_highlight;
 pub mod document_host;
 pub mod document_jobs;
@@ -14,12 +24,23 @@ mod host;
 pub fn run_native_animation_test() {
     host::animation_test::run();
 }
+#[cfg(feature = "native-tests")]
+pub fn run_native_animation_program_test() {
+    host::animation_program_test::run();
+}
+pub mod carousel_clock;
+pub mod carousel_gesture;
 pub mod image_host;
 pub mod list_index;
 pub mod list_state;
 pub mod mailbox;
 pub mod motion;
+pub mod motion_clock;
+pub mod motion_host;
 mod motion_preference;
+pub mod motion_program;
+pub mod motion_timeline;
+pub mod navigation_motion;
 mod selection;
 mod semantics;
 pub mod session;
@@ -108,6 +129,16 @@ pub fn run_native_list_test() {
     host::list_test::run();
 }
 
+#[cfg(feature = "native-tests")]
+pub fn run_native_table_host_test() {
+    host::table_view::run_test();
+}
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_table_history_test() {
+    host::table_view::run_history_test();
+}
+
 pub mod document_diff;
 
 pub mod document_markdown;
@@ -134,4 +165,88 @@ pub fn run_native_tabs_test() {
 #[cfg(feature = "native-tests")]
 pub fn run_native_split_test() {
     host::control_test::run_splits();
+}
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_extension_test() {
+    host::control_test::run_extensions();
+}
+
+#[cfg(feature = "native-canvas-tests")]
+mod canvas_test;
+#[cfg(feature = "native-canvas-tests")]
+pub fn run_native_canvas_test() {
+    canvas_test::run();
+}
+
+#[cfg(feature = "native-canvas-tests")]
+pub fn run_native_canvas_view_test() {
+    host::canvas_view::test::run();
+}
+
+#[cfg(feature = "native-canvas-tests")]
+pub fn run_native_canvas_input_test() {
+    host::canvas_view::test::run_input();
+}
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_container_query_test() {
+    host::container_query_test::run();
+}
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_presentation_test() {
+    host::presentation_test::run();
+}
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_slider_test() {
+    host::presentation_test::run_sliders();
+}
+
+pub mod calendar_state;
+pub mod color_input_state;
+pub mod number_input_state;
+pub mod otp_edit;
+pub mod otp_input_state;
+pub mod slider_state;
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_number_input_test() {
+    host::number_input_view::test::run();
+}
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_otp_input_test() {
+    host::otp_input_view::test::run();
+}
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_calendar_test() {
+    host::calendar_view::test::run();
+}
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_color_input_test() {
+    host::color_input_view::test::run();
+}
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_navigation_test() {
+    host::control_test::run_navigation();
+}
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_tree_test() {
+    host::control_test::run_trees();
+}
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_hover_card_test() {
+    host::control_test::run_hover_cards();
+}
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_carousel_test() {
+    host::control_test::run_carousel();
 }

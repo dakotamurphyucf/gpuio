@@ -10,14 +10,17 @@ crate-type = ["staticlib", "rlib"]
 
 [features]
 native-tests = []
+native-canvas-tests = ["native-tests", "gpui_platform/test-support"]
 native-image-tests = ["native-tests", "gpui_platform/test-support"]
 default = ["wayland", "x11"]
 wayland = ["gpui/wayland", "gpui_platform/wayland", "dep:gpuio-wayland"]
 x11 = ["gpui/x11", "gpui_platform/x11"]
 
 [dependencies]
+gpuio-extension-sdk = { path = "../extension-sdk" }
 gpui-base = { path = "../../vendor/gpui-base" }
 gpuio-protocol = { path = "../protocol" }
+gpuio-table-adapter = { path = "../table" }
 gpui = { git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b", default-features = false }
 gpui_platform = { git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b", features = ["font-kit", "runtime_shaders"] }
 ocaml-interop = { git = "https://github.com/tizoc/ocaml-interop.git", rev = "9f941c63b8a9dcd652c6535da196f48d7a4dcc75", features = ["no-caml-startup"] }
@@ -27,6 +30,7 @@ unicode-segmentation = "1"
 ropey = { version = "=2.0.0-beta.1", features = ["metric_chars", "metric_lines_lf", "metric_utf16"] }
 syntect = { version = "=5.3.0", default-features = false, features = ["parsing", "default-themes", "regex-fancy"] }
 two-face = { version = "=0.5.2", default-features = false, features = ["syntect-fancy"] }
+lyon = "=1.0.19"
 libc = "0.2"
 raw-window-handle = "0.6.2"
 futures-lite = "2"
@@ -38,7 +42,7 @@ flate2 = "=1.1.10"
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "=0.26.0"
 objc2 = "0.6.4"
-objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSString", "NSRange", "NSURL", "NSArray", "NSNotification", "NSOperation"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSString", "NSRange", "NSURL", "NSArray", "NSNotification", "NSOperation", "NSProcessInfo"] }
 objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSApplication", "NSOpenPanel", "NSSavePanel", "NSPanel", "NSResponder", "NSWindow", "NSView", "NSWorkspace", "NSAccessibility", "block2"] }
 block2 = "0.6.2"
 
@@ -47,6 +51,7 @@ gpuio-portal = { path = "../portal" }
 gpuio-wayland = { path = "../wayland", optional = true }
 
 [dev-dependencies]
+taffy = { version = "=0.13.0", default-features = false, features = ["std", "taffy_tree"] }
 gpuio-portal = { path = "../portal" }
 gpuio-wayland = { path = "../wayland" }
 
@@ -158,5 +163,99 @@ required-features = ["native-tests"]
 
 [[test]]
 name = "native_split"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_extension"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_canvas"
+path = "tests/native_canvas.rs"
+harness = false
+required-features = ["native-canvas-tests"]
+
+[[test]]
+name = "native_canvas_view"
+harness = false
+required-features = ["native-canvas-tests"]
+
+[[test]]
+name = "native_canvas_input"
+harness = false
+required-features = ["native-canvas-tests"]
+
+[[test]]
+name = "native_animation_program"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_container_query"
+path = "tests/native_container_query.rs"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_presentation"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_slider"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_number_input"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_otp_input"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_calendar"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_color_input"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_navigation"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_tree"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_hover_card"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_carousel"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_table_host"
+path = "tests/native_table_host.rs"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_table_history"
+path = "tests/native_table_history.rs"
 harness = false
 required-features = ["native-tests"]

@@ -1,0 +1,116 @@
+# Managed trees
+
+## Filesystem explorer
+
+Run from the repository root:
+
+```sh
+./scripts/gpuio exec dune exec examples/tree/main.exe
+```
+
+The example uses `Gpuio_bonsai.Tree.component`, component-owned selection and
+expansion, and `Gpuio_eio.Tree_loading` in an application scope. File operations
+use the explicit Eio current-directory capability in loading workers. Rendering
+performs no filesystem I/O. Native rows stay within a 32-row active budget;
+selection preferences do not pin offscreen rows.
+
+Use arrows, Home/End, Space/Enter, platform selection modifiers and Unicode
+typeahead. Disclosure hit regions add no extra Tab stop; native TreeItem keyboard
+and accessibility actions own expansion. Loading and retry rows are separate
+from application items. Mode switches preserve eligible selection, and Reload
+creates a new source generation that retires old commands and row models.
+
+Capture a payload-free target before creating a command:
+
+```ocaml
+let target = Tree.Output.target output file_id |> Or_error.ok_exn in
+let reveal =
+  Tree.Controller.reveal (Tree.Output.controller output) ~focus:true target
+in
+(* Schedule [reveal] as a Bonsai effect. *)
+```
+
+The high-level widget opens loaded ancestors and waits for the updated projection
+before requesting native reveal/focus. An absent ID is an error when capturing a
+target. A stale target is ignored at delivery; reusing a filename does not redirect
+an old command to its replacement. Observing `Tree.Output.state` lets an app save
+preferences outside the component and supply them as seeds on later mounts.
+
+Filesystem pages contain at most 128 children. Symlinks are leaves, and directory
+reads are not recursive. The example uses validated relative path IDs, so long or
+non-UTF-8 names can produce a retryable page error under the framework's ID/label
+budgets. Eio's directory-list allocation and the example's application payloads
+are outside native row budgets. A directory over 100,000 entries is rejected.
+This example does not watch files or promise stable paging across filesystem
+mutations: changed listings can invalidate a page, and Reload starts fresh.
+
+The local native self-test uses this checkout's `test/virtual_list` directory:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune exec examples/tree/main.exe -- --self-test
+```
+
+It loads real directories, reveals a file, waits for its native focus retention
+pin, checks selection and stale-command retirement after reset, then closes the
+application. This is separate from physical keyboard/assistive-device tests and
+from the full large/deep native tree workload required by OCH-38.
+
+## Editable outline
+
+```sh
+./scripts/gpuio exec dune exec examples/tree/main.exe -- --outline
+```
+
+Outline Lab uses an in-memory forest and application-approved moves; it does not
+modify files. Drag one item onto a branch to propose moving it inside, or use the
+top/bottom quarter to insert before/after. Leaves use top/bottom halves. The native
+preview and insertion line/outline update without OCaml callbacks on pointer motion.
+Right-click a row for context commands, or Tab to its Actions menu button for the
+keyboard alternative. The sample asks for confirmation before publishing a validated
+replacement forest, preserving item IDs and payloads. Confirmation is an application
+policy; the framework only emits proposals and supplies revalidation.
+
+The application consumes each approval token once. A superseded confirmation cannot
+approve a newer proposal, and resetting the data source expires old approvals.
+Approval reads the latest snapshot and widget state. The sample move function
+requires fully loaded destination siblings; it does not define paging or server
+mutation policy for other applications.
+
+Native focus and drop indicators inherit the tree's foreground color, including
+theme changes and a caller's `Foreground` style override. They paint above opaque
+row content without affecting layout. The focus outline follows actual TreeItem
+focus in the active window; a selected row or focused child control alone does
+not acquire it. Moves are currently single-row and restricted to one tree/window,
+without automatic hover expansion or edge autoscroll.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune exec examples/tree/main.exe -- --outline --self-test
+python3 scripts/test_tree_outline.py
+```
+
+The first check exercises menu proposals, one-shot/superseded confirmation, stable
+identity and stale approval after reset. The second drives an actual macOS drag,
+confirmation, native context menu and move back through the public application.
+It needs macOS Accessibility permission for its launching terminal/agent, activates
+only the child application, checks pointer targets belong to that process and
+always closes/reaps the child. These checks complement the native GPU indicator
+tests; neither is the full large-tree workload acceptance.
+
+## Lifecycle workload
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune exec examples/tree/main.exe -- --lifecycle-self-test
+```
+
+This public-API workload reveals and focuses a node at depth 128, resizes the
+window, then exercises lazy loading with controllable Eio producers. Collapse
+and deletion cancel running work; deleting a selected branch repairs selection.
+A source reset retires captured reveal commands. A failed page stays failed until
+explicit retry, after which the newly loaded child receives native focus without
+an extra application redraw. Closing the window cancels its loader scope and
+deactivates every mounted row. The test uses in-memory data and exits automatically.
+
+Large-tree resource acceptance is separate: the Bonsai expect suite and native
+`native_tree` suite each traverse 100,000 rows twice with a 256-row active limit
+and weak probes for resource release. See the [evidence ledger](../../docs/evidence/managed-trees-och38.md)
+for actual platform coverage and cache accounting.
