@@ -24,6 +24,7 @@ module type S = sig
   module Canvas_view = Canvas_view_wire
   module Window = Window_wire
   module Desktop = Desktop_wire
+  module Notification = Notification_wire
   module Extension = Extension_wire
   module Split = Split_wire
   module Drag_and_drop = Drag_and_drop_wire
@@ -871,6 +872,7 @@ module type S = sig
       | Calendar_command of int64 * Window_id.t * Node_id.t * Calendar.Command.t
       | Color_input_command of int64 * Window_id.t * Node_id.t * Color_input.Command.t
       | Desktop of int64 * Desktop.Request.t
+      | Notification of int64 * Notification.Request.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Bounded outgoing encoding. Native decoding additionally validates all
@@ -1002,6 +1004,8 @@ module type S = sig
       | Table_input of Window_id.t * Node_id.t * Handler_id.t * int64 * Table.Input.t
       | Desktop_response of int64 * Desktop.Response.t
       | Desktop_pending
+      | Notification_response of int64 * Notification.Response.t
+      | Notification_pending
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

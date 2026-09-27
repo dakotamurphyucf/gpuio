@@ -24,6 +24,7 @@ module Window = Window_wire
 module Split = Split_wire
 module Extension = Extension_wire
 module Desktop = Desktop_wire
+module Notification = Notification_wire
 
 let version = 1L
 let capabilities = 4398046511103L
@@ -902,11 +903,14 @@ module Message = struct
     | Calendar_command of int64 * Window_id.t * Node_id.t * Calendar.Command.t
     | Color_input_command of int64 * Window_id.t * Node_id.t * Color_input.Command.t
     | Desktop of int64 * Desktop.Request.t
+    | Notification of int64 * Notification.Request.t
   [@@deriving bin_io, equal, sexp_of]
 
   let encode t =
     let invalid_asset =
       match t with
+      | Notification (correlation, request) ->
+        Int64.(correlation <= 0L) || not (Notification.Request.valid request)
       | Desktop (correlation, request) ->
         Int64.(correlation <= 0L) || not (Desktop.Request.valid request)
       | Window_command (correlation, _, command) ->
@@ -1078,6 +1082,8 @@ module Event = struct
     | Table_input of Window_id.t * Node_id.t * Handler_id.t * int64 * Table.Input.t
     | Desktop_response of int64 * Desktop.Response.t
     | Desktop_pending
+    | Notification_response of int64 * Notification.Response.t
+    | Notification_pending
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1099,6 +1105,9 @@ module Event = struct
   let rec valid_event = function
     | Desktop_response (correlation, response) ->
       Int64.(correlation > 0L) && Desktop.Response.valid response
+    | Notification_response (correlation, response) ->
+      Int64.(correlation > 0L) && Notification.Response.valid response
+    | Notification_pending -> true
     | Desktop_pending -> true
     | Canvas_event
         (_, _, _, revision, source, scene_revision, scene_generation, observation) ->

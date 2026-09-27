@@ -9,7 +9,7 @@ and evidence remain in [the milestone 5 handoff](milestone-5.md).
 | Ticket | Deliverable | Current state |
 | -- | -- | -- |
 | OCH-27 | Application identity, deep-link packaging/startup/live delivery, activation, file reveal/open, document-window metadata | In progress: macOS OS acceptance passes; Linux portal file adapters pass local peer/worker tests; typed packaging and real bus arbitration pass locally; Linux GUI and consolidated hosted gates pending |
-| OCH-28 | OS notifications, permissions/capabilities, replacement/dismissal and stale-safe action routing | In progress: pinned native source audit; typed results/lifecycle need GPUIO adapters |
+| OCH-28 | OS notifications, permissions/capabilities, replacement/dismissal and stale-safe action routing | In progress: Core/Eio ownership, bounded paired protocol and owned macOS adapter; public packaged macOS OS actions pass; Linux adapter and consolidated gates pending |
 | OCH-40 | Line, area, bar, pie, radar, candlestick and Sankey components with typed bounded datasets, native interaction and accessible alternatives | Pending native adapter evaluation; existing pins retained |
 | OCH-29 | Focused graphics application consuming public canvas and an independently packaged native component; desktop workflows and one chart | Pending integration of preceding capabilities |
 
@@ -103,3 +103,12 @@ early X11/Wayland smoke scenario, still awaiting a Linux run. Desktop bit41 is
 advertised (aggregate4398046511103); backend-specific Unsupported results remain
 explicit. OCH-27 stays In Progress pending Linux/hosted acceptance. Next: OCH-28
 notifications, remaining M6 families, then consolidated hosted validation. No M6 ticket is complete yet.
+
+
+OCH-28 now has typed Core/Eio notification APIs and a bounded owned macOS adapter.
+Its packaged public example passes real named/default actions, readiness, same-
+lifetime replacement, native/explicit dismissal, closed-window target fencing and
+service cleanup on macOS 14.5 arm64. Linux currently reports `Unsupported`; the
+notification capability bit stays unadvertised. See the [notification contract](design/os-notifications.md)
+and [native evidence](evidence/os-notifications-och28.md). This is local macOS
+acceptance, not completion of the cross-platform ticket or the milestone.

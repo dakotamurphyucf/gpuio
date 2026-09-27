@@ -71,6 +71,52 @@ pub(crate) struct State {
     closed: bool,
 }
 impl State {
+    pub(crate) fn receipt(&self, id: i64) -> Option<Receipt> {
+        self.entries.get(&id).map(|entry| entry.receipt.clone())
+    }
+    pub(crate) fn receipts(&self) -> Vec<Receipt> {
+        self.entries
+            .values()
+            .map(|entry| entry.receipt.clone())
+            .collect()
+    }
+    /// Only current and admitted candidate content, bounded by live + pending.
+    /// Native category registration must not retain historical action sets.
+    pub(crate) fn contents(&self) -> Vec<(Token, Content)> {
+        let mut contents = Vec::new();
+        for entry in self.entries.values() {
+            if !entry.retiring {
+                if let Some(current) = &entry.current {
+                    contents.push((
+                        Token {
+                            receipt: entry.receipt.clone(),
+                            serial: current.revision,
+                        },
+                        current.content.clone(),
+                    ));
+                }
+                if let Some((
+                    serial,
+                    Pending {
+                        operation: Operation::Show(content),
+                        ..
+                    },
+                )) = entry
+                    .pending
+                    .and_then(|serial| self.operations.get(&serial).map(|op| (serial, op)))
+                {
+                    contents.push((
+                        Token {
+                            receipt: entry.receipt.clone(),
+                            serial,
+                        },
+                        content.clone(),
+                    ));
+                }
+            }
+        }
+        contents
+    }
     fn admission(&self) -> Result<i64, Error> {
         if self.closed {
             return Err(Error::Closed);
@@ -165,6 +211,7 @@ impl State {
         self.tags.remove(&entry.receipt.tag);
         Some(entry)
     }
+    #[cfg(test)]
     pub(crate) fn revision(&self, receipt: &Receipt) -> Option<i64> {
         self.entry(receipt)
             .ok()?
@@ -320,6 +367,7 @@ impl State {
     }
     /// Loss of the native service retires every live receipt. Already-admitted
     /// terminal events retain their original identity; there is no implicit replay.
+    #[cfg(any(test, target_os = "linux"))]
     pub(crate) fn fail(&mut self, error: Error) -> bool {
         if self.closed {
             return false;

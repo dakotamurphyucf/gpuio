@@ -131,6 +131,21 @@ module Window : sig
 end
 
 module Expert : sig
+  (** Application-scoped OS notifications: 16 pending requests plus a reserved
+      close lane. [Close] permanently disables this application's service.
+      Terminal shutdown resolves outstanding requests with [Closed]. *)
+  val notification
+    :  t
+    -> Gpuio_protocol.Notification_wire.Request.t
+    -> Gpuio_protocol.Notification_wire.Response.t Bonsai.Effect.t
+
+  (** Exclusive, generation-checked availability subscription on the UI domain.
+      Unregistering does not itself close native notification ownership. *)
+  val on_notification_pending
+    :  t
+    -> (unit -> unit Bonsai.Effect.t)
+    -> (unit -> unit, Gpuio.Notification.Error.t) Result.t
+
   (** Application-scoped desktop protocol. At most 16 pending requests; closing
       resolves them with [Closed]. Requesting [Take_links] consumes the native
       FIFO and its overflow counter, without routing or interpreting its values. *)

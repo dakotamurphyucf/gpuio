@@ -2285,6 +2285,8 @@ let dispatch t = function
   | Close_requested _
   | Quit_requested
   | Reopen_requested
+  | Notification_pending
+  | Notification_response _
   | Desktop_pending
   | Desktop_response _
   | Window_changed _

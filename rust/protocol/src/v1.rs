@@ -707,6 +707,7 @@ pub enum Message {
     CalendarCommand(i64, WindowId, NodeId, crate::calendar_input::Command),
     ColorInputCommand(i64, WindowId, NodeId, crate::color_input::Command),
     Desktop(i64, crate::desktop::Request),
+    Notification(i64, crate::notification::Request),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -854,4 +855,6 @@ pub enum Event {
     TableInput(WindowId, NodeId, HandlerId, i64, crate::table::Input),
     DesktopResponse(i64, crate::desktop::Response),
     DesktopPending,
+    NotificationResponse(i64, crate::notification::Response),
+    NotificationPending,
 }

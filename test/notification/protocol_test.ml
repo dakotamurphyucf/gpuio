@@ -117,3 +117,18 @@ let%expect_test "wire conversion cannot manufacture malformed public identities"
   assert (not (W.Response.valid (Events (Failed Unavailable :: events))));
   [%expect {| |}]
 ;;
+
+let%expect_test "application envelopes distinguish notification availability" =
+  let module Bridge = Gpuio_protocol.Wire in
+  assert (
+    String.equal
+      (Bridge.Message.encode (Notification (7L, Capabilities)) |> Or_error.ok_exn)
+      "\020\007\000");
+  assert (Result.is_error (Bridge.Message.encode (Notification (0L, Capabilities))));
+  print_s
+    [%sexp
+      (Bridge.Event.decode "\002\059\007\003\060" |> Or_error.ok_exn
+       : Bridge.Event.t list)];
+  assert (Result.is_error (Bridge.Event.decode "\001\059\000\003"));
+  [%expect {| ((Notification_response 7 Replaced) Notification_pending) |}]
+;;

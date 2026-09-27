@@ -1876,6 +1876,7 @@ pub fn run(transport: Arc<Transport>) {
     let platform = gpui_platform::current_platform(false);
     let application = gpui::Application::with_platform(platform.clone());
     let desktop = crate::desktop_host::install(&application, transport.clone());
+    let notifications = crate::notification_host::State::default();
     let reopen_transport = transport.clone();
     application.on_reopen(move |_| window_host::control(&reopen_transport, Event::ReopenRequested));
     application.run(move |cx: &mut App| {
@@ -1898,7 +1899,9 @@ pub fn run(transport: Arc<Transport>) {
         let quit_dialogs = dialogs.clone();
         let quit_motion = motion.clone();
         let quit_desktop = desktop.clone();
+        let quit_notifications = notifications.clone();
         cx.on_app_quit(move |cx| {
+            quit_notifications.borrow_mut().close();
             quit_desktop.borrow_mut().close().wait_before_quit();
             quit_motion.borrow_mut().take();
             drag_drop::shutdown(cx);
@@ -1921,6 +1924,7 @@ pub fn run(transport: Arc<Transport>) {
                     .aborting
                     .load(std::sync::atomic::Ordering::Acquire)
                 {
+                    notifications.borrow_mut().close();
                     let desktop_cleanup = desktop.borrow_mut().close();
                     desktop_cleanup.wait().await;
                     motion.borrow_mut().take();
@@ -2150,6 +2154,12 @@ pub fn run(transport: Arc<Transport>) {
                             };
                             transport.respond(Event::WindowResponse(correlation,id,result));
                         }
+                        Message::Notification(correlation, request) => {
+                            match session.borrow().check_ready() {
+                                Ok(()) => { crate::notification_host::dispatch(&notifications, correlation, request, &transport); }
+                                Err(error) => transport.respond(Event::Failed(correlation, error)),
+                            }
+                        }
                         Message::Desktop(correlation, request) => {
                             match session.borrow().check_ready() {
                                 Ok(()) => {
@@ -2187,6 +2197,7 @@ pub fn run(transport: Arc<Transport>) {
                             }
                         }
                         Message::Shutdown => {
+                            notifications.borrow_mut().close();
                             let desktop_cleanup = desktop.borrow_mut().close();
                             desktop_cleanup.wait().await;
                             motion.borrow_mut().take();

@@ -172,3 +172,22 @@ fn unicode_and_exact_limits_round_trip() {
         assert!(!value.is_valid());
     }
 }
+
+#[test]
+fn application_envelopes_keep_correlation_and_distinct_availability() {
+    use gpuio_protocol::{
+        decode,
+        v1::{Event as BridgeEvent, Message},
+    };
+    let value = Message::Notification(7, Request::Capabilities);
+    assert_eq!(encode(&value), vec![20, 7, 0]);
+    assert_eq!(decode(&[20, 7, 0]), Ok(value));
+    assert!(decode(&[20, 0, 0]).is_err());
+    assert_eq!(
+        encode(&vec![
+            BridgeEvent::NotificationResponse(7, Response::Replaced),
+            BridgeEvent::NotificationPending
+        ]),
+        vec![2, 59, 7, 3, 60]
+    );
+}

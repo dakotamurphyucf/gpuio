@@ -29,7 +29,12 @@ pub mod document_store;
 mod ffi;
 pub mod file_dialog;
 mod host;
-#[cfg(test)]
+mod notification_host;
+#[cfg(target_os = "macos")]
+mod notification_macos;
+#[cfg(any(test, target_os = "macos"))]
+mod notification_operations;
+#[cfg(any(test, target_os = "macos"))]
 mod notification_state;
 #[cfg(feature = "native-tests")]
 pub fn run_native_animation_test() {

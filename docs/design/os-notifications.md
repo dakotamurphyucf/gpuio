@@ -1,8 +1,10 @@
 # OS notifications
 
-OCH-28 is in progress. The typed values, bounded lifetime state and UI-domain
-delivery layer are implemented and being validated. Native adapters and public
-Eio operations are not delivered yet; no notification capability is advertised.
+OCH-28 is in progress. Typed Core values, bounded lifetime state, application-domain
+delivery, the public Eio service and the owned macOS adapter are implemented.
+The packaged macOS example passes real OS action routing; see the
+[evidence ledger](../evidence/os-notifications-och28.md). Linux remains in progress
+and currently returns `Unsupported`. No notification capability is advertised yet.
 These notifications are independent of in-application toast widgets.
 
 ## Identity and updates
@@ -57,8 +59,7 @@ identify a different lifetime. Duplicate completions must not remove live conten
 
 The pinned GPUI notification facade returns no typed delivery result. Its Linux
 adapter cannot dismiss a notification; its macOS category registry retains
-historical action sets. GPUIO will own bounded native adapters rather than promise
-behavior those wrappers do not implement. No GPUI fork change is required by this
+historical action sets. GPUIO uses its own bounded macOS adapter and will add the Linux adapter to provide behavior those wrappers do not implement. No GPUI fork change is required by this
 design. Do not simultaneously install GPUI's notification delegate.
 
 macOS uses `UNUserNotificationCenter`, guarded by a matching application bundle
@@ -80,3 +81,25 @@ and [authorization error](https://developer.apple.com/documentation/usernotifica
 Actual native submission/action evidence, permission observations, daemon-loss
 coverage and packaged example instructions will be recorded separately from the
 pure lifecycle/codec tests as the adapters are implemented.
+
+## Public Eio service
+
+`Gpuio_eio.Notification.attach app ~on_event` creates one application-scoped
+receiver without prompting. It requires `App.run ~desktop` or `App.run_desktop`.
+Use `capabilities`, `authorization` and explicit `request_authorization` effects;
+`post`, `replace` and `dismiss` return typed results. `ready` starts serial event
+delivery, and `retry` retries intake after an error. Application I/O in handlers
+uses the ordinary Eio scope APIs.
+
+`close` is idempotent and permanently disables notification ownership for this
+application run. It drops callback captures and asks the OS to remove owned
+artifacts; application shutdown does the same. A reserved close lane remains
+available with 16 ordinary requests in flight. Already-running effects may finish;
+late native completion cannot restart delivery or resolve a new application.
+
+macOS registers only current and admitted candidate action categories (at most
+144), replacing the OS registry on the next mutation; it never retains historical
+action sets. Session UUID plus process-unique receipt IDs fence earlier runs.
+Only the matching service's delegate/categories are cleared during teardown.
+It uses no GPUI notification methods and requires exclusive ownership of this
+application's UNUserNotificationCenter integration.

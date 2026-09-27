@@ -289,3 +289,27 @@ fn invalid_requests_have_no_side_effects() {
     );
     assert!(state.entries.is_empty() && state.operations.is_empty());
 }
+
+#[test]
+fn category_snapshots_retain_only_live_and_inflight_content() {
+    let mut state = State::default();
+    let tokens: Vec<_> = (0..MAX_LIVE)
+        .map(|i| posted(&mut state, &format!("tag-{i}")))
+        .collect();
+    assert_eq!(state.receipts().len(), MAX_LIVE);
+    let pending: Vec<_> = tokens
+        .iter()
+        .take(MAX_PENDING)
+        .map(|token| state.replace(&token.receipt, content("inspect")).unwrap())
+        .collect();
+    assert_eq!(state.contents().len(), MAX_LIVE + MAX_PENDING);
+    for token in pending {
+        state.complete(&token, Ok(()));
+    }
+    assert_eq!(state.contents().len(), MAX_LIVE);
+    for token in tokens {
+        assert_eq!(state.receipt(token.receipt.id), Some(token.receipt.clone()));
+        state.signal(&token.receipt, Signal::Activated);
+    }
+    assert!(state.contents().is_empty() && state.receipts().is_empty());
+}
