@@ -775,7 +775,10 @@ fn demand_convergence(cx: &mut gpui::AsyncApp, window: WindowHandle<View>) {
             for row in &next {
                 ops.extend([
                     Op::Create(row.node, Kind::Text, format!("Source {}", row.id), None),
-                    Op::SetStyle(row.node, dimensions(400., 32.)),
+                    Op::SetStyle(
+                        row.node,
+                        dimensions(400., if row.id % 2 == 0 { 48. } else { 80. }),
+                    ),
                 ]);
             }
             ops.extend([
@@ -799,6 +802,9 @@ fn demand_convergence(cx: &mut gpui::AsyncApp, window: WindowHandle<View>) {
         "leading overscan missing: {first:?}"
     );
     assert!(first.requested.len() > (first.visible_last - first.visible_first) as usize);
+    // Moving one pixel within the same visible rows must not discard already
+    // measured leading/trailing overscan. Doing so replaces a cached row with
+    // an estimate just before a subsequent wheel event exposes it.
     apply(
         cx,
         window,
@@ -806,6 +812,58 @@ fn demand_convergence(cx: &mut gpui::AsyncApp, window: WindowHandle<View>) {
             root,
             ScrollRequest {
                 serial: 2,
+                target: ScrollTarget::Offset(50_001, 9.),
+            },
+        )],
+    );
+    layout_frame(cx, window);
+    let nudged = window
+        .update(cx, |view, _, _| {
+            view.lists[&root].borrow().observed.clone().unwrap()
+        })
+        .unwrap();
+    assert_eq!(nudged.visible_first, first.visible_first);
+    assert_eq!(nudged.visible_last, first.visible_last);
+    assert!(
+        first
+            .requested
+            .iter()
+            .all(|id| nudged.requested.contains(id)),
+        "small scroll evicted measured overscan: before={first:?} after={nudged:?}"
+    );
+
+    // Traverse and reverse through unequal row heights with a sparse consumer.
+    // Each newly leading row must already be warm before the consumer responds;
+    // the repeated settle helper also enforces the 24-row retention cap.
+    let mut serial = 2;
+    for step in (1..40).chain((0..40).rev()) {
+        serial += 1;
+        let row = 50_001 + step;
+        assert!(
+            live.iter().any(|item| item.id == row),
+            "next leading row was cold: {row}"
+        );
+        apply(
+            cx,
+            window,
+            vec![Op::ScrollList(
+                root,
+                ScrollRequest {
+                    serial,
+                    target: ScrollTarget::Offset(row, 9.),
+                },
+            )],
+        );
+        let moved = settle(cx, &mut live);
+        assert_eq!(moved.anchor, Some((row, 9.)));
+    }
+    apply(
+        cx,
+        window,
+        vec![Op::ScrollList(
+            root,
+            ScrollRequest {
+                serial: serial + 1,
                 target: ScrollTarget::Offset(90_001, 8.),
             },
         )],

@@ -118,13 +118,16 @@ native list share one immutable index. Viewport events include order revision an
 are rejected after that source order changes or their tree revision becomes stale. Requests prioritize pinned rows,
 then visible rows, then overscan, with an explicit budget-exhaustion diagnostic.
 
-GPUI may reuse measured overscan without invoking its row renderer. The host
-therefore retains the previous bounded demand while source revision, scroll
-anchor, visible range and viewport dimensions are unchanged. Missing render
-callbacks alone do not evict rows: that would alternate measurement and eviction
-indefinitely. Scrolling, source replacement, configuration and viewport resizing
-retire this retained demand. The active-row limit and focus priorities still apply;
-this is one viewport's bounded demand, not a history of visited rows.
+GPUI may reuse measured overscan without invoking its row renderer. Missing
+callbacks alone must not evict those rows, including during small scrolls: otherwise
+nearby content is replaced with estimated placeholders before coming into view.
+The host merges previous bounded demand with current render demand while the
+previous requested range overlaps the current visible rows. After pinned/visible
+rows, nearest neighbours win the remaining active-row budget. This keeps a bounded
+warm set, not a history of visited rows; the count includes all retained rows and
+never exceeds `max_active`. Overscan is a prefetch distance, not a strict lifetime
+boundary. Disjoint jumps, source replacement, configuration/viewport changes and
+zero overscan retire prior warm demand.
 
 Native focus can change after OCaml receives a viewport event. The host therefore
 snapshots actual row focus, editor focus/composition and active text-selection

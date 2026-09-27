@@ -21,7 +21,9 @@ module Config : sig
       [max_active] includes pinned rows and must be in [1, 16384]. Native layout
       reports budget exhaustion rather than allocating an unbounded active set.
       A fixed height clips content to that height; an estimate is replaced by
-      native measurement. *)
+      native measurement. With nonzero overscan, nearby previously requested rows
+      may remain warm across small scrolls, within [max_active]. Nearer rows displace
+      them; overscan is a prefetch distance rather than a strict eviction boundary. *)
   val create
     :  ?overscan:float
     -> ?max_active:int

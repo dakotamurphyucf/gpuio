@@ -726,25 +726,41 @@ impl Element for Frame {
         let anchor = index
             .id(offset.item_ix)
             .map(|id| (id, f32::from(offset.offset_in_item) as f64));
-        // GPUI skips render callbacks for measured overdraw rows. Callback
-        // absence is not eviction: otherwise admitting those rows invalidates
-        // measurement, repeatedly alternating full and empty overscan demand.
-        // Keep only the previous bounded demand at this exact viewport. Moving
-        // the anchor/range or replacing the source retires it immediately.
+        // A measured overdraw row may not invoke GPUI's renderer again. Keep a
+        // bounded warm set across nearby scrolling, or a one-pixel movement
+        // evicts those rows and exposes estimated placeholders on the next wheel.
+        // Source/configuration/size changes clear observed; disjoint jumps discard
+        // the old set. No additional row history or unbounded cache is retained.
         let mut overscan = self.rendered.borrow().clone();
         if let Some(previous) = state.observed.as_ref().filter(|previous| {
-            previous.order_revision == index.revision()
-                && previous.anchor == anchor
-                && previous.visible_first == visible_first as i64
-                && previous.visible_last == visible_last as i64
+            previous.order_revision == index.revision() && state.config.overscan > 0.
         }) {
-            overscan.extend(
-                previous
-                    .requested
-                    .iter()
-                    .filter_map(|row| index.position(*row)),
-            );
+            let previous_positions: Vec<_> = previous
+                .requested
+                .iter()
+                .filter_map(|row| index.position(*row))
+                .collect();
+            let overlaps = previous_positions
+                .iter()
+                .any(|position| (visible_first..visible_last).contains(position));
+            if overlaps {
+                overscan.extend(previous_positions);
+            }
         }
+        // Visible rows and focus pins are admitted first below. Spend the
+        // remaining budget on the closest warm/rendered neighbours, rather than
+        // accumulating rows behind a long scroll or favouring one direction.
+        let mut overscan: Vec<_> = overscan.into_iter().collect();
+        overscan.sort_by_key(|position| {
+            if *position < visible_first {
+                (visible_first - position, *position)
+            } else {
+                (
+                    position.saturating_sub(visible_last.saturating_sub(1)),
+                    *position,
+                )
+            }
+        });
         let max_active = state.config.max_active as usize;
         let mut requested = Vec::new();
         let mut unique: BTreeSet<_> = pinned.iter().copied().collect();
