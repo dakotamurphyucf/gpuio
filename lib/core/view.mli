@@ -288,7 +288,14 @@ val extension
 
 (** A native-owned divider between two retained children. Give the parent a
     bounded size. Pointer resizing stays in Rust; the optional callback reports
-    completed resizes. Keyboard and accessibility actions share native limits. *)
+    completed resizes. Keyboard and accessibility actions share native limits.
+    An immediate child with base [Display Hidden] (including an inactive [panel]
+    or [tab_panel]) takes no space: the other child fills the split and the
+    divider is absent. Hiding either child cancels an active resize without a
+    completion event. Reopening preserves the previous native sizes, adjusted
+    for the current container. Both hidden children produce an empty split.
+    Child identities remain retained according to their own lifetime policy;
+    [Visibility Hidden] and [Inert true] still occupy space. *)
 val split_pane
   :  ?key:Key.t
   -> ?style:Style.t

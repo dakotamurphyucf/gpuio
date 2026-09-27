@@ -1,5 +1,21 @@
 //! Semantic validation and retained allocation accounting for portable refinements.
 use gpuio_protocol::v1::*;
+/// Layout participation follows the last base display declaration. Visibility
+/// and interaction gating are separate: an invisible/inert pane still has size.
+pub(crate) fn display_none(styles: &[Style]) -> bool {
+    styles
+        .iter()
+        .rev()
+        .find_map(|style| match style {
+            Style::Fields(fields) => fields.iter().rev().find_map(|field| match field {
+                Field::Display(value) => Some(*value == 3),
+                _ => None,
+            }),
+            _ => None,
+        })
+        .unwrap_or(false)
+}
+
 /// Interaction gating follows the last base declaration on this node; an
 /// ancestor's gate is independently enforced by the focus manager.
 pub(crate) fn inert(styles: &[Style]) -> bool {

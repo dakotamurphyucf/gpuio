@@ -12,7 +12,10 @@ module Config : sig
       [reset_generation] or the axis changes; ordinary rerenders do not override a
       drag. Generations must not decrease for the same mounted split.
       Resizing the container redistributes native sizes. Children retain their
-      identities when resetting geometry. Minimum sizes remain constraints;
+      identities when resetting geometry. Hiding an immediate child with base
+      [Display Hidden] removes the divider and gives the other child all space;
+      native split sizes survive until both children are displayed again.
+      Minimum sizes remain constraints when both children participate;
       an undersized parent may clip content, so applications should choose a
       responsive layout or a sufficiently large parent. *)
   type t [@@deriving equal, sexp_of]
