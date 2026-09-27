@@ -74,6 +74,7 @@ impl State {
     pub(crate) fn receipt(&self, id: i64) -> Option<Receipt> {
         self.entries.get(&id).map(|entry| entry.receipt.clone())
     }
+    #[cfg(any(test, target_os = "macos"))]
     pub(crate) fn receipts(&self) -> Vec<Receipt> {
         self.entries
             .values()
@@ -82,6 +83,7 @@ impl State {
     }
     /// Only current and admitted candidate content, bounded by live + pending.
     /// Native category registration must not retain historical action sets.
+    #[cfg(any(test, target_os = "macos"))]
     pub(crate) fn contents(&self) -> Vec<(Token, Content)> {
         let mut contents = Vec::new();
         for entry in self.entries.values() {

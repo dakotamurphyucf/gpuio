@@ -132,6 +132,17 @@ fn parse_action(native_id: u32, key: &str) -> Option<Signal> {
     })
 }
 
+// zbus's method timeout starts after writing the request. Bound the whole
+// operation as well, including a backpressured socket write, so native shutdown
+// cannot wait indefinitely for a daemon/bus that has stopped reading.
+async fn bounded<T>(work: impl std::future::Future<Output = Result<T, Error>>) -> Result<T, Error> {
+    future::or(work, async {
+        async_io::Timer::after(TIMEOUT).await;
+        Err(Error::NativeFailure)
+    })
+    .await
+}
+
 impl Client {
     /// Session setup has a bounded deadline. Does not start or replace a daemon.
     /// Callers must keep draining signals and close the connection on failure.
@@ -230,6 +241,16 @@ impl Client {
         replaces: u32,
         content: &Content,
     ) -> Result<u32, Error> {
+        bounded(self.show_inner(identity, receipt, revision, replaces, content)).await
+    }
+    async fn show_inner(
+        &self,
+        identity: &Identity,
+        receipt: &Receipt,
+        revision: i64,
+        replaces: u32,
+        content: &Content,
+    ) -> Result<u32, Error> {
         if !identity.is_valid() || !receipt.is_valid() || revision <= 0 || !content.is_valid() {
             return Err(Error::InvalidRequest);
         }
@@ -294,6 +315,9 @@ impl Client {
         Ok(native_id)
     }
     pub async fn dismiss(&self, native_id: u32) -> Result<(), Error> {
+        bounded(self.dismiss_inner(native_id)).await
+    }
+    async fn dismiss_inner(&self, native_id: u32) -> Result<(), Error> {
         if native_id == 0 {
             return Err(Error::InvalidRequest);
         }
@@ -315,7 +339,7 @@ impl Client {
     }
 
     pub async fn close(self) {
-        let _ = self.connection.close().await;
+        let _ = bounded(async { self.connection.close().await.map_err(map_error) }).await;
     }
 }
 
@@ -327,7 +351,15 @@ impl Events {
             Notification(Option<Result<Message, zbus::Error>>),
             Owner(Option<Result<Message, zbus::Error>>),
         }
+        let mut drained = 0;
         loop {
+            // Foreign-app traffic must not monopolize the worker and starve
+            // method deadlines/cancellation while every receive is ready.
+            if drained == 32 {
+                future::yield_now().await;
+                drained = 0;
+            }
+            drained += 1;
             let incoming = future::or(
                 async { Incoming::Owner(self.owner_changes.next().await) },
                 async { Incoming::Notification(self.notifications.next().await) },

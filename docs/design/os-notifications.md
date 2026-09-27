@@ -3,8 +3,9 @@
 OCH-28 is in progress. Typed Core values, bounded lifetime state, application-domain
 delivery, the public Eio service and the owned macOS adapter are implemented.
 The packaged macOS example passes real OS action routing; see the
-[evidence ledger](../evidence/os-notifications-och28.md). Linux remains in progress
-and currently returns `Unsupported`. No notification capability is advertised yet.
+[evidence ledger](../evidence/os-notifications-och28.md). The Linux worker is wired
+to the application and passes local private-bus tests; Linux build and desktop
+presentation gates remain pending. No notification capability is advertised yet.
 These notifications are independent of in-application toast widgets.
 
 ## Identity and updates
@@ -12,8 +13,9 @@ These notifications are independent of in-application toast widgets.
 An opaque, process-local receipt identifies one logical notification. Its tag is
 application-supplied; posting a duplicate live tag returns `Busy`. Replacement
 retains the receipt and tag. Posting the tag again after retirement creates a new
-receipt. Native identifiers additionally require a process nonce so artifacts
-left by a previous application run cannot resolve to a new lifetime.
+receipt. macOS native identifiers include a session UUID. Linux routes only native IDs
+acknowledged on this service connection, bound to its unique daemon owner. Neither
+adapter adopts artifacts from an earlier application run.
 
 Named action keys include the content revision. A removed action or a button from
 an obsolete revision cannot dispatch against the new content. Default activation
@@ -59,8 +61,8 @@ identify a different lifetime. Duplicate completions must not remove live conten
 
 The pinned GPUI notification facade returns no typed delivery result. Its Linux
 adapter cannot dismiss a notification; its macOS category registry retains
-historical action sets. GPUIO uses its own bounded macOS adapter and will add the Linux adapter to provide behavior those wrappers do not implement. No GPUI fork change is required by this
-design. Do not simultaneously install GPUI's notification delegate.
+historical action sets. GPUIO uses its own bounded platform adapters to provide those behaviors. No GPUI
+fork change is required by this design. Do not simultaneously install GPUI's notification delegate.
 
 macOS uses `UNUserNotificationCenter`, guarded by a matching application bundle
 identity. Permission probe/request are explicit; initialization must not prompt.
@@ -104,11 +106,45 @@ Only the matching service's delegate/categories are cleared during teardown.
 It uses no GPUI notification methods and requires exclusive ownership of this
 application's UNUserNotificationCenter integration.
 
-The Linux transport foundation returns separate method-client and signal-stream
-owners. Poll signals concurrently with requests: zbus bounds subscriptions through
-backpressure, and leaving a full signal stream unread can delay method replies on
-the same connection. The eventual native worker must retain bounded ownership of
-in-flight IDs and early signals, perform cleanup on cancellation, and distinguish
-an uncertain timed-out submission from a request known not to have been sent.
-The transport itself does not choose a replay/reconnection policy or start an
-absent daemon; the native ownership layer must make those decisions explicitly.
+## Linux session and cleanup contract
+
+One native worker owns a persistent session-bus connection, fixed unique daemon
+owner, method client, signal stream and logical state. It accepts at most 16 owned
+requests; callbacks publish bridge responses only. Signal intake continues during
+method calls because a full bounded zbus subscription can otherwise backpressure
+its own connection and prevent reading the method reply. The worker never calls
+OCaml or accesses GPUI windows.
+
+Before a new `Notify` reply reveals its native ID, the worker retains at most 64
+candidate signals. Only the exact returned ID can associate those signals with the
+new receipt; custom actions additionally require receipt and revision agreement.
+Overflow is an explicit session failure. Terminal actions consume logical receipts,
+but physical leases remain until an acknowledged dismissal or OS close signal.
+Up to 128 physical leases are retained independently of the logical/event quota,
+so failing cleanup cannot evade resource limits. A close during replacement is
+not undone by its later reply.
+
+Linux reports `Not_required` for authorization and does not prompt. Capability
+queries expose daemon support for body, actions, activation and sound. Requested
+unsupported content returns `Unsupported`; silent/plain text are the defaults.
+GPUIO does not start an absent daemon. Setup failure before establishing a session
+can be explicitly retried by a later request. After owner loss, event overflow or
+an uncertain submission result, existing receipts retire, a failure event is queued,
+and further operations report that session failure. Already-admitted events remain
+bound to their original receipts. No automatic reconnection, resubmission or binding
+to a replacement daemon occurs during that application run. Applications can show
+a fallback and restart their application to establish a fresh notification session;
+`Notification.retry` retries event intake, not a failed native session.
+
+Closing the service immediately cancels callback ownership and stops new work.
+An in-flight method is still drained to its bounded reply so the worker can learn
+and remove its exact ID. The five-second deadline covers the entire operation,
+including socket writes, rather than only waiting for a reply. Foreign-app signal
+traffic yields periodically so method deadlines and cancellation remain runnable. Known artifacts are dismissed concurrently rather than
+waiting through 128 sequential timeouts, with signals still drained. Application
+shutdown joins the worker. Explicit close acknowledges local retirement, not proof
+of OS removal. Failed removal is reported in the native cleanup log. An uncertain
+`Notify` reply can leave an artifact whose ID was never acknowledged; this is
+reported separately and never described as successful cleanup. The adapter does
+not replay such a request. Real Linux desktop presentation remains an independent
+acceptance gate; private-bus fixtures establish transport/lifecycle behavior only.

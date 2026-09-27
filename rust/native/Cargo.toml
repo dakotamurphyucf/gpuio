@@ -52,6 +52,8 @@ gpuio-portal = { path = "../portal" }
 gpuio-wayland = { path = "../wayland", optional = true }
 
 [dev-dependencies]
+zbus = { version = "=5.19.0", default-features = false, features = ["async-io"] }
+async-io = "2"
 taffy = { version = "=0.13.0", default-features = false, features = ["std", "taffy_tree"] }
 gpuio-portal = { path = "../portal" }
 gpuio-wayland = { path = "../wayland" }

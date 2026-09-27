@@ -1901,7 +1901,7 @@ pub fn run(transport: Arc<Transport>) {
         let quit_desktop = desktop.clone();
         let quit_notifications = notifications.clone();
         cx.on_app_quit(move |cx| {
-            quit_notifications.borrow_mut().close();
+            quit_notifications.borrow_mut().close().wait_before_quit();
             quit_desktop.borrow_mut().close().wait_before_quit();
             quit_motion.borrow_mut().take();
             drag_drop::shutdown(cx);
@@ -1924,7 +1924,8 @@ pub fn run(transport: Arc<Transport>) {
                     .aborting
                     .load(std::sync::atomic::Ordering::Acquire)
                 {
-                    notifications.borrow_mut().close();
+                    let notification_cleanup = notifications.borrow_mut().close();
+                    notification_cleanup.wait().await;
                     let desktop_cleanup = desktop.borrow_mut().close();
                     desktop_cleanup.wait().await;
                     motion.borrow_mut().take();
@@ -2197,7 +2198,8 @@ pub fn run(transport: Arc<Transport>) {
                             }
                         }
                         Message::Shutdown => {
-                            notifications.borrow_mut().close();
+                            let notification_cleanup = notifications.borrow_mut().close();
+                            notification_cleanup.wait().await;
                             let desktop_cleanup = desktop.borrow_mut().close();
                             desktop_cleanup.wait().await;
                             motion.borrow_mut().take();

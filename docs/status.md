@@ -16,8 +16,10 @@ registration pass local public OS checks. See the
 [milestone 6 plan](milestone-6.md) for current scope, evidence and next steps.
 OCH-28's typed Core/Eio notifications and owned macOS adapter now pass public
 packaged Notification Center actions, replacement/dismissal, readiness,
-closed-window routing and service cleanup locally. Linux notifications remain
-in progress; see [notification evidence](evidence/os-notifications-och28.md).
+closed-window routing and service cleanup locally. Linux notification transport and its bounded native worker now pass local
+private-bus action/replacement/owner-loss tests, with required Linux build and
+desktop presentation validation pending; see
+[notification evidence](evidence/os-notifications-och28.md).
 The detailed entries below record implementation checkpoints chronologically;
 their earlier pending-gate statements are superseded by this delivery record.
 

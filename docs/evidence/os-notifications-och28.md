@@ -1,8 +1,9 @@
 # OCH-28 notification evidence
 
-Status: in progress. Local macOS native/public acceptance is implemented; the Linux
-adapter and platform evidence, remaining cleanup/race acceptance and consolidated
-hosted gates are outstanding. No notification capability bit is advertised yet.
+Status: in progress. Local macOS native/public acceptance passes. The Linux adapter
+and cleanup/race tests now pass locally through deterministic worker/private-bus
+fixtures; Linux build/display evidence and consolidated hosted gates remain
+outstanding. No notification capability bit is advertised yet.
 
 ## Foundation
 
@@ -16,7 +17,7 @@ malformed-batch rejection, explicit retry and late completion after close.
 
 The following integration additionally adds the application envelopes, native
 callback mailbox accounting, bounded asynchronous response tickets, public Eio
-service and owned macOS adapter. Linux currently returns `Unsupported`.
+service and owned macOS adapter. The later Linux integration is recorded below.
 
 ## Actual macOS observation
 
@@ -83,9 +84,8 @@ GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy \
   -p gpuio-native -p gpuio-protocol --all-targets --locked -j2 -- -D warnings
 ```
 
-The packaged native walkthrough and strict Clippy pass locally. The integration regression results are recorded below. Linux notification daemon ownership,
-capability negotiation, true replacement/dismissal, cancellation and real signal
-validation still require implementation. The milestone remains active, with charts,
+The packaged native walkthrough and strict Clippy pass locally. The integration regression results are recorded below. Linux notification transport/worker results are recorded below; real Linux desktop
+presentation and consolidated hosted build/unit gates remain pending. The milestone remains active, with charts,
 graphics examples, required macOS/Linux CI and merge also pending.
 
 Integration regression checkpoint: all **573 Rust native/protocol tests** pass
@@ -124,6 +124,46 @@ GPUIO_JOBS=2 scripts/test_notification_bus.sh
 This headless check is added to required Linux CI for the later consolidated run.
 The local run used the ignored scratch-installed `dbus-run-session` and explicit
 scratch daemon path with `GPUIO_PRIVATE_BUS_TEST=1`; it did not use or change a
-user's session bus. The native Linux worker, admission/resource cleanup, App wiring
-and real desktop action evidence remain outstanding. The public Linux API still
-returns `Unsupported` until that integration is complete.
+user's session bus. The next section records the subsequent native worker integration;
+these earlier transport results alone did not establish application delivery.
+
+## Native Linux worker (local macOS execution)
+
+The application now dispatches Linux notification requests to one bounded native
+worker. Local tests compile this Linux worker on macOS using the same production
+portal client. Pure routing tests cover native-ID/receipt/revision matching, early
+activation/close, replacement-close races, explicit early-buffer overflow and the
+independent physical-artifact quota. Worker tests exercise in-flight close with
+late ID recovery, queued-request cancellation, daemon loss without replay, uncertain
+submission and failed dismissal retaining its lease for shutdown retry.
+
+A second real private-bus fixture now runs through `notification_linux::Service`,
+the production portal transport and a deterministic freedesktop daemon. It passes
+Unicode content/desktop identity, 256 unrelated signals before the reply, custom
+action dispatch, same-ID replacement, obsolete action rejection, tag reuse, exact
+artifact dismissal, owner-loss delivery and terminal failure without reconnection.
+No GUI or notification daemon belonging to the user is involved. This is transport
+and native-worker evidence on macOS, **not Linux display acceptance**. The existing
+headless CI script now runs both transport and native-worker private-bus suites.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native --locked -j2 \
+  --lib notification_linux
+GPUIO_JOBS=2 scripts/test_notification_bus.sh
+```
+
+All **15 Linux routing/worker tests**, including both explicitly enabled private-bus
+cases, passed with the scratch-installed daemon and `GPUIO_PRIVATE_BUS_TEST=1`.
+The withheld-reply fixture verifies that close retires callbacks immediately, waits
+through the bounded submission deadline, reports uncertain artifact ownership and
+finishes without guessing a native ID or replaying the request. The production Linux host is wired to the worker, with
+asynchronous cleanup on normal/abort shutdown and joined cleanup on OS quit.
+Hosted Linux compilation, real Linux desktop notification actions (OCH-17 platform
+validation), and the consolidated milestone CI/merge remain outstanding.
+
+Integrated local regression checkpoint: **613 tests passed** across native, portal
+and protocol crates (private-bus cases run separately). Strict all-target Clippy
+passes for all three crates. The public notification executable rebuild, targeted
+OCaml notification expectations and `@fmt` also pass after host cleanup integration.
+No additional GUI walkthrough was needed for this worker-only change; earlier
+macOS OS observations remain the separately dated native evidence above.

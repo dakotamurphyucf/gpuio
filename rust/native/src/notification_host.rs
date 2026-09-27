@@ -1,7 +1,6 @@
 //! Application-scoped notification service; callbacks publish owned wire values.
 use crate::transport::Transport;
 use gpuio_protocol::notification::{Error, Request, Response};
-#[cfg(target_os = "macos")]
 use gpuio_protocol::v1::Event;
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
@@ -10,14 +9,48 @@ pub(crate) struct Host {
     closed: bool,
     #[cfg(target_os = "macos")]
     service: Option<crate::notification_macos::Service>,
+    #[cfg(target_os = "linux")]
+    service: Option<crate::notification_linux::Service>,
+    #[cfg(target_os = "linux")]
+    cleanup: Option<crate::notification_linux::Cleanup>,
 }
 pub(crate) type State = Rc<RefCell<Host>>;
 impl Host {
-    pub(crate) fn close(&mut self) {
+    fn stop(&mut self) {
         self.closed = true;
         #[cfg(target_os = "macos")]
         if let Some(mut service) = self.service.take() {
             service.close();
+        }
+        #[cfg(target_os = "linux")]
+        if let Some(mut service) = self.service.take() {
+            self.cleanup = service.close();
+        }
+    }
+    pub(crate) fn close(&mut self) -> Cleanup {
+        self.stop();
+        Cleanup {
+            #[cfg(target_os = "linux")]
+            worker: self.cleanup.take(),
+        }
+    }
+}
+#[must_use = "join notification cleanup before application shutdown"]
+pub(crate) struct Cleanup {
+    #[cfg(target_os = "linux")]
+    worker: Option<crate::notification_linux::Cleanup>,
+}
+impl Cleanup {
+    pub(crate) async fn wait(self) {
+        #[cfg(target_os = "linux")]
+        if let Some(worker) = self.worker {
+            worker.wait().await;
+        }
+    }
+    pub(crate) fn wait_before_quit(self) {
+        #[cfg(target_os = "linux")]
+        if let Some(worker) = self.worker {
+            worker.wait_before_quit();
         }
     }
 }
@@ -43,7 +76,7 @@ pub(crate) fn dispatch(
         return;
     }
     if matches!(request, Request::Close) {
-        state.close();
+        state.stop();
         respond(transport, correlation, Response::Closed);
         return;
     }
@@ -57,11 +90,14 @@ pub(crate) fn dispatch(
         respond(transport, correlation, Response::Failed(Error::NotReady));
         return;
     };
-    #[cfg(target_os = "macos")]
     {
         if state.service.is_none() {
             let weak = Arc::downgrade(transport);
-            match crate::notification_macos::Service::new(&identity, move || {
+            #[cfg(target_os = "macos")]
+            let create = |notify| crate::notification_macos::Service::new(&identity, notify);
+            #[cfg(target_os = "linux")]
+            let create = |notify| crate::notification_linux::Service::new(identity, notify);
+            match create(move || {
                 if let Some(transport) = weak.upgrade() {
                     transport
                         .mailbox
@@ -88,10 +124,5 @@ pub(crate) fn dispatch(
                     respond(&transport, correlation, response);
                 }
             });
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        let _ = (identity, request);
-        respond(transport, correlation, Response::Failed(Error::Unsupported));
     }
 }

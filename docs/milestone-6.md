@@ -9,7 +9,7 @@ and evidence remain in [the milestone 5 handoff](milestone-5.md).
 | Ticket | Deliverable | Current state |
 | -- | -- | -- |
 | OCH-27 | Application identity, deep-link packaging/startup/live delivery, activation, file reveal/open, document-window metadata | In progress: macOS OS acceptance passes; Linux portal file adapters pass local peer/worker tests; typed packaging and real bus arbitration pass locally; Linux GUI and consolidated hosted gates pending |
-| OCH-28 | OS notifications, permissions/capabilities, replacement/dismissal and stale-safe action routing | In progress: Core/Eio ownership, bounded paired protocol and owned macOS adapter; public packaged macOS OS actions pass; Linux adapter and consolidated gates pending |
+| OCH-28 | OS notifications, permissions/capabilities, replacement/dismissal and stale-safe action routing | In progress: Core/Eio ownership, bounded paired protocol and owned macOS adapter; public packaged macOS OS actions pass; Linux worker/private-bus routing pass locally; Linux build/display and consolidated gates pending |
 | OCH-40 | Line, area, bar, pie, radar, candlestick and Sankey components with typed bounded datasets, native interaction and accessible alternatives | Pending native adapter evaluation; existing pins retained |
 | OCH-29 | Focused graphics application consuming public canvas and an independently packaged native component; desktop workflows and one chart | Pending integration of preceding capabilities |
 
@@ -108,7 +108,9 @@ notifications, remaining M6 families, then consolidated hosted validation. No M6
 OCH-28 now has typed Core/Eio notification APIs and a bounded owned macOS adapter.
 Its packaged public example passes real named/default actions, readiness, same-
 lifetime replacement, native/explicit dismissal, closed-window target fencing and
-service cleanup on macOS 14.5 arm64. Linux currently reports `Unsupported`; the
+service cleanup on macOS 14.5 arm64. Linux now has application wiring and a
+bounded worker passing local private-bus tests for actions, replacement, owner
+loss and cleanup. Actual Linux build/display validation remains pending; the
 notification capability bit stays unadvertised. See the [notification contract](design/os-notifications.md)
 and [native evidence](evidence/os-notifications-och28.md). This is local macOS
 acceptance, not completion of the cross-platform ticket or the milestone.
