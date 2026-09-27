@@ -939,9 +939,41 @@ search deadline under native animation. Transcript geometry remains independentl
 covered by the streaming-layout regression above. Hosted execution and final
 consolidated milestone gates remain outstanding.
 
+## Consolidated chat regressions (2026-09-26)
+
+All 15 `scripts/test_agent_chat*.py` walkthroughs pass locally on macOS, including
+both motion policies where supported, the combined workload, responsive settings
+and strict streamed-document geometry. The consolidated run exposed three test
+synchronization problems rather than requiring changed application behavior:
+
+- Results and sources could finish their five-second/two-second loading phases
+  before a full accessibility search reached them. The shared helper now uses
+  one batched AX attribute read per element, as the combined-workload test already
+  did. Search bounds, loading durations, cancellation and status assertions remain
+  unchanged. Both complete walkthroughs pass, including obsolete-query rejection.
+- The tour sent consecutive focus requests without waiting for the first to take
+  effect. Its Escape-dismissed contributor preview could consequently remain
+  suppressed. The helper now waits for `AXFocused` readback before returning.
+  The full normal/reduced tour passes, including theme changes and portrait
+  success/fallback/remount; ordinary feedback and responsive focus checks pass too.
+
+The table-history wrapper also completes both 100,000-row traversals and the
+intentional-failure cleanup scenario (521 seconds total). The original full
+native UI hover-color assertion passed unchanged on an isolated rerun; the
+interactive desktop can deliver pointer events independently of synthetic GPUI
+input. The animation scheduling oracle and numeric-fixture shutdown changes are
+recorded in their [animation](animation-programs-och25.md) and
+[numeric](numeric-inputs-och34.md) evidence. Every scenario counted as passing
+completed with an actual successful process exit, not only printed markers.
+
 ## Remaining acceptance
 
-The family walkthroughs, responsive inspector and combined workload now have local
-macOS evidence. The remaining work is the final coverage/contract audit, complete
-consolidated local suites, required hosted macOS/Linux build/unit gates, fixes and
-merge. Full Linux GUI acceptance remains OCH-17.
+The accepted family matrix, responsive inspector and combined workload have local
+macOS evidence. Consolidated Dune `@all @runtest @fmt`, Rust workspace tests,
+workspace/native/table Clippy, Rustfmt, all native executables and all 15 chat
+walkthroughs have passing results. A fresh independent extension consumer built
+against staged public libraries with the locked backend, ran its native smoke
+scenario and exited successfully; no opam switch was modified.
+
+Required hosted macOS/Linux build/unit gates, any resulting fixes and merge remain.
+Full Linux GUI acceptance remains OCH-17.

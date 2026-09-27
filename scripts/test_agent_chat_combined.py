@@ -138,41 +138,6 @@ class Combined(Responsive):
         assert all(after[k] == 0 for k in ('queued_jobs', 'queued_commands',
                    'pending_requests', 'asset_uploads')), after
 
-    def node_values(self, node):
-        # Five separate IPC round trips per element can exhaust a full-tree
-        # search deadline during animation. One batch also observes one snapshot.
-        fields = ('AXRole', 'AXTitle', 'AXDescription', 'AXValue', 'AXChildren')
-        names = [self.string(n) for n in fields]
-        array = self.cf.CFArrayCreate
-        array.restype = C.c_void_p
-        array.argtypes = [C.c_void_p, C.POINTER(C.c_void_p), C.c_long, C.c_void_p]
-        multiple = self.ax.AXUIElementCopyMultipleAttributeValues
-        multiple.restype = C.c_int
-        multiple.argtypes = [C.c_void_p, C.c_void_p, C.c_uint32, C.POINTER(C.c_void_p)]
-        attrs = array(None, (C.c_void_p * len(names))(*names), len(names), None)
-        values = C.c_void_p()
-        try:
-            if multiple(node, attrs, 0, C.byref(values)) or not values.value:
-                return ['', '', '', ''], []
-            texts = []
-            for i in range(4):
-                value = self.item(values, i)
-                buffer = C.create_string_buffer(262145)
-                is_text = (self.type_id(value) == self.string_type
-                           and self.get_string(value, buffer, len(buffer), 0x08000100))
-                texts.append(buffer.value.decode() if is_text else '')
-            children = self.item(values, 4)
-            count = self.count(children) if self.type_id(children) == self.array_type else 0
-            if count > 4096:
-                raise RuntimeError('Unexpected AX tree size')
-            return texts, [self.retain(self.item(children, i)) for i in range(count)]
-        finally:
-            if values.value:
-                self.release(values)
-            self.release(attrs)
-            for name in names:
-                self.release(name)
-
     def find(self, title, label, role=None, contains=False, search_files=False):
         root = self.window(title)
         if not root:

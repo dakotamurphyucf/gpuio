@@ -28,6 +28,14 @@ class Feedback(DatesColors):
         node = self.wait_find(TITLE, label, role)
         try:
             self.set(node, 'AXFocused', self.true)
+            # AX setters enqueue native actions. Consecutive focus changes must
+            # observe the first transition before requesting the second, or
+            # GPUI can coalesce them and never leave an Escape-suppressed anchor.
+            deadline = time.monotonic() + 5
+            while not self.boolean(node, 'AXFocused'):
+                if time.monotonic() >= deadline:
+                    raise RuntimeError('Native focus was not accepted: ' + label)
+                time.sleep(.01)
         finally:
             self.release(node)
 

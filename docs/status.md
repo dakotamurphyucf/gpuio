@@ -30,7 +30,9 @@ Read-only runtime diagnostics distinguish serialized traffic and owned resources
 from clock polling and total/native memory. Full/Reduce responsive checks also
 cover settings-sheet resize, saved values and nested Escape/focus restoration.
 See the [combined evidence](evidence/agent-chat-m5.md#combined-streaming-large-artifacts-and-cleanup).
-Final consolidated local and hosted milestone-05 gates and merge remain pending.
+Consolidated local Dune/Rust suites, native checks, all 15 chat walkthroughs and
+a fresh staged extension consumer now pass. Required hosted milestone-05 macOS/Linux
+gates and merge remain pending.
 
 OCH-37 now has compiled and locally tested Core models for bounded navigation
 history, single/multiple disclosure and pagination. Tests cover route replacement,

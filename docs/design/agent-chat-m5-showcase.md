@@ -3,8 +3,8 @@
 Status: OCH-46 integration is implemented and locally exercised on macOS,
 including the responsive inspector and combined streaming/tree/table/canvas/native
 extension workload. The live OCH-23–26 and OCH-33–39 scopes were rechecked on
-2026-09-26. Final coverage review, consolidated local suites, hosted macOS/Linux
-gates and merge remain required. See [current evidence](../evidence/agent-chat-m5.md).
+2026-09-26. Consolidated local suites and all 15 chat walkthroughs pass; required
+hosted macOS/Linux gates and merge remain. See [current evidence](../evidence/agent-chat-m5.md).
 Existing component examples and library tests alone do not establish chat integration.
 
 ## Product layout and ownership
