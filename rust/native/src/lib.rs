@@ -29,6 +29,8 @@ pub mod document_store;
 mod ffi;
 pub mod file_dialog;
 mod host;
+#[cfg(test)]
+mod notification_state;
 #[cfg(feature = "native-tests")]
 pub fn run_native_animation_test() {
     host::animation_test::run();

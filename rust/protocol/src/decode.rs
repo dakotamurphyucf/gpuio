@@ -4,7 +4,11 @@ use std::io::{Cursor, Read};
 
 mod accessibility;
 mod desktop;
+mod notification;
 pub use desktop::{decode_desktop_launch, decode_desktop_request};
+pub use notification::{
+    decode_notification_event, decode_notification_request, decode_notification_response,
+};
 mod avatar;
 mod calendar;
 mod carousel;

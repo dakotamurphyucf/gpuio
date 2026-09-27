@@ -30,6 +30,7 @@ pub mod list;
 pub mod loading;
 mod menu;
 pub mod navigation_stack;
+pub mod notification;
 pub mod number_input;
 pub mod otp;
 pub mod otp_input;
@@ -49,6 +50,9 @@ pub use decode::{
     decode_otp_input_config, decode_otp_input_event, decode_otp_input_response,
     decode_slider_command, decode_slider_config, decode_slider_event, decode_table_cell,
     decode_table_command, decode_table_config, decode_table_request,
+};
+pub use decode::{
+    decode_notification_event, decode_notification_request, decode_notification_response,
 };
 pub use id::{HandlerId, NodeId, ResourceId, WindowId};
 
