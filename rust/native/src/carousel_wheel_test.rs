@@ -87,24 +87,50 @@ pub(super) async fn exercise(
     wheel(cx, handle, point, delta(0., 0.), TouchPhase::Cancelled);
     assert!(!timer(cx, handle));
     assert!(requests(transport).is_empty());
-    // Missing Ended receives one quiet-deadline fallback, with no idle polling.
+    // Observe the actual scheduled deadline rather than assuming a suspended
+    // test task resumes within a 50ms gap. The pure wheel test checks the exact
+    // old/new deadline boundary; this test checks native dispatch and waking.
     wheel(cx, handle, point, delta(40., 0.), TouchPhase::Started);
-    cx.background_executor()
-        .timer(std::time::Duration::from_millis(70))
-        .await;
+    let deadline = |cx: &mut gpui::AsyncApp| {
+        handle
+            .update(cx, |v, _, _| {
+                v.carousels[&node(462)].borrow().wheel_deadline().unwrap()
+            })
+            .unwrap()
+    };
+    let first = deadline(cx);
+    let before_move = std::time::Instant::now();
     wheel(cx, handle, point, delta(40., 0.), TouchPhase::Moved);
-    cx.background_executor()
-        .timer(std::time::Duration::from_millis(100))
-        .await;
-    assert!(
-        requests(transport).is_empty(),
-        "old deadline must follow the latest sample"
-    );
+    let after_move = std::time::Instant::now();
+    let latest = deadline(cx);
+    assert!(latest >= first);
+    assert!(latest >= before_move + crate::carousel_gesture::WHEEL_QUIET);
+    assert!(latest <= after_move + crate::carousel_gesture::WHEEL_QUIET);
+    assert!(requests(transport).is_empty());
     assert!(timer(cx, handle));
-    cx.background_executor()
-        .timer(std::time::Duration::from_millis(100))
-        .await;
-    assert_eq!(requests(transport), vec![Request::Previous]);
+    let limit = std::time::Instant::now() + std::time::Duration::from_secs(3);
+    let mut observed = Vec::new();
+    loop {
+        cx.background_executor()
+            .timer(std::time::Duration::from_millis(10))
+            .await;
+        let batch = requests(transport);
+        if !batch.is_empty() {
+            assert!(
+                std::time::Instant::now() >= latest,
+                "wheel request precedes quiet deadline"
+            );
+            observed.extend(batch);
+        }
+        if !timer(cx, handle) {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < limit,
+            "native wheel deadline did not wake"
+        );
+    }
+    assert_eq!(observed, vec![Request::Previous]);
     assert!(!timer(cx, handle));
     // Ordinary wheel events are bounded into bursts too.
     wheel(

@@ -31,6 +31,10 @@ impl Input {
     pub(super) fn has_timer(&self) -> bool {
         self.timer.is_some()
     }
+    #[cfg(feature = "native-tests")]
+    pub(super) fn wheel_deadline(&self) -> Option<Duration> {
+        self.wheel.deadline()
+    }
     pub(super) fn active(&self) -> bool {
         self.wheel.active() || self.drag.is_some()
     }

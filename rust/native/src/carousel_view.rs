@@ -84,6 +84,12 @@ impl State {
         self.input.has_timer()
     }
     #[cfg(feature = "native-tests")]
+    pub(super) fn wheel_deadline(&self) -> Option<Instant> {
+        self.input
+            .wheel_deadline()
+            .map(|deadline| self.origin + deadline)
+    }
+    #[cfg(feature = "native-tests")]
     pub(super) fn pending(&self) -> bool {
         self.clock.pending()
     }

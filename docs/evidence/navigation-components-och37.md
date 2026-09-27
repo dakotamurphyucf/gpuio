@@ -1088,3 +1088,23 @@ regression passes without relaxing its unchanged-selection or no-idle-render
 assertions, followed by the full native tree suite. The cumulative GPUI Base patch
 and checksum reproduce the current sources. See the OCH-38 evidence for checks
 and remaining milestone scope.
+
+## Carousel scheduling and public state observations (2026-09-27)
+
+Run `36300619471` exposed two fixture assumptions. The native wheel test assumed
+its suspended task resumed within a 50ms window before the renewed quiet deadline.
+A temporary local 200ms delayed resume reproduced its failure even though the
+150ms timer had legitimately elapsed. The revised test observes the actual native
+deadline, checks that the latest sample extends it, and bounds eventual one-request
+wake/removal. A deterministic pure test separately checks the old deadline,
+one millisecond before the new deadline, the exact new deadline and no duplicate
+completion. No production timer/scheduling code changed. This reproduction
+explains the invalid test assumption; the hosted log alone does not measure its
+scheduler delay.
+
+The public AX test also checked `AXEnabled` immediately after `AXPress`, before
+the queued OCaml event necessarily reached the native view. It now reacquires and
+awaits the actual disabled and re-enabled gallery button states with a five-second
+bound. The full image-enabled `native_carousel`, seven pure gesture tests and
+`python3 scripts/test_carousel.py` pass locally; feature-enabled all-target native
+Clippy passes. Owned applications exit successfully. Hosted gates remain on PR #13.

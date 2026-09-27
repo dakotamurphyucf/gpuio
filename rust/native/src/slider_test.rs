@@ -268,6 +268,13 @@ async fn decorated_geometry(
 async fn appearance(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
     use gpuio_protocol::v1::Field as F;
     let original_scale = handle.update(cx, |_, w, _| w.scale_factor()).unwrap();
+    let original_size = handle.update(cx, |_, w, _| w.viewport_size()).unwrap();
+    // Synthetic scale changes do not enlarge the platform capture. Reserve
+    // both axes for the 160px slider through 3x even on a physical 1x display.
+    handle
+        .update(cx, |_, w, _| w.resize(size(px(540.), px(540.))))
+        .unwrap();
+    frame(cx, handle).await;
     // The same native owner survives palette, density, axis, focus and policy
     // changes. None of these style changes should reset its numeric value.
     for (name, background, foreground) in [
@@ -275,7 +282,7 @@ async fn appearance(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
         ("dark", 0x161b22ff, 0x88bbffff),
     ] {
         for axis in [s::Axis::Horizontal, s::Axis::Vertical] {
-            for scale in [1., 1.5, 2.] {
+            for scale in [1., 1.5, 2., 3.] {
                 handle
                     .update(cx, |_, w, _| w.set_scale_factor(scale))
                     .unwrap();
@@ -320,6 +327,7 @@ async fn appearance(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
                     .unwrap();
                     let accent = if focused { 0x228866ff } else { foreground };
                     handle.update(cx, |v, w, _| {
+                        assert_eq!(w.scale_factor(), scale);
                         let bounds = v.probes.borrow()[&node(1)].bounds;
                         let point_at = |fraction: f32| {
                             if vertical {
@@ -336,6 +344,9 @@ async fn appearance(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
                         let assert_color = |position: gpui::Point<gpui::Pixels>, expected: [u8; 4]| {
                             let x = (f32::from(position.x) * scale) as u32;
                             let y = (f32::from(position.y) * scale) as u32;
+                            assert!(x < image.width() && y < image.height(),
+                                "{name} {axis:?} scale={scale} sample ({x},{y}) exceeds capture {}x{}",
+                                image.width(), image.height());
                             let actual = image.get_pixel(x, y).0;
                             assert!(actual.iter().zip(expected).all(|(a, b)| a.abs_diff(b) <= 2),
                                 "{name} {axis:?} scale={scale} focus={focused} ({x},{y}): {actual:?} != {expected:?}");
@@ -366,6 +377,13 @@ async fn appearance(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
             }
         }
     }
+    handle
+        .update(cx, |_, w, _| {
+            w.set_scale_factor(original_scale);
+            w.resize(original_size);
+        })
+        .unwrap();
+    frame(cx, handle).await;
     // Disabled appearance remains derived from the selected accent, with no
     // active focus ring. Sample away from overlapping thumb/rail primitives.
     apply(
@@ -466,7 +484,7 @@ async fn appearance(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
     );
     frame(cx, handle).await;
     eprintln!(
-        "GPUIO_SLIDER_GPU_OK: light/dark foreground, selected/muted rails, both thumbs, focus style/ring, horizontal/vertical at 1x/1.5x/2x, disabled and constrained paint"
+        "GPUIO_SLIDER_GPU_OK: light/dark foreground, selected/muted rails, both thumbs, focus style/ring, horizontal/vertical at 1x/1.5x/2x/3x, disabled and constrained paint"
     );
 }
 

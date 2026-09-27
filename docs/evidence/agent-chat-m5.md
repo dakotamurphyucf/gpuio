@@ -979,3 +979,31 @@ scenario and exited successfully; no opam switch was modified.
 macOS/Linux build/unit gates, any resulting fixes, the final checked head and merge.
 The [milestone handoff](../milestone-5.md) maps current contracts and delivery;
 full Linux GUI acceptance remains OCH-17.
+
+## Hosted Results pointer fixture follow-up (2026-09-27)
+
+Run `36300619471` stopped the Results column drag because its target failed the
+owned-process hit test. Locally, a 900-point window reproduced that exact guard
+failure: AX returned a SCORE header extending beyond the clipped window. A fitted
+1000×700 fixture also reproduced clipping after resizing the pinned ID column.
+The hosted log did not include screen geometry, so it cannot establish its exact
+window placement.
+
+The walkthrough now fits only its child window to the physical display, logs
+screen/window/header bounds, and reveals SCORE using real native Right-arrow
+navigation. It swaps TOOL after SCORE using their visible intersection with the
+table/window and pinned-column boundary. This also avoids targeting a leading
+insertion gap hidden beneath the pinned column. Ownership hit checks remain in
+force on every pointer event; a display smaller than the fixture's 984×730 minimum
+fails explicitly. Accepted resize/reorder must still survive page navigation.
+
+The full `python3 scripts/test_agent_chat_results.py` passes locally at the fitted
+1000×700 size, including sorting, selection/context/reveal, Unicode clipboard,
+paging/filter/failure/retry, obsolete-query cancellation, the 100,000-row budget,
+themes, retained draft and clean child exit. No production table behavior changed.
+Required hosted acceptance remains recorded on PR #13.
+The same corrected walkthrough also passes after resizing to 960×700 before the
+column operations. The 900-point diagnostic remains deliberately unaccepted: it
+now fails the explicit visible-insertion-gap assertion before sending a drag to
+an invisible gap. These checks establish the fixture's minimum viewport, not
+arbitrary-width application acceptance.

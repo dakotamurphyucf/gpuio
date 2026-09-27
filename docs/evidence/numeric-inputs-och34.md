@@ -1321,3 +1321,19 @@ application. The focused `native_number_input` rerun completed all assertions an
 exited successfully in 16.91 seconds. Feature-enabled native Clippy passes.
 Production numeric and application shutdown behavior is unchanged. This rerun
 does not claim deliberate coverage of every AppKit titlebar tracking state.
+
+## Hosted slider capture bounds (2026-09-27)
+
+Run `36300619471` reached the slider appearance checks after the presentation
+suite passed. Its physical 1x capture was 360×220, while a synthetic GPUI scale
+placed a vertical-rail probe at (24,258). Changing GPUI's scale does not enlarge
+the Metal drawable. A local temporary 4x case reproduced the same out-of-bounds
+failure at (48,516) against a 720×442 capture.
+
+The fixture now temporarily reserves 540×540 logical pixels, tests both axes,
+light/dark and focus states at 1x/1.5x/2x/3x, checks scale/sample bounds explicitly,
+and restores the original window size and scale. Color and geometry assertions
+are unchanged. The complete image-enabled `native_slider` suite passes locally,
+including workload, independent-window and disposal checks. Native all-target
+image-enabled Clippy passes with warnings denied. Production slider code is
+unchanged; required hosted results are recorded on PR #13.

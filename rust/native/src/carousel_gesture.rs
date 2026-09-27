@@ -363,6 +363,20 @@ mod tests {
         assert_eq!(wheel.finish(ms(9999)), None);
     }
     #[test]
+    fn a_later_wheel_sample_extends_the_existing_quiet_deadline() {
+        let mut wheel = Wheel::default();
+        wheel.push(Axis::Horizontal, [40., 0.], true, Phase::Started, ms(0));
+        let old = wheel.deadline().unwrap();
+        wheel.push(Axis::Horizontal, [40., 0.], true, Phase::Moved, ms(70));
+        assert_eq!(old, ms(150));
+        assert_eq!(wheel.deadline(), Some(ms(220)));
+        assert_eq!(wheel.finish(old), None);
+        assert_eq!(wheel.finish(ms(219)), None);
+        assert_eq!(wheel.finish(ms(220)), Some(Step::Previous));
+        assert_eq!(wheel.finish(ms(9999)), None);
+        assert!(wheel.deadline().is_none());
+    }
+    #[test]
     fn accepted_selection_interrupts_work_but_preserves_momentum_fence() {
         let mut wheel = Wheel::default();
         wheel.push(Axis::Horizontal, [-40., 0.], true, Phase::Started, ms(0));

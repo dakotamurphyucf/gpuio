@@ -15,6 +15,48 @@ from test_canvas import screenshot
 
 
 class Results(Review):
+    def prepare_window(self):
+        # The demo requests 1180x820. Hosted displays can be smaller, while AX
+        # still reports unclipped column bounds beyond the physical screen.
+        # Fit only our child window before sending any pointer input.
+        class Rect(C.Structure):
+            _fields_ = [('origin', Point), ('size', Point)]
+        main_display = self.cg.CGMainDisplayID
+        main_display.restype, main_display.argtypes = C.c_uint32, []
+        display_bounds = self.cg.CGDisplayBounds
+        display_bounds.restype, display_bounds.argtypes = Rect, [C.c_uint32]
+        display = display_bounds(main_display())
+        width, height = min(1000, display.size.x - 24), min(700, display.size.y - 80)
+        if width < 960 or height < 650:
+            raise RuntimeError(f'Results pointer fixture needs a 984x730 display: '
+                               f'got {display.size.x}x{display.size.y}')
+        create = self.ax.AXValueCreate
+        create.restype, create.argtypes = C.c_void_p, [C.c_int, C.c_void_p]
+        window = self.window(TITLE)
+        try:
+            for name, kind, point in [
+                    ('AXSize', 2, Point(width, height)),
+                    ('AXPosition', 1, Point(display.origin.x + 12, display.origin.y + 40))]:
+                value = create(kind, C.byref(point))
+                try:
+                    self.set(window, name, value)
+                finally:
+                    self.release(value)
+        finally:
+            self.release(window)
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            position, size = self.bounds(TITLE, 'AXWindow')
+            if (abs(size.x - width) < 1 and abs(size.y - height) < 1
+                    and position.x >= display.origin.x and position.y >= display.origin.y
+                    and position.x + size.x <= display.origin.x + display.size.x
+                    and position.y + size.y <= display.origin.y + display.size.y):
+                print(f'CHAT_RESULTS_WINDOW screen={display.size.x}x{display.size.y} '
+                      f'window=({position.x},{position.y},{size.x},{size.y})', flush=True)
+                return
+            time.sleep(.03)
+        raise RuntimeError('Results window did not fit the display')
+
     def bounds(self, label, role=None):
         if role == 'AXColumnHeader':
             # macOS maps headers and data cells to AXCell; both share the
@@ -116,10 +158,37 @@ class Results(Review):
             time.sleep(.05)
         else:
             raise RuntimeError(f'Column resize was not accepted: before={before.x}, after={after.x}, origin={position.x},{position.y}, height={before.y}')
+        # Resizing the pinned column can push SCORE out of the clipped table
+        # viewport. Native keyboard navigation reveals it before pointer input.
+        self.click(self.cell('000001'))
+        self.wait_text(TITLE, 'Selected result 000001 · number')
+        self.key(124)
+        self.wait_text(TITLE, 'Selected result 000001 · tool')
+        self.key(124)
+        self.wait_text(TITLE, 'Selected result 000001 · score')
         tool, tool_size = self.bounds('TOOL', 'AXColumnHeader')
         score, score_size = self.bounds('SCORE', 'AXColumnHeader')
-        self.drag(Point(score.x + 15, score.y + score_size.y / 2),
-                  Point(tool.x + 8, tool.y + tool_size.y / 2))
+        pinned, pinned_size = self.bounds('RESULT', 'AXColumnHeader')
+        table, table_size = self.bounds('Run results', 'AXTable')
+        window, window_size = self.bounds(TITLE, 'AXWindow')
+        left = max(pinned.x + pinned_size.x, table.x, window.x) + 1
+        right = min(table.x + table_size.x, window.x + window_size.x) - 1
+        def visible_point(position, size, trailing=False):
+            start, end = max(left, position.x), min(right, position.x + size.x)
+            if end - start < 4:
+                raise RuntimeError(f'Column has no visible drag target: '
+                                   f'header=({position.x},{size.x}), viewport=({left},{right})')
+            # Scrolling can move part of TOOL beneath the pinned ID column.
+            inset = min(8, (end - start) / 2)
+            return Point(end - inset if trailing else start + inset, position.y + size.y / 2)
+        print(f'CHAT_RESULTS_COLUMN_GEOMETRY tool=({tool.x},{tool.y},{tool_size.x},{tool_size.y}) '
+              f'score=({score.x},{score.y},{score_size.x},{score_size.y}) '
+              f'viewport=({left},{right})', flush=True)
+        # TOOL's leading insertion gap may be hidden behind the pinned column.
+        # Moving TOOL after SCORE expresses the same swap in the visible area.
+        target = visible_point(score, score_size, trailing=True)
+        assert target.x > score.x + score_size.x / 2, 'SCORE trailing gap must be visible'
+        self.drag(visible_point(tool, tool_size), target)
         deadline = time.monotonic() + 5
         while time.monotonic() < deadline:
             tool, _ = self.bounds('TOOL', 'AXColumnHeader')
@@ -177,6 +246,7 @@ class Results(Review):
             self.perform(window, 'AXRaise')
         finally:
             self.release(window)
+        self.prepare_window()
         self.press(TITLE, 'Explore workspace')
         self.press(TITLE, 'Workspace')
         self.press(TITLE, 'Explore results')

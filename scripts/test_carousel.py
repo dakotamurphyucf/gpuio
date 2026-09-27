@@ -71,6 +71,22 @@ def toggle(mac, label):
         mac.release(node)
 
 
+def gallery_enabled(mac, expected):
+    # AXPress queues an OCaml event; observe the accepted native view before
+    # asserting its state or sending the next action.
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        node = gallery_button(mac, 'Next')
+        try:
+            actual = boolean(mac, node, 'AXEnabled')
+        finally:
+            mac.release(node)
+        if actual == expected:
+            return
+        time.sleep(.03)
+    raise RuntimeError(f'Gallery enabled state did not become {expected}: {actual}')
+
+
 def move_to_heading(mac):
     # Send a window-relative native event only to the owned process. This gives
     # the carousel a definite outside-hover position without moving the user's
@@ -163,12 +179,9 @@ def exercise(mac, images):
     assert mac.field(TITLE, 'Gallery draft', 'AXTextField') == 'A small idea, ready to become something useful.'
     mac.wait_text(TITLE, '1 star · shared Bonsai state')
     toggle(mac, 'Disable gallery')
-    next_button = gallery_button(mac, 'Next')
-    try:
-        assert not boolean(mac, next_button, 'AXEnabled')
-    finally:
-        mac.release(next_button)
+    gallery_enabled(mac, False)
     toggle(mac, 'Disable gallery')
+    gallery_enabled(mac, True)
     press_gallery(mac, 'Last')
     selected(mac, 'Deliver')
     mac.press(TITLE, 'Remove delivery page')
