@@ -66,7 +66,11 @@ fn dispose(id: i64) -> Result<(), &'static str> {
     {
         return Err("runtime still running");
     }
-    registry.entries.remove(&id);
+    let transport = registry.entries.remove(&id);
+    drop(registry);
+    if let Some(transport) = transport {
+        transport.close_desktop();
+    }
     Ok(())
 }
 fn status(result: Result<(), ErrorCode>) -> i64 {
@@ -160,8 +164,10 @@ pub fn gpuio_v1_run(cr: &mut OCamlRuntime, id: OCaml<OCamlInt>) {
     }
 }
 #[ocaml_interop::export]
-pub fn gpuio_v1_dispose(_cr: &mut OCamlRuntime, id: OCaml<OCamlInt>) {
-    dispose(id.to_rust()).expect("dispose native runtime");
+pub fn gpuio_v1_dispose(cr: &mut OCamlRuntime, id: OCaml<OCamlInt>) {
+    let id = id.to_rust();
+    cr.releasing_runtime(|| dispose(id))
+        .expect("dispose native runtime");
 }
 
 #[ocaml_interop::export]
@@ -169,4 +175,74 @@ pub fn gpuio_v1_abort(_cr: &mut OCamlRuntime, id: OCaml<OCamlInt>) {
     let transport = lookup(id.to_rust());
     transport.aborting.store(true, Ordering::Release);
     let _ = transport.tx.try_send(());
+}
+
+fn prepare_desktop(
+    transport: &Arc<Transport>,
+    bytes: &[u8],
+) -> gpuio_protocol::desktop::LaunchResponse {
+    use gpuio_protocol::desktop::{Error, LaunchResponse};
+    if transport.finished.load(Ordering::Acquire) {
+        return LaunchResponse::Failed(Error::Closed);
+    }
+    if transport.running.load(Ordering::Acquire) {
+        return LaunchResponse::Failed(Error::Busy);
+    }
+    let request = match gpuio_protocol::decode_desktop_launch(bytes) {
+        Ok(request) => request,
+        Err(_) => return LaunchResponse::Failed(Error::InvalidRequest),
+    };
+    if let Err(error) = transport
+        .desktop_inbox
+        .lock()
+        .expect("desktop inbox poisoned")
+        .prepare(request.identity.clone())
+    {
+        return LaunchResponse::Failed(error);
+    }
+    #[cfg(target_os = "linux")]
+    let response =
+        crate::desktop_instance::prepare(transport, &request.identity.identifier, request.links);
+    #[cfg(not(target_os = "linux"))]
+    let response = {
+        match transport
+            .desktop_inbox
+            .lock()
+            .expect("desktop inbox poisoned")
+            .try_push_batch(request.links)
+        {
+            Ok(notify) => {
+                if notify {
+                    transport
+                        .mailbox
+                        .lock()
+                        .expect("mailbox poisoned")
+                        .control(Event::DesktopPending);
+                    transport.wake_ocaml();
+                }
+                LaunchResponse::Primary
+            }
+            Err(error) => LaunchResponse::Failed(error),
+        }
+    };
+    if response != LaunchResponse::Primary {
+        transport.finish();
+    }
+    response
+}
+
+#[ocaml_interop::export]
+pub fn gpuio_v1_desktop_prepare(
+    cr: &mut OCamlRuntime,
+    id: OCaml<OCamlInt>,
+    bytes: OCaml<OCamlBytes>,
+) -> OCaml<OCamlBytes> {
+    let transport = lookup(id.to_rust());
+    let bytes = bytes.as_bytes().to_owned();
+    let result = cr.releasing_runtime(|| prepare_desktop(&transport, &bytes));
+    let mut output = Vec::new();
+    result
+        .binprot_write(&mut output)
+        .expect("encode desktop launch response");
+    output.to_ocaml(cr)
 }

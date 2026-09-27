@@ -145,3 +145,45 @@ module Response = struct
     | Configured | Capabilities _ | Requested | Registered | Failed _ -> true
   ;;
 end
+
+module Launch_request = struct
+  type t =
+    { identity : Identity.t
+    ; links : string list
+    }
+  [@@deriving bin_io, equal, sexp_of]
+
+  let valid t =
+    Identity.valid t.identity
+    && Link_batch.valid { links = t.links; dropped = 0L }
+    && List.for_all t.links ~f:(fun link ->
+      Stdlib.String.is_valid_utf_8 link && not (String.contains link '\000'))
+  ;;
+
+  let encode t =
+    if valid t
+    then Ok (Bin_prot.Utils.bin_dump bin_writer_t t |> Bigstring.to_string)
+    else Error Error.Invalid_request
+  ;;
+end
+
+module Launch_response = struct
+  type t =
+    | Primary
+    | Forwarded
+    | Failed of Error.t
+  [@@deriving bin_io, equal, sexp_of]
+
+  let decode bytes =
+    match
+      Or_error.try_with (fun () ->
+        if String.length bytes > 2 then failwith "invalid launch response size";
+        let pos_ref = ref 0 in
+        let value = bin_read_t (Bigstring.of_string bytes) ~pos_ref in
+        if !pos_ref <> String.length bytes then failwith "trailing launch response bytes";
+        value)
+    with
+    | Ok value -> value
+    | Error _ -> Failed Native_failure
+  ;;
+end

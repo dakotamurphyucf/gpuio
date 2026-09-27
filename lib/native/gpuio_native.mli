@@ -54,3 +54,10 @@ val dispose : t -> unit
 (** The immutable, statically linked component schemas. Initializes the selected
     backend and freezes registration. Call on the OS main thread before [run]. *)
 val extension_catalog : unit -> Gpuio_protocol.Extension_wire.Schema.t list Or_error.t
+
+(** Preflight before [run] or command submission; owns native startup input and
+    Linux session-bus lease. Blocking OS work releases the OCaml runtime. *)
+val prepare_desktop
+  :  t
+  -> Gpuio_protocol.Desktop_wire.Launch_request.t
+  -> Gpuio_protocol.Desktop_wire.Launch_response.t

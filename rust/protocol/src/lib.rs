@@ -43,7 +43,7 @@ pub use decode::{
     decode_calendar_response, decode_calendar_selection, decode_canvas_scene,
     decode_canvas_view_config, decode_carousel_config, decode_carousel_request,
     decode_color_command, decode_color_config, decode_color_event, decode_color_response,
-    decode_container_query, decode_desktop_request, decode_navigation_stack,
+    decode_container_query, decode_desktop_launch, decode_desktop_request, decode_navigation_stack,
     decode_number_input_command, decode_number_input_config, decode_number_input_event,
     decode_number_input_response, decode_numeric_domain, decode_otp_input_command,
     decode_otp_input_config, decode_otp_input_event, decode_otp_input_response,

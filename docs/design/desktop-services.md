@@ -10,7 +10,8 @@ including native window closure/reopening. Document-window metadata now passes
 native and public macOS tests. macOS file open/reveal and explicit scheme
 registration also have public OS acceptance. Linux portal file services are
 implemented with local peer/worker tests; actual Linux builds/GUI evidence and
-incoming-link forwarding remain pending. The full desktop bridge capability
+real session-bus/OS invocation remain pending. Linux launch forwarding now has
+private D-Bus peer tests and a typed preflight entry point. The full desktop bridge capability
 is not yet advertised.
 
 ## Ownership and delivery
@@ -268,3 +269,64 @@ reported graphical evidence under OCH-17. Notification action tests follow the
 same ready/closed-window contract. OCH-29 supplies a public graphics consumer and
 the capability-to-test matrix. OCH-40 adds seven chart families independently of
 the custom-canvas and external-component acceptance requirements.
+
+
+## Desktop launch preflight and Linux instance ownership
+
+`App.run_desktop identity ~startup_links initialize` returns `Ok Exited` after
+primary cleanup, `Ok Forwarded` after another instance admits the entire launch,
+or a typed desktop error. Forwarded/error launches do not create a GPUI event
+loop or call application initialization. Existing `App.run ?desktop` is retained;
+Linux incoming forwarding requires the new entry point. The library does not
+parse process arguments. The Desktop Lab explicitly consumes arguments after
+`--open-uris`, suitable for a future `.desktop` `Exec` field with `%U`.
+
+The Linux adapter subscribes to its private session-bus connection before an
+atomic `RequestName` for `Identity.identifier`, with `DO_NOT_QUEUE` and no
+replacement flags. The owner keeps a native worker until application teardown.
+A secondary resolves the unique owner, sends `org.gpuio.Application1.OpenLinks`
+at `/org/gpuio/Application1`, and awaits an admission acknowledgement. It never
+falls back to constructing a second UI after failure. Name ownership follows the
+[D-Bus specification](https://dbus.freedesktop.org/doc/dbus-specification.html#bus-messages-request-name).
+This is session-bus ownership, not a machine-wide lock across different sessions.
+The protocol is local application routing, not a remote control/authentication API.
+
+Primary startup links are admitted before servicing secondary launches. An empty
+primary list has no effect; an empty secondary list requests the application's
+existing reopen policy. Forwarded arrays must be UTF-8, NUL-free, at most 64 links,
+16 KiB each and 256 KiB total. Raw URI syntax is deliberately left to normal
+`Desktop` delivery. A full native inbox returns `Busy` without consuming any
+prefix or incrementing the unacknowledged OS-event overflow counter. Equal links
+remain distinct. Acknowledgement means queued, not that application effects ran.
+A lost/timed-out acknowledgement returns `Native_failure` and must not be retried
+automatically because input might already have been admitted.
+
+Session-bus setup and the claim/forward phase each have a five-second deadline.
+The native FFI releases the OCaml runtime during preflight and lease disposal.
+Only owned strings and a weak transport reference enter the worker; it does not
+borrow GPUI state or invoke OCaml. A short mutex protects the shared native inbox.
+Shutdown closes admission, cancels the worker, closes its connection/name and
+joins it. Unexpected bus loss clears the live incoming-link capability and
+reports a normal desktop delivery failure; existing queued links remain available
+for explicit `retry`. There is no reconnection/replay loop. If the session bus is
+replaced, a different process may claim an identity on the new bus; applications
+must not infer a global exclusivity guarantee from the original lease.
+
+macOS continues to use packaged LaunchServices delivery. Preflight also permits
+explicit startup links, queued before OS loop entry; it is not a replacement for
+LaunchServices single-instance behavior when users directly execute a binary.
+The prepared identity must match the subsequent bridge configuration.
+
+Local evidence: five private D-Bus peer tests exercise primary/secondary selection,
+unique-owner routing, empty reopen, bounds, malformed wire input, typed rejection,
+cancellation and bus loss. Native state tests cover atomic admission, prepared
+identity, readiness and failure recovery. Paired OCaml/Rust fixtures cover launch
+encoding. The public macOS test now checks twelve rejected launches without handle
+leaks and verifies explicit startup input precedes a real cold OS link. Existing
+warm links, native document windows, receiver replacement and exit still pass.
+The services variant observes the app behind Finder, then verifies that public
+`Desktop.activate` makes it frontmost. An empty LaunchServices reopen restores a
+closed document window without creating another process. The demo requests focus
+in new-window configuration; activation commands target already-created windows.
+This is not yet real Linux session-bus or desktop invocation evidence. Packaging
+artifacts, Linux checks and the final desktop capability audit remain pending.

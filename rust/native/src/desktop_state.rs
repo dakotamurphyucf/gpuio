@@ -1,5 +1,5 @@
 //! Application-scoped admission before the OCaml runner is ready. Native OS
-//! callbacks own this state on the main thread; no window identity is retained.
+//! callbacks use a short transport-owned mutex; no window identity is retained.
 use gpuio_protocol::desktop::{
     Error, Identity, LinkBatch, MAX_LINK_BATCH_BYTES, MAX_LINK_BYTES, MAX_LINKS,
 };
@@ -8,6 +8,8 @@ use std::collections::VecDeque;
 #[derive(Default)]
 pub struct DesktopState {
     identity: Option<Identity>,
+    prepared: Option<Identity>,
+    failure: Option<Error>,
     links: VecDeque<String>,
     bytes: usize,
     dropped: i64,
@@ -29,12 +31,42 @@ impl DesktopState {
         if !identity.is_valid() {
             return Err(Error::InvalidRequest);
         }
+        if self
+            .prepared
+            .as_ref()
+            .is_some_and(|expected| expected != &identity)
+        {
+            return Err(Error::InvalidRequest);
+        }
         self.identity = Some(identity);
         Ok(())
     }
 
+    pub fn prepare(&mut self, identity: Identity) -> Result<(), Error> {
+        if self.closed {
+            return Err(Error::Closed);
+        }
+        if self.prepared.is_some() || self.identity.is_some() {
+            return Err(Error::AlreadyConfigured);
+        }
+        if !identity.is_valid() {
+            return Err(Error::InvalidRequest);
+        }
+        self.prepared = Some(identity);
+        Ok(())
+    }
+
+    pub fn fail(&mut self, error: Error) -> bool {
+        if self.closed {
+            return false;
+        }
+        let notify = !self.pending();
+        self.failure = Some(error);
+        notify
+    }
+
     pub fn pending(&self) -> bool {
-        !self.links.is_empty() || self.dropped > 0
+        !self.links.is_empty() || self.dropped > 0 || self.failure.is_some()
     }
 
     /// True means a transition to pending input, including an overflow-only
@@ -58,6 +90,33 @@ impl DesktopState {
         !was_pending
     }
 
+    /// Forwarded launches are acknowledged only when their entire batch fits.
+    /// Refusal changes neither accepted input nor the OS overflow counter. Unlike
+    /// unacknowledged OS callbacks, callers can observe this backpressure directly.
+    pub fn try_push_batch(&mut self, links: Vec<String>) -> Result<bool, Error> {
+        if self.closed {
+            return Err(Error::Closed);
+        }
+        if links.len() > MAX_LINKS
+            || links
+                .iter()
+                .any(|s| s.len() > MAX_LINK_BYTES || s.contains('\0'))
+        {
+            return Err(Error::InvalidRequest);
+        }
+        let bytes = links.iter().map(String::len).sum::<usize>();
+        if bytes > MAX_LINK_BATCH_BYTES {
+            return Err(Error::InvalidRequest);
+        }
+        if links.len() > MAX_LINKS - self.links.len() || bytes > MAX_LINK_BATCH_BYTES - self.bytes {
+            return Err(Error::Busy);
+        }
+        let notify = !links.is_empty() && !self.pending();
+        self.bytes += bytes;
+        self.links.extend(links);
+        Ok(notify)
+    }
+
     /// Called only for an admitted correlated request. Its response reservation
     /// prevents loss of removed input due to the ordinary input lane being full.
     pub fn take_links(&mut self) -> Result<LinkBatch, Error> {
@@ -66,6 +125,9 @@ impl DesktopState {
         }
         if self.identity.is_none() {
             return Err(Error::NotReady);
+        }
+        if let Some(error) = self.failure.take() {
+            return Err(error);
         }
         self.bytes = 0;
         Ok(LinkBatch {
@@ -77,6 +139,8 @@ impl DesktopState {
     pub fn close(&mut self) {
         self.closed = true;
         self.identity = None;
+        self.prepared = None;
+        self.failure = None;
         self.links.clear();
         self.bytes = 0;
         self.dropped = 0;
@@ -153,5 +217,56 @@ mod tests {
         state.dropped = i64::MAX;
         state.push("x".repeat(MAX_LINK_BYTES + 1));
         assert_eq!(state.take_links().unwrap().dropped, i64::MAX);
+    }
+
+    #[test]
+    fn prepared_identity_and_bus_failure_survive_readiness_without_reordering() {
+        let mut state = DesktopState::default();
+        state.prepare(identity()).unwrap();
+        assert_eq!(state.prepare(identity()), Err(Error::AlreadyConfigured));
+        let mut other = identity();
+        other.identifier = "com.other".into();
+        assert_eq!(state.configure(other), Err(Error::InvalidRequest));
+        state.try_push_batch(vec!["early".into()]).unwrap();
+        assert!(!state.fail(Error::Unavailable));
+        assert_eq!(state.take_links(), Err(Error::NotReady));
+        state.configure(identity()).unwrap();
+        assert_eq!(state.take_links(), Err(Error::Unavailable));
+        assert_eq!(state.take_links().unwrap().links, ["early"]);
+        assert!(!state.pending());
+        state.close();
+        assert!(!state.fail(Error::Unavailable));
+        assert!(!state.pending());
+    }
+
+    #[test]
+    fn forwarded_batches_are_atomic_and_do_not_report_false_os_overflow() {
+        let mut state = DesktopState::default();
+        state.configure(identity()).unwrap();
+        assert_eq!(state.try_push_batch(vec![]), Ok(false));
+        assert_eq!(
+            state.try_push_batch(vec!["same".into(); MAX_LINKS - 1]),
+            Ok(true)
+        );
+        assert_eq!(
+            state.try_push_batch(vec!["refused".into(); 2]),
+            Err(Error::Busy)
+        );
+        assert_eq!(state.try_push_batch(vec!["last".into()]), Ok(false));
+        let batch = state.take_links().unwrap();
+        assert_eq!(batch.links.len(), MAX_LINKS);
+        assert_eq!(batch.links.last().unwrap(), "last");
+        assert_eq!(batch.dropped, 0);
+        assert_eq!(
+            state.try_push_batch(vec!["bad\0link".into()]),
+            Err(Error::InvalidRequest)
+        );
+        assert!(!state.pending());
+        let full = vec!["x".repeat(MAX_LINK_BYTES); MAX_LINK_BATCH_BYTES / MAX_LINK_BYTES];
+        assert_eq!(state.try_push_batch(full), Ok(true));
+        assert_eq!(state.try_push_batch(vec!["x".into()]), Err(Error::Busy));
+        assert_eq!(state.take_links().unwrap().dropped, 0);
+        state.close();
+        assert_eq!(state.try_push_batch(vec![]), Err(Error::Closed));
     }
 }

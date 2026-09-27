@@ -138,3 +138,28 @@ impl Response {
         }
     }
 }
+
+/// Preflight input, separate from commands submitted after the UI starts.
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct LaunchRequest {
+    pub identity: Identity,
+    pub links: Vec<String>,
+}
+impl LaunchRequest {
+    pub fn is_valid(&self) -> bool {
+        self.identity.is_valid()
+            && self.links.len() <= MAX_LINKS
+            && self
+                .links
+                .iter()
+                .all(|s| s.len() <= MAX_LINK_BYTES && !s.contains('\0'))
+            && self.links.iter().map(String::len).sum::<usize>() <= MAX_LINK_BATCH_BYTES
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum LaunchResponse {
+    Primary,
+    Forwarded,
+    Failed(Error),
+}

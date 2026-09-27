@@ -2,10 +2,14 @@
 use crate::{desktop_operations::Operations, desktop_state::DesktopState, transport::Transport};
 use gpui::App;
 use gpuio_protocol::{desktop as wire, v1::Event};
-use std::{cell::RefCell, rc::Rc, sync::Arc};
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 
 pub(crate) struct HostState {
-    inbox: DesktopState,
+    inbox: Arc<Mutex<DesktopState>>,
     operations: Arc<Operations>,
     #[cfg(target_os = "linux")]
     services: crate::desktop_linux::Services,
@@ -28,7 +32,7 @@ impl Cleanup {
 }
 impl HostState {
     pub(crate) fn close(&mut self) -> Cleanup {
-        self.inbox.close();
+        self.inbox.lock().expect("desktop inbox poisoned").close();
         self.operations.close();
         Cleanup {
             #[cfg(target_os = "linux")]
@@ -40,7 +44,7 @@ pub(crate) type State = Rc<RefCell<HostState>>;
 
 pub(crate) fn install(application: &gpui::Application, transport: Arc<Transport>) -> State {
     let state = Rc::new(RefCell::new(HostState {
-        inbox: DesktopState::default(),
+        inbox: transport.desktop_inbox.clone(),
         operations: Arc::new(Operations::default()),
         #[cfg(target_os = "linux")]
         services: crate::desktop_linux::Services::default(),
@@ -49,9 +53,10 @@ pub(crate) fn install(application: &gpui::Application, transport: Arc<Transport>
     application.on_open_urls(move |links| {
         let mut notify = false;
         {
-            let mut state = incoming.borrow_mut();
+            let state = incoming.borrow();
+            let mut inbox = state.inbox.lock().expect("desktop inbox poisoned");
             for link in links {
-                notify |= state.inbox.push(link);
+                notify |= inbox.push(link);
             }
         }
         if notify {
@@ -66,9 +71,9 @@ pub(crate) fn install(application: &gpui::Application, transport: Arc<Transport>
     state
 }
 
-fn capabilities() -> wire::Capabilities {
+fn capabilities(transport: &Transport) -> wire::Capabilities {
     wire::Capabilities {
-        incoming_links: cfg!(target_os = "macos"),
+        incoming_links: cfg!(target_os = "macos") || transport.desktop_instance_active(),
         runtime_registration: cfg!(target_os = "macos"),
         application_activation: cfg!(target_os = "macos"),
         file_reveal: true,
@@ -93,7 +98,14 @@ pub(crate) fn dispatch(
     if matches!(request, Request::OpenFile(_) | Request::RegisterScheme(_))
         || (cfg!(target_os = "linux") && matches!(request, Request::RevealFile(_)))
     {
-        let identity = match state.borrow().inbox.identity().cloned() {
+        let identity = match state
+            .borrow()
+            .inbox
+            .lock()
+            .expect("desktop inbox poisoned")
+            .identity()
+            .cloned()
+        {
             Some(identity) => identity,
             None => {
                 respond(Response::Failed(Error::NotReady));
@@ -145,44 +157,73 @@ pub(crate) fn dispatch(
             }
         }
     } else {
-        respond(request_immediate(state, request, cx));
+        respond(request_immediate(state, request, cx, transport));
     }
 }
 
-fn request_immediate(state: &State, request: wire::Request, cx: &mut App) -> wire::Response {
+fn request_immediate(
+    state: &State,
+    request: wire::Request,
+    cx: &mut App,
+    transport: &Transport,
+) -> wire::Response {
     use wire::{Error, Request, Response};
     if !request.is_valid() {
         return Response::Failed(Error::InvalidRequest);
     }
     match request {
-        Request::Capabilities => Response::Capabilities(capabilities()),
+        Request::Capabilities => Response::Capabilities(capabilities(transport)),
         Request::Configure(identity) => {
-            let mut state = state.borrow_mut();
-            match state.inbox.configure(identity) {
+            let configured = state
+                .borrow()
+                .inbox
+                .lock()
+                .expect("desktop inbox poisoned")
+                .configure(identity.clone());
+            match configured {
                 Ok(()) => {
-                    let identity = state.inbox.identity().expect("configured identity");
                     cx.set_app_identity(&identity.identifier, &identity.name);
                     Response::Configured
                 }
                 Err(error) => Response::Failed(error),
             }
         }
-        Request::TakeLinks => match state.borrow_mut().inbox.take_links() {
+        Request::TakeLinks => match state
+            .borrow()
+            .inbox
+            .lock()
+            .expect("desktop inbox poisoned")
+            .take_links()
+        {
             Ok(batch) => Response::Links(batch),
             Err(error) => Response::Failed(error),
         },
         Request::Activate(ignoring_other_apps) => {
-            if state.borrow().inbox.identity().is_none() {
+            if state
+                .borrow()
+                .inbox
+                .lock()
+                .expect("desktop inbox poisoned")
+                .identity()
+                .is_none()
+            {
                 return Response::Failed(Error::NotReady);
             }
-            if !capabilities().application_activation {
+            if !capabilities(transport).application_activation {
                 return Response::Failed(Error::Unsupported);
             }
             cx.activate(ignoring_other_apps);
             Response::Requested
         }
         Request::RevealFile(path) => {
-            if state.borrow().inbox.identity().is_none() {
+            if state
+                .borrow()
+                .inbox
+                .lock()
+                .expect("desktop inbox poisoned")
+                .identity()
+                .is_none()
+            {
                 return Response::Failed(Error::NotReady);
             }
             #[cfg(target_os = "macos")]

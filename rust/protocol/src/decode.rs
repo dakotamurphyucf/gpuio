@@ -4,7 +4,7 @@ use std::io::{Cursor, Read};
 
 mod accessibility;
 mod desktop;
-pub use desktop::decode_desktop_request;
+pub use desktop::{decode_desktop_launch, decode_desktop_request};
 mod avatar;
 mod calendar;
 mod carousel;

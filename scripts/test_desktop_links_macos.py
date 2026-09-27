@@ -6,6 +6,7 @@ does not request default-handler reassignment. Every launch uses an explicit app
 """
 
 import argparse
+import ctypes as C
 import os
 from pathlib import Path
 import plistlib
@@ -56,6 +57,9 @@ def owned_pids(bundle: Path) -> list[int]:
 
 
 def exercise(binary: Path, artifact: Path, services: bool = False) -> None:
+    invalid = subprocess.run([str(binary.resolve()), "--check-invalid-launch"],
+                             capture_output=True, text=True, timeout=10, check=True)
+    assert "DESKTOP_LAB: invalid-launch-cleanup" in invalid.stdout + invalid.stderr
     # Launch Services does not discover default handlers in the system's
     # temporary directory. Keep disposable bundles in the ignored workspace.
     fixture_root = Path(__file__).resolve().parent.parent / "scratch/desktop-os"
@@ -103,6 +107,7 @@ def exercise(binary: Path, artifact: Path, services: bool = False) -> None:
                 from desktop_service_fixture import ServiceFixture
                 service_fixture = ServiceFixture(root, owned_pids)
                 arguments.append("--service-path=" + str(service_fixture.path.resolve()))
+            arguments.extend(["--open-uris", "gpuio-desktop-lab://document/argv"])
             proxy = subprocess.Popen([
                 "/usr/bin/open", "-W", "-n", "-g", "-a", str(bundle),
                 "--stdout", str(log), "--stderr", str(log),
@@ -112,6 +117,7 @@ def exercise(binary: Path, artifact: Path, services: bool = False) -> None:
             initial = content()
             assert initial.index("DESKTOP_LAB: waiting") < initial.index("DESKTOP_LAB: ready")
             assert initial.index("DESKTOP_LAB: ready") < initial.index("DESKTOP_LAB: link ")
+            assert initial.index("DESKTOP_LAB: link gpuio-desktop-lab://document/argv") < initial.index("DESKTOP_LAB: link gpuio-desktop-lab://document/cold")
             assert "DESKTOP_LAB: exclusive-receiver" in initial
             pids = owned_pids(bundle)
             assert len(pids) == 1, pids
@@ -125,6 +131,26 @@ def exercise(binary: Path, artifact: Path, services: bool = False) -> None:
             mac.wait_text("GPUIO · Desktop Lab", "Document /warm")
             if service_fixture is not None:
                 service_fixture.exercise(send, wait_for)
+                finder = service_fixture.finder
+                finder.set(finder.app, "AXFrontmost", finder.true)
+                boolean = mac.cf.CFBooleanGetValue
+                boolean.restype, boolean.argtypes = C.c_bool, [C.c_void_p]
+                def frontmost(expected):
+                    deadline = time.monotonic() + 5
+                    while time.monotonic() < deadline:
+                        value = mac.attr(mac.app, "AXFrontmost")
+                        try:
+                            if value and boolean(value) == expected:
+                                return
+                        finally:
+                            if value:
+                                mac.release(value)
+                        time.sleep(0.05)
+                    raise AssertionError(f"Public activation did not produce frontmost={expected}")
+                frontmost(False)
+                send("services/activate")
+                wait_for("DESKTOP_LAB: service /activate (Ok())")
+                frontmost(True)
             send("metadata/edited")
             wait_for("DESKTOP_LAB: metadata-edited")
             send("metadata/clear")
@@ -134,6 +160,9 @@ def exercise(binary: Path, artifact: Path, services: bool = False) -> None:
             send("close/window")
             wait_for("DESKTOP_LAB: window-close-requested")
             wait_windows(0)
+            subprocess.run(["/usr/bin/open", "-g", "-a", str(bundle)], check=True, timeout=5)
+            wait_for("DESKTOP_LAB: reopened")
+            wait_windows(1)
             send("document/reopened")
             wait_for("DESKTOP_LAB: window-opened 2")
             wait_windows(1)

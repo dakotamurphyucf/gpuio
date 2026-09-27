@@ -8,7 +8,7 @@ and evidence remain in [the milestone 5 handoff](milestone-5.md).
 
 | Ticket | Deliverable | Current state |
 | -- | -- | -- |
-| OCH-27 | Application identity, deep-link packaging/startup/live delivery, activation, file reveal/open, document-window metadata | In progress: macOS OS acceptance passes; Linux portal file adapters pass local peer/worker tests; Linux links/packaging and consolidated CI pending |
+| OCH-27 | Application identity, deep-link packaging/startup/live delivery, activation, file reveal/open, document-window metadata | In progress: macOS OS acceptance passes; Linux portal file adapters pass local peer/worker tests; Linux launch forwarding has local peer/codec checks; packaging and real Linux gates pending |
 | OCH-28 | OS notifications, permissions/capabilities, replacement/dismissal and stale-safe action routing | Pending OCH-27 application identity/routing |
 | OCH-40 | Line, area, bar, pie, radar, candlestick and Sankey components with typed bounded datasets, native interaction and accessible alternatives | Pending native adapter evaluation; existing pins retained |
 | OCH-29 | Focused graphics application consuming public canvas and an independently packaged native component; desktop workflows and one chart | Pending integration of preceding capabilities |
@@ -88,6 +88,13 @@ transfer, options, portal responses/version limits and cancellation. The shared
 file-chooser request engine keeps its prior lifecycle regression coverage. This
 is protocol/worker evidence on macOS, not Linux graphical acceptance.
 
-No full desktop capability bit is advertised yet. Next: Linux launch/instance
-forwarding and packaging, then
+Linux launch arbitration/forwarding now uses `App.run_desktop` before UI creation.
+Private D-Bus peer tests cover ownership outcomes, unique-owner routing, bounded
+atomic batches, typed errors, cancellation and bus loss. Native/codec tests and
+the packaged macOS regression pass with explicit startup input and rejected-launch
+handle cleanup. Real empty macOS reopen and public activation from behind Finder
+also pass. This is not yet real Linux bus/desktop invocation evidence.
+
+No full desktop capability bit is advertised yet. Next: packaging, real Linux
+checks and the final OCH-27 acceptance audit, then remaining M6 families and
 consolidated hosted validation. No M6 ticket is complete yet.

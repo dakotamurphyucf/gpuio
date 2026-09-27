@@ -38,3 +38,22 @@ impl Decoder<'_> {
 pub fn decode_desktop_request(bytes: &[u8]) -> Result<Request, DecodeError> {
     decode_drag_data(bytes, |decoder| decoder.desktop_request())
 }
+
+pub fn decode_desktop_launch(bytes: &[u8]) -> Result<LaunchRequest, DecodeError> {
+    decode_drag_data(bytes, |d| {
+        let identity = Identity {
+            identifier: d.desktop_text(MAX_IDENTIFIER_BYTES)?,
+            name: d.desktop_text(MAX_NAME_BYTES)?,
+            schemes: d.list(MAX_SCHEMES, |d| d.desktop_text(MAX_SCHEME_BYTES))?,
+        };
+        let value = LaunchRequest {
+            identity,
+            links: d.list(MAX_LINKS, |d| d.desktop_text(MAX_LINK_BYTES))?,
+        };
+        if value.is_valid() {
+            Ok(value)
+        } else {
+            Err(DecodeError::Malformed)
+        }
+    })
+}

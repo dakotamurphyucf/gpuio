@@ -114,3 +114,34 @@ let%expect_test "public identity preserves declared scheme order and normalizes 
      (schemes (my-app another)))
     |}]
 ;;
+
+let%expect_test "desktop launch paired fixture and all-or-error validation" =
+  let request : Wire.Launch_request.t =
+    { identity = { identifier = "com.example"; name = "Demo"; schemes = [ "gpuio" ] }
+    ; links = [ "gpuio://a"; "bad" ]
+    }
+  in
+  let encoded = Wire.Launch_request.encode request |> Result.ok |> Option.value_exn in
+  assert (
+    String.equal encoded "\011com.example\004Demo\001\005gpuio\002\009gpuio://a\003bad");
+  List.iter
+    [ [ "bad\000input" ]
+    ; [ "\255" ]
+    ; List.init 65 ~f:(fun _ -> "x")
+    ; [ String.make 16_385 'x' ]
+    ; List.init 17 ~f:(fun _ -> String.make 16_384 'x')
+    ]
+    ~f:(fun links ->
+      assert (Result.is_error (Wire.Launch_request.encode { request with links })));
+  List.iter [ "\000"; "\001"; "\002\006"; "\000\000"; "\003"; "" ] ~f:(fun bytes ->
+    print_s [%sexp (Wire.Launch_response.decode bytes : Wire.Launch_response.t)]);
+  [%expect
+    {|
+    Primary
+    Forwarded
+    (Failed Busy)
+    (Failed Native_failure)
+    (Failed Native_failure)
+    (Failed Native_failure)
+    |}]
+;;

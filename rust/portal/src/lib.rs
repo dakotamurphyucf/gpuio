@@ -9,3 +9,5 @@ mod motion;
 pub use motion::watch_motion;
 
 pub mod desktop;
+
+pub mod instance;

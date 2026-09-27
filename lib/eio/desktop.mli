@@ -9,7 +9,8 @@ module Document = Gpuio.Window.Document
     Its lifetime is independent of all windows. *)
 type t
 
-(** Requires [App.run ~desktop:identity]. A second live receiver returns [Busy].
+(** Requires [App.run ~desktop:identity] or [App.run_desktop identity].
+    A second live receiver returns [Busy].
     No links are delivered until [ready]. Application shutdown closes the receiver.
     Events are delivered in FIFO order, waiting for each effect to complete before
     starting the next, with a scheduler yield between callbacks. Invalid links

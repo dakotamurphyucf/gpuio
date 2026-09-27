@@ -160,3 +160,37 @@ fn input_batches_bound_count_bytes_and_overflow_accounting() {
     batch.links.push("x".into());
     assert!(!batch.is_valid());
 }
+
+#[test]
+fn launch_preflight_matches_ocaml_and_rejects_partial_or_unbounded_input() {
+    use gpuio_protocol::decode_desktop_launch;
+    let mut request = LaunchRequest {
+        identity: Identity {
+            identifier: "com.example".into(),
+            name: "Demo".into(),
+            schemes: vec!["gpuio".into()],
+        },
+        links: vec!["gpuio://a".into(), "bad".into()],
+    };
+    let expected = b"\x0bcom.example\x04Demo\x01\x05gpuio\x02\x09gpuio://a\x03bad";
+    assert_eq!(encode(&request), expected);
+    assert_eq!(decode_desktop_launch(expected).unwrap(), request);
+    for end in 0..expected.len() {
+        assert!(decode_desktop_launch(&expected[..end]).is_err());
+    }
+    let mut trailing = expected.to_vec();
+    trailing.push(0);
+    assert!(decode_desktop_launch(&trailing).is_err());
+    for links in [
+        vec!["bad\0input".into()],
+        vec!["x".into(); MAX_LINKS + 1],
+        vec!["x".repeat(MAX_LINK_BYTES + 1)],
+        vec!["x".repeat(MAX_LINK_BYTES); 17],
+    ] {
+        request.links = links;
+        assert!(decode_desktop_launch(&encode(&request)).is_err());
+    }
+    assert_eq!(encode(&LaunchResponse::Primary), [0]);
+    assert_eq!(encode(&LaunchResponse::Forwarded), [1]);
+    assert_eq!(encode(&LaunchResponse::Failed(Error::Busy)), [2, 6]);
+}

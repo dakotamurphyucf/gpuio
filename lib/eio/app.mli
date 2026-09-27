@@ -289,3 +289,35 @@ val run
     This initializes the selected backend and freezes native registration.
     Compare with package definitions before constructing application windows. *)
 val extension_catalog : unit -> Gpuio.Extension.Schema.t list Or_error.t
+
+module Launch_outcome : sig
+  type t =
+    | Exited
+    | Forwarded
+  [@@deriving equal, sexp_of]
+end
+
+(** Desktop entry point with explicit startup arguments. On Linux, claim the
+    application's identity on the current session bus before starting GPUI. If
+    owned, atomically forward [startup_links] and return [Forwarded] without
+    calling [initialize]. An empty secondary launch requests [on_reopen].
+    The primary delivers startup links through [Desktop.attach]/[ready].
+    macOS uses LaunchServices for packaged single-instance dispatch; explicit
+    startup links are queued in addition to OS-delivered links.
+
+    Each batch permits 64 UTF-8, NUL-free strings, at most 16 KiB each and
+    256 KiB total. URI syntax is validated during normal desktop delivery.
+    [Busy] means no part of the forwarded batch was admitted. [Native_failure]
+    may mean the reply was lost after admission: do not automatically retry.
+    Missing Linux session bus returns [Unavailable], without starting another UI.
+    [Exited] means the primary ran and completed cleanup. Other options and
+    callback exception behavior match [run]. No global argv parsing occurs. *)
+val run_desktop
+  :  ?tick_hz:float
+  -> ?max_tasks:int
+  -> ?exit_on_last_window:bool
+  -> ?motion:Gpuio.Animation.Preference.t
+  -> Gpuio.Desktop.Identity.t
+  -> startup_links:string list
+  -> (Eio_unix.Stdenv.base -> t -> unit)
+  -> (Launch_outcome.t, Gpuio.Desktop.Error.t) Result.t

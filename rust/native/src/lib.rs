@@ -15,6 +15,8 @@ pub mod canvas_state;
 pub mod canvas_store;
 mod desktop_host;
 #[cfg(any(target_os = "linux", test))]
+mod desktop_instance;
+#[cfg(any(target_os = "linux", test))]
 mod desktop_linux;
 #[cfg(target_os = "macos")]
 mod desktop_macos;

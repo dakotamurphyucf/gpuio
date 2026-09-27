@@ -11,7 +11,7 @@ let desktop_ok = function
   | Error error -> raise_s [%sexp (error : Desktop.Error.t)]
 ;;
 
-let () =
+let main () =
   let self_test = Array.exists (Sys.get_argv ()) ~f:(String.equal "--self-test") in
   let service_path =
     Array.find_map (Sys.get_argv ()) ~f:(String.chop_prefix ~prefix:"--service-path=")
@@ -28,7 +28,16 @@ let () =
       ()
     |> Or_error.ok_exn
   in
-  App.run ~desktop:identity ~exit_on_last_window:false (fun env app ->
+  let startup_links =
+    Sys.get_argv ()
+    |> Array.to_list
+    |> List.tl_exn
+    |> List.drop_while ~f:(fun arg -> not (String.equal arg "--open-uris"))
+    |> function
+    | [] -> []
+    | _marker :: links -> links
+  in
+  App.run_desktop identity ~startup_links ~exit_on_last_window:false (fun env app ->
     let state = B.Expert.Var.create "Waiting for an application link…" in
     let current_window = ref None in
     let retired_window = ref None in
@@ -61,14 +70,14 @@ let () =
         ; V.button "Quit lab" ~on_click:(E.of_thunk (fun () -> App.shutdown app))
         ]
     in
-    let ensure_window () =
+    let ensure_window ?(focus = false) () =
       match !current_window with
       | Some window when not (App.Window.is_closed window) -> window
       | None | Some _ ->
         let window =
           App.open_window
             app
-            ~focus:false
+            ~focus
             ~title:"GPUIO · Desktop Lab"
             ~width:680.
             ~height:340.
@@ -80,6 +89,15 @@ let () =
         emit (sprintf "window-opened %d" !opened);
         window
     in
+    App.on_reopen app (fun () ->
+      let window = ensure_window ~focus:true () in
+      match App.Window.snapshot window with
+      | None -> E.of_thunk (fun () -> emit "reopened")
+      | Some _ ->
+        E.map (App.Window.command window Activate) ~f:(fun result ->
+          match result with
+          | Ok _ -> emit "reopened"
+          | Error error -> raise_s [%sexp (error : Gpuio.Window.Error.t)]));
     let rec attach () = Desktop.attach app ~on_event |> desktop_ok
     and on_event event =
       match event with
@@ -91,6 +109,7 @@ let () =
         let action = Gpuio.Deep_link.path link in
         let operation =
           match action with
+          | "/activate" -> Desktop.activate app ~ignoring_other_apps:true ()
           | "/open" -> Desktop.open_file app (path ())
           | "/reveal" -> Desktop.reveal_file app (path ())
           | "/missing" ->
@@ -207,4 +226,33 @@ let () =
             App.shutdown app))
       |> Or_error.ok_exn
       |> fun (_ : Scope.Task.t) -> ())
+  |> desktop_ok
+  |> fun outcome ->
+  match outcome with
+  | App.Launch_outcome.Exited -> ()
+  | Forwarded -> Eio.traceln "DESKTOP_LAB: forwarded"
+;;
+
+let check_invalid_launch () =
+  let identity =
+    Desktop.Identity.create ~identifier:"com.gpuio.desktop-lab" ~name:"Desktop Lab" ()
+    |> Or_error.ok_exn
+  in
+  (* More than the native handle limit proves failed preflights dispose handles. *)
+  for _ = 1 to 12 do
+    let result =
+      App.run_desktop identity ~startup_links:[ "invalid\000input" ] (fun _ _ ->
+        failwith "invalid launch initialized the application")
+    in
+    match result with
+    | Error Desktop.Error.Invalid_request -> ()
+    | Ok _ | Error _ -> failwith "invalid launch did not return Invalid_request"
+  done;
+  Eio.traceln "DESKTOP_LAB: invalid-launch-cleanup"
+;;
+
+let () =
+  if Array.exists (Sys.get_argv ()) ~f:(String.equal "--check-invalid-launch")
+  then check_invalid_launch ()
+  else main ()
 ;;

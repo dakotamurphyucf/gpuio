@@ -1688,12 +1688,13 @@ let reraise_result = function
   | Error (exn, bt) -> Stdlib.Printexc.raise_with_backtrace exn bt
 ;;
 
-let run
+let run_with_preflight
       ?(tick_hz = 60.)
       ?(max_tasks = 1024)
       ?(exit_on_last_window = true)
       ?(motion = Gpuio.Animation.Preference.System)
       ?desktop
+      ~preflight
       initialize
   =
   if (not (Float.is_finite tick_hz)) || Float.(tick_hz < 0.01 || tick_hz > 240.)
@@ -1711,23 +1712,89 @@ let run
           (Gpuio_native.create_with_options ~exit_on_last_window)
       in
       Eio.Flow.close write;
-      let domain =
-        Domain.spawn (fun () ->
-          try worker native read ~tick_hz ~max_tasks ~motion ~desktop initialize with
-          | exn ->
-            let bt = Stdlib.Printexc.get_raw_backtrace () in
-            Gpuio_native.abort native;
-            Stdlib.Printexc.raise_with_backtrace exn bt)
-      in
-      let native_result = capture (fun () -> Gpuio_native.run native) in
-      if Result.is_error native_result then Gpuio_native.abort native;
-      let worker_result = capture (fun () -> Domain.join domain) in
-      Gpuio_native.dispose native;
-      reraise_result worker_result;
-      reraise_result native_result))
+      Exn.protect
+        ~finally:(fun () -> Gpuio_native.dispose native)
+        ~f:(fun () ->
+          match preflight native with
+          | Error error -> Error error
+          | Ok `Forwarded -> Ok `Forwarded
+          | Ok `Primary ->
+            let domain =
+              Domain.spawn (fun () ->
+                try
+                  worker native read ~tick_hz ~max_tasks ~motion ~desktop initialize
+                with
+                | exn ->
+                  let bt = Stdlib.Printexc.get_raw_backtrace () in
+                  Gpuio_native.abort native;
+                  Stdlib.Printexc.raise_with_backtrace exn bt)
+            in
+            let native_result = capture (fun () -> Gpuio_native.run native) in
+            if Result.is_error native_result then Gpuio_native.abort native;
+            let worker_result = capture (fun () -> Domain.join domain) in
+            reraise_result worker_result;
+            reraise_result native_result;
+            Ok `Exited)))
 ;;
 
 let extension_catalog () =
   let%bind.Or_error schemas = Gpuio_native.extension_catalog () in
   List.map schemas ~f:Gpuio.Extension.Schema.Expert.of_wire |> Or_error.all
+;;
+
+let run ?tick_hz ?max_tasks ?exit_on_last_window ?motion ?desktop initialize =
+  match
+    run_with_preflight
+      ?tick_hz
+      ?max_tasks
+      ?exit_on_last_window
+      ?motion
+      ?desktop
+      ~preflight:(fun _ -> Ok `Primary)
+      initialize
+  with
+  | Ok `Exited -> ()
+  | Ok `Forwarded | Error () -> assert false
+;;
+
+module Launch_outcome = struct
+  type t =
+    | Exited
+    | Forwarded
+  [@@deriving equal, sexp_of]
+end
+
+let run_desktop
+      ?tick_hz
+      ?max_tasks
+      ?exit_on_last_window
+      ?motion
+      identity
+      ~startup_links
+      initialize
+  =
+  let preflight native =
+    match
+      Gpuio_native.prepare_desktop
+        native
+        { identity = Gpuio.Desktop.Expert.identity_to_wire identity
+        ; links = startup_links
+        }
+    with
+    | Primary -> Ok `Primary
+    | Forwarded -> Ok `Forwarded
+    | Failed error -> Error (Gpuio.Desktop.Expert.error_of_wire error)
+  in
+  Result.map
+    (run_with_preflight
+       ?tick_hz
+       ?max_tasks
+       ?exit_on_last_window
+       ?motion
+       ~desktop:identity
+       ~preflight
+       initialize)
+    ~f:(function
+    | `Exited -> Launch_outcome.Exited
+    | `Forwarded -> Forwarded)
 ;;

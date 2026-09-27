@@ -114,3 +114,13 @@ let extension_catalog () =
   Lazy.force initialization;
   Gpuio_protocol.Extension_wire.Catalog.decode (extension_catalog_bytes ())
 ;;
+
+external prepare_desktop_bytes : int -> string -> string = "gpuio_v1_desktop_prepare"
+
+let prepare_desktop t request =
+  match Gpuio_protocol.Desktop_wire.Launch_request.encode request with
+  | Error error -> Gpuio_protocol.Desktop_wire.Launch_response.Failed error
+  | Ok bytes ->
+    prepare_desktop_bytes t.raw bytes
+    |> Gpuio_protocol.Desktop_wire.Launch_response.decode
+;;
