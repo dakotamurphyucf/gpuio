@@ -1,7 +1,10 @@
 # Statically linked native components
 
-Status: OCH-23 design and implementation in progress. This document is a contract
-draft; the ticket's clean-consumer and native acceptance gates are not yet passed.
+Status: OCH-23 is implemented and locally accepted on macOS, including the
+separately packaged component, staged clean consumer and native lifecycle/input
+checks. This document records the implemented contract. See the
+[evidence ledger](../evidence/extensions-och23.md) and
+[milestone handoff](../milestone-5.md) for validation and hosted delivery status.
 
 ## Ownership and identity
 

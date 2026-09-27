@@ -4,8 +4,8 @@ Status: local component acceptance is complete on macOS. The family includes
 all components in the live OCH-37 scope and advertises bit 38 (`274877906944`);
 the shared required capability mask is `2199023255551`. Both bridge halves must be
 rebuilt together. The [acceptance matrix](../evidence/navigation-components-och37.md#current-local-acceptance-matrix)
-links the implementation evidence. Consolidated hosted macOS/Linux checks and
-merge remain required; Linux GUI acceptance is tracked separately in OCH-17.
+links the implementation evidence. The [milestone handoff](../milestone-5.md)
+records hosted gates and delivery; Linux GUI acceptance stays in OCH-17.
 OCH-46 integrates these components into the polished chat showcase.
 
 ## Ownership and component mapping

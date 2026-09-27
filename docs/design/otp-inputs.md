@@ -5,7 +5,7 @@ commands/events and local macOS acceptance are complete. This includes native
 IME/clipboard/AX, public application/OS keyboard checks, GPU appearance, managed
 row retention, hidden/modal/window lifetimes, overload and retained-owner workload.
 Capability `34359738368` covers numeric/range/stepper/OTP inputs; aggregate
-`274877906943`. Consolidated hosted gates and merge remain pending. This document
+`2199023255551`. See the [milestone handoff](../milestone-5.md) for hosted gates and delivery. This document
 supplements [numeric inputs](numeric-inputs.md).
 
 ## Implemented text contract

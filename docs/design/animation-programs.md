@@ -1,14 +1,14 @@
 # Spring, sequence and shared-repeat motion (OCH-25)
 
-Status: locally implemented and validated on macOS; consolidated hosted gates
-and merge remain pending. The OCH-12 duration-based API remains supported.
+Status: locally implemented and validated on macOS; see the
+[milestone handoff](../milestone-5.md) for hosted gates and delivery.
+The OCH-12 duration-based API remains supported.
 Spring parameters, typed programs, bounded decoding, compiled timelines, atomic
 session admission, retained clocks and the public `View.animate_program` API are
 implemented. Actual mounted/public checks cover geometry, controls, retained-list
 and panel visibility, deferred overlays, cross-window clocks and bounded workloads.
-Capability `4294967296` advertises advanced programs; the current aggregate is `274877906943`.
-Acceptance remains the complete live OCH-25 ticket, followed by integrated chat
-showcase OCH-46. Linux GUI follows the existing OCH-17 platform policy.
+Capability `4294967296` advertises advanced programs; the current aggregate is `2199023255551`.
+The complete live OCH-25 scope is also integrated into chat showcase OCH-46. Linux GUI follows the existing OCH-17 platform policy.
 
 ## Public shape and native ownership
 

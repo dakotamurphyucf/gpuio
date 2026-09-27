@@ -76,7 +76,7 @@ make the newer-draft race observable and prints a marker after `App.run` returns
 Linux GUI execution remains informational under OCH-17; Linux build/unit checks
 remain required. See [milestone evidence](../../docs/evidence/agent-workspace-m4.md).
 
-## Milestone 5 integration in progress
+## Milestone 5 workspace showcase
 
 **Explore workspace** opens the review inspector beside the conversation. Click
 its checkpoint card or focus it and press Space/Enter, choose a step of 1 or 5,

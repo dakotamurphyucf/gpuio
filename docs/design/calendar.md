@@ -4,7 +4,7 @@ Status: implemented and locally accepted on macOS. Public Core/Bonsai/Eio inline
 calendars and controlled-value popup pickers cover single dates and inclusive
 ranges, bounded civil constraints, explicit navigation and native ownership.
 Capability `68719476736` (`1 << 36`) advertises this family; the current aggregate
-is `274877906943`. Required consolidated macOS/Linux CI and merge remain pending.
+is `2199023255551`. See the [milestone handoff](../milestone-5.md) for hosted gates and delivery.
 See the [acceptance evidence](../evidence/calendar-och35.md) for exact coverage and
 platform limits. No editable date field, system-locale inference or time-zone
 conversion is implied.

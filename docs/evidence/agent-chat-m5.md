@@ -975,5 +975,7 @@ walkthroughs have passing results. A fresh independent extension consumer built
 against staged public libraries with the locked backend, ran its native smoke
 scenario and exited successfully; no opam switch was modified.
 
-Required hosted macOS/Linux build/unit gates, any resulting fixes and merge remain.
-Full Linux GUI acceptance remains OCH-17.
+[PR #13](https://github.com/dakotamurphyucf/gpuio/pull/13) records required hosted
+macOS/Linux build/unit gates, any resulting fixes, the final checked head and merge.
+The [milestone handoff](../milestone-5.md) maps current contracts and delivery;
+full Linux GUI acceptance remains OCH-17.

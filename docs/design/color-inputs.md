@@ -3,8 +3,7 @@
 Status: OCH-36 local macOS acceptance is complete. Native channels, palette swatches,
 hex/HSLA editing, correlated Bonsai/Eio commands and controlled popup selection are
 implemented. Capability `137438953472` (`1 << 37`) advertises the family; the current
-aggregate is `274877906943`. Consolidated hosted macOS/Linux checks and merge remain
-pending. See [acceptance evidence](../evidence/color-inputs-och36.md).
+aggregate is `2199023255551`. See the [milestone handoff](../milestone-5.md) for hosted gates and delivery. See [acceptance evidence](../evidence/color-inputs-och36.md).
 
 ## Concrete values
 

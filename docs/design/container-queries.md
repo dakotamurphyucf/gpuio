@@ -1,8 +1,8 @@
 # Native container queries (OCH-26)
 
-Status: mounted bridge and local macOS acceptance implemented; consolidated hosted
-macOS/Linux gates and merge remain pending. Capability `8589934592` advertises
-container queries; the current aggregate is `274877906943`.
+Status: mounted bridge and local macOS acceptance implemented; see the
+[milestone handoff](../milestone-5.md) for hosted gates and delivery. Capability `8589934592` advertises
+container queries; the current aggregate is `2199023255551`.
 Read the live OCH-26 ticket and the platform policy in AGENTS.md for acceptance.
 
 ## Public model

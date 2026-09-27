@@ -4,8 +4,9 @@ Status: public Core/Bonsai/Eio tables, native admission and retained host render
 are implemented and locally accepted on macOS. The [acceptance audit](../evidence/data-tables-och39-audit.md)
 maps the live scope to code and evidence. Managed tables advertise bit 40
 (`1099511627776`); both bridge halves require mask `2199023255551`.
-The chat showcase and consolidated hosted macOS/Linux gates remain. Local
-acceptance does not claim ticket closure or Linux GUI acceptance.
+The chat showcase and consolidated local checks also pass. See the
+[milestone handoff](../milestone-5.md) for required hosted gates and delivery.
+Linux GUI acceptance remains separate under OCH-17.
 
 ## Ownership and scope
 
@@ -25,9 +26,9 @@ reconciled with application acceptance and explicit replacement commands.
 The ticket includes row/cell selection, keyboard navigation, Unicode copy,
 context actions, column resizing/reordering/left pinning/sort requests, grouped
 headers, empty/loading/error states and bounded paging. It does not include
-editable grid transactions. The public widget remains to be connected; paired wire descriptions, retained
-admission and the native host renderer are implemented. The Core and Eio resources below are implemented, but are not
-yet connected through a public Core/Bonsai table component.
+editable grid transactions. The public `Gpuio_bonsai.Table` presenter connects
+Core row references, Eio paging, paired wire descriptions and the retained native
+host. Its mounted controller validates source, query and membership lifetimes.
 
 ## Column schema
 
@@ -158,8 +159,8 @@ The extracted state retains row-lifetime and column keys for selection. Refresh
 quietly remaps those keys or clears missing targets; explicit native selection
 replacement rejects invalid targets atomically without scrolling or emitting a
 user event. Layout indices remain internal. The host must issue distinct native
-row keys for distinct membership lifetimes. This native foundation is not yet
-connected to Core row references or mounted/query generations.
+row keys for distinct membership lifetimes. The public presenter maps Core row
+references into these native keys and validates mounted/query generations.
 
 The local macOS test confirms sampled virtualization, selection remapping through
 row/column reorder, removal handling and native entity release on window close.
@@ -191,8 +192,9 @@ commands run after the update and take precedence. Revealing an already pinned
 column leaves the scrolling region unchanged.
 
 These contracts pass native layout and pointer tests, including row arrival
-during resize/reorder. Full Eio paging/query races and full-history bounded cache acceptance remain
-after the initial retained host integration below.
+during resize/reorder. Eio paging/query races and full-history bounded retention
+are covered by the public/native integration and the
+[acceptance audit](../evidence/data-tables-och39-audit.md).
 
 ## Paired bridge descriptions and public configuration
 
@@ -272,13 +274,12 @@ move/group/pin policy, sortable flags and disabled state. Offscreen logical rows
 are valid targets even when their cell descriptions are absent. Requests remain
 ordered in the bounded mailbox; resize column strings count toward its byte
 budget and message-sized drains. The OCaml event envelope validates payloads,
-but application callback dispatch still awaits the public mounted adapter.
+and the mounted public presenter dispatches validated typed requests.
 
-The new operation/event tags append to the under-development protocol without
-changing existing tags. No table capability is advertised from admission alone.
-Rendering, command execution and native focus pins are now integrated. Clipboard
-effects still require integration; broader native
-keyboard/accessibility/cache/lifecycle acceptance remains.
+Operation/event tags append to the protocol without changing existing tags.
+The managed-table capability is advertised after rendering, commands, clipboard,
+native focus, keyboard/accessibility and bounded-retention integration. Both
+bridge halves must use the same capability mask and protocol revision.
 
 ## Retained native host
 
@@ -512,17 +513,17 @@ exercise these getters/actions, including Unicode values and logical positions
 after a 50,000-row jump. These checks do not claim VoiceOver speech, physical
 keyboard/IME acceptance or Linux graphical accessibility acceptance.
 
-## Remaining acceptance
+## Acceptance and delivery
 
-Local evidence now covers the native adapter, public presenter/pager, 100,000-row
+Local evidence covers the native adapter, public presenter/pager, 100,000-row
 full traversal/revisit, bounded retention, horizontal/vertical behavior, native
-input/copy/accessibility, context flows and cleanup. Final work remains:
+input/copy/accessibility, context flows and cleanup. OCH-46 also integrates the
+public table into the chat inspector and combined four-window workload.
 
-- Complete hosted platform verification of the [local acceptance audit](../evidence/data-tables-och39-audit.md);
-  do not infer ticket completion from a single suite.
-- Add the polished chat showcase in OCH-46, then consolidated local/hosted
-  macOS and Linux checks and merge, including both selected adapter build paths.
-  Linux GUI acceptance remains OCH-17.
+The [acceptance audit](../evidence/data-tables-och39-audit.md) records component
+coverage; the [milestone handoff](../milestone-5.md) links consolidated local
+results and required hosted verification of both selected adapter build paths.
+Linux GUI acceptance remains OCH-17.
 
 ## Application context flows
 

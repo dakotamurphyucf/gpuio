@@ -2,8 +2,8 @@
 
 Status: local macOS acceptance is complete for single/range sliders, numeric
 editors/steppers and segmented OTP inputs. Capability `34359738368` advertises this
-family (aggregate `274877906943`). Consolidated hosted macOS/Linux gates and merge
-remain pending; full Linux GUI release acceptance remains OCH-17. See the
+family (aggregate `2199023255551`). See the [milestone handoff](../milestone-5.md) for hosted gates and delivery;
+full Linux GUI release acceptance remains OCH-17. See the
 [current evidence](../evidence/numeric-inputs-och34.md). Historical checkpoints
 below describe the staged implementation, not remaining work.
 

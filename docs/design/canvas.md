@@ -2,9 +2,9 @@
 
 Status: OCH-24 is implemented and locally validated on macOS. The native canvas,
 public OCaml/Bonsai/Eio API and runnable [Canvas Lab](../../examples/canvas/README.md)
-are available on the milestone-5 branch. Consolidated macOS/Linux hosted gates
-remain pending; Linux GUI release validation remains OCH-17 under the accepted
-platform policy. See the [acceptance evidence](../evidence/canvas-och24.md) for exact
+are available in [PR #13](https://github.com/dakotamurphyucf/gpuio/pull/13), which
+records required hosted gates and merge state. Linux GUI release validation
+remains OCH-17 under the accepted platform policy. See the [acceptance evidence](../evidence/canvas-och24.md) for exact
 workloads and platform coverage. The limits below are enforced contracts, not
 process RSS guarantees.
 
