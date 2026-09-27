@@ -13,12 +13,18 @@ let desktop_ok = function
 
 let () =
   let self_test = Array.exists (Sys.get_argv ()) ~f:(String.equal "--self-test") in
+  let service_path =
+    Array.find_map (Sys.get_argv ()) ~f:(String.chop_prefix ~prefix:"--service-path=")
+  in
   let scheme = Gpuio.Deep_link.Scheme.of_string "gpuio-desktop-lab" |> Or_error.ok_exn in
+  let unpackaged =
+    Gpuio.Deep_link.Scheme.of_string "gpuio-desktop-unpackaged" |> Or_error.ok_exn
+  in
   let identity =
     Desktop.Identity.create
       ~identifier:"com.gpuio.desktop-lab"
       ~name:"GPUIO Desktop Lab"
-      ~schemes:[ scheme ]
+      ~schemes:(if self_test then [ scheme; unpackaged ] else [ scheme ])
       ()
     |> Or_error.ok_exn
   in
@@ -77,6 +83,35 @@ let () =
     let rec attach () = Desktop.attach app ~on_event |> desktop_ok
     and on_event event =
       match event with
+      | Desktop.Event.Link link when String.equal (Gpuio.Deep_link.route link) "services"
+        ->
+        let path () =
+          Option.value_exn service_path |> Gpuio.File_path.of_string |> Or_error.ok_exn
+        in
+        let action = Gpuio.Deep_link.path link in
+        let operation =
+          match action with
+          | "/open" -> Desktop.open_file app (path ())
+          | "/reveal" -> Desktop.reveal_file app (path ())
+          | "/missing" ->
+            Desktop.open_file
+              app
+              (Gpuio.File_path.of_string (Gpuio.File_path.to_string (path ()) ^ ".missing")
+               |> Or_error.ok_exn)
+          | "/register" -> Desktop.register_scheme app scheme
+          | "/unpackaged" -> Desktop.register_scheme app unpackaged
+          | "/undeclared" ->
+            Desktop.register_scheme
+              app
+              (Gpuio.Deep_link.Scheme.of_string "gpuio-undeclared-test" |> Or_error.ok_exn)
+          | _ -> E.return (Error Desktop.Error.Invalid_request)
+        in
+        E.map operation ~f:(fun result ->
+          emit
+            ("service "
+             ^ action
+             ^ " "
+             ^ Sexp.to_string ([%sexp_of: (unit, Desktop.Error.t) Result.t] result)))
       | Desktop.Event.Link link when String.equal (Gpuio.Deep_link.route link) "metadata"
         ->
         let stale = String.equal (Gpuio.Deep_link.path link) "/stale" in

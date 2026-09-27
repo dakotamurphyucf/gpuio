@@ -77,3 +77,22 @@ let activate app ?(ignoring_other_apps = false) () =
     | Failed error -> Error (Gpuio.Desktop.Expert.error_of_wire error)
     | Configured | Links _ | Capabilities _ | Registered -> Error Error.Native_failure)
 ;;
+
+let requested app request =
+  E.map (App.Expert.desktop app request) ~f:(function
+    | Wire.Response.Requested -> Ok ()
+    | Failed error -> Error (Gpuio.Desktop.Expert.error_of_wire error)
+    | Configured | Links _ | Capabilities _ | Registered -> Error Error.Native_failure)
+;;
+
+let reveal_file app path = requested app (Reveal_file (Gpuio.File_path.to_string path))
+let open_file app path = requested app (Open_file (Gpuio.File_path.to_string path))
+
+let register_scheme app scheme =
+  E.map
+    (App.Expert.desktop app (Register_scheme (Gpuio.Deep_link.Scheme.to_string scheme)))
+    ~f:(function
+      | Wire.Response.Registered -> Ok ()
+      | Failed error -> Error (Gpuio.Desktop.Expert.error_of_wire error)
+      | Configured | Links _ | Capabilities _ | Requested -> Error Error.Native_failure)
+;;

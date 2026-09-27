@@ -278,6 +278,20 @@ impl Mailbox {
         });
     }
 
+    /// OS callbacks can race final transport shutdown. Check terminal state and
+    /// consume the response reservation under the same mailbox lock.
+    pub(crate) fn desktop_response(
+        &mut self,
+        correlation: i64,
+        response: gpuio_protocol::desktop::Response,
+    ) -> bool {
+        if self.closed || self.stopped_emitted {
+            return false;
+        }
+        self.respond(Event::DesktopResponse(correlation, response));
+        true
+    }
+
     /// Coalesce only consecutive render observations for the same window. Never
     /// cross input/response barriers. Other input is ordered and never discarded.
     pub fn input(&mut self, event: Event) -> Result<(), Box<Event>> {
@@ -780,6 +794,42 @@ mod desktop_tests {
     use super::*;
     use binprot::BinProtWrite;
     use gpuio_protocol::desktop::{LinkBatch, MAX_LINK_BYTES, Request, Response};
+
+    #[test]
+    fn asynchronous_completion_after_terminal_shutdown_is_discarded() {
+        let mut mailbox = Mailbox::default();
+        mailbox
+            .submit(
+                Message::Desktop(1, Request::RegisterScheme("example".into())),
+                10,
+            )
+            .unwrap();
+        mailbox.pop().unwrap();
+        mailbox.close();
+        assert!(!mailbox.desktop_response(1, Response::Registered));
+        assert_eq!(mailbox.drain(256), vec![Event::Stopped]);
+        assert_eq!(mailbox.reserved, 0);
+        assert_eq!(mailbox.responses, 0);
+    }
+
+    #[test]
+    fn asynchronous_completion_cannot_follow_an_emitted_stop() {
+        let mut mailbox = Mailbox::default();
+        mailbox
+            .submit(
+                Message::Desktop(1, Request::RegisterScheme("example".into())),
+                10,
+            )
+            .unwrap();
+        mailbox.pop().unwrap();
+        mailbox.submit(Message::Shutdown, 1).unwrap();
+        mailbox.pop().unwrap();
+        mailbox.respond(Event::Stopped);
+        assert!(!mailbox.desktop_response(1, Response::Registered));
+        assert_eq!(mailbox.drain(256), vec![Event::Stopped]);
+        mailbox.close();
+        assert_eq!(mailbox.reserved, 0);
+    }
 
     #[test]
     fn represented_document_paths_are_charged_to_response_batches() {

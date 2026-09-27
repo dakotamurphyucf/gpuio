@@ -2152,8 +2152,7 @@ pub fn run(transport: Arc<Transport>) {
                         Message::Desktop(correlation, request) => {
                             match session.borrow().check_ready() {
                                 Ok(()) => {
-                                    let response = cx.update(|cx| crate::desktop_host::request(&desktop, request, cx));
-                                    transport.respond(Event::DesktopResponse(correlation, response));
+                                    cx.update(|cx| crate::desktop_host::dispatch(&desktop, correlation, request, cx, &transport));
                                 }
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),
                             }

@@ -55,3 +55,28 @@ val activate
   -> ?ignoring_other_apps:bool
   -> unit
   -> (unit, Error.t) Result.t Bonsai.Effect.t
+
+(** Ask the file manager to reveal a native path. macOS's API has no completion
+    result: [Ok ()] means the request was submitted, not that a selection appeared.
+    Does not establish file existence or access rights. *)
+val reveal_file : App.t -> Gpuio.File_path.t -> (unit, Error.t) Result.t Bonsai.Effect.t
+
+(** Open with the OS-selected application. macOS waits for the asynchronous
+    workspace completion; [Ok ()] does not prove the target application rendered
+    or consumed the document. Native errors distinguish known denial/missing
+    resource cases (including wrapped native errors); unclassified errors return
+    [Native_failure]. Does not add a recent item or show an application-choice
+    prompt when no handler is available. *)
+val open_file : App.t -> Gpuio.File_path.t -> (unit, Error.t) Result.t Bonsai.Effect.t
+
+(** Explicitly request this packaged app as the default handler for a scheme
+    declared in both its identity and bundle metadata. This changes OS registration and may prompt the
+    user. Never called automatically. The running bundle identifier must match
+    the configured identity; unbundled execution returns [Unavailable].
+    Linux currently reports [Unsupported]; packaging declarations are separate.
+    Shutdown finishes pending requests with [Closed]; late OS callbacks are ignored,
+    although already-submitted OS work may still take effect. *)
+val register_scheme
+  :  App.t
+  -> Gpuio.Deep_link.Scheme.t
+  -> (unit, Error.t) Result.t Bonsai.Effect.t

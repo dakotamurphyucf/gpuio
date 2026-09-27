@@ -29,5 +29,14 @@ filesystem paths. A real document application must validate its own routes and
 reuse its close/quit decisions for unsaved work.
 
 The packaging here is a local acceptance fixture, not a signed/notarized release
-artifact. File reveal/open, runtime scheme registration and Linux incoming-link
-forwarding are still being implemented under OCH-27.
+artifact. Linux incoming-link forwarding and file services remain in progress.
+
+`python3 scripts/test_desktop_links_macos.py --services` additionally builds a tiny
+disposable native file consumer, opens a fixture through the OS-selected handler,
+reveals it in Finder, and verifies default routing for the private demo scheme.
+It checks missing-file and undeclared/unpackaged registration errors. The test
+briefly brings Finder forward, closes its fixture window and unregisters its test
+bundles. Fixtures use ignored `scratch/desktop-os` because Launch Services on the
+tested Mac did not discover default handlers in the system temporary directory.
+`services/*` routes operate on a fixed test path supplied at startup, never a path
+extracted from a URL.

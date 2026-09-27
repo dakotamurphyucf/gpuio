@@ -14,6 +14,9 @@ pub mod canvas_plan;
 pub mod canvas_state;
 pub mod canvas_store;
 mod desktop_host;
+#[cfg(target_os = "macos")]
+mod desktop_macos;
+mod desktop_operations;
 pub mod desktop_state;
 mod document_highlight;
 pub mod document_host;

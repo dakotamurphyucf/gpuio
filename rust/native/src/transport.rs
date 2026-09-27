@@ -71,6 +71,21 @@ impl Transport {
             .respond(event);
         self.wake_ocaml();
     }
+
+    pub(crate) fn respond_desktop(
+        &self,
+        correlation: i64,
+        response: gpuio_protocol::desktop::Response,
+    ) {
+        let accepted = self
+            .mailbox
+            .lock()
+            .expect("mailbox poisoned")
+            .desktop_response(correlation, response);
+        if accepted {
+            self.wake_ocaml();
+        }
+    }
     pub fn input(&self, event: Event) -> bool {
         if matches!(event, Event::ColorInputEvent(..)) {
             return self.color_batch(vec![event]);

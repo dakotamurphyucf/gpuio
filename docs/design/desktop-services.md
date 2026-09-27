@@ -7,8 +7,9 @@ desktop protocol, native early-link capture and application activation are now
 wired, with native state/mailbox unit coverage. Public Eio routing now passes
 deterministic delivery tests and real packaged macOS cold/warm OS invocation,
 including native window closure/reopening. Document-window metadata now passes
-native and public macOS tests. Remaining OS service adapters and Linux
-incoming-link forwarding are pending. The full desktop bridge capability
+native and public macOS tests. macOS file open/reveal and explicit scheme
+registration also have public OS acceptance. Linux file services and incoming-link
+forwarding are pending. The full desktop bridge capability
 is not yet advertised.
 
 ## Ownership and delivery
@@ -136,10 +137,42 @@ delivery. Native workers handle potentially blocking OS calls; ordinary
 application file/network work stays in Eio. Permission and service failures need
 typed outcomes, with submission distinct from user-visible presentation.
 
-Current native capability snapshots enable incoming links, application activation
-and document metadata only on macOS. Registration and file reveal/open
-remain false until their adapters are implemented and validated; this is an
-implementation checkpoint, not the intended OCH-27 endpoint.
+Current native capability snapshots enable incoming links, activation, document
+metadata, registration and file reveal/open on macOS. Linux adapters remain in
+progress; unsupported capabilities are false, not inferred from GPUI method names.
+
+## File services and explicit registration
+
+`Gpuio_eio.Desktop.open_file app path` uses a validated `File_path` and macOS
+`NSWorkspace.openURL:configuration:completionHandler:`. It waits for the workspace
+completion without blocking GPUI or the OCaml UI domain. Success means the OS
+accepted opening with the selected application; it does not certify that the
+application rendered or consumed a document. It does not add a recent item or
+open an application-choice prompt if no handler is available. Known native error
+domains/codes map to `Denied` or `Unavailable`, including a bounded walk through
+wrapped errors; unknown errors remain `Native_failure`.
+
+`reveal_file app path` submits AppKit's file-viewer selection request. That API
+has no completion/error receipt: `Ok ()` promises submission only, not existence,
+permissions, selection or foreground presentation. Both operations construct
+filesystem-byte URLs without shell interpolation or lossy path conversion.
+
+`register_scheme app scheme` explicitly requests default-handler assignment.
+It is never automatic, may prompt the user, and requires the scheme in both the
+configured identity and bundle URL declarations. The running bundle identifier
+must match the identity. An unbundled/mismatched app returns `Unavailable`; missing
+scheme declarations return `Invalid_request`. Successful completion is distinct
+from merely declaring a scheme in packaging metadata.
+
+Native asynchronous operations have a 16-entry registry in addition to the Eio
+request bound. Each admission has a fresh token. Completions can arrive on any
+thread but only publish owned results through the mailbox; they never access
+GPUI or call OCaml. Removal precedes callback execution outside the registry lock.
+Shutdown completes remaining admissions with `Closed`; duplicate/retired callbacks
+cannot finish a replacement correlation. Mailbox terminal checks and response
+reservation consumption occur under one lock, so callbacks racing transport
+closure cannot publish after `Stopped`. Already-submitted OS work can still take
+effect after application shutdown; this API does not claim OS-level cancellation.
 
 ## Packaging and validation plan
 
@@ -152,8 +185,8 @@ example scheme and a disposable bundle.
 
 `examples/desktop` demonstrates the public receiver. The local macOS test creates
 a temporary `.app` declaring `gpuio-desktop-lab`, launches a cold URL through
-`open`, and sends subsequent URLs to that exact bundle. It does not request a
-default-handler reassignment. It verifies readiness ordering, malformed authority
+`open`, and sends subsequent URLs to that exact bundle. The default test does not
+request a default-handler reassignment. It verifies readiness ordering, malformed authority
 rejection, once-only delivery, receiver replacement, and same-process routing.
 Real AppKit accessibility checks observe one/zero/one native windows and changed
 document text. The app launches in the background; the test briefly activates
@@ -163,13 +196,24 @@ for owned-process cleanup (`/var` resolves through `/private/var` on macOS).
 ```sh
 GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/desktop/main.exe
 python3 scripts/test_desktop_links_macos.py
+python3 scripts/test_desktop_links_macos.py --services
 ```
 
 This is link-delivery acceptance, not acceptance of the entire desktop ticket.
 It also checks public metadata setting/clearing and rejection of an old window
 handle after another window opens. The native window suite additionally checks
-non-UTF8 paths and actual AppKit document state. It does not validate Linux forwarding, file services,
-runtime default-handler reassignment, or notification delivery.
+non-UTF8 paths and actual AppKit document state.
+
+The `--services` variant registers only the private `gpuio-desktop-lab` scheme,
+then verifies actual routing without `open -a`. It builds a disposable Objective-C
+file consumer with a unique exported content type, verifies that the OS-selected
+application receives the intended Unicode/space/metacharacter filename, and checks
+that Finder shows the fixture. Missing-file, undeclared and unpackaged-scheme
+errors are checked too. It closes its Finder window and unregisters disposable
+bundles. Fixtures live under ignored `scratch/desktop-os`: on the tested macOS,
+Launch Services did not discover default file handlers under the system temporary
+directory. The consumer verifies file identity, allowing OS Unicode normalization.
+These tests do not validate Linux forwarding/file services or notifications.
 
 Linux packages need a desktop entry with application identity, an executable
 argument vector accepting URLs, and scheme MIME declarations. Follow the

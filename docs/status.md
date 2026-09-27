@@ -7,8 +7,9 @@ passed on `473407c`, including all 71 macOS GUI stages. All twelve milestone
 tickets are Done. Milestone 6's OCH-27 now has public Core/Eio link routing,
 bounded readiness/backpressure and packaged macOS cold/warm OS delivery with
 native window close/reopen checks. Represented-document and edited metadata pass
-native/public macOS tests; Linux reports typed unsupported outcomes. Remaining
-desktop services are pending. See the
+native/public macOS tests; Linux reports typed unsupported outcomes. Linux
+desktop adapters remain pending. macOS file open/reveal and explicit scheme
+registration pass local public OS checks. See the
 [milestone 6 plan](milestone-6.md) for current scope, evidence and next steps.
 The detailed entries below record implementation checkpoints chronologically;
 their earlier pending-gate statements are superseded by this delivery record.

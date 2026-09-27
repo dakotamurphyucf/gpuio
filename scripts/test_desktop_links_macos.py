@@ -55,14 +55,19 @@ def owned_pids(bundle: Path) -> list[int]:
     return found
 
 
-def exercise(binary: Path, artifact: Path) -> None:
-    with tempfile.TemporaryDirectory(prefix="gpuio-desktop-") as directory:
+def exercise(binary: Path, artifact: Path, services: bool = False) -> None:
+    # Launch Services does not discover default handlers in the system's
+    # temporary directory. Keep disposable bundles in the ignored workspace.
+    fixture_root = Path(__file__).resolve().parent.parent / "scratch/desktop-os"
+    fixture_root.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="gpuio-desktop-", dir=fixture_root) as directory:
         root = Path(directory)
         bundle = package(binary, root)
         log = root / "application.log"
         log.touch()
         proxy = None
         mac = None
+        service_fixture = None
 
         def content():
             return log.read_text(errors="replace")
@@ -93,10 +98,15 @@ def exercise(binary: Path, artifact: Path) -> None:
             raise AssertionError(f"Native window count did not become {expected}")
 
         try:
+            arguments = ["--self-test"]
+            if services:
+                from desktop_service_fixture import ServiceFixture
+                service_fixture = ServiceFixture(root, owned_pids)
+                arguments.append("--service-path=" + str(service_fixture.path.resolve()))
             proxy = subprocess.Popen([
                 "/usr/bin/open", "-W", "-n", "-g", "-a", str(bundle),
                 "--stdout", str(log), "--stderr", str(log),
-                "-u", "gpuio-desktop-lab://document/cold", "--args", "--self-test",
+                "-u", "gpuio-desktop-lab://document/cold", "--args", *arguments,
             ])
             wait_for("DESKTOP_LAB: link gpuio-desktop-lab://document/cold")
             initial = content()
@@ -113,6 +123,8 @@ def exercise(binary: Path, artifact: Path) -> None:
             send("document/warm")
             wait_for("DESKTOP_LAB: link gpuio-desktop-lab://document/warm")
             mac.wait_text("GPUIO · Desktop Lab", "Document /warm")
+            if service_fixture is not None:
+                service_fixture.exercise(send, wait_for)
             send("metadata/edited")
             wait_for("DESKTOP_LAB: metadata-edited")
             send("metadata/clear")
@@ -143,6 +155,12 @@ def exercise(binary: Path, artifact: Path) -> None:
                 assert result.count("DESKTOP_LAB: link gpuio-desktop-lab://document/" + route) == 1
             print("GPUIO_DESKTOP_LINKS_OK: packaged cold/warm OS links, readiness, rejection, document metadata/clear/stale-window, window reopen, receiver replacement and shutdown")
         finally:
+            cleanup_error = None
+            if service_fixture is not None:
+                try:
+                    service_fixture.close()
+                except Exception as error:
+                    cleanup_error = error
             if mac is not None:
                 mac.release(mac.app)
             artifact.parent.mkdir(parents=True, exist_ok=True)
@@ -163,13 +181,19 @@ def exercise(binary: Path, artifact: Path) -> None:
                             pass
                     proxy.kill()
                     proxy.wait()
+            if services:
+                from desktop_service_fixture import LSREGISTER
+                subprocess.run([LSREGISTER, "-u", str(bundle)], check=True, timeout=10)
+            if cleanup_error is not None:
+                raise cleanup_error
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, default=Path("_build/default/examples/desktop/main.exe"))
     parser.add_argument("--log", type=Path, default=Path("scratch/desktop-links-macos.log"))
+    parser.add_argument("--services", action="store_true", help="Also open/reveal a disposable fixture and register the private test scheme")
     args = parser.parse_args()
     if sys.platform != "darwin":
         parser.error("Requires macOS Launch Services")
-    exercise(args.binary.resolve(strict=True), args.log.resolve())
+    exercise(args.binary.resolve(strict=True), args.log.resolve(), args.services)
