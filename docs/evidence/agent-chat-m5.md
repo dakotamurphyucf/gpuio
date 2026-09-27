@@ -1023,3 +1023,27 @@ ownership, insertion-gap visibility, accepted reorder retention and all subseque
 workflow assertions remain required. Hosted placement confirmation is pending.
 Each independent chat walkthrough now has its own required CI step so this failure
 cannot hide settings, streaming, responsive or combined-workload diagnostics.
+
+## Hosted desktop-space prerequisite (2026-09-27)
+
+Run `36306457769` passes every one of the 22 independent component checks, all
+other native/public families and the simultaneous four-window workload. Its eight
+failing chat checks are Sources, Results, Settings, Dates/colors, Feedback,
+Presentation, Streaming geometry and Responsive layout. Required Linux checks
+and X11 pass; Wayland retains the recorded clipboard failure under OCH-17.
+
+The new Results diagnostics establish a concrete runner constraint: the desktop
+is 1024×768, initial window bounds are (-78,25,1024,684), and a request for
+1000×688 settles at (12,40,1000,684). Responsive's 1180×820 request also settles at
+height 684. Tests expecting those larger window geometries cannot succeed on that
+desktop. Other failures concern unobserved source/date/slider state, focus, a missing
+retained toolbar and absent row geometry; the logs do not prove one cause for all
+of them, so they still require validation after the environment correction.
+
+An early CI-only desktop preflight now requests a sufficiently large available
+mode for the login session and checks it again in a separate process. It retains
+the full component/chat assertions and logs supported modes and usable bounds.
+Local compilation/read-only inspection passes at 1728×1117 (usable 1728×1007),
+and applying changes outside GitHub Actions is verified to fail before mutation.
+No local display settings were changed. Actual runner mode selection and the
+remaining eight walkthrough results are pending hosted execution.

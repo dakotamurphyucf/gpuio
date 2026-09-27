@@ -52,6 +52,12 @@ jobs:
             brew list "$package" >/dev/null || brew install "$package"
           done
           echo "$(brew --prefix gpatch)/libexec/gnubin" >> "$GITHUB_PATH"
+      - name: macOS GUI desktop space
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p .cache/ci
+          xcrun swift -module-cache-path .cache/macos-display-modules scripts/ci_macos_display.swift --apply 2>&1 | tee .cache/ci/macos-display-setup.log
+          xcrun swift -module-cache-path .cache/macos-display-modules scripts/ci_macos_display.swift --check 2>&1 | tee .cache/ci/macos-display-check.log
       - name: Install pinned opam
         run: python3 scripts/ci_opam.py
       - name: Restore dependency caches
