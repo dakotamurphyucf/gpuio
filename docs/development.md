@@ -120,3 +120,11 @@ clipboard (restoring its previous contents). Do not interact with that window
 during the short test. The feature enables paint probes only in this test build.
 Ordinary `test` remains headless. CI requires these graphical checks on macOS;
 Linux graphical results remain informational, while builds and pure tests are required.
+
+
+Once native test compilation and the independent extension-consumer build pass,
+CI runs subsequent independent macOS GUI families even if an earlier family
+fails. Each failure still fails the required job; no macOS check is informational.
+Cancellation stops subsequent families, and missing build prerequisites skip them.
+Commands within one family retain their existing fail-fast behavior. Inspect all
+failed steps and their uploaded logs before fixing the next batch of CI issues.
