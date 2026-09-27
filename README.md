@@ -6,9 +6,12 @@ The bridge exchanges versioned bin_prot commands and events.
 
 **Status:** milestones 1–3 are merged. Milestone 4 implements streaming documents,
 windows/tabs/splits and a polished, runnable agent-chat workspace in
-[PR #12](https://github.com/dakotamurphyucf/gpuio/pull/12). See the current implementation
-status and its validation limits below. This is an experimental framework with
-no stable API release yet.
+[PR #12](https://github.com/dakotamurphyucf/gpuio/pull/12). Milestone 5 adds native
+extensions, canvas, richer motion, responsive containers and general-purpose
+widgets, with an [integrated chat showcase](docs/design/agent-chat-m5-showcase.md).
+Its consolidated acceptance and hosted gates are in progress. See
+[current status](docs/status.md) for validation limits. This is an experimental
+framework with no stable API release yet.
 
 The baseline is stock OCaml 5.3.0, Bonsai/Jane Street v0.17, Core, Eio 1.3,
 Dune 3.24.2 and Rust 1.97.1. macOS and Linux (Wayland and X11) are v1 targets.
@@ -17,9 +20,11 @@ Dune 3.24.2 and Rust 1.97.1. macOS and Linux (Wayland and X11) are v1 targets.
 
 - [Current implementation status](docs/status.md)
 - [Run the agent workspace](examples/agent_chat/README.md)
+- [Write or consume a native component package](docs/design/extensions.md)
 - [Explore the native canvas](examples/canvas/README.md)
 - [Navigation and independent content lifetimes](examples/navigation/README.md)
 - [Managed trees, lazy loading and approved moves](examples/tree/README.md)
+- [Virtual read-only tables](examples/table/README.md)
 - [Documents](docs/design/documents.md) and [windows/tabs/splits](docs/design/windows.md)
 - [Contributor guide](CONTRIBUTING.md)
 - [OCaml engineering standards](docs/design/engineering-standards.md)
@@ -46,8 +51,9 @@ toolchain. Do not install dependencies into an unrelated active switch. Use
 
 Layout: `lib/` contains OCaml libraries, `rust/` native/protocol crates, `test/`
 expect tests, `examples/` application examples, `scripts/` development tooling,
-and `docs/` versioned design and evidence. Compiled extension packages will use
-these ordinary OCaml/Rust boundaries as the SDK develops.
+and `docs/` versioned design and evidence. Compiled extension packages use these
+ordinary OCaml/Rust boundaries; the [sample consumer](examples/extension_consumer/README.md)
+uses the package's public OCaml API and generated native backend.
 
 ## License
 

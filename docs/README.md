@@ -8,6 +8,14 @@ describe earlier experiments and are not current source dependencies.
 - [Streaming documents](design/documents.md)
 - [Windows, tabs and split panes](design/windows.md)
 - [Milestone 4 acceptance evidence](evidence/agent-workspace-m4.md)
+- [Milestone 5 component-to-chat coverage map](design/agent-chat-m5-showcase.md)
+- [Milestone 5 chat and combined-workload evidence](evidence/agent-chat-m5.md)
+- [Native extension SDK](design/extensions.md) and [retained canvas](design/canvas.md)
+- [Animation programs](design/animation-programs.md) and [container queries](design/container-queries.md)
+- [Presentation](design/presentation-components.md), [navigation](design/navigation-components.md),
+  [numeric controls](design/numeric-inputs.md), [OTP](design/otp-inputs.md),
+  [calendar/date selection](design/calendar.md) and [colors](design/color-inputs.md)
+- [Managed trees](design/managed-trees.md) and [read-only tables](design/data-tables.md)
 - [Standards](design/engineering-standards.md)
 - [Accepted contracts](design/accepted-contracts.md)
 - [Architecture](design/architecture.md)
