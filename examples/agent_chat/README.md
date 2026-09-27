@@ -197,3 +197,14 @@ window; leaving the page cancels an open picker draft. Channel displays use up t
 two decimals without rounding the stored model; typed drafts keep their spelling.
 Run `python3 scripts/test_agent_chat_dates_colors.py` for the integrated native
 walkthrough. Remaining M5 families stay listed in the coverage matrix.
+
+Choose **Review feedback** from the Review or Workspace page to rate the simulated
+run and keep a private note. Arrow keys adjust the rating; Clear restores unrated.
+**Private review notes** collapses without destroying the live editor. Notes and
+ratings survive page changes and inspector close/reopen, until the window closes.
+They are never saved to disk or sent anywhere. **Before you accept** offers review
+guidance with single or multiple expanded sections; arrow keys navigate headers.
+Hover or focus **About this contributor** to open an interactive preview, then
+follow **Open contributor sources** to the source explorer. Escape closes the
+preview. Run `python3 scripts/test_agent_chat_feedback.py` for keyboard/pointer,
+focus, native note retention, rating, navigation and theme acceptance.

@@ -475,10 +475,71 @@ format and strict all-target native Clippy with `native-image-tests`. Captures a
 reproducible with `GPUIO_SCREENSHOT_DIR`. The macOS workflow includes the new walkthrough; hosted
 execution and Linux build/unit validation remain pending for this branch.
 
+## Local run feedback and contributor navigation
+
+[Review_feedback](../../examples/agent_chat/runtime/review_feedback.ml) adds a
+separate Feedback route reached through **Review feedback** in Review, Workspace
+or a run stage. A single application reducer owns the accepted rating, observed
+note, disclosure/accordion expansion and contributor preview. Native rating
+requests use `Rating.Config.apply_request` against the latest model. Arrow keys,
+End, accessibility SetValue and Clear have real effects; hover preview stays native.
+The public marker/status-bar/shortcut/label/group-box/separator helpers show the
+accepted state and its actual keyboard controls.
+
+The private-note disclosure uses `Retain`: collapse preserves its live native
+editor and restores trigger focus. Observed note text supplies only the initial
+value on route/inspector remount; it never commands a replacement into the current
+editor. Feedback is explicitly in-memory until window close, with no filesystem
+or external feedback service. The guidance accordion supports single/multiple
+expansion and native header keyboard navigation. Its pure content uses `Unmount`
+and is not built for collapsed sections; this is not a claim of Bonsai task
+activation or cancellation.
+
+The contributor hover card opens on keyboard focus or pointer hover. Its public
+link navigates to the actual Sources route; Escape closes it and restores trigger
+focus. Leaving Feedback clears its accepted preview state. The avatar has an
+explicit GP initials fallback and meaningful accessible name. No image is
+registered here, so actual unavailable-image fallback remains an open chat
+showcase requirement.
+
+Local commands:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/agent_chat/main.exe @fmt
+python3 scripts/test_agent_chat_feedback.py
+python3 scripts/test_agent_chat_review.py
+_build/default/examples/agent_chat/main.exe --self-test
+python3 scripts/test_agent_chat.py
+```
+
+The native feedback walkthrough covers rating keyboard/AX/clear, Unicode note
+collapse/focus/remount retention, accordion arrow navigation and expansion
+semantics, contributor keyboard/pointer access and actual source navigation,
+light/dark themes, unchanged composer content and child cleanup. It has a
+180-second deadline and always reaps its process. The review-extension and both
+original M4 acceptance flows also pass after adding this route. No Rust or shared
+library changes were needed.
+
+The test scrolls guidance headers into view before real keyboard navigation;
+AX activation alone can target content outside the painted viewport. It also
+moves both pointer and focus to Back before returning from Sources: AXPress does
+not transfer focus, and a fresh hover/focus is supposed to reopen a hover card.
+
+Actual rendered screenshots were inspected:
+
+- [Private note, dark](../images/studio-feedback-note-dark.png) / [light](../images/studio-feedback-note-light.png)
+- [Expanded guidance](../images/studio-feedback-guidance-dark.png)
+- [Contributor preview, dark](../images/studio-feedback-contributor-dark.png) / [light](../images/studio-feedback-contributor-light.png)
+
+Capture with `GPUIO_SCREENSHOT_DIR`. The new walkthrough is included in the macOS CI step; hosted execution remains
+pending. Narrow/resizable and reduced-motion checks remain part of the full
+showcase acceptance.
+
 ## Remaining acceptance
 
 These flows cover the OCH-23 package integration, OCH-24 diagram, the OCH-37
-navigation stack/breadcrumbs and settings sheet/confirmation, OCH-34 numeric/OTP,
+navigation stack/breadcrumbs, settings sheet/confirmation and feedback
+disclosure/accordion/hover card, OCH-34 numeric/OTP,
 OCH-35 dates, OCH-36 colors, OCH-37 pagination, OCH-38 source explorer,
 OCH-39 results table and a subset of OCH-33's
 presentation compositions. They do not complete the other component families,

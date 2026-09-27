@@ -10,6 +10,7 @@ module Route = struct
     | Overview
     | Diagram
     | Review
+    | Feedback
     | Sources
     | Results
     | Stage of Stage.t
@@ -19,6 +20,7 @@ module Route = struct
     | Overview -> "Workspace"
     | Diagram -> "Run"
     | Review -> "Review"
+    | Feedback -> "Feedback"
     | Sources -> "Sources"
     | Results -> "Results"
     | Stage stage -> Stage.name stage
@@ -89,7 +91,7 @@ let component t ~app ~window ~sources ~results ~annotation ~dark graph =
         && Option.exists (N.current routes) ~f:(fun entry ->
           match N.Entry.data entry with
           | Diagram -> true
-          | Overview | Review | Sources | Results | Stage _ -> false))
+          | Overview | Review | Feedback | Sources | Results | Stage _ -> false))
   in
   let diagram =
     Diagram.component
@@ -111,7 +113,7 @@ let component t ~app ~window ~sources ~results ~annotation ~dark graph =
         && Option.exists (N.current routes) ~f:(fun entry ->
           match N.Entry.data entry with
           | Sources -> true
-          | Overview | Diagram | Review | Results | Stage _ -> false))
+          | Overview | Diagram | Review | Feedback | Results | Stage _ -> false))
   in
   let sources = Sources.component sources ~active:sources_active ~dark graph in
   let results_active =
@@ -123,9 +125,25 @@ let component t ~app ~window ~sources ~results ~annotation ~dark graph =
         && Option.exists (N.current routes) ~f:(fun entry ->
           match N.Entry.data entry with
           | Results -> true
-          | Overview | Diagram | Review | Sources | Stage _ -> false))
+          | Overview | Diagram | Review | Feedback | Sources | Stage _ -> false))
   in
   let results = Results.component results ~active:results_active ~dark graph in
+  let feedback_active =
+    B.map2
+      (B.Expert.Var.value t.opened)
+      (B.Expert.Var.value t.routes)
+      ~f:(fun opened routes ->
+        opened
+        && Option.exists (N.current routes) ~f:(fun entry ->
+          Route.equal (N.Entry.data entry) Feedback))
+  in
+  let feedback =
+    Review_feedback.component
+      ~active:feedback_active
+      ~dark
+      ~on_sources:(navigate t Sources)
+      graph
+  in
   let open B.Let_syntax in
   let%arr opened = B.Expert.Var.value t.opened
   and routes = B.Expert.Var.value t.routes
@@ -133,7 +151,8 @@ let component t ~app ~window ~sources ~results ~annotation ~dark graph =
   and diagram = diagram
   and sources = sources
   and results = results
-  and review = review in
+  and review = review
+  and feedback = feedback in
   let palette = Palette.of_dark dark in
   let button ?(disabled = false) label on_click =
     V.button
@@ -218,7 +237,8 @@ let component t ~app ~window ~sources ~results ~annotation ~dark graph =
   in
   let page entry =
     match N.Entry.data entry with
-    | Route.Review -> [ review ]
+    | Route.Review -> [ review; button "Review feedback" (navigate t Feedback) ]
+    | Feedback -> [ feedback ]
     | Diagram -> [ diagram ]
     | Sources -> [ sources ]
     | Results -> [ results ]
@@ -232,6 +252,7 @@ let component t ~app ~window ~sources ~results ~annotation ~dark graph =
       ; button "Explore sources" (navigate t Sources)
       ; button "Explore results" (navigate t Results)
       ; button "Review checkpoints" (navigate t Review)
+      ; button "Review feedback" (navigate t Feedback)
       ]
     | Stage stage ->
       [ V.text ~style:(style [ Font_size 23.; Font_weight 600 ]) (Stage.name stage)
@@ -243,6 +264,7 @@ let component t ~app ~window ~sources ~results ~annotation ~dark graph =
           "SIMULATED · NO FILES ARE MODIFIED"
       ; button "Next stage" (navigate t ~replace:true (Stage (Stage.next stage)))
       ; button "Review checkpoints" (navigate t Review)
+      ; button "Review feedback" (navigate t Feedback)
       ]
   in
   V.panel

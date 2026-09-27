@@ -257,6 +257,14 @@ and disabled dates, focus restoration, color validation/cancellation and retaine
 values across themes. Remaining presentation/navigation, motion/responsive and
 combined-workload acceptance are still pending; see the M5 evidence ledger.
 
+The review workspace also has local run feedback: ordered native rating requests,
+retained private-note disclosure, single/multiple guidance accordion, and an
+interactive contributor hover card linking to Sources. Local AppKit validation
+covers keyboard/AX, pointer hover, focus restoration, note/rating retention across
+route and inspector remounts, themes and composer preservation. Contributor initials
+are shown; a real unavailable-image fallback fixture is still pending. Existing
+review extension and original M4 public/AppKit regressions remain passing.
+
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
 components pass local acceptance; OCH-24 has validated geometry, a bounded scene
 codec, native resource ownership and a tested OCaml/Rust upload bridge. The
