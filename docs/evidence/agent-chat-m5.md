@@ -1045,5 +1045,12 @@ mode for the login session and checks it again in a separate process. It retains
 the full component/chat assertions and logs supported modes and usable bounds.
 Local compilation/read-only inspection passes at 1728×1117 (usable 1728×1007),
 and applying changes outside GitHub Actions is verified to fail before mutation.
-No local display settings were changed. Actual runner mode selection and the
-remaining eight walkthrough results are pending hosted execution.
+No local display settings were changed.
+
+Run `36309465532` confirms the runner offers 1600×1200 and 1920×1080 modes
+and successfully applies 1600×1200. The helper then failed because its AppKit
+`visibleFrame` retained the original 1024×681 usable area while CoreGraphics
+reported the new bounds. The apply process now checks CoreGraphics bounds;
+the required separate read-only process checks fresh AppKit usable bounds.
+Local read-only compilation and workflow lint pass. Fresh-process hosted
+confirmation and the remaining eight walkthrough results are still pending.

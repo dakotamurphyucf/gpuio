@@ -19,6 +19,12 @@ func describe() -> Bool {
         && visible.width >= 1400 && visible.height >= 900
 }
 
+func displayHasRequiredBounds() -> Bool {
+    let bounds = CGDisplayBounds(CGMainDisplayID())
+    print("MACOS_DISPLAY_CONFIGURED bounds=\(bounds)")
+    return bounds.width >= CGFloat(minimumWidth) && bounds.height >= CGFloat(minimumHeight)
+}
+
 func checked(_ result: CGError, _ operation: String) throws {
     if result != .success {
         throw NSError(domain: "GPUIO display setup", code: Int(result.rawValue),
@@ -69,14 +75,17 @@ do {
         // ForSession survives this helper's exit without saving permanent settings.
         try checked(CGCompleteDisplayConfiguration(configuration, .forSession), "Apply session mode")
         let deadline = Date().addingTimeInterval(5)
-        var ready = describe()
+        // NSScreen can retain the old visibleFrame in this command-line process.
+        // Verify the server's bounds here; the workflow's separate --check process
+        // must verify fresh AppKit usable bounds before any GUI fixtures run.
+        var ready = displayHasRequiredBounds()
         while !ready && Date() < deadline {
             RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-            ready = describe()
+            ready = displayHasRequiredBounds()
         }
         guard ready else {
             throw NSError(domain: "GPUIO display setup", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: "Configured desktop did not provide the required usable area"])
+                          userInfo: [NSLocalizedDescriptionKey: "Configured desktop did not provide the required display bounds"])
         }
     }
     print("MACOS_DISPLAY_READY")
