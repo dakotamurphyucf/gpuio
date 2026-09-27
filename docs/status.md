@@ -30,8 +30,10 @@ rendering/interaction is still pending. Explicit line/area envelopes, bar sum/me
 and candle OHLC policies now have paired types and a tested native reduction kernel
 that preserves gaps and aggregate source ranges. Validated native plotting options
 and retained logical geometry now cover all seven families, with passing local
-extreme/degenerate, 100k exact/sampled and crowded Sankey tests. Mounted GPU paint,
-input/accessibility, the Chart Lab and graphical performance measurements remain. See
+extreme/degenerate, 100k exact/sampled and crowded Sankey tests. The prepared native
+painter now passes actual hidden-window GPU checks for every family, mixed layers,
+gradients/corners, clipping and hollow/filled candles. Resource-backed mounted views,
+input/accessibility, the Chart Lab and streaming performance measurements remain. See
 [chart contracts and remaining work](design/charts.md).
 The detailed entries below record implementation checkpoints chronologically;
 their earlier pending-gate statements are superseded by this delivery record.

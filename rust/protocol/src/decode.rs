@@ -5,6 +5,8 @@ use std::io::{Cursor, Read};
 mod accessibility;
 mod chart_data;
 mod chart_options;
+mod chart_style;
+pub use chart_style::decode_chart_style;
 mod chart_resource;
 mod chart_sampling;
 pub use chart_options::decode_chart_options;

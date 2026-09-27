@@ -21,6 +21,30 @@ pub const MAX_SEGMENTS: usize = 16_384;
 pub const MAX_VERTICES: usize = 65_536;
 pub const MAX_INDICES: usize = 196_608;
 
+#[derive(Clone, Copy)]
+struct Limits {
+    commands: usize,
+    segments: usize,
+    vertices: usize,
+    indices: usize,
+}
+impl Limits {
+    const CANVAS: Self = Self {
+        commands: gpuio_protocol::canvas::MAX_PATH_COMMANDS,
+        segments: MAX_SEGMENTS,
+        vertices: MAX_VERTICES,
+        indices: MAX_INDICES,
+    };
+    // Only native-generated chart geometry uses this allowance. Wire canvas
+    // input keeps its existing command/count/scene admission contract.
+    const CHART: Self = Self {
+        commands: 200_004,
+        segments: 262_144,
+        vertices: 1_000_000,
+        indices: 1_000_000,
+    };
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {
     InvalidGeometry,
@@ -102,6 +126,7 @@ fn check_cancel(cancel: &AtomicBool) -> Result<(), Error> {
 }
 
 struct Flatten<'a> {
+    limits: Limits,
     builder: lyon::path::path::Builder,
     origin: Point,
     cancel: &'a AtomicBool,
@@ -109,9 +134,10 @@ struct Flatten<'a> {
     active: bool,
 }
 impl<'a> Flatten<'a> {
-    fn new(origin: Point, cancel: &'a AtomicBool) -> Self {
+    fn new(origin: Point, cancel: &'a AtomicBool, limits: Limits) -> Self {
         Self {
             builder: LyonPath::builder(),
+            limits,
             origin,
             cancel,
             segments: 0,
@@ -128,7 +154,7 @@ impl<'a> Flatten<'a> {
     }
     fn charge(&mut self) -> Result<(), Error> {
         check_cancel(self.cancel)?;
-        if self.segments == MAX_SEGMENTS {
+        if self.segments == self.limits.segments {
             return Err(Error::LimitExceeded);
         }
         self.segments += 1;
@@ -162,14 +188,15 @@ fn flatten_path(
     path: &Path,
     tolerance: f64,
     cancel: &AtomicBool,
+    limits: Limits,
 ) -> Result<(LyonPath, Point, usize), Error> {
-    if !path.is_valid() {
+    if !path.is_valid_up_to(limits.commands) {
         return Err(Error::InvalidGeometry);
     }
     let Some(PathCommand::Move(origin)) = path.0.first() else {
         return Err(Error::InvalidGeometry);
     };
-    let mut result = Flatten::new(*origin, cancel);
+    let mut result = Flatten::new(*origin, cancel, limits);
     let mut current = *origin;
     for command in &path.0 {
         match *command {
@@ -214,9 +241,10 @@ fn flatten(
     geometry: Geometry<'_>,
     tolerance: f64,
     cancel: &AtomicBool,
+    limits: Limits,
 ) -> Result<(LyonPath, Point, usize), Error> {
     let (rect, ellipse) = match geometry {
-        Geometry::Path(path) => return flatten_path(path, tolerance, cancel),
+        Geometry::Path(path) => return flatten_path(path, tolerance, cancel, limits),
         Geometry::Rectangle(rect) => (rect, false),
         Geometry::Ellipse(rect) => (rect, true),
     };
@@ -227,14 +255,14 @@ fn flatten(
         x: rect.x,
         y: rect.y,
     };
-    let mut result = Flatten::new(origin, cancel);
+    let mut result = Flatten::new(origin, cancel, limits);
     if ellipse {
         // The maximum-radius circle bounds affine ellipse chord error. Compute
         // segment admission before allocating; no enormous curve iterator.
         let radius = rect.width.max(rect.height) * 0.5;
         let angle = 2. * (1. - (tolerance / radius).min(1.)).acos();
         let count = (std::f64::consts::TAU / angle).ceil().max(4.);
-        if !count.is_finite() || count > MAX_SEGMENTS as f64 {
+        if !count.is_finite() || count > limits.segments as f64 {
             return Err(Error::LimitExceeded);
         }
         let count = count as usize;
@@ -271,6 +299,7 @@ fn flatten(
 }
 
 struct Output<'a> {
+    limits: Limits,
     vertices: Vec<LyonPoint>,
     indices: Vec<u32>,
     cancel: &'a AtomicBool,
@@ -293,7 +322,7 @@ impl Output<'_> {
             self.failure = Some(Error::InvalidGeometry);
             return Err(GeometryBuilderError::InvalidVertex);
         }
-        if self.vertices.len() >= MAX_VERTICES {
+        if self.vertices.len() >= self.limits.vertices {
             self.failure = Some(Error::LimitExceeded);
             return Err(GeometryBuilderError::TooManyVertices);
         }
@@ -314,7 +343,7 @@ impl GeometryBuilder for Output<'_> {
             self.failure = Some(Error::Tessellation);
             return;
         }
-        if self.indices.len() > MAX_INDICES - 3 {
+        if self.indices.len() > self.limits.indices - 3 {
             self.failure = Some(Error::LimitExceeded);
             return;
         }
@@ -352,6 +381,31 @@ pub fn prepare(
     tolerance: f64,
     cancel: &AtomicBool,
 ) -> Result<Mesh, Error> {
+    prepare_with_limits(geometry, style, tolerance, cancel, Limits::CANVAS)
+}
+
+pub(crate) fn prepare_chart(
+    path: &Path,
+    style: Style,
+    tolerance: f64,
+    cancel: &AtomicBool,
+) -> Result<Mesh, Error> {
+    prepare_with_limits(
+        Geometry::Path(path),
+        style,
+        tolerance,
+        cancel,
+        Limits::CHART,
+    )
+}
+
+fn prepare_with_limits(
+    geometry: Geometry<'_>,
+    style: Style,
+    tolerance: f64,
+    cancel: &AtomicBool,
+    limits: Limits,
+) -> Result<Mesh, Error> {
     check_cancel(cancel)?;
     if !tolerance.is_finite() || !(1e-9..=1_000_000.).contains(&tolerance) {
         return Err(Error::InvalidGeometry);
@@ -362,15 +416,16 @@ pub fn prepare(
         }
         Style::Fill => {
             if let Geometry::Path(path) = geometry
-                && !path.is_closed()
+                && !path.is_closed_up_to(limits.commands)
             {
                 return Err(Error::InvalidGeometry);
             }
         }
         Style::Stroke(_) => (),
     }
-    let (path, origin, segments) = flatten(geometry, tolerance, cancel)?;
+    let (path, origin, segments) = flatten(geometry, tolerance, cancel, limits)?;
     let mut output = Output {
+        limits,
         vertices: Vec::new(),
         indices: Vec::new(),
         cancel,
@@ -593,6 +648,7 @@ mod tests {
             );
         }
         let mut output = Output {
+            limits: Limits::CANVAS,
             vertices: vec![],
             indices: vec![],
             cancel: &cancel,
@@ -607,6 +663,7 @@ mod tests {
     fn output_caps_apply_before_growth_and_invalid_indices_are_never_retained() {
         let cancel = AtomicBool::new(false);
         let mut output = Output {
+            limits: Limits::CANVAS,
             vertices: vec![],
             indices: vec![],
             cancel: &cancel,

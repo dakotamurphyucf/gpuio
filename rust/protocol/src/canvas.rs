@@ -32,7 +32,12 @@ impl PathCommand {
 pub struct Path(pub Vec<PathCommand>);
 impl Path {
     pub fn is_valid(&self) -> bool {
-        if self.0.len() > MAX_PATH_COMMANDS {
+        self.is_valid_up_to(MAX_PATH_COMMANDS)
+    }
+    /// Native-generated geometry may have a different admission budget. Wire
+    /// readers and canvas scenes always use `is_valid` and its fixed limit.
+    pub fn is_valid_up_to(&self, max_commands: usize) -> bool {
+        if self.0.len() > max_commands {
             return false;
         }
         let mut active = false;
@@ -71,7 +76,11 @@ impl Path {
         has_drawing && (!active || segments > 0)
     }
     pub fn is_closed(&self) -> bool {
-        if !self.is_valid() {
+        self.is_closed_up_to(MAX_PATH_COMMANDS)
+    }
+    /// Closed-contour validation for the same native-generated path boundary.
+    pub fn is_closed_up_to(&self, max_commands: usize) -> bool {
+        if !self.is_valid_up_to(max_commands) {
             return false;
         }
         let mut active = false;

@@ -10,7 +10,7 @@ and evidence remain in [the milestone 5 handoff](milestone-5.md).
 | -- | -- | -- |
 | OCH-27 | Application identity, deep-link packaging/startup/live delivery, activation, file reveal/open, document-window metadata | In progress: macOS OS acceptance passes; Linux portal file adapters pass local peer/worker tests; typed packaging and real bus arbitration pass locally; Linux GUI and consolidated hosted gates pending |
 | OCH-28 | OS notifications, permissions/capabilities, replacement/dismissal and stale-safe action routing | In progress: Core/Eio ownership, bounded paired protocol and owned macOS adapter; public packaged macOS OS actions pass; Linux worker/private-bus routing pass locally; Linux build/display and consolidated gates pending |
-| OCH-40 | Line, area, bar, pie, radar, candlestick and Sankey components with typed bounded datasets, native interaction and accessible alternatives | In progress: typed data/options/codecs, native resources/Eio API, 100k-point macOS resource integration, explicit sampling and all-family logical geometry; mounted GPU paint/input/accessibility and graphical acceptance pending |
+| OCH-40 | Line, area, bar, pie, radar, candlestick and Sankey components with typed bounded datasets, native interaction and accessible alternatives | In progress: typed data/options/styles/codecs, native resources/Eio API, 100k-point macOS resource integration, sampling/geometry and actual all-family prepared GPU paint; resource-backed views/input/accessibility and complete graphical acceptance pending |
 | OCH-29 | Focused graphics application consuming public canvas and an independently packaged native component; desktop workflows and one chart | Pending integration of preceding capabilities |
 
 The goal includes all four tickets, local functional acceptance, required hosted
@@ -150,5 +150,13 @@ presentation options and paired native codecs. Axes/formatters, all three curve
 styles, grouped/oriented bars, donut/radar, OHLC and normalized Sankey layout now
 pass local preparation checks, including 100k exact area/candles and crowded
 columns at small plot sizes. Mounted views, cached GPU meshes, semantic selection,
-accessibility and graphical measurements still remain; pure geometry checks are
-not graphical acceptance.
+accessibility and graphical measurements remained at that checkpoint; pure
+geometry checks were not graphical acceptance. The prepared painter now passes
+actual hidden-window macOS GPU readback for all seven families, mixed primitive
+ordering, donut holes, area alpha, candles, gradient/rounded bars and clipping.
+It reuses bounded mesh preparation with a separate native chart allowance while
+preserving canvas admission. Six painter tests cover 100k exact/default sampled
+paths, isolated points, whole-frame quotas and cancellation. Core style/theme
+resolution and its bounded paired codec are implemented. Resource-backed chart
+views, worker/cache ownership, native text/interaction/accessibility and Chart Lab
+still need integration; see [the current evidence ledger](evidence/charts-och40.md).

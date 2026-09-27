@@ -4,7 +4,8 @@ Status: in progress. The validated Core data model and paired bounded codecs are
 The extracted Sankey layout source compiles against the existing GPUI revision.
 The native resource store, scoped Eio scheduler and application/host transport now
 pass local ownership and windowless macOS integration tests. Typed plotting options
-and retained logical-pixel geometry now cover all seven families. Widgets, GPU paint, interactions,
+and retained logical-pixel geometry now cover all seven families. The prepared
+painter passes local hidden-window GPU readback for every family. Resource-backed widgets, interactions,
 accessibility and public graphical examples remain. This document separates implemented contracts from
 the remaining implementation work.
 
@@ -232,12 +233,12 @@ Sankey extraction do not replace that scope:
 - Connect borrowed resource handles to native chart views and validate multiple-
   window readers, unmounting, source-dependent redraw and interaction retirement.
   Do not put large datasets in each reconciled view node.
-- Connect implemented axes/formatting/labels to mounted presentation; define
-  legends, palette/stroke/fill tokens and tooltips, including non-color distinctions. Shared Cartesian layers provide
+- Connect implemented axes/formatting/labels/styles to mounted presentation;
+  implement legends and tooltips, including non-color distinctions. Shared Cartesian layers provide
   useful custom combinations. Preserve the pinned families' applicable styling
   and plotting options while keeping the public API typed.
-- Connect the implemented policies and logical geometry to cached GPU meshes
-  and semantic selection. Bound native worker/geometry/cache memory separately from
+- Connect the prepared native painter to resource/view workers and semantic
+  selection. Bound native worker/geometry/cache memory separately from
   source data. Expose complete source provenance for aggregates; never substitute
   line sampling for bar or candle aggregation.
 - Rust owns layout, retained paint geometry, hit testing, hover and drag. Reuse
@@ -297,8 +298,23 @@ preparation space and charge retained geometry/tessellation separately from data
 The plan alone does not retain a resource or authorize stale data: its owner must
 hold and validate the exact immutable snapshot.
 
-These are logical plotting primitives, not yet cached GPU meshes or a mounted
-chart element. Native frame/paint/interaction measurements remain outstanding.
+These logical primitives now feed `chart_paint`, which retains tessellated
+meshes and native quad specifications. `Gpuio.Chart_style` validates palette/theme
+resolution, stroke/point/corner sizes, grid/axis/label/selection colors, bar
+gradients and area opacity; its paired codec is bounded to 512 bytes. Source-layer
+order is preserved across meshes and quads. Rising candles are hollow with wicks
+outside the body; falling candles are filled, and unchanged candles have a
+horizontal mark. The native painter passes actual local GPU pixel checks.
+
+The shared mesh engine has a separate bounded allowance for native-generated
+charts; canvas wire/mesh limits remain unchanged. This supports a 100,000-point
+exact line and all default sampled curve modes without silently dropping source
+points or inheriting the canvas wire's 4,096-command cap. Per-plan geometry,
+mesh and quad retention is capped at 64 MiB. A shared frame budget reserves the
+whole chart's draw vertices/quads before painting. Application-wide worker/cache
+admission, mounted lifecycle, native labels/legends/tooltips, interaction and
+end-to-end streaming measurements remain outstanding. See [chart evidence](../evidence/charts-och40.md)
+for exact current coverage and limits.
 
 ## Current local evidence
 

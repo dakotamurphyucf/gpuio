@@ -60,6 +60,11 @@ gpuio-portal = { path = "../portal" }
 gpuio-wayland = { path = "../wayland" }
 
 [[test]]
+name = "native_chart_paint"
+harness = false
+required-features = ["native-canvas-tests"]
+
+[[test]]
 name = "native_ui"
 path = "tests/native_ui.rs"
 harness = false
