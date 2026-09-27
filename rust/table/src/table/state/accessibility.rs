@@ -188,6 +188,7 @@ impl<D: TableDelegate> TableState<D> {
         mut element: E,
         target: Target,
         sort: Option<ColumnSort>,
+        window: &Window,
         cx: &Context<Self>,
     ) -> Semantic<E> {
         let selection = self.accessible_target(target, cx);
@@ -195,9 +196,15 @@ impl<D: TableDelegate> TableState<D> {
         if let Some(selection) = selection {
             element = element
                 .aria_selected(self.selection == selection)
-                .when(self.selection == selection, |element| {
-                    element.aria_active_descendant()
-                })
+                .when(
+                    self.selection == selection && self.focus_handle.is_focused(window),
+                    |element| {
+                        // A row or embedded control may own direct pointer focus.
+                        // Only report composite focus while the table owns it;
+                        // a focused node cannot be its own active descendant.
+                        element.aria_active_descendant()
+                    },
+                )
                 .on_a11y_action(
                     accesskit::Action::Click,
                     self.accessibility_listener(target, accesskit::Action::Click, cx),
@@ -240,6 +247,7 @@ impl<D: TableDelegate> TableState<D> {
         &self,
         row: E,
         index: usize,
+        window: &Window,
         cx: &Context<Self>,
     ) -> Semantic<E> {
         self.accessible_element(
@@ -248,6 +256,7 @@ impl<D: TableDelegate> TableState<D> {
                 .aria_label(format!("Row {}", index + 1)),
             Target::Row(index),
             None,
+            window,
             cx,
         )
     }
@@ -256,6 +265,7 @@ impl<D: TableDelegate> TableState<D> {
         cell: Stateful<Div>,
         row: usize,
         col: usize,
+        window: &Window,
         cx: &Context<Self>,
     ) -> Semantic<Stateful<Div>> {
         self.accessible_element(
@@ -269,6 +279,7 @@ impl<D: TableDelegate> TableState<D> {
                 ),
             Target::Cell(row, col),
             None,
+            window,
             cx,
         )
     }
@@ -276,6 +287,7 @@ impl<D: TableDelegate> TableState<D> {
         &self,
         header: E,
         col: usize,
+        window: &Window,
         cx: &Context<Self>,
     ) -> Semantic<E> {
         let column = &self.col_groups[col].column;
@@ -286,6 +298,7 @@ impl<D: TableDelegate> TableState<D> {
                 .aria_label(column.name.clone()),
             Target::Column(col),
             self.sortable.then_some(column.sort).flatten(),
+            window,
             cx,
         )
     }

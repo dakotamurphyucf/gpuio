@@ -11,6 +11,7 @@ val component
   -> app:Gpuio_eio.App.t
   -> window:Gpuio_eio.App.Window.t
   -> sources:Sources.t
+  -> results:Results.t
   -> dark:bool Bonsai.Cont.t
   -> Bonsai.Cont.graph
   -> Gpuio_bonsai.View.t Bonsai.Cont.t

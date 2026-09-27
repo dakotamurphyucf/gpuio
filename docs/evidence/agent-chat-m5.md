@@ -153,11 +153,17 @@ closes the loader and any fixture-building task.
 
 Normal startup has three collections. Project sources load three leaves; Research
 notes deliberately fail their first attempt and append two leaves after explicit
-retry. Loading uses a deterministic 300 ms scoped Eio delay, never real file I/O.
+retry. Project loading uses a deterministic 300 ms scoped Eio delay; Research notes
+uses two seconds so its loading/cancel state is observable through ordinary
+native interaction. Neither performs real file I/O.
 The large fixture contains exactly 100,000 nodes: three roots and 99,997 leaves.
 Construction runs through `Eio.Domain_manager.run` in a scoped task; adopting the
-result resets the widget generation. Resetting the sample cancels a pending build
-and clears its approval dialog. The widget has fixed 34-pixel rows and a 24-row
+result resets the widget generation. Resetting the sample retires pending build
+delivery and clears its approval dialog. The window-scoped fixture helper allows
+one running calculation and at most one newest pending replacement. An already
+running pure calculation drains before its replacement starts, preventing rapid
+resets from accumulating worker domains. Parent scope cancellation still cancels
+the Eio task. The widget has fixed 34-pixel rows and a 24-row
 active budget. Large-data startup is an explicit action.
 
 Native drag and context actions propose moves. A tokened alert dialog consumes an
@@ -204,13 +210,139 @@ latest M4 diagnostic records 3,924 ms, 1,676 turns, 236 clock ticks, 58 commits,
 workload; simultaneous streaming/tree/table/canvas/extension latency and retention
 measurements remain required. Hosted execution and merge remain pending.
 
+## Structured run results
+
+**Workspace → Explore results** integrates the public Bonsai table and Eio pager.
+[Result_data](../../examples/agent_chat/runtime/result_data.ml) owns immutable
+queries, deterministic Unicode findings and global sorting/filtering before
+paging. [Results](../../examples/agent_chat/runtime/results.ml) owns one window's
+pager, accepted columns, selected view and pending fixture work. The initial
+sample loads 24 of 48 records; the explicit large fixture has 100,000 records.
+A query replacement builds the full ordered result set, preserving membership
+for surviving IDs. A fresh paged sample intentionally starts a new lineage.
+Removed/reintroduced IDs cannot revive old row references.
+
+[Result_actions](../../examples/agent_chat/runtime/result_actions.ml) retains a
+row reference, query generation and unique dialog identity, rather than payloads
+or old data snapshots. Details and delayed reveal recheck the current generation
+and membership. Native selection, context targets, horizontal/vertical reveal,
+clipboard and column gestures travel through ordinary asynchronous public APIs.
+The score filter affects the results; empty output has a restore action. Failure
+and slow-query controls provide reproducible retry/cancellation demonstrations,
+without real tools, files, services or credentials.
+
+The shared [Fixture_job](../../examples/agent_chat/runtime/fixture_job.ml) helper
+bounds CPU fixture work to one running producer and one latest pending request.
+Both sources and results use it. A reset retires stale delivery; an already-running
+pure calculation finishes before the latest replacement starts. Parent scope
+cancellation still cancels its Eio task. A deterministic mocked-Eio test submits
+100 replacements while the first producer is held: only the first and latest
+start, only the latest is delivered, and peak concurrency is one. Other expect
+tests cover whole-query page order, score filtering, exact Unicode, stable row
+membership through reorder, retired removal/reinsertion, invalid cursors/sorts
+and deterministic ties across 100,000 records.
+
+Local macOS commands **PASS** for the results integration:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/agent_chat/main.exe \
+  @test/agent_chat_showcase/runtest @fmt
+GPUIO_JOBS=2 python3 scripts/test_table_host.py
+python3 scripts/test_agent_chat_results.py
+```
+
+The native chat walkthrough validates actual pointer cell selection, OS arrows,
+Return/Shift+F10, context targets independent of selection, dismissal/restored
+focus, reveal, exact joined-emoji/Japanese Command-C, grouped columns, actual
+header-boundary resizing and drag reordering preserved across unmount/remount,
+full-query ascending/descending sort, pin/reset, paging, failure/retry, replacing
+a two-second pending query with empty results, filters, themes, preserved composer
+draft and window close/discard. Large-data last-row reveal observed **7 AX rows
+and 32 cells**, within the 24-row/96-cell limits. This is mounted accessibility
+evidence, not the still-required combined retention/latency workload. The script
+has a 180-second deadline and closes/reaps its owned process on all handled exits.
+
+Integration exposed two native presentation/input defects, now covered by the
+retained-host regression. Explicit foreground colors now supply translucent hover
+and sort-button feedback, so a light surface does not inherit dark hover paint.
+The demo supplies its Selected background through the public style API. GPU tests
+check hovered and selected pixels across light/dark updates. Holding the pointer
+on an already-selected row also revealed direct row focus being reported as its
+own active descendant; the table adapter now emits composite descendant focus only
+while the table container owns focus. The actual AX test draws the held-down frame,
+checks direct row focus, then releases and restores ordinary cell focus. No GPUI
+fork change was needed. Existing keyboard, child editor/IME, clipboard, styling,
+AX and teardown tests pass in the same native run.
+
+Actual rendered captures were inspected after the contrast fix:
+
+- [Dark results inspector](../images/studio-results-dark.png)
+- [Light results inspector](../images/studio-results-light.png)
+
+Set `GPUIO_SCREENSHOT_DIR` in the results walkthrough to reproduce them. The hosted
+macOS workflow includes this walkthrough; consolidated hosted gates and merge are
+still pending.
+
+### Source regression and managed demand
+
+Running the source walkthrough after integrating results exposed a shared native
+list defect. GPUI skips renderer callbacks for measured overscan rows. Treating
+those absent callbacks as eviction demand repeatedly removed and recreated the
+same rows at a stationary viewport. A diagnostic run captured 380 last-source
+viewport reports, dominated by two alternating requested sets; this was real
+bridge/reconciliation work, not merely an accessibility-test timeout.
+
+The host now keeps the previous bounded demand at the same source, anchor, visible
+range and viewport dimensions. Scroll, configuration, source and size changes
+invalidate it, and the configured active-row budget still applies. The full source
+AppKit walkthrough passes with this correction, including cancellation/retry,
+100,000-node reveal, reset, themes and cleanup. Its temporary diagnostic trace had
+five reports at the corresponding last-source viewport, with normal focus changes
+instead of alternating overscan eviction. These differently completed walkthroughs
+are diagnostic evidence, not a controlled performance benchmark. Temporary trace
+logging has been removed; combined-workload performance acceptance remains open.
+
+The production-host `native_list` regression also passes on macOS. Its new
+closed-loop fixture admits exactly each requested active set, evicts the rest,
+and requires six successive unchanged native frames. Cached leading/trailing
+overscan converges; scroll, zero-overscan configuration, resizing and complete
+source replacement retire old demand while respecting the 24-row limit. Existing
+focus/editor/selection checks and the full 100,000-row traversal and revisit pass
+in the same run, including resource release after unmount and window close.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native \
+  --features native-tests --test native_list
+```
+
+The final executable without diagnostic tracing passes all six local integration
+regressions: source explorer, native review extension, diagram, results, M4 public
+self-test and M4 AppKit. Full Dune `@runtest`, `@fmt`, and strict Clippy for the
+native host/table adapter also pass. The M4 self-test recorded 3,916 ms, 1,634 turns,
+235 clock ticks, 46 commits, 27 rendered acknowledgements and 37 completed jobs.
+These remain regression-workload diagnostics, not combined M5 performance evidence.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 \
+  examples/agent_chat/main.exe @runtest @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j2 \
+  -p gpuio-native -p gpuio-table-adapter --all-targets \
+  --features native-image-tests -- -D warnings
+python3 scripts/test_agent_chat_sources.py
+python3 scripts/test_agent_chat_review.py
+python3 scripts/test_agent_chat_diagram.py
+python3 scripts/test_agent_chat_results.py
+_build/default/examples/agent_chat/main.exe --self-test
+python3 scripts/test_agent_chat.py
+```
+
 ## Remaining acceptance
 
 These flows cover the OCH-23 package integration, OCH-24 diagram, the OCH-37
-navigation stack/breadcrumbs, OCH-38 source explorer and a subset of OCH-33's
+navigation stack/breadcrumbs, OCH-38 source explorer, OCH-39 results table and a subset of OCH-33's
 presentation compositions. They do not complete the other component families,
-responsive/resizable inspector, motion, results table
-and its large fixture, settings/input/date/color/OTP flows, other navigation families/tour, or the
+responsive/resizable inspector, motion, settings/input/date/color/OTP flows, other
+navigation families/tour, or the
 combined streaming/input/retention/idle-traffic workload. Those all remain required
 by OCH-46, along with narrow/wide visual acceptance, the full coverage map, hosted
 macOS/Linux gates and merge. Full Linux GUI acceptance remains OCH-17.

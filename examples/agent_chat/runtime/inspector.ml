@@ -11,6 +11,7 @@ module Route = struct
     | Diagram
     | Review
     | Sources
+    | Results
     | Stage of Stage.t
   [@@deriving equal]
 
@@ -19,6 +20,7 @@ module Route = struct
     | Diagram -> "Run"
     | Review -> "Review"
     | Sources -> "Sources"
+    | Results -> "Results"
     | Stage stage -> Stage.name stage
   ;;
 end
@@ -76,7 +78,7 @@ let navigate t ?(replace = false) route =
 let px = Gpuio.Length.px_exn
 let style = Gpuio.Style.create_exn
 
-let component t ~app ~window ~sources ~dark graph =
+let component t ~app ~window ~sources ~results ~dark graph =
   let review = Review.component ~dark graph in
   let active =
     B.map2
@@ -87,7 +89,7 @@ let component t ~app ~window ~sources ~dark graph =
         && Option.exists (N.current routes) ~f:(fun entry ->
           match N.Entry.data entry with
           | Diagram -> true
-          | Overview | Review | Sources | Stage _ -> false))
+          | Overview | Review | Sources | Results | Stage _ -> false))
   in
   let diagram =
     Diagram.component
@@ -108,15 +110,28 @@ let component t ~app ~window ~sources ~dark graph =
         && Option.exists (N.current routes) ~f:(fun entry ->
           match N.Entry.data entry with
           | Sources -> true
-          | Overview | Diagram | Review | Stage _ -> false))
+          | Overview | Diagram | Review | Results | Stage _ -> false))
   in
   let sources = Sources.component sources ~active:sources_active ~dark graph in
+  let results_active =
+    B.map2
+      (B.Expert.Var.value t.opened)
+      (B.Expert.Var.value t.routes)
+      ~f:(fun opened routes ->
+        opened
+        && Option.exists (N.current routes) ~f:(fun entry ->
+          match N.Entry.data entry with
+          | Results -> true
+          | Overview | Diagram | Review | Sources | Stage _ -> false))
+  in
+  let results = Results.component results ~active:results_active ~dark graph in
   let open B.Let_syntax in
   let%arr opened = B.Expert.Var.value t.opened
   and routes = B.Expert.Var.value t.routes
   and dark = dark
   and diagram = diagram
   and sources = sources
+  and results = results
   and review = review in
   let palette = Palette.of_dark dark in
   let button ?(disabled = false) label on_click =
@@ -205,6 +220,7 @@ let component t ~app ~window ~sources ~dark graph =
     | Route.Review -> [ review ]
     | Diagram -> [ diagram ]
     | Sources -> [ sources ]
+    | Results -> [ results ]
     | Overview ->
       [ V.text ~style:(style [ Font_size 23.; Font_weight 600 ]) "A closer look."
       ; V.text
@@ -213,6 +229,7 @@ let component t ~app ~window ~sources ~dark graph =
            beside the conversation."
       ; button "Explore run diagram" (navigate t Diagram)
       ; button "Explore sources" (navigate t Sources)
+      ; button "Explore results" (navigate t Results)
       ; button "Review checkpoints" (navigate t Review)
       ]
     | Stage stage ->

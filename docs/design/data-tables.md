@@ -468,8 +468,10 @@ editor ownership. The Selected state's solid background colors the native
 row/cell selection. Selection fills paint behind cell content; only the outline
 is overlaid, preserving readable text. Focused and Hovered backgrounds style the root surface rather
 than being repurposed as selection colors. Base border color also colors native
-dividers. Native row hover feedback retains its default appearance. No editable
-grid behavior is implied by ordinary child View composition.
+dividers. With an explicit root foreground, native row hover and sort-button
+feedback use translucent tints of that foreground so light/dark surfaces remain
+legible; the sort icon uses the foreground too. Without a foreground override,
+the extracted adapter defaults remain. No editable grid behavior is implied by ordinary child View composition.
 
 The Table Lab supplies explicit surface/text/border colors and checks a light/
 dark update while selection and a keyed pixel anchor are retained. GPU tests

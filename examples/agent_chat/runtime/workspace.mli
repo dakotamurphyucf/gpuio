@@ -20,6 +20,7 @@ val component
   :  t
   -> app:Gpuio_eio.App.t
   -> sources:Sources.t
+  -> results:Results.t
   -> open_window:(int -> unit)
   -> read_file:(Gpuio.File_path.t -> string)
   -> attachment_directory:Gpuio.File_path.t option

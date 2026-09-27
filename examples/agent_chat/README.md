@@ -135,3 +135,30 @@ is not yet complete.
 actual macOS input, including failure/retry, native drag and approval, collapse
 cancellation, large-fixture reveal and bounded accessibility rows. It supports
 the same screenshot output variable and always reaps the owned app.
+
+Choose **Workspace → Explore results** for structured sample findings. The initial
+query loads 24 rows, with 24 more available. Sort icons reorder the complete query;
+resize header boundaries, drag column headers, pin/unpin result IDs, and reset
+column preferences. Selection and column preferences survive leaving the page.
+Enter, Shift+F10 or a right click opens finding details; Reveal finding selects its
+full Unicode summary, which can be copied with the native Copy command.
+
+Score filters include a deliberate empty state with a restore action. **Fail next
+query** fails once and needs Retry results. **Slow query** makes cancellation
+observable: choosing another query retires the old producer and its delivery.
+**Load 100,000 results** opts into a full local dataset built in an Eio worker
+domain, keeping startup small. Reveal last result reaches its final record while
+the native table mounts at most 24 rows / 96 cells. This is a read-only table;
+findings are simulated, never external tool output or files from your checkout.
+
+Large fixture construction (sources and results) allows one active producer and
+one newest pending replacement per window/fixture. Reset retires stale delivery;
+an already-running pure CPU calculation drains before starting its replacement,
+so repeated controls cannot accumulate worker domains. Closing the window cancels
+the owning Eio scope. Complete-query reordering preserves surviving row identity;
+removal and later reinsertion deliberately start a new membership lifetime.
+
+`python3 scripts/test_agent_chat_results.py` exercises the integrated table on
+macOS and supports `GPUIO_SCREENSHOT_DIR`. Its owned process has a total deadline
+and is closed/reaped on success and failure. Full M5 acceptance still requires
+the other planned families and the simultaneous workload in the coverage matrix.

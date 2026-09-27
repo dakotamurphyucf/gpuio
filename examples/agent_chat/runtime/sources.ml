@@ -3,7 +3,6 @@ module B = Bonsai.Cont
 module E = Bonsai.Effect
 module V = Gpuio_bonsai.View
 module Loader = Gpuio_eio.Tree_loading
-module Scope = Gpuio_eio.Scope
 module Tree = Gpuio_bonsai.Tree
 module T = Gpuio.Tree
 module I = Gpuio.Tree_interaction
@@ -18,13 +17,12 @@ end
 
 type t =
   { loader : string Loader.t
-  ; scope : Scope.t
+  ; fixture : string T.t Fixture_job.t
   ; build_large : unit -> string T.t
   ; notice : string B.Expert.Var.t
   ; pending : Pending.t option B.Expert.Var.t
   ; busy : bool B.Expert.Var.t
   ; mutable serial : int
-  ; mutable task : Scope.Task.t option
   }
 
 let ok = Or_error.ok_exn
@@ -35,7 +33,7 @@ let style = Gpuio.Style.create_exn
 
 let create ~scope ~sleep ~build_large =
   let attempts = Hashtbl.create (module String) in
-  let%map.Or_error loader =
+  let%bind.Or_error loader =
     Loader.create ~scope (D.initial ()) ~load:(fun request ->
       let parent = Gpuio.Tree_loading.Request.parent request |> T.Id.to_string in
       let generation = Gpuio.Tree_loading.Request.generation request in
@@ -46,24 +44,31 @@ let create ~scope ~sleep ~build_large =
       in
       let attempt = previous + 1 in
       Hashtbl.set attempts ~key:parent ~data:(generation, attempt);
-      sleep 0.3;
+      (* Research notes deliberately expose loading long enough to inspect or
+         cancel from the native UI; ordinary project children stay quick. *)
+      sleep (if String.equal parent "notes" then 2. else 0.3);
       D.load ~attempt request)
   in
+  let%map.Or_error fixture =
+    match Fixture_job.create ~scope with
+    | Ok fixture -> Ok fixture
+    | Error error ->
+      Loader.close loader;
+      Error error
+  in
   { loader
-  ; scope
+  ; fixture
   ; build_large
   ; notice =
       B.Expert.Var.create "Explore sample sources. No real files are read or changed."
   ; pending = B.Expert.Var.create None
   ; busy = B.Expert.Var.create false
   ; serial = 0
-  ; task = None
   }
 ;;
 
 let cancel_build t =
-  Option.iter t.task ~f:Scope.Task.cancel;
-  t.task <- None;
+  Fixture_job.cancel t.fixture;
   set t.busy false
 ;;
 
@@ -76,24 +81,26 @@ let reset t tree notice =
 ;;
 
 let build_large t =
-  if not (get t.busy)
-  then (
-    set t.busy true;
-    set t.pending None;
-    set t.notice "Preparing 100,000 sources…";
-    match
-      Scope.start t.scope ~f:t.build_large ~on_result:(fun result ->
-        E.of_thunk (fun () ->
-          t.task <- None;
-          set t.busy false;
-          match result with
-          | Error error -> set t.notice (Error.to_string_hum error)
-          | Ok tree -> reset t tree "Large sample ready. Explore the source collection."))
-    with
-    | Ok task -> t.task <- Some task
-    | Error error ->
-      set t.busy false;
-      set t.notice (Error.to_string_hum error))
+  let open E.Let_syntax in
+  let%bind start =
+    E.of_thunk (fun () ->
+      if get t.busy
+      then false
+      else (
+        set t.busy true;
+        set t.pending None;
+        set t.notice "Preparing 100,000 sources…";
+        true))
+  in
+  if not start
+  then E.Ignore
+  else
+    Fixture_job.submit t.fixture ~f:t.build_large ~on_result:(fun result ->
+      E.of_thunk (fun () ->
+        set t.busy false;
+        match result with
+        | Error error -> set t.notice (Error.to_string_hum error)
+        | Ok tree -> reset t tree "Large sample ready. Explore the source collection."))
 ;;
 
 let propose t proposal =
@@ -418,10 +425,7 @@ let component t ~active ~dark graph =
         [ button
             "Sample sources"
             (E.of_thunk (fun () -> reset t (D.initial ()) "Sample sources restored."))
-        ; button
-            ~disabled:busy
-            "Load 100,000 sources"
-            (E.of_thunk (fun () -> build_large t))
+        ; button ~disabled:busy "Load 100,000 sources" (build_large t)
         ; button
             "Empty workspace"
             (E.of_thunk (fun () ->

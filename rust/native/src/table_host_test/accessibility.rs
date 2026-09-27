@@ -239,6 +239,26 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle
         let index: isize = msg_send![row, accessibilityIndex];
         assert_eq!(index, 1);
     }
+    // A held mouse down focuses the already-selected row's retained handle.
+    // Drawing that intermediate frame must not report the focused row as its
+    // own active descendant (GPUI correctly rejects that invalid AX tree).
+    let position = window
+        .update(cx, |view, _, _| {
+            view.probes.borrow()[&node(8)].bounds.center()
+        })
+        .unwrap();
+    super::super::super::native_test::move_mouse(cx, window, position, false);
+    super::super::super::native_test::mouse(cx, window, position, true);
+    settle(cx, window).await;
+    let held = nodes(cx, window);
+    assert!(
+        held.iter()
+            .any(|n| n.role == "AXRow" && n.row == Some(1) && n.focused)
+    );
+    super::super::super::native_test::mouse(cx, window, position, false);
+    settle(cx, window).await;
+    requests(cx, window);
+    let current = nodes(cx, window);
     unsafe {
         let _: () = msg_send![&*cell(&current, 0, 1).object, setAccessibilityFocused:true];
     }

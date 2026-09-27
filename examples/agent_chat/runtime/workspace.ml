@@ -684,7 +684,17 @@ let install_close_handler t window =
 let command_id text = Command.Id.of_string text |> Or_error.ok_exn
 let shortcut key modifiers = Gpuio.Shortcut.create ~key ~modifiers () |> Or_error.ok_exn
 
-let component t ~app ~sources ~open_window ~read_file ~attachment_directory window graph =
+let component
+      t
+      ~app
+      ~sources
+      ~results
+      ~open_window
+      ~read_file
+      ~attachment_directory
+      window
+      graph
+  =
   B.Edge.on_change
     (B.Expert.Var.value t.dark)
     ~equal:Bool.equal
@@ -699,6 +709,7 @@ let component t ~app ~sources ~open_window ~read_file ~attachment_directory wind
       ~app
       ~window
       ~sources
+      ~results
       ~dark:(B.Expert.Var.value t.dark)
       graph
   in

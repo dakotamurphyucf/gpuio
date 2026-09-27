@@ -85,3 +85,10 @@ pass locally. The complete scope is mapped in
 `docs/evidence/data-tables-och39-audit.md`; managed tables negotiate their own bit40.
 Hosted macOS/Linux checks and merge remain pending. This does not expand the
 upstream compatibility claim beyond the selected extraction.
+
+The chat integration exposed a held-pointer accessibility edge: a selected row's
+retained handle can take direct focus on mouse down. Composite active-descendant
+semantics are now emitted only while the table container owns focus, preventing
+an invalid node from reporting itself as its own active descendant. The actual
+host AX regression draws the intermediate held-down frame, checks direct row
+focus, then releases and restores ordinary cell focus.

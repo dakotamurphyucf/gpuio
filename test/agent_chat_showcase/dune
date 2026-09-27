@@ -1,6 +1,6 @@
 (library
  (name gpuio_agent_chat_showcase_tests)
- (libraries core gpuio gpuio_agent_chat_runtime)
+ (libraries core gpuio gpuio.eio bonsai eio.mock gpuio_agent_chat_runtime)
  (inline_tests)
  (preprocess
   (pps ppx_jane)))

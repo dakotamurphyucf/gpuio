@@ -195,6 +195,7 @@ impl TableDelegate for Delegate {
     fn appearance(&self) -> gpuio_table_adapter::Appearance {
         use gpuio_protocol::v1::{Field, Fill, Style};
         let mut appearance = gpuio_table_adapter::Appearance::default();
+        let mut custom_foreground = false;
         // The outer host box paints the surface once, including gradients and
         // alpha. Nested native table layers must not obscure or blend it again.
         appearance.tokens.table = gpui::transparent_black();
@@ -203,6 +204,7 @@ impl TableDelegate for Delegate {
             match style {
                 Style::Foreground(value) => {
                     appearance.foreground = super::color(value);
+                    custom_foreground = true;
                     appearance.table_head_foreground = super::color(value);
                 }
                 Style::Radius(value) => appearance.radius = px(*value as f32),
@@ -218,6 +220,7 @@ impl TableDelegate for Delegate {
                         match field {
                             Field::Foreground(value) => {
                                 appearance.foreground = super::color(value);
+                                custom_foreground = true;
                                 appearance.table_head_foreground = super::color(value);
                             }
                             Field::BorderColor(value) => {
@@ -230,6 +233,15 @@ impl TableDelegate for Delegate {
                 }
                 _ => (),
             }
+        }
+        if custom_foreground {
+            // Native hover and sort affordances must remain legible on the
+            // caller's surface, including a light theme changed in place.
+            // A translucent foreground tint preserves alpha/gradient surfaces.
+            appearance.tokens.table_hover = appearance.foreground.opacity(0.06);
+            appearance.tokens.secondary = appearance.foreground.opacity(0.08);
+            appearance.tokens.secondary_active = appearance.foreground.opacity(0.12);
+            appearance.secondary_foreground = appearance.foreground;
         }
         appearance
     }

@@ -109,6 +109,85 @@ async fn states(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
     );
 }
 
+async fn themed_feedback(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
+    for (surface, foreground, hover) in [
+        (0xffffffff, 0x000000ff, [240, 240, 240, 255]),
+        (0x181818ff, 0xffffffff, [38, 38, 38, 255]),
+    ] {
+        let mut style = styles(Fill::Solid(Color::Rgba(surface)));
+        style.extend([
+            Style::Foreground(Color::Rgba(foreground)),
+            Style::State(
+                7,
+                vec![Field::Background(Fill::Solid(Color::Rgba(0xe8e2f6ff)))],
+            ),
+        ]);
+        apply(
+            cx,
+            window,
+            vec![
+                Op::SetStyle(node(3), vec![]),
+                Op::SetStyle(node(5), vec![]),
+                Op::SetStyle(node(0), style),
+            ],
+        );
+        window
+            .update(cx, |view, _, cx| {
+                view.tables[&node(0)]
+                    .borrow()
+                    .native
+                    .update(cx, |state, cx| {
+                        state.replace_selection(
+                            Selection::Cell {
+                                row: RowKey(1),
+                                column: "name".into(),
+                            },
+                            cx,
+                        );
+                    });
+            })
+            .unwrap();
+        super::super::super::native_test::move_mouse(
+            cx,
+            window,
+            gpui::point(px(480.), px(64.)),
+            false,
+        );
+        frame(cx, window).await;
+        let painted = image(cx, window);
+        pixel(
+            &painted,
+            480,
+            64,
+            hover,
+            "hover follows current foreground tint",
+        );
+        pixel(
+            &painted,
+            140,
+            77,
+            [232, 226, 246, 255],
+            "explicit selection survives theme update",
+        );
+    }
+    window
+        .update(cx, |view, _, cx| {
+            view.tables[&node(0)]
+                .borrow()
+                .native
+                .update(cx, |state, cx| {
+                    state.replace_selection(Selection::Empty, cx);
+                });
+        })
+        .unwrap();
+    super::super::super::native_test::move_mouse(
+        cx,
+        window,
+        gpui::point(px(530.), px(330.)),
+        false,
+    );
+}
+
 pub(super) async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
     apply(
         cx,
@@ -275,6 +354,7 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle
         "scrolling cell stays visible",
     );
     states(cx, window).await;
+    themed_feedback(cx, window).await;
     apply(
         cx,
         window,

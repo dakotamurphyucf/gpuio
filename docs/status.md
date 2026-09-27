@@ -228,8 +228,18 @@ within its 24-row budget. Window-owned data/preferences survive inspector page
 changes; fixture construction uses an Eio worker domain. Native theme tokens now
 follow the chat palette, and all prior inspector/M4 acceptance suites remain green.
 Actual source screenshots and scoped ownership evidence are recorded in the same
-ledger. Results-table integration and all other remaining matrix rows, combined
-workload, hosted checks and merge are still required.
+ledger.
+
+The results inspector now passes its own local native walkthrough: full-query
+sort/filter, paging/failure/retry/cancellation, cell/context/reveal/Unicode copy,
+actual column resize/reorder, pin/reset and preferences across page unmounts.
+The opt-in 100,000-row fixture exposes 7 AX rows / 32 cells at the last record,
+within its 24-row / 96-cell budget. Shared fixture work is bounded to one running
+producer and one latest replacement per window/fixture. Actual light/dark captures
+led to corrected selection/hover contrast; GPU regressions verify both themes.
+A held-pointer row-focus AX crash is fixed in the table adapter and protected by
+a native intermediate-frame test. The full component matrix, combined workload,
+consolidated hosted gates and merge remain pending.
 
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
 components pass local acceptance; OCH-24 has validated geometry, a bounded scene

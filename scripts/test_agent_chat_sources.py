@@ -15,6 +15,12 @@ from test_canvas import screenshot
 
 
 class Sources(Review):
+    def find(self, title, label, role=None, contains=False, search_files=False):
+        # This flow observes the trailing inspector/dialogs, not the transcript.
+        # Search that end first: a full transcript AX walk can consume the query
+        # deadline while the inspector already shows the requested value.
+        return super().find(title, label, role, contains, search_files=True)
+
     def check_row_budget(self):
         tree = self.wait_find(TITLE, 'Sample workspace sources', 'AXOutline', search_files=True)
         def count_rows(node):
@@ -166,10 +172,26 @@ class Sources(Review):
         loading = self.wait_find(TITLE, 'Loading…', search_files=True)
         self.release(loading)
         self.row_action('Research notes', expanded=False)
-        time.sleep(.45)  # Past the deterministic 300ms producer's completion.
+        time.sleep(2.2)  # Past the deterministic two-second Research notes producer.
         self.wait_text(TITLE, '6 loaded')
         self.row_action('Research notes', expanded=True)
-        self.wait_text(TITLE, '8 loaded')  # New request succeeds; cancelled work did not append.
+        # Collapse can retire queued work before the producer's first attempt.
+        # In that case the resumed request still owes the intentional first-load
+        # failure; retry it explicitly rather than assuming the producer ran.
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:
+            loaded = self.find(TITLE, '8 loaded', contains=True)
+            if loaded:
+                self.release(loaded)
+                break
+            failed = self.find(TITLE, 'Sample notes could not load. Retry to continue.',
+                               contains=True, search_files=True)
+            if failed:
+                self.release(failed)
+                self.menu('Retry')
+                break
+            time.sleep(.05)
+        self.wait_text(TITLE, '8 loaded')
         self.row_action('App.ml', 'AXPress')
         self.press(TITLE, 'Light theme')
         self.wait_text(TITLE, 'Dark theme')

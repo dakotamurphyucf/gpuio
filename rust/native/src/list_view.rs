@@ -44,6 +44,7 @@ pub(super) struct State {
     bound: Option<i64>,
     extra_pins: BTreeSet<i64>,
     width: Option<Pixels>,
+    height: Option<Pixels>,
     pub(super) observed: Option<Viewport>,
     observed_revision: Option<i64>,
 }
@@ -71,6 +72,7 @@ impl State {
             bound: None,
             extra_pins: BTreeSet::new(),
             width: None,
+            height: None,
             observed: None,
             observed_revision: None,
         }
@@ -131,6 +133,7 @@ impl State {
         {
             self.bound = None;
             self.width = None;
+            self.observed = None;
             self.config = config.clone();
         }
         if !Arc::ptr_eq(&self.rows, &node.list_rows) {
@@ -694,6 +697,11 @@ impl Element for Frame {
                 .clone()
                 .with_uniform_item_height(px(state.config.estimated_height as f32));
             state.width = Some(bounds.size.width);
+            state.observed = None;
+        }
+        if state.height != Some(bounds.size.height) {
+            state.height = Some(bounds.size.height);
+            state.observed = None;
         }
         let index: Arc<Index> = state.native.shared_index();
         let offset = handle.logical_scroll_top();
@@ -715,6 +723,28 @@ impl Element for Frame {
             .collect::<BTreeSet<_>>()
             .into_iter()
             .collect();
+        let anchor = index
+            .id(offset.item_ix)
+            .map(|id| (id, f32::from(offset.offset_in_item) as f64));
+        // GPUI skips render callbacks for measured overdraw rows. Callback
+        // absence is not eviction: otherwise admitting those rows invalidates
+        // measurement, repeatedly alternating full and empty overscan demand.
+        // Keep only the previous bounded demand at this exact viewport. Moving
+        // the anchor/range or replacing the source retires it immediately.
+        let mut overscan = self.rendered.borrow().clone();
+        if let Some(previous) = state.observed.as_ref().filter(|previous| {
+            previous.order_revision == index.revision()
+                && previous.anchor == anchor
+                && previous.visible_first == visible_first as i64
+                && previous.visible_last == visible_last as i64
+        }) {
+            overscan.extend(
+                previous
+                    .requested
+                    .iter()
+                    .filter_map(|row| index.position(*row)),
+            );
+        }
         let max_active = state.config.max_active as usize;
         let mut requested = Vec::new();
         let mut unique: BTreeSet<_> = pinned.iter().copied().collect();
@@ -728,7 +758,7 @@ impl Element for Frame {
         for ix in focus_position
             .into_iter()
             .chain(visible_first..visible_last)
-            .chain(self.rendered.borrow().iter().copied())
+            .chain(overscan)
         {
             if unique.len() >= max_active {
                 break;
@@ -751,9 +781,7 @@ impl Element for Frame {
             visible_last: visible_last as i64,
             requested,
             pinned,
-            anchor: index
-                .id(offset.item_ix)
-                .map(|id| (id, f32::from(offset.offset_in_item) as f64)),
+            anchor,
             following_tail: handle.is_following_tail(),
             at_start: offset.item_ix == 0 && offset.offset_in_item <= px(0.),
             at_end,

@@ -71,10 +71,21 @@ let run ~self_test ~native_test ~attachment_directory =
                        Gpuio_agent_chat_runtime.Source_data.large)
                  |> Or_error.ok_exn
                in
+               let results =
+                 Gpuio_agent_chat_runtime.Results.create
+                   ~scope:(App.Window.scope window)
+                   ~sleep
+                   ~build:(fun source query ->
+                     Eio.Domain_manager.run (Eio.Stdenv.domain_mgr env) (fun () ->
+                       Gpuio_agent_chat_runtime.Result_data.replace source query
+                       |> Or_error.ok_exn))
+                 |> Or_error.ok_exn
+               in
                Workspace.component
                  workspace
                  ~app
                  ~sources
+                 ~results
                  ~open_window
                  ~read_file
                  ~attachment_directory

@@ -1986,7 +1986,7 @@ where
                             _ => this,
                         }
                     })
-                    .map(|header| self.accessible_header(header, col_ix, cx)),
+                    .map(|header| self.accessible_header(header, col_ix, window, cx)),
             )
             // resize handle cell right side
             .child(self.render_resize_handle(col_ix, window, cx))
@@ -2423,7 +2423,7 @@ where
                                                     })
                                                     .map(|cell| {
                                                         self.accessible_cell(
-                                                            cell, row_ix, col_ix, cx,
+                                                            cell, row_ix, col_ix, window, cx,
                                                         )
                                                     }),
                                             ),
@@ -2556,7 +2556,7 @@ where
                                                         })
                                                         .map(|cell| {
                                                             table.accessible_cell(
-                                                                cell, row_ix, col_ix, cx,
+                                                                cell, row_ix, col_ix, window, cx,
                                                             )
                                                         }),
                                                 );
@@ -2618,7 +2618,7 @@ where
                 .on_click(self.layout_listener(cx, move |this, e, window, cx| {
                     this.on_row_left_click(e, row_ix, window, cx);
                 }))
-                .map(|row| self.accessible_row(row, row_ix, cx))
+                .map(|row| self.accessible_row(row, row_ix, window, cx))
                 .into_any_element()
         } else {
             // Render fake rows to fill the rest table space
