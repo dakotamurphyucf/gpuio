@@ -23,6 +23,8 @@ pub(super) struct State {
     gate: focus::Shared,
     #[cfg(feature = "native-tests")]
     pub(super) paint_count: u64,
+    #[cfg(feature = "native-tests")]
+    pub(super) wake_count: u64,
 }
 impl State {
     #[cfg(feature = "native-tests")]
@@ -113,6 +115,10 @@ pub(super) fn paint(state: &Rc<RefCell<State>>, sample: Sample) -> gpui::AnyElem
             let signals = state.motion.painted(sample);
             state.publish(signals);
             if wake == Wake::Frame {
+                #[cfg(feature = "native-tests")]
+                {
+                    state.wake_count += 1;
+                }
                 window.request_animation_frame();
             }
         },
@@ -155,6 +161,8 @@ impl View {
                     gate: self.focus.clone(),
                     #[cfg(feature = "native-tests")]
                     paint_count: 0,
+                    #[cfg(feature = "native-tests")]
+                    wake_count: 0,
                 }))
             })
             .clone()
@@ -264,6 +272,10 @@ impl View {
                             {
                                 state.stop_timer();
                                 if view.focus.borrow().visible(id) {
+                                    #[cfg(feature = "native-tests")]
+                                    {
+                                        state.wake_count += 1;
+                                    }
                                     window.refresh();
                                 }
                             }

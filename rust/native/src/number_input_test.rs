@@ -458,6 +458,10 @@ pub(crate) fn run() {
         cx.spawn(async move |cx| {
             let result = super::super::native_test::protect(exercise(cx, handle, &transport)).await;
             *task_failure.borrow_mut() = result.err();
+            // Close the owned window before stopping AppKit. A titlebar zoom
+            // menu can otherwise keep its nested tracking loop alive after all
+            // component assertions have completed.
+            let _ = handle.update(cx, |_, window, _| window.remove_window());
             cx.update(|cx| {
                 if let Some(clipboard) = clipboard {
                     cx.write_to_clipboard(clipboard);

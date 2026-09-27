@@ -117,6 +117,44 @@ fn signals(transport: &Transport) -> Vec<Signal> {
         })
         .collect()
 }
+async fn assert_idle_programs(
+    cx: &mut gpui::AsyncApp,
+    window: WindowHandle<View>,
+    transport: &Transport,
+) {
+    let snapshot = |cx: &mut gpui::AsyncApp| {
+        window
+            .update(cx, |view, _, _| {
+                let mut counters: Vec<_> = view
+                    .animation_programs
+                    .iter()
+                    .map(|(id, state)| {
+                        let state = state.borrow();
+                        assert!(!state.has_deadline(), "idle program owns no timer");
+                        (*id, state.wake_count)
+                    })
+                    .collect();
+                counters.sort_unstable_by_key(|(id, _)| *id);
+                counters
+            })
+            .unwrap()
+    };
+    let before = snapshot(cx);
+    // Platform exposure/hover can paint an otherwise idle window. Measure the
+    // animation's own wake requests, and deliberately repaint to prove that
+    // painting retained final/reduced geometry does not restart native work.
+    window.update(cx, |_, window, _| window.refresh()).unwrap();
+    frame(cx, window).await;
+    cx.background_executor()
+        .timer(Duration::from_millis(120))
+        .await;
+    assert_eq!(
+        before,
+        snapshot(cx),
+        "idle programs request no native wakes"
+    );
+    assert!(signals(transport).is_empty(), "idle paints emit no events");
+}
 async fn exercise(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, transport: &Transport) {
     let handler = gpuio_protocol::HandlerId::from_parts(0, 1).unwrap();
     apply(
@@ -171,19 +209,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, transport
         finished.iter().map(|s| s.index).collect::<Vec<_>>(),
         vec![2, 33]
     );
-    // Let an already requested platform frame drain before measuring idle.
-    cx.background_executor()
-        .timer(Duration::from_millis(80))
-        .await;
-    let paints = window.update(cx, |v, _, _| v.render_count).unwrap();
-    cx.background_executor()
-        .timer(Duration::from_millis(120))
-        .await;
-    assert_eq!(
-        paints,
-        window.update(cx, |v, _, _| v.render_count).unwrap(),
-        "settled program remains idle"
-    );
+    assert_idle_programs(cx, window, transport).await;
     let mut shared = config(4);
     shared.program.stages.truncate(1);
     shared.program.repeat = Repeat::Alternate;
@@ -249,19 +275,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, transport
     frame(cx, window).await;
     assert_eq!(width(cx, window, 1), 20.);
     assert_eq!(width(cx, window, 2), 20.);
-    // Let an already requested platform frame drain before measuring idle.
-    cx.background_executor()
-        .timer(Duration::from_millis(80))
-        .await;
-    let paints = window.update(cx, |v, _, _| v.render_count).unwrap();
-    cx.background_executor()
-        .timer(Duration::from_millis(120))
-        .await;
-    assert_eq!(
-        paints,
-        window.update(cx, |v, _, _| v.render_count).unwrap(),
-        "reduced shared repeat stays idle"
-    );
+    assert_idle_programs(cx, window, transport).await;
     cx.update(|cx| crate::motion_preference::set(gpuio_protocol::animation::Preference::Full, cx));
     let mut delayed = config(5);
     delayed.program.delay_ms = 10_000;

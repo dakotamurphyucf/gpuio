@@ -310,3 +310,19 @@ accounting (mount 18.072 ms, retarget 13.809 ms, input dispatch 0.123 ms, dispos
 handshake test initially used the wrong local encoder signature; the test now
 writes the Hello message directly with bin_prot, and the full suite passes.
 No hosted or Linux execution is claimed by these local commands.
+
+## Consolidated native idle regression (2026-09-26)
+
+The full milestone sweep exposed an unreliable idle oracle: a completed program's
+window painted once more, even though platform exposure or hover can independently
+redraw it. The native test now counts each program's own frame/deadline wake
+requests (instrumentation exists only with `native-tests`), asserts no live timer,
+forces an unrelated repaint, and verifies unchanged wake counts and no bridge
+events over 120 ms. This directly tests the scheduling contract without forbidding
+legitimate platform paints. Production scheduling is unchanged.
+
+The complete `native_animation_program` executable passes with this check,
+including retained rows, hidden panels, cross-window clocks, physical retargeting,
+controls and the 1,024-owner workload. The feature-enabled native Clippy check
+also passes. The baseline animation suite passed in the same consolidated sweep.
+These are local macOS checks; hosted gates remain outstanding.

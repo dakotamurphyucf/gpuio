@@ -1309,3 +1309,15 @@ policy, independent-window, native editor, command-pressure and repeated-workloa
 checks. All-target native-image Clippy passes with warnings denied. Owned child
 windows/processes exited. This corrects a missed keyboard case in the earlier
 local acceptance; it does not claim hosted or Linux graphical execution.
+
+## Consolidated native process cleanup (2026-09-26)
+
+One numeric-input run completed every component/workload assertion but failed to
+exit. A sample of the still-owned process showed AppKit's titlebar zoom-menu
+tracking loop, not a numeric computation or retained widget workload. That run
+was timed out and reaped; its printed success markers alone were not counted as
+a pass. The fixture now explicitly closes its owned window before stopping the
+application. The focused `native_number_input` rerun completed all assertions and
+exited successfully in 16.91 seconds. Feature-enabled native Clippy passes.
+Production numeric and application shutdown behavior is unchanged. This rerun
+does not claim deliberate coverage of every AppKit titlebar tracking state.
