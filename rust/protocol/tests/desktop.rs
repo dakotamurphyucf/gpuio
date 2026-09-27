@@ -194,3 +194,15 @@ fn launch_preflight_matches_ocaml_and_rejects_partial_or_unbounded_input() {
     assert_eq!(encode(&LaunchResponse::Forwarded), [1]);
     assert_eq!(encode(&LaunchResponse::Failed(Error::Busy)), [2, 6]);
 }
+
+#[test]
+fn desktop_capability_uses_a_new_bit_and_round_trips_the_current_handshake() {
+    use gpuio_protocol::{
+        decode,
+        v1::{CAP_DESKTOP, CAPABILITIES, Message, VERSION},
+    };
+    assert_eq!(CAPABILITIES & CAP_DESKTOP, 1_i64 << 41);
+    assert_eq!(CAPABILITIES, 4_398_046_511_103);
+    let hello = Message::Hello(VERSION, CAPABILITIES);
+    assert_eq!(decode(&encode(&hello)).unwrap(), hello);
+}

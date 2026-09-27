@@ -268,6 +268,6 @@ fn query_capability_uses_the_shared_64_bit_handshake() {
     let mut bytes = Vec::new();
     message.binprot_write(&mut bytes).unwrap();
     let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
-    assert_eq!(hex, "0001fcffffffffff010000");
+    assert_eq!(hex, "0001fcffffffffff030000");
     assert_eq!(decode(&bytes), Ok(message));
 }

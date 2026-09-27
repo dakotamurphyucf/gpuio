@@ -53,3 +53,29 @@ raw links. Linux secondary launches return after atomically forwarding the batch
 without initializing application state. With no links, a secondary requests the
 existing application's reopen handler. There is no fallback second UI if the
 session bus or current owner is unavailable. See the [launch contract](../../docs/design/desktop-services.md#desktop-launch-preflight-and-linux-instance-ownership).
+
+
+Generate metadata from the same OCaml identity used at runtime:
+
+```sh
+_build/default/examples/desktop/main.exe --print-info-plist > Info.plist
+_build/default/examples/desktop/main.exe --print-desktop-entry /opt/gpuio/gpuio-desktop > com.gpuio.desktop-lab.desktop
+```
+
+These commands only print content; they do not install files or select default
+handlers. The Core `Gpuio.Desktop_package` API is available to application-specific
+packaging tools. Linux Exec paths use printable ASCII and applications explicitly
+handle `--open-uris`; scheme declarations and default choices are separate.
+
+Linux checks:
+
+```sh
+scripts/test_desktop_instance_bus.sh
+# With an X11/Wayland display (the script creates its own private bus):
+python3 scripts/test_desktop_links_linux.py
+```
+
+The first test needs only dbus-run-session, with no display. The GUI script needs
+Gio, xdg-utils and desktop-file-utils; it isolates XDG handler configuration and
+cleans its app processes. Linux build/headless tests are required; graphical smoke
+remains informational during implementation. See the [platform matrix](../../docs/design/desktop-services.md#packaging-artifacts-and-platform-support).

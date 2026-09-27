@@ -44,7 +44,7 @@ jobs:
             libfontconfig-dev libfreetype-dev libssl-dev libwayland-dev libx11-xcb-dev \
             libxkbcommon-x11-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
             libvulkan-dev mesa-vulkan-drivers libasound2-dev libglib2.0-dev \
-            xvfb xauth openbox x11-utils x11-xserver-utils weston dbus-x11
+            xvfb xauth openbox x11-utils x11-xserver-utils weston dbus-x11 xdg-utils desktop-file-utils
       - name: macOS system prerequisites
         if: runner.os == 'macOS'
         run: |
@@ -94,6 +94,9 @@ jobs:
           key: foundation-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gpuio.opam.locked', 'third_party/sources.json', 'rust-toolchain.toml', 'Cargo.lock') }}
       - name: OCaml and Rust tests
         run: ./scripts/gpuio test 2>&1 | tee .cache/ci/tests.log
+      - name: Linux desktop instance arbitration (private bus, no display)
+        if: runner.os == 'Linux'
+        run: scripts/test_desktop_instance_bus.sh 2>&1 | tee .cache/ci/desktop-instance.log
       - name: Verify native runtime has no Async symbols
         run: python3 -c 'import subprocess; symbols = subprocess.check_output(["nm", "_build/default/examples/runtime/main.exe"], text=True); assert "camlAsync" not in symbols; print("NO_ASYNC_PASS")' 2>&1 | tee .cache/ci/no-async.log
       - name: Lint

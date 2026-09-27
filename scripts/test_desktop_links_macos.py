@@ -26,22 +26,12 @@ def package(binary: Path, root: Path) -> Path:
     executable = contents / "MacOS" / "gpuio-desktop"
     executable.parent.mkdir(parents=True)
     shutil.copy2(binary, executable)
-    with (contents / "Info.plist").open("wb") as output:
-        plistlib.dump({
-            "CFBundleExecutable": executable.name,
-            "CFBundleIdentifier": "com.gpuio.desktop-lab",
-            "CFBundleName": "GPUIO Desktop Lab",
-            "CFBundlePackageType": "APPL",
-            "CFBundleVersion": "1",
-            "CFBundleShortVersionString": "0.1.0",
-            "LSMinimumSystemVersion": "14.4",
-            "NSHighResolutionCapable": True,
-            "CFBundleURLTypes": [{
-                "CFBundleURLName": "GPUIO Desktop Lab links",
-                "CFBundleURLSchemes": ["gpuio-desktop-lab"],
-                "CFBundleTypeRole": "Viewer",
-            }],
-        }, output)
+    metadata = subprocess.check_output([str(binary), "--print-info-plist"], timeout=10)
+    parsed = plistlib.loads(metadata)
+    assert parsed["CFBundleIdentifier"] == "com.gpuio.desktop-lab"
+    assert parsed["CFBundleExecutable"] == executable.name
+    assert parsed["CFBundleURLTypes"][0]["CFBundleURLSchemes"] == ["gpuio-desktop-lab"]
+    (contents / "Info.plist").write_bytes(metadata)
     return bundle
 
 

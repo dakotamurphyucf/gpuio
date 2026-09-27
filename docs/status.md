@@ -9,7 +9,8 @@ bounded readiness/backpressure and packaged macOS cold/warm OS delivery with
 native window close/reopen checks. Represented-document and edited metadata pass
 native/public macOS tests; Linux reports typed unsupported outcomes. Linux
 launch forwarding passes local private D-Bus/codec tests through `App.run_desktop`;
-packaging and real Linux invocation remain pending. Portal file services pass local private
+typed packaging and real private bus arbitration now pass locally; real Linux GUI
+invocation and consolidated hosted gates remain pending. Portal file services pass local private
 D-Bus/worker tests, with Linux build/GUI validation still outstanding. macOS file open/reveal and explicit scheme
 registration pass local public OS checks. See the
 [milestone 6 plan](milestone-6.md) for current scope, evidence and next steps.

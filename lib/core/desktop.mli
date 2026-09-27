@@ -29,7 +29,9 @@ end
 module Capabilities : sig
   (** Support, not proof of current availability or authorization. An operation
       can still return [Unavailable] or [Denied]. Capability snapshots never
-      imply a notification/link reached a user or another application. *)
+      imply a notification/link reached a user or another application. Linux
+      [incoming_links] additionally requires a live [App.run_desktop] listener;
+      a bus disconnect clears it. Other fields describe backend support. *)
   type t =
     { incoming_links : bool
     ; runtime_registration : bool

@@ -11,23 +11,27 @@ let desktop_ok = function
   | Error error -> raise_s [%sexp (error : Desktop.Error.t)]
 ;;
 
+let scheme = Gpuio.Deep_link.Scheme.of_string "gpuio-desktop-lab" |> Or_error.ok_exn
+
+let unpackaged =
+  Gpuio.Deep_link.Scheme.of_string "gpuio-desktop-unpackaged" |> Or_error.ok_exn
+;;
+
+let identity ~self_test =
+  Desktop.Identity.create
+    ~identifier:"com.gpuio.desktop-lab"
+    ~name:"GPUIO Desktop Lab"
+    ~schemes:(if self_test then [ scheme; unpackaged ] else [ scheme ])
+    ()
+  |> Or_error.ok_exn
+;;
+
 let main () =
   let self_test = Array.exists (Sys.get_argv ()) ~f:(String.equal "--self-test") in
   let service_path =
     Array.find_map (Sys.get_argv ()) ~f:(String.chop_prefix ~prefix:"--service-path=")
   in
-  let scheme = Gpuio.Deep_link.Scheme.of_string "gpuio-desktop-lab" |> Or_error.ok_exn in
-  let unpackaged =
-    Gpuio.Deep_link.Scheme.of_string "gpuio-desktop-unpackaged" |> Or_error.ok_exn
-  in
-  let identity =
-    Desktop.Identity.create
-      ~identifier:"com.gpuio.desktop-lab"
-      ~name:"GPUIO Desktop Lab"
-      ~schemes:(if self_test then [ scheme; unpackaged ] else [ scheme ])
-      ()
-    |> Or_error.ok_exn
-  in
+  let identity = identity ~self_test in
   let startup_links =
     Sys.get_argv ()
     |> Array.to_list
@@ -251,8 +255,32 @@ let check_invalid_launch () =
   Eio.traceln "DESKTOP_LAB: invalid-launch-cleanup"
 ;;
 
+let print_package package =
+  let contents = package |> Or_error.ok_exn |> Gpuio.Desktop_package.contents in
+  Eio_main.run (fun env -> Eio.Flow.copy_string contents (Eio.Stdenv.stdout env))
+;;
+
 let () =
-  if Array.exists (Sys.get_argv ()) ~f:(String.equal "--check-invalid-launch")
-  then check_invalid_launch ()
-  else main ()
+  match Array.to_list (Sys.get_argv ()) with
+  | [ _; "--print-info-plist" ] ->
+    print_package
+      (Gpuio.Desktop_package.macos_info_plist
+         (identity ~self_test:false)
+         ~executable:"gpuio-desktop"
+         ~version:"0.1.0"
+         ~build:"1")
+  | [ _; "--print-desktop-entry"; executable ] ->
+    let executable = Gpuio.File_path.of_string executable |> Or_error.ok_exn in
+    print_package
+      (Gpuio.Desktop_package.linux_entry (identity ~self_test:false) ~executable ())
+  | [ _; "--print-desktop-entry"; executable; "--self-test" ] ->
+    let executable = Gpuio.File_path.of_string executable |> Or_error.ok_exn in
+    print_package
+      (Gpuio.Desktop_package.linux_entry
+         (identity ~self_test:false)
+         ~executable
+         ~arguments:[ "--self-test" ]
+         ())
+  | [ _; "--check-invalid-launch" ] -> check_invalid_launch ()
+  | _ -> main ()
 ;;

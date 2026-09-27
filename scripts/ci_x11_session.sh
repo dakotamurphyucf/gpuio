@@ -18,6 +18,7 @@ if [ "$GPUIO_WM_READY" != true ]; then
 fi
 xrandr --verbose > .cache/ci/xrandr.log
 xprop -root > .cache/ci/x11-root.log
+timeout 90 python3 scripts/test_desktop_links_linux.py --log .cache/ci/desktop-links-x11.log
 timeout 90 ./scripts/gpuio smoke --self-test
 timeout 90 ./scripts/gpuio smoke --two-windows
 timeout 90 _build/default/examples/bridge/main.exe

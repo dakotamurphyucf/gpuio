@@ -11,8 +11,8 @@ native and public macOS tests. macOS file open/reveal and explicit scheme
 registration also have public OS acceptance. Linux portal file services are
 implemented with local peer/worker tests; actual Linux builds/GUI evidence and
 real session-bus/OS invocation remain pending. Linux launch forwarding now has
-private D-Bus peer tests and a typed preflight entry point. The full desktop bridge capability
-is not yet advertised.
+private D-Bus peer tests and a typed preflight entry point. Desktop bridge bit41 is now advertised (aggregate4398046511103). Backend
+capabilities still distinguish supported operations from unavailable services.
 
 ## Ownership and delivery
 
@@ -328,5 +328,70 @@ The services variant observes the app behind Finder, then verifies that public
 `Desktop.activate` makes it frontmost. An empty LaunchServices reopen restores a
 closed document window without creating another process. The demo requests focus
 in new-window configuration; activation commands target already-created windows.
-This is not yet real Linux session-bus or desktop invocation evidence. Packaging
-artifacts, Linux checks and the final desktop capability audit remain pending.
+This is not yet real Linux session-bus or desktop invocation evidence. Generated packaging artifacts now have local Core and macOS OS evidence. Linux
+GUI invocation and required hosted checks remain pending.
+
+
+## Packaging artifacts and platform support
+
+`Gpuio.Desktop_package` is a pure Core module. `linux_entry identity ~executable
+?arguments ()` returns the desktop filename and contents. It quotes each literal
+argument, including percent signs, through both Desktop Entry escaping layers,
+and appends the explicit `--open-uris %U` convention used by the Desktop Lab.
+Exec paths/arguments use the standard's printable ASCII profile; install a launcher
+at an ASCII path when the application lives elsewhere. Display names are UTF-8.
+No shell interprets URI contents. The generator declares all configured schemes as
+`x-scheme-handler` MIME types and does not declare standard D-Bus activation.
+See the [Exec rules](https://specifications.freedesktop.org/desktop-entry/latest/exec-variables.html)
+and [value escaping](https://specifications.freedesktop.org/desktop-entry/latest/value-types.html).
+
+`macos_info_plist identity ~executable ~version ~build` emits a validated, escaped
+Info.plist with matching bundle identity and URL declarations. It targets the
+current backend's macOS14.4 minimum; signing, entitlements, icons and distribution
+are separate packaging concerns. The generated plist is consumed by the actual
+packaged macOS invocation test, rather than testing an independently handwritten
+fixture. See Apple's [bundle build version](https://developer.apple.com/documentation/bundleresources/information-property-list/cfbundleversion)
+and [release version](https://developer.apple.com/documentation/bundleresources/information-property-list/cfbundleshortversionstring).
+
+Neither constructor writes files, installs a handler or changes defaults. Ordinary
+application/tool I/O remains Eio-owned. On Linux, install the generated file under
+an application directory such as `$XDG_DATA_HOME/applications` (default
+`~/.local/share/applications`) and update the desktop database as part of package
+installation. Scheme declaration announces support; choosing a default handler is
+a separate user/installer operation governed by the
+[MIME application association specification](https://specifications.freedesktop.org/mime-apps/latest/).
+For example, an explicit installer/user choice can run `xdg-mime default
+com.gpuio.desktop-lab.desktop x-scheme-handler/gpuio-desktop-lab`. GPUIO never does
+this automatically at app startup. The current Linux runtime `register_scheme`
+reports `Unsupported`; metadata-based installation works independently of it.
+
+| Operation | macOS | Linux X11 / Wayland |
+| -- | -- | -- |
+| Metadata / scheme declarations | Generated Info.plist / packaged LaunchServices | Generated desktop entry / desktop MIME database |
+| Cold/warm links | LaunchServices plus explicit startup links | `App.run_desktop` startup / private instance protocol on session bus |
+| Runtime default-scheme assignment | Explicit registered-bundle operation | `Unsupported`; user/installer owns MIME defaults |
+| Process activation | Native request, OS policy applies | `Unsupported`; use window activation, compositor policy applies |
+| File open / reveal | NSWorkspace | OpenURI portal v2 / v3, availability varies |
+| Represented path / edited-window state | Native observed document metadata | `Unsupported` in the pinned backend |
+
+The desktop bridge capability is bit41 (`2199023255552`); the current aggregate
+is `4398046511103`. New clients require that bit during their handshake. This is
+an experimental paired OCaml/Rust wire revision, including the new represented-
+document snapshot field; rebuild both sides. It is not a stable ABI promise to
+mix artifacts from older revisions.
+
+`test_desktop_instance_bus.sh` creates a private bus and runs the real arbitration
+integration test: eight concurrent authenticated connections, one owner, ordered
+startup, once-only forwarding, reopen, Busy and release/reclaim. It passed locally
+on macOS against a scratch-built D-Bus1.14.10, without installing a system service.
+Linux CI runs it as a required headless check. The ordinary portal tests continue
+to use private Unix peers; neither form requires a display.
+
+`test_desktop_links_linux.py` exercises the generated metadata through actual Gio
+cold/warm default-scheme dispatch, malformed input, same-process routing, empty
+reopen and shutdown. It includes reserved characters in the literal executable
+path, re-executes under its own private bus, and uses disposable XDG data/config
+directories, without modifying developer
+handler defaults. It runs early in the existing X11/Wayland informational smoke
+sessions. That script is implemented but has not yet run on Linux; visual/focus
+acceptance is still recorded separately under OCH-17.

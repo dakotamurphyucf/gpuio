@@ -26,7 +26,7 @@ module Extension = Extension_wire
 module Desktop = Desktop_wire
 
 let version = 1L
-let capabilities = 2199023255551L
+let capabilities = 4398046511103L
 let max_message_bytes = 1_048_576
 
 module Kind = struct

@@ -8,8 +8,8 @@ and evidence remain in [the milestone 5 handoff](milestone-5.md).
 
 | Ticket | Deliverable | Current state |
 | -- | -- | -- |
-| OCH-27 | Application identity, deep-link packaging/startup/live delivery, activation, file reveal/open, document-window metadata | In progress: macOS OS acceptance passes; Linux portal file adapters pass local peer/worker tests; Linux launch forwarding has local peer/codec checks; packaging and real Linux gates pending |
-| OCH-28 | OS notifications, permissions/capabilities, replacement/dismissal and stale-safe action routing | Pending OCH-27 application identity/routing |
+| OCH-27 | Application identity, deep-link packaging/startup/live delivery, activation, file reveal/open, document-window metadata | In progress: macOS OS acceptance passes; Linux portal file adapters pass local peer/worker tests; typed packaging and real bus arbitration pass locally; Linux GUI and consolidated hosted gates pending |
+| OCH-28 | OS notifications, permissions/capabilities, replacement/dismissal and stale-safe action routing | In progress: pinned native source audit; typed results/lifecycle need GPUIO adapters |
 | OCH-40 | Line, area, bar, pie, radar, candlestick and Sankey components with typed bounded datasets, native interaction and accessible alternatives | Pending native adapter evaluation; existing pins retained |
 | OCH-29 | Focused graphics application consuming public canvas and an independently packaged native component; desktop workflows and one chart | Pending integration of preceding capabilities |
 
@@ -95,6 +95,11 @@ the packaged macOS regression pass with explicit startup input and rejected-laun
 handle cleanup. Real empty macOS reopen and public activation from behind Finder
 also pass. This is not yet real Linux bus/desktop invocation evidence.
 
-No full desktop capability bit is advertised yet. Next: packaging, real Linux
-checks and the final OCH-27 acceptance audit, then remaining M6 families and
-consolidated hosted validation. No M6 ticket is complete yet.
+Typed packaging helpers now emit matching Info.plist and desktop entries. The
+macOS invocation test consumes generated metadata. A real private D-Bus test
+passes concurrent ownership/forwarding and release/reclaim locally; Linux CI now
+requires it without a display. Generated Linux metadata/OS invocation has a new
+early X11/Wayland smoke scenario, still awaiting a Linux run. Desktop bit41 is
+advertised (aggregate4398046511103); backend-specific Unsupported results remain
+explicit. OCH-27 stays In Progress pending Linux/hosted acceptance. Next: OCH-28
+notifications, remaining M6 families, then consolidated hosted validation. No M6 ticket is complete yet.

@@ -145,3 +145,70 @@ let%expect_test "desktop launch paired fixture and all-or-error validation" =
     (Failed Native_failure)
     |}]
 ;;
+
+let%expect_test "packaging quotes literal arguments and keeps identity declarations" =
+  let identity =
+    Gpuio.Desktop.Identity.create
+      ~identifier:"com.example.app"
+      ~name:"Example & <Studio> 🎨"
+      ~schemes:[ Gpuio.Deep_link.Scheme.of_string "example" |> Or_error.ok_exn ]
+      ()
+    |> Or_error.ok_exn
+  in
+  let path s = Gpuio.File_path.of_string s |> Or_error.ok_exn in
+  let entry =
+    Gpuio.Desktop_package.linux_entry
+      identity
+      ~executable:(path "/opt/Our App/bin/100%app")
+      ~arguments:[ "--label"; "$HOME `id` \\\"quoted"; "" ]
+      ()
+    |> Or_error.ok_exn
+  in
+  print_endline (Gpuio.Desktop_package.file_name entry);
+  print_string (Gpuio.Desktop_package.contents entry);
+  List.iter [ "/tmp/a=b"; "/tmp/é"; "/tmp/new\nline" ] ~f:(fun executable ->
+    assert (
+      Or_error.is_error
+        (Gpuio.Desktop_package.linux_entry identity ~executable:(path executable) ())));
+  let plist =
+    Gpuio.Desktop_package.macos_info_plist
+      identity
+      ~executable:"example-app"
+      ~version:"0.1.0"
+      ~build:"1"
+    |> Or_error.ok_exn
+  in
+  assert (
+    String.is_substring
+      (Gpuio.Desktop_package.contents plist)
+      ~substring:"Example &amp; &lt;Studio&gt; 🎨");
+  List.iter [ "../app"; "a/b"; "a b"; "."; "" ] ~f:(fun executable ->
+    assert (
+      Or_error.is_error
+        (Gpuio.Desktop_package.macos_info_plist
+           identity
+           ~executable
+           ~version:"0.1.0"
+           ~build:"1")));
+  [%expect
+    {|
+    com.example.app.desktop
+    [Desktop Entry]
+    Type=Application
+    Version=1.0
+    Name=Example\s&\s<Studio>\s🎨
+    Exec="/opt/Our App/bin/100%%app" "--label" "\\$HOME \\`id\\` \\\\\\"quoted" "" --open-uris %U
+    Terminal=false
+    DBusActivatable=false
+    MimeType=x-scheme-handler/example;
+    |}]
+;;
+
+let%expect_test "desktop capability is required by the current OCaml handshake" =
+  let module Bridge = Gpuio_protocol.Wire in
+  assert (Int64.equal (Int64.bit_and Bridge.capabilities 2199023255552L) 2199023255552L);
+  assert (Int64.equal Bridge.capabilities 4398046511103L);
+  assert (
+    Or_error.is_ok (Bridge.Message.encode (Hello (Bridge.version, Bridge.capabilities))));
+  [%expect {||}]
+;;
