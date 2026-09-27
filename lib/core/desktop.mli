@@ -60,3 +60,15 @@ module Expert : sig
   val capabilities_of_wire : Gpuio_protocol.Desktop_wire.Capabilities.t -> Capabilities.t
   val error_of_wire : Gpuio_protocol.Desktop_wire.Error.t -> Error.t
 end
+
+module Event : sig
+  type t =
+    | Link of Deep_link.t
+    | Rejected_link of
+        { input : string
+        ; reason : Deep_link.Error.t
+        }
+    | Overflow of int64
+    | Failed of Error.t
+  [@@deriving equal, sexp_of]
+end

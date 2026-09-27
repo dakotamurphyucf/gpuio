@@ -1,6 +1,6 @@
 (library
  (name gpuio_desktop_tests)
- (libraries core gpuio gpuio.runtime_core)
+ (libraries core gpuio gpuio.runtime_core bonsai)
  (inline_tests)
  (preprocess
   (pps ppx_jane)))

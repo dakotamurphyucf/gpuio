@@ -139,11 +139,16 @@ module Expert : sig
     -> Gpuio_protocol.Desktop_wire.Request.t
     -> Gpuio_protocol.Desktop_wire.Response.t Bonsai.Effect.t
 
-  (** Single application handler, replaced by subsequent registration. A pending
-      signal received before registration is retained. The callback runs on the
-      UI domain and must explicitly request input when ready. Native signals are
-      coalesced availability hints, not one callback per incoming URL. *)
-  val on_desktop_pending : t -> (unit -> unit Bonsai.Effect.t) -> unit
+  (** Exclusive application subscription; a second live subscriber returns
+      [Busy]. The returned idempotent unregister closure cannot remove a later
+      subscriber. Pending signals survive initial registration, but queued jobs
+      from a retired subscription cannot invoke a replacement. The callback runs
+      on the UI domain and must request input when ready. Signals are coalesced
+      availability hints, not one callback per URL. *)
+  val on_desktop_pending
+    :  t
+    -> (unit -> unit Bonsai.Effect.t)
+    -> (unit -> unit, Gpuio.Desktop.Error.t) Result.t
 
   (** Raw correlated scene-resource protocol; at most 63 pending requests.
       Callers own release and late-reply cleanup. This registers scene data;

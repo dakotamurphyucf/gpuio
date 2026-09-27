@@ -8,7 +8,7 @@ and evidence remain in [the milestone 5 handoff](milestone-5.md).
 
 | Ticket | Deliverable | Current state |
 | -- | -- | -- |
-| OCH-27 | Application identity, deep-link packaging/startup/live delivery, activation, file reveal/open, document-window metadata | In progress: parser/readiness inbox, identity/protocol and early native capture implemented; public routing, remaining OS services and packaged acceptance pending |
+| OCH-27 | Application identity, deep-link packaging/startup/live delivery, activation, file reveal/open, document-window metadata | In progress: public routing and packaged macOS cold/warm links pass, including native close/reopen and receiver replacement; remaining OS services and Linux forwarding pending |
 | OCH-28 | OS notifications, permissions/capabilities, replacement/dismissal and stale-safe action routing | Pending OCH-27 application identity/routing |
 | OCH-40 | Line, area, bar, pie, radar, candlestick and Sankey components with typed bounded datasets, native interaction and accessible alternatives | Pending native adapter evaluation; existing pins retained |
 | OCH-29 | Focused graphics application consuming public canvas and an independently packaged native component; desktop workflows and one chart | Pending integration of preceding capabilities |
@@ -53,5 +53,21 @@ overflow reporting, shutdown, independent input-lane saturation and bounded
 response batches. `App.run ~desktop` queues identity before application windows.
 The Eio bridge compiles with the targeted expect/format checks passing.
 
-No full desktop capability bit is advertised yet. Next: public Core/Eio routing,
-remaining OS services, packaging and actual cold/warm OS invocation checks.
+The public application-scoped receiver now passes deterministic readiness,
+coalescing, FIFO/rejection/overflow, effect backpressure, close/late-response and
+explicit retry tests. Real macOS Launch Services cold/warm invocation passes in a
+disposable application bundle. Accessibility observes the native window closing
+and reopening, and document text changing without another process or duplicate
+delivery. Receiver replacement preserves the new subscription. The test briefly
+activates its own process for AppKit accessibility and cleans up on every path.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/desktop/main.exe \
+  @test/desktop/runtest @test/runtime/runtest @test/lifecycle/runtest \
+  @test/view_api/runtest @test/protocol/runtest @fmt
+python3 scripts/test_desktop_links_macos.py
+```
+
+No full desktop capability bit is advertised yet. Next: remaining OS services,
+document-window metadata, Linux launch/instance forwarding and packaging, then
+consolidated hosted validation. No M6 ticket is complete yet.

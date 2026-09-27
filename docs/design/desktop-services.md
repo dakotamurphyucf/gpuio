@@ -4,9 +4,11 @@ OCH-27 / OCH-28 implementation design, started 2026-09-27. This document
 distinguishes proposed contracts from working integration. The pure `Deep_link`
 parser and runtime readiness inbox pass local expect tests. Identity, a correlated
 desktop protocol, native early-link capture and application activation are now
-wired, with native state/mailbox unit coverage. Public routing, the remaining OS
-adapters and real packaged OS invocation acceptance are still pending. The full
-desktop bridge capability is not yet advertised.
+wired, with native state/mailbox unit coverage. Public Eio routing now passes
+deterministic delivery tests and real packaged macOS cold/warm OS invocation,
+including native window closure/reopening. Remaining OS service adapters and
+Linux incoming-link forwarding are pending. The full desktop bridge capability
+is not yet advertised.
 
 ## Ownership and delivery
 
@@ -29,16 +31,30 @@ event on transition to pending input; this event is independent of window-input
 capacity. `Take_links` atomically drains accepted links and the overflow count
 through a reserved command response. Its output is charged to the transport byte
 limit. Early signals survive until a UI-domain handler is installed. Both queues
-are bounded; the public routing adapter will control transfer/readiness rather
-than polling while idle. Equal links are separate requests, not a deduplication key.
+are bounded; the public routing adapter controls transfer/readiness without
+polling while idle. Equal links are separate requests, not a deduplication key.
 
 `App.run ~desktop:identity` queues one immutable identity declaration before user
 initialization can queue native windows. Desktop requests may be queued during
 initialization and wait for the normal bridge handshake. Duplicate native
 configuration is rejected. At most 16 desktop requests may be pending; final
 shutdown completes them with `Closed` and releases callback captures. The expert
-request/subscription interface is runtime machinery; application convenience
-operations and semantic routing remain to implement.
+request/subscription interface is runtime machinery. Applications use
+`Gpuio_eio.Desktop.attach`, then call `ready` explicitly after preparing their
+model. A second live receiver returns `Busy`. Each callback's effect must finish
+before another event is delivered; a scheduler yield separates callbacks. Slow
+handlers backpressure intake rather than accumulating application effects.
+Accepted links, rejected links and native overflow are distinct typed events.
+Transient intake failure is reported; `retry` is explicit, without an idle timer.
+
+`Desktop.close` releases queued data and callback captures, unregisters the
+receiver and invalidates pending jobs. An already-running application effect may
+finish, but cannot restart delivery. A replacement receiver has a fresh token;
+old queued availability callbacks and unregister functions cannot affect it.
+An in-flight batch belonging to the retired receiver is discarded, not replayed
+to its replacement. Shutdown closes the receiver through the application scope.
+The native inbox and OCaml delivery inbox are each bounded independently; a
+handler can hold one admitted batch while native capture fills the next.
 
 Identity uses a validated lowercase reverse-DNS identifier (128 bytes maximum),
 a UTF-8 display name (256 bytes maximum, no ASCII controls), and up to 16 unique
@@ -98,8 +114,27 @@ macOS packages declare identity and handled schemes in `Info.plist` using
 `CFBundleURLTypes` / `CFBundleURLSchemes`; see the
 [Apple property-list reference](https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html).
 Declaring support is separate from requesting default-handler reassignment.
-Do not automatically take over common schemes. Tests use a dedicated unique
+Do not automatically take over common schemes. Tests use a dedicated
 example scheme and a disposable bundle.
+
+`examples/desktop` demonstrates the public receiver. The local macOS test creates
+a temporary `.app` declaring `gpuio-desktop-lab`, launches a cold URL through
+`open`, and sends subsequent URLs to that exact bundle. It does not request a
+default-handler reassignment. It verifies readiness ordering, malformed authority
+rejection, once-only delivery, receiver replacement, and same-process routing.
+Real AppKit accessibility checks observe one/zero/one native windows and changed
+document text. The app launches in the background; the test briefly activates
+only that process to expose AppKit's accessibility tree. Paths are canonicalized
+for owned-process cleanup (`/var` resolves through `/private/var` on macOS).
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/desktop/main.exe
+python3 scripts/test_desktop_links_macos.py
+```
+
+This is link-delivery acceptance, not acceptance of the entire desktop ticket.
+It does not validate Linux forwarding, file services, document metadata,
+runtime default-handler reassignment, or notification delivery.
 
 Linux packages need a desktop entry with application identity, an executable
 argument vector accepting URLs, and scheme MIME declarations. Follow the

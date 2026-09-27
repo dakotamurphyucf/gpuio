@@ -30,6 +30,18 @@ end
 module Capabilities = Wire.Capabilities
 module Error = Wire.Error
 
+module Event = struct
+  type t =
+    | Link of Deep_link.t
+    | Rejected_link of
+        { input : string
+        ; reason : Deep_link.Error.t
+        }
+    | Overflow of int64
+    | Failed of Error.t
+  [@@deriving equal, sexp_of]
+end
+
 module Expert = struct
   let identity_to_wire (t : Identity.t) = t.wire
   let capabilities_of_wire t = t

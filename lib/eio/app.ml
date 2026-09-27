@@ -117,6 +117,7 @@ type t =
   ; mutable canvases : (Wire.Canvas.Response.t -> unit) Int64.Map.t
   ; mutable desktop_requests : (Wire.Desktop.Response.t -> unit) Int64.Map.t
   ; mutable desktop_pending : bool
+  ; mutable desktop_subscription : int64 option
   ; mutable on_desktop_pending : unit -> unit Bonsai.Effect.t
   ; desktop_identity : Gpuio.Desktop.Identity.t option
   ; mutable correlation : int64
@@ -263,13 +264,27 @@ module Expert = struct
 
   let on_desktop_pending t callback =
     check t;
-    if not t.stopping
-    then (
+    if t.stopping
+    then Error Gpuio.Desktop.Error.Closed
+    else if Option.is_some t.desktop_subscription
+    then Error Gpuio.Desktop.Error.Busy
+    else (
+      let token = correlation t in
+      let current () = Option.equal Int64.equal t.desktop_subscription (Some token) in
+      t.desktop_subscription <- Some token;
       t.on_desktop_pending <- callback;
       if t.desktop_pending
       then
         Scope.Expert.enqueue t.scope (fun () ->
-          if not t.stopping then Bonsai.Effect.Expert.handle (t.on_desktop_pending ())))
+          if (not t.stopping) && current ()
+          then Bonsai.Effect.Expert.handle (t.on_desktop_pending ()));
+      Ok
+        (fun () ->
+          check t;
+          if current ()
+          then (
+            t.desktop_subscription <- None;
+            t.on_desktop_pending <- (fun () -> Bonsai.Effect.Ignore))))
   ;;
 
   let canvas_request t ~limit request =
@@ -483,6 +498,7 @@ let shutdown t =
   then (
     t.stopping <- true;
     t.on_desktop_pending <- (fun () -> Bonsai.Effect.Ignore);
+    t.desktop_subscription <- None;
     t.desktop_pending <- false;
     Asset_registry.close t.asset_registry;
     Document_registry.close t.document_registry;
@@ -971,8 +987,13 @@ let process t = function
     if not t.stopping
     then (
       t.desktop_pending <- true;
+      let token = t.desktop_subscription in
       enqueue t (fun () ->
-        if not t.stopping then Bonsai.Effect.Expert.handle (t.on_desktop_pending ())))
+        if
+          (not t.stopping)
+          && Option.is_some token
+          && Option.equal Int64.equal token t.desktop_subscription
+        then Bonsai.Effect.Expert.handle (t.on_desktop_pending ())))
   | Desktop_response (request, response) ->
     (match Map.find t.desktop_requests request with
      | None -> ()
@@ -1406,6 +1427,7 @@ let process t = function
     t.stopped <- true;
     t.stopping <- true;
     t.on_desktop_pending <- (fun () -> Bonsai.Effect.Ignore);
+    t.desktop_subscription <- None;
     t.desktop_pending <- false;
     let desktop_requests = t.desktop_requests in
     t.desktop_requests <- Int64.Map.empty;
@@ -1577,6 +1599,7 @@ let worker native read ~tick_hz ~max_tasks ~motion ~desktop initialize =
         ; canvases = Int64.Map.empty
         ; desktop_requests = Int64.Map.empty
         ; desktop_pending = false
+        ; desktop_subscription = None
         ; on_desktop_pending = (fun () -> Bonsai.Effect.Ignore)
         ; desktop_identity = desktop
         ; correlation = 0L
@@ -1600,6 +1623,7 @@ let worker native read ~tick_hz ~max_tasks ~motion ~desktop initialize =
           app.canvases <- Int64.Map.empty;
           app.desktop_requests <- Int64.Map.empty;
           app.desktop_pending <- false;
+          app.desktop_subscription <- None;
           app.on_desktop_pending <- (fun () -> Bonsai.Effect.Ignore);
           app.frames <- Int64.Map.empty;
           app.closes <- Int64.Map.empty;
