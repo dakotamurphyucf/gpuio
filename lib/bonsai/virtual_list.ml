@@ -67,6 +67,7 @@ module Metadata = struct
   type 'key t =
     { order : V.Order.t
     ; by_wire : 'key String.Map.t
+    ; reversed : Key.t list
     }
 
   let create keys ~row_key =
@@ -77,7 +78,7 @@ module Metadata = struct
       List.map pairs ~f:(fun (wire, key) -> Key.to_string wire, key)
       |> String.Map.of_alist_or_error
     in
-    { order; by_wire }
+    { order; by_wire; reversed = List.rev (V.Order.keys order) }
   ;;
 end
 
@@ -87,6 +88,7 @@ module Model = struct
     ; pins : Key.t list
     ; viewport : Viewport.t option
     ; viewport_revision : int64 option
+    ; observed_tail : Key.t option
     ; serial : int64
     ; scroll : V.Scroll_request.t option
     }
@@ -97,6 +99,7 @@ module Model = struct
     ; pins = []
     ; viewport = None
     ; viewport_revision = None
+    ; observed_tail = None
     ; serial = 0L
     ; scroll = None
     }
@@ -105,7 +108,7 @@ end
 
 module Action = struct
   type t =
-    | Observe of int64 * Viewport.t
+    | Observe of int64 * Key.t option * Viewport.t
     | Retain of Key.t list
     | Scroll of Command.t
   [@@deriving sexp_of]
@@ -132,12 +135,13 @@ let apply_action _ input model action =
   | Bonsai.Computation_status.Inactive | Active (Error _) -> model
   | Active (Ok metadata) ->
     (match action with
-     | Action.Observe (revision, viewport) ->
+     | Action.Observe (revision, tail, viewport) ->
        { model with
          Model.requested = viewport.requested
        ; pins = viewport.pinned
        ; viewport = Some viewport
        ; viewport_revision = Some revision
+       ; observed_tail = tail
        }
      | Retain pins ->
        { model with pins = List.dedup_and_sort (pins @ model.pins) ~compare:Key.compare }
@@ -169,7 +173,18 @@ let active_keys (metadata : _ Metadata.t) model extra_pins ~max_active =
   if List.length pins > max_active
   then Or_error.error_string "virtual list pinned rows exceed the active budget"
   else (
-    let requested = live model.requested in
+    (* Native scrolling still owns tail-following policy. While it reports that
+       policy active, supply the bounded newest rows in the same transaction as
+       an append, rather than first painting estimated-height placeholders. *)
+    let tail =
+      if Option.exists model.viewport ~f:(fun viewport -> viewport.following_tail)
+      then
+        List.take metadata.reversed (max_active - List.length pins)
+        |> List.take_while ~f:(fun key ->
+          not (Option.exists model.observed_tail ~f:(Key.equal key)))
+      else []
+    in
+    let requested = tail @ live model.requested in
     let _, reversed =
       List.fold
         (pins @ requested)
@@ -323,7 +338,10 @@ let inner
         ~invalidated
         ~invalidation_revision:checkpoint.revision
         ~on_viewport:(fun viewport ->
-          E.Many [ inject (Observe (checkpoint.revision, viewport)); observe viewport ])
+          E.Many
+            [ inject (Observe (checkpoint.revision, List.hd metadata.reversed, viewport))
+            ; observe viewport
+            ])
         ~on_retain:(fun keys -> inject (Retain keys))
         ~tree_moves
         ?on_tree_input:

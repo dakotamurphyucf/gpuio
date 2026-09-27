@@ -881,8 +881,8 @@ conversation. It types 20 actual keyboard characters during streaming, clicks th
 native counter, moves a canvas stage with the keyboard, revisits both large-data
 views, cancels the stream, and closes every owned window/process.
 
-The opt-in `--workload-metrics --full-motion` fixture sends seven-byte chunks two
-seconds apart. This deliberately leaves measurable inter-chunk gaps; it is not a
+The opt-in `--workload-metrics --full-motion` fixture sends seven-byte chunks five
+seconds apart (the original measurements below used two seconds). This deliberately leaves measurable inter-chunk gaps; it is not a
 maximum-throughput benchmark. One window is foreground at a time; others remain
 mounted but can be occluded on the single local display. No claim of four
 simultaneously visible, full-rate render surfaces is made.
@@ -1054,3 +1054,46 @@ reported the new bounds. The apply process now checks CoreGraphics bounds;
 the required separate read-only process checks fresh AppKit usable bounds.
 Local read-only compilation and workflow lint pass. Fresh-process hosted
 confirmation and the remaining eight walkthrough results are still pending.
+
+
+## Tail append and capture-window follow-up (2026-09-27)
+
+Run `36309700746` confirms the session-mode preflight at 1600×1200 with 1600×1102
+usable points. All component/native families and seven previously failing chat
+walkthroughs pass. Required Linux checks pass; X11 succeeds and Wayland retains
+the OCH-17 clipboard failure. Two macOS checks remain: Streaming geometry and
+the combined animation measurement.
+
+Streaming now reaches the geometry assertion and catches an initial 84-point
+backwards step. The preceding card moves from Y775 to Y455 to Y539 while the
+composer stays at Y854. The first 320-point movement matches two 160-point
+placeholder estimates. A deterministic presenter regression confirms newly
+appended descriptions were absent until the next viewport observation. Native
+rendering could therefore paint estimates before receiving the real rows.
+
+The Bonsai presenter now prefetches the bounded appended suffix while native
+layout reports tail following. It captures the observed final key with that
+viewport callback; pins keep priority and paused history stays requested.
+Appended rows and order arrive together, with no synchronous OCaml layout call
+or larger active-row budget. The new expect regression fails before the change
+and passes afterward, including retention across display acceptance. The local
+strict streaming check passes with zero downward steps and a stable composer.
+Full OCaml build, expect tests and format checks also pass.
+
+The combined check still requires two differing spinner captures bracketed by
+identical commit/submission/event counters. A local diagnostic adding one second
+to each real owned-window capture reproduced the failure: capture brackets take
+3.0–3.5 seconds, crossing the fixture's two-second chunk interval. The opt-in
+measurement fixture now spaces chunks five seconds apart; normal demo streaming
+is unchanged. Per-attempt capture duration, sample span and traffic deltas are
+logged. Pixel-change, input-latency, large-data retention and cleanup assertions
+remain intact. Keyboard delivery is paced across a producer interval, and an
+explicit response-byte counter must advance during typing; pacing is excluded
+from each measured key-to-AX latency. Both the ordinary and slow-capture combined walkthroughs now pass locally,
+including four-window cleanup. Both observe response bytes advancing from 0 to 7
+during actual typing. The normal animation bracket is 1,504 ms; the slow-capture
+bracket is 3,007 ms, with 181 clock ticks and zero commit/submission/event deltas.
+The existing native chat walkthrough also passes. The final strict streaming
+check observes 116 samples over 3.47 seconds, nine upward growth steps, zero
+backwards steps and a stable composer. Required hosted confirmation of this
+batch remains pending on PR #13.

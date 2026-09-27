@@ -106,6 +106,7 @@ class Combined(Responsive):
         deadline = time.monotonic() + 12
         while time.monotonic() < deadline:
             before = self.samples()[-1]
+            capture_started = time.monotonic()
             images = []
             for index in range(2):
                 path = self.directory / f'animation-{index}.png'
@@ -118,6 +119,11 @@ class Combined(Responsive):
             while self.samples()[-1]['elapsed_ms'] <= last:
                 time.sleep(.03)
             after = self.samples()[-1]
+            print('NATIVE_ANIMATION_CAPTURE_INTERVAL', json.dumps({
+                'capture_ms': round((time.monotonic() - capture_started) * 1000),
+                'sample_ms': after['elapsed_ms'] - before['elapsed_ms'],
+                'traffic': {k: after[k] - before[k] for k in QUIET_FIELDS},
+            }), flush=True)
             if all(before[k] == after[k] for k in QUIET_FIELDS):
                 assert images[0] != images[1], 'Native spinner did not change pixels'
                 delta = {k: after[k] - before[k] for k in POLL_FIELDS + QUIET_FIELDS}
@@ -264,6 +270,7 @@ class Combined(Responsive):
         while self.text(editor, 'AXValue') != '' and time.monotonic() < deadline:
             time.sleep(.02)
         assert self.text(editor, 'AXValue') == ''
+        response_before = self.samples()[-1]['response_bytes']
         times = []
         try:
             self.set(editor, 'AXFocused', self.true)
@@ -275,10 +282,17 @@ class Combined(Responsive):
                         raise RuntimeError('Keyboard delivery timeout')
                     time.sleep(.002)
                 times.append((time.perf_counter() - started) * 1000)
+                # Pace typing across a producer interval. Latency above excludes
+                # this delay; the byte assertion below proves actual overlap.
+                time.sleep(.3)
         finally:
             self.release(editor)
         print('KEYBOARD_AX_READBACK_MS', json.dumps(times), flush=True)
         assert sorted(times)[18] < 500 and max(times) < 1500, times
+        response_after = self.samples()[-1]['response_bytes']
+        assert response_after > response_before, ('No streamed bytes during typing',
+                                                  response_before, response_after)
+        print('KEYBOARD_STREAM_OVERLAP', response_before, response_after, flush=True)
         self.wait_status(status, 'Responding')
         Review.click_counter(self, 0)
         self.wait_text(TITLE, '1 of 100 checkpoints')

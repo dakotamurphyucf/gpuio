@@ -387,3 +387,67 @@ let%expect_test
   run Release_after_flush;
   [%expect {| |}]
 ;;
+
+let%expect_test "tail following materializes appended rows before the next viewport" =
+  let config =
+    V.Config.create
+      ~max_active:4
+      ~height:(Estimated 80.)
+      ~scroll:Follow_tail_when_at_end
+      ()
+    |> Or_error.ok_exn
+  in
+  let data = B.Expert.Var.create (source [ 0, "a"; 1, "b"; 2, "c"; 3, "d" ]) in
+  let driver =
+    create (fun graph ->
+      V.component
+        (module Int)
+        (B.Expert.Var.value data)
+        ~row_key:key
+        ~config
+        ~pinned:(B.return [ 0 ])
+        ~render_row:(fun ~key:_ ~data ~lifetime:_ _ -> B.map data ~f:View.text)
+        graph)
+  in
+  ignore (result driver : int V.Output.t);
+  display driver;
+  let viewport = { (observed [ 2; 3 ]) with following_tail = true; at_end = true } in
+  Bonsai_driver.schedule_event
+    driver
+    (Option.value_exn (payload (result driver)).on_viewport viewport);
+  assert (
+    List.equal
+      [%equal: string * string]
+      (row_text (result driver))
+      [ "0", "a"; "2", "c"; "3", "d" ]);
+  display driver;
+  B.Expert.Var.set
+    data
+    (C.splice (B.Expert.Var.get data) ~at:4 ~remove:0 [ 4, "user"; 5, "response" ]
+     |> Or_error.ok_exn);
+  let appended = result driver in
+  assert (V.Output.active_rows appended = 4);
+  assert (
+    List.equal
+      [%equal: string * string]
+      (row_text appended)
+      [ "0", "a"; "2", "c"; "4", "user"; "5", "response" ]);
+  display driver;
+  assert (
+    List.equal [%equal: string * string] (row_text (result driver)) (row_text appended));
+  (* A paused tail must not evict the user's requested history for new messages. *)
+  observe driver [ 1; 2 ];
+  ignore (result driver : int V.Output.t);
+  display driver;
+  B.Expert.Var.set
+    data
+    (C.splice (B.Expert.Var.get data) ~at:6 ~remove:0 [ 6, "later" ] |> Or_error.ok_exn);
+  assert (
+    List.equal
+      [%equal: string * string]
+      (row_text (result driver))
+      [ "0", "a"; "1", "b"; "2", "c" ]);
+  display driver;
+  Bonsai_driver.Expert.invalidate_observers driver;
+  [%expect {| |}]
+;;

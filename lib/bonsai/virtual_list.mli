@@ -60,8 +60,13 @@ end
     layout callbacks. [on_viewport] is optional application observation, not a
     requirement to manage the active set.
 
+    While native layout reports tail following, the bounded newest rows are
+    prefetched in the same update as collection appends. Pins retain priority;
+    native layout still controls scrolling. A paused tail uses its requested
+    history instead. Prefetch never exceeds [Config.max_active].
+
     Collection/order metadata and one accepted immutable collection snapshot are
-    O(logical rows). Only the requested/pinned subset creates row computations.
+    O(logical rows). Only the requested/pinned/prefetched subset creates row computations.
     Height invalidations compare against the accepted snapshot, including when
     streaming updates coalesce while native acceptance is pending. *)
 val component

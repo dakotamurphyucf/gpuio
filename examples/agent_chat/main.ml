@@ -96,7 +96,7 @@ let run ~self_test ~native_test ~workload_metrics ~attachment_directory ~motion 
         then
           Workspace.set_backend
             workspace
-            (Backend.Config.create ~chunk_bytes:7 ~delay_seconds:2. () |> Or_error.ok_exn);
+            (Backend.Config.create ~chunk_bytes:7 ~delay_seconds:5. () |> Or_error.ok_exn);
         Workspace.install_close_handler workspace window;
         App.Window.on_change window (fun _snapshot ->
           if !resources_started
@@ -124,10 +124,21 @@ let run ~self_test ~native_test ~workload_metrics ~attachment_directory ~motion 
           while true do
             sleep 0.5;
             let diagnostics = App.diagnostics app in
+            let response_bytes =
+              List.sum
+                (module Int)
+                conversations
+                ~f:(fun conversation ->
+                  Conversation.last_document conversation
+                  |> Option.bind ~f:Document.source
+                  |> Option.value_map ~default:0 ~f:Source.byte_length)
+            in
             Eio.Flow.copy_string
               (sprintf
-                 "GPUIO_CHAT_WORKLOAD elapsed_ms=%.0f diagnostics=%s\n"
+                 "GPUIO_CHAT_WORKLOAD elapsed_ms=%.0f response=(response_bytes %d) \
+                  diagnostics=%s\n"
                  ((Eio.Time.now clock -. started) *. 1000.)
+                 response_bytes
                  (Sexp.to_string (App.Diagnostics.sexp_of_t diagnostics)))
               (Eio.Stdenv.stdout env)
           done)
