@@ -236,3 +236,15 @@ for findings; expansion never navigates. Collapse destinations keeps top-level
 SVG icons. Hide mode switches that collapsed state to offcanvas; Show destinations
 restores the previous branches. Inspector Back/Forward updates the current link.
 See [sidebar screenshots and evidence](../../docs/evidence/agent-chat-m5.md#grouped-workspace-destinations).
+
+Conversation rows now demonstrate public message, bubble and tool-result cards.
+Expand the code or patch and use Copy source for the exact underlying text.
+Results use removable score-filter tags, a local-simulation banner, selection
+status and failure/retry alerts. **Slow query** takes five seconds and shows native
+skeleton/shimmer/spinner loading; closing the inspector hides that activity while
+its window-owned query may finish. **Empty results** cancels an obsolete query.
+Response loading and interruption use the same presentation vocabulary with the
+existing Cancel and Retry response actions.
+
+Run `python3 scripts/test_agent_chat_presentation.py` for Full/Reduce presentation
+acceptance. [Screenshots and evidence](../../docs/evidence/agent-chat-m5.md#transcript-and-query-presentation).

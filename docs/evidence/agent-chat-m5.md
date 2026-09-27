@@ -653,14 +653,64 @@ Actual final captures: [dark](../images/studio-sidebar-dark.png),
 collapsing; the conversation rail remains independently resizable. Narrow-window
 and container-query acceptance remain in the responsive-layout work.
 
+## Transcript and query presentation
+
+[Chat_message](../../examples/agent_chat/runtime/chat_message.ml) wraps the existing
+owned documents in public `Presentation.message`, `bubble` and `tool_result` cards.
+It introduces no document/task registration. Code/diff collapse, copy, Markdown
+rendering and conversation scope stay in their existing owners.
+[Query_loading](../../examples/agent_chat/runtime/query_loading.ml) supplies native
+skeleton, shimmer and spinner views for real pending result queries, fixture
+construction and response generation. There is no OCaml animation timer.
+
+Results now show a removable active-filter tag, simulation banner, selection
+status bar, empty recovery and query failure/retry alert. Removing a tag updates
+the full query, not just loaded rows. Streaming failures use an alert beside the
+existing Retry response control. The explicit Slow query fixture takes five
+seconds so its loading/cancellation states can be inspected; normal queries stay
+at 300 ms.
+
+The local macOS presentation walkthrough passes in explicit Full and Reduce modes:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/agent_chat/main.exe @fmt @test/agent_chat_showcase/runtest
+GPUIO_SCREENSHOT_DIR=scratch/presentation-images python3 scripts/test_agent_chat_presentation.py
+python3 scripts/test_agent_chat_results.py
+```
+
+It checks actual visible code/diff Expand/Collapse and exact Unicode source copy,
+keyboard removal of a score filter, all three indeterminate loading roles with no
+numeric progress, completion while hidden, remount, obsolete-query cancellation,
+query failure/retry, streaming/cancel/error/retry, themes and child cleanup.
+The loading check traverses the inspector once to observe the three transient
+nodes together. Earlier sequential whole-window searches missed this state;
+a live capture/AX dump confirmed the indicators existed. This was not diagnosed
+as a production deadlock. Clipboard subprocesses explicitly use UTF-8.
+
+Document actions are limited to buttons whose centers are inside the transcript
+viewport. Retained offscreen document controls were present in AX, and activating
+them during test development could target unrelated visible content through the
+native click fallback. This walkthrough does not certify offscreen document
+activation; that accessibility behavior needs separate investigation.
+
+Actual captures were inspected: [loading](../images/studio-results-loading.png),
+[filter/light](../images/studio-results-filter-light.png),
+[empty](../images/studio-results-empty.png),
+[stream/light](../images/studio-stream-presentation-light.png),
+[error/light](../images/studio-stream-error-light.png),
+[code](../images/studio-artifact-code.png) and
+[diff](../images/studio-artifact-diff.png).
+Existing public chat/M4 AppKit acceptance also passes through this presentation
+change. Aggregate animation idle/bridge metrics and simultaneous-workload evidence
+remain required; static captures do not establish those properties.
+
 ## Remaining acceptance
 
 These flows cover the OCH-23 package integration, OCH-24 diagram, the OCH-37
 navigation stack/breadcrumbs, settings sheet/confirmation and feedback
 disclosure/accordion/hover card/carousel/sidebar, OCH-34 numeric/OTP,
 OCH-35 dates, OCH-36 colors, OCH-37 pagination, OCH-38 source explorer,
-OCH-39 results table and a subset of OCH-33's
-presentation compositions. They do not complete the other component families,
+OCH-39 results table and OCH-33 presentation compositions. They do not complete
 responsive/resizable inspector, motion, or the
 combined streaming/input/retention/idle-traffic workload. Those all remain required
 by OCH-46, along with narrow/wide visual acceptance, the full coverage map, hosted

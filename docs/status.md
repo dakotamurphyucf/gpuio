@@ -278,8 +278,12 @@ The chat now has grouped public Sidebar destinations sharing inspector routes an
 history, with independent branch expansion, SVG icon collapse and retained
 offcanvas hiding/restoration. Local macOS pointer/keyboard/current-link and
 light/dark walkthroughs pass; screenshots and source links are in the
-[showcase evidence](evidence/agent-chat-m5.md). Remaining presentation, motion,
-responsive layout, combined workload and hosted/merge acceptance stay open.
+[showcase evidence](evidence/agent-chat-m5.md). Public message/bubble/tool-result
+cards, removable query tags, loading skeleton/shimmer/spinners, status and error
+recovery now pass the Full/Reduce local presentation walkthrough, including exact
+Unicode code/diff copy. Motion, responsive layout, combined workload and
+hosted/merge acceptance stay open. Offscreen native-document AX activation is a
+recorded limitation requiring follow-up; visible document controls pass.
 
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
 components pass local acceptance; OCH-24 has validated geometry, a bounded scene

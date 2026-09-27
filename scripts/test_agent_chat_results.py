@@ -239,7 +239,7 @@ class Results(Review):
         self.wait_text(TITLE, 'Loading results…')
         self.press(TITLE, 'Empty results')
         self.wait_text(TITLE, '0 results loaded')
-        time.sleep(2.2)  # Past the retired request's deterministic two-second producer.
+        time.sleep(5.2)  # Past the retired request's deterministic five-second producer.
         self.wait_text(TITLE, '0 results loaded')
         self.press(TITLE, 'Load 100,000 results')
         self.wait_text(TITLE, '100,000 results loaded')

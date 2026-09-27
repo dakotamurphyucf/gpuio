@@ -9,6 +9,7 @@ module C = Gpuio.Table_column
 module T = Gpuio.Table
 module Data = Result_data
 module Q = Data.Query
+module P = Gpuio.Presentation
 
 type t =
   { pager : (Q.t, Data.Row.t) Pager.t
@@ -46,7 +47,7 @@ let create ~scope ~sleep ~build =
         sleep
           (match Q.loading query with
            | Normal | Fail_once -> 0.3
-           | Slow -> 2.);
+           | Slow -> 5.);
         match Q.loading query with
         | Fail_once when attempt = 1 ->
           Or_error.error_string "Sample results unavailable. Retry to continue."
@@ -313,17 +314,24 @@ let component t ~active ~dark graph =
   let footer =
     match snapshot.after with
     | Failed error ->
-      V.column
-        ~style:(style [ Gap (px 8.) ])
-        [ V.text ~style:(style [ Foreground palette.muted ]) (Error.to_string_hum error)
-        ; button
-            "Retry results"
-            (W.Paging.retry
-               (Pager.controls t.pager)
-               ~generation:snapshot.generation
-               After)
+      P.alert
+        appearance
+        ~tone:Warning
+        ~title:"Results unavailable"
+        ~actions:
+          (button
+             "Retry results"
+             (W.Paging.retry
+                (Pager.controls t.pager)
+                ~generation:snapshot.generation
+                After))
+        [ V.text (Error.to_string_hum error) ]
+    | Loading ->
+      V.row
+        ~style:(style [ Gap (px 8.); Align_items Center ])
+        [ Query_loading.spinner ~dark ~label:"Loading result query"
+        ; V.text "Loading results…"
         ]
-    | Loading -> V.text "Loading results…"
     | Ready ->
       button
         "Load more results"
@@ -333,17 +341,65 @@ let component t ~active ~dark graph =
         ~style:(style [ Foreground palette.muted; Font_size 12. ])
         "All results loaded"
   in
+  let filter_label =
+    match Q.filter snapshot.query with
+    | All -> "Filter: all scores"
+    | High_score -> "Filter: score ≥ 80%"
+    | Empty -> "Filter: empty fixture"
+    | Between range -> "Filter: score " ^ Score_range.describe range
+  in
+  let filtered =
+    match Q.filter snapshot.query with
+    | All -> false
+    | High_score | Empty | Between _ -> true
+  in
+  let pending =
+    match snapshot.after with
+    | Loading -> true
+    | Ready | End | Failed _ -> false
+  in
   V.column
     ~style:(style [ Gap (px 14.); Min_width (px 0.) ])
     [ V.row
         [ Gpuio.Presentation.badge appearance ~size:Small ~tone:Accent "SIMULATED RESULTS"
         ]
     ; V.text ~style:(style [ Font_size 23.; Font_weight 600 ]) "Findings, in focus."
-    ; V.text
-        ~style:(style [ Foreground palette.muted; Font_size 13.; Line_height (px 20.) ])
-        "Inspect the structured output of a sample run. Sort a column, select a finding, \
-         or open its details."
-    ; (if
+    ; P.banner
+        appearance
+        ~tone:Neutral
+        ~live:Off
+        ~title:"Simulated run · local data"
+        ~style:
+          (style
+             [ Padding (px 10.); Radius 8.; Font_size 12.; Border_color palette.line ])
+        [ V.text "Sort and inspect sample findings. No external service is contacted." ]
+    ; (if filtered
+       then
+         P.tag
+           appearance
+           ~tone:Accent
+           ~size:Small
+           ~trailing:
+             (V.button
+                ~accessible_name:"Remove score filter"
+                ~style:
+                  (style
+                     [ Border_width 0.
+                     ; Padding (px 3.)
+                     ; Foreground palette.accent
+                     ; Background (Gpuio.Background.solid palette.accent_surface)
+                     ])
+                ~on_click:
+                  (E.bind
+                     (E.of_thunk (fun () -> Q.with_filter (get t.query) All))
+                     ~f:(query t))
+                "×")
+           filter_label
+       else
+         P.label ~style:(style [ Foreground palette.muted; Font_size 12. ]) filter_label)
+    ; (if pending && D.is_empty snapshot.data
+       then Query_loading.results ~dark
+       else if
          D.is_empty snapshot.data
          &&
          match snapshot.after with
@@ -383,18 +439,25 @@ let component t ~active ~dark graph =
              (match sort.direction with
               | Ascending -> "ascending"
               | Descending -> "descending"))
-    ; V.text ~style:(style [ Font_weight 600; Font_size 13. ]) selection_label
-    ; V.text
-        ~style:(style [ Foreground palette.muted; Font_size 12. ])
-        (match Q.filter snapshot.query with
-         | All -> "Filter: all scores"
-         | High_score -> "Filter: score ≥ 80%"
-         | Empty -> "Filter: empty fixture"
-         | Between range -> "Filter: score " ^ Score_range.describe range)
+    ; P.status_bar
+        appearance
+        ~style:
+          (style [ Padding (px 6.); Background (Gpuio.Background.solid palette.sidebar) ])
+        ~leading:
+          (P.marker
+             appearance
+             ~tone:(if busy || pending then Accent else Neutral)
+             selection_label)
+        ()
     ; footer
-    ; V.text
-        ~style:(style [ Foreground palette.accent; Font_size 12. ])
-        (if busy then "Preparing results…" else notice)
+    ; (if busy
+       then
+         V.row
+           ~style:(style [ Gap (px 8.); Align_items Center ])
+           [ Query_loading.spinner ~dark ~label:"Building result fixture"
+           ; V.text "Preparing results…"
+           ]
+       else V.text ~style:(style [ Foreground palette.accent; Font_size 12. ]) notice)
     ; V.row
         ~style:(style [ Gap (px 8.); Wrap Wrap ])
         [ button ~disabled:(D.is_empty snapshot.data) "Reveal last result" reveal_last

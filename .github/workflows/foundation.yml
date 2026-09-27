@@ -269,6 +269,7 @@ jobs:
           python3 scripts/test_agent_chat_feedback.py 2>&1 | tee .cache/ci/macos-agent-chat-feedback.log
           python3 scripts/test_agent_chat_tour.py 2>&1 | tee .cache/ci/macos-agent-chat-tour.log
           python3 scripts/test_agent_chat_sidebar.py 2>&1 | tee .cache/ci/macos-agent-chat-sidebar.log
+          python3 scripts/test_agent_chat_presentation.py 2>&1 | tee .cache/ci/macos-agent-chat-presentation.log
       - name: macOS native image pixels and cleanup
         if: runner.os == 'macOS'
         run: |

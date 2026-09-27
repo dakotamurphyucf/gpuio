@@ -314,86 +314,15 @@ let document_view t dark message =
 ;;
 
 let message_view t dark icons message =
-  let p = Palette.of_dark dark in
-  let user = String.equal message.Conversation.Message.author "You" in
-  let artifact =
-    match message.body with
-    | Rich (_, (Code _ | Diff)) -> true
-    | Rich (_, Markdown) | Plain _ -> false
+  let kind =
+    if String.equal message.Conversation.Message.author "You"
+    then Chat_message.Kind.User
+    else (
+      match message.body with
+      | Rich (_, (Code _ | Diff)) -> Artifact
+      | Rich (_, Markdown) | Plain _ -> Assistant)
   in
-  let avatar =
-    View.column
-      ~style:
-        (style
-           [ Width (px (if artifact then 22. else 27.))
-           ; Height (px (if artifact then 22. else 27.))
-           ; Shrink 0.
-           ; Radius 8.
-           ; Align_items Center
-           ; Justify_content Center
-           ; Background (solid (if user then p.raised else p.accent_surface))
-           ; Foreground p.accent
-           ; Font_size 11.
-           ; Font_weight 600
-           ])
-      [ (if user
-         then View.text "Y"
-         else Icons.view icons (if artifact then Code else Spark))
-      ]
-  in
-  View.column
-    ~style:
-      (style
-         [ Width full
-         ; Align_items Center
-         ; Padding_left (px 28.)
-         ; Padding_right (px 28.)
-         ; Padding_top (px 8.)
-         ; Padding_bottom (px 8.)
-         ])
-    [ View.column
-        ~style:
-          (style
-             [ Width full
-             ; Max_width (px 760.)
-             ; Gap (px (if artifact then 6. else 12.))
-             ; Padding (px (if artifact then 12. else 6.))
-             ; Background (solid (if artifact then p.surface else p.canvas))
-             ; Radius 12.
-             ; Border_width (if artifact then 1. else 0.)
-             ; Border_color p.line
-             ; Foreground p.text
-             ])
-        [ View.row
-            ~style:(style [ Align_items Center; Gap (px 9.) ])
-            [ avatar
-            ; View.text
-                ~style:(style [ Font_size 12.; Font_weight 600 ])
-                (if user then "You" else if artifact then "Workspace" else "GPUIO")
-            ; caption
-                p
-                (if artifact
-                 then "Artifact · ready to review"
-                 else if user
-                 then "Just now"
-                 else "Local assistant")
-            ; spacer
-            ; (if artifact
-               then
-                 View.row
-                   ~style:
-                     (style
-                        [ Gap (px 4.)
-                        ; Align_items Center
-                        ; Foreground p.success
-                        ; Font_size 10.
-                        ])
-                   [ Icons.view icons Check; View.text "Ready" ]
-               else View.text "")
-            ]
-        ; document_view t dark message
-        ]
-    ]
+  Chat_message.view ~kind ~dark ~icons ~content:(document_view t dark message)
 ;;
 
 let conversation_panel t ~read_file ~attachment_directory window conversation graph =
@@ -499,21 +428,7 @@ let conversation_panel t ~read_file ~attachment_directory window conversation gr
             ; View.row
                 ~style:(style [ Gap (px 7.); Align_items Center ])
                 [ (if busy
-                   then
-                     View.progress
-                       ~style:
-                         (style
-                            [ Width (px 28.)
-                            ; Height (px 3.)
-                            ; Foreground p.accent
-                            ; Background (solid p.raised)
-                            ])
-                       ~config:
-                         (Gpuio.Progress.Config.create
-                            ~label:"Generating response"
-                            ~value:Gpuio.Progress.Value.indeterminate
-                          |> Or_error.ok_exn)
-                       ()
+                   then Query_loading.spinner ~dark ~label:"Generating response"
                    else dot p)
                 ; caption
                     p
@@ -540,17 +455,19 @@ let conversation_panel t ~read_file ~attachment_directory window conversation gr
     ; List_view.Output.view list
     ; (match phase with
        | Failed error ->
-         View.row
+         Gpuio.Presentation.alert
+           (if dark
+            then Gpuio.Presentation.Appearance.dark
+            else Gpuio.Presentation.Appearance.light)
+           ~tone:Warning
+           ~title:"Response interrupted"
            ~style:
              (style
                 [ Margin_left (px 28.)
                 ; Margin_right (px 28.)
                 ; Margin_top (px 8.)
                 ; Padding (px 10.)
-                ; Radius 8.
                 ; Shrink 0.
-                ; Background (solid p.accent_surface)
-                ; Foreground p.accent
                 ; Font_size 12.
                 ])
            [ View.text ~style:(style [ White_space Normal ]) error ]
