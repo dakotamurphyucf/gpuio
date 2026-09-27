@@ -23,6 +23,12 @@ fn cancelled(cancel: &Receiver<()>) -> bool {
 }
 
 async fn setup() -> Result<(Connection, String, u32), FileDialogError> {
+    setup_interface(CHOOSER).await
+}
+
+pub(crate) async fn setup_interface(
+    interface: &str,
+) -> Result<(Connection, String, u32), FileDialogError> {
     let connection = zbus::connection::Builder::session()
         .map_err(|_| FileDialogError::Unsupported)?
         .method_timeout(METHOD_TIMEOUT)
@@ -30,18 +36,22 @@ async fn setup() -> Result<(Connection, String, u32), FileDialogError> {
         .build()
         .await
         .map_err(|_| FileDialogError::Unsupported)?;
-    let (owner, version) = discover(&connection).await?;
+    let (owner, version) = discover_interface(&connection, interface).await?;
     Ok((connection, owner, version))
 }
 
-async fn read_version(connection: &Connection, destination: &str) -> Result<u32, FileDialogError> {
+async fn read_version(
+    connection: &Connection,
+    destination: &str,
+    interface: &str,
+) -> Result<u32, FileDialogError> {
     let reply = connection
         .call_method(
             Some(destination),
             DESKTOP,
             Some("org.freedesktop.DBus.Properties"),
             "Get",
-            &(CHOOSER, "version"),
+            &(interface, "version"),
         )
         .await
         .map_err(|_| FileDialogError::Unsupported)?;
@@ -52,11 +62,19 @@ async fn read_version(connection: &Connection, destination: &str) -> Result<u32,
     u32::try_from(value).map_err(|_| FileDialogError::Unsupported)
 }
 
+#[cfg(test)]
 async fn discover(connection: &Connection) -> Result<(String, u32), FileDialogError> {
+    discover_interface(connection, CHOOSER).await
+}
+
+async fn discover_interface(
+    connection: &Connection,
+    interface: &str,
+) -> Result<(String, u32), FileDialogError> {
     // Activate through the well-known name, then pin both capabilities and
     // requests to its unique owner. A service restart between these operations
     // must not pair an old version with a different service's behavior.
-    read_version(connection, DESTINATION).await?;
+    read_version(connection, DESTINATION, interface).await?;
     let reply = connection
         .call_method(
             Some("org.freedesktop.DBus"),
@@ -71,7 +89,7 @@ async fn discover(connection: &Connection) -> Result<(String, u32), FileDialogEr
         .body()
         .deserialize()
         .map_err(|_| FileDialogError::Unsupported)?;
-    let version = read_version(connection, owner.as_str()).await?;
+    let version = read_version(connection, owner.as_str(), interface).await?;
     Ok((owner.to_string(), version))
 }
 
@@ -229,10 +247,10 @@ enum CloseStatus {
 }
 
 impl CloseStatus {
-    fn outcome(self) -> FileDialogResult {
+    fn error(self) -> FileDialogError {
         match self {
-            Self::Dismissed | Self::Gone => failed(FileDialogError::Closed),
-            Self::Failed => failed(FileDialogError::NativeFailure),
+            Self::Dismissed | Self::Gone => FileDialogError::Closed,
+            Self::Failed => FileDialogError::NativeFailure,
         }
     }
 }
@@ -303,8 +321,36 @@ async fn execute(
         Ok(options) => options,
         Err(error) => return failed(error),
     };
+    let call = async {
+        connection
+            .call_method(
+                Some(owner),
+                DESKTOP,
+                Some(CHOOSER),
+                method,
+                &(parent, title, options),
+            )
+            .await?
+            .body()
+            .deserialize::<OwnedObjectPath>()
+    };
+    match transact(connection, owner, token, cancel, call).await {
+        Ok(message) => response::decode(&message, config),
+        Err(error) => failed(error),
+    }
+}
+
+/// Shared portal request lifecycle. Subscribe before polling the call future,
+/// pin service ownership, and finish cancellation against the actual handle.
+pub(crate) async fn transact(
+    connection: &Connection,
+    owner: &str,
+    token: &str,
+    cancel: &Receiver<()>,
+    call: impl std::future::Future<Output = zbus::Result<OwnedObjectPath>>,
+) -> Result<zbus::Message, FileDialogError> {
     let Some(sender) = connection.unique_name() else {
-        return failed(FileDialogError::NativeFailure);
+        return Err(FileDialogError::NativeFailure);
     };
     let namespace = format!(
         "/org/freedesktop/portal/desktop/request/{}/",
@@ -322,38 +368,25 @@ async fn execute(
     })();
     let rule = match rule {
         Ok(rule) => rule,
-        Err(_) => return failed(FileDialogError::NativeFailure),
+        Err(_) => return Err(FileDialogError::NativeFailure),
     };
     let mut responses = match MessageStream::for_match_rule(rule, connection, Some(8)).await {
         Ok(stream) => stream,
-        Err(_) => return failed(FileDialogError::NativeFailure),
+        Err(_) => return Err(FileDialogError::NativeFailure),
     };
     // On a real bus, losing the portal does not disconnect our bus connection.
     // Subscribe before issuing OpenFile so service death cannot strand a picker.
     let mut owner_events = if connection.is_bus() {
         match watch_owner(connection, owner).await {
             Ok(stream) => Some(stream),
-            Err(_) => return failed(FileDialogError::NativeFailure),
+            Err(_) => return Err(FileDialogError::NativeFailure),
         }
     } else {
         None
     };
     if cancelled(cancel) {
-        return failed(FileDialogError::Closed);
+        return Err(FileDialogError::Closed);
     }
-    let call = async {
-        connection
-            .call_method(
-                Some(owner),
-                DESKTOP,
-                Some(CHOOSER),
-                method,
-                &(parent, title, options),
-            )
-            .await?
-            .body()
-            .deserialize::<OwnedObjectPath>()
-    };
     let mut call = std::pin::pin!(call);
     enum Started {
         Reply(zbus::Result<OwnedObjectPath>),
@@ -374,25 +407,25 @@ async fn execute(
             return match call.await {
                 Ok(actual) if valid_path(actual.as_str()) => {
                     if matches!(first, CloseStatus::Dismissed) && actual.as_str() == predicted {
-                        first.outcome()
+                        Err(first.error())
                     } else {
-                        close(connection, owner, actual.as_str()).await.outcome()
+                        Err(close(connection, owner, actual.as_str()).await.error())
                     }
                 }
-                Err(_) if matches!(first, CloseStatus::Dismissed) => first.outcome(),
-                Ok(_) | Err(_) => failed(FileDialogError::NativeFailure),
+                Err(_) if matches!(first, CloseStatus::Dismissed) => Err(first.error()),
+                Ok(_) | Err(_) => Err(FileDialogError::NativeFailure),
             };
         }
 
         Started::Reply(Err(_)) => {
             let _ = close(connection, owner, &predicted).await;
-            return failed(FileDialogError::NativeFailure);
+            return Err(FileDialogError::NativeFailure);
         }
         Started::Reply(Ok(path)) if valid_path(path.as_str()) => path,
         Started::Reply(Ok(_)) => {
             // Never close another connection/request namespace on a bad reply.
             let _ = close(connection, owner, &predicted).await;
-            return failed(FileDialogError::NativeFailure);
+            return Err(FileDialogError::NativeFailure);
         }
     };
     enum Completed {
@@ -402,7 +435,7 @@ async fn execute(
     }
     loop {
         if cancelled(cancel) {
-            return close(connection, owner, actual.as_str()).await.outcome();
+            return Err(close(connection, owner, actual.as_str()).await.error());
         }
         let completed = future::or(
             async { Completed::Response(responses.next().await) },
@@ -423,9 +456,9 @@ async fn execute(
         )
         .await;
         match completed {
-            Completed::ServiceGone => return failed(FileDialogError::NativeFailure),
+            Completed::ServiceGone => return Err(FileDialogError::NativeFailure),
             Completed::Closed => {
-                return close(connection, owner, actual.as_str()).await.outcome();
+                return Err(close(connection, owner, actual.as_str()).await.error());
             }
             Completed::Response(Some(Ok(message))) => {
                 if message
@@ -433,12 +466,12 @@ async fn execute(
                     .path()
                     .is_some_and(|path| path.as_str() == actual.as_str())
                 {
-                    return response::decode(&message, config);
+                    return Ok(message);
                 }
             }
             Completed::Response(Some(Err(_)) | None) => {
                 let _ = close(connection, owner, actual.as_str()).await;
-                return failed(FileDialogError::NativeFailure);
+                return Err(FileDialogError::NativeFailure);
             }
         }
     }

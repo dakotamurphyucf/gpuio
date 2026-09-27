@@ -7,11 +7,33 @@ use std::{cell::RefCell, rc::Rc, sync::Arc};
 pub(crate) struct HostState {
     inbox: DesktopState,
     operations: Arc<Operations>,
+    #[cfg(target_os = "linux")]
+    services: crate::desktop_linux::Services,
+}
+
+#[must_use = "complete native desktop cleanup before stopping the application"]
+pub(crate) struct Cleanup {
+    #[cfg(target_os = "linux")]
+    services: crate::desktop_linux::Cleanup,
+}
+impl Cleanup {
+    pub(crate) async fn wait(self) {
+        #[cfg(target_os = "linux")]
+        self.services.wait().await;
+    }
+    pub(crate) fn wait_before_quit(self) {
+        #[cfg(target_os = "linux")]
+        self.services.wait_before_quit();
+    }
 }
 impl HostState {
-    pub(crate) fn close(&mut self) {
+    pub(crate) fn close(&mut self) -> Cleanup {
         self.inbox.close();
         self.operations.close();
+        Cleanup {
+            #[cfg(target_os = "linux")]
+            services: self.services.close(),
+        }
     }
 }
 pub(crate) type State = Rc<RefCell<HostState>>;
@@ -20,6 +42,8 @@ pub(crate) fn install(application: &gpui::Application, transport: Arc<Transport>
     let state = Rc::new(RefCell::new(HostState {
         inbox: DesktopState::default(),
         operations: Arc::new(Operations::default()),
+        #[cfg(target_os = "linux")]
+        services: crate::desktop_linux::Services::default(),
     }));
     let incoming = state.clone();
     application.on_open_urls(move |links| {
@@ -47,8 +71,8 @@ fn capabilities() -> wire::Capabilities {
         incoming_links: cfg!(target_os = "macos"),
         runtime_registration: cfg!(target_os = "macos"),
         application_activation: cfg!(target_os = "macos"),
-        file_reveal: cfg!(target_os = "macos"),
-        file_open: cfg!(target_os = "macos"),
+        file_reveal: true,
+        file_open: true,
         document_metadata: cfg!(target_os = "macos"),
     }
 }
@@ -66,7 +90,9 @@ pub(crate) fn dispatch(
         respond(Response::Failed(Error::InvalidRequest));
         return;
     }
-    if matches!(request, Request::OpenFile(_) | Request::RegisterScheme(_)) {
+    if matches!(request, Request::OpenFile(_) | Request::RegisterScheme(_))
+        || (cfg!(target_os = "linux") && matches!(request, Request::RevealFile(_)))
+    {
         let identity = match state.borrow().inbox.identity().cloned() {
             Some(identity) => identity,
             None => {
@@ -98,10 +124,25 @@ pub(crate) fn dispatch(
             }
             _ => unreachable!("asynchronous request partition"),
         }
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "linux")]
         {
             let _ = identity;
-            ticket.finish(Response::Failed(Error::Unsupported));
+            match request {
+                Request::OpenFile(path) => state.borrow().services.file(
+                    ticket,
+                    path,
+                    gpuio_portal::desktop::FileOperation::Open,
+                    correlation,
+                ),
+                Request::RevealFile(path) => state.borrow().services.file(
+                    ticket,
+                    path,
+                    gpuio_portal::desktop::FileOperation::Reveal,
+                    correlation,
+                ),
+                Request::RegisterScheme(_) => ticket.finish(Response::Failed(Error::Unsupported)),
+                _ => unreachable!("asynchronous request partition"),
+            }
         }
     } else {
         respond(request_immediate(state, request, cx));

@@ -8,7 +8,7 @@ and evidence remain in [the milestone 5 handoff](milestone-5.md).
 
 | Ticket | Deliverable | Current state |
 | -- | -- | -- |
-| OCH-27 | Application identity, deep-link packaging/startup/live delivery, activation, file reveal/open, document-window metadata | In progress: macOS public routing, metadata, file open/reveal and registration pass local checks; Linux adapters/packaging and consolidated CI pending |
+| OCH-27 | Application identity, deep-link packaging/startup/live delivery, activation, file reveal/open, document-window metadata | In progress: macOS OS acceptance passes; Linux portal file adapters pass local peer/worker tests; Linux links/packaging and consolidated CI pending |
 | OCH-28 | OS notifications, permissions/capabilities, replacement/dismissal and stale-safe action routing | Pending OCH-27 application identity/routing |
 | OCH-40 | Line, area, bar, pie, radar, candlestick and Sankey components with typed bounded datasets, native interaction and accessible alternatives | Pending native adapter evaluation; existing pins retained |
 | OCH-29 | Focused graphics application consuming public canvas and an independently packaged native component; desktop workflows and one chart | Pending integration of preceding capabilities |
@@ -82,6 +82,12 @@ errors. Native completion tests cover bounded admission, cross-thread/reentrant
 callbacks, stale tokens and shutdown races. Public APIs report submission and
 native errors precisely; they do not equate success with visible presentation.
 
-No full desktop capability bit is advertised yet. Next: Linux file services,
-launch/instance forwarding and packaging, then
+Linux file open/reveal now use XDG portal methods with owned descriptors and a
+bounded worker/cleanup layer. Local private D-Bus tests pass actual descriptor
+transfer, options, portal responses/version limits and cancellation. The shared
+file-chooser request engine keeps its prior lifecycle regression coverage. This
+is protocol/worker evidence on macOS, not Linux graphical acceptance.
+
+No full desktop capability bit is advertised yet. Next: Linux launch/instance
+forwarding and packaging, then
 consolidated hosted validation. No M6 ticket is complete yet.

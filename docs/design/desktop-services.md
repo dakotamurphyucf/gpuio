@@ -8,8 +8,9 @@ wired, with native state/mailbox unit coverage. Public Eio routing now passes
 deterministic delivery tests and real packaged macOS cold/warm OS invocation,
 including native window closure/reopening. Document-window metadata now passes
 native and public macOS tests. macOS file open/reveal and explicit scheme
-registration also have public OS acceptance. Linux file services and incoming-link
-forwarding are pending. The full desktop bridge capability
+registration also have public OS acceptance. Linux portal file services are
+implemented with local peer/worker tests; actual Linux builds/GUI evidence and
+incoming-link forwarding remain pending. The full desktop bridge capability
 is not yet advertised.
 
 ## Ownership and delivery
@@ -138,8 +139,10 @@ application file/network work stays in Eio. Permission and service failures need
 typed outcomes, with submission distinct from user-visible presentation.
 
 Current native capability snapshots enable incoming links, activation, document
-metadata, registration and file reveal/open on macOS. Linux adapters remain in
-progress; unsupported capabilities are false, not inferred from GPUI method names.
+metadata, registration and file reveal/open on macOS. Linux now implements file
+open/reveal through the portal. Capability flags describe adapter support;
+operation-time discovery can still report an unavailable service or unsupported
+portal version. Linux link/registration adapters remain in progress.
 
 ## File services and explicit registration
 
@@ -173,6 +176,41 @@ cannot finish a replacement correlation. Mailbox terminal checks and response
 reservation consumption occur under one lock, so callbacks racing transport
 closure cannot publish after `Stopped`. Already-submitted OS work can still take
 effect after application shutdown; this API does not claim OS-level cancellation.
+
+### Linux file operations
+
+Linux uses the [XDG OpenURI portal](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.OpenURI.html),
+with `OpenFile` requiring version 2 and `OpenDirectory` (reveal) requiring version 3.
+The portal may reveal by opening the containing folder rather than selecting an
+item. Both operations await its response; success does not certify presentation.
+The adapter requests writable access for exported sandboxed documents and uses
+the default/last app choice where supported. A portal may still prompt; cancellation
+is reported as `Denied`. Missing service returns `Unavailable`, an insufficient
+version `Unsupported`, and unclassified live-request failures `Native_failure`.
+
+A maximum of 16 native workers prepare owned descriptors and run portal I/O.
+Linux uses `O_PATH` and accepts regular files/directories, preserving raw path
+bytes without requiring UTF-8 or shell interpolation. These are application-scoped
+requests with an empty native parent; no borrowed GPUI window/display survives in
+a worker. Ordinary application persistence remains in Core/Eio.
+
+The existing file-chooser request engine now also serves desktop requests. It
+subscribes before issuing methods, pins the discovered service owner, accepts
+early responses, validates returned handle namespaces, and closes actual request
+handles on cancellation. Discovery/method deadlines remain bounded. Application
+shutdown signals workers and awaits their cleanup before stopping GPUI; workers
+own all descriptors/connections and release admission slots on every exit path.
+During terminal shutdown, pending callers receive `Closed`; an unconfirmed portal
+dismissal emits `GPUIO_DESKTOP_CLEANUP_FAILED` rather than claiming success.
+
+Local macOS tests use real private Unix-socket D-Bus messages and descriptor
+transfer to exercise this Linux service protocol without a display/session bus.
+They check file identity, options, portal outcomes, minimum versions and actual
+Request.Close messages. Existing chooser cancellation/restart tests still pass.
+Worker tests exercise admission bounds, descriptor failures and shutdown barriers.
+This evidence does not claim that a Linux desktop displayed a folder or opened
+an application; Linux compilation/unit gates remain required and GUI validation
+remains separately tracked under OCH-17.
 
 ## Packaging and validation plan
 
@@ -213,7 +251,7 @@ errors are checked too. It closes its Finder window and unregisters disposable
 bundles. Fixtures live under ignored `scratch/desktop-os`: on the tested macOS,
 Launch Services did not discover default file handlers under the system temporary
 directory. The consumer verifies file identity, allowing OS Unicode normalization.
-These tests do not validate Linux forwarding/file services or notifications.
+These macOS GUI tests do not validate Linux desktop presentation or notifications.
 
 Linux packages need a desktop entry with application identity, an executable
 argument vector accepting URLs, and scheme MIME declarations. Follow the

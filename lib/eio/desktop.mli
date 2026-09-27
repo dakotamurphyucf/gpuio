@@ -58,7 +58,11 @@ val activate
 
 (** Ask the file manager to reveal a native path. macOS's API has no completion
     result: [Ok ()] means the request was submitted, not that a selection appeared.
-    Does not establish file existence or access rights. *)
+    Linux awaits the OpenURI portal's OpenDirectory response (version 3+), which
+    may open the containing folder without selecting the item. Linux needs an
+    accessible regular file/directory; missing portal service returns [Unavailable]
+    and an older portal returns [Unsupported]. Neither backend certifies visible
+    presentation. *)
 val reveal_file : App.t -> Gpuio.File_path.t -> (unit, Error.t) Result.t Bonsai.Effect.t
 
 (** Open with the OS-selected application. macOS waits for the asynchronous
@@ -66,7 +70,13 @@ val reveal_file : App.t -> Gpuio.File_path.t -> (unit, Error.t) Result.t Bonsai.
     or consumed the document. Native errors distinguish known denial/missing
     resource cases (including wrapped native errors); unclassified errors return
     [Native_failure]. Does not add a recent item or show an application-choice
-    prompt when no handler is available. *)
+    prompt on macOS when no handler is available.
+
+    Linux uses OpenURI.OpenFile (version 2+), passing an owned descriptor and
+    requesting writable access for a sandboxed target. It uses the portal's
+    default/last application choice where available; the portal may still prompt.
+    User cancellation maps to [Denied]. No native window is borrowed for parenting.
+    Linux shutdown requests portal cancellation and waits for worker cleanup. *)
 val open_file : App.t -> Gpuio.File_path.t -> (unit, Error.t) Result.t Bonsai.Effect.t
 
 (** Explicitly request this packaged app as the default handler for a scheme

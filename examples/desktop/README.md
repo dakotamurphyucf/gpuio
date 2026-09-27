@@ -29,7 +29,9 @@ filesystem paths. A real document application must validate its own routes and
 reuse its close/quit decisions for unsaved work.
 
 The packaging here is a local acceptance fixture, not a signed/notarized release
-artifact. Linux incoming-link forwarding and file services remain in progress.
+artifact. Linux incoming-link forwarding remains in progress. Portal file
+services are implemented with local protocol/worker tests; actual Linux desktop
+presentation has not been validated yet.
 
 `python3 scripts/test_desktop_links_macos.py --services` additionally builds a tiny
 disposable native file consumer, opens a fixture through the OS-selected handler,
