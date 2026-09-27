@@ -241,6 +241,18 @@ A held-pointer row-focus AX crash is fixed in the table adapter and protected by
 a native intermediate-frame test. The full component matrix, combined workload,
 consolidated hosted gates and merge remain pending.
 
+The first settings pages now pass local macOS integration: a modal sheet with
+window-owned stream chunk-size/pacing preferences, inclusive score-range filtering
+of the actual results query, and an explicitly simulated six-digit connection.
+Native numeric partial/invalid drafts, Return/Escape, three stepper presentations,
+slider keyboard/AX edits and pointer preview cancellation, accepted-value remounts,
+nested reset confirmation, OTP paste/clear, themes and composer preservation pass.
+No native draft is replaced by an observation; closing discards uncommitted numeric
+drafts and stale callbacks are fenced by the settings generation. Model tests
+verify real fake-backend chunking/delays and score bounds. Existing results and M4
+public/AppKit regressions pass. Date/color settings and the remaining presentation,
+navigation, motion/responsive and combined-workload matrix are still pending.
+
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
 components pass local acceptance; OCH-24 has validated geometry, a bounded scene
 codec, native resource ownership and a tested OCaml/Rust upload bridge. The

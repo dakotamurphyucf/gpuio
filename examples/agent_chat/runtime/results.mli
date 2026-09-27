@@ -5,6 +5,10 @@ open Core
     use a worker domain for large complete-query transformations. *)
 type t
 
+(** Replace the complete query filter, preserving sort, source size and surviving
+    row membership. Large transforms use the existing bounded fixture worker. *)
+val filter_scores : t -> Score_range.t -> unit Bonsai.Effect.t
+
 val create
   :  scope:Gpuio_eio.Scope.t
   -> sleep:(float -> unit)

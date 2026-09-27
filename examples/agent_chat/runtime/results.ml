@@ -104,6 +104,12 @@ let query t query =
             set t.notice (Error.to_string_hum error)))
 ;;
 
+let filter_scores t range =
+  let open E.Let_syntax in
+  let%bind current = E.of_thunk (fun () -> get t.query) in
+  query t (Q.with_filter current (Between range))
+;;
+
 let paged_sample t loading =
   E.of_thunk (fun () ->
     Fixture_job.cancel t.fixture;
@@ -378,6 +384,13 @@ let component t ~active ~dark graph =
               | Ascending -> "ascending"
               | Descending -> "descending"))
     ; V.text ~style:(style [ Font_weight 600; Font_size 13. ]) selection_label
+    ; V.text
+        ~style:(style [ Foreground palette.muted; Font_size 12. ])
+        (match Q.filter snapshot.query with
+         | All -> "Filter: all scores"
+         | High_score -> "Filter: score ≥ 80%"
+         | Empty -> "Filter: empty fixture"
+         | Between range -> "Filter: score " ^ Score_range.describe range)
     ; footer
     ; V.text
         ~style:(style [ Foreground palette.accent; Font_size 12. ])

@@ -34,6 +34,7 @@ module Query = struct
     type t =
       | All
       | High_score
+      | Between of Score_range.t
       | Empty
     [@@deriving equal, sexp_of]
   end
@@ -155,6 +156,7 @@ let rows query =
       match Query.filter query with
       | All -> true
       | High_score -> row.Row.score >= 80
+      | Between range -> Score_range.contains range row.Row.score
       | Empty -> false)
   in
   let compare left right =

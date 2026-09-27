@@ -32,6 +32,7 @@ type t =
   ; mutable close_answer : (Gpuio.Window.Close_decision.t -> unit) option
   ; panels : (int, Panel.t) Hashtbl.t
   ; inspector : Inspector.t
+  ; settings : Settings.t
   }
 
 let px = Gpuio.Length.px_exn
@@ -64,6 +65,7 @@ let create ~icons conversations ~selected =
   ; close_answer = None
   ; panels = Int.Table.create ()
   ; inspector = Inspector.create ()
+  ; settings = Settings.create ()
   }
 ;;
 
@@ -713,6 +715,15 @@ let component
       ~dark:(B.Expert.Var.value t.dark)
       graph
   in
+  let settings =
+    Settings.component
+      t.settings
+      ~results
+      ~on_generation:(fun generation ->
+        set_backend t (Generation_settings.backend generation))
+      ~dark:(B.Expert.Var.value t.dark)
+      graph
+  in
   let search =
     Editor.create
       window
@@ -744,6 +755,7 @@ let component
   and pending_close = B.Expert.Var.value t.close_pending
   and search = search
   and inspector = inspector
+  and settings = settings
   and panels = panels in
   let p = Palette.of_dark dark in
   let active = Option.map (Tabs.active tabs) ~f:Tabs.Tab.data in
@@ -782,6 +794,8 @@ let component
           "Previous conversation tab"
           (fun () -> B.Expert.Var.set t.tabs (Tabs.previous (B.Expert.Var.get t.tabs)))
       ; make_command "theme" "Toggle light/dark theme" (fun () -> toggle_theme t)
+      ; make_command "settings" "Workspace settings" (fun () ->
+          Settings.toggle t.settings)
       ; make_command "explore" "Explore workspace" (fun () ->
           Inspector.toggle t.inspector)
       ; make_command
@@ -1047,6 +1061,7 @@ let component
                ~label:"Close tab"
                (action (fun () -> Option.iter active ~f:(close_tab t)))
            ; spacer
+           ; button dark "Settings" (action (fun () -> Settings.toggle t.settings))
            ; button
                dark
                "Explore workspace"
@@ -1183,6 +1198,7 @@ let component
               ; Background (solid p.sidebar)
               ])
          notice
+     ; settings
      ; close_dialog
      ]
      @
@@ -1219,6 +1235,7 @@ let component
                      ; "previous-tab"
                      ; "theme"
                      ; "explore"
+                     ; "settings"
                      ; "copy"
                      ; "close-tab"
                      ; "close-window"

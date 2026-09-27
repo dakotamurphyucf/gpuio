@@ -162,3 +162,23 @@ removal and later reinsertion deliberately start a new membership lifetime.
 macOS and supports `GPUIO_SCREENSHOT_DIR`. Its owned process has a total deadline
 and is closed/reaped on success and failure. Full M5 acceptance still requires
 the other planned families and the simultaneous workload in the coverage matrix.
+
+Choose **Settings** in the top bar (or Workspace commands → Workspace settings)
+for window-local generation preferences and an explicitly simulated connection.
+Stream chunk size controls actual bytes per simulated response chunk; Return
+commits, Escape restores, and side/stacked/keyboard-only steppers share one editor.
+The stream interval slider changes delays for future sends. Running streams keep
+their captured configuration. Existing demo presets remain explicit overrides.
+
+The score-range slider selects inclusive percentages; **Apply score interval**
+filters the complete results query. Open Workspace → Results to inspect it.
+Reset generation preferences uses a nested confirmation and preserves result
+filters. Closing or changing pages discards uncommitted numeric drafts; accepted
+preferences and canonical partial OTP codes survive within this window.
+
+**Connection demo** accepts any six digits, including normalized `123-456` paste.
+Completion is purely local: no account, credential, network request or service
+connection is created. Clear removes the sample code. The settings walkthrough is
+`python3 scripts/test_agent_chat_settings.py`, with the same screenshot variable
+and guaranteed owned-process cleanup. Calendar/color settings and the other
+remaining M5 families are still planned in the coverage matrix.

@@ -336,12 +336,78 @@ _build/default/examples/agent_chat/main.exe --self-test
 python3 scripts/test_agent_chat.py
 ```
 
+## Generation settings and simulated connection
+
+The top-bar **Settings** action and Workspace commands open a modal settings sheet.
+[Settings](../../examples/agent_chat/runtime/settings.ml) owns one window's accepted
+preferences and uses public native control descriptions and presentation/form
+helpers. Rust owns editor drafts, selection, composition and slider gestures.
+`initial` seeds each mount from accepted values; observations never replace text.
+Closing or changing pages discards unfinished numeric drafts. A settings generation
+rejects events from a retired page. Canonical partial OTP codes remain local to the
+window; their completion is explicitly a simulation, not authentication.
+
+[Generation_settings](../../examples/agent_chat/runtime/generation_settings.ml)
+validates 4–128-byte chunks and 10–200 ms intervals in 10 ms steps. Accepted changes
+configure actual future fake-backend sends; active streams keep their captured
+configuration. Existing demo presets remain explicit overrides. The settings sheet
+supports side, stacked and keyboard-only steppers. Native Return commits and Escape
+restores drafts; invalid/partial text supplies associated form help/errors.
+
+The range slider selects inclusive integer percentages through abstract
+[Score_range](../../examples/agent_chat/runtime/score_range.ml). Apply replaces the
+complete results filter while preserving source size, sort and surviving membership;
+large queries use the existing bounded fixture worker. Reset generation preferences
+opens a nested alert dialog. Cancellation preserves preferences, and confirmation
+resets chunk size/pacing without resetting score filters or active streams.
+
+Local commands pass:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/agent_chat/main.exe \
+  @test/agent_chat_showcase/runtest @fmt
+python3 scripts/test_agent_chat_settings.py
+python3 scripts/test_agent_chat_results.py
+_build/default/examples/agent_chat/main.exe --self-test
+python3 scripts/test_agent_chat.py
+```
+
+The settings AppKit walkthrough exercises numeric partial/rejected drafts, actual
+Return/Escape and arrow stepping, native stepper buttons, both slider thumbs,
+keyboard/AX slider changes, a real held-pointer preview cancelled with Escape,
+query filtering observed in the results page (80–90% gives six sample findings),
+retained accepted values, discarded
+unfinished drafts, nested reset cancellation/confirmation, native normalized
+clipboard paste into the OTP control, clearing, partial-code page retention,
+light/dark themes, intact composer content and OS close/discard. All owned processes
+are closed/reaped, with a 150-second walkthrough deadline. The first rapid page-switch
+test required an observation barrier before clicking the newly enabled destination;
+the final test waits for the actual numeric field rather than relying on timing.
+
+Model expect tests verify actual fixture chunk sizes, exact reconstructed Unicode
+response bytes, pacing values, rejected settings, inclusive score endpoints and
+full-range 100,000-row cardinality. The results and both original M4 acceptance
+flows remain passing. These checks do not replace combined M5 workload acceptance.
+
+Actual rendered screenshots were inspected, and numeric padding/banner styling
+were refined. Captures are reproducible with `GPUIO_SCREENSHOT_DIR`:
+
+- [Generation, dark](../images/studio-settings-generation-dark.png)
+- [Generation, light](../images/studio-settings-generation-light.png)
+- [Connection demo, dark](../images/studio-settings-connection-dark.png)
+- [Connection demo, light](../images/studio-settings-connection-light.png)
+
+The macOS workflow includes the new walkthrough; hosted execution is still pending.
+Calendar/color settings, additional presentation/navigation families, resize/narrow
+and reduced-motion acceptance remain open in the complete feature matrix.
+
 ## Remaining acceptance
 
 These flows cover the OCH-23 package integration, OCH-24 diagram, the OCH-37
-navigation stack/breadcrumbs, OCH-38 source explorer, OCH-39 results table and a subset of OCH-33's
+navigation stack/breadcrumbs and settings sheet/confirmation, OCH-34 numeric/OTP,
+OCH-38 source explorer, OCH-39 results table and a subset of OCH-33's
 presentation compositions. They do not complete the other component families,
-responsive/resizable inspector, motion, settings/input/date/color/OTP flows, other
+responsive/resizable inspector, motion, date/color flows, other
 navigation families/tour, or the
 combined streaming/input/retention/idle-traffic workload. Those all remain required
 by OCH-46, along with narrow/wide visual acceptance, the full coverage map, hosted

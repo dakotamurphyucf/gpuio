@@ -21,6 +21,7 @@ module Query : sig
     type t =
       | All
       | High_score
+      | Between of Score_range.t
       | Empty
     [@@deriving equal, sexp_of]
   end
