@@ -1263,6 +1263,10 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
                 4 => Command::Zoom,
                 5 => Command::ToggleFullscreen,
                 6 => Command::SetEdited(d.boolean()?),
+                7 => Command::SetDocument(crate::window::Document {
+                    path: d.option(|d| d.file_path())?,
+                    edited: d.boolean()?,
+                }),
                 _ => return Err(DecodeError::Malformed),
             };
             if correlation <= 0 || !command.is_valid() {

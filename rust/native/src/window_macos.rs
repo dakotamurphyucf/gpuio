@@ -9,6 +9,71 @@ use objc2::{
     sel,
 };
 use std::sync::{OnceLock, Weak};
+
+fn native_window(
+    window: &Window,
+) -> Result<Retained<objc2_app_kit::NSWindow>, gpuio_protocol::window::Error> {
+    use gpuio_protocol::window::Error;
+    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    objc2::MainThreadMarker::new().ok_or(Error::NativeFailure)?;
+    let handle = HasWindowHandle::window_handle(window).map_err(|_| Error::NativeFailure)?;
+    let RawWindowHandle::AppKit(handle) = handle.as_raw() else {
+        return Err(Error::Unsupported);
+    };
+    // SAFETY: GPUI owns this live NSView, accessed on its main thread. Retain
+    // the native window before using it independently of the borrowed handle.
+    let view = unsafe { handle.ns_view.cast::<objc2_app_kit::NSView>().as_ref() };
+    view.window().ok_or(Error::Closed)
+}
+
+pub(super) fn document(window: &Window) -> Option<gpuio_protocol::window::Document> {
+    use std::os::unix::ffi::OsStrExt;
+    let native = native_window(window).ok()?;
+    let path = match native.representedURL() {
+        Some(url) => {
+            let path = url.to_file_path()?;
+            Some(
+                gpuio_protocol::file_path::FilePath::new(path.as_os_str().as_bytes().to_vec())
+                    .ok()?,
+            )
+        }
+        None => None,
+    };
+    Some(gpuio_protocol::window::Document {
+        path,
+        edited: native.isDocumentEdited(),
+    })
+}
+
+pub(super) fn set_document(
+    window: &Window,
+    document: &gpuio_protocol::window::Document,
+) -> Result<(), gpuio_protocol::window::Error> {
+    use gpuio_protocol::window::Error;
+    use std::{ffi::OsStr, os::unix::ffi::OsStrExt, path::Path};
+    let native = native_window(window)?;
+    // Convert before mutating either field. NSURL uses filesystem bytes rather
+    // than a lossy UTF-8 conversion; no file is read, created or saved.
+    let url = document
+        .path
+        .as_ref()
+        .map(|path| {
+            objc2_foundation::NSURL::from_file_path(Path::new(OsStr::from_bytes(path.as_bytes())))
+                .ok_or(Error::InvalidRequest)
+        })
+        .transpose()?;
+    native.setRepresentedURL(url.as_deref());
+    native.setDocumentEdited(document.edited);
+    Ok(())
+}
+
+pub(super) fn set_edited(
+    window: &Window,
+    edited: bool,
+) -> Result<(), gpuio_protocol::window::Error> {
+    native_window(window)?.setDocumentEdited(edited);
+    Ok(())
+}
 thread_local! {static TRANSPORT:RefCell<Option<Weak<Transport>>>=const{RefCell::new(None)};}
 extern "C-unwind" fn should_terminate(_: &AnyObject, _: Sel, _: *mut AnyObject) -> usize {
     // Do not allow Rust panics or an AppKit termination to bypass FFI cleanup.

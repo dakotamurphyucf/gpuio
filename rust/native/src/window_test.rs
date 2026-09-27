@@ -28,6 +28,28 @@ async fn exercise(
 ) {
     let first = windows[0];
     let second = windows[1];
+    first.update(cx, |view, window, _| {
+        use gpuio_protocol::{file_path::FilePath, window::{Command, Document, Response}};
+        let original = window_macos::document(window).unwrap();
+        assert_eq!(original, Document { path: None, edited: false });
+        // No file must exist: these are represented-document metadata operations,
+        // not filesystem access. Include exact non-UTF8 Unix bytes.
+        let document = Document {
+            path: Some(FilePath::new(b"/tmp/gpuio-represented-\xff.txt".to_vec()).unwrap()),
+            edited: true,
+        };
+        let response = window_host::command(view, &Command::SetDocument(document.clone()), window);
+        assert!(matches!(response, Response::Observed(snapshot) if snapshot.document == Some(document.clone())));
+        let native = window_macos::document(window).unwrap();
+        assert_eq!(native, document);
+        let response = window_host::command(view, &Command::SetEdited(false), window);
+        assert!(matches!(response, Response::Observed(snapshot) if snapshot.document == Some(Document { edited: false, ..document.clone() })));
+        let cleared = Document { path: None, edited: true };
+        let response = window_host::command(view, &Command::SetDocument(cleared.clone()), window);
+        assert!(matches!(response, Response::Observed(snapshot) if snapshot.document == Some(cleared)));
+        let response = window_host::command(view, &Command::SetDocument(original.clone()), window);
+        assert!(matches!(response, Response::Observed(snapshot) if snapshot.document == Some(original)));
+    }).unwrap();
     events(transport);
     let native = editor_test::native_view(cx, first);
     os_close(native);
@@ -106,7 +128,7 @@ async fn exercise(
         "native reopen is forwarded with zero windows"
     );
     eprintln!(
-        "GPUIO_NATIVE_WINDOW_OK: actual macOS performClose and terminate callbacks deferred; repeated requests coalesced; independent survivor; explicit zero-window policy and OS reopen"
+        "GPUIO_NATIVE_WINDOW_OK: native represented document raw bytes, edited state and clearing; actual macOS performClose and terminate callbacks deferred; repeated requests coalesced; independent survivor; explicit zero-window policy and OS reopen"
     );
 }
 pub(crate) fn run() {

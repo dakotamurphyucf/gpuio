@@ -20,6 +20,22 @@ fn window_messages_match_ocaml_fixtures() {
         (Command::Zoom, "0b07000104"),
         (Command::ToggleFullscreen, "0b07000105"),
         (Command::SetEdited(true), "0b0700010601"),
+        (
+            Command::SetDocument(Document {
+                path: None,
+                edited: false,
+            }),
+            "0b070001070000",
+        ),
+        (
+            Command::SetDocument(Document {
+                path: Some(
+                    gpuio_protocol::file_path::FilePath::new(b"/tmp/\xff".to_vec()).unwrap(),
+                ),
+                edited: true,
+            }),
+            "0b0700010701062f746d702fff01",
+        ),
     ] {
         assert_eq!(hex(&Message::WindowCommand(7, id, command)), expected);
     }
@@ -62,4 +78,47 @@ fn native_decoder_rejects_invalid_window_data() {
             .unwrap();
         assert!(decode(&bytes).is_err());
     }
+    // String bytes are decoded as a validated native path, not UTF-8 text.
+    for bytes in [
+        b"\x0b\x07\x00\x01\x07\x01\x03rel\x00".as_slice(),
+        b"\x0b\x07\x00\x01\x07\x01\x03/a\x00\x00".as_slice(),
+    ] {
+        assert!(decode(bytes).is_err());
+    }
+}
+
+#[test]
+fn document_observation_matches_independent_ocaml_fixture() {
+    let id = WindowId::from_parts(0, 1).unwrap();
+    let events = vec![
+        Event::WindowResponse(
+            7,
+            id,
+            Response::Observed(Snapshot {
+                title: "t".into(),
+                x: 0.,
+                y: 0.,
+                width: 0.,
+                height: 0.,
+                content_width: 0.,
+                content_height: 0.,
+                active: false,
+                fullscreen: false,
+                maximized: false,
+                document: Some(Document {
+                    path: Some(
+                        gpuio_protocol::file_path::FilePath::new(b"/tmp/\xff".to_vec()).unwrap(),
+                    ),
+                    edited: true,
+                }),
+            }),
+        ),
+        Event::WindowResponse(8, id, Response::Failed(Error::Unsupported)),
+    ];
+    let mut actual = Vec::new();
+    events.binprot_write(&mut actual).unwrap();
+    let mut expected = b"\x02\x23\x07\x00\x01\x00\x01t".to_vec();
+    expected.extend_from_slice(&[0; 48]);
+    expected.extend_from_slice(b"\x00\x00\x00\x01\x01\x06/tmp/\xff\x01\x23\x08\x00\x01\x01\x05");
+    assert_eq!(actual, expected);
 }

@@ -6,8 +6,9 @@ parser and runtime readiness inbox pass local expect tests. Identity, a correlat
 desktop protocol, native early-link capture and application activation are now
 wired, with native state/mailbox unit coverage. Public Eio routing now passes
 deterministic delivery tests and real packaged macOS cold/warm OS invocation,
-including native window closure/reopening. Remaining OS service adapters and
-Linux incoming-link forwarding are pending. The full desktop bridge capability
+including native window closure/reopening. Document-window metadata now passes
+native and public macOS tests. Remaining OS service adapters and Linux
+incoming-link forwarding are pending. The full desktop bridge capability
 is not yet advertised.
 
 ## Ownership and delivery
@@ -68,6 +69,38 @@ targeting a window uses the existing generation-checked handle; routing does not
 capture a reusable integer slot as a permanent destination. Reuse existing
 close/quit/reopen decisions rather than adding another unsaved-work mechanism.
 
+## Document windows
+
+`Gpuio.Window.Document.create ?path ~edited ()` describes represented-file and
+edited metadata. `Gpuio_eio.Desktop.set_document window document` uses the existing
+generation-checked window command channel, returning an observed window snapshot.
+`Window.Document.of_snapshot` reads the native document state when available.
+Passing no path clears representation and supports an untitled document. The
+existing `Set_edited` command changes edited state without clearing its path.
+
+macOS uses `NSWindow.setRepresentedURL` with a filesystem-byte `NSURL`, followed
+by `setDocumentEdited`; it reads `representedURL` and `isDocumentEdited` for the
+observation. Conversion happens before either mutation, and non-UTF8 path bytes
+are preserved. AppKit can normalize a path; observations describe its native
+value. These operations do not require the represented file to exist and do not
+read/write/save it. They also do not install a close decision: applications retain
+their existing asynchronous close/quit handlers and unsaved-work model.
+
+Pinned Linux X11/Wayland lack these native document metadata operations. Both
+`Set_document` and `Set_edited` return typed `Window.Error.Unsupported`, rather
+than treating GPUI's default no-op as success. Snapshot document state is `None`
+there; desktop capabilities report `document_metadata=false`. A missing native
+observation is also represented by `None`, not invented application state.
+
+Wire commands append `Set_document` (tag 7) and window errors append `Unsupported`
+(tag 5); window snapshots now carry optional document metadata. Paired independent
+OCaml/Rust fixtures cover raw bytes, clearing and unsupported responses. Native
+mailbox accounting includes represented-path bytes before splitting response
+batches under the transport limit. This is part of the unreleased M6 bridge schema;
+applications and the native library must be rebuilt together.
+
+## Link parsing
+
 The incoming link profile is `scheme://route/path?query#fragment`. Schemes are
 case-insensitive ASCII identifiers, at most 64 bytes. Links are at most 16 KiB.
 The route is an ASCII unreserved identifier; credentials, ports and network
@@ -103,8 +136,8 @@ delivery. Native workers handle potentially blocking OS calls; ordinary
 application file/network work stays in Eio. Permission and service failures need
 typed outcomes, with submission distinct from user-visible presentation.
 
-Current native capability snapshots enable incoming links and application
-activation only on macOS. Registration, file reveal/open and document metadata
+Current native capability snapshots enable incoming links, application activation
+and document metadata only on macOS. Registration and file reveal/open
 remain false until their adapters are implemented and validated; this is an
 implementation checkpoint, not the intended OCH-27 endpoint.
 
@@ -133,7 +166,9 @@ python3 scripts/test_desktop_links_macos.py
 ```
 
 This is link-delivery acceptance, not acceptance of the entire desktop ticket.
-It does not validate Linux forwarding, file services, document metadata,
+It also checks public metadata setting/clearing and rejection of an old window
+handle after another window opens. The native window suite additionally checks
+non-UTF8 paths and actual AppKit document state. It does not validate Linux forwarding, file services,
 runtime default-handler reassignment, or notification delivery.
 
 Linux packages need a desktop entry with application identity, an executable

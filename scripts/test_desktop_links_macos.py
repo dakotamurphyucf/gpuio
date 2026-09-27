@@ -113,6 +113,10 @@ def exercise(binary: Path, artifact: Path) -> None:
             send("document/warm")
             wait_for("DESKTOP_LAB: link gpuio-desktop-lab://document/warm")
             mac.wait_text("GPUIO · Desktop Lab", "Document /warm")
+            send("metadata/edited")
+            wait_for("DESKTOP_LAB: metadata-edited")
+            send("metadata/clear")
+            wait_for("DESKTOP_LAB: metadata-cleared")
             send("user@document/invalid")
             wait_for("DESKTOP_LAB: rejected gpuio-desktop-lab://user@document/invalid Invalid_authority")
             send("close/window")
@@ -122,6 +126,8 @@ def exercise(binary: Path, artifact: Path) -> None:
             wait_for("DESKTOP_LAB: window-opened 2")
             wait_windows(1)
             mac.wait_text("GPUIO · Desktop Lab", "Document /reopened")
+            send("metadata/stale")
+            wait_for("DESKTOP_LAB: metadata-stale-closed")
             send("replace/receiver")
             wait_for("DESKTOP_LAB: receiver-replaced")
             send("document/replacement")
@@ -135,7 +141,7 @@ def exercise(binary: Path, artifact: Path) -> None:
             assert "DESKTOP_LAB: deadline" not in result
             for route in ["cold", "warm", "reopened", "replacement"]:
                 assert result.count("DESKTOP_LAB: link gpuio-desktop-lab://document/" + route) == 1
-            print("GPUIO_DESKTOP_LINKS_OK: packaged cold/warm OS links, readiness, rejection, window reopen, receiver replacement and shutdown")
+            print("GPUIO_DESKTOP_LINKS_OK: packaged cold/warm OS links, readiness, rejection, document metadata/clear/stale-window, window reopen, receiver replacement and shutdown")
         finally:
             if mac is not None:
                 mac.release(mac.app)

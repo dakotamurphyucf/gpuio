@@ -37,7 +37,7 @@ fn capabilities() -> wire::Capabilities {
         application_activation: cfg!(target_os = "macos"),
         file_reveal: false,
         file_open: false,
-        document_metadata: false,
+        document_metadata: cfg!(target_os = "macos"),
     }
 }
 

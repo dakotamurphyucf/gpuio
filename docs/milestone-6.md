@@ -8,7 +8,7 @@ and evidence remain in [the milestone 5 handoff](milestone-5.md).
 
 | Ticket | Deliverable | Current state |
 | -- | -- | -- |
-| OCH-27 | Application identity, deep-link packaging/startup/live delivery, activation, file reveal/open, document-window metadata | In progress: public routing and packaged macOS cold/warm links pass, including native close/reopen and receiver replacement; remaining OS services and Linux forwarding pending |
+| OCH-27 | Application identity, deep-link packaging/startup/live delivery, activation, file reveal/open, document-window metadata | In progress: public routing, packaged macOS links and document metadata pass native/public checks; registration, file services and Linux forwarding pending |
 | OCH-28 | OS notifications, permissions/capabilities, replacement/dismissal and stale-safe action routing | Pending OCH-27 application identity/routing |
 | OCH-40 | Line, area, bar, pie, radar, candlestick and Sankey components with typed bounded datasets, native interaction and accessible alternatives | Pending native adapter evaluation; existing pins retained |
 | OCH-29 | Focused graphics application consuming public canvas and an independently packaged native component; desktop workflows and one chart | Pending integration of preceding capabilities |
@@ -68,6 +68,13 @@ GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/desktop/main.exe \
 python3 scripts/test_desktop_links_macos.py
 ```
 
+Document metadata now passes the native macOS window suite (represented non-UTF8
+file bytes, independent edited state and clearing, existing close/quit/reopen
+decisions) and the packaged OCaml example (setting/clearing and stale-window
+rejection). Linux explicitly returns `Unsupported` for document metadata.
+Independent OCaml/Rust command and response fixtures cover the schema extension;
+mailbox checks include large represented paths in the response byte budget.
+
 No full desktop capability bit is advertised yet. Next: remaining OS services,
-document-window metadata, Linux launch/instance forwarding and packaging, then
+Linux launch/instance forwarding and packaging, then
 consolidated hosted validation. No M6 ticket is complete yet.

@@ -40,6 +40,11 @@ fn event_bytes(event: &Event) -> usize {
         Event::WindowChanged(_, snapshot)
         | Event::WindowResponse(_, _, gpuio_protocol::window::Response::Observed(snapshot)) => {
             snapshot.title.len()
+                + snapshot
+                    .document
+                    .as_ref()
+                    .and_then(|document| document.path.as_ref())
+                    .map_or(0, |path| path.as_bytes().len() + 9)
         }
         Event::DragSourceEvent(_, _, _, _, sample) => sample.payload_bytes(),
         Event::DropTargetEvent(_, _, _, _, sample) => sample.payload_bytes(),
@@ -775,6 +780,63 @@ mod desktop_tests {
     use super::*;
     use binprot::BinProtWrite;
     use gpuio_protocol::desktop::{LinkBatch, MAX_LINK_BYTES, Request, Response};
+
+    #[test]
+    fn represented_document_paths_are_charged_to_response_batches() {
+        use gpuio_protocol::{file_path::FilePath, window};
+        let id = WindowId::from_parts(0, 1).unwrap();
+        let mut path = vec![b'x'; gpuio_protocol::file_path::MAX_PATH_BYTES];
+        path[0] = b'/';
+        let snapshot = window::Snapshot {
+            title: "Document".into(),
+            x: 0.,
+            y: 0.,
+            width: 1.,
+            height: 1.,
+            content_width: 1.,
+            content_height: 1.,
+            active: false,
+            fullscreen: false,
+            maximized: false,
+            document: Some(window::Document {
+                path: Some(FilePath::new(path).unwrap()),
+                edited: true,
+            }),
+        };
+        let mut mailbox = Mailbox::default();
+        for correlation in 1..=80 {
+            mailbox
+                .submit(
+                    Message::WindowCommand(correlation, id, window::Command::Observe),
+                    5,
+                )
+                .unwrap();
+            mailbox.pop().unwrap();
+            let event = Event::WindowResponse(
+                correlation,
+                id,
+                window::Response::Observed(snapshot.clone()),
+            );
+            let mut encoded = Vec::new();
+            event.binprot_write(&mut encoded).unwrap();
+            assert!(event_bytes(&event) >= encoded.len());
+            mailbox.respond(event);
+        }
+        let mut count = 0;
+        loop {
+            let batch = mailbox.drain(256);
+            if batch.is_empty() {
+                break;
+            }
+            assert!(batch.len() < 80);
+            count += batch.len();
+            let mut bytes = Vec::new();
+            batch.binprot_write(&mut bytes).unwrap();
+            assert!(bytes.len() <= MAX_MESSAGE_BYTES);
+        }
+        assert_eq!(count, 80);
+        assert_eq!(mailbox.reserved, 0);
+    }
 
     #[test]
     fn availability_is_coalesced_and_independent_of_window_input_capacity() {

@@ -25,6 +25,7 @@ let () =
   App.run ~desktop:identity ~exit_on_last_window:false (fun env app ->
     let state = B.Expert.Var.create "Waiting for an application link…" in
     let current_window = ref None in
+    let retired_window = ref None in
     let opened = ref 0 in
     let receiver = ref None in
     let scope = App.scope app in
@@ -75,35 +76,71 @@ let () =
     in
     let rec attach () = Desktop.attach app ~on_event |> desktop_ok
     and on_event event =
-      E.of_thunk (fun () ->
-        match event with
-        | Desktop.Event.Link link ->
-          emit ("link " ^ Gpuio.Deep_link.to_string link);
-          (match Gpuio.Deep_link.route link with
-           | "document" ->
-             ignore (ensure_window () : App.Window.t);
-             B.Expert.Var.set state ("Document " ^ Gpuio.Deep_link.path link)
-           | "close" ->
-             Option.iter !current_window ~f:App.Window.close;
-             emit "window-close-requested"
-           | "replace" ->
-             let old = Option.value_exn !receiver in
-             Desktop.close old;
-             let next = attach () in
-             receiver := Some next;
-             Desktop.ready next;
-             Desktop.close old;
-             emit "receiver-replaced"
-           | "quit" -> App.shutdown app
-           | _ -> emit "unknown-route")
-        | Rejected_link { input; reason } ->
-          emit
-            (sprintf
-               "rejected %s %s"
-               input
-               (Sexp.to_string ([%sexp_of: Gpuio.Deep_link.Error.t] reason)))
-        | Overflow count -> emit (sprintf "overflow %Ld" count)
-        | Failed error -> raise_s [%sexp (error : Desktop.Error.t)])
+      match event with
+      | Desktop.Event.Link link when String.equal (Gpuio.Deep_link.route link) "metadata"
+        ->
+        let stale = String.equal (Gpuio.Deep_link.path link) "/stale" in
+        let clear = String.equal (Gpuio.Deep_link.path link) "/clear" in
+        let window =
+          if stale then Option.value_exn !retired_window else ensure_window ()
+        in
+        let path = Gpuio.File_path.of_string "/tmp/GPUIO résumé.txt" |> Or_error.ok_exn in
+        let document =
+          Desktop.Document.create
+            ?path:(if clear then None else Some path)
+            ~edited:(not clear)
+            ()
+        in
+        E.map (Desktop.set_document window document) ~f:(fun result ->
+          if stale
+          then (
+            match result with
+            | Error Closed -> emit "metadata-stale-closed"
+            | Error error -> raise_s [%sexp (error : Gpuio.Window.Error.t)]
+            | Ok _ -> failwith "retired window accepted document metadata")
+          else (
+            let snapshot =
+              match result with
+              | Ok snapshot -> snapshot
+              | Error error -> raise_s [%sexp (error : Gpuio.Window.Error.t)]
+            in
+            assert (
+              Option.equal
+                Desktop.Document.equal
+                (Desktop.Document.of_snapshot snapshot)
+                (Some document));
+            emit (if clear then "metadata-cleared" else "metadata-edited")))
+      | _ ->
+        E.of_thunk (fun () ->
+          match event with
+          | Desktop.Event.Link link ->
+            emit ("link " ^ Gpuio.Deep_link.to_string link);
+            (match Gpuio.Deep_link.route link with
+             | "document" ->
+               ignore (ensure_window () : App.Window.t);
+               B.Expert.Var.set state ("Document " ^ Gpuio.Deep_link.path link)
+             | "close" ->
+               retired_window := !current_window;
+               Option.iter !current_window ~f:App.Window.close;
+               emit "window-close-requested"
+             | "replace" ->
+               let old = Option.value_exn !receiver in
+               Desktop.close old;
+               let next = attach () in
+               receiver := Some next;
+               Desktop.ready next;
+               Desktop.close old;
+               emit "receiver-replaced"
+             | "quit" -> App.shutdown app
+             | _ -> emit "unknown-route")
+          | Rejected_link { input; reason } ->
+            emit
+              (sprintf
+                 "rejected %s %s"
+                 input
+                 (Sexp.to_string ([%sexp_of: Gpuio.Deep_link.Error.t] reason)))
+          | Overflow count -> emit (sprintf "overflow %Ld" count)
+          | Failed error -> raise_s [%sexp (error : Desktop.Error.t)])
     in
     let subscription = attach () in
     receiver := Some subscription;

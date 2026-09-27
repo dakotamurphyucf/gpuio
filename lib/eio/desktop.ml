@@ -3,6 +3,7 @@ module Identity = Gpuio.Desktop.Identity
 module Capabilities = Gpuio.Desktop.Capabilities
 module Error = Gpuio.Desktop.Error
 module Event = Gpuio.Desktop.Event
+module Document = Gpuio.Window.Document
 module Delivery = Gpuio_runtime_core.Desktop_delivery
 module Wire = Gpuio_protocol.Desktop_wire
 module E = Bonsai.Effect
@@ -57,6 +58,10 @@ let attach app ~on_event =
 let ready t = Delivery.ready t.delivery
 let retry t = Delivery.retry t.delivery
 let is_closed t = Delivery.is_closed t.delivery
+
+let set_document window document =
+  App.Window.command window (Set_document (Document.Expert.to_wire document))
+;;
 
 let capabilities app =
   E.map (App.Expert.desktop app Capabilities) ~f:(function

@@ -3,6 +3,7 @@ module Identity = Gpuio.Desktop.Identity
 module Capabilities = Gpuio.Desktop.Capabilities
 module Error = Gpuio.Desktop.Error
 module Event = Gpuio.Desktop.Event
+module Document = Gpuio.Window.Document
 
 (** One application-scoped incoming-link subscription, owned by the UI domain.
     Its lifetime is independent of all windows. *)
@@ -33,6 +34,17 @@ val retry : t -> unit
 val close : t -> unit
 
 val is_closed : t -> bool
+
+(** Set represented-file and edited metadata on this exact window generation.
+    Clearing the path supports untitled documents. Does no file I/O and does not
+    replace close/quit handlers. macOS returns the observed native state; the
+    pinned X11/Wayland backends return [Unsupported]. AppKit may normalize paths
+    in its observation; non-UTF8 bytes are never replaced with Unicode markers. *)
+val set_document
+  :  App.Window.t
+  -> Document.t
+  -> (Gpuio.Window.Snapshot.t, Gpuio.Window.Error.t) Result.t Bonsai.Effect.t
+
 val capabilities : App.t -> (Capabilities.t, Error.t) Result.t Bonsai.Effect.t
 
 (** Request process-level activation. Linux reports [Unsupported] in the pinned
