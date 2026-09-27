@@ -362,3 +362,27 @@ Logs: `ci-presentation-before.log`, `ci-presentation-reduce-reproduction.log` an
 `ci-presentation-policy-final.log` in the implementing agent's scratch directory.
 The forced-Reduce reproduction exited 101; unchanged and corrected complete local
 runs exited 0. Final hosted acceptance remains recorded on PR #13.
+
+
+### Rating capture bounds after synthetic scale changes
+
+[Run 36298988953](https://github.com/dakotamurphyucf/gpuio/actions/runs/36298988953)
+at `20e44eb` passed all loading animation/reduced-motion/minimize checks, then
+failed the rating GPU fixture: a sample at `(379, 7)` exceeded its `360 x 220`
+capture. GPUI's test-only `set_scale_factor` changes scene scale; the pinned Metal
+`render_to_image` still uses the actual platform layer's drawable size. The
+32-star geometry at a synthetic scale could therefore exceed a 1x host's capture.
+
+Adding a 3x case reproduced the same failure locally: `(761, 17)` exceeded a
+`720 x 442` capture (exit 101). The fixture now temporarily widens the native window
+to 800 logical pixels, enough for 32 eight-pixel stars at up to 3x on a 1x host,
+including border/sample margins. It checks sample bounds and actual requested
+scales, preserves the filled/unfilled pixel assertions, and restores the original
+scale and window size. No rating or renderer production code changes.
+
+The complete local presentation executable passes with the 1x/1.5x/2x/3x sweep,
+including rating keyboard/pointer/AX/modal/idle/disposal and loading/IME checks.
+This is synthetic GPUI scale coverage, not physical monitor-switch validation.
+Reproduction and corrected logs are `ci-rating-capture-before.log`,
+`ci-rating-capture-final.log` and `ci-rating-capture-final-2.log` in agent scratch.
+PR #13 records subsequent exact-revision hosted results.

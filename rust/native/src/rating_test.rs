@@ -65,6 +65,12 @@ fn pixels(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, star: i64, filled
             let image = window.render_to_image().unwrap();
             let x = (f32::from(position.x) * scale) as u32;
             let y = (f32::from(position.y) * scale) as u32;
+            assert!(
+                x > 0 && y > 0 && x + 1 < image.width() && y + 1 < image.height(),
+                "star {star} sample ({x}, {y}) at density {scale} must fit capture {}x{}",
+                image.width(),
+                image.height()
+            );
             // Fractional density can put the logical center on a multisample
             // boundary. Require actual opaque fill in its nearest pixel region.
             let colors: Vec<_> = (y - 1..=y + 1)
@@ -515,17 +521,28 @@ pub(super) async fn exercise(
     #[cfg(feature = "native-image-tests")]
     {
         let original_scale = handle.update(cx, |_, w, _| w.scale_factor()).unwrap();
+        let original_size = handle.update(cx, |_, w, _| w.viewport_size()).unwrap();
+        // Test scale overrides do not resize the platform drawable. Reserve
+        // enough capture space even on a 1x host for all 32 eight-pixel stars
+        // at 3x, including the border and the sampled pixel neighborhood.
+        handle
+            .update(cx, |_, w, _| w.resize(size(px(800.), original_size.height)))
+            .unwrap();
+        frame(cx, handle).await;
         let revision = handle
             .update(cx, |v, _, _| {
                 v.session.borrow().tree(v.id).unwrap().revision()
             })
             .unwrap();
-        for scale in [1., 1.5, 2., original_scale] {
+        for scale in [1., 1.5, 2., 3., original_scale] {
             handle
                 .update(cx, |_, w, _| w.set_scale_factor(scale))
                 .unwrap();
             frame(cx, handle).await;
-            #[cfg(feature = "native-image-tests")]
+            assert_eq!(
+                handle.update(cx, |_, w, _| w.scale_factor()).unwrap(),
+                scale
+            );
             pixels(cx, handle, 32, true);
             assert_eq!(
                 handle
@@ -539,7 +556,13 @@ pub(super) async fn exercise(
                 revision
             );
         }
-        eprintln!("GPUIO_RATING_GPU_OK: star fill/outline, maximum geometry and synthetic density");
+        handle
+            .update(cx, |_, w, _| w.resize(original_size))
+            .unwrap();
+        frame(cx, handle).await;
+        eprintln!(
+            "GPUIO_RATING_GPU_OK: star fill/outline, maximum geometry and synthetic density 1x/1.5x/2x/3x; restored window size/scale"
+        );
     }
     move_mouse(cx, handle, gpui::point(px(-10.), px(-10.)), false);
     frame(cx, handle).await;
