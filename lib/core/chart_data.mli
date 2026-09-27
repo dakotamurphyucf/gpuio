@@ -190,4 +190,15 @@ module Expert : sig
   [@@deriving equal, sexp_of]
 
   val contents : t -> contents
+
+  (** Raw wire conversion does not bypass the validating domain constructors. *)
+  val to_wire : t -> Gpuio_protocol.Chart_data_wire.t
+
+  val of_wire : Gpuio_protocol.Chart_data_wire.t -> t Or_error.t
+
+  (** Versioned standalone bin_prot data, <=16 MiB. Decoding bounds aggregate
+      lists/text before allocation, rejects trailing bytes and validates semantics. *)
+  val encode : t -> string Or_error.t
+
+  val decode : string -> t Or_error.t
 end

@@ -1,6 +1,6 @@
 # Native charts (OCH-40)
 
-Status: in progress. The validated Core data model is implemented and tested.
+Status: in progress. The validated Core data model and paired bounded codecs are implemented and tested.
 The extracted Sankey layout source compiles against the existing GPUI revision.
 Native chart resources, widgets, interactions, accessibility and public graphical
 examples are not implemented yet. This document separates the current data
@@ -43,6 +43,38 @@ validate source data and preserve its IDs, values and gaps. `value_count` includ
 zero/missing values. `Expert.contents` exposes a read-only view for protocol and
 data-table adapters without an unchecked constructor for validated datasets.
 
+## Binary data boundary
+
+`Chart_data.Expert.encode/decode` and Rust `decode_chart_data` share a version-1
+standalone bin_prot envelope, capped at 16 MiB. The payload tags are Cartesian,
+pie, radar, candlestick and Sankey; Cartesian layer tags distinguish line/area/bar.
+Typed Core IDs convert only at this boundary. These are resource payloads, not
+large inlined view properties; resource publication is still to be implemented.
+
+Both readers bound list counts before allocation, cap total Cartesian points
+across all series, and charge all decoded text against the shared 8 MiB budget.
+They reject truncated input, unknown versions/tags, invalid UTF-8 and trailing
+bytes. Rust validates all domain invariants before returning a dataset. The Core
+adapter passes decoded records through its validating constructors and rejects
+oversized in-memory raw envelopes before constructing a second set of records.
+Conversion stops on the first invalid element. Raw protocol types by themselves
+are not validated domain values.
+
+The OCaml reader uses explicit forward recursion for stateful reads. Independent
+fixtures caught an initial reversed-point reader before acceptance; the fixed
+reader preserves encoded series, point, axis/value and edge order. The public
+model's numeric order invariants are enforced after decoding, not assumed from a
+well-formed bin_prot record. ASCII whitespace classification is explicit and equal
+across both language implementations.
+
+`test/fixtures/chart-v1-data.hex` contains independent hand-encoded examples for
+all payload tags and all Cartesian layer tags, including negative OHLC/values,
+missing points and raw UTF-8. Both languages construct their own typed values and
+compare their writers/readers against those same bytes. Every fixture truncation
+and an appended trailing byte are rejected. Malformed domains, huge advertised
+counts, per-series-valid but aggregate-oversized datasets, text-budget overflow
+and a valid 100,000-point native decode are also covered.
+
 ## Pinned implementation assessment
 
 Inspected the clean local GPUI Kit checkout at
@@ -75,7 +107,7 @@ retain original semantic values and cache layout outside per-frame painting.
 The native implementation must cover all seven families; the pure model and
 Sankey extraction do not replace that scope:
 
-- Define paired bounded codecs and revisioned, application-owned chart resources.
+- Build revisioned, application-owned chart resources on the paired bounded codecs.
   Scoped Eio ownership should follow existing canvas/document registration, with
   coalesced desired updates, atomic publication, stale-generation rejection and
   explicit release/window-unmount behavior. Do not put large datasets in each
@@ -110,4 +142,11 @@ radar domains and graph topology. An independent reachability oracle enumerates
 all 4,096 directed graphs on four distinct nodes and agrees on the 543 DAGs.
 The plotting compatibility tests retain all 12 upstream Sankey cases, including
 layout chains, cycles, degenerate inputs, alignment and value/width behavior.
-These are model/algorithm checks; native chart acceptance is still outstanding.
+Three additional Core codec expect tests and four Rust codec tests exercise the
+paired boundary described above. These are model/codec/algorithm checks; native
+chart acceptance is still outstanding.
+
+Codec regression checkpoint: all **12 Core chart expect tests** and **191 Rust
+protocol tests** pass locally, including four chart-codec tests. Strict all-target
+protocol Clippy and both formatters pass. No graphical chart acceptance is claimed
+from these checks.

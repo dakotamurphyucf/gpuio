@@ -13,6 +13,7 @@ pub mod canvas_resource;
 pub mod canvas_scene;
 pub mod canvas_view;
 pub mod carousel;
+pub mod chart_data;
 pub mod color_input;
 pub mod color_value;
 mod command;
@@ -42,7 +43,7 @@ pub use decode::{
     DecodeError, decode, decode_accessibility, decode_animation_program, decode_calendar_command,
     decode_calendar_config, decode_calendar_constraints, decode_calendar_event,
     decode_calendar_response, decode_calendar_selection, decode_canvas_scene,
-    decode_canvas_view_config, decode_carousel_config, decode_carousel_request,
+    decode_canvas_view_config, decode_carousel_config, decode_carousel_request, decode_chart_data,
     decode_color_command, decode_color_config, decode_color_event, decode_color_response,
     decode_container_query, decode_desktop_launch, decode_desktop_request, decode_navigation_stack,
     decode_number_input_command, decode_number_input_config, decode_number_input_event,

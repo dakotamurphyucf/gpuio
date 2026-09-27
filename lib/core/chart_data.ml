@@ -14,7 +14,8 @@ let text ~name ~limit ~nonblank value =
      && (not
            (String.exists value ~f:(fun c ->
               Char.equal c '\000' || Char.equal c '\r' || Char.equal c '\n')))
-     && ((not nonblank) || not (String.is_empty (String.strip value))))
+     && ((not nonblank)
+         || String.exists value ~f:(fun c -> not (String.contains " \t\r\n\011\012" c))))
     (name ^ " must be bounded UTF-8 text without NUL/CR/LF")
 ;;
 
@@ -465,4 +466,200 @@ module Expert = struct
   [@@deriving equal, sexp_of]
 
   let contents t = t.contents
+
+  module Wire = Gpuio_protocol.Chart_data_wire
+
+  let convert values ~f =
+    let%map.Or_error values =
+      List.fold_result values ~init:[] ~f:(fun acc value ->
+        let%map.Or_error value = f value in
+        value :: acc)
+    in
+    List.rev values
+  ;;
+
+  let point_to_wire (t : Point.t) : Wire.Point.t =
+    { id = Datum_id.to_int64 (Point.id t)
+    ; x = Point.x t
+    ; y = Point.y t
+    ; label = Point.label t
+    }
+  ;;
+
+  let point_of_wire (wire : Wire.Point.t) =
+    let%bind.Or_error id = Datum_id.of_int64 wire.id in
+    Point.create ~id ~x:wire.x ~y:wire.y ~label:wire.label ()
+  ;;
+
+  let series_to_wire (t : Series.t) : Wire.Series.t =
+    { id = Series_id.to_int64 (Series.id t)
+    ; name = Series.name t
+    ; points = List.map (Series.points t) ~f:point_to_wire
+    }
+  ;;
+
+  let series_of_wire (wire : Wire.Series.t) =
+    let%bind.Or_error id = Series_id.of_int64 wire.id in
+    let%bind.Or_error points = convert wire.points ~f:point_of_wire in
+    Series.create ~id ~name:wire.name points
+  ;;
+
+  let slice_to_wire (t : Slice.t) : Wire.Slice.t =
+    { id = Datum_id.to_int64 (Slice.id t); label = Slice.label t; value = Slice.value t }
+  ;;
+
+  let slice_of_wire (wire : Wire.Slice.t) =
+    let%bind.Or_error id = Datum_id.of_int64 wire.id in
+    Slice.create ~id ~label:wire.label ~value:wire.value
+  ;;
+
+  let radar_axis_to_wire (t : Radar_axis.t) : Wire.Radar_axis.t =
+    { id = Datum_id.to_int64 (Radar_axis.id t)
+    ; label = Radar_axis.label t
+    ; maximum = Radar_axis.maximum t
+    }
+  ;;
+
+  let radar_axis_of_wire (wire : Wire.Radar_axis.t) =
+    let%bind.Or_error id = Datum_id.of_int64 wire.id in
+    Radar_axis.create ~id ~label:wire.label ~maximum:wire.maximum
+  ;;
+
+  let radar_series_to_wire (t : Radar_series.t) : Wire.Radar_series.t =
+    { id = Series_id.to_int64 (Radar_series.id t)
+    ; name = Radar_series.name t
+    ; values =
+        List.map (Radar_series.values t) ~f:(fun (id, value) ->
+          Datum_id.to_int64 id, value)
+    }
+  ;;
+
+  let radar_series_of_wire (wire : Wire.Radar_series.t) =
+    let%bind.Or_error id = Series_id.of_int64 wire.id in
+    let%bind.Or_error values =
+      convert wire.values ~f:(fun (id, value) ->
+        let%map.Or_error id = Datum_id.of_int64 id in
+        id, value)
+    in
+    Radar_series.create ~id ~name:wire.name values
+  ;;
+
+  let candle_to_wire (t : Candle.t) : Wire.Candle.t =
+    { id = Datum_id.to_int64 (Candle.id t)
+    ; x = Candle.x t
+    ; label = Candle.label t
+    ; open_ = Candle.open_ t
+    ; high = Candle.high t
+    ; low = Candle.low t
+    ; close = Candle.close t
+    }
+  ;;
+
+  let candle_of_wire (wire : Wire.Candle.t) =
+    let%bind.Or_error id = Datum_id.of_int64 wire.id in
+    Candle.create
+      ~id
+      ~x:wire.x
+      ~label:wire.label
+      ~open_:wire.open_
+      ~high:wire.high
+      ~low:wire.low
+      ~close:wire.close
+  ;;
+
+  let node_to_wire (t : Node.t) : Wire.Node.t =
+    { id = Node_id.to_int64 (Node.id t); label = Node.label t }
+  ;;
+
+  let node_of_wire (wire : Wire.Node.t) =
+    let%bind.Or_error id = Node_id.of_int64 wire.id in
+    Node.create ~id ~label:wire.label
+  ;;
+
+  let edge_to_wire (t : Edge.t) : Wire.Edge.t =
+    { id = Edge_id.to_int64 (Edge.id t)
+    ; source = Node_id.to_int64 (Edge.source t)
+    ; target = Node_id.to_int64 (Edge.target t)
+    ; value = Edge.value t
+    }
+  ;;
+
+  let edge_of_wire (wire : Wire.Edge.t) =
+    let%bind.Or_error id = Edge_id.of_int64 wire.id in
+    let%bind.Or_error source = Node_id.of_int64 wire.source in
+    let%bind.Or_error target = Node_id.of_int64 wire.target in
+    Edge.create ~id ~source ~target ~value:wire.value
+  ;;
+
+  let layer_to_wire = function
+    | Layer.Line series -> Wire.Layer.Line (series_to_wire series)
+    | Layer.Area series -> Wire.Layer.Area (series_to_wire series)
+    | Layer.Bar series -> Wire.Layer.Bar (series_to_wire series)
+  ;;
+
+  let layer_of_wire = function
+    | Wire.Layer.Line series ->
+      Or_error.map (series_of_wire series) ~f:(fun s -> Layer.Line s)
+    | Wire.Layer.Area series ->
+      Or_error.map (series_of_wire series) ~f:(fun s -> Layer.Area s)
+    | Wire.Layer.Bar series ->
+      Or_error.map (series_of_wire series) ~f:(fun s -> Layer.Bar s)
+  ;;
+
+  let to_wire t =
+    let contents =
+      match t.contents with
+      | Cartesian layers -> Wire.Contents.Cartesian (List.map layers ~f:layer_to_wire)
+      | Pie slices -> Wire.Contents.Pie (List.map slices ~f:slice_to_wire)
+      | Radar (axes, series) ->
+        Wire.Contents.Radar
+          (List.map axes ~f:radar_axis_to_wire, List.map series ~f:radar_series_to_wire)
+      | Candlestick candles ->
+        Wire.Contents.Candlestick (List.map candles ~f:candle_to_wire)
+      | Sankey (nodes, edges) ->
+        Wire.Contents.Sankey
+          (List.map nodes ~f:node_to_wire, List.map edges ~f:edge_to_wire)
+    in
+    { Wire.version = 1L; contents }
+  ;;
+
+  let of_wire (wire : Wire.t) =
+    let%bind.Or_error () =
+      require (Int64.equal wire.version 1L) "unsupported chart data version"
+    in
+    let%bind.Or_error () =
+      require (Wire.within_bounds wire) "chart wire envelope exceeds its resource bounds"
+    in
+    match wire.contents with
+    | Cartesian layers ->
+      let%bind.Or_error layers = convert layers ~f:layer_of_wire in
+      cartesian layers
+    | Pie slices ->
+      let%bind.Or_error slices = convert slices ~f:slice_of_wire in
+      pie slices
+    | Radar (axes, series) ->
+      let%bind.Or_error axes = convert axes ~f:radar_axis_of_wire in
+      let%bind.Or_error series = convert series ~f:radar_series_of_wire in
+      radar ~axes series
+    | Candlestick candles ->
+      let%bind.Or_error candles = convert candles ~f:candle_of_wire in
+      candlestick candles
+    | Sankey (nodes, edges) ->
+      let%bind.Or_error nodes = convert nodes ~f:node_of_wire in
+      let%bind.Or_error edges = convert edges ~f:edge_of_wire in
+      sankey ~nodes ~edges
+  ;;
+
+  let encode t =
+    let wire = to_wire t in
+    let%map.Or_error () =
+      require (Wire.bin_size_t wire <= Wire.max_bytes) "chart data exceeds 16 MiB"
+    in
+    Bin_prot.Utils.bin_dump Wire.bin_writer_t wire |> Bigstring.to_string
+  ;;
+
+  let decode bytes =
+    let%bind.Or_error wire = Wire.decode bytes in
+    of_wire wire
+  ;;
 end

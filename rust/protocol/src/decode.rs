@@ -3,8 +3,10 @@ use binprot::BinProtRead;
 use std::io::{Cursor, Read};
 
 mod accessibility;
+mod chart_data;
 mod desktop;
 mod notification;
+pub use chart_data::decode_chart_data;
 pub use desktop::{decode_desktop_launch, decode_desktop_request};
 pub use notification::{
     decode_notification_event, decode_notification_request, decode_notification_response,
