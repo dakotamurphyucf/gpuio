@@ -26,7 +26,9 @@ points, independent binary fixtures and exhaustive small-graph cycle checks. A p
 unchanged GPUI revision. The bounded native resource store and scoped Eio scheduler
 now pass publication/cancellation/retention tests and a connected windowless macOS
 application check with 100,000 points through the public Eio API. Native chart
-rendering/interaction is still pending. See
+rendering/interaction is still pending. Explicit line/area envelopes, bar sum/mean
+and candle OHLC policies now have paired types and a tested native reduction kernel
+that preserves gaps and aggregate source ranges. See
 [chart contracts and remaining work](design/charts.md).
 The detailed entries below record implementation checkpoints chronologically;
 their earlier pending-gate statements are superseded by this delivery record.

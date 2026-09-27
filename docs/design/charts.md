@@ -152,6 +152,50 @@ waiting. Late replies after transport closure are discarded under the mailbox lo
 Source-dependent redraw/interaction integration remains part of the chart widget
 work; current publication refreshes native windows.
 
+## Explicit reduction policy
+
+`Gpuio.Chart_sampling` now defines validated policies, shared with native code:
+
+| Data family | Default | Opt-in alternatives |
+| --- | --- | --- |
+| Line and area | Extrema envelope, at most 1024 x buckets | Exact source points; a different envelope bucket limit |
+| Bar | Exact bars | Per-bucket sum or mean |
+| Candlestick | Exact candles | Per-bucket OHLC aggregation |
+| Pie, radar, Sankey | Exact bounded source data | No implicit aggregation |
+
+`max_buckets` is in [1,8192]. Effective bucket count is the smaller of this limit
+and the plot's rounded-up logical-pixel width. Buckets divide the numeric x domain,
+shared across Cartesian layers; they do not divide array indices or derive
+identity from labels. The pure reducer accepts finite widths in (0,32768].
+
+Line/area envelopes retain each bucket's first, minimum-y, maximum-y and last
+source point, deduplicated and ordered by source position. Every contiguous
+defined run is reduced independently. A missing value breaks the path even when
+both sides occupy the same bucket. A retained vertex identifies an original source
+point, not an invented average. This is a visual reduction, not lossless retention
+of every intermediate shape detail. Many short runs may retain more than four
+points per bucket; geometry admission must report a limit rather than silently
+joining gaps or discarding whole runs.
+
+Bar sum/mean and candle OHLC are explicit aggregate operations. Each result stores
+the complete half-open contiguous source index range relative to the immutable
+dataset revision. That range maps back to original stable IDs, which need not be
+sorted or consecutive. Aggregate x is the midpoint of the first/last source x.
+Bar sums use compensated summation, preserving small contributions across large
+opposing values. Their magnitude may exceed the 1e100 source bound but remains
+finite under the 100,000-value input limit. Mean divides the compensated sum by
+the range length. OHLC takes the first open, last close, maximum high and minimum
+low. It never uses line-envelope selection.
+
+`rust/native/src/chart_reduce.rs` implements this boundary without drawing or UI
+callbacks. It validates source data/policy, checks cancellation and returns owned
+reduction metadata plus source/rendered counts and retained-vector byte accounting.
+It leaves the immutable source dataset untouched. Render plans must retain the
+matching snapshot, cache reduction outside paint and expose aggregate provenance
+through semantic selection. The view configuration, prepared geometry and actual
+native rendering still need to consume this policy; defining and testing the
+kernel alone does not provide a rendered chart.
+
 ## Pinned implementation assessment
 
 Inspected the clean local GPUI Kit checkout at
@@ -191,11 +235,10 @@ Sankey extraction do not replace that scope:
   tooltips, including non-color distinctions. Shared Cartesian layers provide
   useful custom combinations. Preserve the pinned families' applicable styling
   and plotting options while keeping the public API typed.
-- Implement a documented exact/aggregation policy with bounded retained source
-  and painted geometry. Line/area reduction must preserve extrema and gaps;
-  bars/candles must not silently inherit a line-sampling policy. Selection of
-  aggregated data must carry explicit source provenance. These rendering policy
-  types still need implementation; the current data constructors do not aggregate.
+- Connect the implemented exact/envelope/sum/mean/OHLC policies to prepared geometry
+  and semantic selection. Bound native geometry/cache memory separately from
+  source data. Expose complete source provenance for aggregates; never substitute
+  line sampling for bar or candle aggregation.
 - Rust owns layout, retained paint geometry, hit testing, hover and drag. Reuse
   prepared plans across idle frames and bound background jobs/caches. Data and
   label access cannot synchronously call OCaml from layout or paint.
@@ -254,3 +297,14 @@ tests pass after the final shutdown refinement. The independent consumer lockfil
 now includes the native macOS notification dependency without changing pinned
 package versions, and older low-level examples explicitly handle the new milestone
 6 response variants. Hosted macOS/Linux gates remain pending.
+
+Reduction checkpoint: two Core policy expect tests and two paired protocol tests
+fix policy tags, bounds, defaults and round trips, including every fixture
+truncation. Nine native reducer tests cover extrema/source order, a separate
+grouping oracle over 16,384 seven-point gap/value patterns at four widths, mixed
+layers, shared numeric domains, signed compensated sums/means, negative OHLC,
+empty/extreme/subnormal values, invalid inputs and cancellation. The 100,000-point
+continuous fixture retains <=3,200 vertices at logical width 800; exact mode
+retains 100,000. The alternating-gap fixture retains all 50,000 separate defined
+runs at width 1. These counts and vector-capacity bounds are pure preparation
+evidence, not native CPU/frame/RSS or graphical acceptance measurements.

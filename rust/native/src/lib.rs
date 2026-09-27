@@ -14,6 +14,7 @@ pub mod canvas_plan;
 pub mod canvas_state;
 pub mod canvas_store;
 mod chart_host;
+pub mod chart_reduce;
 pub mod chart_store;
 mod desktop_host;
 #[cfg(any(target_os = "linux", test))]

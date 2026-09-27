@@ -15,6 +15,7 @@ pub mod canvas_view;
 pub mod carousel;
 pub mod chart_data;
 pub mod chart_resource;
+pub mod chart_sampling;
 pub mod color_input;
 pub mod color_value;
 mod command;
@@ -45,14 +46,14 @@ pub use decode::{
     decode_calendar_config, decode_calendar_constraints, decode_calendar_event,
     decode_calendar_response, decode_calendar_selection, decode_canvas_scene,
     decode_canvas_view_config, decode_carousel_config, decode_carousel_request, decode_chart_data,
-    decode_chart_request, decode_chart_response, decode_color_command, decode_color_config,
-    decode_color_event, decode_color_response, decode_container_query, decode_desktop_launch,
-    decode_desktop_request, decode_navigation_stack, decode_number_input_command,
-    decode_number_input_config, decode_number_input_event, decode_number_input_response,
-    decode_numeric_domain, decode_otp_input_command, decode_otp_input_config,
-    decode_otp_input_event, decode_otp_input_response, decode_slider_command, decode_slider_config,
-    decode_slider_event, decode_table_cell, decode_table_command, decode_table_config,
-    decode_table_request,
+    decode_chart_request, decode_chart_response, decode_chart_sampling, decode_color_command,
+    decode_color_config, decode_color_event, decode_color_response, decode_container_query,
+    decode_desktop_launch, decode_desktop_request, decode_navigation_stack,
+    decode_number_input_command, decode_number_input_config, decode_number_input_event,
+    decode_number_input_response, decode_numeric_domain, decode_otp_input_command,
+    decode_otp_input_config, decode_otp_input_event, decode_otp_input_response,
+    decode_slider_command, decode_slider_config, decode_slider_event, decode_table_cell,
+    decode_table_command, decode_table_config, decode_table_request,
 };
 pub use decode::{
     decode_notification_event, decode_notification_request, decode_notification_response,

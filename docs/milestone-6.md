@@ -139,3 +139,11 @@ the public `Gpuio_eio.Chart` API. The windowless macOS application test passes r
 bounded background jobs; repeated async/OS closers join the same workers. Required
 hosted execution of the new macOS stage remains pending. Chart views, rendering,
 interaction/accessibility and graphical measurements are still to be implemented.
+
+Explicit chart reduction is now implemented as Core/protocol policies and a pure
+native preparation kernel: line/area extrema envelopes with gap preservation,
+optional bar sum/mean and optional candle OHLC with source-range provenance.
+Defaults keep bars/candles exact. Independent grouping, degenerate/extreme values,
+100,000-point and 50,000-separated-run checks pass. The kernel still needs to be
+consumed by retained native geometry, views and semantic selection; no graphical
+acceptance is inferred from these preparation tests.
