@@ -6,7 +6,9 @@ mod accessibility;
 mod chart_data;
 mod chart_options;
 mod chart_style;
+mod chart_view;
 pub use chart_style::decode_chart_style;
+pub use chart_view::decode_chart_view_config;
 mod chart_resource;
 mod chart_sampling;
 pub use chart_options::decode_chart_options;
@@ -907,6 +909,7 @@ impl Decoder<'_> {
                     45 => Kind::NavigationStack,
                     46 => Kind::HoverCard,
                     47 => Kind::Carousel,
+                    48 => Kind::ChartView,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -1001,6 +1004,7 @@ impl Decoder<'_> {
             52 => Op::SetTable(self.node()?, self.table_config()?),
             53 => Op::SetTableCell(self.node()?, self.table_cell()?),
             54 => Op::TableCommand(self.node()?, self.table_command()?),
+            55 => Op::SetChart(self.node()?, self.chart_view_config()?),
             47 => Op::SetColorInput(
                 self.node()?,
                 Box::new(self.color_config()?),

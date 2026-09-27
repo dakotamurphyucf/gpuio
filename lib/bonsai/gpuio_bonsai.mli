@@ -39,6 +39,13 @@ module View : sig
     -> t list
     -> t
 
+  val chart
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?on_event:(Gpuio.Chart.Event.t -> unit Bonsai.Effect.t)
+    -> Gpuio.Chart.Config.t
+    -> t
+
   val canvas
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

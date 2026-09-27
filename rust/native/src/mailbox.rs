@@ -664,6 +664,7 @@ impl Mailbox {
             | Event::DragSourceEvent(id, ..)
             | Event::ImageState(id, ..)
             | Event::CanvasEvent(id, ..)
+            | Event::ChartEvent(id, ..)
             | Event::DocumentNavigation(id, ..)
             | Event::ExtensionEvent(id, ..)
             | Event::SplitResized(id, ..)

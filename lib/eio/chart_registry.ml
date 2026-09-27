@@ -410,6 +410,33 @@ let accepts_revision t id ~revision ~generation =
           | Create | Begin _ | Chunk _ | Abort _ | Release _ -> false))))
 ;;
 
+let accepts_event t source ~data_revision ~data_generation observation =
+  check t;
+  let before_data =
+    Int64.(data_revision = 0L && data_generation = 0L)
+    &&
+    match observation with
+    | Gpuio_protocol.Chart_view_wire.Observation.Failed _ -> true
+    | Ready _ -> false
+  in
+  (not t.closed)
+  && Gpuio_protocol.Chart_view_wire.Observation.valid observation
+  &&
+  match source with
+  | None ->
+    before_data
+    &&
+      (match observation with
+      | Failed Wrong_application -> true
+      | Failed (Unavailable_data | Render_limit | Native_failure) | Ready _ -> false)
+  | Some id ->
+    if before_data
+    then
+      Map.exists t.entries ~f:(fun entry ->
+        (not entry.released) && Option.exists entry.id ~f:(Id.equal id))
+    else accepts_revision t id ~revision:data_revision ~generation:data_generation
+;;
+
 module Expert = struct
   let owner t = t.owner
 

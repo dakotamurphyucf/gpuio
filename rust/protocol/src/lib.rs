@@ -18,6 +18,7 @@ pub mod chart_options;
 pub mod chart_resource;
 pub mod chart_sampling;
 pub mod chart_style;
+pub mod chart_view;
 pub mod color_input;
 pub mod color_value;
 mod command;
@@ -43,6 +44,7 @@ mod palette;
 pub mod rating;
 pub mod v1;
 
+pub use decode::decode_chart_view_config;
 pub use decode::{
     DecodeError, decode, decode_accessibility, decode_animation_program, decode_calendar_command,
     decode_calendar_config, decode_calendar_constraints, decode_calendar_event,

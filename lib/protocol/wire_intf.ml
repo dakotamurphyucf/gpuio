@@ -23,6 +23,7 @@ module type S = sig
   module Chart = Chart_resource_wire
   module Canvas = Canvas_resource_wire
   module Canvas_view = Canvas_view_wire
+  module Chart_view = Chart_view_wire
   module Window = Window_wire
   module Desktop = Desktop_wire
   module Notification = Notification_wire
@@ -84,6 +85,7 @@ module type S = sig
       | Navigation_stack
       | Hover_card
       | Carousel
+      | Chart_view
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -760,6 +762,7 @@ module type S = sig
       | Set_table of Node_id.t * Table.Config.t
       | Set_table_cell of Node_id.t * Table.Cell.t
       | Table_command of Node_id.t * Table.Command.t
+      | Set_chart of Node_id.t * Chart_view.Config.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -1009,6 +1012,15 @@ module type S = sig
       | Notification_response of int64 * Notification.Response.t
       | Notification_pending
       | Chart_response of int64 * Chart.Response.t
+      | Chart_event of
+          Window_id.t
+          * Node_id.t
+          * Handler_id.t
+          * int64
+          * Resource_id.t option
+          * int64
+          * int64
+          * Chart_view.Observation.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

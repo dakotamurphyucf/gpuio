@@ -80,10 +80,46 @@ The earlier full Dune and 639-test native/protocol/plot regression checkpoint is
 recorded in [the chart design](../design/charts.md). That count precedes the
 painter/style additions; it must not be reported as the new suite's count.
 
+## Core/Bonsai chart view bridge
+
+The typed chart view is connected through reconciliation, the runtime driver,
+scoped Eio event admission, paired protocol and native tree transactions. This
+checkpoint does not mount the painter in a public chart view yet and adds no
+rendering capability advertisement.
+
+Local macOS checks cover:
+
+- Independent configuration/transaction/event fixtures in OCaml and Rust,
+  preserved wire tags, every truncated fixture, invalid labels and nested options.
+- Foreign application handles, callback refresh without tree mutation,
+  handler replacement on configuration change, stale/future tree events and unmount.
+- Bounded preparation metrics; invalid epochs; current publication versus logical
+  reset, release and application shutdown; allowed pre-acquisition failures.
+- Atomic native tree rejection for missing/invalid/duplicate chart configuration,
+  text/children on chart leaves, and the 128-view mount quota with reuse on removal.
+
+Full Dune `@all @runtest @fmt` also passes after updating the two low-level
+examples to explicitly handle the new event constructor. The full native/protocol
+Cargo regression passes locally (639 tests, two existing ignored tests across
+94 reported suites; this run excludes the separate plot package). Strict
+all-target Clippy with `native-canvas-tests`, rustfmt and whitespace checks pass.
+
+The chart suite now has 23 expect tests. The new Rust chart-view codec and native
+chart-tree suites contain two tests each; the existing two sampling codec tests
+also pass after its decoder was factored for nested configurations. These are
+bridge and ownership checks, separate from the earlier actual painter GPU run.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune runtest -j2 test/chart test/runtime
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo check -p gpuio-native -p gpuio-protocol --all-targets
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-protocol \
+  --test chart_view --test chart_sampling -p gpuio-native --test chart_tree --locked -j2
+```
+
 ## Completion still required
 
 Connect this painter through bounded, cancellable resource/view workers to
-Core/Bonsai chart views. Validate data publication and release/close invalidation,
+the implemented Core/Bonsai chart descriptions. Validate data publication and release/close invalidation,
 multiple-window readers, semantic selection and reset/revision fencing,
 keyboard/AX/data alternatives, native labels/legends/tooltips and unmount/close
 cleanup. Build the polished public all-family Chart Lab, measure actual streaming

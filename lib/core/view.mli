@@ -12,8 +12,17 @@ val with_accessibility : 'action t -> Accessibility.t -> 'action t Core.Or_error
 
 val text : ?key:Key.t -> ?style:Style.t -> string -> 'action t
 
+(** Native chart backed by a scoped data registration. Style determines its size. *)
+val chart
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> ?on_event:(Chart.Event.t -> 'action)
+  -> Chart.Config.t
+  -> 'action t
+
 (** Retained native canvas backed by a scoped scene registration. Style determines
     its size. Native interaction observations enqueue application actions. *)
+
 val canvas
   :  ?key:Key.t
   -> ?style:Style.t
@@ -808,6 +817,11 @@ module Expert : sig
     ; on_event : (Canvas.Event.t -> 'action) option
     }
 
+  type 'action chart =
+    { config : Chart.Config.t
+    ; on_event : (Chart.Event.t -> 'action) option
+    }
+
   type 'action document =
     { config : Document.Config.t
     ; on_navigate : (Document.Navigation.t -> 'action) option
@@ -929,6 +943,7 @@ module Expert : sig
       | Navigation_stack
       | Hover_card
       | Carousel
+      | Chart_view
     [@@deriving equal, sexp_of]
   end
 
@@ -1030,6 +1045,7 @@ module Expert : sig
     ; split_pane : 'action split_pane option
     ; document : 'action document option
     ; canvas : 'action canvas option
+    ; chart : 'action chart option
     ; palette : 'action palette option
     ; menu : menu option
     ; focus_scope : Focus_scope.t option

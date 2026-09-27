@@ -106,6 +106,7 @@ let worker native notification_read ~self_test =
       | Chart_response _
       | Canvas_response _
       | Canvas_event _
+      | Chart_event _
       | Document_response _
       | Document_navigation _
       | Window_changed _

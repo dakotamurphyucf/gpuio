@@ -1041,6 +1041,7 @@ let open_window_config t ?(theme = Gpuio.Theme.default) config component =
             ~asset_owner:(Asset_registry.Expert.owner t.asset_registry)
             ~document_owner:(Document_registry.Expert.owner t.document_registry)
             ~canvas_owner:(Canvas_registry.Expert.owner t.canvas_registry)
+            ~chart_owner:(Chart_registry.Expert.owner t.chart_registry)
             id
             ~start:(t.now ())
             ~theme
@@ -1199,6 +1200,19 @@ let process t = function
         source
         ~scene_revision
         ~scene_generation
+        observation
+    then
+      Option.iter (find_window t id) ~f:(fun window ->
+        if not (Window.is_closed window)
+        then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))
+  | Chart_event (id, _, _, _, source, data_revision, data_generation, observation) as
+    event ->
+    if
+      Chart_registry.accepts_event
+        t.chart_registry
+        source
+        ~data_revision
+        ~data_generation
         observation
     then
       Option.iter (find_window t id) ~f:(fun window ->

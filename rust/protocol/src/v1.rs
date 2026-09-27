@@ -156,6 +156,7 @@ pub enum Kind {
     NavigationStack,
     HoverCard,
     Carousel,
+    ChartView,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -675,6 +676,7 @@ pub enum Op {
     SetTable(NodeId, crate::table::Config),
     SetTableCell(NodeId, crate::table::Cell),
     TableCommand(NodeId, crate::table::Command),
+    SetChart(NodeId, crate::chart_view::Config),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -859,4 +861,14 @@ pub enum Event {
     NotificationResponse(i64, crate::notification::Response),
     NotificationPending,
     ChartResponse(i64, crate::chart_resource::Response),
+    ChartEvent(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        Option<crate::ResourceId>,
+        i64,
+        i64,
+        crate::chart_view::Observation,
+    ),
 }

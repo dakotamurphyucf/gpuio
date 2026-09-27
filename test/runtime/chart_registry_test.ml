@@ -446,3 +446,45 @@ let%expect_test "reverting to the accepted snapshot waits for an older in-flight
     print_s [%sexp (List.rev !revisions : int64 list)]);
   [%expect {| (3) |}]
 ;;
+
+let%expect_test "view observations reject retired resources and forged pre-data success" =
+  with_registry (fun scope registry _ ->
+    let registration = registered registry scope (empty "initial") in
+    let accepts ?(source = Some id) ?(revision = 0L) ?(generation = 0L) observation =
+      Registry.accepts_event
+        registry
+        source
+        ~data_revision:revision
+        ~data_generation:generation
+        observation
+    in
+    assert (accepts (Failed Unavailable_data));
+    assert (accepts ~source:None (Failed Wrong_application));
+    assert (not (accepts ~source:None (Failed Unavailable_data)));
+    let metrics : Gpuio_protocol.Chart_view_wire.Metrics.t =
+      { source_values = 1L
+      ; retained_values = 1L
+      ; mesh_vertices = 6L
+      ; quads = 0L
+      ; bytes = 500L
+      }
+    in
+    assert (not (accepts (Ready metrics)));
+    assert (accepts ~revision:1L ~generation:1L (Ready metrics));
+    assert (
+      not
+        (accepts
+           ~revision:1L
+           ~generation:1L
+           (Ready { metrics with bytes = Int64.max_value })));
+    change (Registration.reset registration (empty "new identity"));
+    assert (not (accepts ~revision:1L ~generation:1L (Ready metrics)));
+    Registration.release registration;
+    assert (not (accepts (Failed Unavailable_data)));
+    Registry.close registry;
+    assert (not (accepts ~source:None (Failed Wrong_application))));
+  print_endline
+    "pre-data failure, valid publication, reset, release and shutdown fences pass";
+  [%expect
+    {| pre-data failure, valid publication, reset, release and shutdown fences pass |}]
+;;

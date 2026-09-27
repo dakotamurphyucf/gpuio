@@ -5,7 +5,9 @@ The extracted Sankey layout source compiles against the existing GPUI revision.
 The native resource store, scoped Eio scheduler and application/host transport now
 pass local ownership and windowless macOS integration tests. Typed plotting options
 and retained logical-pixel geometry now cover all seven families. The prepared
-painter passes local hidden-window GPU readback for every family. Resource-backed widgets, interactions,
+painter passes local hidden-window GPU readback for every family. The resource-backed
+Core/Bonsai view description, bridge and native tree validation are implemented;
+native mounted presentation, interactions,
 accessibility and public graphical examples remain. This document separates implemented contracts from
 the remaining implementation work.
 
@@ -390,3 +392,43 @@ The full local Dune `@all @runtest @fmt` build passes, including the independent
 extension backend; 639 Rust native/protocol/plot tests pass across 93 targets.
 Both backend lockfiles add only the existing local `gpuio-plot` dependency.
 Required hosted macOS/Linux validation remains part of the final milestone gate.
+
+## Chart view bridge checkpoint
+
+`Chart.Config.create ~data:(Gpuio_eio.Chart.handle registration) ()` borrows the
+application-owned registration. `View.chart ~on_event config` is also exposed by
+`Gpuio_bonsai.View`; callbacks there return Bonsai effects. View style supplies
+size; the chart-specific options, sampling and resolved style remain separate.
+The typed view description and transport are implemented at this checkpoint;
+the native mounted presentation is still pending. Do not use this checkpoint
+as evidence that the public view paints or emits observations yet.
+
+The configuration carries the resource identity, a nonblank UTF-8 description
+(up to 1024 bytes without NUL/CR/LF), options, sampling and style. No dataset is
+embedded in a view transaction. A foreign application handle encodes no source,
+allowing an eventual `Wrong_application` observation without dereferencing an
+unrelated resource. The bounded Rust configuration reader admits at most 2048
+bytes and validates every nested configuration. Existing wire tags are preserved:
+chart kind 48, `Set_chart` operation 55 and `Chart_event` event 62.
+
+Initial observations are `Ready metrics` and `Failed error`; selection events
+remain to be implemented. Ready describes completion of preparation, not GPU
+presentation. Metrics report original and retained values, mesh vertices, quads
+and retained plan bytes; they are not frame latency or process-memory readings.
+Every observation includes the data revision and reset generation independently
+of the view-tree revision. Only a failure before acquisition can use 0/0.
+
+Reconciliation rotates callback identity for configuration changes while keeping
+node identity. Closure-only updates use the latest accepted callback without a
+native mutation. Dispatch validates window/node/handler/tree revision and source;
+the Eio registry additionally fences resource release, scope cancellation, logical
+reset and accepted or exactly in-flight publication. Native tree transactions
+require a configured chart leaf, bound chart nodes to 128 per window, charge
+retained configuration memory and reject invalid updates atomically.
+
+Required mounted behavior remains: unmount releases the view reader/work but
+not the registration; release/close clears displayed data; ordinary publications
+may retain the previous picture until replacement is ready; reset or source
+change clears it. Background scheduling, aggregate worker/cache admission and
+source-dependent managed-row invalidation must enforce those rules before public
+chart-view acceptance. There is no new chart-rendering capability advertisement.

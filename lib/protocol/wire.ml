@@ -21,6 +21,7 @@ module Document = Document_wire
 module Chart = Chart_resource_wire
 module Canvas = Canvas_resource_wire
 module Canvas_view = Canvas_view_wire
+module Chart_view = Chart_view_wire
 module Window = Window_wire
 module Split = Split_wire
 module Extension = Extension_wire
@@ -81,6 +82,7 @@ module Kind = struct
     | Navigation_stack
     | Hover_card
     | Carousel
+    | Chart_view
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -758,6 +760,7 @@ module Op = struct
     | Set_table of Node_id.t * Table.Config.t
     | Set_table_cell of Node_id.t * Table.Cell.t
     | Table_command of Node_id.t * Table.Command.t
+    | Set_chart of Node_id.t * Chart_view.Config.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -1093,6 +1096,15 @@ module Event = struct
     | Notification_response of int64 * Notification.Response.t
     | Notification_pending
     | Chart_response of int64 * Chart.Response.t
+    | Chart_event of
+        Window_id.t
+        * Node_id.t
+        * Handler_id.t
+        * int64
+        * Resource_id.t option
+        * int64
+        * int64
+        * Chart_view.Observation.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1130,6 +1142,20 @@ module Event = struct
       in
       Int64.(revision >= 0L)
       && Canvas_view.Observation.valid observation
+      && (identified || failure_before_scene)
+      && (Option.is_some source || failure_before_scene)
+    | Chart_event (_, _, _, revision, source, data_revision, data_generation, observation)
+      ->
+      let identified = Int64.(data_revision > 0L && data_generation > 0L) in
+      let failure_before_scene =
+        Int64.(data_revision = 0L && data_generation = 0L)
+        &&
+        match observation with
+        | Chart_view.Observation.Failed _ -> true
+        | _ -> false
+      in
+      Int64.(revision >= 0L)
+      && Chart_view.Observation.valid observation
       && (identified || failure_before_scene)
       && (Option.is_some source || failure_before_scene)
     | Extension_event (_, _, _, revision, generation, signal) ->

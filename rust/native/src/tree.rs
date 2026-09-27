@@ -97,6 +97,7 @@ pub struct Node {
     pub split: Option<Arc<gpuio_protocol::split::Config>>,
     pub document: Option<Arc<gpuio_protocol::document::Config>>,
     pub canvas: Option<Arc<gpuio_protocol::canvas_view::Config>>,
+    pub chart: Option<Arc<gpuio_protocol::chart_view::Config>>,
     pub animation: Option<Arc<gpuio_protocol::animation::Config>>,
     pub animation_program: Option<Arc<gpuio_protocol::animation_program::Config>>,
     pub navigation_stack: Option<gpuio_protocol::navigation_stack::Config>,
@@ -182,6 +183,10 @@ impl Node {
                 .canvas
                 .as_ref()
                 .map_or(0, |config| config.label.len() + 256)
+            + self
+                .chart
+                .as_ref()
+                .map_or(0, |config| config.label.len() + 512)
             + self.extension.as_ref().map_or(0, |config| {
                 256 + config.schema.name.len()
                     + config.schema.fingerprint.len()
@@ -316,6 +321,7 @@ pub struct Tree {
     node_count: usize,
     extension_count: usize,
     canvas_count: usize,
+    chart_count: usize,
     retained_bytes: usize,
 }
 
@@ -345,6 +351,7 @@ impl Tree {
             node_count: 0,
             extension_count: 0,
             canvas_count: 0,
+            chart_count: 0,
             retained_bytes: 0,
         }
     }
@@ -488,6 +495,7 @@ impl Tree {
             node_count: self.node_count,
             extension_count: self.extension_count,
             canvas_count: self.canvas_count,
+            chart_count: self.chart_count,
             retained_bytes: self.retained_bytes,
             budget: budget.min(MAX_RETAINED_BYTES),
             structural: false,
@@ -496,6 +504,7 @@ impl Tree {
         };
         let mut extension_updates = BTreeSet::new();
         let mut canvas_updates = BTreeSet::new();
+        let mut chart_updates = BTreeSet::new();
         let mut program_updates = BTreeSet::new();
         let mut query_updates = BTreeSet::new();
         let mut table_updates = BTreeSet::new();
@@ -525,6 +534,12 @@ impl Tree {
             {
                 // Each command must reach the mounted state; a later config in
                 // this transaction cannot silently replace an earlier one.
+                return Err(ErrorCode::InvalidTree.into());
+            }
+            if let Op::SetChart(id, _) = op
+                && !chart_updates.insert(*id)
+            {
+                // One configuration per chart in an atomic transaction.
                 return Err(ErrorCode::InvalidTree.into());
             }
             plan.operation(op)?;
@@ -785,6 +800,13 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
+                if (node.kind == Kind::ChartView) != node.chart.is_some()
+                    || node.chart.as_ref().is_some_and(|config| {
+                        !config.is_valid() || !node.text.is_empty() || !node.children.is_empty()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 if (node.kind == Kind::DocumentView) != node.document.is_some()
                     || node.document.as_ref().is_some_and(|config| {
                         !config.is_valid() || !node.text.is_empty() || !node.children.is_empty()
@@ -988,6 +1010,7 @@ impl Tree {
                     | Kind::SplitPane
                     | Kind::Extension
                     | Kind::CanvasView
+                    | Kind::ChartView
                     | Kind::DocumentView
                     | Kind::Icon
                     | Kind::Animated
@@ -1105,6 +1128,7 @@ impl Tree {
             node_count,
             extension_count,
             canvas_count,
+            chart_count,
             retained_bytes,
             lists,
             tables,
@@ -1123,6 +1147,7 @@ impl Tree {
         self.node_count = node_count;
         self.extension_count = extension_count;
         self.canvas_count = canvas_count;
+        self.chart_count = chart_count;
         self.retained_bytes = retained_bytes;
         self.revision = tx.revision;
         Ok(Applied {
@@ -1170,6 +1195,7 @@ struct Plan<'a> {
     node_count: usize,
     extension_count: usize,
     canvas_count: usize,
+    chart_count: usize,
     retained_bytes: usize,
     budget: usize,
     structural: bool,
@@ -1376,6 +1402,7 @@ impl Plan<'_> {
             | Op::ScrollList(id, ..)
             | Op::SetImage(id, ..)
             | Op::SetCanvas(id, ..)
+            | Op::SetChart(id, ..)
             | Op::SetDocument(id, ..)
             | Op::SetExtension(id, ..)
             | Op::SetSplit(id, ..)
@@ -1436,6 +1463,12 @@ impl Plan<'_> {
                     }
                     self.canvas_count += 1;
                 }
+                if *kind == Kind::ChartView {
+                    if self.chart_count == 128 {
+                        return Err(ErrorCode::LimitExceeded);
+                    }
+                    self.chart_count += 1;
+                }
                 if *kind == Kind::Extension {
                     if self.extension_count == 256 {
                         return Err(ErrorCode::LimitExceeded);
@@ -1478,6 +1511,7 @@ impl Plan<'_> {
                             split: None,
                             document: None,
                             canvas: None,
+                            chart: None,
                             animation: None,
                             animation_program: None,
                             navigation_stack: None,
@@ -1511,6 +1545,9 @@ impl Plan<'_> {
             Op::Remove(id) => {
                 if self.node(*id)?.kind == Kind::CanvasView {
                     self.canvas_count -= 1;
+                }
+                if self.node(*id)?.kind == Kind::ChartView {
+                    self.chart_count -= 1;
                 }
                 if self.node(*id)?.kind == Kind::Extension {
                     self.extension_count -= 1;
@@ -1900,6 +1937,12 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.canvas = Some(Arc::new(config.clone()));
+            }
+            Op::SetChart(id, config) => {
+                if self.node(*id)?.kind != Kind::ChartView || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.chart = Some(Arc::new(config.clone()));
             }
             Op::SetDocument(id, config) => {
                 if self.node(*id)?.kind != Kind::DocumentView || !config.is_valid() {

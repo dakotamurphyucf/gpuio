@@ -63,6 +63,16 @@ val accepts_revision
   -> generation:int64
   -> bool
 
+(** Validates view observations; pre-publication failures still require a live
+    registration. Released scopes and logical resets suppress stale events. *)
+val accepts_event
+  :  t
+  -> Gpuio_protocol.Resource_id.t option
+  -> data_revision:int64
+  -> data_generation:int64
+  -> Gpuio_protocol.Chart_view_wire.Observation.t
+  -> bool
+
 module Expert : sig
   val owner : t -> Gpuio.Chart_resource.Expert.Owner.t
   val counts : t -> int * int

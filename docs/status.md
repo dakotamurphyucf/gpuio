@@ -32,7 +32,9 @@ that preserves gaps and aggregate source ranges. Validated native plotting optio
 and retained logical geometry now cover all seven families, with passing local
 extreme/degenerate, 100k exact/sampled and crowded Sankey tests. The prepared native
 painter now passes actual hidden-window GPU checks for every family, mixed layers,
-gradients/corners, clipping and hollow/filled candles. Resource-backed mounted views,
+gradients/corners, clipping and hollow/filled candles. The Core/Bonsai chart view
+bridge, scoped event fencing and native tree validation are implemented and locally
+tested. Resource-backed native mounted views,
 input/accessibility, the Chart Lab and streaming performance measurements remain. See
 [chart contracts and remaining work](design/charts.md).
 The detailed entries below record implementation checkpoints chronologically;
