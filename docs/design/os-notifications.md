@@ -103,3 +103,12 @@ action sets. Session UUID plus process-unique receipt IDs fence earlier runs.
 Only the matching service's delegate/categories are cleared during teardown.
 It uses no GPUI notification methods and requires exclusive ownership of this
 application's UNUserNotificationCenter integration.
+
+The Linux transport foundation returns separate method-client and signal-stream
+owners. Poll signals concurrently with requests: zbus bounds subscriptions through
+backpressure, and leaving a full signal stream unread can delay method replies on
+the same connection. The eventual native worker must retain bounded ownership of
+in-flight IDs and early signals, perform cleanup on cancellation, and distinguish
+an uncertain timed-out submission from a request known not to have been sent.
+The transport itself does not choose a replay/reconnection policy or start an
+absent daemon; the native ownership layer must make those decisions explicitly.

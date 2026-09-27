@@ -97,3 +97,33 @@ bound and release all retired content. Targeted Dune notification/desktop/protoc
 view API expectations, public example build and formatting pass. These local
 regressions supplement the native walkthrough; they do not establish Linux GUI
 acceptance or replace required hosted gates.
+
+## Linux transport foundation (no display acceptance)
+
+The separate `gpuio-portal::notifications` client now talks to the freedesktop
+notification service on a persistent session-bus connection. It binds calls and
+signals to a unique daemon owner; owner loss is explicit, and an old ID is never
+sent to a replacement daemon. Capability negotiation rejects unsupported requested
+body/actions/sound, escapes plain text only for markup-capable servers, sends the
+application's desktop-entry identity, and checks returned replacement IDs. Named
+transport actions include both receipt lifetime and content revision.
+
+A real **private D-Bus** test passes locally on macOS with a deterministic daemon
+fixture: submission fields, same-ID replacement, native close calls, named/default
+signals, close reasons, foreign-sender filtering, daemon disappearance/replacement,
+reused IDs in a new owner namespace, unsupported features and invalid returned IDs.
+It also sends 256 unrelated action signals before a Notify reply. The independent
+event stream drains those bounded subscription queues while the call waits, so a
+full zbus signal queue cannot block reading its own reply. No OCaml callback or GUI
+is involved in this test. It does **not** prove a Linux notification was displayed.
+
+```sh
+GPUIO_JOBS=2 scripts/test_notification_bus.sh
+```
+
+This headless check is added to required Linux CI for the later consolidated run.
+The local run used the ignored scratch-installed `dbus-run-session` and explicit
+scratch daemon path with `GPUIO_PRIVATE_BUS_TEST=1`; it did not use or change a
+user's session bus. The native Linux worker, admission/resource cleanup, App wiring
+and real desktop action evidence remain outstanding. The public Linux API still
+returns `Unsupported` until that integration is complete.

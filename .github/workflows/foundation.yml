@@ -97,6 +97,9 @@ jobs:
       - name: Linux desktop instance arbitration (private bus, no display)
         if: runner.os == 'Linux'
         run: scripts/test_desktop_instance_bus.sh 2>&1 | tee .cache/ci/desktop-instance.log
+      - name: Linux notification transport (private bus, no display)
+        if: runner.os == 'Linux'
+        run: scripts/test_notification_bus.sh 2>&1 | tee .cache/ci/notification-bus.log
       - name: Verify native runtime has no Async symbols
         run: python3 -c 'import subprocess; symbols = subprocess.check_output(["nm", "_build/default/examples/runtime/main.exe"], text=True); assert "camlAsync" not in symbols; print("NO_ASYNC_PASS")' 2>&1 | tee .cache/ci/no-async.log
       - name: Lint
