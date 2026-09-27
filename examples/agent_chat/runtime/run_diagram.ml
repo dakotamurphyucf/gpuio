@@ -68,7 +68,17 @@ let move t stage transform =
   else Ok (List.Assoc.add t ~equal:Stage.equal stage transform)
 ;;
 
-let scene t ~(palette : Palette.t) ~generation =
+let scene
+      ?(annotation = Gpuio.Color_value.Value.Empty)
+      t
+      ~(palette : Palette.t)
+      ~generation
+  =
+  let annotation =
+    match annotation with
+    | Empty -> palette.accent
+    | Color color -> Gpuio.Color_value.Rgba.to_color color
+  in
   let nodes =
     List.mapi Stage.all ~f:(fun index stage ->
       let label = sprintf "%02d  %s" (index + 1) (Stage.name stage) in
@@ -117,7 +127,7 @@ let scene t ~(palette : Palette.t) ~generation =
         in
         let number = Int64.of_int (10 + index) in
         let resource = R.path ~id:(resource_id number) ~generation path |> ok in
-        let stroke = S.Stroke.create ~color:palette.accent ~width:1.5 |> ok in
+        let stroke = S.Stroke.create ~color:annotation ~width:1.5 |> ok in
         let paint = S.Paint.create ~stroke () |> ok in
         S.Item.create ~id:(id number) (S.Drawing.path resource ~paint |> ok) |> ok)
   in

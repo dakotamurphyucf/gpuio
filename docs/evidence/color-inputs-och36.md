@@ -356,3 +356,16 @@ Linux builds/unit tests and required hosted macOS checks still must pass in the
 consolidated milestone gate; OCH-17 owns final Linux GUI coverage. OCH-36 remains
 In Progress pending those checks and merge, consistent with adjacent local-ready
 milestone tickets. Milestone 5 still requires OCH-37/38/39/46.
+
+## Chat integration display refinement (OCH-46)
+
+Screenshot review of the chat picker found long floating-point channel strings.
+Canonical editor text now uses at most two decimals with trailing zeroes removed;
+the color model and slider accessibility numeric values retain full precision.
+Successfully committed user spelling remains preserved until another operation
+resynchronizes the field. The native suite verifies exact alpha survives focus and
+Return without an edit, and invalid hue cancellation restores the exact channel
+while showing shortened text. Eight integration tests and the full native color
+suite (64 GPU layouts, three 64-owner workload/disposal cycles) pass locally with
+`cargo test --locked -j2 -p gpuio-native --features native-image-tests --test native_color_input --test color_input`
+through the isolated project wrapper. Hosted delivery remains pending.

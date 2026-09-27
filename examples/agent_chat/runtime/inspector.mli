@@ -12,6 +12,7 @@ val component
   -> window:Gpuio_eio.App.Window.t
   -> sources:Sources.t
   -> results:Results.t
+  -> annotation:Gpuio.Color_value.Value.t Bonsai.Cont.t
   -> dark:bool Bonsai.Cont.t
   -> Bonsai.Cont.graph
   -> Gpuio_bonsai.View.t Bonsai.Cont.t

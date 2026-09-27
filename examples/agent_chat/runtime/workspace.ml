@@ -712,12 +712,14 @@ let component
       ~window
       ~sources
       ~results
+      ~annotation:(Settings.annotation t.settings)
       ~dark:(B.Expert.Var.value t.dark)
       graph
   in
   let settings =
     Settings.component
       t.settings
+      ~window
       ~results
       ~on_generation:(fun generation ->
         set_backend t (Generation_settings.backend generation))

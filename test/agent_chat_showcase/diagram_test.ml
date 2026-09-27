@@ -60,3 +60,42 @@ let%expect_test "reject transforms that would invalidate text or connector geome
     true
     |}]
 ;;
+
+let%expect_test "confirmed annotation changes both connector paints and preserves alpha" =
+  let module Wire = Gpuio_protocol.Canvas_scene_wire in
+  let strokes ~dark annotation =
+    let scene =
+      Diagram.scene
+        ~annotation
+        (Diagram.create ())
+        ~palette:(Gpuio_agent_chat_runtime.Palette.of_dark dark)
+        ~generation:3L
+    in
+    let bytes =
+      Gpuio.Canvas_scene.Expert.encode
+        scene
+        ~asset_owner:(Gpuio.Asset.Expert.Owner.create ())
+      |> ok
+    in
+    let wire = Wire.bin_read_t (Bigstring.of_string bytes) ~pos_ref:(ref 0) in
+    List.filter_map wire.items ~f:(fun item ->
+      match item.drawing with
+      | Shape (_, paint) -> Option.map paint.stroke ~f:(fun stroke -> stroke.color)
+      | Text _ | Image _ -> None)
+  in
+  let custom =
+    Gpuio.Color_value.Value.Color (Gpuio.Color_value.Rgba.of_hex "#FF000080" |> ok)
+  in
+  List.iter [ true; false ] ~f:(fun dark ->
+    print_s [%sexp (List.map (strokes ~dark custom) ~f:Int64.Hex.to_string : string list)]);
+  print_s
+    [%sexp
+      (not (List.equal Int64.equal (strokes ~dark:true Empty) (strokes ~dark:false Empty))
+       : bool)];
+  [%expect
+    {|
+    (0xff000080 0xff000080)
+    (0xff000080 0xff000080)
+    true
+    |}]
+;;

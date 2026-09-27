@@ -398,16 +398,91 @@ were refined. Captures are reproducible with `GPUIO_SCREENSHOT_DIR`:
 - [Connection demo, light](../images/studio-settings-connection-light.png)
 
 The macOS workflow includes the new walkthrough; hosted execution is still pending.
-Calendar/color settings, additional presentation/navigation families, resize/narrow
-and reduced-motion acceptance remain open in the complete feature matrix.
+The following checkpoint adds calendar/color settings. Additional presentation/
+navigation families, resize/narrow and reduced-motion acceptance remain open.
+
+## Civil-date reviews and diagram annotation settings
+
+The Settings sheet now includes **Dates & reviews** and **Annotation color**.
+[Schedule_data](../../examples/agent_chat/runtime/schedule_data.ml) defines an
+explicit October 2026 fixture, with weekday endpoints, October 20 unavailable,
+and endpoint-only range validation. Empty selection means all 21 sample reviews;
+a partial range cannot be applied. Applying a filter preserves or clamps the
+public pagination model (six reviews/page). The list uses public description-list
+composition. The independent follow-up picker saves a civil date only: no clock,
+timezone conversion, real scheduling, service or network request is involved.
+
+[Schedule_settings](../../examples/agent_chat/runtime/schedule_settings.ml) and
+[Annotation_settings](../../examples/agent_chat/runtime/annotation_settings.ml)
+activate the public Eio/Bonsai presenters only on their settings page. Accepted
+values belong to the window; deactivation cancels popup drafts. Outer settings
+generation guards fence retired callbacks. Color preview is local until Apply;
+confirmed RGBA colors drive the actual retained canvas connector strokes. Empty
+uses the current theme accent. Scene registration also republishes if an annotation
+or theme changes while native registration is pending.
+
+The new [AppKit walkthrough](../../scripts/test_agent_chat_dates_colors.py) covers
+single/range/partial/disabled/out-of-month dates, native Right/Return selection,
+explicit filtering, page clamping, date save/cancel/Escape and trigger-focus
+restoration. Color checks cover native palette activation, hex/alpha, malformed
+drafts disabling Apply, channel changes, cancel, concrete RGBA retention across
+themes, theme-accent reset, preserved composer content and window close with a
+nested picker open. Its child has a 180-second deadline and is always reaped.
+The test initially requested AXButton for a palette swatch; the correct native
+role is AXRadioButton. This was a test correction, not a widget defect.
+
+The color-editor display was refined after screenshot review: canonical channel
+values show at most two decimal places. This changes presentation only; full
+model precision and successfully entered raw text are retained. Native tests prove
+that focus/Return without editing leaves exact alpha unchanged, and cancelling an
+invalid hue draft restores the exact model hue while displaying the shorter text.
+The complete native color suite includes 64 GPU layout cases and three 64-owner
+cleanup/workload cycles. All eight non-GUI color integration tests also pass.
+
+Pure expect tests cover fixture cardinality, endpoint validation, exact filtered
+dates, and the endpoint-only rule. Scene tests independently inspect both connector
+paints to prove selected RGBA including alpha is identical across themes, while
+Empty resolves to the respective palette. Existing settings and diagram AppKit
+regressions pass. One diagram launch timed out before its initial window appeared;
+a separate run passed all gestures/history/theme/cleanup checks. No cause is claimed
+for that isolated startup timeout.
+
+Commands:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native \
+  --features native-image-tests --test native_color_input --test color_input
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/agent_chat/main.exe \
+  @test/agent_chat_showcase/runtest @fmt
+python3 scripts/test_agent_chat_dates_colors.py
+python3 scripts/test_agent_chat_settings.py
+python3 scripts/test_agent_chat_diagram.py
+```
+
+Actual rendered screenshots were inspected in light/dark themes, including actual
+red-alpha diagram connectors and the inline calendar scrolled into view. The
+walkthrough sends an OS wheel event only after checking the target point belongs
+to its child window. A process-targeted wheel did not scroll; normal event posting
+at that verified point does. This correction affects the test only.
+
+- [Inline calendar, dark](../images/studio-settings-review-calendar-dark.png)
+- [Date picker, dark](../images/studio-settings-date-picker-dark.png) / [light](../images/studio-settings-date-picker-light.png)
+- [Color picker, dark](../images/studio-settings-color-picker-dark.png) / [light](../images/studio-settings-color-picker-light.png)
+- [Annotated diagram, dark](../images/studio-diagram-annotation-dark.png) / [light](../images/studio-diagram-annotation-light.png)
+
+Both original chat public/AppKit flows pass on the final executable, as do Rust
+format and strict all-target native Clippy with `native-image-tests`. Captures are
+reproducible with `GPUIO_SCREENSHOT_DIR`. The macOS workflow includes the new walkthrough; hosted
+execution and Linux build/unit validation remain pending for this branch.
 
 ## Remaining acceptance
 
 These flows cover the OCH-23 package integration, OCH-24 diagram, the OCH-37
 navigation stack/breadcrumbs and settings sheet/confirmation, OCH-34 numeric/OTP,
-OCH-38 source explorer, OCH-39 results table and a subset of OCH-33's
+OCH-35 dates, OCH-36 colors, OCH-37 pagination, OCH-38 source explorer,
+OCH-39 results table and a subset of OCH-33's
 presentation compositions. They do not complete the other component families,
-responsive/resizable inspector, motion, date/color flows, other
+responsive/resizable inspector, motion, other
 navigation families/tour, or the
 combined streaming/input/retention/idle-traffic workload. Those all remain required
 by OCH-46, along with narrow/wide visual acceptance, the full coverage map, hosted

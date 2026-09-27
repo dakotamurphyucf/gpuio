@@ -85,6 +85,15 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
         events(transport).last(),
         Some(c::Event::Committed(c::Source::Text, _))
     ));
+    assert_eq!(text(cx, handle, 4), "50.2");
+    let before_focus = snapshot(cx, handle);
+    focus(cx, handle, 4);
+    frame(cx, handle).await;
+    key(cx, handle, "enter");
+    frame(cx, handle).await;
+    assert_eq!(snapshot(cx, handle).value, before_focus.value);
+    assert_eq!(snapshot(cx, handle).channels, before_focus.channels);
+    assert!(snapshot(cx, handle).interaction.is_none());
     focus(cx, handle, 1);
     frame(cx, handle).await;
     replace(cx, handle, 1, "123.456", false);
@@ -104,7 +113,8 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
     focus(cx, handle, 0);
     frame(cx, handle).await;
     assert!(snapshot(cx, handle).interaction.is_none());
-    assert_eq!(text(cx, handle, 1), "123.456");
+    assert_eq!(text(cx, handle, 1), "123.46");
+    assert_eq!(snapshot(cx, handle).channels.hue_degrees(), 123.456);
     events(transport);
     replace(cx, handle, 0, "#123456", true);
     frame(cx, handle).await;

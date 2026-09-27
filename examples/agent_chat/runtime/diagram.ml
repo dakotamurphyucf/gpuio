@@ -24,6 +24,7 @@ type t =
   ; status : string B.Expert.Var.t
   ; mutable sequence : int64
   ; mutable generation : int64
+  ; mutable annotation : Gpuio.Color_value.Value.t
   ; mutable dark : bool
   }
 
@@ -36,6 +37,7 @@ let create () =
   ; status = B.Expert.Var.create "Preparing diagram…"
   ; sequence = 0L
   ; generation = 0L
+  ; annotation = Gpuio.Color_value.Value.Empty
   ; dark = true
   }
 ;;
@@ -49,6 +51,7 @@ let style = Gpuio.Style.create_exn
 let snapshot t =
   t.generation <- Int64.succ t.generation;
   Run_diagram.scene
+    ~annotation:t.annotation
     (get t.model)
     ~palette:(Palette.of_dark t.dark)
     ~generation:t.generation
@@ -77,11 +80,11 @@ let initialize t ~app ~window =
       | Absent | Failed ->
         set t.registration Pending;
         set t.status "Preparing diagram…";
-        Some (snapshot t, t.dark))
+        Some (snapshot t, t.dark, t.annotation))
   in
   match start with
   | None -> E.Ignore
-  | Some (snapshot, dark) ->
+  | Some (snapshot, dark, annotation) ->
     let%bind result = Scene.create app ~scope:(App.Window.scope window) snapshot in
     E.of_thunk (fun () ->
       match result with
@@ -90,7 +93,11 @@ let initialize t ~app ~window =
         set t.status "Diagram unavailable. Try again."
       | Ok scene ->
         set t.registration (Ready scene);
-        if not (Bool.equal dark t.dark) then publish t;
+        if
+          not
+            (Bool.equal dark t.dark
+             && Gpuio.Color_value.Value.equal annotation t.annotation)
+        then publish t;
         set t.status "Select a stage to inspect the run")
 ;;
 
@@ -118,19 +125,26 @@ let on_event t ~on_open (event : Canvas.Event.t) =
       | Failed _ -> set t.status "Diagram interaction unavailable")
 ;;
 
-let component t ~app ~window ~active ~dark ~on_open graph =
-  let visibility = B.both active dark in
+let component t ~app ~window ~active ~dark ~annotation ~on_open graph =
+  let visibility =
+    B.map3 active dark annotation ~f:(fun active dark annotation ->
+      active, dark, annotation)
+  in
   B.Edge.on_change
     visibility
-    ~equal:[%equal: bool * bool]
+    ~equal:[%equal: bool * bool * Gpuio.Color_value.Value.t]
     ~callback:
-      (B.return (fun (active, dark) ->
+      (B.return (fun (active, dark, annotation) ->
          let open E.Let_syntax in
          let%bind () =
            E.of_thunk (fun () ->
-             if not (Bool.equal dark t.dark)
+             if
+               not
+                 (Bool.equal dark t.dark
+                  && Gpuio.Color_value.Value.equal annotation t.annotation)
              then (
                t.dark <- dark;
+               t.annotation <- annotation;
                publish t);
              if active
              then
@@ -146,6 +160,7 @@ let component t ~app ~window ~active ~dark ~on_open graph =
   and viewport = B.Expert.Var.value t.viewport
   and pending = B.Expert.Var.value t.command
   and status = B.Expert.Var.value t.status
+  and annotation = annotation
   and dark = dark in
   let palette = Palette.of_dark dark in
   let appearance =
@@ -207,6 +222,13 @@ let component t ~app ~window ~active ~dark ~on_open graph =
         "Explore the stages of a sample run. Drag a stage to arrange the diagram; open \
          it to read the details."
     ; canvas
+    ; V.text
+        ~style:(style [ Foreground palette.muted; Font_size 12. ])
+        ("Diagram annotation: "
+         ^
+         match annotation with
+         | Empty -> "Theme accent"
+         | Color color -> Gpuio.Color_value.Rgba.to_hex color)
     ; V.row
         ~style:(style [ Justify_content Space_between; Align_items Center ])
         [ V.text

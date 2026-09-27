@@ -78,7 +78,7 @@ let navigate t ?(replace = false) route =
 let px = Gpuio.Length.px_exn
 let style = Gpuio.Style.create_exn
 
-let component t ~app ~window ~sources ~results ~dark graph =
+let component t ~app ~window ~sources ~results ~annotation ~dark graph =
   let review = Review.component ~dark graph in
   let active =
     B.map2
@@ -98,6 +98,7 @@ let component t ~app ~window ~sources ~results ~dark graph =
       ~window
       ~active
       ~dark
+      ~annotation
       ~on_open:(fun stage -> navigate t (Stage stage))
       graph
   in

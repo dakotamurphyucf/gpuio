@@ -54,7 +54,13 @@ fn canonical(snapshot: &c::Snapshot, field: c::Field) -> String {
             Value::Empty => String::new(),
             Value::Color(color) => color.to_hex(),
         },
-        c::Field::Channel(channel) => channel.read(snapshot.channels).to_string(),
+        // Presentation only: retain full channel precision in the model. Focus
+        // and Return without an edit do not start a draft or round the color.
+        // User-entered spelling is preserved separately by Editors::preserved.
+        c::Field::Channel(channel) => format!("{:.2}", channel.read(snapshot.channels))
+            .trim_end_matches('0')
+            .trim_end_matches('.')
+            .to_owned(),
     }
 }
 impl ColorInput {

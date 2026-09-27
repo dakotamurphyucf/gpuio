@@ -12,6 +12,8 @@ module Page = struct
   type t =
     | Generation
     | Connection
+    | Schedule
+    | Annotation
   [@@deriving equal]
 end
 
@@ -38,31 +40,43 @@ module Model = struct
     }
 end
 
-type t = Model.t B.Expert.Var.t
+type t =
+  { model : Model.t B.Expert.Var.t
+  ; schedule : Schedule_settings.t
+  ; annotation : Annotation_settings.t
+  }
 
 let ok = Or_error.ok_exn
-let get = B.Expert.Var.get
-let set = B.Expert.Var.set
+let get (t : t) = B.Expert.Var.get t.model
+let set (t : t) value = B.Expert.Var.set t.model value
 let px = Gpuio.Length.px_exn
 let full = Gpuio.Length.percent_exn 100.
 let style = Gpuio.Style.create_exn
 let key = Gpuio.Key.of_string_exn
 
 let create () =
-  B.Expert.Var.create
-    { Model.modal = Closed
-    ; epoch = 0
-    ; generation = G.default
-    ; score = Score_range.all
-    ; interval_preview = None
-    ; score_preview = None
-    ; number_error = None
-    ; steps = Sides
-    ; code = O.Value.empty
-    ; completed = false
-    ; notice = "Preferences are stored in this window only."
-    }
+  let model =
+    B.Expert.Var.create
+      { Model.modal = Closed
+      ; epoch = 0
+      ; generation = G.default
+      ; score = Score_range.all
+      ; interval_preview = None
+      ; score_preview = None
+      ; number_error = None
+      ; steps = Sides
+      ; code = O.Value.empty
+      ; completed = false
+      ; notice = "Preferences are stored in this window only."
+      }
+  in
+  { model
+  ; schedule = Schedule_settings.create ()
+  ; annotation = Annotation_settings.create ()
+  }
 ;;
+
+let annotation t = Annotation_settings.value t.annotation
 
 let move (t : t) modal =
   let model = get t in
@@ -103,9 +117,31 @@ let number_error snapshot =
   | Valid _ -> None
 ;;
 
-let component (t : t) ~results ~on_generation ~dark _graph =
+let component (t : t) ~window ~results ~on_generation ~dark graph =
   let open B.Let_syntax in
-  let%arr model = B.Expert.Var.value t
+  let state = B.Expert.Var.value t.model in
+  let active page =
+    B.map state ~f:(fun model ->
+      match model.modal with
+      | Closed -> false
+      | Open selected | Reset selected -> Page.equal selected page)
+  in
+  let is_current =
+    B.map state ~f:(fun model -> fun () -> Option.is_some (current t model.epoch))
+  in
+  let schedule =
+    match%sub active Schedule with
+    | false -> B.return (V.column [])
+    | true -> Schedule_settings.component t.schedule ~window ~is_current ~dark graph
+  in
+  let annotation =
+    match%sub active Annotation with
+    | false -> B.return (V.column [])
+    | true -> Annotation_settings.component t.annotation ~window ~is_current ~dark graph
+  in
+  let%arr model = state
+  and schedule = schedule
+  and annotation = annotation
   and dark = dark in
   let p = Palette.of_dark dark in
   let appearance = if dark then P.Appearance.dark else P.Appearance.light in
@@ -436,13 +472,23 @@ let component (t : t) ~results ~on_generation ~dark _graph =
                    ~disabled:(Page.equal page Connection)
                    "Connection demo"
                    (E.of_thunk (fun () -> move t (Open Connection)))
+               ; button
+                   ~disabled:(Page.equal page Schedule)
+                   "Dates & reviews"
+                   (E.of_thunk (fun () -> move t (Open Schedule)))
+               ; button
+                   ~disabled:(Page.equal page Annotation)
+                   "Annotation color"
+                   (E.of_thunk (fun () -> move t (Open Annotation)))
                ]
            ; V.column
                ~style:
                  (style [ Grow 1.; Min_height (px 0.); Overflow_y Scroll; Gap (px 18.) ])
                ((match page with
                  | Generation -> generation_page ()
-                 | Connection -> connection_page ())
+                 | Connection -> connection_page ()
+                 | Schedule -> [ schedule ]
+                 | Annotation -> [ annotation ])
                 @ [ P.banner
                       appearance
                       ~tone:Neutral

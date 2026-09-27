@@ -180,5 +180,20 @@ preferences and canonical partial OTP codes survive within this window.
 Completion is purely local: no account, credential, network request or service
 connection is created. Clear removes the sample code. The settings walkthrough is
 `python3 scripts/test_agent_chat_settings.py`, with the same screenshot variable
-and guaranteed owned-process cleanup. Calendar/color settings and the other
-remaining M5 families are still planned in the coverage matrix.
+and guaranteed owned-process cleanup.
+
+**Dates & reviews** uses a fixed October 2026 civil-date fixture. Select a single
+weekday or an interval and Apply to filter the paginated sample reviews. Weekends
+and October 20 are unavailable endpoints. A partial interval cannot be applied;
+**All review dates** restores the full list. **Choose follow-up date** opens a
+separate confirm/cancel picker. Its saved date is a local simulation: nothing is
+scheduled or sent, and no timezone conversion occurs.
+
+**Annotation color** previews palette swatches, hex values and HSLA channels.
+**Apply annotation** changes the actual run diagram connector strokes; Cancel
+keeps the accepted color. Alpha is preserved across light/dark themes.
+**Use theme accent** clears the override. Accepted dates/colors belong to this
+window; leaving the page cancels an open picker draft. Channel displays use up to
+two decimals without rounding the stored model; typed drafts keep their spelling.
+Run `python3 scripts/test_agent_chat_dates_colors.py` for the integrated native
+walkthrough. Remaining M5 families stay listed in the coverage matrix.

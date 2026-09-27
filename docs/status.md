@@ -250,8 +250,12 @@ nested reset confirmation, OTP paste/clear, themes and composer preservation pas
 No native draft is replaced by an observation; closing discards uncommitted numeric
 drafts and stale callbacks are fenced by the settings generation. Model tests
 verify real fake-backend chunking/delays and score bounds. Existing results and M4
-public/AppKit regressions pass. Date/color settings and the remaining presentation,
-navigation, motion/responsive and combined-workload matrix are still pending.
+public/AppKit regressions pass. Date/color settings now also implement civil-date
+review filtering/pagination, simulated confirmed follow-ups and concrete RGBA
+annotations on the actual diagram. Local native keyboard/AX checks cover partial
+and disabled dates, focus restoration, color validation/cancellation and retained
+values across themes. Remaining presentation/navigation, motion/responsive and
+combined-workload acceptance are still pending; see the M5 evidence ledger.
 
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
 components pass local acceptance; OCH-24 has validated geometry, a bounded scene

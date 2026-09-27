@@ -27,4 +27,9 @@ val position : t -> Stage.t -> Gpuio.Canvas_geometry.Point.t
 val move : t -> Stage.t -> Gpuio.Canvas_geometry.Transform.t -> t Or_error.t
 
 (** [generation] must be positive and increase whenever scene resource contents change. *)
-val scene : t -> palette:Palette.t -> generation:int64 -> Gpuio.Canvas_scene.t
+val scene
+  :  ?annotation:Gpuio.Color_value.Value.t
+  -> t
+  -> palette:Palette.t
+  -> generation:int64
+  -> Gpuio.Canvas_scene.t
