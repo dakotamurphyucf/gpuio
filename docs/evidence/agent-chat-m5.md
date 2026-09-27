@@ -1007,3 +1007,19 @@ column operations. The 900-point diagnostic remains deliberately unaccepted: it
 now fails the explicit visible-insertion-gap assertion before sending a drag to
 an invisible gap. These checks establish the fixture's minimum viewport, not
 arbitrary-width application acceptance.
+
+Run `36303803196` subsequently stopped before the Results drag because its window
+fit did not settle. That failure path omitted actual geometry, so the artifact
+does not establish whether resize or position was responsible. The fixture now
+moves first, waits for the requested size, then positions again and waits for
+full display containment. It logs initial, requested and final/failing bounds.
+This avoids relying on two back-to-back AX requests having both reached their
+final geometry before the fit check.
+
+The complete walkthrough passes locally at 1000×700 and at 1000×688 using a
+1024×768 logical fit rectangle on the existing display. The latter is a smaller
+fixture boundary, not a physical 1x or hosted-screen reproduction. Native pointer
+ownership, insertion-gap visibility, accepted reorder retention and all subsequent
+workflow assertions remain required. Hosted placement confirmation is pending.
+Each independent chat walkthrough now has its own required CI step so this failure
+cannot hide settings, streaming, responsive or combined-workload diagnostics.

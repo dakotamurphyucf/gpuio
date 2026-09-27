@@ -4,6 +4,13 @@ use gpuio_protocol::v1::Fill;
 
 pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Transport) {
     let original_scale = handle.update(cx, |_, w, _| w.scale_factor()).unwrap();
+    let original_size = handle.update(cx, |_, w, _| w.viewport_size()).unwrap();
+    // GPUI's synthetic scale does not resize the platform drawable. Keep the
+    // entire 300px field available through 3x on a physical 1x display too.
+    handle
+        .update(cx, |_, w, _| w.resize(size(px(940.), px(220.))))
+        .unwrap();
+    frame(cx, handle).await;
     for (name, background, foreground) in [
         ("light", 0xf4f6faff, 0x2244aaff),
         ("dark", 0x161b22ff, 0x88bbffff),
@@ -53,7 +60,7 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
                 ],
             );
             replace(cx, handle, "3.25");
-            for scale in [1., 2.] {
+            for scale in [1., 2., 3.] {
                 for focused in [false, true] {
                     handle
                         .update(cx, |v, w, cx| {
@@ -90,6 +97,14 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
                                 }
                             }
                             let image = w.render_to_image().unwrap();
+                            assert_eq!(w.scale_factor(), scale);
+                            assert!(
+                                bounds.left() >= px(0.) && bounds.top() >= px(0.)
+                                    && f32::from(bounds.right()) * scale <= image.width() as f32
+                                    && f32::from(bounds.bottom()) * scale <= image.height() as f32,
+                                "{name} {controls:?} scale={scale}: field {bounds:?} exceeds capture {}x{}",
+                                image.width(), image.height()
+                            );
                             let rgba = |color: i64| {
                                 [
                                     (color >> 24) as u8,
@@ -216,8 +231,12 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
         }
     }
     handle
-        .update(cx, |_, w, _| w.set_scale_factor(original_scale))
+        .update(cx, |_, w, _| {
+            w.set_scale_factor(original_scale);
+            w.resize(original_size);
+        })
         .unwrap();
+    frame(cx, handle).await;
     eprintln!(
         "GPUIO_NUMBER_APPEARANCE_OK: light/dark, all layouts, native text and focus-border pixels, synthetic density, constrained geometry and retained drafts"
     );

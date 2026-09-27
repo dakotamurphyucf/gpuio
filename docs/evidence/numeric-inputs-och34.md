@@ -1337,3 +1337,27 @@ are unchanged. The complete image-enabled `native_slider` suite passes locally,
 including workload, independent-window and disposal checks. Native all-target
 image-enabled Clippy passes with warnings denied. Production slider code is
 unchanged; required hosted results are recorded on PR #13.
+
+## Numeric and OTP drawable coverage (2026-09-27)
+
+Inspecting the remaining capture fixtures found the same drawable-size assumption
+in numeric and OTP pixel reads. Temporary local probes reproduced out-of-bounds
+reads: numeric at 4x sampled (840,48) in an 840×442 image; OTP at 3x sampled (882,15)
+in a 700×262 image. These are independently reproduced fixture defects, rather
+than an inference that the still-running hosted stage failed at the same line.
+
+Both fixtures now reserve 940×220 logical pixels for a complete 300-pixel field
+through 3x, assert the requested scale and full sampled field bounds, then restore
+the original window size and scale. Existing glyph, border, masking, focus,
+constrained-layout and retained-state assertions remain. Full image-enabled
+`native_number_input` and `native_otp_input` pass locally with 1x/2x/3x coverage,
+including native IME/input, independent-window/policy checks and three 256-owner
+workload/disposal cycles each. Production input implementations are unchanged.
+
+The completed artifacts from run `36303803196` confirm that slider now passes and
+the next failure is the numeric field's out-of-bounds read at (420,24) in a 420×220
+capture. Later component commands were skipped by that stage's fail-fast block.
+The corrected numeric/OTP fixtures also pass all-target native image-enabled
+Clippy with warnings denied and Rustfmt. CI now gives each independent component
+check its own required step, preserving the commands, ordering, timeouts and
+build/cancellation gates, so later failures can be collected in the same run.

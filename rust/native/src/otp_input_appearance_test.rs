@@ -40,6 +40,7 @@ fn capture(cx: &mut AsyncApp, handle: WindowHandle<View>, scale: f32) -> image::
     cx.update_window(handle.into(), |_, w, cx| {
         w.set_scale_factor(scale);
         w.draw(cx).clear(cx);
+        assert_eq!(w.scale_factor(), scale);
         w.render_to_image().unwrap()
     })
     .unwrap()
@@ -47,6 +48,7 @@ fn capture(cx: &mut AsyncApp, handle: WindowHandle<View>, scale: f32) -> image::
 
 pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Transport) {
     let original = snapshot(cx, handle);
+    let original_size = handle.update(cx, |_, w, _| w.viewport_size()).unwrap();
     let (original_config, original_scale) = handle
         .update(cx, |v, w, cx| {
             (
@@ -55,6 +57,12 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
             )
         })
         .unwrap();
+    // Reserve physical capture space for the full 300px field through 3x;
+    // changing GPUI's scale alone does not enlarge the native drawable.
+    handle
+        .update(cx, |_, w, _| w.resize(size(px(940.), px(220.))))
+        .unwrap();
+    frame(cx, handle).await;
     for (name, background, foreground) in [
         ("light", 0xf4f6faff, 0x2244aaff),
         ("dark", 0x161b22ff, 0x88bbffff),
@@ -81,7 +89,7 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
                 ],
             );
             replace(cx, handle, "123456");
-            for scale in [1., 2.] {
+            for scale in [1., 2., 3.] {
                 for focused in [false, true] {
                     handle
                         .update(cx, |v, w, cx| {
@@ -112,6 +120,15 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
                         .unwrap();
                     assert_eq!(bounds.size, size(px(296.), px(44.)));
                     let outer = bounds.dilate(px(2.));
+                    assert!(
+                        outer.left() >= px(0.)
+                            && outer.top() >= px(0.)
+                            && f32::from(outer.right()) * scale <= image.width() as f32
+                            && f32::from(outer.bottom()) * scale <= image.height() as f32,
+                        "{name} masked={masked} scale={scale}: field {outer:?} exceeds capture {}x{}",
+                        image.width(),
+                        image.height()
+                    );
                     let rgba = |color: i64| {
                         [
                             (color >> 24) as u8,
@@ -308,6 +325,7 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
     handle
         .update(cx, |v, w, cx| {
             w.set_scale_factor(original_scale);
+            w.resize(original_size);
             if original.focused {
                 w.focus(&v.otps[&node()].focus_handle(cx), cx);
             } else {

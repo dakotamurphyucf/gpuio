@@ -33,15 +33,32 @@ class Results(Review):
         create = self.ax.AXValueCreate
         create.restype, create.argtypes = C.c_void_p, [C.c_int, C.c_void_p]
         window = self.window(TITLE)
+        origin = Point(display.origin.x + 12, display.origin.y + 40)
+        def set_geometry(name, kind, point):
+            value = create(kind, C.byref(point))
+            try:
+                self.set(window, name, value)
+            finally:
+                self.release(value)
         try:
-            for name, kind, point in [
-                    ('AXSize', 2, Point(width, height)),
-                    ('AXPosition', 1, Point(display.origin.x + 12, display.origin.y + 40))]:
-                value = create(kind, C.byref(point))
-                try:
-                    self.set(window, name, value)
-                finally:
-                    self.release(value)
+            position, size = self.bounds(TITLE, 'AXWindow')
+            print(f'CHAT_RESULTS_WINDOW_REQUEST screen=({display.origin.x},{display.origin.y},'
+                  f'{display.size.x},{display.size.y}) initial=({position.x},{position.y},'
+                  f'{size.x},{size.y}) target=({origin.x},{origin.y},{width},{height})', flush=True)
+            set_geometry('AXPosition', 1, origin)
+            set_geometry('AXSize', 2, Point(width, height))
+            # Observe size before positioning again: AppKit can constrain a move
+            # against the old, oversized frame while resize is still in flight.
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline:
+                position, size = self.bounds(TITLE, 'AXWindow')
+                if abs(size.x - width) < 1 and abs(size.y - height) < 1:
+                    break
+                time.sleep(.03)
+            else:
+                raise RuntimeError(f'Results resize did not settle: requested={width}x{height}, '
+                                   f'actual=({position.x},{position.y},{size.x},{size.y})')
+            set_geometry('AXPosition', 1, origin)
         finally:
             self.release(window)
         deadline = time.monotonic() + 5
@@ -55,7 +72,9 @@ class Results(Review):
                       f'window=({position.x},{position.y},{size.x},{size.y})', flush=True)
                 return
             time.sleep(.03)
-        raise RuntimeError('Results window did not fit the display')
+        raise RuntimeError(f'Results window did not fit display '
+                           f'({display.origin.x},{display.origin.y},{display.size.x},{display.size.y}): '
+                           f'window=({position.x},{position.y},{size.x},{size.y})')
 
     def bounds(self, label, role=None):
         if role == 'AXColumnHeader':

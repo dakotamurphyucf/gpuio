@@ -126,5 +126,7 @@ Once native test compilation and the independent extension-consumer build pass,
 CI runs subsequent independent macOS GUI families even if an earlier family
 fails. Each failure still fails the required job; no macOS check is informational.
 Cancellation stops subsequent families, and missing build prerequisites skip them.
-Commands within one family retain their existing fail-fast behavior. Inspect all
+Component checks and agent-chat walkthroughs each have their own step so one
+failure does not hide later independent scenarios. Other multi-command families
+retain their existing fail-fast behavior. Inspect all
 failed steps and their uploaded logs before fixing the next batch of CI issues.
