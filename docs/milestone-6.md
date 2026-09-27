@@ -10,7 +10,7 @@ and evidence remain in [the milestone 5 handoff](milestone-5.md).
 | -- | -- | -- |
 | OCH-27 | Application identity, deep-link packaging/startup/live delivery, activation, file reveal/open, document-window metadata | In progress: macOS OS acceptance passes; Linux portal file adapters pass local peer/worker tests; typed packaging and real bus arbitration pass locally; Linux GUI and consolidated hosted gates pending |
 | OCH-28 | OS notifications, permissions/capabilities, replacement/dismissal and stale-safe action routing | In progress: Core/Eio ownership, bounded paired protocol and owned macOS adapter; public packaged macOS OS actions pass; Linux worker/private-bus routing pass locally; Linux build/display and consolidated gates pending |
-| OCH-40 | Line, area, bar, pie, radar, candlestick and Sankey components with typed bounded datasets, native interaction and accessible alternatives | Pending native adapter evaluation; existing pins retained |
+| OCH-40 | Line, area, bar, pie, radar, candlestick and Sankey components with typed bounded datasets, native interaction and accessible alternatives | In progress: all-family Core data model and expect tests; pinned Sankey algorithm compiles/tests against existing GPUI; resources, rendering and native acceptance pending |
 | OCH-29 | Focused graphics application consuming public canvas and an independently packaged native component; desktop workflows and one chart | Pending integration of preceding capabilities |
 
 The goal includes all four tickets, local functional acceptance, required hosted
@@ -114,3 +114,11 @@ loss and cleanup. Actual Linux build/display validation remains pending; the
 notification capability bit stays unadvertised. See the [notification contract](design/os-notifications.md)
 and [native evidence](evidence/os-notifications-och28.md). This is local macOS
 acceptance, not completion of the cross-platform ticket or the milestone.
+
+
+OCH-40 now has validated Core data for all seven chart families and mixed
+Cartesian layers. Nine expect tests cover numeric/text/identity limits, 100,000
+points, gaps/OHLC/radar invariants and exhaustive four-node graph classification.
+The isolated upstream Sankey algorithm passes its 12 retained tests against the
+unchanged GPUI pin. Native resources/rendering/interactions and public graphical
+acceptance are still pending; see the [chart design](design/charts.md).

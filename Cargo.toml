@@ -1,5 +1,5 @@
 [workspace]
-members = ["rust/protocol", "rust/native", "rust/table", "rust/foundation", "rust/portal", "rust/wayland", "rust/extension-sdk", "examples/extension_package/rust"]
+members = ["rust/protocol", "rust/native", "rust/table", "rust/plot", "rust/foundation", "rust/portal", "rust/wayland", "rust/extension-sdk", "examples/extension_package/rust"]
 resolver = "3"
 exclude = ["vendor/gpui-base", "vendor/accesskit-macos", "vendor/taffy"]
 

@@ -2515,6 +2515,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpuio-plot"
+version = "0.0.0"
+dependencies = [
+ "gpui",
+]
+
+[[package]]
 name = "gpuio-portal"
 version = "0.0.0"
 dependencies = [
