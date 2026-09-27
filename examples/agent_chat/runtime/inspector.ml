@@ -79,6 +79,37 @@ let navigate t ?(replace = false) route =
       |> Or_error.ok_exn))
 ;;
 
+let navigation t ~icons ~dark graph =
+  let current =
+    B.map (B.Expert.Var.value t.routes) ~f:(fun routes ->
+      match Option.map (N.current routes) ~f:N.Entry.data with
+      | None | Some Overview -> Artifact_sidebar.Destination.Overview
+      | Some (Diagram | Stage _) -> Diagram
+      | Some Review -> Review
+      | Some Feedback -> Feedback
+      | Some Tour -> Tour
+      | Some Sources -> Sources
+      | Some Results -> Results)
+  in
+  Artifact_sidebar.component
+    ~icons
+    ~current
+    ~dark
+    ~on_select:(fun destination ->
+      let route =
+        match destination with
+        | Artifact_sidebar.Destination.Overview -> Route.Overview
+        | Diagram -> Diagram
+        | Review -> Review
+        | Feedback -> Feedback
+        | Tour -> Tour
+        | Sources -> Sources
+        | Results -> Results
+      in
+      E.Many [ E.of_thunk (fun () -> B.Expert.Var.set t.opened true); navigate t route ])
+    graph
+;;
+
 let px = Gpuio.Length.px_exn
 let style = Gpuio.Style.create_exn
 

@@ -274,6 +274,13 @@ actual native decoding failure shows initials, and switching back restores the
 SVG image. The demo accepts `--reduced-motion` without changing OS preferences.
 Remaining full M5 integration, combined workload and hosted/merge gates stay open.
 
+The chat now has grouped public Sidebar destinations sharing inspector routes and
+history, with independent branch expansion, SVG icon collapse and retained
+offcanvas hiding/restoration. Local macOS pointer/keyboard/current-link and
+light/dark walkthroughs pass; screenshots and source links are in the
+[showcase evidence](evidence/agent-chat-m5.md). Remaining presentation, motion,
+responsive layout, combined workload and hosted/merge acceptance stay open.
+
 Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
 components pass local acceptance; OCH-24 has validated geometry, a bounded scene
 codec, native resource ownership and a tested OCaml/Rust upload bridge. The

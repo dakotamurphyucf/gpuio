@@ -611,16 +611,57 @@ resource/traffic measurement. Native image policy is covered here by observable
 Ready/Failed and real rendered captures, not by inferring decode success from
 asset registration.
 
+## Grouped workspace destinations
+
+[Artifact_sidebar](../../examples/agent_chat/runtime/artifact_sidebar.ml) composes
+public `Sidebar.view` and `Sidebar.toggle` beneath the conversation list. Its
+ARTIFACTS and CONTEXT groups navigate the existing inspector through
+[Inspector.navigation](../../examples/agent_chat/runtime/inspector.ml). The current
+route supplies selection, including Back/Forward changes and stage-to-diagram
+mapping. Expansion and collapse preferences belong to each window's Bonsai model;
+changing them never navigates or creates another page/task owner.
+
+Run diagram and Source collection have independently expandable children. The
+external toggle offers SVG icon collapse or offcanvas hiding. Existing scoped app
+icons are reused. Retained hidden children become inaccessible/inert immediately;
+restoring the rail restores both expansion preferences. Closing the inspector
+leaves navigation available, and selecting a destination opens its actual page.
+Native width transitions use the Sidebar implementation; this is not yet evidence
+for the separate spring/sequence integration requirement.
+
+The final local macOS walkthrough passes actual pointer activation, focused OS
+Return activation, current-link semantics after history navigation, independent
+expansion, hidden descendant accessibility, icon/offcanvas restoration, inspector
+reopening, light/dark themes, composer preservation and window/process cleanup.
+Build, showcase expect tests and formatting pass. The original chat public
+self-test and full M4 AppKit walkthrough also pass on the final executable:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/agent_chat/main.exe @fmt @test/agent_chat_showcase/runtest
+GPUIO_SCREENSHOT_DIR=scratch/sidebar-images python3 scripts/test_agent_chat_sidebar.py
+_build/default/examples/agent_chat/main.exe --self-test
+python3 scripts/test_agent_chat.py
+```
+
+The script requires an existing screenshot directory when that variable is set.
+The first rendered inspection showed that the old promotional card crowded the
+navigation. It is replaced by the same compact Demo controls action, and sidebar
+spacing now accommodates both expanded groups at the default window size.
+Actual final captures: [dark](../images/studio-sidebar-dark.png),
+[light](../images/studio-sidebar-light.png), [icons](../images/studio-sidebar-icons.png),
+[offcanvas](../images/studio-sidebar-hidden.png). These show the navigation section
+collapsing; the conversation rail remains independently resizable. Narrow-window
+and container-query acceptance remain in the responsive-layout work.
+
 ## Remaining acceptance
 
 These flows cover the OCH-23 package integration, OCH-24 diagram, the OCH-37
 navigation stack/breadcrumbs, settings sheet/confirmation and feedback
-disclosure/accordion/hover card/carousel, OCH-34 numeric/OTP,
+disclosure/accordion/hover card/carousel/sidebar, OCH-34 numeric/OTP,
 OCH-35 dates, OCH-36 colors, OCH-37 pagination, OCH-38 source explorer,
 OCH-39 results table and a subset of OCH-33's
 presentation compositions. They do not complete the other component families,
-responsive/resizable inspector, motion, other
-navigation families, or the
+responsive/resizable inspector, motion, or the
 combined streaming/input/retention/idle-traffic workload. Those all remain required
 by OCH-46, along with narrow/wide visual acceptance, the full coverage map, hosted
 macOS/Linux gates and merge. Full Linux GUI acceptance remains OCH-17.

@@ -16,3 +16,11 @@ val component
   -> dark:bool Bonsai.Cont.t
   -> Bonsai.Cont.graph
   -> Gpuio_bonsai.View.t Bonsai.Cont.t
+
+(** Navigation rail sharing this inspector's current page and bounded history. *)
+val navigation
+  :  t
+  -> icons:(Icons.Name.t * Gpuio.Asset.Handle.t) list Bonsai.Cont.t
+  -> dark:bool Bonsai.Cont.t
+  -> Bonsai.Cont.graph
+  -> Gpuio_bonsai.View.t Bonsai.Cont.t

@@ -229,3 +229,10 @@ motion, plus actual image decoding/fallback. Launch the demo with
 reduced-motion policy without changing system preferences. `--full-motion` forces
 full motion for comparison; omit both to follow the system. Supplying both
 overrides is rejected.
+
+The destination sidebar below the conversation list opens the same artifact
+inspector pages. Expand Run diagram for checkpoints/feedback, or Source collection
+for findings; expansion never navigates. Collapse destinations keeps top-level
+SVG icons. Hide mode switches that collapsed state to offcanvas; Show destinations
+restores the previous branches. Inspector Back/Forward updates the current link.
+See [sidebar screenshots and evidence](../../docs/evidence/agent-chat-m5.md#grouped-workspace-destinations).

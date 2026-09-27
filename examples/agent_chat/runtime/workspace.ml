@@ -705,6 +705,13 @@ let component
          E.of_thunk (fun () ->
            App.Window.set_theme window (Palette.theme (Palette.of_dark dark)))))
     graph;
+  let artifact_navigation =
+    Inspector.navigation
+      t.inspector
+      ~icons:(Icons.value t.icons)
+      ~dark:(B.Expert.Var.value t.dark)
+      graph
+  in
   let inspector =
     Inspector.component
       t.inspector
@@ -757,6 +764,7 @@ let component
   and pending_close = B.Expert.Var.value t.close_pending
   and search = search
   and inspector = inspector
+  and artifact_navigation = artifact_navigation
   and settings = settings
   and panels = panels in
   let p = Palette.of_dark dark in
@@ -840,7 +848,7 @@ let component
            [ Width full
            ; Height full
            ; Padding (px 18.)
-           ; Gap (px 20.)
+           ; Gap (px 12.)
            ; Background (solid p.sidebar)
            ; Foreground p.text
            ])
@@ -915,7 +923,7 @@ let component
                           (button_style dark)
                           (style
                              [ Width full
-                             ; Padding (px 10.)
+                             ; Padding (px 8.)
                              ; Font_size 12.
                              ; Gap (px 9.)
                              ; Justify_content Start
@@ -928,39 +936,13 @@ let component
                        (action (fun () -> select t (Conversation.id conversation)))
                      (Conversation.title conversation)))
               else None))
-       ; spacer
-       ; View.column
-           ~style:
-             (style
-                [ Gap (px 10.)
-                ; Padding (px 12.)
-                ; Radius 10.
-                ; Border_width 1.
-                ; Border_color p.line
-                ])
-           [ View.row
-               ~style:(style [ Gap (px 7.); Align_items Center ])
-               [ dot p
-               ; View.text
-                   ~style:(style [ Font_size 12.; Font_weight 500 ])
-                   "A little room to explore"
-               ]
-           ; View.text
-               ~style:
-                 (style
-                    [ Font_size 11.
-                    ; Foreground p.muted
-                    ; White_space Normal
-                    ; Line_height (px 17.)
-                    ])
-               "A native workspace, powered by OCaml. Everything here runs locally."
-           ; button
-               dark
-               ~icons
-               ~icon:Sliders
-               "Demo controls"
-               (action (fun () -> B.Expert.Var.set t.demo_controls (not demo_controls)))
-           ]
+       ; artifact_navigation
+       ; button
+           dark
+           ~icons
+           ~icon:Sliders
+           "Demo controls"
+           (action (fun () -> B.Expert.Var.set t.demo_controls (not demo_controls)))
        ]
        @ (if demo_controls
           then
