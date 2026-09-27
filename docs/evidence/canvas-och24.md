@@ -625,3 +625,28 @@ Final capability checkpoint also passes isolated `dune build -j 2 @all @runtest`
 `cargo clippy --locked -p gpuio-native --features native-canvas-tests --all-targets
 -j 2 -- -D warnings`, repository `check-fmt`, independent Rust capability decoder
 tests and the rebuilt public Canvas Lab self-test. All owned processes exited.
+
+## Hosted selection-outline scale regression (2026-09-27)
+
+The first hosted macOS run reached native canvas input and failed a pixel oracle
+requiring near-white selection-outline pixels. The failure was reproduced locally
+with GPUI's per-window test scale set to 1. A 1.5-logical-pixel white stroke centered
+on an integer edge covers two pixel columns by 75%; the actual pixels were
+`[195,195,195,255]` over the gray background and `[255,191,191,255]` over red.
+Neither satisfies the old greater-than-220 test, despite the correct outline.
+
+The native test now exercises 1, 1.25, 1.5 and 2 scale factors, verifies that each
+requested scale is active, and measures the outline's integrated coverage and
+center on every interior scanline. It also verifies the old outline was cleared
+and the shape moved. The pinned GPUI Metal renderer uses 4x MSAA; the allowance is
+one quarter of a physical pixel plus 8-bit color rounding, independently of scale.
+An initial 0.1-pixel coverage allowance correctly exposed that fractional-scale
+multisampling needs this allowance. No production drawing behavior changed.
+
+All three native canvas executables pass locally with the updated oracle,
+including actual native accessibility/input checks, the 20,000-item/2,048-object
+three-cycle workload and final zero scene/mesh/text retention. Feature-enabled
+native Clippy and Rustfmt pass. These scale overrides exercise actual GPU output;
+they do not claim physical monitor switching. The hosted rerun must still pass
+before milestone merge; [PR #13](https://github.com/dakotamurphyucf/gpuio/pull/13)
+records the final checked revision and delivery.

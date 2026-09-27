@@ -960,35 +960,68 @@ async fn exercise_input(
     assert!(
         matches!(events.as_slice(),[Observation::Moved(1,transform)] if transform.tx==25. && transform.ty==0.)
     );
-    handle
-        .update(cx, |_, window, _| {
-            let image = window.render_to_image().unwrap();
-            let scale = window.scale_factor();
-            assert_eq!(
-                image
-                    .get_pixel((50. * scale) as u32, (30. * scale) as u32)
-                    .0,
-                [255, 0, 0, 255]
-            );
-            assert_eq!(
-                image
-                    .get_pixel((20. * scale) as u32, (30. * scale) as u32)
-                    .0,
-                [16, 16, 16, 255]
-            );
-            let mut outline = 0;
-            for x in (34. * scale) as u32..(37. * scale) as u32 {
+    let original_scale = handle
+        .update(cx, |_, window, _| window.scale_factor())
+        .unwrap();
+    for scale in [1., 1.25, 1.5, 2.] {
+        handle
+            .update(cx, |_, window, _| window.set_scale_factor(scale))
+            .unwrap();
+        frame(cx, handle).await;
+        handle
+            .update(cx, |_, window, _| {
+                let image = window.render_to_image().unwrap();
+                assert_eq!(window.scale_factor(), scale, "requested test scale is active");
+                assert_eq!(
+                    image
+                        .get_pixel((50. * scale) as u32, (30. * scale) as u32)
+                        .0,
+                    [255, 0, 0, 255]
+                );
+                assert_eq!(
+                    image
+                        .get_pixel((20. * scale) as u32, (30. * scale) as u32)
+                        .0,
+                    [16, 16, 16, 255]
+                );
+                // A 1.5-logical-pixel white stroke straddles the integer edge.
+                // At 1x both columns have 75% coverage (195 over the gray
+                // background, 191 over red), so neither is near-white. Integrate
+                // coverage across each scanline instead of requiring opaque
+                // pixels; missing, shifted or wrongly sized outlines still fail.
+                // GPUI's Metal path renderer uses 4x MSAA: allow one quarter
+                // of a physical pixel plus 8-bit color rounding, at every scale.
                 for y in (12. * scale) as u32..(66. * scale) as u32 {
-                    let [r, g, b, _] = image.get_pixel(x, y).0;
-                    if r > 220 && g > 220 && b > 220 {
-                        outline += 1;
+                    let (coverage, moment) = ((33. * scale).floor() as u32..(39. * scale).ceil() as u32)
+                        .fold((0., 0.), |(total, moment), x| {
+                            let [r, g, b, _] = image.get_pixel(x, y).0;
+                            let center = x as f32 + 0.5;
+                            let background = if center < 35. * scale { 16. } else { 0. };
+                            let coverage = (f32::from(r.min(g).min(b)) - background).max(0.) / (255. - background);
+                            (total + coverage, moment + center * coverage)
+                        });
+                    assert!(
+                        (coverage - 1.5 * scale).abs() < 0.26,
+                        "selection outline width: scale={scale}, y={y}, coverage={coverage}"
+                    );
+                    let center = moment / coverage;
+                    assert!(
+                        (center - 35. * scale).abs() < 0.26,
+                        "selection outline follows moved hit region: scale={scale}, y={y}, center={center}"
+                    );
+                    for x in (9. * scale).floor() as u32..(11. * scale).ceil() as u32 {
+                        assert_eq!(image.get_pixel(x, y).0, [16, 16, 16, 255], "old selection outline was cleared");
                     }
                 }
-            }
-            assert!(outline > 30, "selection outline follows moved hit region");
-            assert!(window.captured_hitbox().is_none());
-        })
+                eprintln!("GPUIO_CANVAS_SELECTION_SCALE_OK: scale={scale}, stroke_width=1.5 logical pixels");
+                assert!(window.captured_hitbox().is_none());
+            })
+            .unwrap();
+    }
+    handle
+        .update(cx, |_, window, _| window.set_scale_factor(original_scale))
         .unwrap();
+    frame(cx, handle).await;
     key(cx, handle, "enter");
     assert_eq!(observations(&transport), vec![Observation::Activated(1)]);
     key(cx, handle, "shift-right");
