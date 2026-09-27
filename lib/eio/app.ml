@@ -151,6 +151,70 @@ let stats t =
   t.stats
 ;;
 
+module Diagnostics = struct
+  type t =
+    { runtime : Stats.t
+    ; traffic : Gpuio_native.Traffic.t
+    ; scopes : Scope.Stats.t
+    ; windows : int
+    ; queued_jobs : int
+    ; queued_commands : int
+    ; pending_requests : int
+    ; assets : int
+    ; asset_uploads : int
+    ; asset_source_bytes : int
+    ; documents : int
+    ; document_source_bytes : int
+    ; canvases : int
+    ; canvas_scene_bytes : int
+    }
+  [@@deriving sexp_of]
+end
+
+let diagnostics t : Diagnostics.t =
+  check t;
+  let assets, asset_uploads, asset_source_bytes =
+    Asset_registry.Expert.counts t.asset_registry
+  in
+  let documents, document_source_bytes =
+    Document_registry.Expert.counts t.document_registry
+  in
+  let canvases, canvas_scene_bytes = Canvas_registry.Expert.counts t.canvas_registry in
+  { runtime = t.stats
+  ; traffic = Gpuio_native.traffic t.native
+  ; scopes = Scope.stats t.scope
+  ; windows =
+      Map.count t.windows ~f:(fun window ->
+        match window.phase with
+        | Closed -> false
+        | Opening | Open | Closing_before_open | Closing -> true)
+  ; queued_jobs = Inbox.length t.inbox
+  ; queued_commands = Queue.length t.commands
+  ; pending_requests =
+      Map.length t.opens
+      + Map.length t.closes
+      + Map.length t.frames
+      + Map.length t.editors
+      + Map.length t.sliders
+      + Map.length t.number_inputs
+      + Map.length t.otp_inputs
+      + Map.length t.calendars
+      + Map.length t.color_inputs
+      + Map.length t.dialogs
+      + Map.length t.window_requests
+      + Map.length t.assets
+      + Map.length t.documents
+      + Map.length t.canvases
+  ; assets
+  ; asset_uploads
+  ; asset_source_bytes
+  ; documents
+  ; document_source_bytes
+  ; canvases
+  ; canvas_scene_bytes
+  }
+;;
+
 let correlation t =
   if Int64.equal t.correlation Int64.max_value then failwith "request identity exhausted";
   t.correlation <- Int64.succ t.correlation;

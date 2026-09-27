@@ -270,3 +270,17 @@ draft retention, hidden-branch accessibility, independent windows and Full/Reduc
 checks at desktop widths of 1000–1360 logical pixels. Pane minimum sizes remain
 constraints; close the inspector when a smaller window cannot fit all three
 columns. [Responsive evidence](../../docs/evidence/agent-chat-m5.md#responsive-inspector-and-conversation).
+
+For local workload measurements, launch with `--workload-metrics --full-motion`.
+This opt-in mode prints `App.diagnostics` snapshots twice per second through Eio
+and streams seven-byte chunks two seconds apart. Use **Cancel** to stop the long
+fixture. The sampling task is included in its own task count; normal operation
+has no metrics task. The records distinguish accepted messages/events from empty
+clock-driven bridge drains and report OCaml resource reservations, not GPU memory.
+See [diagnostic definitions](../../docs/design/runtime.md#read-only-runtime-diagnostics).
+
+Run `python3 scripts/test_agent_chat_combined.py` for the four-window 100k-tree/
+100k-table/canvas/native-extension scenario, real streaming input, painted-motion
+traffic checks and repeated cleanup. It needs macOS accessibility and screen
+capture access, closes/reaps its own application, and prints the measured budgets.
+See the [measurement limits and results](../../docs/evidence/agent-chat-m5.md#combined-streaming-large-artifacts-and-cleanup).

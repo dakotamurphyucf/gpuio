@@ -109,6 +109,39 @@ class Responsive(Presentation):
             self.release(window)
         assert all(count == 1 for count in counts.values()), counts
 
+    def settings_resize(self):
+        self.focus('Settings')
+        self.key(36)
+        self.release(self.wait_find(TITLE, 'Workspace settings', 'AXWindow'))
+        self.field(TITLE, 'Stream chunk size', 'AXTextField', '64')
+        self.key(36)
+        self.wait_text(TITLE, 'Saved chunk size: 64 bytes')
+        for width in (1000, 1360):
+            self.resize_window(TITLE, width, 820)
+            sheet = self.wait_find(TITLE, 'Workspace settings', 'AXWindow')
+            window = self.window(TITLE)
+            field = self.wait_find(TITLE, 'Stream chunk size', 'AXTextField')
+            try:
+                x, y, w, h = self.rect(sheet)
+                wx, wy, ww, wh = self.rect(window)
+                fx, fy, fw, fh = self.rect(field)
+                assert wx <= x and wy <= y and x + w <= wx + ww + 1 and y + h <= wy + wh + 1
+                assert x <= fx and y <= fy and fx + fw <= x + w + 1 and fy + fh <= y + h + 1
+                assert self.text(field, 'AXValue') == '64'
+            finally:
+                for node in (field, window, sheet):
+                    self.release(node)
+        self.focus('Reset generation preferences')
+        self.key(36)
+        self.wait_text(TITLE, 'Reset generation preferences?')
+        self.key(53)  # Only the nested confirmation closes.
+        self.absent('Reset generation preferences?', 'AXStaticText')
+        self.button_state('Reset generation preferences', 'AXFocused', True)
+        assert self.field(TITLE, 'Stream chunk size', 'AXTextField') == '64'
+        self.key(53)  # The sheet now closes and restores its original trigger.
+        self.absent('Workspace settings', 'AXWindow')
+        self.button_state('Settings', 'AXFocused', True)
+
     def exercise(self, reduced):
         suffix = 'reduce' if reduced else 'full'
         draft = 'Retain this draft λ 👨‍👩‍👧‍👦'
@@ -182,6 +215,8 @@ class Responsive(Presentation):
         self.wait_text(TITLE, 'STUDIO')
         self.one_toolbar()
         self.capture('responsive-wide-light-' + suffix + '.png')
+        assert self.composer()[1] == draft
+        self.settings_resize()
         assert self.composer()[1] == draft
         self.draft(TITLE, CONVERSATION, '')
         self.close(TITLE)

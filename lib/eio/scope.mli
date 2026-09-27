@@ -19,6 +19,20 @@ val child : t -> name:string -> t Or_error.t
 val cancel : t -> unit
 val is_active : t -> bool
 
+module Stats : sig
+  (** Counts shared by the entire application scope tree. Tasks remain counted
+      until their producer fiber unwinds, including cancellation; queued result
+      delivery is measured by the scheduler inbox instead. *)
+  type t =
+    { scopes : int
+    ; tasks : int
+    ; cleanups : int
+    }
+  [@@deriving sexp_of]
+end
+
+val stats : t -> Stats.t
+
 (** Register window/application resource cleanup on the owning UI domain.
     It runs once, synchronously after the scope becomes inactive and its children
     are cancelled. The callback must not raise, block or perform I/O. Returns an

@@ -179,6 +179,34 @@ end
 val scope : t -> Scope.t
 val stats : t -> Stats.t
 
+module Diagnostics : sig
+  (** Read-only UI-domain snapshot. Registry bytes are conservative OCaml-side
+      reservations for encoded assets, canonical source snapshots and scenes;
+      they exclude native decoded caches, GPU allocations and model payloads.
+      Pending requests include correlated lifecycle, input, resource and frame
+      requests; queued commands have not yet been accepted by the native host.
+      Sampling creates no bridge command and does not request a frame. *)
+  type t =
+    { runtime : Stats.t
+    ; traffic : Gpuio_native.Traffic.t
+    ; scopes : Scope.Stats.t
+    ; windows : int
+    ; queued_jobs : int
+    ; queued_commands : int
+    ; pending_requests : int
+    ; assets : int
+    ; asset_uploads : int
+    ; asset_source_bytes : int
+    ; documents : int
+    ; document_source_bytes : int
+    ; canvases : int
+    ; canvas_scene_bytes : int
+    }
+  [@@deriving sexp_of]
+end
+
+val diagnostics : t -> Diagnostics.t
+
 (** Force application cleanup, bypassing decisions. *)
 val shutdown : t -> unit
 

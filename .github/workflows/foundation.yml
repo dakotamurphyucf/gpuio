@@ -273,6 +273,7 @@ jobs:
           python3 scripts/test_agent_chat_motion.py 2>&1 | tee .cache/ci/macos-agent-chat-motion.log
           python3 scripts/test_agent_chat_streaming_layout.py 2>&1 | tee .cache/ci/macos-agent-chat-streaming-layout.log
           python3 scripts/test_agent_chat_responsive.py 2>&1 | tee .cache/ci/macos-agent-chat-responsive.log
+          python3 scripts/test_agent_chat_combined.py 2>&1 | tee .cache/ci/macos-agent-chat-combined.log
       - name: macOS native image pixels and cleanup
         if: runner.os == 'macOS'
         run: |

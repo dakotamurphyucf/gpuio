@@ -8,3 +8,6 @@ val wake : t -> unit
 val take_turn : t -> (unit -> unit) list
 val await : t -> unit
 val close : t -> unit
+
+(** Queued completions only; excludes producers waiting for capacity. *)
+val length : t -> int

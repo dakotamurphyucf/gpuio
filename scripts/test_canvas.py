@@ -33,7 +33,7 @@ def ready(mac, label, role='AXStaticText'):
     raise RuntimeError(f'Canvas object did not become ready: {label}')
 
 
-def screenshot(mac, path):
+def screenshot(mac, path, *, title=None):
     copy_windows = mac.cg.CGWindowListCopyWindowInfo
     copy_windows.restype, copy_windows.argtypes = C.c_void_p, [C.c_uint, C.c_uint]
     dictionary = mac.cf.CFDictionaryGetValue
@@ -50,13 +50,26 @@ def screenshot(mac, path):
         finally:
             mac.release(key)
         return None
+    def named(info):
+        if title is None:
+            return True
+        key = mac.string('kCGWindowName')
+        try:
+            value = dictionary(info, key)
+            buffer = C.create_string_buffer(4096)
+            return (value and mac.type_id(value) == mac.string_type
+                    and mac.get_string(value, buffer, len(buffer), 0x08000100)
+                    and buffer.value.decode() == title)
+        finally:
+            mac.release(key)
     windows = copy_windows(1, 0)
     if not windows:
         raise RuntimeError('Cannot enumerate the child window for capture')
     try:
         for index in range(mac.count(windows)):
             info = mac.item(windows, index)
-            if number(info, 'kCGWindowOwnerPID') == mac.pid and number(info, 'kCGWindowLayer') == 0:
+            if (number(info, 'kCGWindowOwnerPID') == mac.pid
+                    and number(info, 'kCGWindowLayer') == 0 and named(info)):
                 window_id = number(info, 'kCGWindowNumber')
                 path.parent.mkdir(parents=True, exist_ok=True)
                 subprocess.run(['screencapture', '-x', '-o', '-l', str(window_id), str(path)], check=True, timeout=10)

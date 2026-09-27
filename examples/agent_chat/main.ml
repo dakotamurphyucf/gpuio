@@ -25,7 +25,7 @@ let expect_editor result =
   | Error error -> raise_s [%sexp (error : Input.Command_error.t)]
 ;;
 
-let run ~self_test ~native_test ~attachment_directory ~motion =
+let run ~self_test ~native_test ~workload_metrics ~attachment_directory ~motion =
   let passed = ref false in
   App.run ~motion (fun env app ->
     let clock = Eio.Stdenv.clock env in
@@ -92,6 +92,11 @@ let run ~self_test ~native_test ~attachment_directory ~motion =
                  window)
           |> Or_error.ok_exn
         in
+        if workload_metrics
+        then
+          Workspace.set_backend
+            workspace
+            (Backend.Config.create ~chunk_bytes:7 ~delay_seconds:2. () |> Or_error.ok_exn);
         Workspace.install_close_handler workspace window;
         App.Window.on_change window (fun _snapshot ->
           if !resources_started
@@ -110,6 +115,25 @@ let run ~self_test ~native_test ~attachment_directory ~motion =
         (snd (List.hd_exn !windows))
         (Backend.Config.create ~accept_delay_seconds:1.0 () |> Or_error.ok_exn);
     App.on_reopen app (fun () -> E.of_thunk (fun () -> open_window 1));
+    if workload_metrics
+    then (
+      let started = Eio.Time.now clock in
+      Scope.start
+        app_scope
+        ~f:(fun () ->
+          while true do
+            sleep 0.5;
+            let diagnostics = App.diagnostics app in
+            Eio.Flow.copy_string
+              (sprintf
+                 "GPUIO_CHAT_WORKLOAD elapsed_ms=%.0f diagnostics=%s\n"
+                 ((Eio.Time.now clock -. started) *. 1000.)
+                 (Sexp.to_string (App.Diagnostics.sexp_of_t diagnostics)))
+              (Eio.Stdenv.stdout env)
+          done)
+        ~on_result:(fun result -> E.of_thunk (fun () -> Or_error.ok_exn result))
+      |> Or_error.ok_exn
+      |> (ignore : Scope.Task.t -> unit));
     if self_test
     then (
       let first, workspace = List.hd_exn !windows in
@@ -355,6 +379,17 @@ let run ~self_test ~native_test ~attachment_directory ~motion =
           Eio.Time.with_timeout_exn clock 5. (fun () -> Eio.Promise.await rendered);
           passed := true;
           let stats = App.stats app in
+          let diagnostics = App.diagnostics app in
+          assert (
+            diagnostics.traffic.submission_attempts
+            >= diagnostics.traffic.submitted_messages);
+          assert (diagnostics.traffic.submitted_messages >= stats.commits);
+          assert (diagnostics.traffic.submitted_bytes > 0);
+          assert (
+            diagnostics.traffic.attempted_bytes >= diagnostics.traffic.submitted_bytes);
+          assert (diagnostics.traffic.drain_calls = stats.turns);
+          assert (diagnostics.traffic.drained_bytes > 0);
+          assert (diagnostics.traffic.received_events > stats.rendered);
           Eio.Flow.copy_string
             (sprintf
                "GPUIO_AGENT_CHAT_METRICS elapsed_ms=%.0f stats=%s\n"
@@ -405,4 +440,5 @@ let () =
     ~motion
     ~self_test:(flag "--self-test")
     ~native_test:(flag "--native-test")
+    ~workload_metrics:(flag "--workload-metrics")
 ;;

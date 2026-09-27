@@ -864,13 +864,84 @@ light](../images/studio-responsive-narrow-light.png), [wide,
 light](../images/studio-responsive-wide-light.png). Hosted gates and the
 combined workload/resource/idle-traffic measurements remain pending.
 
+The final responsive walkthrough also opens Settings by keyboard and resizes the
+window from 1360 to 1000 and back while the sheet remains open. The sheet and
+numeric editor stay within their containing bounds; the saved chunk size remains
+64. Escape closes the nested reset confirmation first and restores its trigger;
+a second Escape closes Settings and restores its original trigger. The composer
+draft survives. Both Full and Reduce runs pass.
+
+## Combined streaming, large artifacts and cleanup
+
+The permanent [combined AppKit walkthrough](../../scripts/test_agent_chat_combined.py)
+passes locally on macOS arm64 with the development build. It keeps four windows
+mounted: 100,000 source nodes, 100,000 read-only result rows, the interactive run
+canvas, and the separately packaged native review component. All share a live
+conversation. It types 20 actual keyboard characters during streaming, clicks the
+native counter, moves a canvas stage with the keyboard, revisits both large-data
+views, cancels the stream, and closes every owned window/process.
+
+The opt-in `--workload-metrics --full-motion` fixture sends seven-byte chunks two
+seconds apart. This deliberately leaves measurable inter-chunk gaps; it is not a
+maximum-throughput benchmark. One window is foreground at a time; others remain
+mounted but can be occluded on the single local display. No claim of four
+simultaneously visible, full-rate render surfaces is made.
+
+| Measurement | Local result |
+| --- | --- |
+| Source accessibility rows at 100,000 nodes | 9, within the 24-row budget |
+| Table accessibility rows/cells at 100,000 rows | 7 rows / 32 cells, within 24 / 96 |
+| Twenty key-post to AX-value readbacks | Median about 56 ms, p95 about 67 ms, maximum 119 ms |
+| Four-window registered canvas | One scene, 16,232 reserved bytes |
+| Sampled process RSS | 128.6 MB initially; 519.3 MB mounted; about 534.3 MB streaming |
+| After each of three fresh window/canvas/extension cycles | 5 scopes, 2 tasks, 36 cleanups, 1 window, 0 canvases / scene bytes |
+| Queues/requests at those cleanup checkpoints | 0 queued jobs, commands, pending requests and asset uploads |
+| Application-owned resources after cancellation | 18 assets and 10 documents; shared conversations intentionally survive window close |
+
+Readback latency includes macOS accessibility IPC and is **not input-to-pixel
+latency**. The test guards p95 below 500 ms, maximum below 1.5 seconds, and sampled
+RSS below 1.5 GiB as broad regression limits, not advertised performance guarantees.
+RSS is sampled at checkpoints, not a peak or native-cache accounting measurement.
+It reached about 579 MB after the final cycle: allocator/native cache high-water
+retention does not disappear immediately when OCaml registrations are released.
+Three cycles and stable tracked counters do not prove a flat long-duration RSS
+profile. Native widget-specific teardown/cache tests provide separate coverage.
+
+Two actual screenshots of the labelled response spinner have different decoded
+pixels while bracketing diagnostics show **zero additional commits, submission
+attempts/bytes, accepted messages/bytes or decoded events**. The capture selects
+the owned window by PID and title, crops its accessible spinner rectangle, and
+renders that region into a fresh bitmap before comparison. Thus changes elsewhere
+in the window or PNG metadata cannot satisfy the assertion. The observed interval
+was 1,003 ms, with 60 ordinary clock ticks/turns/drains and 60 empty-batch bytes.
+This establishes native painted animation without additional OCaml transactions;
+it does not mean zero FFI calls or an inactive Bonsai clock.
+
+The test also hides/reopens the source inspector three times, then creates three
+new windows. Each new window exercises the native extension, creates a canvas,
+hides/reopens it twice, and closes. Scene ownership remains window-scoped across
+hiding and returns to zero on closing; scope/task/cleanup and shared registry
+counts return to the same baseline after each cycle. The monitor is one of the
+reported tasks. [Diagnostic contracts](../design/runtime.md#read-only-runtime-diagnostics)
+distinguish OCaml reservations from native/GPU caches and explain queued results
+versus live producers.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/agent_chat/main.exe @test/runtime/runtest @fmt
+_build/default/examples/agent_chat/main.exe --self-test
+python3 scripts/test_agent_chat_combined.py
+```
+
+Runtime expect tests and the public self-test pass, including cancellation versus
+queued-result accounting and traffic consistency. The walkthrough batches AX
+attribute reads because separate per-attribute IPC exhausted the old full-tree
+search deadline under native animation. Transcript geometry remains independently
+covered by the streaming-layout regression above. Hosted execution and final
+consolidated milestone gates remain outstanding.
+
 ## Remaining acceptance
 
-These flows cover the OCH-23 package integration, OCH-24 diagram, the OCH-37
-navigation stack/breadcrumbs, settings sheet/confirmation and feedback
-disclosure/accordion/hover card/carousel/sidebar, OCH-34 numeric/OTP,
-OCH-35 dates, OCH-36 colors, OCH-37 pagination, OCH-38 source explorer,
-OCH-39 results table and OCH-33 presentation compositions. They do not complete
-the combined streaming/input/retention/idle-traffic workload. That remains required
-by OCH-46, along with the full coverage map, hosted
-macOS/Linux gates and merge. Full Linux GUI acceptance remains OCH-17.
+The family walkthroughs, responsive inspector and combined workload now have local
+macOS evidence. The remaining work is the final coverage/contract audit, complete
+consolidated local suites, required hosted macOS/Linux build/unit gates, fixes and
+merge. Full Linux GUI acceptance remains OCH-17.

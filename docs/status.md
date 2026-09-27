@@ -22,6 +22,16 @@ The full consolidated local build, suites, native regressions, Clippy and format
 checks pass. The evidence ledger records hosted results; PR #12 records the final
 checked head and merge status. Full Linux GUI acceptance remains OCH-17.
 
+OCH-46's combined macOS workload now passes with 100k source nodes, 100k table
+rows, canvas and native extension mounted in four windows during streaming.
+Native keyboard input, bounded accessible rows/cells, painted animation without
+additional OCaml transactions, and repeated window/canvas cleanup are measured.
+Read-only runtime diagnostics distinguish serialized traffic and owned resources
+from clock polling and total/native memory. Full/Reduce responsive checks also
+cover settings-sheet resize, saved values and nested Escape/focus restoration.
+See the [combined evidence](evidence/agent-chat-m5.md#combined-streaming-large-artifacts-and-cleanup).
+Final consolidated local and hosted milestone-05 gates and merge remain pending.
+
 OCH-37 now has compiled and locally tested Core models for bounded navigation
 history, single/multiple disclosure and pagination. Tests cover route replacement,
 back/forward/branching, disabled and stale requests, collection/page-count shrink,
