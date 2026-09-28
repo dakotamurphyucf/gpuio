@@ -11,30 +11,44 @@ from test_canvas import screenshot
 
 
 class Charts(Outline):
-    def bounds(self, node):
+    def try_bounds(self, node):
         position, size = Point(), Point()
         for label, kind, target in [('AXPosition', 1, position), ('AXSize', 2, size)]:
             raw = self.attr(node, label)
             try:
                 if not raw or not self.value(raw, kind, C.byref(target)):
-                    raise RuntimeError('Missing native chart bounds')
+                    return None
             finally:
                 if raw:
                     self.release(raw)
         return position.x, position.y, size.x, size.y
 
+    def bounds(self, node):
+        result = self.try_bounds(node)
+        if result is None:
+            raise RuntimeError('Missing native chart bounds')
+        return result
+
     def legend_row_is_visible(self, label):
         node = self.find(TITLE, label, 'AXStaticText')
         if not node:
             return False
-        legend = self.wait_find(TITLE, 'Chart legend', 'AXGroup')
+        legend = self.find(TITLE, 'Chart legend', 'AXGroup')
         try:
-            x, y, w, h = self.bounds(node)
-            lx, ly, lw, lh = self.bounds(legend)
+            # A reset can retire an AX row between lookup and geometry reads.
+            # The bounded visibility wait must reacquire the new row, not fail
+            # immediately or treat an unavailable rectangle as visible.
+            row_bounds = self.try_bounds(node)
+            legend_bounds = self.try_bounds(legend) if legend else None
+            if row_bounds is None or legend_bounds is None:
+                return False
+            x, y, w, h = row_bounds
+            lx, ly, lw, lh = legend_bounds
             return w > 0 and h > 0 and x >= lx - 1 and x + w <= lx + lw + 1 and y >= ly - 1 and y + h <= ly + lh + 1
         finally:
             self.release(node)
-            self.release(legend)
+            if legend:
+                self.release(legend)
 
     def wait_visible(self, label):
         deadline = time.monotonic() + 10

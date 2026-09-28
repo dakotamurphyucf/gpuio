@@ -512,3 +512,17 @@ CPU/RSS on Apple M1 Max. See [the baseline and limitations](chart-streaming-och4
 Integrate a chart into OCH-29 alongside its distinct canvas/independent-extension
 requirements. Consolidated hosted macOS/Linux gates and merge remain pending;
 no Linux graphical acceptance is claimed.
+
+## Accessibility geometry during legend reset (2026-09-28)
+
+Required run `36426087223` passed native chart input/view tests, the public
+seven-family self-test, keyboard/pointer tests and original-data alternatives,
+then failed the visual fixture while reading a reset legend row's bounds. The
+row could retire between AX lookup and its position/size reads. The fixture's
+bounded visibility predicate now returns not-ready for missing row/legend
+geometry and reacquires both on the next poll. It still requires valid nonzero
+rectangles and full viewport containment within the existing deadline; wheel
+input continues to require valid bounds. No renderer or public contract changes.
+The complete local visual walkthrough passes with this readiness handling.
+A separate local probe also passes 20 real wheel/reset cycles with the same
+129-value dataset and first/last-row visibility assertions.
