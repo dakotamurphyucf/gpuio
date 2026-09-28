@@ -19,7 +19,7 @@ struct Gesture {
     hitbox: HitboxId,
     sample: PointerSample,
 }
-fn button(value: gpui::MouseButton) -> PointerButton {
+pub(super) fn button(value: gpui::MouseButton) -> PointerButton {
     match value {
         gpui::MouseButton::Left => PointerButton::Left,
         gpui::MouseButton::Right => PointerButton::Right,
@@ -28,7 +28,7 @@ fn button(value: gpui::MouseButton) -> PointerButton {
         gpui::MouseButton::Navigate(gpui::NavigationDirection::Forward) => PointerButton::Forward,
     }
 }
-fn modifiers(value: gpui::Modifiers) -> PointerModifiers {
+pub(super) fn modifiers(value: gpui::Modifiers) -> PointerModifiers {
     PointerModifiers {
         shift: value.shift,
         control: value.control,
@@ -365,6 +365,9 @@ impl View {
             self.pointer_activation =
                 Some(cx.observe_window_activation(window, |view, window, cx| {
                     if !window.is_window_active() {
+                        for state in view.input_regions.values() {
+                            state.borrow_mut().clear();
+                        }
                         view.cancel_tree_drag(window, cx);
                         view.cancel_number_repeats(window);
                         view.cancel_color_inputs(

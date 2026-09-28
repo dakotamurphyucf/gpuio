@@ -27,8 +27,8 @@ require a registered schema and its bounded package-specific validation.
 Managed trees advertise bit 39 and managed tables bit 40, separately from the
 original retained-view-tree bit. Desktop integration, OS notifications and charts
 use bits 41–43. Extended cursor values and start ellipsis require bit 44
-(`CAP_STYLE_VALUES`). Both language halves require the current shared mask
-`35184372088831`; an older host fails capability negotiation instead of accepting
+(`CAP_STYLE_VALUES`); general input regions require bit 45 (`CAP_INPUT_REGIONS`).
+Both language halves require the current shared mask `70368744177663`; an older host fails capability negotiation instead of accepting
 unsupported input, commands or style values. Existing style field tags and value
 IDs are unchanged: cursor additions occupy 10–21 and start ellipsis occupies 2.
 Correlated open/close/frame requests are distinct from per-window transactions.

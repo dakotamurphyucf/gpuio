@@ -14,7 +14,9 @@ The current catalog maps every required v1 family to a gallery page. Detailed
 behavioral parity, installed-consumer and release gates are still pending. The
 [event audit](catalog/gpuix-events.json) explicitly records remaining generic
 input, subtree highlighting and diff-control gaps; the gallery page count does
-not imply parity. Start ellipsis and the complete cursor vocabulary now have
+not imply parity. General input regions now have mounted Core/Bonsai/native
+integration and focused local dispatch evidence; public gallery and remaining
+edge-case acceptance stay open in the [input ledger](evidence/input-observations-och41.md). Start ellipsis and the complete cursor vocabulary now have
 paired codec, native validation and focused gallery evidence. OCH-17 is also in progress: the
 [native document accessibility repair](evidence/document-accessibility-och17.md)
 now exposes body text, read-only source/code, keyboard/AX inline-link activation

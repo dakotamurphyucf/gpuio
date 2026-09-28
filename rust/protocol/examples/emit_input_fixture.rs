@@ -10,6 +10,14 @@ fn print(value: &impl BinProtWrite) {
     );
 }
 fn main() {
+    if std::env::args().nth(1).as_deref() == Some("--request") {
+        print(&fixture::request());
+        return;
+    }
+    if std::env::args().nth(1).as_deref() == Some("--events") {
+        print(&fixture::envelopes());
+        return;
+    }
     if std::env::args().nth(1).as_deref() == Some("--policies") {
         for config in fixture::policy_configs() {
             print(&config);

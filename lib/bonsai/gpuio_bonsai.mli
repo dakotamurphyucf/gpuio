@@ -92,6 +92,14 @@ module View : sig
     -> t list
     -> t
 
+  val input_region
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Input_region.Config.t
+    -> on_event:(Gpuio.Input_region.Event.t -> unit Bonsai.Effect.t)
+    -> t list
+    -> t
+
   val pointer_area
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

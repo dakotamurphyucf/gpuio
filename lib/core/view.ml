@@ -52,6 +52,7 @@ module Kind = struct
     | Hover_card
     | Carousel
     | Chart_view
+    | Input_region
   [@@deriving equal, sexp_of]
 end
 
@@ -175,6 +176,11 @@ type 'action drop_target =
   ; on_event : Drag_and_drop.Target_event.t -> 'action
   }
 
+type 'action input_region =
+  { config : Input_region.Config.t
+  ; on_event : Input_region.Event.t -> 'action
+  }
+
 type 'action pointer =
   { config : Pointer.Config.t
   ; on_event : Pointer.Event.t -> 'action
@@ -269,6 +275,7 @@ type 'action t =
   ; drag_source : 'action drag_source option
   ; drop_target : 'action drop_target option
   ; pointer : 'action pointer option
+  ; input_region : 'action input_region option
   ; notification : 'action notification option
   ; toast_stack : Toast.Stack.t option
   ; progress : Progress.Config.t option
@@ -319,6 +326,7 @@ let text ?key ?(style = Style.empty) text =
   ; drag_source = None
   ; drop_target = None
   ; pointer = None
+  ; input_region = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -477,6 +485,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; drag_source = None
   ; drop_target = None
   ; pointer = None
+  ; input_region = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -586,6 +595,7 @@ let button
   ; drag_source = None
   ; drop_target = None
   ; pointer = None
+  ; input_region = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -667,6 +677,7 @@ let toggle
   ; drag_source = None
   ; drop_target = None
   ; pointer = None
+  ; input_region = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -732,6 +743,7 @@ let focus_scope ?key ?style ~config children =
   ; drag_source = None
   ; drop_target = None
   ; pointer = None
+  ; input_region = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -1427,6 +1439,7 @@ let text_input
   ; drag_source = None
   ; drop_target = None
   ; pointer = None
+  ; input_region = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -1477,6 +1490,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; drag_source = None
   ; drop_target = None
   ; pointer = None
+  ; input_region = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -1553,6 +1567,7 @@ let combobox
   ; drag_source = None
   ; drop_target = None
   ; pointer = None
+  ; input_region = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -1680,6 +1695,13 @@ let drop_target ?key ?(style = Style.empty) ~config ~on_event children =
   { (column ?key ~style children) with
     kind = Drop_target
   ; drop_target = Some { config; on_event }
+  }
+;;
+
+let input_region ?key ?(style = Style.empty) ~config ~on_event children =
+  { (column ?key ~style children) with
+    kind = Input_region
+  ; input_region = Some { config; on_event }
   }
 ;;
 
@@ -1930,6 +1952,11 @@ module Expert = struct
     ; on_event : Drag_and_drop.Target_event.t -> 'action
     }
 
+  type nonrec 'action input_region = 'action input_region =
+    { config : Input_region.Config.t
+    ; on_event : Input_region.Event.t -> 'action
+    }
+
   type nonrec 'action pointer = 'action pointer =
     { config : Pointer.Config.t
     ; on_event : Pointer.Event.t -> 'action
@@ -2002,6 +2029,7 @@ module Expert = struct
     ; drag_source : 'action drag_source option
     ; drop_target : 'action drop_target option
     ; pointer : 'action pointer option
+    ; input_region : 'action input_region option
     ; notification : 'action notification option
     ; toast_stack : Toast.Stack.t option
     ; progress : Progress.Config.t option

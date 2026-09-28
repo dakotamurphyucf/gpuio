@@ -239,3 +239,142 @@ let%expect_test "independent native phase/policy/focus/disabled encodings" =
   print_s [%sexp (List.length configurations : int)];
   [%expect {| 9 |}]
 ;;
+
+module Wire = Gpuio_protocol.Wire
+
+let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok
+let node = Gpuio_protocol.Node_id.create ~slot:0L ~generation:1L |> ok
+let handler generation = Gpuio_protocol.Handler_id.create ~slot:0L ~generation |> ok
+
+let wire_event ?(generation = 1L) ?(revision = 1L) event =
+  Wire.Event.Input_observed (window, node, handler generation, revision, event)
+;;
+
+let%expect_test "mounted request and event envelopes match independent native bytes" =
+  let request =
+    Wire.Message.Apply
+      { window
+      ; base = 0L
+      ; revision = 1L
+      ; operations =
+          [ Create (node, Input_region, "", Some (handler 1L))
+          ; Set_input_region (node, I.Expert.to_wire config)
+          ; Set_root (Some node)
+          ]
+      }
+  in
+  let envelopes = List.map events ~f:(fun event -> wire_event event) in
+  let bytes =
+    Bin_prot.Utils.bin_dump [%bin_writer: Wire.Event.t list] envelopes
+    |> Bigstring.to_string
+  in
+  assert (List.equal Wire.Event.equal envelopes (Wire.Event.decode bytes |> ok));
+  Eio_main.run (fun env ->
+    List.iter
+      [ "input-request.hex", Wire.Message.encode request |> ok
+      ; "input-events.hex", bytes
+      ]
+      ~f:(fun (name, actual) ->
+        assert (
+          String.equal
+            (hex (Bigstring.of_string actual))
+            (Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / name) |> String.strip))));
+  for length = 0 to String.length bytes - 1 do
+    assert (Result.is_error (Wire.Event.decode (String.prefix bytes length)))
+  done;
+  assert (Result.is_error (Wire.Event.decode (bytes ^ "\000")));
+  let invalid =
+    [ wire_event (Mouse_up { mouse with click_count = 0L })
+    ; wire_event ~revision:(-1L) Focus
+    ]
+  in
+  List.iter invalid ~f:(fun event ->
+    let bytes =
+      Bin_prot.Utils.bin_dump [%bin_writer: Wire.Event.t list] [ event ]
+      |> Bigstring.to_string
+    in
+    assert (Result.is_error (Wire.Event.decode bytes)));
+  print_endline
+    "paired mounted request, all observations, strict consumption and validation";
+  [%expect
+    {| paired mounted request, all observations, strict consumption and validation |}]
+;;
+
+let%expect_test "config retires old observation handlers while child identity survives" =
+  let r = Reconciler.create window in
+  let view config prefix =
+    View.input_region
+      ~config
+      ~on_event:(fun event ->
+        prefix ^ Sexp.to_string (I.Kind.sexp_of_t (I.Event.kind event)))
+      [ View.text ~key:(Key.of_string_exn "retained") "Child" ]
+  in
+  let prepare config prefix =
+    Reconciler.prepare r ~theme:Theme.default (Some (view config prefix)) |> ok
+  in
+  let first = prepare config "old:" in
+  Reconciler.accept r first |> ok;
+  assert (
+    Option.equal
+      String.equal
+      (Reconciler.dispatch r (wire_event Focus))
+      (Some "old:Focus"));
+  let closure = prepare config "new:" in
+  assert (Option.is_none (Reconciler.message closure));
+  Reconciler.accept r closure |> ok;
+  assert (
+    Option.equal
+      String.equal
+      (Reconciler.dispatch r (wire_event Focus))
+      (Some "new:Focus"));
+  let changed_config = I.Config.create ~label:"Renamed" ~focus:Tab subscriptions |> ok in
+  let changed = prepare changed_config "changed:" in
+  (match Reconciler.message changed with
+   | Some
+       (Apply
+          { operations = [ Bind (bound, Some fresh); Set_input_region (configured, _) ]
+          ; _
+          }) ->
+     assert (
+       Gpuio_protocol.Node_id.equal bound node
+       && Gpuio_protocol.Node_id.equal configured node);
+     assert (Gpuio_protocol.Handler_id.equal fresh (handler 2L))
+   | _ -> assert false);
+  (* Pending transactions leave the accepted handler in force. *)
+  assert (Option.is_some (Reconciler.dispatch r (wire_event Focus)));
+  Reconciler.accept r changed |> ok;
+  assert (Option.is_none (Reconciler.dispatch r (wire_event Focus)));
+  assert (
+    Option.equal
+      String.equal
+      (Reconciler.dispatch r (wire_event ~generation:2L ~revision:2L Focus))
+      (Some "changed:Focus"));
+  let disabled =
+    I.Config.create ~label:"Renamed" ~disabled:true ~focus:Tab subscriptions |> ok
+  in
+  Reconciler.accept r (prepare disabled "disabled:") |> ok;
+  assert (
+    Option.is_none (Reconciler.dispatch r (wire_event ~generation:3L ~revision:3L Focus)));
+  let enabled =
+    I.Config.create ~label:"Only keys" [ I.Subscription.create Key_down () |> ok ] |> ok
+  in
+  Reconciler.accept r (prepare enabled "keys:") |> ok;
+  assert (
+    Option.is_none (Reconciler.dispatch r (wire_event ~generation:4L ~revision:4L Focus)));
+  assert (
+    Option.is_some
+      (Reconciler.dispatch
+         r
+         (wire_event ~generation:4L ~revision:4L (Key_down (key, false)))));
+  Reconciler.accept r (Reconciler.prepare r ~theme:Theme.default None |> ok) |> ok;
+  assert (
+    Option.is_none
+      (Reconciler.dispatch
+         r
+         (wire_event ~generation:4L ~revision:4L (Key_down (key, false)))));
+  print_endline
+    "latest accepted closure; config-bound generations; unchanged child; \
+     disabled/unsubscribed/removed observations rejected";
+  [%expect
+    {| latest accepted closure; config-bound generations; unchanged child; disabled/unsubscribed/removed observations rejected |}]
+;;

@@ -1,12 +1,14 @@
 # General native input observations — OCH-41
 
-Implementation in progress. The domain and codec work described here does not yet
-advertise a runtime capability or provide a mounted input region. The catalog gap
-remains open until native routing, reconciliation and public gallery tests pass.
+Implementation in progress. Core/Bonsai `View.input_region`, mounted native routing
+and capability bit 45 are implemented. Focused local native checks pass; remaining
+edge cases and public gallery acceptance are tracked in the
+[evidence ledger](../evidence/input-observations-och41.md). The catalog rows remain
+partial until those gates pass.
 
 ## Public contract
 
-`Input_region` describes subscriptions and immutable observations. The planned
+`Input_region` describes subscriptions and immutable observations. The
 `View.input_region ~config ~on_event children` is a styled container, independent of
 `View.pointer_area` (which captures a gesture). It can enclose ordinary text,
 containers or native widgets without replacing their owned editor/control state.
@@ -22,6 +24,11 @@ Clicks, hover transitions, outside-down and focus changes are derived/native
 notifications; these require bubble/observe rather than pretending that an async
 callback can cancel an earlier event. Native controls may consume bubbling input;
 capture observation is explicit when an application needs to observe descendants.
+GPUI resolves native key bindings before raw key listeners: a consumed editing or
+command action does not produce raw key-down in either phase. Key-up can arrive
+without a matching observed down. Capture/propagation policies affect the remaining
+raw dispatch, not previously handled bindings or IME. This matches the pinned
+framework ordering; overriding semantic commands belongs to the command API.
 
 The region has a nonblank accessible label, disabled state and explicit focus
 policy: none, pointer/explicit focus, or pointer/explicit focus plus Tab traversal.

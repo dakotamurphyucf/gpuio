@@ -28,8 +28,9 @@ that every source entry is implemented or validated.
   limits. Generic input observations, subtree highlighting and per-file diff
   controls remain required v1 work. A mapped row is not release acceptance.
   The [input-observation contract](../design/input-observations.md) and validated
-  `Input_region` domain/codecs are now under implementation; native mounting and
-  event delivery are still pending, so the event rows retain their gap status.
+  `Input_region` domain/codecs, Core/Bonsai constructor and native event delivery
+  now have focused local evidence. Remaining native edge cases and the public
+  gallery keep those rows partial; see the [input evidence](../evidence/input-observations-och41.md).
 - `families.json`: all 146 root-module entries mapped to 43 owning families,
   public interfaces, existing examples, evidence and release scopes. Helpers map
   to their owning runtime/style/interaction contract rather than separate widgets.

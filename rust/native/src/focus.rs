@@ -169,7 +169,9 @@ impl Manager {
         let Some(item) = tree.get(node) else {
             return false;
         };
-        if item.table.as_ref().is_some_and(|config| config.disabled)
+        if item.input_region.as_ref().is_some_and(|config| {
+            config.disabled || config.focus == gpuio_protocol::input::Focus::None
+        }) || item.table.as_ref().is_some_and(|config| config.disabled)
             || item.carousel.as_ref().is_some_and(|config| config.disabled)
             || item.canvas.as_ref().is_some_and(|config| config.disabled)
             || item.chart.as_ref().is_some_and(|config| config.disabled)

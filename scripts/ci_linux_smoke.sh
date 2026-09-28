@@ -47,6 +47,7 @@ case "${1:-}" in
     timeout 90 _build/default/examples/runtime/main.exe --last-window-test
     timeout 90 _build/default/examples/text_input/main.exe --self-test
     timeout 90 ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_controls
+    timeout 90 ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_input_region
     timeout 90 ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_scroll
     timeout 90 ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_document
     timeout 90 _build/default/examples/documents/main.exe --self-test

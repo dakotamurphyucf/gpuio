@@ -77,6 +77,8 @@ mod focus;
 mod image_corners;
 #[path = "image_view.rs"]
 pub(crate) mod image_view;
+#[path = "input_region.rs"]
+mod input_region;
 #[cfg(feature = "native-tests")]
 #[path = "list_test.rs"]
 pub(super) mod list_test;
@@ -170,6 +172,7 @@ struct View {
     splits: BTreeMap<NodeId, split_view::State>,
     split_activation: Option<gpui::Subscription>,
     buttons: BTreeMap<NodeId, Rc<ButtonState>>,
+    input_regions: BTreeMap<NodeId, input_region::Shared>,
     selections: BTreeMap<NodeId, Rc<RefCell<crate::selection::State>>>,
     editors: BTreeMap<NodeId, editor::Instance>,
     root_focus: Option<gpui::FocusHandle>,
@@ -404,6 +407,7 @@ impl View {
             splits: BTreeMap::new(),
             split_activation: None,
             buttons: BTreeMap::new(),
+            input_regions: BTreeMap::new(),
             selections: BTreeMap::new(),
             editors: BTreeMap::new(),
             root_focus: None,
@@ -648,6 +652,7 @@ impl View {
                 | Kind::Rating
                 | Kind::TabBar
                 | Kind::PointerArea
+                | Kind::InputRegion
                 | Kind::DragSource
                 | Kind::DropTarget
         ) {
@@ -843,6 +848,14 @@ impl View {
                 .is_some_and(|slider| slider.config.disabled)
             || node.control.is_some_and(Control::disabled)
             || node.editor.as_ref().is_some_and(|config| config.disabled);
+        let disabled = disabled
+            || node
+                .input_region
+                .as_ref()
+                .is_some_and(|config| config.disabled);
+        if let Some(config) = &node.input_region {
+            element = self.input_region_element(element, node, tree.revision(), config, window, cx);
+        }
         let checked = command
             .as_ref()
             .is_some_and(|route| route.config.checked == Some(true))
@@ -1342,6 +1355,7 @@ impl View {
             && node.color_input.is_none()
             && node.overlay.is_none()
             && node.pointer.is_none()
+            && node.input_region.is_none()
             && node.image.is_none()
             && node.animation.is_none()
             && node.animation_program.is_none()
@@ -1406,13 +1420,27 @@ impl View {
             })
             .or_else(|| self.buttons.get(&id).map(|button| button.focus.clone()))
             .or_else(|| {
+                self.input_regions
+                    .get(&id)
+                    .filter(|_| {
+                        node.input_region.as_ref().is_some_and(|config| {
+                            config.focus != gpuio_protocol::input::Focus::None
+                        })
+                    })
+                    .map(|state| state.borrow().focus.clone())
+            })
+            .or_else(|| {
                 self.selections
                     .get(&id)
                     .map(|state| state.borrow().focus.clone())
             })
             .or_else(|| self.focus.borrow().handle(id));
         if let Some(handle) = handle.filter(|_| !disabled) {
-            let tab_stop = node.kind != Kind::FocusScope;
+            let tab_stop = node.kind != Kind::FocusScope
+                && node
+                    .input_region
+                    .as_ref()
+                    .is_none_or(|config| config.focus == gpuio_protocol::input::Focus::Tab);
             let manager = self.focus.clone();
             element = element.child(
                 canvas(
@@ -1591,6 +1619,15 @@ impl View {
             }
             .into_any_element();
         }
+        if node.input_region.is_some()
+            && let Some(state) = self.input_regions.get(&id)
+        {
+            return input_region::Region {
+                element,
+                state: state.clone(),
+            }
+            .into_any_element();
+        }
         if let Some(config) = &node.pointer {
             pointer::Region {
                 element,
@@ -1723,6 +1760,16 @@ impl Render for View {
         self.hide_unvisited_otps(window, cx);
         self.hide_unvisited_calendars(window, cx);
         self.hide_unvisited_color_inputs(window, cx);
+        self.input_regions.retain(|id, state| {
+            if !self.visited.contains(id) {
+                state.borrow_mut().clear();
+                return false;
+            }
+            if !self.focus.borrow().allows(*id) || window.captured_hitbox().is_some() {
+                state.borrow_mut().clear();
+            }
+            true
+        });
         self.buttons.retain(|id, _| self.visited.contains(id));
         self.radios.retain(|id, _| self.visited.contains(id));
         self.ratings.retain(|id, _| self.visited.contains(id));
@@ -1815,6 +1862,10 @@ impl Render for View {
                     .values()
                     .any(|state| state.borrow().chart_focused(window))
                 || root_focus.is_focused(window)
+                || self
+                    .input_regions
+                    .values()
+                    .any(|state| state.borrow().focus.is_focused(window))
                 || self
                     .buttons
                     .values()

@@ -128,6 +128,11 @@ pub fn run_native_toast_test() {
 }
 
 #[cfg(feature = "native-tests")]
+pub fn run_native_input_region_test() {
+    host::control_test::run_input_region();
+}
+
+#[cfg(feature = "native-tests")]
 pub fn run_native_pointer_test() {
     host::control_test::run_pointer();
 }

@@ -684,6 +684,18 @@ val drop_target
   -> 'action t list
   -> 'action t
 
+(** General opt-in input observations. The region owns its focus and observation
+    binding; child native widgets retain their state. Policies execute in Rust and
+    callbacks run asynchronously. Changing config retires queued old observations;
+    changing only the callback uses the latest accepted closure. *)
+val input_region
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Input_region.Config.t
+  -> on_event:(Input_region.Event.t -> 'action)
+  -> 'action t list
+  -> 'action t
+
 (** Native captured mouse gestures with ordinary content. Root styles do not
     replace the captured node; hiding/unmounting releases native capture. *)
 val pointer_area
@@ -883,6 +895,11 @@ module Expert : sig
     ; on_event : Drag_and_drop.Target_event.t -> 'action
     }
 
+  type 'action input_region =
+    { config : Input_region.Config.t
+    ; on_event : Input_region.Event.t -> 'action
+    }
+
   type 'action pointer =
     { config : Pointer.Config.t
     ; on_event : Pointer.Event.t -> 'action
@@ -944,6 +961,7 @@ module Expert : sig
       | Hover_card
       | Carousel
       | Chart_view
+      | Input_region
     [@@deriving equal, sexp_of]
   end
 
@@ -1022,6 +1040,7 @@ module Expert : sig
     ; drag_source : 'action drag_source option
     ; drop_target : 'action drop_target option
     ; pointer : 'action pointer option
+    ; input_region : 'action input_region option
     ; notification : 'action notification option
     ; toast_stack : Toast.Stack.t option
     ; progress : Progress.Config.t option

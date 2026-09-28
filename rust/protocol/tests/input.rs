@@ -197,3 +197,24 @@ fn independent_policy_phase_focus_and_disabled_bytes() {
         include_str!("../../../test/fixtures/input-policies.hex").trim()
     );
 }
+
+#[test]
+fn mounted_envelopes_append_without_changing_previous_tags() {
+    let request = fixture::request();
+    let bytes = encode(&request);
+    assert_eq!(
+        hex(&bytes),
+        include_str!("../../../test/fixtures/input-request.hex").trim()
+    );
+    assert_eq!(gpuio_protocol::decode(&bytes), Ok(request));
+    for length in 0..bytes.len() {
+        assert!(gpuio_protocol::decode(&bytes[..length]).is_err());
+    }
+    let mut extra = bytes;
+    extra.push(0);
+    assert!(gpuio_protocol::decode(&extra).is_err());
+    assert_eq!(
+        hex(&encode(&fixture::envelopes())),
+        include_str!("../../../test/fixtures/input-events.hex").trim()
+    );
+}

@@ -34,6 +34,7 @@ fn event_bytes(event: &Event) -> usize {
         Event::DesktopResponse(_, gpuio_protocol::desktop::Response::Links(batch)) => {
             batch.links.iter().map(|link| link.len() + 9).sum()
         }
+        Event::InputObserved(_, _, _, _, input) => input.payload_bytes(),
         Event::TableInput(_, _, _, _, input) => input.request.payload_bytes(),
         Event::TreeInput(
             _,
@@ -367,6 +368,31 @@ impl Mailbox {
             *revision = next;
             return Ok(());
         }
+        if let Event::InputObserved(
+            window,
+            node,
+            handler,
+            revision,
+            gpuio_protocol::input::Event::MouseMove(sample),
+        ) = &event
+            && let Some(last) = self.events.back_mut()
+            && matches!(last.class, Class::Input)
+            && let Event::InputObserved(
+                w,
+                n,
+                h,
+                r,
+                gpuio_protocol::input::Event::MouseMove(previous),
+            ) = &last.event
+            && (window, node, handler, revision) == (w, n, h, r)
+            && sample.pressed_button == previous.pressed_button
+            && sample.location.modifiers == previous.location.modifiers
+            && sample.location.is_valid()
+            && previous.location.is_valid()
+        {
+            last.event = event;
+            return Ok(());
+        }
         if let Event::PointerEvent(window, node, handler, revision, sample) = &event
             && sample.phase == PointerPhase::Moved
             && let Some(last) = self.events.back_mut()
@@ -686,6 +712,7 @@ impl Mailbox {
             | Event::ListViewport(id, ..)
             | Event::DropTargetEvent(id, ..)
             | Event::PointerEvent(id, ..)
+            | Event::InputObserved(id, ..)
             | Event::PaletteDismissed(id, ..)
             | Event::ComboboxSelected(id, ..)
             | Event::SliderResult(_, id, ..)

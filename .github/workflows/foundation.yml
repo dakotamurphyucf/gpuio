@@ -208,6 +208,10 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_controls"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-controls-native.log
+      - name: macOS native input-region checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_input_region"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-input-region-native.log
       - name: macOS native drag-drop and public lifecycle checks
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |

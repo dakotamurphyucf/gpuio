@@ -76,6 +76,7 @@ type 'a callback =
   | Animation_program of int64 * (int64 * int64) ref * (Animation.Program.Event.t -> 'a)
   | Animation of int64 * int64 ref * (Animation.Event.t -> 'a)
   | Image of (Image.State.t -> 'a)
+  | Input_region of Gpuio_protocol.Input_wire.Config.t * (Input_region.Event.t -> 'a)
   | Pointer of (Pointer.Event.t -> 'a)
   | Drag_source of (Drag_and_drop.Source_event.t -> 'a)
   | Drop_target of (Drag_and_drop.Target_event.t -> 'a)
@@ -250,6 +251,7 @@ let kind = function
   | Toast -> Toast
   | Toast_stack -> Toast_stack
   | Pointer_area -> Pointer_area
+  | Input_region -> Input_region
   | Drag_source -> Drag_source
   | Drop_target -> Drop_target
   | Image -> Image
@@ -581,6 +583,13 @@ let rec mount builder ~depth previous view =
       | Some _, Some _ -> fail "toast cannot combine another handler"
     in
     let callback =
+      match description.input_region, callback with
+      | Some item, None ->
+        Some (Input_region (Input_region.Expert.to_wire item.config, item.on_event))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "input region cannot combine another handler"
+    in
+    let callback =
       match description.pointer, callback with
       | Some item, None -> Some (Pointer item.on_event)
       | None, callback -> callback
@@ -717,10 +726,15 @@ let rec mount builder ~depth previous view =
       | _ -> fail "incompatible virtual list callback"
     in
     let rotate_handler =
-      (match table_config, old_table_config with
-       | Some next, Some old ->
-         not (Int64.equal next.query_generation old.query_generation)
-       | Some _, None | None, _ -> false)
+      (match description.input_region, previous with
+       | Some item, Some mounted ->
+         Option.exists (View.Expert.describe mounted.view).input_region ~f:(fun old ->
+           not (Input_region.Config.equal item.config old.config))
+       | None, _ | Some _, None -> false)
+      || (match table_config, old_table_config with
+          | Some next, Some old ->
+            not (Int64.equal next.query_generation old.query_generation)
+          | Some _, None | None, _ -> false)
       || (match description.virtual_list, previous with
           | Some list, Some mounted ->
             let old =
@@ -876,6 +890,14 @@ let rec mount builder ~depth previous view =
         emit
           builder
           (Set_drop_target (id, Drag_and_drop.Expert.target_to_wire item.config)));
+    Option.iter description.input_region ~f:(fun item ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).input_region ~f:(fun item ->
+            item.config))
+      in
+      if not (Option.equal Input_region.Config.equal old (Some item.config))
+      then emit builder (Set_input_region (id, Input_region.Expert.to_wire item.config)));
     Option.iter description.pointer ~f:(fun item ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -1958,6 +1980,7 @@ let dispatch t = function
         | Commands _
         | Palette _
         | Toast _
+        | Input_region _
         | Pointer _
         | Drag_source _
         | Drop_target _
@@ -2247,6 +2270,25 @@ let dispatch t = function
        |> Result.ok
        |> Option.map ~f:callback
      | Some _ | None -> None)
+  | Input_observed (window, node, handler, revision, sample)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Input_region (config, callback)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && (not config.disabled)
+            && List.exists config.subscriptions ~f:(fun subscription ->
+              Gpuio_protocol.Input_wire.Kind.equal
+                subscription.kind
+                (Gpuio_protocol.Input_wire.Event.kind sample)) ->
+       Input_region.Expert.event_of_wire sample |> Result.ok |> Option.map ~f:callback
+     | Some _ | None -> None)
   | Pointer_event (window, node, handler, revision, sample)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -2300,6 +2342,7 @@ let dispatch t = function
      | Some _ | None -> None)
   | Drag_source_event _
   | Drop_target_event _
+  | Input_observed _
   | Pointer_event _
   | Toast_dismissed _
   | Palette_dismissed _

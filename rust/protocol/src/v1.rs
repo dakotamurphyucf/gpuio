@@ -56,7 +56,9 @@ pub const CAP_OS_NOTIFICATIONS: i64 = 1_i64 << 42;
 pub const CAP_CHARTS: i64 = 1_i64 << 43;
 /// Extended cursor values and start-ellipsis styles.
 pub const CAP_STYLE_VALUES: i64 = 1_i64 << 44;
-pub const CAPABILITIES: i64 = CAP_STYLE_VALUES
+pub const CAP_INPUT_REGIONS: i64 = 1_i64 << 45;
+pub const CAPABILITIES: i64 = CAP_INPUT_REGIONS
+    | CAP_STYLE_VALUES
     | CAP_CHARTS
     | CAP_OS_NOTIFICATIONS
     | CAP_DESKTOP
@@ -164,6 +166,7 @@ pub enum Kind {
     HoverCard,
     Carousel,
     ChartView,
+    InputRegion,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -684,6 +687,7 @@ pub enum Op {
     SetTableCell(NodeId, crate::table::Cell),
     TableCommand(NodeId, crate::table::Command),
     SetChart(NodeId, crate::chart_view::Config),
+    SetInputRegion(NodeId, crate::input::Config),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -878,4 +882,5 @@ pub enum Event {
         i64,
         crate::chart_view::Observation,
     ),
+    InputObserved(WindowId, NodeId, HandlerId, i64, crate::input::Event),
 }

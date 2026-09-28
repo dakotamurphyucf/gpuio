@@ -278,3 +278,8 @@ name = "native_table_history"
 path = "tests/native_table_history.rs"
 harness = false
 required-features = ["native-tests"]
+
+[[test]]
+name = "native_input_region"
+harness = false
+required-features = ["native-tests"]

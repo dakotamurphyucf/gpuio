@@ -1,7 +1,7 @@
 open Core
 
-(** General input observation types. The mounted region adapter is under
-    implementation; these types do not enable native event subscriptions yet. *)
+(** General input observations delivered asynchronously by [View.input_region].
+    Native policy and widget editing do not wait for these callbacks. *)
 module Button = Pointer.Button
 
 module Modifiers = Pointer.Modifiers
@@ -24,6 +24,10 @@ module Kind : sig
   [@@deriving equal, compare, sexp_of]
 end
 
+(** GPUI dispatches bound native actions before raw key listeners. Capture orders
+    raw listeners, but does not intercept a key already consumed by an editor or
+    command binding. Key-up may therefore arrive without a matching observed
+    key-down. Use semantic commands for bound actions and Text_input for IME. *)
 module Phase : sig
   type t =
     | Capture

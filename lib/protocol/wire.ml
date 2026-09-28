@@ -29,7 +29,7 @@ module Desktop = Desktop_wire
 module Notification = Notification_wire
 
 let version = 1L
-let capabilities = 35184372088831L
+let capabilities = 70368744177663L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -83,6 +83,7 @@ module Kind = struct
     | Hover_card
     | Carousel
     | Chart_view
+    | Input_region
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -632,6 +633,7 @@ module Toast_dismissal = struct
 end
 
 module Pointer = Pointer_wire
+module Input_region = Input_wire
 module Drag_and_drop = Drag_and_drop_wire
 
 module Op = struct
@@ -692,6 +694,7 @@ module Op = struct
     | Set_table_cell of Node_id.t * Table.Cell.t
     | Table_command of Node_id.t * Table.Command.t
     | Set_chart of Node_id.t * Chart_view.Config.t
+    | Set_input_region of Node_id.t * Input_region.Config.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -1036,6 +1039,8 @@ module Event = struct
         * int64
         * int64
         * Chart_view.Observation.t
+    | Input_observed of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Input_region.Event.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1182,6 +1187,8 @@ module Event = struct
       Int64.(revision >= 0L) && Drag_and_drop.Source_sample.is_valid sample
     | Drop_target_event (_, _, _, revision, sample) ->
       Int64.(revision >= 0L) && Drag_and_drop.Target_sample.is_valid sample
+    | Input_observed (_, _, _, revision, event) ->
+      Int64.(revision >= 0L) && Input_region.Event.valid event
     | Pointer_event (_, _, _, revision, sample) ->
       Int64.(revision >= 0L && sample.gesture > 0L)
       && List.for_all

@@ -148,3 +148,38 @@ pub fn policy_configs() -> Vec<Config> {
     });
     configs
 }
+
+pub fn request() -> gpuio_protocol::v1::Message {
+    use gpuio_protocol::{HandlerId, NodeId, WindowId, v1::*};
+    let node = NodeId::from_parts(0, 1).unwrap();
+    Message::Apply(Transaction {
+        window: WindowId::from_parts(0, 1).unwrap(),
+        base: 0,
+        revision: 1,
+        operations: vec![
+            Op::Create(
+                node,
+                Kind::InputRegion,
+                "".into(),
+                Some(HandlerId::from_parts(0, 1).unwrap()),
+            ),
+            Op::SetInputRegion(node, config()),
+            Op::SetRoot(Some(node)),
+        ],
+    })
+}
+pub fn envelopes() -> Vec<gpuio_protocol::v1::Event> {
+    use gpuio_protocol::{HandlerId, NodeId, WindowId, v1::Event};
+    events()
+        .into_iter()
+        .map(|event| {
+            Event::InputObserved(
+                WindowId::from_parts(0, 1).unwrap(),
+                NodeId::from_parts(0, 1).unwrap(),
+                HandlerId::from_parts(0, 1).unwrap(),
+                1,
+                event,
+            )
+        })
+        .collect()
+}

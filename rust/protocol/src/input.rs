@@ -1,5 +1,5 @@
-//! Validated general input observations. Host envelopes/adapters are not enabled
-//! by this module alone. Existing captured pointer gestures remain separate.
+//! Validated general input observations. Mounted host adapters require capability
+//! CAP_INPUT_REGIONS. Existing captured pointer gestures remain separate.
 use crate::{
     pointer::{PointerButton, PointerModifiers},
     v1::CommandConfig,
@@ -96,6 +96,7 @@ impl Config {
         std::mem::size_of::<Self>()
             + self.label.len()
             + self.subscriptions.len() * std::mem::size_of::<Subscription>()
+            + 512 // Conservative allowance for mounted focus/subscription/click state.
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]

@@ -8,26 +8,29 @@
       "status": "partial",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4560",
       "public_interfaces": [
-        "lib/core/view.mli"
+        "lib/core/input_region.mli",
+        "lib/core/view.mli",
+        "lib/bonsai/gpuio_bonsai.mli"
       ],
-      "contract": "Buttons and command routes expose semantic activation, including keyboard/accessibility, with generation-checked delivery.",
-      "remaining": "Generic click observation on arbitrary containers/text with coordinates, modifiers and click count is absent.",
-      "evidence": "docs/evidence/gallery-och41.md",
+      "contract": "Input_region.Event.Click observes a matched primary down/up with local/window coordinates, modifiers and click count. Semantic button/command activation remains separate.",
+      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
       "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
     },
     {
       "source_event": "onAuxClick",
-      "status": "gap",
+      "status": "partial",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4609",
       "public_interfaces": [
-        "lib/core/pointer.mli",
-        "lib/core/view.mli"
+        "lib/core/input_region.mli",
+        "lib/core/view.mli",
+        "lib/bonsai/gpuio_bonsai.mli"
       ],
-      "contract": "Pointer areas can start a configured non-primary captured gesture; context menus have native triggers.",
-      "remaining": "No generic non-primary click observation or click-count contract. Captured down/up is not automatically a click.",
-      "evidence": "docs/evidence/native-pointer-och11.md",
+      "contract": "Input_region.Event.Auxiliary_click observes matched non-primary down/up for right, middle, back and forward buttons; no release-as-click fallback.",
+      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
       "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
@@ -37,12 +40,13 @@
       "status": "partial",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4624",
       "public_interfaces": [
-        "lib/core/pointer.mli",
-        "lib/core/view.mli"
+        "lib/core/input_region.mli",
+        "lib/core/view.mli",
+        "lib/bonsai/gpuio_bonsai.mli"
       ],
-      "contract": "Pointer.Event.Started observes a configured button with modifiers/local and window coordinates.",
-      "remaining": "Capture-only surface, one initiating button; generic uncaptured all-button down and click count are absent.",
-      "evidence": "docs/evidence/gallery-och41.md",
+      "contract": "Input_region.Event.Mouse_down observes all five buttons with coordinates, modifiers and click count; capture/bubble and static native policy are explicit, without capturing a gesture.",
+      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
       "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
@@ -52,12 +56,13 @@
       "status": "partial",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4646",
       "public_interfaces": [
-        "lib/core/pointer.mli",
-        "lib/core/view.mli"
+        "lib/core/input_region.mli",
+        "lib/core/view.mli",
+        "lib/bonsai/gpuio_bonsai.mli"
       ],
-      "contract": "Pointer.Event.Released terminates a captured gesture.",
-      "remaining": "Generic up without an initiating captured press is absent.",
-      "evidence": "docs/evidence/gallery-och41.md",
+      "contract": "Input_region.Event.Mouse_up observes eligible releases independently of a prior press. Only derived clicks require a matching press.",
+      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
       "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
@@ -67,12 +72,13 @@
       "status": "partial",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4678",
       "public_interfaces": [
-        "lib/core/pointer.mli",
-        "lib/core/view.mli"
+        "lib/core/input_region.mli",
+        "lib/core/view.mli",
+        "lib/bonsai/gpuio_bonsai.mli"
       ],
-      "contract": "Native hover styles and tooltip/hover-card behavior are implemented.",
-      "remaining": "No general entered observation for arbitrary application logic.",
-      "evidence": "docs/evidence/gallery-och41.md",
+      "contract": "Input_region.Event.Mouse_enter observes the native hit-tested hover edge; it is not a per-frame callback.",
+      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
       "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
@@ -82,12 +88,13 @@
       "status": "partial",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4678",
       "public_interfaces": [
-        "lib/core/pointer.mli",
-        "lib/core/view.mli"
+        "lib/core/input_region.mli",
+        "lib/core/view.mli",
+        "lib/bonsai/gpuio_bonsai.mli"
       ],
-      "contract": "Native hover styles and tooltip/hover-card behavior are implemented.",
-      "remaining": "No general left observation for arbitrary application logic.",
-      "evidence": "docs/evidence/gallery-och41.md",
+      "contract": "Input_region.Event.Mouse_leave observes the native hit-tested hover edge. Removal/disable need not synthesize a lifecycle event.",
+      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
       "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
@@ -97,12 +104,13 @@
       "status": "partial",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4662",
       "public_interfaces": [
-        "lib/core/pointer.mli",
-        "lib/core/view.mli"
+        "lib/core/input_region.mli",
+        "lib/core/view.mli",
+        "lib/bonsai/gpuio_bonsai.mli"
       ],
-      "contract": "Pointer.Event.Moved observes captured motion and may coalesce consecutive samples.",
-      "remaining": "Passive uncaptured movement and pressed-button observations are absent.",
-      "evidence": "docs/evidence/gallery-och41.md",
+      "contract": "Input_region.Event.Mouse_move observes uncaptured motion with optional pressed button. Only adjacent samples on the same route/revision/modifier/button may coalesce.",
+      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
       "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
@@ -112,12 +120,13 @@
       "status": "partial",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4715",
       "public_interfaces": [
-        "lib/core/pointer.mli",
-        "lib/core/view.mli"
+        "lib/core/input_region.mli",
+        "lib/core/view.mli",
+        "lib/bonsai/gpuio_bonsai.mli"
       ],
-      "contract": "Native overlays/popovers implement outside dismissal.",
-      "remaining": "No general outside-down observation with position/button/modifiers on arbitrary regions.",
-      "evidence": "docs/evidence/gallery-och41.md",
+      "contract": "Input_region.Event.Mouse_down_outside observes presses outside the clipped region bounds, preserving button/count/position/modifiers; it does not dismiss anything automatically.",
+      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
       "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
@@ -127,12 +136,13 @@
       "status": "partial",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4764",
       "public_interfaces": [
+        "lib/core/input_region.mli",
         "lib/core/view.mli",
-        "lib/core/command.mli"
+        "lib/bonsai/gpuio_bonsai.mli"
       ],
-      "contract": "Typed commands and widget-native editing/navigation handle keys without an OCaml round trip.",
-      "remaining": "No general scoped key observation carrying key/character/modifiers/repeat; commands are semantic actions, not raw key edges.",
-      "evidence": "docs/evidence/gallery-och41.md",
+      "contract": "Input_region.Event.Key_down carries key, optional character, modifiers and repeat in the focused region/descendant dispatch scope. GPUI bindings precede raw listeners; consumed editor/command keys are absent even in capture.",
+      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
       "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
@@ -142,12 +152,13 @@
       "status": "partial",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4776",
       "public_interfaces": [
+        "lib/core/input_region.mli",
         "lib/core/view.mli",
-        "lib/core/command.mli"
+        "lib/bonsai/gpuio_bonsai.mli"
       ],
-      "contract": "Typed commands and widget-native editing/navigation handle keys without an OCaml round trip.",
-      "remaining": "No general scoped key observation carrying key/character/modifiers/repeat; commands are semantic actions, not raw key edges.",
-      "evidence": "docs/evidence/gallery-och41.md",
+      "contract": "Input_region.Event.Key_up carries key, optional character and modifiers in the focused region/descendant dispatch scope. A matching raw down is not guaranteed; key observations are not committed text or IME.",
+      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
       "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
@@ -157,13 +168,13 @@
       "status": "partial",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L3980",
       "public_interfaces": [
+        "lib/core/input_region.mli",
         "lib/core/view.mli",
-        "lib/core/text_input.mli",
-        "lib/core/focus_scope.mli"
+        "lib/bonsai/gpuio_bonsai.mli"
       ],
-      "contract": "Native focus scopes/traversal exist; editor snapshots expose focused state.",
-      "remaining": "No general focus/blur subscription for arbitrary focusable views.",
-      "evidence": "docs/evidence/gallery-och41.md",
+      "contract": "Input_region.Event.Focus observes direct region focus with explicit click/Tab focus policy. It does not mean focus-within or application activation.",
+      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
       "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
@@ -173,13 +184,13 @@
       "status": "partial",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L3990",
       "public_interfaces": [
+        "lib/core/input_region.mli",
         "lib/core/view.mli",
-        "lib/core/text_input.mli",
-        "lib/core/focus_scope.mli"
+        "lib/bonsai/gpuio_bonsai.mli"
       ],
-      "contract": "Native focus scopes/traversal exist; editor snapshots expose focused state.",
-      "remaining": "No general focus/blur subscription for arbitrary focusable views.",
-      "evidence": "docs/evidence/gallery-och41.md",
+      "contract": "Input_region.Event.Blur observes direct region blur. Native focus ownership and child editors remain retained across callback/configuration updates.",
+      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
       "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
@@ -189,12 +200,13 @@
       "status": "partial",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4735",
       "public_interfaces": [
+        "lib/core/input_region.mli",
         "lib/core/view.mli",
-        "lib/core/virtual_list.mli"
+        "lib/bonsai/gpuio_bonsai.mli"
       ],
-      "contract": "Containers scroll natively; managed lists report semantic viewport changes.",
-      "remaining": "No generic wheel observation with precise/line deltas, modifiers and touch phase. Viewport changes are not wheel events.",
-      "evidence": "docs/evidence/scrolling-och11.md",
+      "contract": "Input_region.Event.Scroll preserves Pixels/Lines deltas, both axes, modifiers, position and all native touch phases. Wheel samples remain ordered and are not replaced like motion samples.",
+      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
       "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."

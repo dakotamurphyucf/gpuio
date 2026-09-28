@@ -1251,6 +1251,7 @@ let process t = function
     | List_viewport (id, _, _, _, _)
     | Drop_target_event (id, _, _, _, _)
     | Pointer_event (id, _, _, _, _)
+    | Input_observed (id, _, _, _, _)
     | Overlay_dismissed (id, _, _, _, _)
     | Tooltip_open_changed (id, _, _, _, _)
     | Command_invoked (id, _, _, _, _, _, _) ) as event ->

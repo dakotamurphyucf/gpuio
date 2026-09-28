@@ -914,6 +914,7 @@ impl Decoder<'_> {
                     46 => Kind::HoverCard,
                     47 => Kind::Carousel,
                     48 => Kind::ChartView,
+                    49 => Kind::InputRegion,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -1009,6 +1010,7 @@ impl Decoder<'_> {
             53 => Op::SetTableCell(self.node()?, self.table_cell()?),
             54 => Op::TableCommand(self.node()?, self.table_command()?),
             55 => Op::SetChart(self.node()?, self.chart_view_config()?),
+            56 => Op::SetInputRegion(self.node()?, self.input_config()?),
             47 => Op::SetColorInput(
                 self.node()?,
                 Box::new(self.color_config()?),

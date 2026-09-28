@@ -7,6 +7,8 @@ mod command_test;
 mod drag_drop_test;
 #[path = "extension_test.rs"]
 mod extension_test;
+#[path = "input_region_test.rs"]
+mod input_region_test;
 #[path = "menu_test.rs"]
 mod menu_test;
 #[path = "navigation_lifecycle_test.rs"]
@@ -1640,6 +1642,7 @@ enum Suite {
     Progress,
     Toast,
     Pointer,
+    InputRegion,
     DragDrop,
 }
 pub fn run() {
@@ -1672,6 +1675,9 @@ pub fn run_menus() {
 }
 pub fn run_drag_drop() {
     run_suite(Suite::DragDrop);
+}
+pub fn run_input_region() {
+    run_suite(Suite::InputRegion);
 }
 pub fn run_pointer() {
     run_suite(Suite::Pointer);
@@ -1783,6 +1789,7 @@ fn run_suite(suite: Suite) {
                 Suite::Progress => 60,
                 Suite::Toast => 61,
                 Suite::Pointer => 82,
+                Suite::InputRegion => 5,
                 Suite::DragDrop => 90,
                 Suite::Controls
                 | Suite::Tabs
@@ -1867,6 +1874,9 @@ fn run_suite(suite: Suite) {
                         Suite::Toast => toast_test::exercise(cx, handle, &transport).await,
                         Suite::DragDrop => drag_drop_test::exercise(cx, handle, &transport).await,
                         Suite::Pointer => pointer_test::exercise(cx, handle, &transport).await,
+                        Suite::InputRegion => {
+                            input_region_test::exercise(cx, handle, &transport).await
+                        }
                         Suite::Controls => unreachable!(),
                     }
                     if !matches!(suite, Suite::Extensions | Suite::Trees) {

@@ -635,6 +635,7 @@ impl Session {
             && revision >= 0
             && window.tree.get(node).is_some_and(|node| {
                 node.image.is_none()
+                    && node.input_region.is_none()
                     && node.slider.is_none()
                     && node.number_input.is_none()
                     && node.otp_input.is_none()
@@ -863,6 +864,26 @@ impl Session {
         .then_some(Event::DropTargetEvent(
             window, node, handler, revision, sample,
         ))
+    }
+
+    pub fn input_observed(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        event: gpuio_protocol::input::Event,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.input_region.as_ref()?;
+        (!state.overloaded
+            && !config.disabled
+            && event.is_valid()
+            && config.subscription(event.kind()).is_some()
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision())
+        .then_some(Event::InputObserved(window, node, handler, revision, event))
     }
 
     pub fn pointer_event(

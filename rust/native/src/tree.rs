@@ -31,6 +31,7 @@ fn allows_children(kind: Kind) -> bool {
             | Kind::Toast
             | Kind::ToastStack
             | Kind::PointerArea
+            | Kind::InputRegion
             | Kind::DragSource
             | Kind::DropTarget
     )
@@ -118,6 +119,7 @@ pub struct Node {
     pub drag_source: Option<Arc<gpuio_protocol::drag_drop::Source>>,
     pub drop_target: Option<Arc<gpuio_protocol::drag_drop::Target>>,
     pub pointer: Option<Arc<PointerConfig>>,
+    pub input_region: Option<Arc<gpuio_protocol::input::Config>>,
     pub placement: Option<Placement>,
     pub combobox_filter: Option<ComboboxFilter>,
     pub choice_appearance: Option<Arc<ChoiceAppearance>>,
@@ -224,6 +226,10 @@ impl Node {
                 .map_or(0, |config| config.retained_bytes())
             + self
                 .drop_target
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
+            + self
+                .input_region
                 .as_ref()
                 .map_or(0, |config| config.retained_bytes())
             + self
@@ -608,6 +614,24 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
+                if (node.kind == Kind::InputRegion) != node.input_region.is_some()
+                    || node.input_region.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || node.handler.is_none()
+                            || !node.text.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if let Some(old) = self.get(node.id)
+                    && old.input_region != node.input_region
+                    && old.input_region.is_some()
+                    && old.handler == node.handler
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 if (node.kind == Kind::PointerArea) != node.pointer.is_some()
                     || node.pointer.as_ref().is_some_and(|config| {
                         !config.is_valid()
@@ -985,6 +1009,7 @@ impl Tree {
                     | Kind::Toast
                     | Kind::ToastStack
                     | Kind::PointerArea
+                    | Kind::InputRegion
                     | Kind::DragSource
                     | Kind::DropTarget
                     | Kind::CommandScope
@@ -1412,6 +1437,7 @@ impl Plan<'_> {
             | Op::SetDragSource(id, ..)
             | Op::SetDropTarget(id, ..)
             | Op::SetPointer(id, ..)
+            | Op::SetInputRegion(id, ..)
             | Op::SetComboboxFilter(id, ..)
             | Op::SetChoiceAppearance(id, ..)
             | Op::Bind(id, ..)
@@ -1532,6 +1558,7 @@ impl Plan<'_> {
                             drag_source: None,
                             drop_target: None,
                             pointer: None,
+                            input_region: None,
                             placement: None,
                             style: Arc::from([]),
                             handler: *handler,
@@ -1600,6 +1627,12 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.drop_target = Some(Arc::new(config.clone()));
+            }
+            Op::SetInputRegion(id, config) => {
+                if self.node(*id)?.kind != Kind::InputRegion || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.input_region = Some(Arc::new(config.clone()));
             }
             Op::SetPointer(id, config) => {
                 if self.node(*id)?.kind != Kind::PointerArea || !config.is_valid() {
