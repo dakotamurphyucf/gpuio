@@ -21,9 +21,27 @@ jobs:
           xcrun swift -module-cache-path .cache/macos-display-modules scripts/ci_macos_display.swift --apply
           gh run download 36377185296 --repo dakotamurphyucf/gpuio --name foundation-logs-macOS-ARM64 --dir .cache/previous
           chmod +x '.cache/previous/notification-os/GPUIO Notification Lab.app/Contents/MacOS/gpuio-notification'
+          mkdir -p _build/default/examples/signal_studio
+          cp '.cache/previous/signal-notifications/GPUIO Signal Studio.app/Contents/MacOS/gpuio-signal' _build/default/examples/signal_studio/main.exe
+          chmod +x _build/default/examples/signal_studio/main.exe
       - name: Restore hosted notification launch agent
         run: python3 scripts/ci_macos_notifications.py
+      - name: Signal input and layout
+        run: python3 scripts/test_signal_studio.py --output .cache/ci/signal-studio 2>&1 | tee .cache/ci/signal-studio.log
+      - name: Signal documents and desktop
+        if: ${{ !cancelled() }}
+        run: python3 scripts/test_signal_desktop.py --output .cache/ci/signal-desktop 2>&1 | tee .cache/ci/signal-desktop.log
+      - name: Signal motion
+        if: ${{ !cancelled() }}
+        run: python3 scripts/test_signal_motion.py --output .cache/ci/signal-motion 2>&1 | tee .cache/ci/signal-motion.log
+      - name: Signal workload
+        if: ${{ !cancelled() }}
+        run: python3 scripts/measure_signal_studio.py --output .cache/ci/signal-workload 2>&1 | tee .cache/ci/signal-workload.log
+      - name: Signal notifications before Lab
+        if: ${{ !cancelled() }}
+        run: python3 scripts/test_signal_notifications.py --output .cache/ci/signal-notifications 2>&1 | tee .cache/ci/signal-notifications.log
       - name: Observe fresh notification authorization and accessibility
+        if: ${{ !cancelled() }}
         run: python3 scripts/diagnose_notification_permission.py 2>&1 | tee .cache/ci/notification-diagnostic.log
       - name: Preserve diagnostic evidence
         if: always()
