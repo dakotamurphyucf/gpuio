@@ -675,10 +675,11 @@
       "example": "examples/pointer",
       "evidence": [
         "docs/evidence/native-pointer-och11.md",
-        "docs/evidence/drag-drop-och11.md"
+        "docs/evidence/drag-drop-och11.md",
+        "docs/evidence/input-observations-och41.md"
       ],
       "gallery_page": "input",
-      "contract": "Typed semantic pointer capture/events; general hover/key/focus/wheel mappings still require GPUIX event audit.",
+      "contract": "Typed captured gestures and general input-region observations with explicit phase, focus, pointer/wheel occlusion and asynchronous ownership. Input & transfers and Input observations gallery pages have local native evidence; consolidated gates remain.",
       "upstream_modules": [
         "base/event"
       ]

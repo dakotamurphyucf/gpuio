@@ -173,6 +173,7 @@ struct View {
     split_activation: Option<gpui::Subscription>,
     buttons: BTreeMap<NodeId, Rc<ButtonState>>,
     input_regions: BTreeMap<NodeId, input_region::Shared>,
+    input_pointer_inside: Rc<std::cell::Cell<bool>>,
     selections: BTreeMap<NodeId, Rc<RefCell<crate::selection::State>>>,
     editors: BTreeMap<NodeId, editor::Instance>,
     root_focus: Option<gpui::FocusHandle>,
@@ -408,6 +409,7 @@ impl View {
             split_activation: None,
             buttons: BTreeMap::new(),
             input_regions: BTreeMap::new(),
+            input_pointer_inside: Rc::new(std::cell::Cell::new(true)),
             selections: BTreeMap::new(),
             editors: BTreeMap::new(),
             root_focus: None,
@@ -625,6 +627,12 @@ impl View {
         {
             element = element.block_mouse_except_scroll();
         }
+
+        element = match crate::style::pointer_occlusion(&node.style) {
+            1 => element.block_mouse_except_scroll(),
+            2 => element.occlude(),
+            _ => element,
+        };
 
         if node.kind == Kind::Text && !interaction.selectable && !node.text.is_empty() {
             element = element
@@ -1435,7 +1443,7 @@ impl View {
                     .map(|state| state.borrow().focus.clone())
             })
             .or_else(|| self.focus.borrow().handle(id));
-        if let Some(handle) = handle.filter(|_| !disabled) {
+        if let Some(handle) = handle.filter(|_| !disabled && node.input_region.is_none()) {
             let tab_stop = node.kind != Kind::FocusScope
                 && node
                     .input_region
@@ -1671,6 +1679,7 @@ impl Render for View {
         let chart_budget = self.chart_budget.clone();
         let canvases: Vec<_> = self.canvases.values().map(Rc::downgrade).collect();
         let drag_window = self.id;
+        let input_pointer_inside = self.input_pointer_inside.clone();
         let mut root = drag_drop::root(div(), self.id, cx)
             .capture_key_down(cx.listener(|view, event: &gpui::KeyDownEvent, window, cx| {
                 if event.keystroke.key == "escape"
@@ -1725,6 +1734,7 @@ impl Render for View {
                             }
                         }
                         drag_drop::install_cleanup(drag_window, window, cx);
+                        input_region::install_pointer_presence(input_pointer_inside, window);
                     },
                 )
                 .absolute()

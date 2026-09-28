@@ -205,6 +205,20 @@ module Overflow = struct
   ;;
 end
 
+module Pointer_occlusion = struct
+  type t =
+    | None
+    | Pointer
+    | Pointer_and_scroll
+  [@@deriving equal, sexp_of]
+
+  let to_int64 = function
+    | None -> 0L
+    | Pointer -> 1L
+    | Pointer_and_scroll -> 2L
+  ;;
+end
+
 module Cursor = struct
   type t =
     | Arrow
@@ -344,6 +358,7 @@ module Property = struct
     | Overflow_x of Overflow.t
     | Overflow_y of Overflow.t
     | Cursor of Cursor.t
+    | Pointer_occlusion of Pointer_occlusion.t
     | Pointer_events of bool
     | User_select of bool
     | Selection_color of Color.t
@@ -421,6 +436,7 @@ module Property = struct
         | Overflow_x
         | Overflow_y
         | Cursor
+        | Pointer_occlusion
         | Pointer_events
         | User_select
         | Selection_color
@@ -495,6 +511,7 @@ module Property = struct
     | Overflow_x _ -> Name.Overflow_x
     | Overflow_y _ -> Name.Overflow_y
     | Cursor _ -> Name.Cursor
+    | Pointer_occlusion _ -> Name.Pointer_occlusion
     | Pointer_events _ -> Name.Pointer_events
     | User_select _ -> Name.User_select
     | Selection_color _ -> Name.Selection_color
@@ -594,7 +611,11 @@ module Property = struct
       | Overflow_x _ -> true
       | Overflow_y _ -> true
       | Cursor _ -> true
-      | Pointer_events _ | User_select _ | Selection_color _ | Inert _ -> true
+      | Pointer_occlusion _
+      | Pointer_events _
+      | User_select _
+      | Selection_color _
+      | Inert _ -> true
       | Accessible_name v -> (not (String.is_empty v)) && String.length v <= 1024
       | Padding _ | Margin _ | Gap _ | Border_width _ | Radius _ | Overflow _ ->
         assert false
@@ -622,7 +643,8 @@ let with_state t state properties =
           match state, property with
           | State.Base, _ -> Ok ()
           | ( _
-            , ( Property.Pointer_events _
+            , ( Property.Pointer_occlusion _
+              | Pointer_events _
               | User_select _
               | Selection_color _
               | Accessible_name _
@@ -771,6 +793,8 @@ module Expert = struct
     | Property.Overflow_x v -> Ok (Wire.Field.Overflow_x (Overflow.to_int64 v))
     | Property.Overflow_y v -> Ok (Wire.Field.Overflow_y (Overflow.to_int64 v))
     | Property.Cursor v -> Ok (Wire.Field.Cursor (Cursor.to_int64 v))
+    | Property.Pointer_occlusion v ->
+      Ok (Wire.Field.Pointer_occlusion (Pointer_occlusion.to_int64 v))
     | Property.Inert v -> Ok (Wire.Field.Inert v)
     | Property.Pointer_events v -> Ok (Wire.Field.Pointer_events v)
     | Property.User_select v -> Ok (Wire.Field.User_select v)

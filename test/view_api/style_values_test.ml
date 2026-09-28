@@ -69,3 +69,34 @@ let%expect_test "public cursor and overflow values agree with independent native
   print_s [%sexp (List.length cursors : int), (List.length styles : int)];
   [%expect {| (22 25) |}]
 ;;
+
+let%expect_test "pointer occlusion is explicit, typed and base-only with independent tags"
+  =
+  List.iter [ Style.Pointer_occlusion.None; Pointer; Pointer_and_scroll ] ~f:(fun mode ->
+    let fields =
+      Style.create_exn [ Pointer_occlusion mode ]
+      |> Style.Expert.to_wire ~theme:Theme.default
+      |> Or_error.ok_exn
+    in
+    match fields with
+    | [ Wire.Style.Fields [ field ] ] ->
+      let bytes =
+        Bin_prot.Utils.bin_dump Wire.Field.bin_writer_t field |> Bigstring.to_string
+      in
+      print_endline
+        (String.concat_map bytes ~f:(fun ch -> sprintf "%02x" (Char.to_int ch)))
+    | _ -> assert false);
+  print_s
+    [%sexp
+      (Or_error.is_error
+         (Style.with_state Style.empty Hovered [ Pointer_occlusion Pointer ])
+       : bool)];
+  assert (Int64.equal (Int64.bit_and Wire.capabilities 70368744177664L) 70368744177664L);
+  [%expect
+    {|
+    4200
+    4201
+    4202
+    true
+    |}]
+;;

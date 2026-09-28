@@ -2324,7 +2324,8 @@ pub fn validate_style(style: &[Style]) -> Result<(), ErrorCode> {
                     && !fields.iter().any(|field| {
                         matches!(
                             field,
-                            Field::PointerEvents(_)
+                            Field::PointerOcclusion(_)
+                                | Field::PointerEvents(_)
                                 | Field::UserSelect(_)
                                 | Field::SelectionColor(_)
                                 | Field::AccessibleName(_)

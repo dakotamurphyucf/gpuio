@@ -57,7 +57,9 @@ pub const CAP_CHARTS: i64 = 1_i64 << 43;
 /// Extended cursor values and start-ellipsis styles.
 pub const CAP_STYLE_VALUES: i64 = 1_i64 << 44;
 pub const CAP_INPUT_REGIONS: i64 = 1_i64 << 45;
-pub const CAPABILITIES: i64 = CAP_INPUT_REGIONS
+pub const CAP_POINTER_OCCLUSION: i64 = 1_i64 << 46;
+pub const CAPABILITIES: i64 = CAP_POINTER_OCCLUSION
+    | CAP_INPUT_REGIONS
     | CAP_STYLE_VALUES
     | CAP_CHARTS
     | CAP_OS_NOTIFICATIONS
@@ -364,6 +366,7 @@ pub enum Field {
     SelectionColor(Color),
     AccessibleName(String),
     Inert(bool),
+    PointerOcclusion(i64),
 }
 
 /// Initial portable refinements; adding tags requires explicit schema review.

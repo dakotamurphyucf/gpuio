@@ -209,3 +209,41 @@ fn wheel_deltas_and_edges_are_ordered_and_bounded() {
     assert_eq!(q.drain(128), vec![observed(wheel); 128]);
     assert!(q.drain(128).is_empty());
 }
+
+#[test]
+fn pointer_occlusion_is_explicit_base_only_and_rejects_invalid_updates_atomically() {
+    assert_eq!(CAPABILITIES & CAP_POINTER_OCCLUSION, 1_i64 << 46);
+    let mut session = setup();
+    for mode in 0..=2 {
+        apply(
+            &mut session,
+            vec![Op::SetStyle(
+                node(),
+                vec![Style::Fields(vec![Field::PointerOcclusion(mode)])],
+            )],
+        )
+        .unwrap();
+    }
+    let revision = session.tree(window()).unwrap().revision();
+    let retained = session.retained_bytes();
+    let mut invalid = vec![
+        Style::Fields(vec![Field::PointerOcclusion(-1)]),
+        Style::Fields(vec![Field::PointerOcclusion(3)]),
+    ];
+    invalid.extend((1..=7).map(|state| Style::State(state, vec![Field::PointerOcclusion(1)])));
+    for style in invalid {
+        assert!(apply(&mut session, vec![Op::SetStyle(node(), vec![style])]).is_err());
+        assert_eq!(session.tree(window()).unwrap().revision(), revision);
+        assert_eq!(session.retained_bytes(), retained);
+    }
+    apply(&mut session, vec![Op::SetStyle(node(), vec![])]).unwrap();
+    assert!(
+        session
+            .tree(window())
+            .unwrap()
+            .get(node())
+            .unwrap()
+            .style
+            .is_empty()
+    );
+}

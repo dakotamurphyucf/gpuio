@@ -21,6 +21,7 @@ type t =
   | Motion
   | Extensions
   | Input
+  | Observations
   | Responsive
   | Desktop
   | Runtime

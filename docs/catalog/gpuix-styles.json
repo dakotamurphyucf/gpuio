@@ -890,12 +890,14 @@
       "source_field": "pointerEvents",
       "public_api": "Style.Property.Pointer_events",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Review semantics: upstream documents auto/none/unset hit and wheel blocking. GPUIO has a Boolean style; audit default, click-through and nested wheel behavior independently.",
+      "status": "mapped with explicit eligibility/occlusion split; local native evidence",
+      "note": "Pointer_events controls inherited listener eligibility. Pointer_occlusion independently selects native-default, pointer-only blocking or pointer-and-scroll blocking. No implicit background/absolute-position occlusion heuristic. Native tests cover inheritance/override, keyboard independence, clipping and all pointer/wheel modes; public gallery covers an overlapping action. Consolidated release gates remain.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "test/view_api/style_values_test.ml",
+        "docs/evidence/input-observations-och41.md"
       ],
       "release_owner": "OCH-17"
     },

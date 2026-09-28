@@ -322,6 +322,7 @@ let component ~app ~desktop ~motion window ~page ~palette graph =
   | Motion -> Motion_page.component app ~motion palette graph
   | Extensions -> Extensions_page.component palette graph
   | Input -> Input_page.component palette graph
+  | Observations -> Observations_page.component window palette graph
   | Responsive -> Responsive_page.component window palette graph
   | Desktop -> Desktop_page.component app desktop window palette graph
   | Runtime -> Runtime_page.component app window palette graph

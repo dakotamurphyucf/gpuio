@@ -961,6 +961,12 @@ class GalleryMouse:
         event = self.create(None, kind, self.Point(*point), 0)
         assert event, 'Cannot create gallery mouse event'
         try:
+            if kind in (1, 2, 3, 4, 25, 26):
+                # Match real native down/up click-count metadata. A generated up
+                # can otherwise carry zero, which is not a valid typed click.
+                set_integer = self.mac.cg.CGEventSetIntegerValueField
+                set_integer.restype, set_integer.argtypes = None, [C.c_void_p, C.c_int, C.c_longlong]
+                set_integer(event, 1, 1)  # kCGMouseEventClickState.
             self.post(0, event)
         finally:
             self.mac.release(event)
@@ -1008,6 +1014,95 @@ class GalleryMouse:
                 self.mac.wait_text(TITLE, 'Transfer cancelled: Escape')
         finally:
             self.send(2, finish)
+
+
+def exercise_observations(mac, images, *, second_title=SECOND):
+    mac.press(TITLE, 'Input observations')
+    mac.wait_text(TITLE, 'Every interaction has a story')
+    expect_field(mac, TITLE, 'Observation draft', 'Small ideas grow here.')
+    raise_gallery(mac)
+    mouse = GalleryMouse(mac)
+    x, y, width, height = mouse.bounds('Input observation surface')
+    point = (x + 40, y + height - 22)
+    mouse.check_owner(point)
+    mouse.send(5, point)
+    mouse.send(1, point)
+    mouse.send(2, point)
+    mac.wait_text(TITLE, 'Clicks: 1')
+    mac.wait_text(TITLE, 'Focus: surface')
+    mac.key(0)  # A raw key while the region itself owns focus.
+    mac.wait_text(TITLE, 'Key: a')
+    mac.key(48)
+    expect_focus(mac, 'Observation draft', 'AXTextField')
+    mac.key(48, flags=1 << 17)
+    mac.wait_text(TITLE, 'Focus: surface')
+    field = mac.wait_find(TITLE, 'Observation draft', 'AXTextField')
+    try:
+        mac.set(field, 'AXFocused', mac.true)
+        mac.key(0, flags=1 << 20)
+        mac.key(0)
+    finally:
+        mac.release(field)
+    expect_field(mac, TITLE, 'Observation draft', 'a')
+    mac.key(105)  # F13 is unbound in the retained editor, reaches capture.
+    mac.wait_text(TITLE, 'Key: f13')
+    mac.press(TITLE, 'Use bubble listeners')
+    expect_field(mac, TITLE, 'Observation draft', 'a')
+    mac.press(TITLE, 'Use capture listeners')
+    expect_field(mac, TITLE, 'Observation draft', 'a')
+    mac.press(TITLE, 'Disable observations')
+    mac.wait_text(TITLE, 'Observations paused')
+    mouse.send(1, point)
+    mouse.send(2, point)
+    mac.wait_text(TITLE, 'Clicks: 1')
+    mac.press(TITLE, 'Enable observations')
+    mac.release(mac.wait_find(TITLE, 'Disable observations', 'AXButton'))
+    mouse.send(5, point)
+    mouse.send(1, point)
+    mouse.send(2, point)
+    mac.wait_text(TITLE, 'Clicks: 2')
+    expect_field(mac, TITLE, 'Observation draft', 'a')
+    front = mac.wait_find(TITLE, 'Save idea', 'AXButton')
+    try:
+        fx, fy, fw, fh = element_rect(mac, front)
+    finally:
+        mac.release(front)
+    front_point = (fx + fw/2, fy + fh/2)
+    mouse.check_owner(front_point)
+    mouse.send(5, front_point)
+    mouse.send(1, front_point)
+    mouse.send(2, front_point)
+    mac.wait_text(TITLE, 'Floating action: 1')
+    mac.wait_text(TITLE, 'Down: 2')
+    mac.wait_text(TITLE, 'Clicks: 2')
+    if images:
+        screenshot(mac, images / 'gallery-observations-dark.png', title=TITLE)
+    mac.press(TITLE, 'Dark')
+    mac.release(mac.wait_find(TITLE, 'Light', 'AXButton'))
+    expect_field(mac, TITLE, 'Observation draft', 'a')
+    if images:
+        screenshot(mac, images / 'gallery-observations-light.png', title=TITLE)
+    mac.press(TITLE, 'Light')
+    mac.release(mac.wait_find(TITLE, 'Dark', 'AXButton'))
+    mac.press(TITLE, 'New window')
+    mac.wait_text(second_title, 'A little context goes a long way')
+    mac.press(second_title, 'Input observations')
+    expect_field(mac, second_title, 'Observation draft', 'Small ideas grow here.')
+    expect_field(mac, TITLE, 'Observation draft', 'a')
+    mac.wait_text(second_title, 'Clicks: 0')
+    mac.close(second_title)
+    raise_gallery(mac)
+    mac.press(TITLE, 'Presentation')
+    mac.wait_text(TITLE, 'A little context goes a long way')
+    field = mac.find(TITLE, 'Observation draft', 'AXTextField')
+    if field:
+        mac.release(field)
+        raise RuntimeError('Departed observation editor remains accessible')
+    mac.press(TITLE, 'Input observations')
+    expect_field(mac, TITLE, 'Observation draft', 'Small ideas grow here.')
+    mac.wait_text(TITLE, 'Clicks: 0')
+    print('GALLERY_OBSERVATIONS_OK: actual pointer/focus/raw keys, retained native editing, '
+          'configuration updates, disabled routing, themes and page teardown', flush=True)
 
 
 def exercise_input(mac, images):
@@ -1648,7 +1743,7 @@ def main():
     parser.add_argument('--images', type=Path)
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -1700,8 +1795,10 @@ def main():
                 exercise_extensions(mac, args.images)
             if args.section in ('all', 'input'):
                 exercise_input(mac, args.images)
+            if args.section in ('all', 'observations'):
+                exercise_observations(mac, args.images, second_title=('GPUIO · Component Studio 4' if args.section == 'all' else SECOND))
             if args.section in ('all', 'desktop'):
-                exercise_desktop(mac, args.images, second_title=('GPUIO · Component Studio 4' if args.section == 'all' else SECOND))
+                exercise_desktop(mac, args.images, second_title=('GPUIO · Component Studio 5' if args.section == 'all' else SECOND))
             if args.section in ('all', 'runtime'):
                 exercise_runtime(mac, args.images)
             mac.close(TITLE)

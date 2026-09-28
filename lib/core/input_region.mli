@@ -72,7 +72,8 @@ module Config : sig
       duplicates and empty lists are errors. Canonical ordering makes subscription
       list order irrelevant. Defaults: enabled and not independently focusable.
       Direct Focus/Blur subscriptions require Click or Tab; key subscriptions can
-      observe descendants with None. *)
+      observe descendants with None. A Tab region precedes its focusable children.
+      Disabled applies to this observer/focus, not to child editor/control state. *)
   val create
     :  label:string
     -> ?disabled:bool

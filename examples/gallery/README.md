@@ -4,7 +4,7 @@ A native public-API gallery under implementation for OCH-41. The first sections
 cover presentation, selection/actions, native text editing, numeric/range inputs,
 verification codes, rating, dates/colors, overlays, navigation/layout and commands/
 feedback, carousel/sidebar/history, managed collections, documents and runtime/
-window previews, canvas, images/icons, charts, plus native motion sequences, shared clocks, responsive layouts, native extensions, input/transfers, desktop services and styling details. Additional v1
+window previews, canvas, images/icons, charts, plus native motion sequences, shared clocks, responsive layouts, native extensions, input/transfers, desktop services, styling details and general input observations. Additional v1
 families and the complete coverage ledger are still being integrated; this is
 not the completed milestone 07 release.
 
@@ -21,6 +21,14 @@ on the current page preserve native text and selection. Preview model state is
 local to its Bonsai branch and survives page changes. Transient modal, chooser and
 in-app toast state is cleared on departure. Application-owned OS notification/link state survives page and window changes. At most four windows are opened by the gallery.
 
+The Input observations page wraps a retained native editor with public
+`View.input_region` subscriptions. Capture/bubble and enable controls update the
+observer without replacing the editor. A floating action uses explicit pointer
+occlusion while wheel input may pass through. Thirteen saturating counters and three
+latest-sample summaries stay bounded; observations reset on page departure.
+Disabling observations does not disable the child editor. Native shortcuts and
+IME retain ownership of editing; raw key callbacks are not a text-input API.
+
 The `--background` launch option avoids requesting focus. macOS accessibility
 may not expose an inactive background app's window until activation; interactive
 keyboard acceptance therefore launches normally. The native test owns and reaps
@@ -31,7 +39,7 @@ python3 scripts/test_gallery.py --images scratch/gallery-images
 ```
 
 Use `--section core`, `styles`, `pickers`, `overlays`, `navigation`, `feedback`, `journeys`,
-`collections`, `documents`, `canvas`, `assets`, `charts`, `motion`, `responsive`, `extensions`, `input`, `desktop` or `runtime` for focused iteration;
+`collections`, `documents`, `canvas`, `assets`, `charts`, `motion`, `responsive`, `extensions`, `input`, `observations`, `desktop` or `runtime` for focused iteration;
 the default `all` exercises all currently integrated acceptance stages in one
 application lifetime. Pickers verify draft cancel/apply and focus restoration;
 overlays exercise dialog/drawer/confirmation/popover dismissal and focus; workspace

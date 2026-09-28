@@ -29,7 +29,7 @@ module Desktop = Desktop_wire
 module Notification = Notification_wire
 
 let version = 1L
-let capabilities = 70368744177663L
+let capabilities = 140737488355327L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -395,6 +395,7 @@ module Field = struct
     | Selection_color of Color.t
     | Accessible_name of string
     | Inert of bool
+    | Pointer_occlusion of int64
   [@@deriving bin_io, equal, sexp_of]
 end
 

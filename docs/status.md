@@ -6,17 +6,17 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 passed on `473407c`; all twelve tickets are Done.
 
 Milestone 07 is in progress. OCH-41's public
-[Component Studio](../examples/gallery/README.md) now has twenty-one preview sections,
-including canvas, images/icons, charts, native motion, responsive layouts, native extensions, input/transfers, desktop services and styling details. The [gallery evidence](evidence/gallery-och41.md) records
+[Component Studio](../examples/gallery/README.md) now has twenty-two preview sections,
+including canvas, images/icons, charts, native motion, responsive layouts, native extensions, input/transfers, input observations, desktop services and styling details. The [gallery evidence](evidence/gallery-och41.md) records
 local macOS interaction, geometry, gallery expect tests, formatting and structural
 catalog checks, separately from earlier native document/Clippy regression checks.
 The current catalog maps every required v1 family to a gallery page. Detailed
 behavioral parity, installed-consumer and release gates are still pending. The
-[event audit](catalog/gpuix-events.json) explicitly records remaining generic
-input, subtree highlighting and diff-control gaps; the gallery page count does
+[event audit](catalog/gpuix-events.json) records validated input contracts and remaining subtree
+highlighting and diff-control gaps; the gallery page count does
 not imply parity. General input regions now have mounted Core/Bonsai/native
-integration and focused local dispatch evidence; public gallery and remaining
-edge-case acceptance stay open in the [input ledger](evidence/input-observations-och41.md). Start ellipsis and the complete cursor vocabulary now have
+integration, native edge-case and public gallery evidence; remaining consumer/
+release acceptance stays open in the [input ledger](evidence/input-observations-och41.md). Start ellipsis and the complete cursor vocabulary now have
 paired codec, native validation and focused gallery evidence. OCH-17 is also in progress: the
 [native document accessibility repair](evidence/document-accessibility-och17.md)
 now exposes body text, read-only source/code, keyboard/AX inline-link activation

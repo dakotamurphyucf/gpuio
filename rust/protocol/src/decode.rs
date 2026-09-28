@@ -622,6 +622,7 @@ impl Decoder<'_> {
             63 => Field::SelectionColor(self.color()?),
             64 => Field::AccessibleName(self.text()?),
             65 => Field::Inert(self.boolean()?),
+            66 => Field::PointerOcclusion(self.int()?),
             _ => return Err(DecodeError::Malformed),
         })
     }

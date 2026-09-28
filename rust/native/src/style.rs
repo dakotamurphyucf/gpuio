@@ -31,6 +31,21 @@ pub(crate) fn inert(styles: &[Style]) -> bool {
         })
         .unwrap_or(false)
 }
+/// Last base declaration wins on this element; pointer eligibility/inheritance
+/// remains separate. No color or position heuristic silently changes hit testing.
+pub(crate) fn pointer_occlusion(styles: &[Style]) -> i64 {
+    styles
+        .iter()
+        .rev()
+        .find_map(|style| match style {
+            Style::Fields(fields) => fields.iter().rev().find_map(|field| match field {
+                Field::PointerOcclusion(value) => Some(*value),
+                _ => None,
+            }),
+            _ => None,
+        })
+        .unwrap_or(0)
+}
 fn bounded(v: f64) -> bool {
     v.is_finite() && v.abs() <= 1_000_000.
 }
@@ -82,7 +97,8 @@ pub fn validate_fields(fields: &[Field]) -> Result<(), ErrorCode> {
             | Field::TextDecoration(v)
             | Field::OverflowX(v)
             | Field::OverflowY(v) => (0..=3).contains(v),
-            Field::Wrap(v)
+            Field::PointerOcclusion(v)
+            | Field::Wrap(v)
             | Field::GridColumnMinimum(v)
             | Field::GridRowMinimum(v)
             | Field::TextAlign(v)
@@ -433,7 +449,8 @@ pub fn refine(style: &mut gpui::StyleRefinement, fields: &[Field]) {
             | Field::UserSelect(_)
             | Field::SelectionColor(_)
             | Field::AccessibleName(_)
-            | Field::Inert(_) => (),
+            | Field::Inert(_)
+            | Field::PointerOcclusion(_) => (),
         }
     }
 }

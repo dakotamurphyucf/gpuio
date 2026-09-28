@@ -10,7 +10,11 @@ use gpuio_protocol::{
     input::*,
     pointer::{PointerButton, PointerModifiers},
 };
-use std::{cell::RefCell, rc::Rc, sync::Arc};
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
+    sync::Arc,
+};
 
 pub(super) type Shared = Rc<RefCell<State>>;
 pub(super) struct State {
@@ -19,6 +23,7 @@ pub(super) struct State {
     pub(super) focus: FocusHandle,
     subscriptions: Vec<gpui::Subscription>,
     hovered: bool,
+    pointer_inside_window: Rc<Cell<bool>>,
     pressed: [bool; 5],
     painted: bool,
 }
@@ -46,6 +51,12 @@ fn slot(button: PointerButton) -> usize {
         PointerButton::Back => 3,
         PointerButton::Forward => 4,
     }
+}
+fn contains(hitbox: &Hitbox, point: &gpui::Point<Pixels>) -> bool {
+    hitbox
+        .bounds
+        .intersect(&hitbox.content_mask.bounds)
+        .contains(point)
 }
 fn location(point: gpui::Point<Pixels>, bounds: Bounds<Pixels>, keys: gpui::Modifiers) -> Location {
     Location {
@@ -136,7 +147,7 @@ fn hover(state: &Shared, hitbox: &Hitbox, window: &mut Window, cx: &mut App) {
             state.reset();
             return;
         }
-        let hovered = hitbox.is_hovered(window);
+        let hovered = state.pointer_inside_window.get() && hitbox.is_hovered(window);
         if hovered == state.hovered {
             return;
         }
@@ -178,6 +189,7 @@ impl View {
             gate: self.focus.clone(),
             transport: self.transport.clone(),
         };
+        let pointer_inside_window = self.input_pointer_inside.clone();
         let state = self
             .input_regions
             .entry(id)
@@ -188,6 +200,7 @@ impl View {
                     focus: cx.focus_handle().tab_stop(false),
                     subscriptions: Vec::new(),
                     hovered: false,
+                    pointer_inside_window,
                     pressed: [false; 5],
                     painted: false,
                 }))
@@ -350,6 +363,24 @@ impl<E: Element> Element for Region<E> {
         cx: &mut App,
     ) {
         let binding = self.state.borrow().route.handler;
+        {
+            // Register the region before its native descendants so Tab follows
+            // the same parent-before-child order as the public view tree.
+            let state = self.state.borrow();
+            let visible = bounds.intersect(&prepaint.0.content_mask.bounds);
+            if !state.config.disabled
+                && state.config.focus != Focus::None
+                && visible.size.width > gpui::px(0.)
+                && visible.size.height > gpui::px(0.)
+            {
+                state.route.gate.borrow_mut().record(
+                    state.route.node,
+                    state.focus.clone(),
+                    state.config.focus == Focus::Tab,
+                    state.focus.is_focused(window),
+                );
+            }
+        }
         let state = self.state.clone();
         let hitbox = prepaint.0.clone();
         // Registered before child paint: capture is parent-first, bubble is child-first.
@@ -362,13 +393,13 @@ impl<E: Element> Element for Region<E> {
                 state.borrow_mut().reset();
                 return;
             }
-            let inside = hitbox.is_hovered(window) && hitbox.bounds.contains(&event.position);
+            let inside = hitbox.is_hovered(window) && contains(&hitbox, &event.position);
             let sample = Mouse {
                 location: location(event.position, bounds, event.modifiers),
                 button: button(event.button),
                 click_count: event.click_count as i64,
             };
-            if phase.capture() && !hitbox.bounds.contains(&event.position) {
+            if phase.capture() && !contains(&hitbox, &event.position) {
                 emit(&state, Event::MouseDownOutside(sample), None, window, cx);
             }
             if inside {
@@ -400,7 +431,7 @@ impl<E: Element> Element for Region<E> {
                 *pending.borrow_mut() = false;
                 return;
             }
-            if !hitbox.is_hovered(window) || !hitbox.bounds.contains(&event.position) {
+            if !hitbox.is_hovered(window) || !contains(&hitbox, &event.position) {
                 return;
             }
             let sample = Mouse {
@@ -436,7 +467,7 @@ impl<E: Element> Element for Region<E> {
                 }
                 hover(&state, &hitbox, window, cx);
             }
-            if hitbox.is_hovered(window) && hitbox.bounds.contains(&event.position) {
+            if hitbox.is_hovered(window) && contains(&hitbox, &event.position) {
                 emit(
                     &state,
                     Event::MouseMove(Motion {
@@ -447,6 +478,21 @@ impl<E: Element> Element for Region<E> {
                     window,
                     cx,
                 );
+            }
+        });
+        let state = self.state.clone();
+        window.on_mouse_event(move |_: &gpui::MouseExitEvent, phase, window, cx| {
+            if !phase.capture() || state.borrow().route.handler != binding {
+                return;
+            }
+            let was_hovered = {
+                let mut state = state.borrow_mut();
+                let hovered = state.hovered;
+                state.reset();
+                hovered
+            };
+            if was_hovered {
+                emit(&state, Event::MouseLeave, None, window, cx);
             }
         });
         let state = self.state.clone();
@@ -510,4 +556,39 @@ impl<E: Element> Element for Region<E> {
         self.element
             .a11y_synthetic_children(&mut prepaint.1, builder);
     }
+}
+
+/// Installed before descendant listeners, even when no region is mounted. GPUI
+/// preserves its last in-window mouse position on MouseExited, so deferred hover
+/// checks must not infer re-entry from that stale position after a repaint.
+pub(super) fn install_pointer_presence(inside: Rc<Cell<bool>>, window: &mut Window) {
+    let moved = inside.clone();
+    window.on_mouse_event(move |_: &gpui::MouseMoveEvent, phase, _, _| {
+        if phase.capture() {
+            moved.set(true);
+        }
+    });
+    let down = inside.clone();
+    window.on_mouse_event(move |_: &gpui::MouseDownEvent, phase, _, _| {
+        if phase.capture() {
+            down.set(true);
+        }
+    });
+    let up = inside.clone();
+    window.on_mouse_event(move |_: &gpui::MouseUpEvent, phase, _, _| {
+        if phase.capture() {
+            up.set(true);
+        }
+    });
+    let wheel = inside.clone();
+    window.on_mouse_event(move |_: &gpui::ScrollWheelEvent, phase, _, _| {
+        if phase.capture() {
+            wheel.set(true);
+        }
+    });
+    window.on_mouse_event(move |_: &gpui::MouseExitEvent, phase, _, _| {
+        if phase.capture() {
+            inside.set(false);
+        }
+    });
 }

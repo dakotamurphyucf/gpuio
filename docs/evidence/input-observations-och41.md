@@ -2,8 +2,8 @@
 
 Status: mounted integration with focused local macOS native dispatch evidence.
 Core/Bonsai `View.input_region`, protocol capability bit 45 and the native adapter
-are implemented. The public gallery and remaining native edge cases below still
-block complete event-row acceptance. [Public contract](../design/input-observations.md).
+are implemented. The public gallery and native edge cases now pass locally;
+installed-consumer and consolidated release gates below remain. [Public contract](../design/input-observations.md).
 
 ## Domain and bridge
 
@@ -17,7 +17,9 @@ duplicates and makes declaration reordering semantically inert.
 a dependency cycle; existing pointer bytes are unchanged. New node kind 49 and
 operation 56 append the mounted region and configuration. `Input_observed` appends
 the event envelope. Bit 45 advertises this adapter; the aggregate capability mask
-is `70368744177663`. Updating its Hello fixture is an intentional wire change.
+was `70368744177663` at the mounted-adapter checkpoint. Explicit pointer occlusion
+now appends field 66 and capability bit 46; the current shared mask is
+`140737488355327`. Hello fixture updates are intentional wire changes.
 
 Independent Rust/OCaml fixtures cover all thirteen event kinds, five buttons,
 optional pressed-button/character data, UTF-8, maximum u32 click count, both wheel
@@ -79,22 +81,65 @@ Successful output contains `GPUIO_INPUT_REGION_NESTED_OK` and
 separate required macOS step and the informational Linux graphical sequences;
 adding a step does not claim a hosted pass.
 
+## Edge cases and public gallery
+
+The expanded `native_input_region` fixture also passes:
+
+- Window exit without a final movement: one leave, no false re-entry after redraw,
+  one real re-entry and cancellation of the held click.
+- Parent-before-child Tab order and reverse traversal; inherited pointer disabling
+  with keyboard preserved; nearest pointer override; clipped inside/outside bounds.
+- A real modal focus scope, actual second-window activation/deactivation, repeat
+  flags, one direct blur when moving to the child, and no false region focus-within.
+- macOS `NSTextInputClient` marked Japanese text survives a subscription binding
+  update and commits normally. IME does not manufacture raw key observations.
+- An explicitly occluding sibling button activates while the covered region does
+  not receive mouse edges. All three occlusion modes are tested separately for
+  pointer and wheel input, including resetting to ordinary native behavior.
+- Foreign pointer capture remains owned by the other component and cancels a
+  pending observed click. Removing the previews releases their native state.
+
+These checks found and corrected two edge defects: ignoring `MouseExited`, and
+using unmasked hitbox bounds for outside-down. Focus recording moved ahead of
+child paint so Tab traverses the region before its editor. Ordinary native buttons
+were confirmed not to occlude implicitly; the new typed `Style.Pointer_occlusion`
+provides the explicit behavior instead of an undocumented color/position heuristic.
+Rust/OCaml independently assert field bytes `4200`, `4201`, `4202`; invalid modes
+and non-base declarations reject atomically. Capability bit 46 fences older hosts.
+
+The twenty-second gallery page, **Input observations**, mounts this public API
+through Eio/Bonsai with a retained native editor and floating occluding action.
+Only thirteen saturating counters and the latest samples are kept. Observations
+reset on page departure; native editor leases are disposed and recreated on return.
+Local `scripts/test_gallery.py --section observations` passes actual macOS clicks,
+AX focus and typing, Tab/Shift-Tab, raw F13 through the editor, configuration changes,
+disabling/re-enabling observations, sibling action occlusion, dark/light appearance,
+independent windows and page teardown. Both theme screenshots were inspected;
+screenshots supplement the behavioral checks rather than proving them.
+
+Initial public test failures were resolved explicitly: generated mouse-up events
+now set the native click-count metadata used by the existing macOS click helper;
+the test waits for the asynchronous enable update to render; preview observations
+now reset on departure. Native repeat/hover checks filter the observation category
+under test because focus/modality may legitimately emit additional edges.
+
 ## Remaining acceptance
 
-- Native window-exit hover handling; pointer inheritance/clipping and sibling
-  occlusion; modal, deactivation and foreign capture cancellation; explicit focus/
-  blur counts, repeats, IME and multiple-window isolation edge checks.
-- Public gallery example and actual macOS keyboard/pointer/accessibility route,
-  including retained native child state and teardown through Eio/Bonsai.
-- Installed consumer and consolidated required hosted checks. Linux build/unit/
-  private-bus/consumer checks stay required; full desktop acceptance remains OCH-47.
+- Installed gallery consumer, combined twenty-two-page walkthrough and consolidated
+  required hosted checks; the focused page run is not that combined acceptance.
+- Full release accessibility/screen-reader, platform/performance and resource gates
+  remain OCH-17. The marked-text check is a native client scenario, not exhaustive
+  testing of every user-installed input method.
+- Linux build/unit/private-bus/consumer checks stay required; real Linux desktop
+  acceptance remains OCH-47. No Linux GUI pass is claimed by these macOS checks.
 
-The mounted integration passes the full protocol/native Rust suites, full OCaml
-suite, strict native lint with native-test targets enabled, and formatting locally:
+The latest edge/gallery integration passes all 683 protocol/native Rust tests,
+the full OCaml suite, strict protocol/native lint with native-test targets enabled,
+and formatting locally:
 
 ```sh
 ./scripts/gpuio exec cargo test -p gpuio-protocol -p gpuio-native --locked -j 2
-./scripts/gpuio exec cargo clippy -p gpuio-native --features native-tests --all-targets --locked -j 2 -- -D warnings
+./scripts/gpuio exec cargo clippy -p gpuio-native -p gpuio-protocol --features native-tests --all-targets --locked -j 2 -- -D warnings
 ./scripts/gpuio exec dune build @fmt
 ./scripts/gpuio exec dune runtest
 python3 scripts/audit_component_catalog.py
@@ -104,3 +149,9 @@ The catalog audit and shell syntax checks pass. An initial full Rust run caught 
 Hello byte-vector expectation still using bit 44's aggregate; it was corrected to
 the independently checked bit 45 aggregate before the passing rerun. Focused GUI
 and local suite evidence do not replace the remaining public/hosted release gates.
+
+Final local logs are `input-occlusion-native.log`, `observations-ax-6.log`,
+`input-edges-full-rust.log`, `input-edges-clippy.log`,
+`input-edges-full-ocaml-3.log` and `input-edges-fmt-final.log` under the implementing
+agent's ignored notepad directory. The first OCaml run caught a new test spelling
+`Hover` instead of `Hovered`; that test was corrected before the passing run.

@@ -502,3 +502,38 @@ observations, and whole-document collapse/search from missing per-file diff and
 arbitrary-subtree highlighting controls. These gaps remain required v1 work, not
 accepted deferrals. Detailed remaining style values, nested component behavior,
 installed consumers and OCH-17 release acceptance remain open.
+
+
+## Input observations and pointer occlusion — twenty-two-page checkpoint
+
+A public **Input observations** page now wraps an Eio-owned native editor with
+Core/Bonsai `View.input_region`. All thirteen event kinds are represented by bounded
+counters/latest samples. Listener configuration changes retain the editor; leaving
+the page clears observations and releases the editor lease. A floating sibling
+button demonstrates explicit pointer occlusion while retaining wheel propagation.
+
+The focused macOS `--section observations` run passes actual pointer down/up/click,
+AX focus and native typing, Tab/Shift-Tab order, raw F13 from the retained editor,
+capture/bubble configuration changes, disabled/re-enabled observations, the floating
+action without underlying pointer delivery, dark/light themes, independent second
+windows and page departure/revisit. Both theme screenshots were inspected. The
+final local run is `observations-ax-6.log`; earlier failures and fixes are recorded
+in the [input evidence](input-observations-och41.md). The harness closes/reaps both
+windows. The combined walkthrough now accounts for the extra independent window;
+a combined twenty-two-page result is still pending.
+
+Native checks separately cover all buttons/counts/modifiers, precise/line wheel
+units and touch phases, nesting/propagation, clipped bounds, native window exit,
+modal scopes, deactivation, repeated keys, focus edges, macOS marked-text retention,
+all three occlusion modes and foreign capture ownership/disposal. Public
+`Style.Pointer_occlusion` appends field 66 and capability bit 46. The API separates
+listener eligibility from occlusion; it does not infer blocking from background
+color or absolute positioning. The catalog records this deliberate difference.
+
+The final full protocol/native suite passes 683 Rust tests; full OCaml expect
+tests, feature-enabled strict lint, formatting and the structural catalog audit
+also pass locally. Native input regions are now functionally mapped in the GPUIX event ledger with
+these local evidence limits. Remaining subtree highlighting, per-file diff controls,
+other style/nested-family audits, independent installed consumers and consolidated
+OCH-17 release/hosted gates remain required work. This checkpoint is not Linux GUI
+or completed milestone acceptance.

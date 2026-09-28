@@ -400,6 +400,7 @@ module type S = sig
       | Selection_color of Color.t
       | Accessible_name of string
       | Inert of bool
+      | Pointer_occlusion of int64
     [@@deriving bin_io, equal, sexp_of]
   end
 

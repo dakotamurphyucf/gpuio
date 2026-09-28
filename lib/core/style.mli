@@ -115,6 +115,19 @@ module Overflow : sig
   [@@deriving equal, sexp_of]
 end
 
+(** Controls native hit testing behind this element, independently of whether
+    its own listeners are enabled. None uses ordinary native behavior. Pointer
+    blocks pointer hitboxes behind it while allowing wheel input through;
+    Pointer_and_scroll blocks both. Base style only, not inherited. This does not
+    disable children or replace modal/native-control priority. *)
+module Pointer_occlusion : sig
+  type t =
+    | None
+    | Pointer
+    | Pointer_and_scroll
+  [@@deriving equal, sexp_of]
+end
+
 module Cursor : sig
   type t =
     | Arrow
@@ -223,6 +236,7 @@ module Property : sig
     | Overflow_x of Overflow.t
     | Overflow_y of Overflow.t
     | Cursor of Cursor.t
+    | Pointer_occlusion of Pointer_occlusion.t
     | Pointer_events of bool
     | User_select of bool
     | Selection_color of Color.t
@@ -304,6 +318,7 @@ module Property : sig
       | Overflow_x
       | Overflow_y
       | Cursor
+      | Pointer_occlusion
       | Pointer_events
       | User_select
       | Selection_color

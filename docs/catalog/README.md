@@ -25,12 +25,13 @@ that every source entry is implemented or validated.
   evidence; physical OS cursor glyphs are not asserted.
 - `gpuix-events.json`: all 22 event properties, with current public contracts,
   exact pinned implementation links, remaining differences, owner and platform
-  limits. Generic input observations, subtree highlighting and per-file diff
-  controls remain required v1 work. A mapped row is not release acceptance.
+  limits. General input observations now have local native and public gallery
+  evidence; subtree highlighting and per-file diff controls remain required v1
+  work. A mapped row is not release acceptance.
   The [input-observation contract](../design/input-observations.md) and validated
   `Input_region` domain/codecs, Core/Bonsai constructor and native event delivery
-  now have focused local evidence. Remaining native edge cases and the public
-  gallery keep those rows partial; see the [input evidence](../evidence/input-observations-och41.md).
+  now have local native edge-case and public gallery evidence. Consolidated
+  consumer/release checks remain; see the [input evidence](../evidence/input-observations-och41.md).
 - `families.json`: all 146 root-module entries mapped to 43 owning families,
   public interfaces, existing examples, evidence and release scopes. Helpers map
   to their owning runtime/style/interaction contract rather than separate widgets.

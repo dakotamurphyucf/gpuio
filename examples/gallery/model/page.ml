@@ -19,6 +19,7 @@ type t =
   | Motion
   | Extensions
   | Input
+  | Observations
   | Responsive
   | Desktop
   | Runtime
@@ -43,6 +44,7 @@ let all =
   ; Motion
   ; Extensions
   ; Input
+  ; Observations
   ; Responsive
   ; Desktop
   ; Runtime
@@ -68,6 +70,7 @@ let title = function
   | Motion -> "Motion & rhythm"
   | Extensions -> "Native extensions"
   | Input -> "Input & transfers"
+  | Observations -> "Input observations"
   | Responsive -> "Responsive layouts"
   | Desktop -> "Desktop services"
   | Runtime -> "Runtime & windows"
@@ -92,6 +95,7 @@ let description = function
   | Motion -> "Thoughtful transitions, natural springs and a shared rhythm."
   | Extensions -> "Bring your own native components to the workspace."
   | Input -> "Direct gestures, simple transfers and keyboard alternatives."
+  | Observations -> "Explore the details of everyday interactions."
   | Responsive -> "Thoughtful layouts that adapt to the space around them."
   | Desktop -> "A workspace that feels at home on your desktop."
   | Runtime -> "Native window behavior and visible resource ownership."
@@ -116,6 +120,7 @@ let key = function
   | Motion -> "motion"
   | Extensions -> "extensions"
   | Input -> "input"
+  | Observations -> "observations"
   | Responsive -> "responsive"
   | Desktop -> "desktop"
   | Runtime -> "runtime"

@@ -242,6 +242,51 @@ pub(super) async fn exercise(
             .iter()
             .any(|e| matches!(e, input::Event::Click(_) | input::Event::AuxiliaryClick(_)))
     );
+    // Some platforms send MouseExited without a final outside MouseMove. One
+    // leave, no stale re-entry on repaint, and no click after returning with up.
+    move_mouse(cx, handle, inside);
+    mouse(cx, handle, inside, gpui::MouseButton::Left, true);
+    observations(transport);
+    input(
+        cx,
+        handle,
+        gpui::PlatformInput::MouseExited(gpui::MouseExitEvent {
+            position: outside,
+            pressed_button: Some(gpui::MouseButton::Left),
+            modifiers: Default::default(),
+        }),
+    );
+    let events = observations(transport);
+    assert_eq!(events, vec![input::Event::MouseLeave], "window exit edge");
+    draw(cx, handle);
+    frame(cx, handle).await;
+    let events = observations(transport);
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event, input::Event::MouseEnter | input::Event::MouseLeave)),
+        "repaint must not infer hover transitions: {events:?}"
+    );
+    assert!(
+        !handle
+            .update(cx, |view, _, _| view.input_pointer_inside.get())
+            .unwrap()
+    );
+    move_mouse(cx, handle, inside);
+    mouse(cx, handle, inside, gpui::MouseButton::Left, false);
+    let events = observations(transport);
+    assert_eq!(
+        events
+            .iter()
+            .filter(|e| matches!(e, input::Event::MouseEnter))
+            .count(),
+        1
+    );
+    assert!(
+        !events.iter().any(|e| matches!(e, input::Event::Click(_))),
+        "exit cancels held click"
+    );
+    eprintln!("GPUIO_INPUT_REGION_WINDOW_EXIT_OK: leave, repaint, re-entry and cancelled click");
     for phase in [
         gpui::TouchPhase::Started,
         gpui::TouchPhase::Moved,
@@ -294,6 +339,27 @@ pub(super) async fn exercise(
         "direct keys: {events:?}"
     );
     assert!(events.iter().any(|e| matches!(e, input::Event::KeyUp(_))));
+    key(cx, handle, "tab");
+    frame(cx, handle).await;
+    assert!(
+        handle
+            .update(cx, |view, window, cx| view.editors[&node(4)]
+                .focus_handle(cx)
+                .is_focused(window))
+            .unwrap(),
+        "Tab enters child editor after region"
+    );
+    key(cx, handle, "shift-tab");
+    frame(cx, handle).await;
+    assert!(
+        handle
+            .update(cx, |view, window, _| view.input_regions[&node(5)]
+                .borrow()
+                .focus
+                .is_focused(window))
+            .unwrap(),
+        "Shift-Tab returns to region"
+    );
     // Focused native descendants receive normal editing while capture observes keys.
     handle
         .update(cx, |view, window, cx| {
@@ -362,6 +428,8 @@ pub(super) async fn exercise(
     changed(cx, handle, 4, next);
     draw(cx, handle);
     nested(cx, handle, transport).await;
+    eligibility(cx, handle, transport).await;
+    occlusion_and_capture(cx, handle, transport).await;
     apply(
         cx,
         handle,
@@ -521,5 +589,454 @@ async fn nested(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport: 
     frame(cx, handle).await;
     println!(
         "GPUIO_INPUT_REGION_NESTED_OK: parent capture, child-first bubble, native capture prevention and child stop propagation"
+    );
+}
+
+async fn eligibility(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport: &Transport) {
+    let inside = gpui::point(px(100.), px(180.));
+    // Pointer inheritance is independent of keyboard focus and native editing.
+    apply(
+        cx,
+        handle,
+        vec![Op::SetStyle(
+            node(0),
+            vec![Style::Fields(vec![Field::PointerEvents(false)])],
+        )],
+    );
+    draw(cx, handle);
+    handle
+        .update(cx, |view, window, cx| {
+            window.focus(&view.input_regions[&node(5)].borrow().focus, cx)
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    observations(transport);
+    move_mouse(cx, handle, inside);
+    mouse(cx, handle, inside, gpui::MouseButton::Left, true);
+    mouse(cx, handle, inside, gpui::MouseButton::Left, false);
+    assert!(
+        observations(transport).is_empty(),
+        "inherited pointer disable"
+    );
+    key(cx, handle, "f13");
+    assert!(
+        observations(transport)
+            .iter()
+            .any(|e| matches!(e, input::Event::KeyDown(k, _) if k.key == "f13")),
+        "pointer disable must preserve keyboard scope"
+    );
+    let mut override_style = styles(false);
+    override_style.push(Style::Fields(vec![Field::PointerEvents(true)]));
+    apply(cx, handle, vec![Op::SetStyle(node(5), override_style)]);
+    draw(cx, handle);
+    move_mouse(cx, handle, inside);
+    observations(transport);
+    mouse(cx, handle, inside, gpui::MouseButton::Left, true);
+    mouse(cx, handle, inside, gpui::MouseButton::Left, false);
+    assert!(
+        observations(transport)
+            .iter()
+            .any(|e| matches!(e, input::Event::Click(_))),
+        "nearest pointer override"
+    );
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::SetStyle(node(5), styles(false)),
+            Op::SetStyle(
+                node(0),
+                vec![Style::Fields(vec![
+                    Field::Width(Length::Px(180.)),
+                    Field::Height(Length::Px(140.)),
+                    Field::OverflowX(1),
+                    Field::OverflowY(1),
+                ])],
+            ),
+        ],
+    );
+    draw(cx, handle);
+    move_mouse(cx, handle, inside);
+    observations(transport);
+    mouse(cx, handle, inside, gpui::MouseButton::Left, true);
+    mouse(cx, handle, inside, gpui::MouseButton::Left, false);
+    let events = observations(transport);
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, input::Event::MouseDownOutside(_))),
+        "clipped boundary: {events:?}"
+    );
+    assert!(
+        !events.iter().any(|e| matches!(
+            e,
+            input::Event::MouseDown(_) | input::Event::MouseUp(_) | input::Event::Click(_)
+        )),
+        "clipped input must not reach surface: {events:?}"
+    );
+    apply(cx, handle, vec![Op::SetStyle(node(0), vec![])]);
+    draw(cx, handle);
+    move_mouse(cx, handle, inside);
+    mouse(cx, handle, inside, gpui::MouseButton::Left, true);
+    // A newly mounted real modal traps input outside its subtree and cancels the
+    // held press, including after the modal closes and focus is restored.
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Create(node(8), Kind::FocusScope, "".into(), None),
+            Op::SetFocusScope(
+                node(8),
+                FocusScopeConfig {
+                    trap: true,
+                    auto_focus: true,
+                    restore_focus: true,
+                },
+            ),
+            Op::Splice(node(0), 1, 0, vec![node(8)]),
+        ],
+    );
+    frame(cx, handle).await;
+    observations(transport);
+    mouse(cx, handle, inside, gpui::MouseButton::Left, true);
+    mouse(cx, handle, inside, gpui::MouseButton::Left, false);
+    key(cx, handle, "f13");
+    assert!(
+        observations(transport).is_empty(),
+        "modal fences background region"
+    );
+    apply(
+        cx,
+        handle,
+        vec![Op::Splice(node(0), 1, 1, vec![]), Op::Remove(node(8))],
+    );
+    frame(cx, handle).await;
+    observations(transport);
+    mouse(cx, handle, inside, gpui::MouseButton::Left, false);
+    assert!(
+        !observations(transport)
+            .iter()
+            .any(|e| matches!(e, input::Event::Click(_))),
+        "modal retirement must not revive held click"
+    );
+    // Real native activation change: the inactive window must reject input and
+    // must not complete its old press after regaining focus.
+    mouse(cx, handle, inside, gpui::MouseButton::Left, true);
+    let other = cx
+        .update(|cx| {
+            cx.open_window(
+                WindowOptions {
+                    window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
+                        None,
+                        size(px(200.), px(120.)),
+                        cx,
+                    ))),
+                    ..Default::default()
+                },
+                |_, cx| cx.new(|_| gpui::Empty),
+            )
+        })
+        .unwrap();
+    other
+        .update(cx, |_, window, _| window.activate_window())
+        .unwrap();
+    cx.background_executor()
+        .timer(std::time::Duration::from_millis(100))
+        .await;
+    assert!(
+        !handle
+            .update(cx, |_, window, _| window.is_window_active())
+            .unwrap()
+    );
+    observations(transport);
+    mouse(cx, handle, inside, gpui::MouseButton::Left, false);
+    key(cx, handle, "f13");
+    assert!(
+        observations(transport).is_empty(),
+        "inactive window rejects input"
+    );
+    other
+        .update(cx, |_, window, _| window.remove_window())
+        .unwrap();
+    handle
+        .update(cx, |_, window, _| window.activate_window())
+        .unwrap();
+    frame(cx, handle).await;
+    move_mouse(cx, handle, inside);
+    observations(transport);
+    mouse(cx, handle, inside, gpui::MouseButton::Left, false);
+    assert!(
+        !observations(transport)
+            .iter()
+            .any(|e| matches!(e, input::Event::Click(_))),
+        "reactivation must not revive held click"
+    );
+    // Repeat and direct blur have their own native observations, not inferred
+    // from text insertion or focus-within.
+    handle
+        .update(cx, |view, window, cx| {
+            window.focus(&view.input_regions[&node(5)].borrow().focus, cx)
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    observations(transport);
+    input(
+        cx,
+        handle,
+        gpui::PlatformInput::KeyDown(gpui::KeyDownEvent {
+            keystroke: gpui::Keystroke::parse("f13").unwrap(),
+            is_held: true,
+            prefer_character_input: false,
+        }),
+    );
+    let events = observations(transport);
+    let keys: Vec<_> = events
+        .iter()
+        .filter(|event| matches!(event, input::Event::KeyDown(..)))
+        .collect();
+    assert!(
+        matches!(keys.as_slice(), [input::Event::KeyDown(_, true)]),
+        "one native repeat observation: {events:?}"
+    );
+    handle
+        .update(cx, |view, window, cx| {
+            window.focus(&view.editors[&node(4)].focus_handle(cx), cx)
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    let events = observations(transport);
+    assert_eq!(
+        events
+            .iter()
+            .filter(|e| matches!(e, input::Event::Blur))
+            .count(),
+        1,
+        "direct blur: {events:?}"
+    );
+    assert!(
+        !events.iter().any(|e| matches!(e, input::Event::Focus)),
+        "child focus is not region focus"
+    );
+    #[cfg(target_os = "macos")]
+    {
+        super::super::editor_test::native_text(cx, handle, "かな", true);
+        let marked = handle
+            .update(cx, |view, window, cx| {
+                view.editors[&node(4)].snapshot(window, cx)
+            })
+            .unwrap();
+        assert!(marked.composition.is_some());
+        // Changing the observation binding must not replace the editor or IME.
+        let mut config = config();
+        config.label = "IME retained".into();
+        changed(cx, handle, 9, config);
+        draw(cx, handle);
+        let retained = handle
+            .update(cx, |view, window, cx| {
+                view.editors[&node(4)].snapshot(window, cx)
+            })
+            .unwrap();
+        assert_eq!(marked.composition, retained.composition);
+        super::super::editor_test::native_text(cx, handle, "仮名", false);
+        let committed = handle
+            .update(cx, |view, window, cx| {
+                view.editors[&node(4)].snapshot(window, cx)
+            })
+            .unwrap();
+        assert!(committed.composition.is_none());
+        assert!(committed.text.contains("仮名"));
+        assert!(
+            !observations(transport)
+                .iter()
+                .any(|e| matches!(e, input::Event::KeyDown(..))),
+            "IME text must not fabricate raw keys"
+        );
+        println!(
+            "GPUIO_INPUT_REGION_IME_OK: native marked text survives binding update and commits"
+        );
+    }
+    println!(
+        "GPUIO_INPUT_REGION_ELIGIBILITY_OK: pointer inheritance/override, clipping, modal, activation, repeat and direct focus edges"
+    );
+}
+
+async fn occlusion_and_capture(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    transport: &Transport,
+) {
+    let inside = gpui::point(px(100.), px(180.));
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Create(
+                node(9),
+                Kind::Button,
+                "Occluding button".into(),
+                Some(HandlerId::from_parts(9, 1).unwrap()),
+            ),
+            Op::SetControl(node(9), Control::Button(false)),
+            Op::SetStyle(
+                node(9),
+                vec![Style::Fields(vec![
+                    Field::Position(1),
+                    Field::Left(Length::Px(60.)),
+                    Field::Top(Length::Px(160.)),
+                    Field::Width(Length::Px(100.)),
+                    Field::Height(Length::Px(40.)),
+                    Field::Background(Fill::Solid(Color::Rgba(0x405060ff))),
+                    Field::PointerOcclusion(1),
+                ])],
+            ),
+            Op::Splice(node(0), 1, 0, vec![node(9)]),
+        ],
+    );
+    frame(cx, handle).await;
+    move_mouse(cx, handle, inside);
+    observations(transport);
+    mouse(cx, handle, inside, gpui::MouseButton::Left, true);
+    mouse(cx, handle, inside, gpui::MouseButton::Left, false);
+    let events = transport.mailbox.lock().unwrap().drain(128);
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, Event::Press(_, id, ..) if *id == node(9))),
+        "actual occluding button activated: {events:?}"
+    );
+    assert!(
+        !events.iter().any(|e| matches!(
+            e,
+            Event::InputObserved(
+                _,
+                _,
+                _,
+                _,
+                input::Event::MouseDown(_) | input::Event::MouseUp(_) | input::Event::Click(_)
+            )
+        )),
+        "covered region must not observe pointer edges: {events:?}"
+    );
+    for mode in [0, 1, 2] {
+        let mut style = handle
+            .update(cx, |view, _, _| {
+                view.session
+                    .borrow()
+                    .tree(view.id)
+                    .unwrap()
+                    .get(node(9))
+                    .unwrap()
+                    .style
+                    .to_vec()
+            })
+            .unwrap();
+        style.push(Style::Fields(vec![Field::PointerOcclusion(mode)]));
+        apply(cx, handle, vec![Op::SetStyle(node(9), style)]);
+        draw(cx, handle);
+        move_mouse(cx, handle, inside);
+        observations(transport);
+        mouse(cx, handle, inside, gpui::MouseButton::Left, true);
+        mouse(cx, handle, inside, gpui::MouseButton::Left, false);
+        let events = observations(transport);
+        assert_eq!(
+            events
+                .iter()
+                .any(|e| matches!(e, input::Event::MouseDown(_))),
+            mode == 0,
+            "pointer occlusion mode {mode}: {events:?}"
+        );
+        input(
+            cx,
+            handle,
+            gpui::PlatformInput::ScrollWheel(gpui::ScrollWheelEvent {
+                position: inside,
+                delta: gpui::ScrollDelta::Lines(gpui::point(0., -1.)),
+                touch_phase: gpui::TouchPhase::Moved,
+                modifiers: Default::default(),
+            }),
+        );
+        let events = observations(transport);
+        assert_eq!(
+            events.iter().any(|e| matches!(e, input::Event::Scroll(_))),
+            mode != 2,
+            "wheel occlusion mode {mode}: {events:?}"
+        );
+    }
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Splice(node(0), 1, 1, vec![]),
+            Op::Remove(node(9)),
+            Op::Create(
+                node(10),
+                Kind::PointerArea,
+                "".into(),
+                Some(HandlerId::from_parts(10, 1).unwrap()),
+            ),
+            Op::SetPointer(
+                node(10),
+                PointerConfig {
+                    label: "Foreign capture".into(),
+                    button: PointerButton::Left,
+                    disabled: false,
+                    prevent_default: true,
+                    stop_propagation: true,
+                },
+            ),
+            Op::SetStyle(
+                node(10),
+                vec![Style::Fields(vec![
+                    Field::Position(1),
+                    Field::Left(Length::Px(300.)),
+                    Field::Top(Length::Px(250.)),
+                    Field::Width(Length::Px(80.)),
+                    Field::Height(Length::Px(25.)),
+                ])],
+            ),
+            Op::Splice(node(0), 1, 0, vec![node(10)]),
+        ],
+    );
+    frame(cx, handle).await;
+    let foreign = gpui::point(px(340.), px(260.));
+    move_mouse(cx, handle, foreign);
+    mouse(cx, handle, foreign, gpui::MouseButton::Left, true);
+    let hitbox = handle
+        .update(cx, |_, window, _| {
+            window
+                .captured_hitbox()
+                .expect("real foreign gesture captured")
+        })
+        .unwrap();
+    mouse(cx, handle, foreign, gpui::MouseButton::Left, false);
+    move_mouse(cx, handle, inside);
+    mouse(cx, handle, inside, gpui::MouseButton::Left, true);
+    handle
+        .update(cx, |_, window, _| window.capture_pointer(hitbox))
+        .unwrap();
+    draw(cx, handle);
+    assert_eq!(
+        handle
+            .update(cx, |_, window, _| window.captured_hitbox())
+            .unwrap(),
+        Some(hitbox),
+        "observer must not steal foreign capture"
+    );
+    observations(transport);
+    mouse(cx, handle, inside, gpui::MouseButton::Left, false);
+    assert!(
+        !observations(transport)
+            .iter()
+            .any(|e| matches!(e, input::Event::Click(_))),
+        "foreign capture cancels pending click"
+    );
+    apply(
+        cx,
+        handle,
+        vec![Op::Splice(node(0), 1, 1, vec![]), Op::Remove(node(10))],
+    );
+    frame(cx, handle).await;
+    println!(
+        "GPUIO_INPUT_REGION_OCCLUSION_OK: sibling native button priority and foreign capture ownership/cancellation"
     );
 }

@@ -5,7 +5,7 @@
   "rows": [
     {
       "source_event": "onClick",
-      "status": "partial",
+      "status": "mapped_with_difference",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4560",
       "public_interfaces": [
         "lib/core/input_region.mli",
@@ -13,7 +13,7 @@
         "lib/bonsai/gpuio_bonsai.mli"
       ],
       "contract": "Input_region.Event.Click observes a matched primary down/up with local/window coordinates, modifiers and click count. Semantic button/command activation remains separate.",
-      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "remaining": "Local mounted native and public Eio/Bonsai gallery checks pass. Combined gallery/installed consumer, consolidated hosted checks and OCH-17 release accessibility/performance/platform gates remain; Linux desktop qualification stays OCH-47.",
       "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
@@ -21,7 +21,7 @@
     },
     {
       "source_event": "onAuxClick",
-      "status": "partial",
+      "status": "mapped_with_difference",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4609",
       "public_interfaces": [
         "lib/core/input_region.mli",
@@ -29,7 +29,7 @@
         "lib/bonsai/gpuio_bonsai.mli"
       ],
       "contract": "Input_region.Event.Auxiliary_click observes matched non-primary down/up for right, middle, back and forward buttons; no release-as-click fallback.",
-      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "remaining": "Local mounted native and public Eio/Bonsai gallery checks pass. Combined gallery/installed consumer, consolidated hosted checks and OCH-17 release accessibility/performance/platform gates remain; Linux desktop qualification stays OCH-47.",
       "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
@@ -37,7 +37,7 @@
     },
     {
       "source_event": "onMouseDown",
-      "status": "partial",
+      "status": "mapped_with_difference",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4624",
       "public_interfaces": [
         "lib/core/input_region.mli",
@@ -45,7 +45,7 @@
         "lib/bonsai/gpuio_bonsai.mli"
       ],
       "contract": "Input_region.Event.Mouse_down observes all five buttons with coordinates, modifiers and click count; capture/bubble and static native policy are explicit, without capturing a gesture.",
-      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "remaining": "Local mounted native and public Eio/Bonsai gallery checks pass. Combined gallery/installed consumer, consolidated hosted checks and OCH-17 release accessibility/performance/platform gates remain; Linux desktop qualification stays OCH-47.",
       "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
@@ -53,7 +53,7 @@
     },
     {
       "source_event": "onMouseUp",
-      "status": "partial",
+      "status": "mapped",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4646",
       "public_interfaces": [
         "lib/core/input_region.mli",
@@ -61,7 +61,7 @@
         "lib/bonsai/gpuio_bonsai.mli"
       ],
       "contract": "Input_region.Event.Mouse_up observes eligible releases independently of a prior press. Only derived clicks require a matching press.",
-      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "remaining": "Local mounted native and public Eio/Bonsai gallery checks pass. Combined gallery/installed consumer, consolidated hosted checks and OCH-17 release accessibility/performance/platform gates remain; Linux desktop qualification stays OCH-47.",
       "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
@@ -69,7 +69,7 @@
     },
     {
       "source_event": "onMouseEnter",
-      "status": "partial",
+      "status": "mapped",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4678",
       "public_interfaces": [
         "lib/core/input_region.mli",
@@ -77,7 +77,7 @@
         "lib/bonsai/gpuio_bonsai.mli"
       ],
       "contract": "Input_region.Event.Mouse_enter observes the native hit-tested hover edge; it is not a per-frame callback.",
-      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "remaining": "Local mounted native and public Eio/Bonsai gallery checks pass. Combined gallery/installed consumer, consolidated hosted checks and OCH-17 release accessibility/performance/platform gates remain; Linux desktop qualification stays OCH-47.",
       "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
@@ -85,7 +85,7 @@
     },
     {
       "source_event": "onMouseLeave",
-      "status": "partial",
+      "status": "mapped",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4678",
       "public_interfaces": [
         "lib/core/input_region.mli",
@@ -93,7 +93,7 @@
         "lib/bonsai/gpuio_bonsai.mli"
       ],
       "contract": "Input_region.Event.Mouse_leave observes the native hit-tested hover edge. Removal/disable need not synthesize a lifecycle event.",
-      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "remaining": "Local mounted native and public Eio/Bonsai gallery checks pass. Combined gallery/installed consumer, consolidated hosted checks and OCH-17 release accessibility/performance/platform gates remain; Linux desktop qualification stays OCH-47.",
       "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
@@ -101,7 +101,7 @@
     },
     {
       "source_event": "onMouseMove",
-      "status": "partial",
+      "status": "mapped_with_difference",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4662",
       "public_interfaces": [
         "lib/core/input_region.mli",
@@ -109,7 +109,7 @@
         "lib/bonsai/gpuio_bonsai.mli"
       ],
       "contract": "Input_region.Event.Mouse_move observes uncaptured motion with optional pressed button. Only adjacent samples on the same route/revision/modifier/button may coalesce.",
-      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "remaining": "Local mounted native and public Eio/Bonsai gallery checks pass. Combined gallery/installed consumer, consolidated hosted checks and OCH-17 release accessibility/performance/platform gates remain; Linux desktop qualification stays OCH-47.",
       "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
@@ -117,7 +117,7 @@
     },
     {
       "source_event": "onMouseDownOutside",
-      "status": "partial",
+      "status": "mapped_with_difference",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4715",
       "public_interfaces": [
         "lib/core/input_region.mli",
@@ -125,7 +125,7 @@
         "lib/bonsai/gpuio_bonsai.mli"
       ],
       "contract": "Input_region.Event.Mouse_down_outside observes presses outside the clipped region bounds, preserving button/count/position/modifiers; it does not dismiss anything automatically.",
-      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "remaining": "Local mounted native and public Eio/Bonsai gallery checks pass. Combined gallery/installed consumer, consolidated hosted checks and OCH-17 release accessibility/performance/platform gates remain; Linux desktop qualification stays OCH-47.",
       "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
@@ -133,7 +133,7 @@
     },
     {
       "source_event": "onKeyDown",
-      "status": "partial",
+      "status": "mapped",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4764",
       "public_interfaces": [
         "lib/core/input_region.mli",
@@ -141,7 +141,7 @@
         "lib/bonsai/gpuio_bonsai.mli"
       ],
       "contract": "Input_region.Event.Key_down carries key, optional character, modifiers and repeat in the focused region/descendant dispatch scope. GPUI bindings precede raw listeners; consumed editor/command keys are absent even in capture.",
-      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "remaining": "Local mounted native and public Eio/Bonsai gallery checks pass. Combined gallery/installed consumer, consolidated hosted checks and OCH-17 release accessibility/performance/platform gates remain; Linux desktop qualification stays OCH-47.",
       "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
@@ -149,7 +149,7 @@
     },
     {
       "source_event": "onKeyUp",
-      "status": "partial",
+      "status": "mapped",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4776",
       "public_interfaces": [
         "lib/core/input_region.mli",
@@ -157,7 +157,7 @@
         "lib/bonsai/gpuio_bonsai.mli"
       ],
       "contract": "Input_region.Event.Key_up carries key, optional character and modifiers in the focused region/descendant dispatch scope. A matching raw down is not guaranteed; key observations are not committed text or IME.",
-      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "remaining": "Local mounted native and public Eio/Bonsai gallery checks pass. Combined gallery/installed consumer, consolidated hosted checks and OCH-17 release accessibility/performance/platform gates remain; Linux desktop qualification stays OCH-47.",
       "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
@@ -165,7 +165,7 @@
     },
     {
       "source_event": "onFocus",
-      "status": "partial",
+      "status": "mapped",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L3980",
       "public_interfaces": [
         "lib/core/input_region.mli",
@@ -173,7 +173,7 @@
         "lib/bonsai/gpuio_bonsai.mli"
       ],
       "contract": "Input_region.Event.Focus observes direct region focus with explicit click/Tab focus policy. It does not mean focus-within or application activation.",
-      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "remaining": "Local mounted native and public Eio/Bonsai gallery checks pass. Combined gallery/installed consumer, consolidated hosted checks and OCH-17 release accessibility/performance/platform gates remain; Linux desktop qualification stays OCH-47.",
       "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
@@ -181,7 +181,7 @@
     },
     {
       "source_event": "onBlur",
-      "status": "partial",
+      "status": "mapped",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L3990",
       "public_interfaces": [
         "lib/core/input_region.mli",
@@ -189,7 +189,7 @@
         "lib/bonsai/gpuio_bonsai.mli"
       ],
       "contract": "Input_region.Event.Blur observes direct region blur. Native focus ownership and child editors remain retained across callback/configuration updates.",
-      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "remaining": "Local mounted native and public Eio/Bonsai gallery checks pass. Combined gallery/installed consumer, consolidated hosted checks and OCH-17 release accessibility/performance/platform gates remain; Linux desktop qualification stays OCH-47.",
       "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
@@ -197,7 +197,7 @@
     },
     {
       "source_event": "onScroll",
-      "status": "partial",
+      "status": "mapped_with_difference",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4735",
       "public_interfaces": [
         "lib/core/input_region.mli",
@@ -205,7 +205,7 @@
         "lib/bonsai/gpuio_bonsai.mli"
       ],
       "contract": "Input_region.Event.Scroll preserves Pixels/Lines deltas, both axes, modifiers, position and all native touch phases. Wheel samples remain ordered and are not replaced like motion samples.",
-      "remaining": "Mounted integration and focused macOS native dispatch pass. Public gallery/AX keyboard-pointer scenario, remaining modal/clipping/activation/IME/multiple-window edge checks and consolidated release gates remain; see evidence ledger.",
+      "remaining": "Local mounted native and public Eio/Bonsai gallery checks pass. Combined gallery/installed consumer, consolidated hosted checks and OCH-17 release accessibility/performance/platform gates remain; Linux desktop qualification stays OCH-47.",
       "evidence": "docs/evidence/input-observations-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
