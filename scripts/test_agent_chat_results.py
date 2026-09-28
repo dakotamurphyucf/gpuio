@@ -95,11 +95,21 @@ class Results(Review):
                     for child in children:
                         self.release(child)
                 return None
-            root = self.wait_find(TITLE, 'Run results', 'AXTable', search_files=True)
-            try:
-                node = header(root)
-            finally:
-                self.release(root)
+            # Returning to the retained page can expose the table root before
+            # its visible headers are published. Reacquire the current tree;
+            # an absent header must still fail within a bounded deadline.
+            deadline = time.monotonic() + 5
+            node = None
+            while time.monotonic() < deadline:
+                root = self.find(TITLE, 'Run results', 'AXTable', search_files=True)
+                if root:
+                    try:
+                        node = header(root)
+                    finally:
+                        self.release(root)
+                if node:
+                    break
+                time.sleep(.03)
             if not node:
                 raise RuntimeError(f'Missing visible column header: {label}')
         else:
