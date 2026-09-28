@@ -19,6 +19,10 @@ type t
 val attach : App.t -> on_event:(Event.t -> unit Bonsai.Effect.t) -> (t, Error.t) Result.t
 
 val ready : t -> unit
+
+(** Retry event intake after an error; no automatic polling is installed.
+    This does not reconnect a failed Linux notification session or replay owned
+    notifications after daemon loss. See operation errors to choose a fallback. *)
 val retry : t -> unit
 
 (** Idempotently disables the service for this application lifetime, drops queued

@@ -241,12 +241,10 @@ retain original semantic values and cache layout outside per-frame painting.
 ## Remaining implementation contract
 
 All seven families, mixed Cartesian layers, native interactions and original-data
-alternatives now have local acceptance. Remaining delivery work is:
-
-- Integrate a chart into OCH-29's broader graphics application without replacing
-  its custom-canvas and independently packaged extension requirements.
-- Complete required hosted macOS/Linux gates and merge. Linux GUI evidence
-  remains separately recorded under OCH-17.
+alternatives now have local acceptance. Signal Studio integrates a chart alongside
+its OCaml canvas and independently packaged extension; its fresh public consumer
+and repeated lifetime workload pass. Required hosted gates and merge remain.
+Linux GUI evidence stays separately recorded under OCH-17.
 
 Continue to preserve explicit sampling/provenance, stable revision-checked
 selections, asynchronous observations, native ownership and bounded resources.

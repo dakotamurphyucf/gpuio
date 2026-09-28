@@ -8,10 +8,10 @@ and evidence remain in [the milestone 5 handoff](milestone-5.md).
 
 | Ticket | Deliverable | Current state |
 | -- | -- | -- |
-| OCH-27 | Application identity, deep-link packaging/startup/live delivery, activation, file reveal/open, document-window metadata | In progress: macOS OS acceptance passes; Linux portal file adapters pass local peer/worker tests; typed packaging and real bus arbitration pass locally; Linux GUI and consolidated hosted gates pending |
-| OCH-28 | OS notifications, permissions/capabilities, replacement/dismissal and stale-safe action routing | In progress: Core/Eio ownership, bounded paired protocol and owned macOS adapter; public packaged macOS OS actions pass; Linux worker/private-bus routing pass locally; Linux build/display and consolidated gates pending |
-| OCH-40 | Line, area, bar, pie, radar, candlestick and Sankey components with typed bounded datasets, native interaction and accessible alternatives | In progress: typed data/options/styles/codecs, native resources/Eio API, 100k-point macOS resource integration, sampling/geometry and actual all-family prepared GPU paint; mounted Core/Bonsai charts, hidden GPU lifecycle and public seven-family Chart Studio; native labels/scrollable legends, selection schema/provenance and bounded hit queries; native pointer/drag/tooltips and plotted-mark keys with public semantic callbacks pass locally; bounded original-data keyboard/AX companion implemented; bounded non-color identifiers/theme controls and public dense-legend wheel checks pass; two-window/list frame accounting and bounded shared updates pass; public 10k/100k streaming/coalescing and named-hardware measurements pass; OCH-29 integration and hosted gates pending |
-| OCH-29 | Focused graphics application consuming public canvas and an independently packaged native component; desktop workflows and one chart | In progress: combined canvas/chart/component input and responsive UI, packaged links/reopen, Eio documents and real macOS notifications pass locally; Full/Reduce motion passes; repeated resource/lifetime and fresh consumer workloads pass; hosted gates pending |
+| OCH-27 | Application identity, deep links, activation, file reveal/open and document metadata | Local macOS OS acceptance and private-bus arbitration/portal tests pass; hosted native gates and merge pending |
+| OCH-28 | OS notifications, permissions/capabilities, replacement/dismissal and stale-safe action routing | Local packaged macOS actions and private-bus worker/lifecycle tests pass; hosted native gates and merge pending |
+| OCH-40 | Seven native chart families, mixed layers, typed datasets, native input and accessible original-data alternatives | Local GPU/input/AX, 100k streaming, two-window/list retention and Signal Studio integration pass; hosted native gates and merge pending |
+| OCH-29 | Focused graphics application with public canvas, independent native component, chart and desktop workflows | All local combined walkthroughs, Full/Reduce motion, fresh installed consumer and repeated lifetime workloads pass; hosted gates and merge pending |
 
 The goal includes all four tickets, local functional acceptance, required hosted
 macOS/Linux gates, merge, and final versioned/Linear handoff. Starting a ticket or
@@ -42,8 +42,14 @@ Notification bit42 and chart bit43 join desktop bit41 in the paired bridge;
 the aggregate is `17592186044415` and independent OCaml/Rust Hello fixtures are
 `0001fcffffffffff0f0000`. Runtime notification/desktop capability queries remain
 necessary: a compiled adapter cannot promise a service, permission or display.
-Consolidated local suites, required hosted macOS/Linux checks, final review and
-merge still gate completion. Earlier entries below record intermediate states.
+Consolidated local format/build/lint and Dune/Rust suites pass (719 Rust tests),
+as do all 18 M6 native/build/private-bus/OS stages. A fresh installed consumer
+passes its native self-test and full lifetime workload. Required hosted builds,
+unit tests and lint pass on macOS and Linux in
+[run 36377185296](https://github.com/dakotamurphyucf/gpuio/actions/runs/36377185296);
+native suites continue. [PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14)
+remains a draft until final gates and review. Earlier entries below record
+intermediate states and do not override this delivery record.
 
 ### Delivery entry points
 

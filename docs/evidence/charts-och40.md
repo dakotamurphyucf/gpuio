@@ -1,19 +1,25 @@
 # Native chart evidence (OCH-40)
 
-This is an implementation ledger, not full ticket acceptance. Current local
+Local component and combined-application acceptance pass; required hosted native
+gates and merge remain. This delivery table supersedes the historical checkpoints
+below, which record the order in which individual layers were built. Current local
 machine: Apple M1 Max, macOS 14.5 (23F79), arm64. The repository's stock OCaml 5.3,
 Jane Street/Bonsai v0.17 and pinned GPUI/Rust toolchains remain unchanged.
 
-| Boundary | Evidence | Remaining |
+| Boundary | Current local evidence | Platform limit |
 | --- | --- | --- |
-| Typed data/options/styles and paired bounded codecs | Core expect and Rust codec tests, independent byte fixtures, malformed/domain/size cases | Semantic selection envelopes |
-| Scoped data publication | Public windowless macOS `chart_upload`: 100k source points, coalescing, reset, rejection, cleanup, shutdown | Multi-window/cached-list streaming acceptance |
-| Geometry/reduction | All seven families; empty, negative, constant, extreme, subnormal, gaps, aggregates, large input | End-to-end streaming frame measurements |
-| Prepared GPU painting | Hidden native window, real off-thread preparation, actual GPU readback for every family | Full chart text/input/AX and streaming acceptance |
-| Styling | Validated palette/theme resolution; real alpha, bar corners/gradient, hollow/filled candles and mixed layer order | Native labels/legend/tooltip presentation and selection visuals |
-| Interaction and accessibility | Not implemented for the chart widget yet | Pointer/drag, keyboard, meaningful AX/data alternatives and stale-event checks |
-| Budgets | Per-plan geometry/mesh caps, conservative shared-frame admission, cancellation and bounded tessellation | Runtime worker/cache admission across mounted views/windows |
-| Platforms | Local macOS GPU test; required macOS CI stage defined | Hosted macOS/Linux gates; actual Linux GUI tracked separately under OCH-17 |
+| Typed data/options/styles and bounded codecs | Core/Rust fixtures, malformed/domain/size cases and semantic selection envelopes | Pure tests pass on both hosted platforms |
+| Scoped publication | 100k source points, coalescing/reset/rejection, two-window/list streaming, disposal and idle release | Actual native checks on macOS |
+| Geometry/reduction | All seven families; empty, negative, constant, extreme, subnormal, gaps, aggregates and large input | Large-data timings are diagnostic, not a latency guarantee |
+| Prepared GPU painting | Worker preparation and actual all-family GPU pixels; mounted public views and lifecycle checks | macOS local display/GPU |
+| Styling | Palette/theme, alpha/corners/gradients/candles, mixed layers, labels, retained scrollable legends and tooltips | Actual local pixels and native input |
+| Interaction and accessibility | Pointer/drag, plotted-mark keys, selection fencing, non-color series identifiers and original-data keyboard/AX table | macOS AppKit checks; Linux GUI deferred |
+| Budgets | Per-plan/worker/frame quotas, cancellation, shared resources across windows, original-data fallback and retained-memory measurements | Accounting limits are distinct from process RSS |
+| Combined application | Signal Studio canvas/chart/independent component, repeated commands/windows and final zero source charge | Local public consumer and workload pass |
+
+The paired bridge advertises chart bit43. See the [large-data workload](chart-streaming-och40.md),
+[combined workload](signal-studio-och29.md) and [milestone delivery record](../milestone-6.md)
+for final gate status. Actual Linux GUI validation remains OCH-17.
 
 ## Prepared painter
 

@@ -2,8 +2,10 @@
 
 Status: in progress. Local macOS native/public acceptance passes. The Linux adapter
 and cleanup/race tests now pass locally through deterministic worker/private-bus
-fixtures; Linux build/display evidence and consolidated hosted gates remain
-outstanding. No notification capability bit is advertised yet.
+fixtures. Consolidated macOS/Linux builds and unit tests pass; hosted native
+checks and merge remain outstanding. Notification bit42 is advertised; runtime
+service and permission checks remain required. Actual Linux desktop presentation
+is deferred to OCH-17. This status supersedes the implementation chronology below.
 
 ## Foundation
 

@@ -9,9 +9,11 @@ deterministic delivery tests and real packaged macOS cold/warm OS invocation,
 including native window closure/reopening. Document-window metadata now passes
 native and public macOS tests. macOS file open/reveal and explicit scheme
 registration also have public OS acceptance. Linux portal file services are
-implemented with local peer/worker tests; actual Linux builds/GUI evidence and
-real session-bus/OS invocation remain pending. Linux launch forwarding now has
-private D-Bus peer tests and a typed preflight entry point. Desktop bridge bit41 is
+implemented with local peer/worker tests. Linux launch forwarding has a typed
+preflight entry point and actual private-bus arbitration tests. Consolidated
+macOS/Linux build and unit tests pass; required native hosted checks and merge
+remain pending. Real Linux desktop/session-bus invocation is deferred to OCH-17,
+separately from private-bus fixtures. Desktop bridge bit41 is
 advertised; the current paired aggregate is `17592186044415`. Backend
 capabilities still distinguish supported operations from unavailable services.
 
@@ -144,7 +146,9 @@ Current native capability snapshots enable incoming links, activation, document
 metadata, registration and file reveal/open on macOS. Linux now implements file
 open/reveal through the portal. Capability flags describe adapter support;
 operation-time discovery can still report an unavailable service or unsupported
-portal version. Linux link/registration adapters remain in progress.
+portal version. Linux incoming-link forwarding is implemented; changing the OS
+default scheme handler remains explicitly unsupported. Packaging declarations
+do not silently change that default.
 
 ## File services and explicit registration
 

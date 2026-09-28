@@ -1,75 +1,37 @@
 # Implementation status
 
-Current checkpoint, 2026-09-27: milestone 5 is merged in
-[PR #13](https://github.com/dakotamurphyucf/gpuio/pull/13) at `936fb7d` after
+Current checkpoint: milestones 1–5 are merged. Milestone 5's
+[PR #13](https://github.com/dakotamurphyucf/gpuio/pull/13) merged at `936fb7d` after
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
-passed on `473407c`, including all 71 macOS GUI stages. All twelve milestone
-tickets are Done. Milestone 6's OCH-27 now has public Core/Eio link routing,
-bounded readiness/backpressure and packaged macOS cold/warm OS delivery with
-native window close/reopen checks. Represented-document and edited metadata pass
-native/public macOS tests; Linux reports typed unsupported outcomes. Linux
-launch forwarding passes local private D-Bus/codec tests through `App.run_desktop`;
-typed packaging and real private bus arbitration now pass locally; real Linux GUI
-invocation and consolidated hosted gates remain pending. Portal file services pass local private
-D-Bus/worker tests, with Linux build/GUI validation still outstanding. macOS file open/reveal and explicit scheme
-registration pass local public OS checks. See the
-[milestone 6 plan](milestone-6.md) for current scope, evidence and next steps.
-OCH-28's typed Core/Eio notifications and owned macOS adapter now pass public
-packaged Notification Center actions, replacement/dismissal, readiness,
-closed-window routing and service cleanup locally. Linux notification transport and its bounded native worker now pass local
-private-bus action/replacement/owner-loss tests, with required Linux build and
-desktop presentation validation pending; see
-[notification evidence](evidence/os-notifications-och28.md).
-OCH-40's typed chart data model now covers all seven families and mixed Cartesian
-layers, with bounded paired codecs and local expect tests including 100,000
-points, independent binary fixtures and exhaustive small-graph cycle checks. A pinned Sankey algorithm extraction compiles/tests against the
-unchanged GPUI revision. The bounded native resource store and scoped Eio scheduler
-now pass publication/cancellation/retention tests and a connected windowless macOS
-application check with 100,000 points through the public Eio API. Native chart
-interaction now passes native and public macOS input checks. Explicit line/area envelopes, bar sum/mean
-and candle OHLC policies now have paired types and a tested native reduction kernel
-that preserves gaps and aggregate source ranges. Validated native plotting options
-and retained logical geometry now cover all seven families, with passing local
-extreme/degenerate, 100k exact/sampled and crowded Sankey tests. The prepared native
-painter now passes actual hidden-window GPU checks for every family, mixed layers,
-gradients/corners, clipping and hollow/filled candles. The Core/Bonsai chart view
-bridge, scoped event fencing and native tree validation are implemented and locally
-tested. Resource-backed mounted views now pass hidden GPU lifecycle checks and
-the public seven-family Chart Studio self-test. Native axis/family labels and
-scrollable legends now render from the displayed snapshot; dense legend scroll
-persists across updates and clears on reset. Typed semantic-selection events,
-exact-source provenance and a bounded worker-prepared hit index are implemented;
-native hover/drag, plotted-mark keyboard input, tooltips and semantic callbacks now
-pass locally. A built-in read-only original-data table now pages through all source
-values independently of rendering/sampling, with bounded native rows and keyboard/AX
-navigation. Bounded series identifiers, themed data controls and mixed/horizontal
-examples now pass local checks, including actual dense-legend wheel scrolling
-and offset retention/reset. Two hidden managed-list windows now pass repeated
-frame-budget/GPU checks, independent scrolling and fourteen shared publications
-with observer disposal and idle source release. A public 80-publication/150-update
-workload now records 10k/100k sampled and exact rendering, coalescing, CPU/RSS,
-queue bytes and retention on Apple M1 Max. Broader-example integration and
-consolidated hosted gates remain. See
-[chart contracts and remaining work](design/charts.md).
-OCH-29 now has Signal Studio: a public OCaml canvas/chart workbench using the
-separately packaged native counter. Local macOS checks pass selection, real drag,
-pan/zoom, keyboard and chart callbacks, component disable/hide/remount, streamed
-updates and responsive resize with retained data. A fresh staged public-library
-consumer builds its locked backend and passes the native self-test. Packaged
-startup/cold/warm links, same-process reopen, native Save/Open panels and Eio
-persistence also pass, including native edited/file metadata and delayed-operation
-races. Combined notification actions, current-window reopen, replacement, streamed
-completion, dismissal and quit cleanup pass in a real local macOS bundle; five
-controlled expect tests and an actual unbundled fallback cover unavailable and
-late-event behavior. Actual Finder reveal and missing-file model preservation
-pass, as do Full/Reduce spring geometry/interruption, ordered native sequence
-stages, synchronized activity pixels and paused paint. The combined workload
-passes 384 desired updates, 96 render samples, twelve commands/window cycles and
-all 24 native component/callback lifetimes, with source charges returning to zero.
-Linux builds and
-consolidated hosted gates remain; see [Signal Studio](design/signal-studio.md).
-The detailed entries below record implementation checkpoints chronologically;
-their earlier pending-gate statements are superseded by this delivery record.
+passed on `473407c`; all twelve tickets are Done.
+
+Milestone 6 is implemented in [draft PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14),
+with all four tickets still In Progress until final hosted gates and merge:
+
+- OCH-27: typed desktop identity/packaging, readiness-aware link routing,
+  native document metadata, OS file open/reveal and Linux private-bus arbitration.
+- OCH-28: application-scoped OS notifications, explicit permission/capability
+  queries, owned receipts, replacement/dismissal and stale-safe actions.
+- OCH-40: seven native chart families and mixed layers, revisioned bounded
+  datasets/preparation, explicit sampling, native interaction and an accessible
+  original-data table. Native windows/list retention and 10k/100k streaming are
+  measured separately from the combined application.
+- OCH-29: Signal Studio combines a public OCaml canvas, chart and independently
+  packaged native component with documents, links and notifications. Responsive
+  input, Full/Reduce motion, installed-library consumer builds and repeated
+  command/resource/window lifetimes pass locally.
+
+Consolidated local format, Dune/Rust tests (719 Rust tests), strict lint, all 18 M6
+native/build/private-bus/OS stages, and a fresh public consumer's self-test and
+complete workload pass on macOS 14.5 arm64. Required hosted macOS/Linux build,
+unit tests and lint have passed in
+[run 36377185296](https://github.com/dakotamurphyucf/gpuio/actions/runs/36377185296);
+native suites are still running. The [M6 delivery matrix](milestone-6.md) links
+current contracts, examples and evidence. Linux GUI/compositor validation remains
+OCH-17 and is not implied by compilation or private-bus fixtures.
+
+The entries below preserve earlier implementation checkpoints. Their pending-work
+statements are historical; use the delivery record above for current status.
 
 Updated 2026-09-26. Milestones 01 and 02 are merged, including native text editing,
 controls/interactions and declarative animations. [PR #10](https://github.com/dakotamurphyucf/gpuio/pull/10)
