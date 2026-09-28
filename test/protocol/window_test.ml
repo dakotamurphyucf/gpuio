@@ -18,6 +18,8 @@ let%expect_test "window command and configured-open independent fixtures" =
     ; Window_command (7L, id, Zoom)
     ; Window_command (7L, id, Toggle_fullscreen)
     ; Window_command (7L, id, Set_edited true)
+    ; Window_command (7L, id, Set_document { path = None; edited = false })
+    ; Window_command (7L, id, Set_document { path = Some "/tmp/\255"; edited = true })
     ; Open_configured
         ( 7L
         , id
@@ -41,6 +43,8 @@ let%expect_test "window command and configured-open independent fixtures" =
 0b07000104
 0b07000105
 0b0700010601
+0b070001070000
+0b0700010701062f746d702fff01
 0c070001017800000000000084400000000000007940000100
 |}]
 ;;
@@ -50,6 +54,7 @@ let%expect_test "invalid outgoing window data is rejected" =
     [ Wire.Window.Command.Resize (Float.nan, 400.)
     ; Resize (0., 400.)
     ; Set_title "bad\000title"
+    ; Set_document { path = Some "relative"; edited = false }
     ]
     ~f:(fun command ->
       print_s
@@ -58,6 +63,7 @@ let%expect_test "invalid outgoing window data is rejected" =
            : bool)]);
   [%expect
     {|
+    true
     true
     true
     true
@@ -70,4 +76,24 @@ let%expect_test "lifecycle events decode the independent native fixture" =
   print_s [%sexp (events : Wire.Event.t list)];
   [%expect
     {| ((Close_requested ((slot 0) (generation 1))) Quit_requested Reopen_requested) |}]
+;;
+
+let%expect_test "document observations preserve raw path bytes and unsupported errors" =
+  let fixture =
+    "\002\035\007\000\001\000\001t"
+    ^ String.make 48 '\000'
+    ^ "\000\000\000\001\001\006/tmp/\255\001"
+    ^ "\035\008\000\001\001\005"
+  in
+  let events = Wire.Event.decode fixture |> Or_error.ok_exn in
+  (match events with
+   | [ Window_response (_, _, Observed snapshot)
+     ; Window_response (_, _, Failed Unsupported)
+     ] ->
+     assert (Wire.Window.Snapshot.valid snapshot);
+     let document = Option.value_exn snapshot.document in
+     assert (Option.equal String.equal document.path (Some "/tmp/\255"));
+     assert document.edited
+   | _ -> failwith "unexpected document observation fixture");
+  [%expect {| |}]
 ;;

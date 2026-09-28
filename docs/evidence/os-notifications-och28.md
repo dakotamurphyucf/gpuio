@@ -1,0 +1,225 @@
+# OCH-28 notification evidence
+
+Local macOS native/public acceptance passes. The Linux adapter
+and cleanup/race tests now pass locally through deterministic worker/private-bus
+fixtures. Consolidated macOS/Linux builds and unit tests pass; hosted native
+checks and merge are recorded on
+[PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14). Notification bit42 is
+advertised; runtime
+service and permission checks remain required. Actual Linux desktop presentation
+is deferred to OCH-17. This status supersedes the implementation chronology below.
+
+## Foundation
+
+Commit `889736d` adds typed Core values, paired bounded codecs, native lifetime state
+and the application-domain delivery queue. Tests cover UTF-8/byte limits, unique
+actions, malformed/oversized wire input, independent OCaml/Rust bytes, replacement
+identity and action revisions, early/duplicate/foreign callbacks, dismissal retry,
+service-loss/shutdown cleanup tokens, event reservation and repeated bounded cycles.
+The UI-domain queue covers readiness, hint coalescing, effect backpressure, atomic
+malformed-batch rejection, explicit retry and late completion after close.
+
+The following integration additionally adds the application envelopes, native
+callback mailbox accounting, bounded asynchronous response tickets, public Eio
+service and owned macOS adapter. The later Linux integration is recorded below.
+
+## Actual macOS observation
+
+The first M6 hosted run (`36377185296`) stopped both notification walkthroughs
+before posting because the fresh macOS login had no `NotificationCenter` process.
+The shared harness now checks the current user's process, starts the system UI
+helper through Launch Services if absent, and waits with a ten-second bound.
+This changes no notification permissions or preferences and does not terminate
+the user's system helper. Both complete walkthroughs still pass locally after
+the change; startup from an absent helper and first permission remain part of
+the corrected hosted validation.
+
+Local environment: macOS **14.5 (23F79), arm64**, repository OCaml/Rust toolchain,
+unchanged GPUI pin `a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b`.
+
+The public packaged example passed `scripts/test_notifications_macos.py` on
+2026-09-27 with these **actual Notification Center actions**, not injected events:
+
+- Plain-text Unicode notification submission, with native title/body observed.
+- Duplicate live tag returns `Busy`.
+- Native **Open workspace** action remains queued before OCaml readiness, then
+  reaches its handler exactly once with the original receipt.
+- Native default activation and the OS **Close** action reach distinct typed
+  `Activated` and `Closed User` handlers.
+- Replacement keeps receipt 4 and changes title/action to **Inspect build**;
+  Notification Center exposes the new action and no old **Open workspace** action.
+  Selecting it reaches OCaml as the new action on receipt 4.
+- Explicit dismissal returns request acceptance; the test separately waits until
+  the matching OS row disappears. A fixed 300ms assertion was too early during
+  the OS removal animation, so the observer now waits with a ten-second bound.
+- A posted notification targets an exact window handle. The window is closed and
+  another opened; the subsequent native action reports `target Closed` and leaves
+  the replacement window alive. Routing never uses a raw native window slot.
+- Service close removes a live OS notification, rejects another post with `Closed`,
+  and the app exits with no owned test process remaining.
+
+Notification titles carry a demonstration sequence number. This lets the external
+observer distinguish new notifications from an older banner still animating out,
+rather than erroneously clicking a retired row with the same visible title.
+
+## Permission and packaging observations
+
+The public unbundled executable now passes a separate check: capabilities and
+authorization return `Unavailable`, the intake handler receives `Failed Unavailable`,
+and the app exits without accessing the aborting notification-center path.
+The non-main-thread guard also has unit coverage. A bundle copied without replacing
+the executable's linker signature retained signing identifier `main.exe`, with
+Info.plist not bound. Its settings probe returned `Not_determined`; posting returned
+`Not_ready` without prompting, and an explicit authorization request returned the
+native not-allowed error, exposed as `Denied`.
+
+After ad-hoc signing with **com.gpuio.notification-lab** and registering the bundle,
+macOS displayed its permission UI. Permission was enabled for this test app through
+its own System Settings notification page. Subsequent native probes and explicit
+requests returned `Authorized`; the full native walkthrough above passed. This is
+not a claim that submission bypasses user settings, that a user denied the initial
+unsigned fixture, or that first-time permission automation has passed on hosted CI.
+
+The test changes no global Focus policy. Its permission requirement is documented
+in the example. `UNUserNotificationCenter` removal APIs have no completion result;
+the API reports submission, while the external test separately observes removal.
+Expiration/OS policy changes need not emit every possible close reason on macOS.
+
+## Commands and remaining gates
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 \
+  examples/notification/main.exe @test/notification/runtest @fmt
+python3 scripts/test_notifications_macos.py
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test \
+  -p gpuio-protocol -p gpuio-native --locked -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy \
+  -p gpuio-native -p gpuio-protocol --all-targets --locked -j2 -- -D warnings
+```
+
+The packaged native walkthrough and strict Clippy pass locally. The integration regression results are recorded below. Linux notification transport/worker results are recorded below; real Linux desktop
+presentation and consolidated hosted build/unit gates remain pending. The milestone remains active, with charts,
+graphics examples, required macOS/Linux CI and merge also pending.
+
+Integration regression checkpoint: all **573 Rust native/protocol tests** pass
+across 86 result suites, including 263 native unit tests. The 129-event maximum
+notification batch is conservatively charged to the bridge byte budget, split
+under the transport limit, and its availability hint coalesces independently of
+desktop hints. Category snapshots reach the documented 144 current/candidate
+bound and release all retired content. Targeted Dune notification/desktop/protocol/
+view API expectations, public example build and formatting pass. These local
+regressions supplement the native walkthrough; they do not establish Linux GUI
+acceptance or replace required hosted gates.
+
+## Linux transport foundation (no display acceptance)
+
+The separate `gpuio-portal::notifications` client now talks to the freedesktop
+notification service on a persistent session-bus connection. It binds calls and
+signals to a unique daemon owner; owner loss is explicit, and an old ID is never
+sent to a replacement daemon. Capability negotiation rejects unsupported requested
+body/actions/sound, escapes plain text only for markup-capable servers, sends the
+application's desktop-entry identity, and checks returned replacement IDs. Named
+transport actions include both receipt lifetime and content revision.
+
+A real **private D-Bus** test passes locally on macOS with a deterministic daemon
+fixture: submission fields, same-ID replacement, native close calls, named/default
+signals, close reasons, foreign-sender filtering, daemon disappearance/replacement,
+reused IDs in a new owner namespace, unsupported features and invalid returned IDs.
+It also sends 256 unrelated action signals before a Notify reply. The independent
+event stream drains those bounded subscription queues while the call waits, so a
+full zbus signal queue cannot block reading its own reply. No OCaml callback or GUI
+is involved in this test. It does **not** prove a Linux notification was displayed.
+
+```sh
+GPUIO_JOBS=2 scripts/test_notification_bus.sh
+```
+
+This headless check is added to required Linux CI for the later consolidated run.
+The local run used the ignored scratch-installed `dbus-run-session` and explicit
+scratch daemon path with `GPUIO_PRIVATE_BUS_TEST=1`; it did not use or change a
+user's session bus. The next section records the subsequent native worker integration;
+these earlier transport results alone did not establish application delivery.
+
+## Native Linux worker (local macOS execution)
+
+The application now dispatches Linux notification requests to one bounded native
+worker. Local tests compile this Linux worker on macOS using the same production
+portal client. Pure routing tests cover native-ID/receipt/revision matching, early
+activation/close, replacement-close races, explicit early-buffer overflow and the
+independent physical-artifact quota. Worker tests exercise in-flight close with
+late ID recovery, queued-request cancellation, daemon loss without replay, uncertain
+submission and failed dismissal retaining its lease for shutdown retry.
+
+A second real private-bus fixture now runs through `notification_linux::Service`,
+the production portal transport and a deterministic freedesktop daemon. It passes
+Unicode content/desktop identity, 256 unrelated signals before the reply, custom
+action dispatch, same-ID replacement, obsolete action rejection, tag reuse, exact
+artifact dismissal, owner-loss delivery and terminal failure without reconnection.
+No GUI or notification daemon belonging to the user is involved. This is transport
+and native-worker evidence on macOS, **not Linux display acceptance**. The existing
+headless CI script now runs both transport and native-worker private-bus suites.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native --locked -j2 \
+  --lib notification_linux
+GPUIO_JOBS=2 scripts/test_notification_bus.sh
+```
+
+All **15 Linux routing/worker tests**, including both explicitly enabled private-bus
+cases, passed with the scratch-installed daemon and `GPUIO_PRIVATE_BUS_TEST=1`.
+The withheld-reply fixture verifies that close retires callbacks immediately, waits
+through the bounded submission deadline, reports uncertain artifact ownership and
+finishes without guessing a native ID or replaying the request. The production Linux host is wired to the worker, with
+asynchronous cleanup on normal/abort shutdown and joined cleanup on OS quit.
+Hosted Linux compilation, real Linux desktop notification actions (OCH-17 platform
+validation), and the consolidated milestone CI/merge remain outstanding.
+
+Integrated local regression checkpoint: **613 tests passed** across native, portal
+and protocol crates (private-bus cases run separately). Strict all-target Clippy
+passes for all three crates. The public notification executable rebuild, targeted
+OCaml notification expectations and `@fmt` also pass after host cleanup integration.
+No additional GUI walkthrough was needed for this worker-only change; earlier
+macOS OS observations remain the separately dated native evidence above.
+
+## Hosted macOS notification service setup (2026-09-28)
+
+The initial required runs failed to display fresh authorization prompts. Focused
+[diagnostic run 36385032994](https://github.com/dakotamurphyucf/gpuio/actions/runs/36385032994)
+identified the hosted image's disabled `com.apple.notificationcenterui.agent` and
+`usernoted` failing to connect to `com.apple.notificationcenterui.main`. Opening
+the Notification Center application alone did not register that Mach service.
+
+`ci_macos_notifications.py` restores the installed launch agent only on disposable
+GitHub-hosted macOS runners whose user owns the console. It validates the installed
+plist and service, enables/bootstrap-loads it if needed, starts it without killing
+a running service, and verifies readiness. It does not pregrant application
+permission or modify production notification behavior. Local invocation refuses
+to change user service settings.
+
+[Focused run 36419596393](https://github.com/dakotamurphyucf/gpuio/actions/runs/36419596393)
+on diagnostic commit `30e0e04` passed the original fresh permission and real OS
+actions using the existing application binary: named/default activation, dismissal,
+replacement, stale closed-window isolation, and service cleanup. This proves the
+runner setup fix; the separate diagnostic branch is not part of the merge. The
+complete required workflow, including Signal Studio, must still pass on the final
+PR revision. Linux graphical notification acceptance remains OCH-17.
+
+The subsequent full run `36419908242` passed Signal Studio's notification flow
+and the Lab's permission/named/default/dismiss actions, but did not find the
+fourth transient banner. The Lab harness now opens Notification Center once on
+delivered-row lookup timeout; it still requires the actual matching native row
+and action callbacks, and permission prompts receive no such fallback. It does
+not equate successful submission with visible presentation. The original missing
+banner's cause is not established. A local retained-delivery probe explicitly
+opened then closed Notification Center, confirmed the notification was no longer
+presented, and passed the original action/lifetime walkthrough after the fallback
+found its retained OS row. The ordinary local walkthrough also passes.
+
+[Focused hosted run 36424019983](https://github.com/dakotamurphyucf/gpuio/actions/runs/36424019983)
+passes these harness changes in sequence with Signal input, desktop, Full/Reduce
+motion, bounded workload, Signal notifications and the Notification Lab. It
+reuses previously built binaries; it does not replace final required builds,
+independent-consumer checks or the full performance measurement wrapper.
+
+The focused run actually exercised `NOTIFICATION_LOOKUP_IN_CENTER` for the
+fourth notification before passing all remaining action and cleanup assertions.

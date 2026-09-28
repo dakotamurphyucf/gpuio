@@ -55,7 +55,7 @@ class Outline(Mac):
         finally:
             self.release(row)
 
-    def send(self, kind, point, button=0):
+    def send(self, kind, point, button=0, *, flags=0):
         if kind not in (2, 4):  # Always release our held mouse button on failure.
             root, hit, pid = self.system(), C.c_void_p(), C.c_int()
             try:
@@ -71,6 +71,9 @@ class Outline(Mac):
             raise RuntimeError('Cannot create mouse event')
         try:
             self.integer(event, 1, 1)
+            # CGEventCreateMouseEvent inherits source modifiers. A previous
+            # Control-wheel event must not turn a left drag into a right-click.
+            self.key_flags(event, flags)
             self.post(0, event)
         finally:
             self.release(event)

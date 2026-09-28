@@ -37,6 +37,7 @@ case "${1:-}" in
       exit 1
     fi
     unset DISPLAY
+    timeout 90 python3 scripts/test_desktop_links_linux.py --log .cache/ci/desktop-links-wayland.log
     timeout 90 ./scripts/gpuio smoke --self-test
     timeout 90 ./scripts/gpuio smoke --two-windows
     timeout 90 _build/default/examples/bridge/main.exe

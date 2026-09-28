@@ -37,6 +37,22 @@ let wrap raw =
 
 let traffic t = t.traffic
 
+module Command_queue = struct
+  type t =
+    { commands : int
+    ; bytes : int
+    ; peak_bytes : int
+    }
+  [@@deriving sexp_of]
+end
+
+external command_queue_raw : int -> int * int * int = "gpuio_v1_command_queue"
+
+let command_queue t : Command_queue.t =
+  let commands, bytes, peak_bytes = command_queue_raw t.raw in
+  { commands; bytes; peak_bytes }
+;;
+
 external create_raw : file_descr -> int = "gpuio_v1_create"
 external create_options : file_descr -> bool -> int = "gpuio_v1_create_with_options"
 
@@ -113,4 +129,14 @@ external extension_catalog_bytes : unit -> string = "gpuio_v1_extension_catalog"
 let extension_catalog () =
   Lazy.force initialization;
   Gpuio_protocol.Extension_wire.Catalog.decode (extension_catalog_bytes ())
+;;
+
+external prepare_desktop_bytes : int -> string -> string = "gpuio_v1_desktop_prepare"
+
+let prepare_desktop t request =
+  match Gpuio_protocol.Desktop_wire.Launch_request.encode request with
+  | Error error -> Gpuio_protocol.Desktop_wire.Launch_response.Failed error
+  | Ok bytes ->
+    prepare_desktop_bytes t.raw bytes
+    |> Gpuio_protocol.Desktop_wire.Launch_response.decode
 ;;

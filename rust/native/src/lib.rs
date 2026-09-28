@@ -13,6 +13,39 @@ pub mod canvas_paint;
 pub mod canvas_plan;
 pub mod canvas_state;
 pub mod canvas_store;
+mod chart_details;
+pub mod chart_geometry;
+mod chart_hit;
+mod chart_host;
+pub mod chart_jobs;
+pub mod chart_paint;
+mod chart_presentation;
+pub mod chart_render_host;
+mod chart_table;
+#[cfg(feature = "native-canvas-tests")]
+pub fn run_native_chart_paint_test() {
+    chart_paint::native_test::run();
+}
+#[cfg(feature = "native-canvas-tests")]
+pub fn run_native_chart_input_test() {
+    host::chart_view::test::run_input();
+}
+#[cfg(feature = "native-canvas-tests")]
+pub fn run_native_chart_view_test() {
+    host::chart_view::test::run();
+}
+pub mod chart_reduce;
+pub mod chart_selection;
+pub mod chart_store;
+mod desktop_host;
+#[cfg(any(target_os = "linux", test))]
+mod desktop_instance;
+#[cfg(any(target_os = "linux", test))]
+mod desktop_linux;
+#[cfg(target_os = "macos")]
+mod desktop_macos;
+mod desktop_operations;
+pub mod desktop_state;
 mod document_highlight;
 pub mod document_host;
 pub mod document_jobs;
@@ -20,6 +53,13 @@ pub mod document_store;
 mod ffi;
 pub mod file_dialog;
 mod host;
+mod notification_host;
+#[cfg(any(test, target_os = "linux"))]
+mod notification_linux;
+#[cfg(target_os = "macos")]
+mod notification_macos;
+mod notification_operations;
+mod notification_state;
 #[cfg(feature = "native-tests")]
 pub fn run_native_animation_test() {
     host::animation_test::run();

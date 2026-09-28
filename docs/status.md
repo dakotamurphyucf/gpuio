@@ -1,5 +1,42 @@
 # Implementation status
 
+Current checkpoint: milestones 1–5 are merged. Milestone 5's
+[PR #13](https://github.com/dakotamurphyucf/gpuio/pull/13) merged at `936fb7d` after
+[required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
+passed on `473407c`; all twelve tickets are Done.
+
+Milestone 6 is implemented in [PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14),
+which records the required hosted results, exact checked revision and merge state.
+The [Linear project](https://linear.app/ochat/project/gpuio-8bd4e30f319d) records
+ticket completion against those gates. Its four deliverables are:
+
+- OCH-27: typed desktop identity/packaging, readiness-aware link routing,
+  native document metadata, OS file open/reveal and Linux private-bus arbitration.
+- OCH-28: application-scoped OS notifications, explicit permission/capability
+  queries, owned receipts, replacement/dismissal and stale-safe actions.
+- OCH-40: seven native chart families and mixed layers, revisioned bounded
+  datasets/preparation, explicit sampling, native interaction and an accessible
+  original-data table. Native windows/list retention and 10k/100k streaming are
+  measured separately from the combined application.
+- OCH-29: Signal Studio combines a public OCaml canvas, chart and independently
+  packaged native component with documents, links and notifications. Responsive
+  input, Full/Reduce motion, installed-library consumer builds and repeated
+  command/resource/window lifetimes pass locally.
+
+Consolidated local format, Dune/Rust tests (719 Rust tests), strict lint, all 18 M6
+native/build/private-bus/OS stages, and a fresh public consumer's self-test and
+complete workload pass on macOS 14.5 arm64. Required hosted macOS/Linux build,
+unit tests and lint passed in the first
+[consolidated run](https://github.com/dakotamurphyucf/gpuio/actions/runs/36377185296).
+That run found test setup/sampling failures; the evidence ledgers record their
+locally validated fixes. Use PR #14 for final hosted gate results, not that initial
+run or local passes alone. The [M6 delivery matrix](milestone-6.md) links
+current contracts, examples and evidence. Linux GUI/compositor validation remains
+OCH-17 and is not implied by compilation or private-bus fixtures.
+
+The entries below preserve earlier implementation checkpoints. Their pending-work
+statements are historical; use the delivery record above for current status.
+
 Updated 2026-09-26. Milestones 01 and 02 are merged, including native text editing,
 controls/interactions and declarative animations. [PR #10](https://github.com/dakotamurphyucf/gpuio/pull/10)
 merged at `17e863279bff25253edf47f449c04cd9aee5e867` after the required macOS and

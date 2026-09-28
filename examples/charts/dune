@@ -1,0 +1,5 @@
+(executable
+ (name main)
+ (libraries core gpuio.bonsai gpuio.eio bonsai eio_main)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

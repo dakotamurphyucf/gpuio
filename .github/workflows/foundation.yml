@@ -44,7 +44,7 @@ jobs:
             libfontconfig-dev libfreetype-dev libssl-dev libwayland-dev libx11-xcb-dev \
             libxkbcommon-x11-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
             libvulkan-dev mesa-vulkan-drivers libasound2-dev libglib2.0-dev \
-            xvfb xauth openbox x11-utils x11-xserver-utils weston dbus-x11
+            xvfb xauth openbox x11-utils x11-xserver-utils weston dbus-x11 xdg-utils desktop-file-utils
       - name: macOS system prerequisites
         if: runner.os == 'macOS'
         run: |
@@ -58,6 +58,9 @@ jobs:
           mkdir -p .cache/ci
           xcrun swift -module-cache-path .cache/macos-display-modules scripts/ci_macos_display.swift --apply 2>&1 | tee .cache/ci/macos-display-setup.log
           xcrun swift -module-cache-path .cache/macos-display-modules scripts/ci_macos_display.swift --check 2>&1 | tee .cache/ci/macos-display-check.log
+      - name: macOS notification service
+        if: runner.os == 'macOS'
+        run: python3 scripts/ci_macos_notifications.py 2>&1 | tee .cache/ci/macos-notification-setup.log
       - name: Install pinned opam
         run: python3 scripts/ci_opam.py
       - name: Restore dependency caches
@@ -94,6 +97,15 @@ jobs:
           key: foundation-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gpuio.opam.locked', 'third_party/sources.json', 'rust-toolchain.toml', 'Cargo.lock') }}
       - name: OCaml and Rust tests
         run: ./scripts/gpuio test 2>&1 | tee .cache/ci/tests.log
+      - name: Linux desktop instance arbitration (private bus, no display)
+        if: runner.os == 'Linux'
+        run: scripts/test_desktop_instance_bus.sh 2>&1 | tee .cache/ci/desktop-instance.log
+      - name: Linux desktop entry executable dispatch (no display)
+        if: runner.os == 'Linux'
+        run: python3 scripts/test_desktop_entry_linux.py 2>&1 | tee .cache/ci/desktop-entry-exec.log
+      - name: Linux notification transport (private bus, no display)
+        if: runner.os == 'Linux'
+        run: scripts/test_notification_bus.sh 2>&1 | tee .cache/ci/notification-bus.log
       - name: Verify native runtime has no Async symbols
         run: python3 -c 'import subprocess; symbols = subprocess.check_output(["nm", "_build/default/examples/runtime/main.exe"], text=True); assert "camlAsync" not in symbols; print("NO_ASYNC_PASS")' 2>&1 | tee .cache/ci/no-async.log
       - name: Lint
@@ -112,11 +124,38 @@ jobs:
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-tests --all-targets -- -D warnings
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_images --test native_image_views --test native_container_query --test native_presentation --test native_slider --test native_number_input --test native_otp_input --test native_calendar --test native_color_input --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-image-tests --all-targets -- -D warnings
-          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-canvas-tests --test native_canvas --test native_canvas_view --test native_canvas_input --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-canvas-tests --test native_canvas --test native_canvas_view --test native_canvas_input --test native_chart_paint --test native_chart_view --test native_chart_input --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-canvas-tests --all-targets -- -D warnings
       - name: Independent native extension consumer
         id: extension-consumer
         run: python3 scripts/test_extension_consumer.py 2>&1 | tee .cache/ci/extension-consumer.log
+      - name: Independent Signal Studio consumer
+        id: signal-consumer
+        run: |
+          extra=()
+          if [[ "$RUNNER_OS" == "macOS" ]]; then extra+=(--run); fi
+          python3 scripts/test_extension_consumer.py --example signal_studio "${extra[@]}" 2>&1 | tee .cache/ci/signal-consumer.log
+      - name: macOS Signal Studio input and responsive composition
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.signal-consumer.outcome == 'success'
+        run: python3 scripts/test_signal_studio.py --output .cache/ci/signal-studio 2>&1 | tee .cache/ci/macos-signal-studio.log
+      - name: macOS Signal Studio documents and packaged desktop
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.signal-consumer.outcome == 'success'
+        run: python3 scripts/test_signal_desktop.py --output .cache/ci/signal-desktop 2>&1 | tee .cache/ci/macos-signal-desktop.log
+      - name: macOS Signal Studio full and reduced motion
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.signal-consumer.outcome == 'success'
+        run: python3 scripts/test_signal_motion.py --output .cache/ci/signal-motion 2>&1 | tee .cache/ci/macos-signal-motion.log
+      - name: macOS Signal Studio streaming and native component lifetime
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.signal-consumer.outcome == 'success'
+        run: python3 scripts/measure_signal_studio.py --output .cache/ci/signal-workload 2>&1 | tee .cache/ci/macos-signal-workload.log
+      - name: macOS Signal Studio packaged run notifications
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.signal-consumer.outcome == 'success'
+        run: python3 scripts/test_signal_notifications.py --output .cache/ci/signal-notifications 2>&1 | tee .cache/ci/macos-signal-notifications.log
+      - name: macOS notification service and real OS actions
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        run: python3 scripts/test_notifications_macos.py --artifact .cache/ci/notification-os 2>&1 | tee .cache/ci/macos-notification-os.log
+      - name: macOS desktop links and actual file services
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        run: python3 scripts/test_desktop_links_macos.py --services --log .cache/ci/desktop-services.log 2>&1 | tee .cache/ci/macos-desktop-services.log
       # Independent GUI families continue after another family's failure once
       # their build prerequisites pass. Failures remain required/red; cancellation
       # still stops subsequent tests. This collects diagnostics in one CI run.
@@ -128,6 +167,21 @@ jobs:
       - name: macOS canvas scene uploads without windows
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: python3 -c 'import subprocess; subprocess.run(["_build/default/examples/canvas_upload/main.exe"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-canvas-upload.log
+      - name: macOS chart resource uploads without windows
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: python3 -c 'import subprocess; subprocess.run(["_build/default/examples/chart_upload/main.exe"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-chart-upload.log
+      - name: macOS prepared chart GPU pixels
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-canvas-tests", "--test", "native_chart_paint"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-chart-paint.log
+      - name: macOS mounted charts and public chart gallery
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-canvas-tests", "--test", "native_chart_view", "--test", "native_chart_input"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-chart-view.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/charts/main.exe", "--self-test", "--foreground"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-chart-public.log
+          python3 scripts/test_charts.py --input --output .cache/ci/chart-input 2>&1 | tee .cache/ci/macos-chart-input.log
+          python3 scripts/test_chart_data.py --output .cache/ci/chart-data 2>&1 | tee .cache/ci/macos-chart-data.log
+          python3 scripts/test_chart_visuals.py --output .cache/ci/chart-visuals 2>&1 | tee .cache/ci/macos-chart-visuals.log
+          python3 scripts/measure_chart_stream.py --output .cache/ci/chart-stream 2>&1 | tee .cache/ci/macos-chart-stream.log
       - name: macOS canvas rendering, input and accessibility checks
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-canvas-tests", "--test", "native_canvas", "--test", "native_canvas_view", "--test", "native_canvas_input"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-canvas-native.log

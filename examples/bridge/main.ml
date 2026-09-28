@@ -96,8 +96,14 @@ let worker native notification_read =
         stopped := true
       | Failed _ | Rejected _ | Overloaded _ -> failwith "unexpected bridge failure"
       | Reopen_requested
+      | Desktop_pending
+      | Notification_pending
+      | Desktop_response _
+      | Notification_response _
+      | Chart_response _
       | Canvas_response _
       | Canvas_event _
+      | Chart_event _
       | Document_response _
       | Document_navigation _
       | Window_changed _

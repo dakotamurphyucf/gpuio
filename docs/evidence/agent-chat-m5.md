@@ -1097,3 +1097,19 @@ The existing native chat walkthrough also passes. The final strict streaming
 check observes 116 samples over 3.47 seconds, nine upward growth steps, zero
 backwards steps and a stable composer. Required hosted confirmation of this
 batch remains pending on PR #13.
+
+## M6 Results regression follow-up (2026-09-28)
+
+Required run `36426087223` passed 99 macOS steps and all required Linux steps,
+with failures in the chart visual fixture and Results walkthrough. Results had
+accepted the native resize/reorder, then read the TOOL header immediately after
+Diagram → Back; the AX table root existed but the visible header lookup was
+empty. The existing helper waited for the root, not its descendant header.
+
+The header lookup now reacquires the current table/tree within five seconds.
+A persistently missing header still fails, geometry remains strict, and width/
+order retention assertions are unchanged. No production table change is inferred
+from this trace. The original and revised complete local Results walkthroughs
+both pass on macOS 14.5. An additional 20 Diagram → Back cycles retain the resized
+column and reordered headers, followed by the full 100,000-row/query/clipboard/
+theme/cleanup flow. PR #14 records the subsequent required hosted result.

@@ -51,7 +51,13 @@ pub const CAP_COLOR_INPUTS: i64 = 1_i64 << 37;
 pub const CAP_NAVIGATION_COMPONENTS: i64 = 1_i64 << 38;
 pub const CAP_MANAGED_TREES: i64 = 1_i64 << 39;
 pub const CAP_MANAGED_TABLES: i64 = 1_i64 << 40;
-pub const CAPABILITIES: i64 = CAP_MANAGED_TABLES
+pub const CAP_DESKTOP: i64 = 1_i64 << 41;
+pub const CAP_OS_NOTIFICATIONS: i64 = 1_i64 << 42;
+pub const CAP_CHARTS: i64 = 1_i64 << 43;
+pub const CAPABILITIES: i64 = CAP_CHARTS
+    | CAP_OS_NOTIFICATIONS
+    | CAP_DESKTOP
+    | CAP_MANAGED_TABLES
     | CAP_MANAGED_TREES
     | CAP_NAVIGATION_COMPONENTS
     | CAP_COLOR_INPUTS
@@ -154,6 +160,7 @@ pub enum Kind {
     NavigationStack,
     HoverCard,
     Carousel,
+    ChartView,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -673,6 +680,7 @@ pub enum Op {
     SetTable(NodeId, crate::table::Config),
     SetTableCell(NodeId, crate::table::Cell),
     TableCommand(NodeId, crate::table::Command),
+    SetChart(NodeId, crate::chart_view::Config),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -704,6 +712,9 @@ pub enum Message {
     OtpInputCommand(i64, WindowId, NodeId, crate::otp_input::Command),
     CalendarCommand(i64, WindowId, NodeId, crate::calendar_input::Command),
     ColorInputCommand(i64, WindowId, NodeId, crate::color_input::Command),
+    Desktop(i64, crate::desktop::Request),
+    Notification(i64, crate::notification::Request),
+    Chart(i64, crate::chart_resource::Request),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -849,4 +860,19 @@ pub enum Event {
     CarouselRequested(WindowId, NodeId, HandlerId, i64, crate::carousel::Request),
     TreeInput(WindowId, NodeId, HandlerId, i64, crate::tree_input::Request),
     TableInput(WindowId, NodeId, HandlerId, i64, crate::table::Input),
+    DesktopResponse(i64, crate::desktop::Response),
+    DesktopPending,
+    NotificationResponse(i64, crate::notification::Response),
+    NotificationPending,
+    ChartResponse(i64, crate::chart_resource::Response),
+    ChartEvent(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        Option<crate::ResourceId>,
+        i64,
+        i64,
+        crate::chart_view::Observation,
+    ),
 }

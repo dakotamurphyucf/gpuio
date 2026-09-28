@@ -30,6 +30,11 @@ impl Config {
     }
 }
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct Document {
+    pub path: Option<crate::file_path::FilePath>,
+    pub edited: bool,
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub enum Command {
     Observe,
     SetTitle(String),
@@ -38,6 +43,7 @@ pub enum Command {
     Zoom,
     ToggleFullscreen,
     SetEdited(bool),
+    SetDocument(Document),
 }
 impl Command {
     pub fn is_valid(&self) -> bool {
@@ -60,6 +66,7 @@ pub struct Snapshot {
     pub active: bool,
     pub fullscreen: bool,
     pub maximized: bool,
+    pub document: Option<Document>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Backend {
@@ -79,6 +86,7 @@ pub enum Error {
     Busy,
     InvalidRequest,
     NativeFailure,
+    Unsupported,
 }
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub enum Response {

@@ -70,6 +70,7 @@ type 'a callback =
   | Extension of Wire.Extension.Config.t * (Wire.Extension.Signal.t -> 'a)
   | Split_pane of Split_pane.Config.t * (Split_pane.Snapshot.t -> 'a)
   | Canvas of Wire.Canvas_view.Config.t * (Canvas.Event.t -> 'a)
+  | Chart of Wire.Chart_view.Config.t * (Chart.Event.t -> 'a)
   | Document of Text_source.Handle.t * (Document.Navigation.t -> 'a)
   | Virtual_list of List_identity.t * 'a View.Expert.virtual_list * TW.Config.t option
   | Animation_program of int64 * (int64 * int64) ref * (Animation.Program.Event.t -> 'a)
@@ -145,6 +146,7 @@ type 'a t =
   ; asset_owner : Asset.Expert.Owner.t option
   ; document_owner : Text_source.Expert.Owner.t option
   ; canvas_owner : Canvas_scene.Expert.Owner.t option
+  ; chart_owner : Chart_resource.Expert.Owner.t option
   ; window : Window_id.t
   ; mutable state : 'a state
   ; mutable closed : bool
@@ -169,13 +171,15 @@ type 'a builder =
   ; asset_owner : Asset.Expert.Owner.t option
   ; document_owner : Text_source.Expert.Owner.t option
   ; canvas_owner : Canvas_scene.Expert.Owner.t option
+  ; chart_owner : Chart_resource.Expert.Owner.t option
   }
 
-let create ?asset_owner ?document_owner ?canvas_owner window =
+let create ?asset_owner ?document_owner ?canvas_owner ?chart_owner window =
   { owner = ref ()
   ; asset_owner
   ; document_owner
   ; canvas_owner
+  ; chart_owner
   ; window
   ; closed = false
   ; state =
@@ -267,6 +271,7 @@ let kind = function
   | Calendar -> Calendar
   | Virtual_list -> Virtual_list
   | Canvas_view -> Canvas_view
+  | Chart_view -> Chart_view
   | Document_view -> Document_view
   | Tab_bar -> Tab_bar
   | Tab_panel -> Tab_panel
@@ -615,6 +620,14 @@ let rec mount builder ~depth previous view =
       | Some _, Some _ -> fail "canvas cannot combine another handler"
     in
     let callback =
+      match description.chart, callback with
+      | Some item, None ->
+        Option.map item.on_event ~f:(fun callback ->
+          Chart (Chart.Expert.to_wire item.config ~owner:builder.chart_owner, callback))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "chart cannot combine another handler"
+    in
+    let callback =
       match description.document, callback with
       | Some item, None ->
         Option.map item.on_navigate ~f:(fun callback ->
@@ -734,6 +747,11 @@ let rec mount builder ~depth previous view =
           | Some item, Some mounted ->
             Option.exists (View.Expert.describe mounted.view).canvas ~f:(fun old ->
               not (Canvas.Config.equal old.config item.config))
+          | None, _ | Some _, None -> false)
+      || (match description.chart, previous with
+          | Some item, Some mounted ->
+            Option.exists (View.Expert.describe mounted.view).chart ~f:(fun old ->
+              not (Chart.Config.equal old.config item.config))
           | None, _ | Some _, None -> false)
       || (match description.document, previous with
           | Some document, Some mounted ->
@@ -1013,6 +1031,16 @@ let rec mount builder ~depth previous view =
         emit
           builder
           (Set_canvas (id, Canvas.Expert.to_wire item.config ~owner:builder.canvas_owner)));
+    Option.iter description.chart ~f:(fun item ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).chart ~f:(fun old -> old.config))
+      in
+      if not (Option.equal Chart.Config.equal old (Some item.config))
+      then
+        emit
+          builder
+          (Set_chart (id, Chart.Expert.to_wire item.config ~owner:builder.chart_owner)));
     Option.iter description.document ~f:(fun document ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -1547,6 +1575,7 @@ let prepare t ~theme view =
         ; asset_owner = t.asset_owner
         ; document_owner = t.document_owner
         ; canvas_owner = t.canvas_owner
+        ; chart_owner = t.chart_owner
         }
       in
       let root =
@@ -1709,6 +1738,33 @@ let dispatch t = function
             && (Option.is_some source
                 || Int64.(scene_revision = 0L && scene_generation = 0L)) ->
        Canvas.Expert.event ~scene_revision ~scene_generation observation
+       |> Result.ok
+       |> Option.map ~f:callback
+     | Some _ | None -> None)
+  | Wire.Event.Chart_event
+      ( window
+      , node
+      , handler
+      , revision
+      , source
+      , data_revision
+      , data_generation
+      , observation )
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Chart (config, callback)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Option.equal Resource_id.equal source config.source
+            && (Option.is_some source
+                || Int64.(data_revision = 0L && data_generation = 0L)) ->
+       Chart.Expert.event ~data_revision ~data_generation observation
        |> Result.ok
        |> Option.map ~f:callback
      | Some _ | None -> None)
@@ -1913,6 +1969,7 @@ let dispatch t = function
         | Extension _
         | Split_pane _
         | Canvas _
+        | Chart _
         | Document _ -> None)
      | Some _ | None -> None)
   | Slider_event (window, node, handler, revision, event)
@@ -2285,12 +2342,18 @@ let dispatch t = function
   | Close_requested _
   | Quit_requested
   | Reopen_requested
+  | Notification_pending
+  | Notification_response _
+  | Desktop_pending
+  | Desktop_response _
   | Window_changed _
   | Window_response _
   | Window_capabilities _
   | Extension_event _
   | Split_resized _
   | Canvas_event _
+  | Chart_event _
+  | Chart_response _
   | Canvas_response _
   | Document_response _
   | Document_navigation _

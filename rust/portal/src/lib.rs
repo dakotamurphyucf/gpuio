@@ -7,3 +7,9 @@ pub use request::{choose, version};
 
 mod motion;
 pub use motion::watch_motion;
+
+pub mod desktop;
+
+pub mod instance;
+
+pub mod notifications;

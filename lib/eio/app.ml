@@ -111,10 +111,22 @@ type t =
   ; mutable on_reopen : unit -> unit Bonsai.Effect.t
   ; asset_registry : Asset_registry.t
   ; document_registry : Document_registry.t
+  ; chart_registry : Chart_registry.t
   ; canvas_registry : Canvas_registry.t
   ; mutable assets : (Wire.Asset.Response.t -> unit) Int64.Map.t
   ; mutable documents : (Wire.Document.Response.t -> unit) Int64.Map.t
+  ; mutable charts : (Wire.Chart.Response.t -> unit) Int64.Map.t
   ; mutable canvases : (Wire.Canvas.Response.t -> unit) Int64.Map.t
+  ; mutable desktop_requests : (Wire.Desktop.Response.t -> unit) Int64.Map.t
+  ; mutable desktop_pending : bool
+  ; mutable desktop_subscription : int64 option
+  ; mutable on_desktop_pending : unit -> unit Bonsai.Effect.t
+  ; mutable notification_requests : (Wire.Notification.Response.t -> unit) Int64.Map.t
+  ; mutable notification_pending : bool
+  ; mutable notification_subscription : int64 option
+  ; mutable on_notification_pending : unit -> unit Bonsai.Effect.t
+  ; mutable notification_closed : bool
+  ; desktop_identity : Gpuio.Desktop.Identity.t option
   ; mutable correlation : int64
   ; mutable motion : Gpuio.Animation.Preference.t option
   ; mutable welcomed : bool
@@ -141,6 +153,11 @@ and window =
 
 let check t = Guard.check t.guard
 
+let desktop_identity t =
+  check t;
+  t.desktop_identity
+;;
+
 let scope t =
   check t;
   t.scope
@@ -155,6 +172,7 @@ module Diagnostics = struct
   type t =
     { runtime : Stats.t
     ; traffic : Gpuio_native.Traffic.t
+    ; native_command_queue : Gpuio_native.Command_queue.t
     ; scopes : Scope.Stats.t
     ; windows : int
     ; queued_jobs : int
@@ -165,6 +183,8 @@ module Diagnostics = struct
     ; asset_source_bytes : int
     ; documents : int
     ; document_source_bytes : int
+    ; charts : int
+    ; chart_data_bytes : int
     ; canvases : int
     ; canvas_scene_bytes : int
     }
@@ -179,9 +199,11 @@ let diagnostics t : Diagnostics.t =
   let documents, document_source_bytes =
     Document_registry.Expert.counts t.document_registry
   in
+  let charts, chart_data_bytes = Chart_registry.Expert.counts t.chart_registry in
   let canvases, canvas_scene_bytes = Canvas_registry.Expert.counts t.canvas_registry in
   { runtime = t.stats
   ; traffic = Gpuio_native.traffic t.native
+  ; native_command_queue = Gpuio_native.command_queue t.native
   ; scopes = Scope.stats t.scope
   ; windows =
       Map.count t.windows ~f:(fun window ->
@@ -204,12 +226,17 @@ let diagnostics t : Diagnostics.t =
       + Map.length t.window_requests
       + Map.length t.assets
       + Map.length t.documents
+      + Map.length t.charts
       + Map.length t.canvases
+      + Map.length t.desktop_requests
+      + Map.length t.notification_requests
   ; assets
   ; asset_uploads
   ; asset_source_bytes
   ; documents
   ; document_source_bytes
+  ; charts
+  ; chart_data_bytes
   ; canvases
   ; canvas_scene_bytes
   }
@@ -235,6 +262,121 @@ let set_motion t preference =
 ;;
 
 module Expert = struct
+  let desktop t request =
+    Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+      check t;
+      let fail error = callback (Wire.Desktop.Response.Failed error) in
+      if t.stopping
+      then fail Closed
+      else if not (Wire.Desktop.Request.valid request)
+      then fail Invalid_request
+      else if Map.length t.desktop_requests >= 16
+      then fail Busy
+      else (
+        let id = correlation t in
+        t.desktop_requests <- Map.set t.desktop_requests ~key:id ~data:callback;
+        queue t (Desktop (id, request))))
+  ;;
+
+  let on_desktop_pending t callback =
+    check t;
+    if t.stopping
+    then Error Gpuio.Desktop.Error.Closed
+    else if Option.is_some t.desktop_subscription
+    then Error Gpuio.Desktop.Error.Busy
+    else (
+      let token = correlation t in
+      let current () = Option.equal Int64.equal t.desktop_subscription (Some token) in
+      t.desktop_subscription <- Some token;
+      t.on_desktop_pending <- callback;
+      if t.desktop_pending
+      then
+        Scope.Expert.enqueue t.scope (fun () ->
+          if (not t.stopping) && current ()
+          then Bonsai.Effect.Expert.handle (t.on_desktop_pending ()));
+      Ok
+        (fun () ->
+          check t;
+          if current ()
+          then (
+            t.desktop_subscription <- None;
+            t.on_desktop_pending <- (fun () -> Bonsai.Effect.Ignore))))
+  ;;
+
+  let notification t request =
+    Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+      check t;
+      let fail error = callback (Wire.Notification.Response.Failed error) in
+      if t.stopping || t.notification_closed
+      then fail Closed
+      else if not (Wire.Notification.Request.valid request)
+      then fail Invalid_request
+      else if
+        Map.length t.notification_requests >= 16
+        && not (Wire.Notification.Request.equal request Close)
+      then fail Busy
+      else (
+        if Wire.Notification.Request.equal request Close
+        then t.notification_closed <- true;
+        let id = correlation t in
+        t.notification_requests <- Map.set t.notification_requests ~key:id ~data:callback;
+        queue t (Notification (id, request))))
+  ;;
+
+  let on_notification_pending t callback =
+    check t;
+    if t.stopping || t.notification_closed
+    then Error Gpuio.Notification.Error.Closed
+    else if Option.is_some t.notification_subscription
+    then Error Gpuio.Notification.Error.Busy
+    else (
+      let token = correlation t in
+      let current () =
+        Option.equal Int64.equal t.notification_subscription (Some token)
+      in
+      t.notification_subscription <- Some token;
+      t.on_notification_pending <- callback;
+      if t.notification_pending
+      then
+        Scope.Expert.enqueue t.scope (fun () ->
+          if (not t.stopping) && current ()
+          then Bonsai.Effect.Expert.handle (t.on_notification_pending ()));
+      Ok
+        (fun () ->
+          check t;
+          if current ()
+          then (
+            t.notification_subscription <- None;
+            t.on_notification_pending <- (fun () -> Bonsai.Effect.Ignore))))
+  ;;
+
+  let chart_request t ~limit request =
+    Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+      check t;
+      let fail error = callback (Wire.Chart.Response.Failed error) in
+      if t.stopping
+      then fail Closed
+      else if not t.welcomed
+      then fail Not_ready
+      else if Map.length t.charts >= limit
+      then fail Resource_limit
+      else (
+        let oversized =
+          match request with
+          | Wire.Chart.Request.Chunk (_, _, _, data) ->
+            String.length data > Wire.Chart.max_chunk_bytes
+          | Create | Begin _ | Publish _ | Abort _ | Release _ -> false
+        in
+        if oversized
+        then fail Invalid_range
+        else (
+          let id = correlation t in
+          t.charts <- Map.set t.charts ~key:id ~data:callback;
+          queue t (Chart (id, request)))))
+  ;;
+
+  let chart t request = chart_request t ~limit:63 request
+
   let canvas_request t ~limit request =
     Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
       check t;
@@ -288,6 +430,14 @@ module Expert = struct
   ;;
 
   let document t request = document_request t ~limit:63 request
+
+  let register_chart t ~scope data =
+    Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+      check t;
+      if t.stopping
+      then callback (Error (Chart_registry.Error.Native Closed))
+      else Chart_registry.register t.chart_registry ~scope data ~on_result:callback)
+  ;;
 
   let register_canvas t ~scope scene =
     Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
@@ -445,8 +595,16 @@ let shutdown t =
   if not t.stopping
   then (
     t.stopping <- true;
+    t.on_desktop_pending <- (fun () -> Bonsai.Effect.Ignore);
+    t.desktop_subscription <- None;
+    t.desktop_pending <- false;
+    t.on_notification_pending <- (fun () -> Bonsai.Effect.Ignore);
+    t.notification_subscription <- None;
+    t.notification_pending <- false;
+    t.notification_closed <- true;
     Asset_registry.close t.asset_registry;
     Document_registry.close t.document_registry;
+    Chart_registry.close t.chart_registry;
     Canvas_registry.close t.canvas_registry;
     Scope.cancel t.scope;
     queue t Shutdown)
@@ -885,6 +1043,7 @@ let open_window_config t ?(theme = Gpuio.Theme.default) config component =
             ~asset_owner:(Asset_registry.Expert.owner t.asset_registry)
             ~document_owner:(Document_registry.Expert.owner t.document_registry)
             ~canvas_owner:(Canvas_registry.Expert.owner t.canvas_registry)
+            ~chart_owner:(Chart_registry.Expert.owner t.chart_registry)
             id
             ~start:(t.now ())
             ~theme
@@ -928,6 +1087,59 @@ let find_window t id =
 let native_error code = Error.create_s (Wire.Error_code.sexp_of_t code)
 
 let process t = function
+  | Wire.Event.Desktop_pending ->
+    if not t.stopping
+    then (
+      t.desktop_pending <- true;
+      let token = t.desktop_subscription in
+      enqueue t (fun () ->
+        if
+          (not t.stopping)
+          && Option.is_some token
+          && Option.equal Int64.equal token t.desktop_subscription
+        then Bonsai.Effect.Expert.handle (t.on_desktop_pending ())))
+  | Desktop_response (request, response) ->
+    (match Map.find t.desktop_requests request with
+     | None -> ()
+     | Some complete ->
+       t.desktop_requests <- Map.remove t.desktop_requests request;
+       (match response with
+        | Links _ -> t.desktop_pending <- false
+        | Configured | Capabilities _ | Requested | Registered | Failed _ -> ());
+       complete (if t.stopping then Wire.Desktop.Response.Failed Closed else response))
+  | Wire.Event.Notification_pending ->
+    if (not t.stopping) && not t.notification_closed
+    then (
+      t.notification_pending <- true;
+      let token = t.notification_subscription in
+      enqueue t (fun () ->
+        if
+          (not t.stopping)
+          && (not t.notification_closed)
+          && Option.is_some token
+          && Option.equal Int64.equal token t.notification_subscription
+        then Bonsai.Effect.Expert.handle (t.on_notification_pending ())))
+  | Notification_response (request, response) ->
+    (match Map.find t.notification_requests request with
+     | None -> ()
+     | Some complete ->
+       t.notification_requests <- Map.remove t.notification_requests request;
+       (match response with
+        | Events _ -> t.notification_pending <- false
+        | Capabilities _
+        | Authorization _
+        | Posted _
+        | Replaced
+        | Dismiss_requested
+        | Closed
+        | Failed _ -> ());
+       complete
+         (if
+            t.stopping
+            || (t.notification_closed
+                && not (Wire.Notification.Response.equal response Closed))
+          then Wire.Notification.Response.Failed Closed
+          else response))
   | Wire.Event.Close_requested id ->
     Option.iter (find_window t id) ~f:Window.request_close
   | Quit_requested -> request_quit t
@@ -995,6 +1207,19 @@ let process t = function
       Option.iter (find_window t id) ~f:(fun window ->
         if not (Window.is_closed window)
         then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))
+  | Chart_event (id, _, _, _, source, data_revision, data_generation, observation) as
+    event ->
+    if
+      Chart_registry.accepts_event
+        t.chart_registry
+        source
+        ~data_revision
+        ~data_generation
+        observation
+    then
+      Option.iter (find_window t id) ~f:(fun window ->
+        if not (Window.is_closed window)
+        then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))
   | Document_navigation (id, _, _, _, source, generation, _) as event ->
     if Document_registry.accepts_navigation t.document_registry source ~generation
     then
@@ -1032,6 +1257,12 @@ let process t = function
     Option.iter (find_window t id) ~f:(fun window ->
       if not (Window.is_closed window)
       then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))
+  | Chart_response (request, response) ->
+    (match Map.find t.charts request with
+     | None -> ()
+     | Some complete ->
+       t.charts <- Map.remove t.charts request;
+       complete (if t.stopping then Wire.Chart.Response.Failed Closed else response))
   | Canvas_response (request, response) ->
     (match Map.find t.canvases request with
      | None -> ()
@@ -1173,6 +1404,14 @@ let process t = function
          if not (Window.is_closed window)
          then Bonsai.Effect.Expert.handle (callback ~revision))
      | Some _ | None -> ())
+  | Failed (request, _) when Map.mem t.desktop_requests request ->
+    let complete = Map.find_exn t.desktop_requests request in
+    t.desktop_requests <- Map.remove t.desktop_requests request;
+    complete (Wire.Desktop.Response.Failed Native_failure)
+  | Failed (request, _) when Map.mem t.notification_requests request ->
+    let complete = Map.find_exn t.notification_requests request in
+    t.notification_requests <- Map.remove t.notification_requests request;
+    complete (Wire.Notification.Response.Failed Native_failure)
   | Failed (request, _) when Map.mem t.window_requests request ->
     let pending = Map.find_exn t.window_requests request in
     t.window_requests <- Map.remove t.window_requests request;
@@ -1334,6 +1573,10 @@ let process t = function
        if Map.mem t.frames request
        then t.frames <- Map.remove t.frames request
        else Error.raise (native_error code))
+  | Failed (request, _) when Map.mem t.charts request ->
+    let complete = Map.find_exn t.charts request in
+    t.charts <- Map.remove t.charts request;
+    complete (Wire.Chart.Response.Failed Native_failure)
   | Failed (request, _) when Map.mem t.canvases request ->
     let complete = Map.find_exn t.canvases request in
     t.canvases <- Map.remove t.canvases request;
@@ -1347,8 +1590,24 @@ let process t = function
   | Stopped ->
     t.stopped <- true;
     t.stopping <- true;
+    t.on_desktop_pending <- (fun () -> Bonsai.Effect.Ignore);
+    t.desktop_subscription <- None;
+    t.desktop_pending <- false;
+    t.on_notification_pending <- (fun () -> Bonsai.Effect.Ignore);
+    t.notification_subscription <- None;
+    t.notification_pending <- false;
+    t.notification_closed <- true;
+    let desktop_requests = t.desktop_requests in
+    t.desktop_requests <- Int64.Map.empty;
+    Map.iter desktop_requests ~f:(fun complete ->
+      complete (Wire.Desktop.Response.Failed Closed));
+    let notification_requests = t.notification_requests in
+    t.notification_requests <- Int64.Map.empty;
+    Map.iter notification_requests ~f:(fun complete ->
+      complete (Wire.Notification.Response.Failed Closed));
     Asset_registry.close t.asset_registry;
     Document_registry.close t.document_registry;
+    Chart_registry.close t.chart_registry;
     Canvas_registry.close t.canvas_registry;
     let assets = t.assets in
     t.assets <- Int64.Map.empty;
@@ -1357,6 +1616,9 @@ let process t = function
     t.documents <- Int64.Map.empty;
     Map.iter documents ~f:(fun complete ->
       complete (Wire.Document.Response.Failed Closed));
+    let charts = t.charts in
+    t.charts <- Int64.Map.empty;
+    Map.iter charts ~f:(fun complete -> complete (Wire.Chart.Response.Failed Closed));
     let canvases = t.canvases in
     t.canvases <- Int64.Map.empty;
     Map.iter canvases ~f:(fun complete -> complete (Wire.Canvas.Response.Failed Closed))
@@ -1440,6 +1702,13 @@ let step t =
              ~f:(Document_registry.complete t.document_registry)));
     if t.welcomed && not t.stopping
     then
+      Option.iter (Chart_registry.next_request t.chart_registry) ~f:(fun request ->
+        Bonsai.Effect.Expert.handle
+          (Bonsai.Effect.map
+             (Expert.chart_request t ~limit:64 request)
+             ~f:(Chart_registry.complete t.chart_registry)));
+    if t.welcomed && not t.stopping
+    then
       Option.iter (Canvas_registry.next_request t.canvas_registry) ~f:(fun request ->
         Bonsai.Effect.Expert.handle
           (Bonsai.Effect.map
@@ -1465,7 +1734,7 @@ let step t =
         | (Opening | Closing_before_open | Closing | Closed), _ | Open, _ -> ())))
 ;;
 
-let worker native read ~tick_hz ~max_tasks ~motion initialize =
+let worker native read ~tick_hz ~max_tasks ~motion ~desktop initialize =
   Eio_main.run (fun env ->
     Eio.Switch.run (fun sw ->
       let inbox = Inbox.create ~capacity:1024 () in
@@ -1510,7 +1779,19 @@ let worker native read ~tick_hz ~max_tasks ~motion initialize =
               ~wake:(fun () -> Inbox.wake inbox)
         ; assets = Int64.Map.empty
         ; documents = Int64.Map.empty
+        ; chart_registry = Chart_registry.create ~scope ~wake:(fun () -> Inbox.wake inbox)
+        ; charts = Int64.Map.empty
         ; canvases = Int64.Map.empty
+        ; desktop_requests = Int64.Map.empty
+        ; desktop_pending = false
+        ; desktop_subscription = None
+        ; on_desktop_pending = (fun () -> Bonsai.Effect.Ignore)
+        ; notification_requests = Int64.Map.empty
+        ; notification_pending = false
+        ; notification_subscription = None
+        ; on_notification_pending = (fun () -> Bonsai.Effect.Ignore)
+        ; notification_closed = false
+        ; desktop_identity = desktop
         ; correlation = 0L
         ; motion = Some motion
         ; welcomed = false
@@ -1524,12 +1805,23 @@ let worker native read ~tick_hz ~max_tasks ~motion initialize =
         ~finally:(fun () ->
           Asset_registry.close app.asset_registry;
           Document_registry.close app.document_registry;
+          Chart_registry.close app.chart_registry;
           Canvas_registry.close app.canvas_registry;
           Scope.cancel scope;
           Map.iter app.windows ~f:release_window;
           app.assets <- Int64.Map.empty;
           app.documents <- Int64.Map.empty;
+          app.charts <- Int64.Map.empty;
           app.canvases <- Int64.Map.empty;
+          app.desktop_requests <- Int64.Map.empty;
+          app.desktop_pending <- false;
+          app.desktop_subscription <- None;
+          app.on_desktop_pending <- (fun () -> Bonsai.Effect.Ignore);
+          app.notification_requests <- Int64.Map.empty;
+          app.notification_pending <- false;
+          app.notification_subscription <- None;
+          app.on_notification_pending <- (fun () -> Bonsai.Effect.Ignore);
+          app.notification_closed <- true;
           app.frames <- Int64.Map.empty;
           app.closes <- Int64.Map.empty;
           app.opens <- Int64.Map.empty;
@@ -1562,6 +1854,20 @@ let worker native read ~tick_hz ~max_tasks ~motion initialize =
           Gpuio_native.submit native (Hello (Wire.version, Wire.capabilities))
           |> Result.map_error ~f:native_error
           |> Or_error.ok_exn;
+          Option.iter desktop ~f:(fun identity ->
+            Bonsai.Effect.Expert.handle
+              (Bonsai.Effect.map
+                 (Expert.desktop
+                    app
+                    (Configure (Gpuio.Desktop.Expert.identity_to_wire identity)))
+                 ~f:(function
+                   | Wire.Desktop.Response.Configured -> ()
+                   | Failed Closed when app.stopping -> ()
+                   | response ->
+                     raise_s
+                       [%sexp
+                         "desktop initialization failed"
+                       , (response : Wire.Desktop.Response.t)])));
           initialize (env :> Eio_unix.Stdenv.base) app;
           while not app.stopped do
             step app;
@@ -1579,11 +1885,13 @@ let reraise_result = function
   | Error (exn, bt) -> Stdlib.Printexc.raise_with_backtrace exn bt
 ;;
 
-let run
+let run_with_preflight
       ?(tick_hz = 60.)
       ?(max_tasks = 1024)
       ?(exit_on_last_window = true)
       ?(motion = Gpuio.Animation.Preference.System)
+      ?desktop
+      ~preflight
       initialize
   =
   if (not (Float.is_finite tick_hz)) || Float.(tick_hz < 0.01 || tick_hz > 240.)
@@ -1601,23 +1909,89 @@ let run
           (Gpuio_native.create_with_options ~exit_on_last_window)
       in
       Eio.Flow.close write;
-      let domain =
-        Domain.spawn (fun () ->
-          try worker native read ~tick_hz ~max_tasks ~motion initialize with
-          | exn ->
-            let bt = Stdlib.Printexc.get_raw_backtrace () in
-            Gpuio_native.abort native;
-            Stdlib.Printexc.raise_with_backtrace exn bt)
-      in
-      let native_result = capture (fun () -> Gpuio_native.run native) in
-      if Result.is_error native_result then Gpuio_native.abort native;
-      let worker_result = capture (fun () -> Domain.join domain) in
-      Gpuio_native.dispose native;
-      reraise_result worker_result;
-      reraise_result native_result))
+      Exn.protect
+        ~finally:(fun () -> Gpuio_native.dispose native)
+        ~f:(fun () ->
+          match preflight native with
+          | Error error -> Error error
+          | Ok `Forwarded -> Ok `Forwarded
+          | Ok `Primary ->
+            let domain =
+              Domain.spawn (fun () ->
+                try
+                  worker native read ~tick_hz ~max_tasks ~motion ~desktop initialize
+                with
+                | exn ->
+                  let bt = Stdlib.Printexc.get_raw_backtrace () in
+                  Gpuio_native.abort native;
+                  Stdlib.Printexc.raise_with_backtrace exn bt)
+            in
+            let native_result = capture (fun () -> Gpuio_native.run native) in
+            if Result.is_error native_result then Gpuio_native.abort native;
+            let worker_result = capture (fun () -> Domain.join domain) in
+            reraise_result worker_result;
+            reraise_result native_result;
+            Ok `Exited)))
 ;;
 
 let extension_catalog () =
   let%bind.Or_error schemas = Gpuio_native.extension_catalog () in
   List.map schemas ~f:Gpuio.Extension.Schema.Expert.of_wire |> Or_error.all
+;;
+
+let run ?tick_hz ?max_tasks ?exit_on_last_window ?motion ?desktop initialize =
+  match
+    run_with_preflight
+      ?tick_hz
+      ?max_tasks
+      ?exit_on_last_window
+      ?motion
+      ?desktop
+      ~preflight:(fun _ -> Ok `Primary)
+      initialize
+  with
+  | Ok `Exited -> ()
+  | Ok `Forwarded | Error () -> assert false
+;;
+
+module Launch_outcome = struct
+  type t =
+    | Exited
+    | Forwarded
+  [@@deriving equal, sexp_of]
+end
+
+let run_desktop
+      ?tick_hz
+      ?max_tasks
+      ?exit_on_last_window
+      ?motion
+      identity
+      ~startup_links
+      initialize
+  =
+  let preflight native =
+    match
+      Gpuio_native.prepare_desktop
+        native
+        { identity = Gpuio.Desktop.Expert.identity_to_wire identity
+        ; links = startup_links
+        }
+    with
+    | Primary -> Ok `Primary
+    | Forwarded -> Ok `Forwarded
+    | Failed error -> Error (Gpuio.Desktop.Expert.error_of_wire error)
+  in
+  Result.map
+    (run_with_preflight
+       ?tick_hz
+       ?max_tasks
+       ?exit_on_last_window
+       ?motion
+       ~desktop:identity
+       ~preflight
+       initialize)
+    ~f:(function
+    | `Exited -> Launch_outcome.Exited
+    | `Forwarded -> Forwarded)
 ;;

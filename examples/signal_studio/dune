@@ -1,0 +1,15 @@
+(executable
+ (name main)
+ (libraries
+  core
+  gpuio.bonsai
+  gpuio.eio
+  bonsai
+  eio_main
+  signal_studio_model
+  signal_studio_files
+  signal_studio_notifications
+  gpuio_example_counter
+  gpuio_signal_backend)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

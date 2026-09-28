@@ -3,6 +3,26 @@ use binprot::BinProtRead;
 use std::io::{Cursor, Read};
 
 mod accessibility;
+mod chart_data;
+mod chart_options;
+mod chart_style;
+mod chart_view;
+pub use chart_style::decode_chart_style;
+pub use chart_view::decode_chart_view_config;
+mod chart_resource;
+mod chart_sampling;
+mod chart_selection;
+pub use chart_options::decode_chart_options;
+pub use chart_resource::{decode_chart_request, decode_chart_response};
+pub use chart_sampling::decode_chart_sampling;
+pub use chart_selection::decode_chart_selection;
+mod desktop;
+mod notification;
+pub use chart_data::decode_chart_data;
+pub use desktop::{decode_desktop_launch, decode_desktop_request};
+pub use notification::{
+    decode_notification_event, decode_notification_request, decode_notification_response,
+};
 mod avatar;
 mod calendar;
 mod carousel;
@@ -891,6 +911,7 @@ impl Decoder<'_> {
                     45 => Kind::NavigationStack,
                     46 => Kind::HoverCard,
                     47 => Kind::Carousel,
+                    48 => Kind::ChartView,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -985,6 +1006,7 @@ impl Decoder<'_> {
             52 => Op::SetTable(self.node()?, self.table_config()?),
             53 => Op::SetTableCell(self.node()?, self.table_cell()?),
             54 => Op::TableCommand(self.node()?, self.table_command()?),
+            55 => Op::SetChart(self.node()?, self.chart_view_config()?),
             47 => Op::SetColorInput(
                 self.node()?,
                 Box::new(self.color_config()?),
@@ -1261,6 +1283,10 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
                 4 => Command::Zoom,
                 5 => Command::ToggleFullscreen,
                 6 => Command::SetEdited(d.boolean()?),
+                7 => Command::SetDocument(crate::window::Document {
+                    path: d.option(|d| d.file_path())?,
+                    edited: d.boolean()?,
+                }),
                 _ => return Err(DecodeError::Malformed),
             };
             if correlation <= 0 || !command.is_valid() {
@@ -1287,6 +1313,27 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
                 return Err(DecodeError::Malformed);
             }
             Message::OpenConfigured(correlation, id, config)
+        }
+        21 => {
+            let correlation = d.int()?;
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::Chart(correlation, d.chart_request()?)
+        }
+        20 => {
+            let correlation = d.int()?;
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::Notification(correlation, d.notification_request()?)
+        }
+        19 => {
+            let correlation = d.int()?;
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::Desktop(correlation, d.desktop_request()?)
         }
         18 => {
             let correlation = d.int()?;

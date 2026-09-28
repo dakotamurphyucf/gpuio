@@ -1,0 +1,6 @@
+(library
+ (name signal_studio_model_tests)
+ (libraries core signal_studio_model expect_test_helpers_core)
+ (inline_tests)
+ (preprocess
+  (pps ppx_jane ppx_expect)))

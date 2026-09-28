@@ -2481,6 +2481,7 @@ name = "gpuio-native"
 version = "0.0.0"
 dependencies = [
  "async-channel",
+ "async-io",
  "binprot",
  "block2 0.6.2",
  "cocoa 0.26.0",
@@ -2490,6 +2491,7 @@ dependencies = [
  "gpui-base",
  "gpui_platform",
  "gpuio-extension-sdk",
+ "gpuio-plot",
  "gpuio-portal",
  "gpuio-protocol",
  "gpuio-table-adapter",
@@ -2500,6 +2502,7 @@ dependencies = [
  "objc2 0.6.4",
  "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",
+ "objc2-user-notifications",
  "ocaml-interop",
  "raw-window-handle",
  "resvg",
@@ -2509,6 +2512,14 @@ dependencies = [
  "taffy",
  "two-face",
  "unicode-segmentation",
+ "zbus",
+]
+
+[[package]]
+name = "gpuio-plot"
+version = "0.0.0"
+dependencies = [
+ "gpui",
 ]
 
 [[package]]

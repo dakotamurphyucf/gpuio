@@ -3,13 +3,16 @@ use gpuio_protocol::{WindowId, v1::*};
 use std::{
     os::fd::{AsRawFd, FromRawFd, OwnedFd},
     sync::{
-        Mutex,
+        Arc, Mutex,
         atomic::{AtomicBool, Ordering},
     },
 };
 
 pub struct Transport {
     pub mailbox: Mutex<Mailbox>,
+    pub desktop_inbox: Arc<Mutex<crate::desktop_state::DesktopState>>,
+    #[cfg(any(target_os = "linux", test))]
+    pub(crate) desktop_instance: Mutex<Option<crate::desktop_instance::Lease>>,
     pub tx: async_channel::Sender<()>,
     pub rx: async_channel::Receiver<()>,
     wake: OwnedFd,
@@ -38,6 +41,9 @@ impl Transport {
         let (tx, rx) = async_channel::bounded(1);
         Ok(Self {
             mailbox: Mutex::new(Mailbox::default()),
+            desktop_inbox: Arc::default(),
+            #[cfg(any(target_os = "linux", test))]
+            desktop_instance: Mutex::new(None),
             tx,
             rx,
             wake,
@@ -70,6 +76,36 @@ impl Transport {
             .expect("mailbox poisoned")
             .respond(event);
         self.wake_ocaml();
+    }
+
+    pub(crate) fn respond_chart(
+        &self,
+        correlation: i64,
+        response: gpuio_protocol::chart_resource::Response,
+    ) {
+        let accepted = self
+            .mailbox
+            .lock()
+            .expect("mailbox poisoned")
+            .chart_response(correlation, response);
+        if accepted {
+            self.wake_ocaml();
+        }
+    }
+
+    pub(crate) fn respond_desktop(
+        &self,
+        correlation: i64,
+        response: gpuio_protocol::desktop::Response,
+    ) {
+        let accepted = self
+            .mailbox
+            .lock()
+            .expect("mailbox poisoned")
+            .desktop_response(correlation, response);
+        if accepted {
+            self.wake_ocaml();
+        }
     }
     pub fn input(&self, event: Event) -> bool {
         if matches!(event, Event::ColorInputEvent(..)) {
@@ -118,7 +154,37 @@ impl Transport {
         self.wake_ocaml();
         success
     }
+    pub(crate) fn desktop_instance_active(&self) -> bool {
+        #[cfg(any(target_os = "linux", test))]
+        {
+            self.desktop_instance
+                .lock()
+                .expect("desktop lease poisoned")
+                .as_ref()
+                .is_some_and(|lease| lease.active())
+        }
+        #[cfg(not(any(target_os = "linux", test)))]
+        {
+            false
+        }
+    }
+    pub(crate) fn close_desktop(&self) {
+        self.desktop_inbox
+            .lock()
+            .expect("desktop inbox poisoned")
+            .close();
+        #[cfg(any(target_os = "linux", test))]
+        {
+            let lease = self
+                .desktop_instance
+                .lock()
+                .expect("desktop lease poisoned")
+                .take();
+            drop(lease);
+        }
+    }
     pub fn finish(&self) {
+        self.close_desktop();
         self.mailbox
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())

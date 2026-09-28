@@ -32,6 +32,16 @@ let valid_size width height =
   && Float.(width >= 1. && height >= 1. && width <= 16384. && height <= 16384.)
 ;;
 
+module Document = struct
+  type t =
+    { path : string option
+    ; edited : bool
+    }
+  [@@deriving bin_io, equal, sexp_of]
+
+  let valid t = Option.for_all t.path ~f:Desktop_wire.Request.valid_path
+end
+
 module Command = struct
   type t =
     | Observe
@@ -41,6 +51,7 @@ module Command = struct
     | Zoom
     | Toggle_fullscreen
     | Set_edited of bool
+    | Set_document of Document.t
   [@@deriving bin_io, equal, sexp_of]
 
   let validate = function
@@ -48,13 +59,16 @@ module Command = struct
       Or_error.error_string "invalid window title"
     | Resize (width, height) when not (valid_size width height) ->
       Or_error.error_string "invalid logical window size"
+    | Set_document document when not (Document.valid document) ->
+      Or_error.error_string "invalid represented document path"
     | Observe
     | Set_title _
     | Resize _
     | Activate
     | Zoom
     | Toggle_fullscreen
-    | Set_edited _ -> Ok ()
+    | Set_edited _
+    | Set_document _ -> Ok ()
   ;;
 end
 
@@ -70,11 +84,13 @@ module Snapshot = struct
     ; active : bool
     ; fullscreen : bool
     ; maximized : bool
+    ; document : Document.t option
     }
   [@@deriving bin_io, equal, sexp_of]
 
   let valid t =
-    String.length t.title <= 4096
+    Option.for_all t.document ~f:Document.valid
+    && String.length t.title <= 4096
     && Stdlib.String.is_valid_utf_8 t.title
     && (not (String.contains t.title '\000'))
     && List.for_all
@@ -111,6 +127,7 @@ module Error = struct
     | Busy
     | Invalid_request
     | Native_failure
+    | Unsupported
   [@@deriving bin_io, equal, sexp_of]
 end
 

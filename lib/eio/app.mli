@@ -49,7 +49,9 @@ module Window : sig
 
   (** At most one request per open window. Call after activation; requests
       before native opening return an error. This observes a render callback,
-      not physical screen presentation. *)
+      not physical screen presentation. Delivery can be deferred while a window
+      is occluded: the pinned macOS backend stops its display link then. Do not
+      use a frame callback as an application/data readiness barrier. *)
   val request_frame
     :  t
     -> on_rendered:(revision:int64 -> unit Bonsai.Effect.t)
@@ -131,6 +133,48 @@ module Window : sig
 end
 
 module Expert : sig
+  (** Application-scoped OS notifications: 16 pending requests plus a reserved
+      close lane. [Close] permanently disables this application's service.
+      Terminal shutdown resolves outstanding requests with [Closed]. *)
+  val notification
+    :  t
+    -> Gpuio_protocol.Notification_wire.Request.t
+    -> Gpuio_protocol.Notification_wire.Response.t Bonsai.Effect.t
+
+  (** Exclusive, generation-checked availability subscription on the UI domain.
+      Unregistering does not itself close native notification ownership. *)
+  val on_notification_pending
+    :  t
+    -> (unit -> unit Bonsai.Effect.t)
+    -> (unit -> unit, Gpuio.Notification.Error.t) Result.t
+
+  (** Application-scoped desktop protocol. At most 16 pending requests; closing
+      resolves them with [Closed]. Requesting [Take_links] consumes the native
+      FIFO and its overflow counter, without routing or interpreting its values. *)
+  val desktop
+    :  t
+    -> Gpuio_protocol.Desktop_wire.Request.t
+    -> Gpuio_protocol.Desktop_wire.Response.t Bonsai.Effect.t
+
+  (** Exclusive application subscription; a second live subscriber returns
+      [Busy]. The returned idempotent unregister closure cannot remove a later
+      subscriber. Pending signals survive initial registration, but queued jobs
+      from a retired subscription cannot invoke a replacement. The callback runs
+      on the UI domain and must request input when ready. Signals are coalesced
+      availability hints, not one callback per URL. *)
+  val on_desktop_pending
+    :  t
+    -> (unit -> unit Bonsai.Effect.t)
+    -> (unit -> unit, Gpuio.Desktop.Error.t) Result.t
+
+  (** Raw chart resource protocol, bounded to 63 pending requests with one lane
+      reserved for the scoped adapter. Callers own release and late-reply cleanup.
+      Publish replies only after native background validation and atomic commit. *)
+  val chart
+    :  t
+    -> Gpuio_protocol.Wire.Chart.Request.t
+    -> Gpuio_protocol.Wire.Chart.Response.t Bonsai.Effect.t
+
   (** Raw correlated scene-resource protocol; at most 63 pending requests.
       Callers own release and late-reply cleanup. This registers scene data;
       it does not itself create a rendered canvas. One additional request lane
@@ -146,6 +190,12 @@ module Expert : sig
     :  t
     -> Gpuio_protocol.Wire.Document.Request.t
     -> Gpuio_protocol.Wire.Document.Response.t Bonsai.Effect.t
+
+  val register_chart
+    :  t
+    -> scope:Scope.t
+    -> Gpuio.Chart_data.t
+    -> (Chart_registry.Registration.t, Chart_registry.Error.t) Result.t Bonsai.Effect.t
 
   val register_canvas
     :  t
@@ -185,10 +235,13 @@ module Diagnostics : sig
       they exclude native decoded caches, GPU allocations and model payloads.
       Pending requests include correlated lifecycle, input, resource and frame
       requests; queued commands have not yet been accepted by the native host.
+      Native command-queue bytes count accepted serialized input awaiting dispatch,
+      with a lifetime high-water mark; they exclude executing work and outputs.
       Sampling creates no bridge command and does not request a frame. *)
   type t =
     { runtime : Stats.t
     ; traffic : Gpuio_native.Traffic.t
+    ; native_command_queue : Gpuio_native.Command_queue.t
     ; scopes : Scope.Stats.t
     ; windows : int
     ; queued_jobs : int
@@ -199,6 +252,8 @@ module Diagnostics : sig
     ; asset_source_bytes : int
     ; documents : int
     ; document_source_bytes : int
+    ; charts : int
+    ; chart_data_bytes : int
     ; canvases : int
     ; canvas_scene_bytes : int
     }
@@ -216,6 +271,10 @@ val request_quit : t -> unit
 
 val window_capabilities : t -> Gpuio.Window.Capabilities.t option
 val on_reopen : t -> (unit -> unit Bonsai.Effect.t) -> unit
+
+(** Immutable identity declared to [run]. Native configuration is queued before
+    initialization can enqueue windows or desktop requests. *)
+val desktop_identity : t -> Gpuio.Desktop.Identity.t option
 
 (** Application-wide native motion policy. [System] follows available platform
     preferences and defaults to full motion when no preference is available.
@@ -258,6 +317,7 @@ val run
   -> ?max_tasks:int
   -> ?exit_on_last_window:bool
   -> ?motion:Gpuio.Animation.Preference.t
+  -> ?desktop:Gpuio.Desktop.Identity.t
   -> (Eio_unix.Stdenv.base -> t -> unit)
   -> unit
 
@@ -265,3 +325,35 @@ val run
     This initializes the selected backend and freezes native registration.
     Compare with package definitions before constructing application windows. *)
 val extension_catalog : unit -> Gpuio.Extension.Schema.t list Or_error.t
+
+module Launch_outcome : sig
+  type t =
+    | Exited
+    | Forwarded
+  [@@deriving equal, sexp_of]
+end
+
+(** Desktop entry point with explicit startup arguments. On Linux, claim the
+    application's identity on the current session bus before starting GPUI. If
+    owned, atomically forward [startup_links] and return [Forwarded] without
+    calling [initialize]. An empty secondary launch requests [on_reopen].
+    The primary delivers startup links through [Desktop.attach]/[ready].
+    macOS uses LaunchServices for packaged single-instance dispatch; explicit
+    startup links are queued in addition to OS-delivered links.
+
+    Each batch permits 64 UTF-8, NUL-free strings, at most 16 KiB each and
+    256 KiB total. URI syntax is validated during normal desktop delivery.
+    [Busy] means no part of the forwarded batch was admitted. [Native_failure]
+    may mean the reply was lost after admission: do not automatically retry.
+    Missing Linux session bus returns [Unavailable], without starting another UI.
+    [Exited] means the primary ran and completed cleanup. Other options and
+    callback exception behavior match [run]. No global argv parsing occurs. *)
+val run_desktop
+  :  ?tick_hz:float
+  -> ?max_tasks:int
+  -> ?exit_on_last_window:bool
+  -> ?motion:Gpuio.Animation.Preference.t
+  -> Gpuio.Desktop.Identity.t
+  -> startup_links:string list
+  -> (Eio_unix.Stdenv.base -> t -> unit)
+  -> (Launch_outcome.t, Gpuio.Desktop.Error.t) Result.t

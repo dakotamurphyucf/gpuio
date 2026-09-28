@@ -51,6 +51,7 @@ module Kind = struct
     | Navigation_stack
     | Hover_card
     | Carousel
+    | Chart_view
   [@@deriving equal, sexp_of]
 end
 
@@ -214,6 +215,11 @@ type 'action canvas =
   ; on_event : (Canvas.Event.t -> 'action) option
   }
 
+type 'action chart =
+  { config : Chart.Config.t
+  ; on_event : (Chart.Event.t -> 'action) option
+  }
+
 type 'action document =
   { config : Document.Config.t
   ; on_navigate : (Document.Navigation.t -> 'action) option
@@ -286,6 +292,7 @@ type 'action t =
   ; split_pane : 'action split_pane option
   ; document : 'action document option
   ; canvas : 'action canvas option
+  ; chart : 'action chart option
   ; palette : 'action palette option
   ; menu : menu option
   ; focus_scope : Focus_scope.t option
@@ -334,6 +341,7 @@ let text ?key ?(style = Style.empty) text =
   ; split_pane = None
   ; document = None
   ; canvas = None
+  ; chart = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -434,6 +442,10 @@ let image ?key ?(style = Style.empty) ?on_change config =
   { (text ?key ~style "") with kind = Image; image = Some { config; on_change } }
 ;;
 
+let chart ?key ?(style = Style.empty) ?on_event config =
+  { (text ?key ~style "") with kind = Chart_view; chart = Some { config; on_event } }
+;;
+
 let canvas ?key ?(style = Style.empty) ?on_event config =
   { (text ?key ~style "") with kind = Canvas_view; canvas = Some { config; on_event } }
 ;;
@@ -487,6 +499,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; split_pane = None
   ; document = None
   ; canvas = None
+  ; chart = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -595,6 +608,7 @@ let button
   ; split_pane = None
   ; document = None
   ; canvas = None
+  ; chart = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -675,6 +689,7 @@ let toggle
   ; split_pane = None
   ; document = None
   ; canvas = None
+  ; chart = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -739,6 +754,7 @@ let focus_scope ?key ?style ~config children =
   ; split_pane = None
   ; document = None
   ; canvas = None
+  ; chart = None
   ; palette = None
   ; menu = None
   ; focus_scope = Some config
@@ -1433,6 +1449,7 @@ let text_input
   ; split_pane = None
   ; document = None
   ; canvas = None
+  ; chart = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -1482,6 +1499,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; split_pane = None
   ; document = None
   ; canvas = None
+  ; chart = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -1557,6 +1575,7 @@ let combobox
   ; split_pane = None
   ; document = None
   ; canvas = None
+  ; chart = None
   ; palette = None
   ; menu = None
   ; focus_scope = None
@@ -1845,6 +1864,11 @@ module Expert = struct
     ; on_event : (Canvas.Event.t -> 'action) option
     }
 
+  type nonrec 'action chart = 'action chart =
+    { config : Chart.Config.t
+    ; on_event : (Chart.Event.t -> 'action) option
+    }
+
   type nonrec 'action document = 'action document =
     { config : Document.Config.t
     ; on_navigate : (Document.Navigation.t -> 'action) option
@@ -2001,6 +2025,7 @@ module Expert = struct
     ; split_pane : 'action split_pane option
     ; document : 'action document option
     ; canvas : 'action canvas option
+    ; chart : 'action chart option
     ; palette : 'action palette option
     ; menu : menu option
     ; focus_scope : Focus_scope.t option

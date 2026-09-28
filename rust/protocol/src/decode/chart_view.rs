@@ -1,0 +1,32 @@
+use super::{DecodeError, Decoder};
+use crate::chart_view::Config;
+use std::io::Cursor;
+impl Decoder<'_> {
+    pub(super) fn chart_view_config(&mut self) -> Result<Config, DecodeError> {
+        let value = Config {
+            source: self.option(|d| d.resource())?,
+            label: self.bounded_text(1024)?,
+            options: self.chart_options()?,
+            sampling: self.chart_sampling()?,
+            style: self.chart_style()?,
+            legend: self.boolean()?,
+            disabled: self.boolean()?,
+        };
+        if value.is_valid() {
+            Ok(value)
+        } else {
+            Err(DecodeError::Malformed)
+        }
+    }
+}
+pub fn decode_chart_view_config(bytes: &[u8]) -> Result<Config, DecodeError> {
+    if bytes.len() > 2048 {
+        return Err(DecodeError::LimitExceeded);
+    }
+    let mut d = Decoder(Cursor::new(bytes));
+    let value = d.chart_view_config()?;
+    if d.remaining() != 0 {
+        return Err(DecodeError::Malformed);
+    }
+    Ok(value)
+}

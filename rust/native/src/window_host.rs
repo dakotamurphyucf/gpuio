@@ -23,6 +23,7 @@ pub(super) fn snapshot(view: &View, window: &Window) -> wire::Snapshot {
         active: window.is_window_active(),
         fullscreen: window.is_fullscreen(),
         maximized: window.is_maximized(),
+        document: document(window),
     }
 }
 pub(super) fn observe(view: &View, window: &Window) {
@@ -49,9 +50,34 @@ pub(super) fn command(
         wire::Command::Activate => window.activate_window(),
         wire::Command::Zoom => window.zoom_window(),
         wire::Command::ToggleFullscreen => window.toggle_fullscreen(),
-        wire::Command::SetEdited(edited) => window.set_window_edited(*edited),
+        wire::Command::SetEdited(edited) => {
+            if let Err(error) = set_edited(window, *edited) {
+                return wire::Response::Failed(error);
+            }
+        }
+        wire::Command::SetDocument(document) => {
+            if let Err(error) = set_document(window, document) {
+                return wire::Response::Failed(error);
+            }
+        }
     }
     wire::Response::Observed(snapshot(view, window))
+}
+
+#[cfg(target_os = "macos")]
+use super::window_macos::{document, set_document, set_edited};
+
+#[cfg(not(target_os = "macos"))]
+fn document(_: &Window) -> Option<wire::Document> {
+    None
+}
+#[cfg(not(target_os = "macos"))]
+fn set_document(_: &Window, _: &wire::Document) -> Result<(), wire::Error> {
+    Err(wire::Error::Unsupported)
+}
+#[cfg(not(target_os = "macos"))]
+fn set_edited(_: &Window, _: bool) -> Result<(), wire::Error> {
+    Err(wire::Error::Unsupported)
 }
 pub(super) fn capabilities() -> wire::Capabilities {
     #[cfg(target_os = "macos")]
@@ -77,7 +103,12 @@ pub(super) fn watch(view: &View, window: &mut Window, cx: &mut Context<View>) {
     });
     cx.observe_window_bounds(window, |view, window, _| observe(view, window))
         .detach();
-    cx.observe_window_activation(window, |view, window, _| observe(view, window))
-        .detach();
+    cx.observe_window_activation(window, |view, window, cx| {
+        if !window.is_window_active() {
+            view.cancel_chart_input(window, cx);
+        }
+        observe(view, window);
+    })
+    .detach();
     observe(view, window);
 }

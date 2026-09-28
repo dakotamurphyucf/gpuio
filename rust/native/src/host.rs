@@ -10,6 +10,8 @@ pub(super) mod animation_program_test;
 pub(super) mod animation_test;
 #[path = "canvas_view.rs"]
 pub(crate) mod canvas_view;
+#[path = "chart_view.rs"]
+pub(crate) mod chart_view;
 #[path = "container_query_view.rs"]
 mod container_query;
 #[cfg(feature = "native-tests")]
@@ -162,6 +164,8 @@ struct View {
     documents: BTreeMap<NodeId, document_view::State>,
     extensions: BTreeMap<NodeId, extension_view::State>,
     canvases: BTreeMap<NodeId, Rc<RefCell<canvas_view::State>>>,
+    charts: BTreeMap<NodeId, Rc<RefCell<chart_view::State>>>,
+    chart_budget: Rc<RefCell<crate::chart_paint::FrameBudget>>,
     canvas_budget: Rc<RefCell<crate::canvas_paint::FrameBudget>>,
     splits: BTreeMap<NodeId, split_view::State>,
     split_activation: Option<gpui::Subscription>,
@@ -394,6 +398,8 @@ impl View {
             documents: BTreeMap::new(),
             extensions: BTreeMap::new(),
             canvases: BTreeMap::new(),
+            charts: BTreeMap::new(),
+            chart_budget: Default::default(),
             canvas_budget: Default::default(),
             splits: BTreeMap::new(),
             split_activation: None,
@@ -458,6 +464,7 @@ impl View {
         self.sync_tooltips(window, cx);
         self.sync_carousels(window, cx);
         self.sync_canvases(dirty, window, cx);
+        self.sync_charts(dirty, window, cx);
         self.sync_splits(window, cx);
         self.sync_sliders(dirty, window, cx);
         self.sync_numbers(dirty, window, cx);
@@ -536,6 +543,9 @@ impl View {
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let node = tree.get(id).expect("validated retained node");
+        if node.kind == Kind::ChartView {
+            return self.chart_element(node, interaction);
+        }
         if node.kind == Kind::CanvasView {
             return self.canvas_element(node, interaction, window, cx);
         }
@@ -1621,6 +1631,7 @@ impl Render for View {
         let begin_focus = self.focus.clone();
         let program_begin = cx.entity().downgrade();
         let canvas_budget = self.canvas_budget.clone();
+        let chart_budget = self.chart_budget.clone();
         let canvases: Vec<_> = self.canvases.values().map(Rc::downgrade).collect();
         let drag_window = self.id;
         let mut root = drag_drop::root(div(), self.id, cx)
@@ -1670,6 +1681,7 @@ impl Render for View {
                             view.begin_query_paint();
                         });
                         *canvas_budget.borrow_mut() = Default::default();
+                        *chart_budget.borrow_mut() = Default::default();
                         for state in &canvases {
                             if let Some(state) = state.upgrade() {
                                 state.borrow_mut().flush_canvas_frame(window, cx);
@@ -1705,6 +1717,7 @@ impl Render for View {
         }
         self.hide_unvisited_extensions();
         self.hide_unvisited_canvases(window);
+        self.hide_unvisited_charts(window);
         self.hide_unvisited_sliders(window, cx);
         self.hide_unvisited_numbers(window, cx);
         self.hide_unvisited_otps(window, cx);
@@ -1797,6 +1810,10 @@ impl Render for View {
                     .canvases
                     .values()
                     .any(|state| state.borrow().canvas_focused(window))
+                || self
+                    .charts
+                    .values()
+                    .any(|state| state.borrow().chart_focused(window))
                 || root_focus.is_focused(window)
                 || self
                     .buttons
@@ -1875,6 +1892,8 @@ pub fn run(transport: Arc<Transport>) {
     let stopping = Rc::new(Cell::new(false));
     let platform = gpui_platform::current_platform(false);
     let application = gpui::Application::with_platform(platform.clone());
+    let desktop = crate::desktop_host::install(&application, transport.clone());
+    let notifications = crate::notification_host::State::default();
     let reopen_transport = transport.clone();
     application.on_reopen(move |_| window_host::control(&reopen_transport, Event::ReopenRequested));
     application.run(move |cx: &mut App| {
@@ -1891,12 +1910,17 @@ pub fn run(transport: Arc<Transport>) {
         // policy must control background applications consistently on both OSes.
         cx.set_quit_mode(gpui::QuitMode::Explicit);
         let session = Rc::new(RefCell::new(Session::default()));
+        crate::chart_host::init(&session, transport.clone(), cx);
         crate::motion_preference::bind_clocks(&session.borrow().motion(), cx);
         let mut windows: BTreeMap<WindowId, WindowHandle<View>> = BTreeMap::new();
         let dialogs = crate::file_dialog::Dialogs::default();
         let quit_dialogs = dialogs.clone();
         let quit_motion = motion.clone();
+        let quit_desktop = desktop.clone();
+        let quit_notifications = notifications.clone();
         cx.on_app_quit(move |cx| {
+            quit_notifications.borrow_mut().close().wait_before_quit();
+            quit_desktop.borrow_mut().close().wait_before_quit();
             quit_motion.borrow_mut().take();
             drag_drop::shutdown(cx);
             quit_dialogs.finish_before_quit();
@@ -1918,9 +1942,15 @@ pub fn run(transport: Arc<Transport>) {
                     .aborting
                     .load(std::sync::atomic::Ordering::Acquire)
                 {
+                    let notification_cleanup = notifications.borrow_mut().close();
+                    notification_cleanup.wait().await;
+                    let desktop_cleanup = desktop.borrow_mut().close();
+                    desktop_cleanup.wait().await;
                     motion.borrow_mut().take();
                     dialogs.clear().wait().await;
+                    crate::chart_host::shutdown(cx).await;
                     crate::canvas_host::shutdown(cx).await;
+                    crate::chart_render_host::shutdown(cx).await;
                     crate::image_host::shutdown(cx).await;
                     crate::document_host::shutdown(cx).await;
                     if !stopping.replace(true) {
@@ -2132,7 +2162,7 @@ pub fn run(transport: Arc<Transport>) {
                                     transport.respond(Event::Closed(correlation, id));
                                     if let Some(window) = windows.remove(&id) {
                                         let _ = window
-                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); view.cancel_tree_drag(window, cx); view.close_color_inputs(window, cx); view.cancel_split_drag(window, cx); view.extensions.clear(); for state in view.canvases.values() { state.borrow_mut().close(window); } view.canvases.clear(); window.remove_window(); });
+                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); view.cancel_tree_drag(window, cx); view.close_color_inputs(window, cx); view.cancel_split_drag(window, cx); view.extensions.clear(); for state in view.canvases.values() { state.borrow_mut().close(window); } view.canvases.clear(); for state in view.charts.values() {state.borrow_mut().close(window);} view.charts.clear(); window.remove_window(); });
                                     }
                                 }
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),
@@ -2144,6 +2174,20 @@ pub fn run(transport: Arc<Transport>) {
                                 None=>gpuio_protocol::window::Response::Failed(gpuio_protocol::window::Error::Closed),
                             };
                             transport.respond(Event::WindowResponse(correlation,id,result));
+                        }
+                        Message::Notification(correlation, request) => {
+                            match session.borrow().check_ready() {
+                                Ok(()) => { crate::notification_host::dispatch(&notifications, correlation, request, &transport); }
+                                Err(error) => transport.respond(Event::Failed(correlation, error)),
+                            }
+                        }
+                        Message::Desktop(correlation, request) => {
+                            match session.borrow().check_ready() {
+                                Ok(()) => {
+                                    cx.update(|cx| crate::desktop_host::dispatch(&desktop, correlation, request, cx, &transport));
+                                }
+                                Err(error) => transport.respond(Event::Failed(correlation, error)),
+                            }
                         }
                         Message::Asset(correlation, request) => {
                             let response = session.borrow_mut().asset_request(request);
@@ -2158,6 +2202,9 @@ pub fn run(transport: Arc<Transport>) {
                                 }
                             }
                             transport.respond(Event::DocumentResponse(correlation, response));
+                        }
+                        Message::Chart(correlation, request) => {
+                            cx.update(|cx| crate::chart_host::dispatch(correlation, request, cx));
                         }
                         Message::Canvas(correlation, request) => {
                             let published=match &request { gpuio_protocol::canvas_resource::Request::Publish(id,_) => Some(*id), _ => None };
@@ -2174,9 +2221,15 @@ pub fn run(transport: Arc<Transport>) {
                             }
                         }
                         Message::Shutdown => {
+                            let notification_cleanup = notifications.borrow_mut().close();
+                            notification_cleanup.wait().await;
+                            let desktop_cleanup = desktop.borrow_mut().close();
+                            desktop_cleanup.wait().await;
                             motion.borrow_mut().take();
                             dialogs.clear().wait().await;
-                            crate::canvas_host::shutdown(cx).await;
+                            crate::chart_host::shutdown(cx).await;
+                    crate::canvas_host::shutdown(cx).await;
+                    crate::chart_render_host::shutdown(cx).await;
                             crate::image_host::shutdown(cx).await;
                             crate::document_host::shutdown(cx).await;
                             for event in session.borrow_mut().shutdown() {
@@ -2210,7 +2263,9 @@ pub(crate) fn stop_application(cx: &mut App) {
         foundation::NSPoint,
     };
     drag_drop::shutdown(cx);
+    crate::chart_host::finish_before_quit(cx);
     crate::canvas_host::finish_before_quit(cx);
+    crate::chart_render_host::finish_before_quit(cx);
     crate::image_host::finish_before_quit(cx);
     crate::document_host::finish_before_quit(cx);
     cx.shutdown();
@@ -2225,7 +2280,9 @@ pub(crate) fn stop_application(cx: &mut App) {
 #[cfg(not(target_os = "macos"))]
 pub(crate) fn stop_application(cx: &mut App) {
     drag_drop::shutdown(cx);
+    crate::chart_host::finish_before_quit(cx);
     crate::canvas_host::finish_before_quit(cx);
+    crate::chart_render_host::finish_before_quit(cx);
     crate::image_host::finish_before_quit(cx);
     crate::document_host::finish_before_quit(cx);
     cx.quit();
@@ -2242,3 +2299,27 @@ pub(crate) mod control_test;
 #[cfg(all(feature = "native-tests", target_os = "macos"))]
 #[path = "window_test.rs"]
 pub(super) mod window_test;
+
+// Invalidate retained list presentations as well as scheduling window redraw.
+pub(crate) fn refresh_chart_window(handle: gpui::AnyWindowHandle, cx: &mut App) {
+    let _ = handle.update(cx, |root, window, cx| {
+        let changed = match root.downcast::<View>() {
+            Ok(view) => view.update(cx, |view, cx| view.charts_changed(None, window, cx)),
+            Err(_) => true,
+        };
+        if changed {
+            window.refresh();
+        }
+    });
+}
+pub(crate) fn chart_source_changed(source: Option<gpuio_protocol::ResourceId>, cx: &mut App) {
+    for handle in cx.windows() {
+        let _ = handle.update(cx, |root, window, cx| {
+            if let Ok(view) = root.downcast::<View>()
+                && view.update(cx, |view, cx| view.charts_changed(source, window, cx))
+            {
+                window.refresh();
+            }
+        });
+    }
+}

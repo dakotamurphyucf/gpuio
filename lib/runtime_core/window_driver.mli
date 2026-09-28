@@ -8,6 +8,7 @@ val create
   :  ?asset_owner:Gpuio.Asset.Expert.Owner.t
   -> ?document_owner:Gpuio.Text_source.Expert.Owner.t
   -> ?canvas_owner:Gpuio.Canvas_scene.Expert.Owner.t
+  -> ?chart_owner:Gpuio.Chart_resource.Expert.Owner.t
   -> Gpuio_protocol.Window_id.t
   -> start:Time_ns.t
   -> theme:Gpuio.Theme.t

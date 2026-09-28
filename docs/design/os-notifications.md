@@ -1,0 +1,155 @@
+# OS notifications
+
+Typed Core values, bounded lifetime state, application-domain
+delivery, the public Eio service and the owned macOS adapter are implemented.
+The packaged macOS example passes real OS action routing; see the
+[evidence ledger](../evidence/os-notifications-och28.md). The Linux worker is wired
+to the application and passes local private-bus tests; consolidated macOS/Linux
+builds and unit tests pass. [PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14)
+records required hosted native gates and merge; Linux desktop presentation is
+deferred to OCH-17. The paired bridge advertises notification
+support as bit42 (`4398046511104`); actual service availability, permission and
+operation support still come from typed runtime queries. The current aggregate
+mask is `17592186044415`, including the chart bit added in this milestone.
+These notifications are independent of in-application toast widgets.
+
+## Identity and updates
+
+An opaque, process-local receipt identifies one logical notification. Its tag is
+application-supplied; posting a duplicate live tag returns `Busy`. Replacement
+retains the receipt and tag. Posting the tag again after retirement creates a new
+receipt. macOS native identifiers include a session UUID. Linux routes only native IDs
+acknowledged on this service connection, bound to its unique daemon owner. Neither
+adapter adopts artifacts from an earlier application run.
+
+Named action keys include the content revision. A removed action or a button from
+an obsolete revision cannot dispatch against the new content. Default activation
+belongs to the logical lifetime: the freedesktop protocol reports a native ID and
+`default`, without a content revision. Applications must not treat it as evidence
+that a particular content version was displayed or clicked.
+
+The first admitted activation, named action or platform-close event consumes the
+lifetime. Duplicate and later signals are ignored. An already-queued event retains
+its original receipt even when a new notification reuses its tag. Explicit API
+dismissal immediately disables actions; its result reports the removal request
+separately from OS close events. Failed removal retains a bounded retired slot
+and allows dismissal retry; replacement is then stale.
+
+Events are application-scoped, independent of window lifetimes. There is no raw
+window slot in an OS payload. Route through current application state and exact
+`App.Window.t` handles; normal window-generation validation applies. The runtime
+never chooses or activates a window implicitly.
+
+## Bounds and asynchronous ownership
+
+Content is plain UTF-8 text: title 256 bytes, body 8192, tag 128, action label 128.
+Titles, tags and labels are nonblank and exclude ASCII controls. Body permits
+newline, carriage return and tab. At most four actions with unique 1–64 byte
+ASCII letter/digit/dot/underscore/hyphen IDs. Silent is the default sound.
+
+Native state admits at most 128 combined live lifetimes and queued terminal
+events, reserving an event slot per lifetime. Up to 16 pending native lifetime
+operations are retained. A separate coalesced service failure allows a maximum
+129-event batch. Events wait for application readiness. The UI-domain delivery
+layer takes another batch only after all handlers for the previous batch finish,
+yielding between callbacks; slow effects backpressure intake. Both native and
+OCaml queues are bounded independently. There is no notification polling timer.
+
+Before a submission completes, at most one matching terminal event is held. A
+successful acknowledgement commits it; a failed request discards it. A callback
+cannot consume another service's token. Shutdown/service loss retires lifetimes;
+in-flight tokens remain bounded until completion so a successful late submission
+can remove its exact OS artifact. Cleanup must never look up a tag that could now
+identify a different lifetime. Duplicate completions must not remove live content.
+
+## Platform implementation direction
+
+The pinned GPUI notification facade returns no typed delivery result. Its Linux
+adapter cannot dismiss a notification; its macOS category registry retains
+historical action sets. GPUIO uses its own bounded platform adapters to provide those behaviors. No GPUI
+fork change is required by this design. Do not simultaneously install GPUI's notification delegate.
+
+macOS uses `UNUserNotificationCenter`, guarded by a matching application bundle
+identity. Permission probe/request are explicit; initialization must not prompt.
+Linux uses the freedesktop notification service and its advertised capabilities.
+Unavailable service, permission denial, unsupported features and native failure
+remain typed outcomes suitable for application-supplied fallback. Submission is
+not evidence of visible presentation, and OS/desktop policy controls presentation.
+
+The freedesktop protocol specifies same-ID atomic replacement and fresh IDs that
+are not reused before exhausting the ID range. The adapter must also fence server
+owner changes. See the [protocol](https://specifications.freedesktop.org/notification/latest/protocol.html)
+and [basic design](https://specifications.freedesktop.org/notification/latest/basic-design.html).
+Apple permits using the shared notification center from multiple threads, while
+application callbacks still belong on GPUIO's UI domain. See Apple's
+[notification center](https://developer.apple.com/documentation/usernotifications/unusernotificationcenter)
+and [authorization error](https://developer.apple.com/documentation/usernotifications/unerror/notificationsnotallowed).
+
+Actual native submission/action evidence, permission observations, daemon-loss
+coverage and packaged example instructions will be recorded separately from the
+pure lifecycle/codec tests as the adapters are implemented.
+
+## Public Eio service
+
+`Gpuio_eio.Notification.attach app ~on_event` creates one application-scoped
+receiver without prompting. It requires `App.run ~desktop` or `App.run_desktop`.
+Use `capabilities`, `authorization` and explicit `request_authorization` effects;
+`post`, `replace` and `dismiss` return typed results. `ready` starts serial event
+delivery, and `retry` retries intake after an error. Application I/O in handlers
+uses the ordinary Eio scope APIs.
+
+`close` is idempotent and permanently disables notification ownership for this
+application run. It drops callback captures and asks the OS to remove owned
+artifacts; application shutdown does the same. A reserved close lane remains
+available with 16 ordinary requests in flight. Already-running effects may finish;
+late native completion cannot restart delivery or resolve a new application.
+
+macOS registers only current and admitted candidate action categories (at most
+144), replacing the OS registry on the next mutation; it never retains historical
+action sets. Session UUID plus process-unique receipt IDs fence earlier runs.
+Only the matching service's delegate/categories are cleared during teardown.
+It uses no GPUI notification methods and requires exclusive ownership of this
+application's UNUserNotificationCenter integration.
+
+## Linux session and cleanup contract
+
+One native worker owns a persistent session-bus connection, fixed unique daemon
+owner, method client, signal stream and logical state. It accepts at most 16 owned
+requests; callbacks publish bridge responses only. Signal intake continues during
+method calls because a full bounded zbus subscription can otherwise backpressure
+its own connection and prevent reading the method reply. The worker never calls
+OCaml or accesses GPUI windows.
+
+Before a new `Notify` reply reveals its native ID, the worker retains at most 64
+candidate signals. Only the exact returned ID can associate those signals with the
+new receipt; custom actions additionally require receipt and revision agreement.
+Overflow is an explicit session failure. Terminal actions consume logical receipts,
+but physical leases remain until an acknowledged dismissal or OS close signal.
+Up to 128 physical leases are retained independently of the logical/event quota,
+so failing cleanup cannot evade resource limits. A close during replacement is
+not undone by its later reply.
+
+Linux reports `Not_required` for authorization and does not prompt. Capability
+queries expose daemon support for body, actions, activation and sound. Requested
+unsupported content returns `Unsupported`; silent/plain text are the defaults.
+GPUIO does not start an absent daemon. Setup failure before establishing a session
+can be explicitly retried by a later request. After owner loss, event overflow or
+an uncertain submission result, existing receipts retire, a failure event is queued,
+and further operations report that session failure. Already-admitted events remain
+bound to their original receipts. No automatic reconnection, resubmission or binding
+to a replacement daemon occurs during that application run. Applications can show
+a fallback and restart their application to establish a fresh notification session;
+`Notification.retry` retries event intake, not a failed native session.
+
+Closing the service immediately cancels callback ownership and stops new work.
+An in-flight method is still drained to its bounded reply so the worker can learn
+and remove its exact ID. The five-second deadline covers the entire operation,
+including socket writes, rather than only waiting for a reply. Foreign-app signal
+traffic yields periodically so method deadlines and cancellation remain runnable. Known artifacts are dismissed concurrently rather than
+waiting through 128 sequential timeouts, with signals still drained. Application
+shutdown joins the worker. Explicit close acknowledges local retirement, not proof
+of OS removal. Failed removal is reported in the native cleanup log. An uncertain
+`Notify` reply can leave an artifact whose ID was never acknowledged; this is
+reported separately and never described as successful cleanup. The adapter does
+not replay such a request. Real Linux desktop presentation remains an independent
+acceptance gate; private-bus fixtures establish transport/lifecycle behavior only.

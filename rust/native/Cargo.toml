@@ -21,6 +21,7 @@ gpuio-extension-sdk = { path = "../extension-sdk" }
 gpui-base = { path = "../../vendor/gpui-base" }
 gpuio-protocol = { path = "../protocol" }
 gpuio-table-adapter = { path = "../table" }
+gpuio-plot = { path = "../plot" }
 gpui = { git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b", default-features = false }
 gpui_platform = { git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b", features = ["font-kit", "runtime_shaders"] }
 ocaml-interop = { git = "https://github.com/tizoc/ocaml-interop.git", rev = "9f941c63b8a9dcd652c6535da196f48d7a4dcc75", features = ["no-caml-startup"] }
@@ -42,18 +43,36 @@ flate2 = "=1.1.10"
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "=0.26.0"
 objc2 = "0.6.4"
-objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSString", "NSRange", "NSURL", "NSArray", "NSNotification", "NSOperation", "NSProcessInfo"] }
-objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSApplication", "NSOpenPanel", "NSSavePanel", "NSPanel", "NSResponder", "NSWindow", "NSView", "NSWorkspace", "NSAccessibility", "block2"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSString", "NSRange", "NSURL", "NSArray", "NSDictionary", "NSBundle", "NSError", "NSNotification", "NSOperation", "NSProcessInfo", "NSUUID", "NSSet"] }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSApplication", "NSOpenPanel", "NSSavePanel", "NSPanel", "NSResponder", "NSWindow", "NSView", "NSWorkspace", "NSRunningApplication", "NSAccessibility", "block2"] }
 block2 = "0.6.2"
+objc2-user-notifications = "=0.3.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gpuio-portal = { path = "../portal" }
 gpuio-wayland = { path = "../wayland", optional = true }
 
 [dev-dependencies]
+zbus = { version = "=5.19.0", default-features = false, features = ["async-io"] }
+async-io = "2"
 taffy = { version = "=0.13.0", default-features = false, features = ["std", "taffy_tree"] }
 gpuio-portal = { path = "../portal" }
 gpuio-wayland = { path = "../wayland" }
+
+[[test]]
+name = "native_chart_input"
+harness = false
+required-features = ["native-canvas-tests"]
+
+[[test]]
+name = "native_chart_view"
+harness = false
+required-features = ["native-canvas-tests"]
+
+[[test]]
+name = "native_chart_paint"
+harness = false
+required-features = ["native-canvas-tests"]
 
 [[test]]
 name = "native_ui"

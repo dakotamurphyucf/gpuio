@@ -19,6 +19,7 @@ module View = struct
   let container_query = Gpuio.View.container_query
   let animate_program = Gpuio.View.animate_program
   let canvas = Gpuio.View.canvas
+  let chart = Gpuio.View.chart
   let document = Gpuio.View.document
   let image = Gpuio.View.image
   let text = Gpuio.View.text

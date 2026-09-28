@@ -18,14 +18,18 @@ module Navigation_stack = Navigation_stack_wire
 module Container_query = Container_query_wire
 module Animation_program = Animation_program_wire
 module Document = Document_wire
+module Chart = Chart_resource_wire
 module Canvas = Canvas_resource_wire
 module Canvas_view = Canvas_view_wire
+module Chart_view = Chart_view_wire
 module Window = Window_wire
 module Split = Split_wire
 module Extension = Extension_wire
+module Desktop = Desktop_wire
+module Notification = Notification_wire
 
 let version = 1L
-let capabilities = 2199023255551L
+let capabilities = 17592186044415L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -78,6 +82,7 @@ module Kind = struct
     | Navigation_stack
     | Hover_card
     | Carousel
+    | Chart_view
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -755,6 +760,7 @@ module Op = struct
     | Set_table of Node_id.t * Table.Config.t
     | Set_table_cell of Node_id.t * Table.Cell.t
     | Table_command of Node_id.t * Table.Command.t
+    | Set_chart of Node_id.t * Chart_view.Config.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -900,11 +906,18 @@ module Message = struct
     | Otp_input_command of int64 * Window_id.t * Node_id.t * Otp_input.Command.t
     | Calendar_command of int64 * Window_id.t * Node_id.t * Calendar.Command.t
     | Color_input_command of int64 * Window_id.t * Node_id.t * Color_input.Command.t
+    | Desktop of int64 * Desktop.Request.t
+    | Notification of int64 * Notification.Request.t
+    | Chart of int64 * Chart.Request.t
   [@@deriving bin_io, equal, sexp_of]
 
   let encode t =
     let invalid_asset =
       match t with
+      | Notification (correlation, request) ->
+        Int64.(correlation <= 0L) || not (Notification.Request.valid request)
+      | Desktop (correlation, request) ->
+        Int64.(correlation <= 0L) || not (Desktop.Request.valid request)
       | Window_command (correlation, _, command) ->
         Int64.(correlation <= 0L) || Result.is_error (Window.Command.validate command)
       | Open_configured (correlation, _, config) ->
@@ -922,6 +935,12 @@ module Message = struct
         Int64.(correlation <= 0L) || not (Number_input.Command.valid command)
       | Slider_command (correlation, _, _, command) ->
         Int64.(correlation <= 0L) || not (Slider.Command.valid command)
+      | Chart (correlation, request) ->
+        Int64.(correlation <= 0L)
+        ||
+          (match request with
+          | Chunk (_, _, _, data) -> String.length data > Chart.max_chunk_bytes
+          | Create | Begin _ | Publish _ | Abort _ | Release _ -> false)
       | Canvas (correlation, request) ->
         Int64.(correlation <= 0L)
         ||
@@ -1072,6 +1091,20 @@ module Event = struct
         Window_id.t * Node_id.t * Handler_id.t * int64 * Carousel.Request.t
     | Tree_input of Window_id.t * Node_id.t * Handler_id.t * int64 * Tree_input.Request.t
     | Table_input of Window_id.t * Node_id.t * Handler_id.t * int64 * Table.Input.t
+    | Desktop_response of int64 * Desktop.Response.t
+    | Desktop_pending
+    | Notification_response of int64 * Notification.Response.t
+    | Notification_pending
+    | Chart_response of int64 * Chart.Response.t
+    | Chart_event of
+        Window_id.t
+        * Node_id.t
+        * Handler_id.t
+        * int64
+        * Resource_id.t option
+        * int64
+        * int64
+        * Chart_view.Observation.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1091,6 +1124,12 @@ module Event = struct
   ;;
 
   let rec valid_event = function
+    | Desktop_response (correlation, response) ->
+      Int64.(correlation > 0L) && Desktop.Response.valid response
+    | Notification_response (correlation, response) ->
+      Int64.(correlation > 0L) && Notification.Response.valid response
+    | Notification_pending -> true
+    | Desktop_pending -> true
     | Canvas_event
         (_, _, _, revision, source, scene_revision, scene_generation, observation) ->
       let identified = Int64.(scene_revision > 0L && scene_generation > 0L) in
@@ -1103,6 +1142,20 @@ module Event = struct
       in
       Int64.(revision >= 0L)
       && Canvas_view.Observation.valid observation
+      && (identified || failure_before_scene)
+      && (Option.is_some source || failure_before_scene)
+    | Chart_event (_, _, _, revision, source, data_revision, data_generation, observation)
+      ->
+      let identified = Int64.(data_revision > 0L && data_generation > 0L) in
+      let failure_before_scene =
+        Int64.(data_revision = 0L && data_generation = 0L)
+        &&
+        match observation with
+        | Chart_view.Observation.Failed _ -> true
+        | _ -> false
+      in
+      Int64.(revision >= 0L)
+      && Chart_view.Observation.valid observation
       && (identified || failure_before_scene)
       && (Option.is_some source || failure_before_scene)
     | Extension_event (_, _, _, revision, generation, signal) ->
@@ -1178,6 +1231,7 @@ module Event = struct
             && frames > 0L
             && frames <= 120L
             && width_px * height_px * 4L * frames <= 67108864L))
+    | Chart_response (correlation, _)
     | Canvas_response (correlation, _)
     | Asset_response (correlation, _)
     | Document_response (correlation, _) -> Int64.(correlation > 0L)
