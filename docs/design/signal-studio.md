@@ -1,7 +1,8 @@
 # Signal Studio — milestone 6 acceptance application
 
-Status: OCH-29 in progress. The pure workspace model passes local expect/format checks;
-application composition and platform acceptance below remain planned. The existing
+Status: OCH-29 in progress. The pure workspace model and combined canvas/chart/
+component application pass local macOS checks. Desktop integration, dedicated
+motion/workload acceptance and consolidated hosted gates remain pending. The existing
 agent-chat example stays intact. This is a focused model-evaluation plotting
 workbench, not a complete diagramming product or scientific environment.
 
@@ -73,11 +74,11 @@ policy must settle appropriately; no per-frame OCaml animation callback is added
 
 | Capability | Required evidence | Current OCH-29 state |
 | -- | -- | -- |
-| Public OCaml canvas and native chart | Rendered app; selection, real drag, pan/zoom, keyboard and chart callbacks | Pending |
-| Pure workspace and document invariants | Expect tests, all valid run values, malformed/oversized/version/ID/bounds checks | Four passing expect tests, including all 101 valid run values |
-| Independent component | Combined-app style, pointer/key/AX, commands/events, hide/remount and disposal | Pending |
-| Clean consumer | Staged installed libraries, separate component, locked generated backend; macOS run and Linux build | Pending |
-| Responsive layout | Real resize across breakpoint; retained state and only active branch exposed to input/AX | Pending |
+| Public OCaml canvas and native chart | Rendered app; selection, real drag, pan/zoom, keyboard and chart callbacks | Local AppKit script passes |
+| Pure workspace and document invariants | Expect tests, all valid run values, malformed/oversized/version/ID/bounds checks | Five passing expect tests, including all 101 valid run values |
+| Independent component | Combined-app style, pointer/key/AX, commands/events, hide/remount and disposal | Combined style, AX/key, disabled pointer, events and hide/remount pass; explicit package command/repeated disposal checks remain |
+| Clean consumer | Staged installed libraries, separate component, locked generated backend; macOS run and Linux build | Fresh macOS consumer build/self-test passes; Linux hosted build pending |
+| Responsive layout | Real resize across breakpoint; retained state and only active branch exposed to input/AX | Wide/compact/wide resize retains run and moved sample; explicit inactive-branch/motion checks remain |
 | Springs, sequences, synchronized indicators | Native geometry/phase and reduced-motion checks in combined app | Pending |
 | Documents and files | Eio save/load round trip; dirty metadata; actual OS file actions and typed unsupported behavior | Pending |
 | Deep links/reopen | Packaged cold/warm OS delivery and current-window selection/focus | Pending |
@@ -98,9 +99,32 @@ Local isolated OCaml 5.3/Core toolchain passes:
 GPUIO_JOBS=2 ./scripts/gpuio exec dune build @examples/signal_studio/model/runtest @fmt -j2
 ```
 
-Four expect tests cover document round trips, clamped movement, invalid documents
+Five expect tests cover document round trips, clamped movement, invalid documents
 (oversize/version/run/duplicate ID/NaN/out-of-bounds/unknown selection), exact route
 allowlisting and all 101 valid run values. Each valid run constructs a validated
 canvas scene and a chart that round-trips through the production data codec.
-These are pure model checks; no combined-app graphical or platform acceptance
-is claimed yet.
+These model checks are separate from the combined-app acceptance below.
+
+## Combined-app local checkpoint
+
+The executable and generated backend live in `examples/signal_studio`. The backend
+selects the separate counter package through `native.json`, with a reviewed lock
+file and no private host import. The workspace is authoritative: a native move
+republishes canvas and chart data, while canceled streams invalidate already
+queued UI work using an epoch. Run values are bounded to 0–100; late counter events
+outside the domain are rejected without terminating the app. The inspector and
+chart display the same latency/quality units and sample colors as the canvas.
+
+`python3 scripts/test_signal_studio.py` exercises actual macOS AX/keyboard/pointer
+input, including sample selection/movement, drag, wheel pan/zoom, chart selection,
+component disable/hide/show, twelve streamed updates, responsive resize with
+retained data, reset/remount and OS close. Screenshots cover wide, streaming and
+compact views. A discovered test-helper issue was resolved: synthetic mouse events
+now set explicit modifier flags, avoiding inherited Control converting a macOS
+left drag to a right-click. No canvas production change was needed.
+
+The public `--self-test` checks resource publication, semantic command completion,
+render callback and zero OCaml canvas/chart registration charges after release.
+This is not yet the repeated lifecycle/performance workload. Dedicated native
+phase/geometry/reduced-motion checks also remain required; merely declaring the
+spring, sequence and shared clock does not satisfy that acceptance row.

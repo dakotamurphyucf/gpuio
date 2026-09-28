@@ -22,6 +22,8 @@ module Sample = struct
   let name t = t.name
   let color t = t.color
   let position t = G.Transform.apply t.transform (point 0. 0.) |> Or_error.ok_exn
+  let latency t = (G.Point.x (position t) -. 64.) *. 1000. /. 580.
+  let quality t = (404. -. G.Point.y (position t)) *. 100. /. 340.
 end
 
 type t =
@@ -120,7 +122,7 @@ let scene t =
     ; text 32 20. 64. 12. "100"
     ; text 33 32. 386. 12. "0"
     ; text 34 64. 427. 12. "0 ms"
-    ; text 35 301. 427. 12. "500 ms"
+    ; text 35 354. 427. 12. "500 ms"
     ]
   in
   let cloud =
@@ -159,11 +161,16 @@ let scene t =
         (S.Drawing.ellipse bounds ~paint)
       |> Or_error.ok_exn)
   in
+  let names =
+    List.mapi t.samples ~f:(fun index sample ->
+      let p = Sample.position sample in
+      text (30_000 + index) (G.Point.x p +. 15.) (G.Point.y p -. 7.) 12. sample.name)
+  in
   S.create
     ~description:
       "Simulated model evaluation: horizontal latency, vertical quality. Four labelled \
        samples can be selected and dragged. Background points are decorative fixtures."
-    (axes @ labels @ cloud @ nodes)
+    (axes @ labels @ cloud @ nodes @ names)
   |> Or_error.ok_exn
 ;;
 
@@ -171,14 +178,13 @@ let chart t =
   let module D = Gpuio.Chart_data in
   D.line
     (List.mapi t.samples ~f:(fun index sample ->
-       let position = Sample.position sample in
        D.Series.create
          ~id:(D.Series_id.of_int64 (Int64.of_int (index + 1)) |> Or_error.ok_exn)
          ~name:sample.name
          (List.init 24 ~f:(fun i ->
             let phase = Float.of_int (i + t.run) /. 4. in
             let latency =
-              G.Point.x position +. (15. *. Float.sin (phase +. Float.of_int index))
+              Sample.latency sample +. (15. *. Float.sin (phase +. Float.of_int index))
             in
             D.Point.create
               ~id:(D.Datum_id.of_int64 (Int64.of_int (i + 1)) |> Or_error.ok_exn)

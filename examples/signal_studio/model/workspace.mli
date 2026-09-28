@@ -7,6 +7,12 @@ module Sample : sig
 
   val id : t -> Gpuio.Canvas_scene.Item_id.t
   val name : t -> string
+  val color : t -> Gpuio.Color.t
+
+  (** Axis units: latency in milliseconds, quality in percent. *)
+  val latency : t -> float
+
+  val quality : t -> float
   val position : t -> Gpuio.Canvas_geometry.Point.t
 end
 

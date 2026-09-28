@@ -93,3 +93,9 @@ let%expect_test
     , (Result.is_error (W.select (W.create ()) (Some (id 99L))) : bool)];
   [%expect {| (true true) |}]
 ;;
+
+let%expect_test "canvas axis units agree with inspector and latency chart" =
+  let sample = List.hd_exn (W.samples (W.create ())) in
+  printf "%.1f ms, %.1f%%\n" (W.Sample.latency sample) (W.Sample.quality sample);
+  [%expect {| 200.0 ms, 24.7% |}]
+;;

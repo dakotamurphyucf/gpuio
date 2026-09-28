@@ -51,6 +51,13 @@ workload now records 10k/100k sampled and exact rendering, coalescing, CPU/RSS,
 queue bytes and retention on Apple M1 Max. Broader-example integration and
 consolidated hosted gates remain. See
 [chart contracts and remaining work](design/charts.md).
+OCH-29 now has Signal Studio: a public OCaml canvas/chart workbench using the
+separately packaged native counter. Local macOS checks pass selection, real drag,
+pan/zoom, keyboard and chart callbacks, component disable/hide/remount, streamed
+updates and responsive resize with retained data. A fresh staged public-library
+consumer builds its locked backend and passes the native self-test. Desktop/file/
+notification integration, dedicated motion/workload checks, Linux builds and the
+consolidated hosted gates remain; see [Signal Studio](design/signal-studio.md).
 The detailed entries below record implementation checkpoints chronologically;
 their earlier pending-gate statements are superseded by this delivery record.
 

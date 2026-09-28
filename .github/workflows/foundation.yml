@@ -123,6 +123,15 @@ jobs:
       - name: Independent native extension consumer
         id: extension-consumer
         run: python3 scripts/test_extension_consumer.py 2>&1 | tee .cache/ci/extension-consumer.log
+      - name: Independent Signal Studio consumer
+        id: signal-consumer
+        run: |
+          extra=()
+          if [[ "$RUNNER_OS" == "macOS" ]]; then extra+=(--run); fi
+          python3 scripts/test_extension_consumer.py --example signal_studio "${extra[@]}" 2>&1 | tee .cache/ci/signal-consumer.log
+      - name: macOS Signal Studio input and responsive composition
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.signal-consumer.outcome == 'success'
+        run: python3 scripts/test_signal_studio.py --output .cache/ci/signal-studio 2>&1 | tee .cache/ci/macos-signal-studio.log
       # Independent GUI families continue after another family's failure once
       # their build prerequisites pass. Failures remain required/red; cancellation
       # still stops subsequent tests. This collects diagnostics in one CI run.
