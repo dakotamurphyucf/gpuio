@@ -23,7 +23,8 @@ module Resources = struct
      - Explore a direction\n\
      - Keep the useful details\n\
      - Share what you learn\n\n\
-     [Read the design notes](gpuio-preview:notes)\n\n"
+     Before [Read the **design** notes](gpuio-preview:notes) and [世界 \
+     guide](gpuio-preview:unicode) after.\n\n"
   ;;
 
   let code =

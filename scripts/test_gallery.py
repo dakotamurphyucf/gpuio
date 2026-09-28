@@ -462,6 +462,37 @@ def exercise_documents(mac, images):
     mac.wait_text(TITLE, 'Read the design notes')
     roles = tree_counts(mac, mac.wait_find(TITLE, 'Markdown preview', 'AXGroup'))
     assert roles.get('AXHeading') == 1 and roles.get('AXList') == 1, roles
+    assert roles.get('AXLink') == 2, roles
+    link = mac.wait_find(TITLE, 'Read the design notes', 'AXLink')
+    try:
+        mac.perform(link, 'AXPress')
+    finally:
+        mac.release(link)
+    mac.wait_text(TITLE, 'Link requested: gpuio-preview:notes')
+    link = mac.wait_find(TITLE, '世界 guide', 'AXLink')
+    try:
+        mac.perform(link, 'AXPress')
+    finally:
+        mac.release(link)
+    mac.wait_text(TITLE, 'Link requested: gpuio-preview:unicode')
+    stale_link = mac.wait_find(TITLE, 'Read the design notes', 'AXLink')
+    try:
+        mac.press(TITLE, 'Collapse')
+        mac.release(mac.wait_find(TITLE, 'Expand', 'AXButton'))
+        wait_absent(mac, 'Read the design notes', 'AXLink')
+        press = mac.string('AXPress')
+        try:
+            # An OS-retained reference may report success for an asynchronous
+            # action; either way it must not navigate the collapsed document.
+            mac.action(stale_link, press)
+        finally:
+            mac.release(press)
+        time.sleep(.1)
+        mac.wait_text(TITLE, 'Link requested: gpuio-preview:unicode')
+        mac.press(TITLE, 'Expand')
+        mac.release(mac.wait_find(TITLE, 'Read the design notes', 'AXLink'))
+    finally:
+        mac.release(stale_link)
     mac.press(TITLE, 'Append a finding')
     mac.wait_text(TITLE, 'Appended findings: 1 / 6')
     mac.release(mac.wait_find(TITLE, 'Copy code', 'AXButton'))

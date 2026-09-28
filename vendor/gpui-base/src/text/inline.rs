@@ -176,6 +176,49 @@ pub(super) struct Inline {
     state: Arc<Mutex<InlineState>>,
 }
 
+pub(super) struct InlinePrepaint {
+    hitbox: Hitbox,
+    scale: f32,
+    links: Vec<(gpui::accesskit::NodeId, SharedString, Bounds<Pixels>)>,
+}
+
+/// Partition rendered text in reading order. Adjacent style runs of the same
+/// link remain one accessible action; ordinary text is not duplicated beside it.
+fn accessible_runs(
+    text: &str,
+    links: &[(Range<usize>, LinkMark)],
+) -> Vec<(Range<usize>, Option<LinkMark>)> {
+    let mut links = links.to_vec();
+    links.sort_by_key(|(range, _)| range.start);
+    let mut runs: Vec<(Range<usize>, Option<LinkMark>)> = Vec::new();
+    let mut cursor = 0;
+    for (range, link) in links {
+        if range.start < cursor
+            || range.is_empty()
+            || !text.is_char_boundary(range.start)
+            || !text.is_char_boundary(range.end)
+        {
+            continue;
+        }
+        if range.start > cursor {
+            runs.push((cursor..range.start, None));
+        }
+        cursor = range.end;
+        if let Some((previous, Some(previous_link))) = runs.last_mut()
+            && previous.end == range.start
+            && *previous_link == link
+        {
+            previous.end = range.end;
+        } else {
+            runs.push((range, Some(link)));
+        }
+    }
+    if cursor < text.len() {
+        runs.push((cursor..text.len(), None));
+    }
+    runs
+}
+
 /// The inline text state, used RefCell to keep the selection state.
 #[derive(Debug, Default, PartialEq)]
 pub(crate) struct InlineState {
@@ -547,7 +590,7 @@ impl IntoElement for Inline {
 
 impl Element for Inline {
     type RequestLayoutState = ();
-    type PrepaintState = Hitbox;
+    type PrepaintState = InlinePrepaint;
 
     fn id(&self) -> Option<ElementId> {
         Some(self.id.clone())
@@ -558,13 +601,77 @@ impl Element for Inline {
     }
 
     fn a11y_role(&self) -> Option<gpui::accesskit::Role> {
-        Some(gpui::accesskit::Role::Label)
+        Some(if self.links.is_empty() {
+            gpui::accesskit::Role::Label
+        } else {
+            gpui::accesskit::Role::Group
+        })
     }
 
     fn write_a11y_info(&self, node: &mut gpui::accesskit::Node) {
         // StyledText is painted directly below, bypassing its Element wrapper.
         // Publish the same rendered text here; do not duplicate raw Markdown.
-        node.set_value(self.text.to_string());
+        if self.links.is_empty() {
+            node.set_value(self.text.to_string());
+        }
+    }
+
+    fn a11y_synthetic_children(
+        &mut self,
+        prepaint: &mut Self::PrepaintState,
+        builder: &mut gpui::A11ySubtreeBuilder,
+    ) {
+        if self.links.is_empty() {
+            return;
+        }
+        let layout = self.styled_text.layout();
+        let height = layout.line_height();
+        for (range, link) in accessible_runs(&self.text, &self.links) {
+            let Some(start) = layout.position_for_index(range.start) else {
+                continue;
+            };
+            let Some(end) = layout.position_for_index(range.end) else {
+                continue;
+            };
+            let bounds = if start.y == end.y {
+                Bounds::from_corners(
+                    point(start.x.min(end.x), start.y),
+                    point(start.x.max(end.x), end.y + height),
+                )
+            } else {
+                Bounds::from_corners(
+                    point(prepaint.hitbox.bounds.left(), start.y),
+                    point(prepaint.hitbox.bounds.right(), end.y + height),
+                )
+            };
+            let url = link.as_ref().map(|link| link.url.as_ref());
+            let id = builder.synthetic_node_id((range.start, range.end, url));
+            let mut node = gpui::accesskit::Node::new(if link.is_some() {
+                gpui::accesskit::Role::Link
+            } else {
+                gpui::accesskit::Role::Label
+            });
+            let text = self.text[range].to_owned();
+            if let Some(link) = &link {
+                node.set_label(text);
+                node.set_url(link.url.to_string());
+                node.add_action(gpui::accesskit::Action::Click);
+            } else {
+                node.set_value(text);
+            }
+            let scale = prepaint.scale;
+            node.set_bounds(gpui::accesskit::Rect {
+                x0: (bounds.left().as_f32() * scale) as f64,
+                y0: (bounds.top().as_f32() * scale) as f64,
+                x1: (bounds.right().as_f32() * scale) as f64,
+                y1: (bounds.bottom().as_f32() * scale) as f64,
+            });
+            if builder.push_child(id, node)
+                && let Some(link) = link
+            {
+                prepaint.links.push((id, link.url, bounds));
+            }
+        }
     }
 
     fn request_layout(
@@ -618,8 +725,11 @@ impl Element for Inline {
             }
         }
 
-        let hitbox = window.insert_hitbox(bounds, HitboxBehavior::Normal);
-        hitbox
+        InlinePrepaint {
+            hitbox: window.insert_hitbox(bounds, HitboxBehavior::Normal),
+            scale: window.scale_factor(),
+            links: Vec::new(),
+        }
     }
 
     fn paint(
@@ -634,7 +744,24 @@ impl Element for Inline {
     ) {
         let bounds = Bounds::new(self.paint_origin.unwrap_or(bounds.origin), bounds.size);
         let current_view = window.current_view();
-        let hitbox = prepaint;
+        for (id, url, bounds) in &prepaint.links {
+            let url = url.clone();
+            let bounds = *bounds;
+            let handler = self.link_click_handler.clone();
+            window.on_a11y_action(*id, gpui::accesskit::Action::Click, move |_, window, cx| {
+                handle_link_click(
+                    &handler,
+                    url.clone(),
+                    ClickEvent::Keyboard(gpui::KeyboardClickEvent {
+                        bounds,
+                        ..Default::default()
+                    }),
+                    window,
+                    cx,
+                );
+            });
+        }
+        let hitbox = &prepaint.hitbox;
         let text_layout = self.styled_text.layout().clone();
         self.styled_text
             .paint(global_id, None, bounds, &mut (), &mut (), window, cx);
@@ -1098,8 +1225,37 @@ pub(super) mod test_fonts {
 
 #[cfg(test)]
 mod tests {
-    use super::{InlineHighlight, combine_highlights, point_in_text_selection, text_runs};
+    use super::{
+        InlineHighlight, LinkMark, accessible_runs, combine_highlights, point_in_text_selection,
+        text_runs,
+    };
     use gpui::{FontWeight, HighlightStyle, SharedString, TextStyle, point, px};
+
+    #[test]
+    fn accessible_links_partition_unicode_text_without_duplicating_style_runs() {
+        let text = "Before 世界 guide after";
+        let link = LinkMark {
+            url: "test:guide".into(),
+            ..Default::default()
+        };
+        let links = vec![(14..19, link.clone()), (7..14, link.clone())];
+        let runs = accessible_runs(text, &links);
+        assert_eq!(
+            runs,
+            vec![(0..7, None), (7..19, Some(link.clone())), (19..25, None)]
+        );
+        assert_eq!(
+            runs.iter()
+                .map(|(range, _)| &text[range.clone()])
+                .collect::<String>(),
+            text
+        );
+        // Invalid boundaries cannot panic or hide the remainder of the text.
+        assert_eq!(
+            accessible_runs(text, &[(8..10, link.clone()), (50..80, link)]),
+            vec![(0..text.len(), None)]
+        );
+    }
 
     fn mono(style: HighlightStyle) -> InlineHighlight {
         InlineHighlight {

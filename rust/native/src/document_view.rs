@@ -502,6 +502,7 @@ impl Presentation {
         };
         let generation = installed.generation;
         let node = self.node;
+        let presentation = cx.entity();
         let _ = self.root.update(cx, |root, _| {
             let event = {
                 let session = root.session.borrow();
@@ -512,6 +513,14 @@ impl Presentation {
                     return;
                 };
                 if !root.focus.borrow().allows(node) {
+                    return;
+                }
+                if root
+                    .documents
+                    .get(&node)
+                    .and_then(|state| state.presentation.as_ref())
+                    != Some(&presentation)
+                {
                     return;
                 }
                 if current
@@ -787,6 +796,10 @@ impl Render for Presentation {
                 .clamp(60., 360.),
         };
         if let Some(state) = self.markdown.as_ref().filter(|_| !self.source_mode) {
+            let installed_revision = self
+                .installed
+                .as_ref()
+                .map(|snapshot| (snapshot.generation, snapshot.revision));
             let highlighter = self
                 .code_highlighter
                 .clone()
@@ -833,7 +846,17 @@ impl Render for Presentation {
                 .code_block_highlighter_shared(highlighter)
                 .on_link_click(move |url, _, _, cx| {
                     let _ = weak.update(cx, |this, cx| {
-                        this.navigate(Navigation::Link(url.to_string()), cx)
+                        if !this.collapsed
+                            && !this.source_mode
+                            && this.markdown.is_some()
+                            && this
+                                .installed
+                                .as_ref()
+                                .map(|snapshot| (snapshot.generation, snapshot.revision))
+                                == installed_revision
+                        {
+                            this.navigate(Navigation::Link(url.to_string()), cx)
+                        }
                     });
                 });
             let content = div().w_full().child(text);

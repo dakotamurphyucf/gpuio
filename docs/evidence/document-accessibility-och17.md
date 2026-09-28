@@ -45,9 +45,33 @@ Both modified vendor trees reconstruct from their pinned upstream archives and
 ordered patches; source comparison excludes GPUI Base's generated Cargo.lock.
 Failed intermediate probes remain local notes, not acceptance evidence.
 
-Remaining release requirements include accessible and keyboard Markdown link
-activation, macOS heading-level exposure, table reading semantics, native selected
+Remaining release requirements include keyboard Markdown link navigation,
+rich-fragment link identity, macOS heading-level exposure, table reading semantics, native selected
 text/range APIs, copy, modal/stale-action cases, bounded source pagination through
-assistive tools, and actual VoiceOver reading/navigation. Current links expose
-their visible text only. No hidden duplicate raw source substitutes for these
+assistive tools, and actual VoiceOver reading/navigation. No hidden duplicate raw source substitutes for these
 requirements. Linux desktop accessibility remains deferred to OCH-47.
+
+## Link activation follow-up
+
+Rendered Inline text now partitions its accessible children into ordinary text
+and link nodes in reading order, without repeating the whole paragraph beside
+the links. Adjacent styled runs of the same link coalesce into one action.
+Each link carries its rendered label, URL and scaled native bounds; AX activation
+uses the existing native link-click handler. GPUIO captures the installed source
+generation/revision and validates current presentation identity, visibility/modal
+scope and rendered mode before queuing navigation. No OCaml callback runs in paint
+or in the accessibility delegate, and activation does not open URLs implicitly.
+
+The gallery fixture includes bold text inside a link and a separate Unicode link.
+The local external AX test observes exactly two links, activates their distinct
+OCaml notices, collapses the document and verifies a retained AX reference cannot
+activate it, then expands and continues through streaming/reset/remount. A focused
+GPUI Base unit test verifies text partitioning, Unicode boundaries, adjacent styled
+runs and invalid-range rejection. These tests cover ordinary Inline rendering.
+
+Keyboard traversal/visible focus remains unimplemented. Links split across rich
+inline objects, code-font fragments or multiple InlineFlow elements need a shared
+logical identity review; the bold-link fixture does not prove that case. Also keep
+heading levels, tables, selected-text/range/copy, source pagination and VoiceOver
+acceptance open. Synthetic AX Click support alone is not keyboard or screen-reader
+navigation acceptance.
