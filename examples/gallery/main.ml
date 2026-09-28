@@ -13,7 +13,7 @@ let style = Style.create_exn
 let px = Length.px_exn
 let full = Length.percent_exn 100.
 
-let component ~app ~open_window ~page ~appearance ~scale window graph =
+let component ~app ~motion ~open_window ~page ~appearance ~scale window graph =
   let open B.Let_syntax in
   B.Edge.on_change
     (B.Expert.Var.value appearance)
@@ -31,7 +31,7 @@ let component ~app ~open_window ~page ~appearance ~scale window graph =
     and s = B.Expert.Var.value scale in
     Palette.create a s
   in
-  let content = Pages.component ~app window ~page:page_value ~palette graph in
+  let content = Pages.component ~app ~motion window ~page:page_value ~palette graph in
   let%arr page_value = page_value
   and p = palette
   and content = content
@@ -110,6 +110,7 @@ let component ~app ~open_window ~page ~appearance ~scale window graph =
 let () =
   let background = Array.exists (Sys.get_argv ()) ~f:(String.equal "--background") in
   App.run (fun _env app ->
+    let motion = B.Expert.Var.create Animation.Preference.System in
     let windows = ref [] in
     let serial = ref 0 in
     let rec open_window () =
@@ -130,7 +131,7 @@ let () =
             ~title:(sprintf "GPUIO · Component Studio %d" !serial)
             ~width:1120.
             ~height:820.
-            (component ~app ~open_window ~page ~appearance ~scale)
+            (component ~app ~motion ~open_window ~page ~appearance ~scale)
           |> ok
         in
         windows := window :: !windows)

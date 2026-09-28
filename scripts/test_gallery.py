@@ -620,6 +620,112 @@ def wait_absent(mac, label, role):
     raise RuntimeError(f'Removed content is still accessible: {label}')
 
 
+
+def motion_width(mac, node):
+    get = mac.ax.AXValueGetValue
+    get.restype, get.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
+    value = mac.attr(node, 'AXSize')
+    size = (C.c_double * 2)()
+    try:
+        assert value and get(value, 2, C.byref(size)), 'animation AXSize'
+        return size[0]
+    finally:
+        if value:
+            mac.release(value)
+
+
+def motion_samples(mac, label, seconds, after_press=None):
+    node = mac.wait_find(TITLE, label, 'AXGroup')
+    try:
+        if after_press:
+            mac.press(TITLE, after_press)
+        samples = []
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline:
+            samples.append(motion_width(mac, node))
+            time.sleep(.015)
+        return samples
+    finally:
+        mac.release(node)
+
+
+def exercise_motion(mac, images, second_title=SECOND):
+    mac.press(TITLE, 'Motion & rhythm')
+    mac.press(TITLE, 'Use full motion')
+    mac.wait_text(TITLE, 'Motion preference: Full')
+    opening = motion_samples(mac, 'Resize sample', 1.3, 'Expand preview')
+    assert abs(opening[-1] - 310) < 1, opening
+    assert any(98 < width < 308 for width in opening), opening
+    early = motion_samples(mac, 'Resize sample', .25, 'Contract preview')
+    reopening = motion_samples(mac, 'Resize sample', 1.3, 'Expand preview')
+    assert 98 < early[-1] < 308, early
+    assert abs(reopening[-1] - 310) < 1, reopening
+    assert min(reopening) > 98, reopening  # No jump to the declared narrow endpoint.
+    started = motion_samples(mac, 'Sequence sample', .2, 'Replay sequence')
+    paused = motion_samples(mac, 'Sequence sample', .4, 'Pause sequence')
+    # The first sample can precede application of the asynchronous pause intent.
+    assert max(started) - min(started) > 2, started
+    assert max(paused[-12:]) - min(paused[-12:]) < 1, paused
+    assert abs(paused[-1] - 120) > 2, paused  # A running stage, not the final endpoint.
+    motion_samples(mac, 'Sequence sample', .12, 'Resume sequence')
+    mac.press(TITLE, 'Cancel sequence')
+    mac.wait_text(TITLE, 'Cancelled: Requested')
+    mac.press(TITLE, 'Replay sequence')
+    mac.wait_text(TITLE, 'Finished')
+    assert abs(motion_samples(mac, 'Sequence sample', .1)[-1] - 120) < 1
+    reverse = motion_samples(mac, 'Sequence sample', 3.5, 'Reverse sequence')
+    assert abs(reverse[-1] - 64) < 1, reverse
+    mac.press(TITLE, 'Use reduced motion')
+    mac.wait_text(TITLE, 'Motion preference: Reduced')
+    reduced = motion_samples(mac, 'Resize sample', .4, 'Contract preview')
+    assert abs(reduced[-1] - 96) < 1, reduced
+    assert all(min(abs(width-96), abs(width-310)) < 1 for width in reduced), reduced
+    mac.press(TITLE, 'Replay sequence')
+    mac.wait_text(TITLE, 'Stage 1 reduced · Stage 2 reduced · Stage 3 reduced · Finished')
+    mac.press(TITLE, 'New window')
+    mac.press(second_title, 'Motion & rhythm')
+    mac.wait_text(second_title, 'Motion preference: Reduced')
+    mac.press(second_title, 'Use full motion')
+    mac.wait_text(TITLE, 'Motion preference: Full')
+    mac.close(second_title)
+    mac.set(mac.app, 'AXFrontmost', mac.true)
+    mac.press(TITLE, 'Start shared motion')
+    first = motion_samples(mac, 'Shared member 1', .35)
+    assert max(first) - min(first) > 3, first
+    mac.press(TITLE, 'Join a second member')
+    one = mac.wait_find(TITLE, 'Shared member 1', 'AXGroup')
+    two = mac.wait_find(TITLE, 'Shared member 2', 'AXGroup')
+    try:
+        pairs = [(motion_width(mac, one), motion_width(mac, two)) for _ in range(8)]
+        assert all(abs(a-b) < 12 for a, b in pairs), pairs
+    finally:
+        mac.release(one)
+        mac.release(two)
+    mac.press(TITLE, 'Use reduced motion')
+    still = motion_samples(mac, 'Shared member 1', .4)
+    assert all(abs(width-56) < 1 for width in still[-12:]), still
+    if images:
+        screenshot(mac, images / 'gallery-motion.png', title=TITLE)
+    mac.press(TITLE, 'Presentation')
+    mac.wait_text(TITLE, 'A little context goes a long way')
+    absent(mac, 'Shared member 1', 'AXGroup')
+    absent(mac, 'Sequence sample', 'AXGroup')
+    mac.press(TITLE, 'Motion & rhythm')
+    mac.wait_text(TITLE, 'Shared motion is stopped.')
+    mac.wait_text(TITLE, 'Ready to play')
+    absent(mac, 'Shared member 2', 'AXGroup')
+    button = mac.wait_find(TITLE, 'Use system motion', 'AXButton')
+    try:
+        mac.set(button, 'AXFocused', mac.true)
+        expect_focus(mac, 'Use system motion')
+        mac.key(49)  # Space through the actual OS keyboard route.
+    finally:
+        mac.release(button)
+    mac.wait_text(TITLE, 'Motion preference: System')
+    print('GALLERY_MOTION_OK: native intermediate geometry, interruption, paused spring '
+          'sequence, cancellation/reverse, reduced endpoints, shared phase and departure', flush=True)
+
+
 def exercise_runtime(mac, images):
     mac.press(TITLE, 'Runtime & windows')
     mac.press(TITLE, 'Refresh resource counts')
@@ -639,7 +745,7 @@ def exercise_runtime(mac, images):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--images', type=Path)
-    parser.add_argument('--section', choices=['all', 'core', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'motion', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -666,6 +772,10 @@ def main():
                 exercise_collections(mac, args.images)
             if args.section in ('all', 'documents'):
                 exercise_documents(mac, args.images)
+            if args.section in ('all', 'motion'):
+                exercise_motion(mac, args.images,
+                                second_title=('GPUIO · Component Studio 3'
+                                              if args.section == 'all' else SECOND))
             if args.section in ('all', 'runtime'):
                 exercise_runtime(mac, args.images)
             mac.close(TITLE)

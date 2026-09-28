@@ -51,7 +51,8 @@ module Spring : sig
       times the natural frequency. [max_duration] defaults to 10 seconds,
       is positive, rounds up to milliseconds and is at most 60 seconds.
       At that deadline the spring settles exactly at its target, including
-      undamped springs. Native spring rendering is under implementation. *)
+      undamped springs. Native animation programs evaluate springs without
+      calling OCaml on each frame. *)
   val create
     :  ?epsilon:float
     -> ?max_duration:Time_ns.Span.t

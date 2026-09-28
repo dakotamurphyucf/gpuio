@@ -4,7 +4,7 @@ A native public-API gallery under implementation for OCH-41. The first sections
 cover presentation, selection/actions, native text editing, numeric/range inputs,
 verification codes, rating, dates/colors, overlays, navigation/layout and commands/
 feedback, carousel/sidebar/history, managed collections, documents and runtime/
-window previews. Additional v1
+window previews, plus native motion sequences and shared clocks. Additional v1
 families and the complete coverage ledger are still being integrated; this is
 not the completed milestone 07 release.
 
@@ -31,7 +31,7 @@ python3 scripts/test_gallery.py --images scratch/gallery-images
 ```
 
 Use `--section core`, `pickers`, `overlays`, `navigation`, `feedback`, `journeys`,
-`collections`, `documents` or `runtime` for focused iteration;
+`collections`, `documents`, `motion` or `runtime` for focused iteration;
 the default `all` exercises all currently integrated acceptance stages in one
 application lifetime. Pickers verify draft cancel/apply and focus restoration;
 overlays exercise dialog/drawer/confirmation/popover dismissal and focus; workspace
@@ -46,10 +46,17 @@ Documents acquire a fresh child scope per page visit and release registrations o
 departure. The runtime page samples public registration counts on demand and can
 open a native file picker without reading the selected file.
 
-The current macOS document AX tree exposes toolbar controls but omits rendered
-Markdown body text. This is an open release-audit finding, documented in the
-[evidence ledger](../../docs/evidence/gallery-och41.md); the gallery tests do not
-claim screen-reader acceptance.
+Motion demonstrates interrupted targets, tween/spring sequences, playback controls,
+reverse/restart and dynamically joined repeating members. System/Reduced/Full is an
+application-wide preference shared by all gallery windows. Leaving the motion page
+pauses its sequence and stops its repeating preview. The native test measures
+intermediate geometry, interruption, held playback, cancellation, reduced endpoints
+and shared phase; there is no OCaml animation-frame timer.
+
+The document AX repair now exposes actual Markdown body text, read-only source/code
+and inline links with keyboard activation. Rich/image links, selected-text/range,
+heading-level, table and broader screen-reader behavior remain open in the
+[document evidence ledger](../../docs/evidence/document-accessibility-och17.md).
 
 The initial macOS test covers semantic navigation, button actions, OS typing and
 submission, theme/size changes without resetting the editor, independent windows,

@@ -18,7 +18,8 @@ Local platform: macOS 14.5 (23F79), arm64. Use the pinned repository environment
 | Commands & feedback | Command button, popup/in-window menus, disabled semantics, OS shortcuts and chooser selection; progress stages; native toast close/expiry and page departure cleanup | Context-menu/nested-menu keyboard and all theme/scale combinations |
 | Carousels & journeys | Horizontal/vertical carousel and navigation-history transitions preserve native edits; hidden editor/links leave AX; icon/offcanvas sidebar keeps selection | Pointer gestures, timed auto-advance and all scale combinations in gallery |
 | Lists, trees & tables | 1,000 variable-height entries, far reveal and growth elsewhere; loaded hierarchy reveal/selection; 1,000-row table selection/reveal; native AX row/cell limits; retained internal panels | Paging/retry, sort/resize/reorder, drag and full performance workloads |
-| Markdown & code | Scoped Markdown/code/diff, bounded append/reset, parsed code-block controls, native collapse/expand and repeated departure/remount; AX body text/heading/list and read-only code/diff values | Complete screen-reader/selection semantics, link navigation, source/selection clipboard and complete theme/scale matrix |
+| Markdown & code | Scoped Markdown/code/diff, bounded append/reset, parsed code-block controls, native collapse/expand and repeated departure/remount; AX body text/heading/list and read-only code/diff values | Complete screen-reader/selection and rich/image-link semantics, source/selection clipboard and complete theme/scale matrix |
+| Motion & rhythm | Interrupted native targets, tween/spring sequence, pause/resume/cancel/reverse/restart, shared-clock join, live reduced motion and cross-window policy | Full timing/property combinations and resource/performance budgets |
 | Runtime & windows | Public diagnostics, observed content geometry, native file picker cancellation | Desktop identity/links/OS notifications and broader window command matrix |
 
 The combined native test opens a second independent window, verifies independent
@@ -102,10 +103,50 @@ Detailed family/configuration/event/value review remains explicitly pending.
 Known review topics include GPUIX's previously omitted onVisibleRange/onHighlight,
 ellipsis-start and extra cursor variants, pointer/wheel defaults, selection scope,
 standalone clipboard/automation surfaces and nested editor/document plugin APIs.
-Gallery families still missing include graphics/motion/assets, native extensions,
+Gallery families still missing include graphics/assets, native extensions,
 responsive container rules and remaining desktop
 services. OCH-41 remains In Progress; OCH-17's macOS release audit follows it.
 
 Linux build/unit/private-bus/consumer checks remain required. This checkpoint
 adds no real Linux GUI qualification; OCH-47 owns that deferred work. Hosted
 acceptance for this implementation branch has not yet been run.
+
+## Motion gallery continuation
+
+The thirteenth page uses only `View.animate`, `View.animate_program` and the public
+application motion policy. System is the initial preference; an explicit
+System/Reduced/Full selection updates all gallery windows through shared Bonsai
+state and `App.set_motion`. No animation-frame OCaml timer is installed. The
+preview keeps only the latest bounded native observation batch. Page departure
+unmounts wrappers, pauses the sequence model and stops the repeated preview;
+returning does not resume the previous repeating work automatically.
+
+The focused local macOS motion test passes actual native intermediate width
+measurements, reversal from the painted position, held geometry after pause,
+requested cancellation, replay and reversed endpoints. Reduced motion reaches
+endpoints without intermediate widths and reports the three reduced stages. A
+new window reflects the shared preference and changes it for the first window.
+Dynamically joined members share phase; Reduce freezes them at initial values.
+Leaving/remounting removes old accessible samples and restores stopped playback.
+The native test measures AX layout geometry, not physical display presentation
+timestamps or a frame-rate/idle-memory budget.
+
+The initial fixture wrongly assumed AX tree traversal plus input would pause
+within the first 550 ms stage. It reached the spring stage instead and correctly
+held there. The corrected test requires prior movement, stable paused geometry
+and a value distinct from the final endpoint; it accepts a pause in any active
+stage. The original failure is not counted as acceptance.
+
+A combined-run fixture also queried departure before the asynchronous page-change
+request was applied. It now waits for the destination page before asserting that
+the old samples are absent. The focused test's success is separate from that
+failed combined attempt. The latest combined result is recorded below.
+
+Latest thirteen-page continuation: gallery build, `dune runtest test/gallery`,
+`dune build @fmt`, catalog audit, `git diff --check` and
+`python3 scripts/test_gallery.py --section all` pass locally on macOS 14.5 arm64.
+The combined run includes OS Space activation of the System preference control,
+all document keyboard-link checks, the independent additional window, registration
+cleanup and native file-picker cancellation. All child processes are reaped. The
+focused motion screenshot was inspected. Required hosted checks and the installed
+gallery consumer remain pending; this is not full OCH-41 or OCH-17 acceptance.

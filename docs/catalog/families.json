@@ -550,7 +550,7 @@
       "evidence": [
         "docs/evidence/animation-programs-och25.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "motion",
       "contract": "Native transitions/springs/sequences/repetition and interruption/reduced motion, without OCaml frame callbacks.",
       "upstream_modules": [
         "base/animation",

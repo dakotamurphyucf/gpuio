@@ -6,17 +6,17 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 passed on `473407c`; all twelve tickets are Done.
 
 Milestone 07 is in progress. OCH-41's public
-[Component Studio](../examples/gallery/README.md) now has twelve preview sections;
-the combined local macOS AX/keyboard sequence, native document regression,
-gallery expect tests, formatting, catalog structural audit and strict native
-Clippy pass at implementation checkpoint `7aa65f3`. The
-[gallery evidence](evidence/gallery-och41.md) records exact boundaries. Remaining
-gallery families, detailed behavioral parity, installed-consumer and release
-gates are still pending. OCH-17 is also in progress: the gallery audit's missing
-Markdown body and read-only source semantics have an initial
-[native accessibility repair](evidence/document-accessibility-och17.md).
-Complete document links, selection/ranges, table and screen-reader behavior remain
-open. No full document screen-reader or Linux desktop acceptance is claimed.
+[Component Studio](../examples/gallery/README.md) now has thirteen preview sections,
+including native motion. The [gallery evidence](evidence/gallery-och41.md) records
+local macOS interaction, geometry, gallery expect tests, formatting and structural
+catalog checks, separately from earlier native document/Clippy regression checks.
+Remaining gallery families, detailed behavioral parity, installed-consumer and
+release gates are still pending. OCH-17 is also in progress: the
+[native document accessibility repair](evidence/document-accessibility-och17.md)
+now exposes body text, read-only source/code, keyboard/AX inline-link activation
+and distant-link reveal. Rich/image links, selection/ranges, table and screen-reader
+behavior remain open. No full document screen-reader or Linux desktop acceptance
+is claimed.
 
 The macOS-first/Linux-deferral policy [PR #15](https://github.com/dakotamurphyucf/gpuio/pull/15)
 merged at `af7f6f0c0f9db1c64a8591d9e9a078aa73eacdec` after both required jobs in
