@@ -10,6 +10,11 @@ assert os.environ.get("GITHUB_ACTIONS") == "true", "Hosted disposable runner onl
 
 
 def dump():
+    for command in [["id"], ["stat", "-f", "%Su", "/dev/console"],
+                    ["launchctl", "print-disabled", f"gui/{os.getuid()}"],
+                    ["launchctl", "print", f"gui/{os.getuid()}/com.apple.notificationcenterui"]]:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=10)
+        print("SYSTEM_DIAGNOSTIC", command, result.returncode, result.stdout[-12000:], result.stderr, flush=True)
     names = ["NotificationCenter", "UserNotificationCenter", "CoreServicesUIAgent",
              "System Settings", "gpuio-notification", "usernoted"]
     for name in names:
@@ -43,8 +48,18 @@ def diagnosed_wait(self, title):
     try:
         return original_wait(self, title)
     except Exception:
+        print("BANNER_LOOKUP_FAILED; inspect then open notification center", flush=True)
         dump()
-        raise
+        self.open_center()
+        try:
+            result = original_wait(self, title)
+            print("FOUND_AFTER_OPENING_CENTER", title, flush=True)
+            return result
+        except Exception:
+            dump()
+            result = subprocess.run(["/usr/bin/log", "show", "--last", "2m", "--style", "compact", "--predicate", 'process == "usernoted" OR process == "NotificationCenter"'], capture_output=True, text=True, timeout=15)
+            print("NOTIFICATION_SYSTEM_LOG", result.stdout[-40000:], result.stderr, flush=True)
+            raise
 
 test.Notifications.wait = diagnosed_wait
 binary = Path(".cache/previous/notification-main.exe").resolve()
