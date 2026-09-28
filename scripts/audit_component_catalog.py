@@ -88,9 +88,25 @@ def main():
         for reference in [row['interface'], *row['evidence']]:
             if not (ROOT / reference).is_file():
                 raise ValueError(f'Missing style reference: {reference}')
+    families = json.loads((CATALOG / 'families.json').read_text())['families']
+    expected_modules = {f'{layer}/{name}' for layer in ('base', 'component')
+                        for name in actual[f'gpui_{layer}_root_modules']}
+    mapped = [name for row in families for name in row['upstream_modules']]
+    if len(mapped) != len(set(mapped)) or set(mapped) != expected_modules:
+        raise ValueError('Family ownership must cover every pinned module exactly once')
+    ids = [row['id'] for row in families]
+    if len(ids) != len(set(ids)):
+        raise ValueError('Duplicate family identity')
+    for row in families:
+        if not row['contract'] or not row['owner'] or not row['audit_status']:
+            raise ValueError(f'Incomplete family metadata: {row["id"]}')
+        for reference in [row['public_interface'], row['example'], *row['evidence']]:
+            if not (ROOT / reference).exists():
+                raise ValueError(f'Missing family reference: {reference}')
     print('GPUIO_CATALOG_SOURCES_OK:', ', '.join(
         f'{key}={len(value)}' for key, value in actual.items() if isinstance(value, list)))
     print('Structural source coverage only; implementation, values and native behavior require the release ledger.')
+    print(f'Family ownership: {len(mapped)} module entries -> {len(families)} families; detailed review status remains explicit.')
 
 
 if __name__ == '__main__':

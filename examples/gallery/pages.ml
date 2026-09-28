@@ -248,4 +248,7 @@ let component window ~page ~palette graph =
   | Controls -> controls window palette graph
   | Text_inputs -> editors window palette graph
   | Numeric_inputs -> Numeric_page.component window palette graph
+  | Pickers -> Pickers_page.component window palette graph
+  | Overlays -> Overlays_page.component palette graph
+  | Navigation -> Navigation_page.component window palette graph
 ;;

@@ -2,7 +2,7 @@
 
 A native public-API gallery under implementation for OCH-41. The first sections
 cover presentation, selection/actions, native text editing, numeric/range inputs,
-verification codes and rating. Additional v1
+verification codes, rating, dates/colors, overlays and navigation/layout. Additional v1
 families and the complete coverage ledger are still being integrated; this is
 not the completed milestone 07 release.
 
@@ -26,6 +26,13 @@ its child, including on failure:
 ```sh
 python3 scripts/test_gallery.py --images scratch/gallery-images
 ```
+
+Use `--section core`, `pickers`, `overlays` or `navigation` for focused iteration;
+the default `all` exercises all currently integrated acceptance stages in one
+application lifetime. Pickers verify draft cancel/apply and focus restoration;
+overlays exercise dialog/drawer/confirmation/popover dismissal and focus; workspace
+checks verify retained tab text, hidden editor semantics, accordion and pagination.
+This initial navigation preview does not yet cover carousel, sidebar or stack.
 
 The initial macOS test covers semantic navigation, button actions, OS typing and
 submission, theme/size changes without resetting the editor, independent windows,

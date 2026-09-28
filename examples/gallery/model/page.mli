@@ -7,6 +7,9 @@ type t =
   | Controls
   | Text_inputs
   | Numeric_inputs
+  | Pickers
+  | Overlays
+  | Navigation
 [@@deriving equal, compare, sexp_of]
 
 val all : t list

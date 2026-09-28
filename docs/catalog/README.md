@@ -15,6 +15,12 @@ that every source entry is implemented or validated.
 - `gpuix-styles.json`: all 73 field-to-public-API mappings, with evidence entry
   points and explicit value/behavior reviews still pending. The audit checks
   completeness and that referenced APIs/files exist, not visual equivalence.
+- `families.json`: all 146 root-module entries mapped to 43 owning families,
+  public interfaces, existing examples, evidence and release scopes. Helpers map
+  to their owning runtime/style/interaction contract rather than separate widgets.
+  Nullable gallery pages and explicit review-pending status show remaining work;
+  no module is silently dropped. Nested public families/configuration still need
+  detailed audit, including code-editor and document plugin subfamilies.
 
 Verify structural inventory without an upstream checkout or network access:
 

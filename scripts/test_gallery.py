@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise the public gallery's native navigation, editing and window isolation."""
 import argparse
+import ctypes as C
 from pathlib import Path
 import subprocess
 import tempfile
@@ -13,11 +14,11 @@ TITLE = 'GPUIO · Component Studio 1'
 SECOND = 'GPUIO · Component Studio 2'
 
 
-def expect_field(mac, title, label, expected):
+def expect_field(mac, title, label, expected, role="AXTextField"):
     deadline = time.monotonic() + 10
     actual = None
     while time.monotonic() < deadline:
-        actual = mac.field(title, label, 'AXTextField')
+        actual = mac.field(title, label, role)
         if actual == expected:
             return
         time.sleep(0.025)
@@ -76,12 +77,170 @@ def exercise(mac, images):
             raise RuntimeError('Unmounted editor remains accessible')
         mac.press(TITLE, 'Text editing')
         expect_field(mac, TITLE, 'Document title', 'A place for good ideas')
-    mac.close(TITLE)
+
+
+def within(mac, group, label, role):
+    def visit(node):
+        if (mac.text(node, 'AXRole') == role
+                and label in (mac.text(node, 'AXTitle'), mac.text(node, 'AXDescription'))):
+            return mac.retain(node)
+        children = mac.children(node)
+        try:
+            for child in children:
+                found = visit(child)
+                if found:
+                    return found
+        finally:
+            for child in children:
+                mac.release(child)
+        return None
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        root = mac.find(TITLE, group)
+        if root:
+            try:
+                found = visit(root)
+                if found:
+                    return found
+            finally:
+                mac.release(root)
+        time.sleep(.03)
+    mac.dump(TITLE)
+    raise RuntimeError(f'{label} not found within {group}')
+
+
+def activate(mac, node):
+    try:
+        mac.perform(node, 'AXPress')
+    finally:
+        mac.release(node)
+
+
+def open_picker(mac, trigger, cancel):
+    node = mac.wait_find(TITLE, trigger, 'AXButton')
+    try:
+        mac.set(node, 'AXFocused', mac.true)
+        mac.perform(node, 'AXPress')
+    finally:
+        mac.release(node)
+    mac.release(mac.wait_find(TITLE, cancel, 'AXButton'))
+
+
+def expect_focus(mac, trigger, role="AXButton"):
+    get = mac.cf.CFBooleanGetValue
+    get.restype, get.argtypes = C.c_bool, [C.c_void_p]
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        node = mac.wait_find(TITLE, trigger, role)
+        value = mac.attr(node, 'AXFocused')
+        try:
+            if value and get(value):
+                return
+        finally:
+            if value:
+                mac.release(value)
+            mac.release(node)
+        time.sleep(.03)
+    raise RuntimeError(f'Focus not restored to {trigger}')
+
+
+def exercise_pickers(mac, images):
+    mac.press(TITLE, 'Dates & colors')
+    mac.wait_text(TITLE, 'Appointment: 2026-09-14')
+    open_picker(mac, 'Choose appointment', 'Cancel appointment')
+    activate(mac, within(mac, 'Preview appointment', 'September 17, 2026', 'AXCheckBox'))
+    mac.wait_text(TITLE, 'Appointment: 2026-09-14')
+    mac.press(TITLE, 'Cancel appointment')
+    expect_focus(mac, 'Choose appointment')
+    mac.wait_text(TITLE, 'Appointment: 2026-09-14')
+    open_picker(mac, 'Choose appointment', 'Cancel appointment')
+    activate(mac, within(mac, 'Preview appointment', 'September 18, 2026', 'AXCheckBox'))
+    mac.press(TITLE, 'Apply appointment')
+    mac.wait_text(TITLE, 'Appointment: 2026-09-18')
+    expect_focus(mac, 'Choose appointment')
+    open_picker(mac, 'Choose accent', 'Cancel accent')
+    activate(mac, within(mac, 'Preview accent', 'Iris', 'AXRadioButton'))
+    mac.wait_text(TITLE, 'Accent: #89DDC9')
+    mac.press(TITLE, 'Cancel accent')
+    expect_focus(mac, 'Choose accent')
+    open_picker(mac, 'Choose accent', 'Cancel accent')
+    activate(mac, within(mac, 'Preview accent', 'Coral', 'AXRadioButton'))
+    mac.press(TITLE, 'Apply accent')
+    mac.wait_text(TITLE, 'Accent: #F6A89D')
+    expect_focus(mac, 'Choose accent')
+    if images:
+        screenshot(mac, images / 'gallery-pickers.png', title=TITLE)
+    open_picker(mac, 'Choose accent', 'Cancel accent')
+    mac.key(53)
+    expect_focus(mac, 'Choose accent')
+    mac.wait_text(TITLE, 'Accent: #F6A89D')
+
+
+def exercise_overlays(mac, images):
+    mac.press(TITLE, 'Overlays & help')
+    open_picker(mac, 'Open dialog', 'Close dialog')
+    mac.key(53)
+    expect_focus(mac, 'Open dialog')
+    open_picker(mac, 'Open drawer', 'Close drawer')
+    mac.press(TITLE, 'Close drawer')
+    expect_focus(mac, 'Open drawer')
+    open_picker(mac, 'Review confirmation', 'Keep preview')
+    mac.press(TITLE, 'Keep preview')
+    mac.wait_text(TITLE, 'Nothing has been changed.')
+    open_picker(mac, 'Review confirmation', 'Keep preview')
+    mac.press(TITLE, 'Confirm reset')
+    mac.wait_text(TITLE, 'Preview reset confirmed.')
+    expect_focus(mac, 'Review confirmation')
+    open_picker(mac, 'Show details', 'Done with details')
+    if images:
+        screenshot(mac, images / 'gallery-overlays.png', title=TITLE)
+    mac.press(TITLE, 'Done with details')
+    expect_focus(mac, 'Show details')
+
+
+def exercise_navigation(mac, images):
+    mac.press(TITLE, 'Navigation & layout')
+    mac.wait_text(TITLE, 'A workspace that keeps your place')
+    window = mac.window(TITLE)
+    try:
+        mac.set(mac.app, 'AXFrontmost', mac.true)
+        mac.perform(window, 'AXRaise')
+    finally:
+        mac.release(window)
+    field = mac.wait_find(TITLE, 'Retained notes', 'AXTextArea')
+    try:
+        mac.set(mac.app, 'AXFrontmost', mac.true)
+        mac.set(field, 'AXFocused', mac.true)
+        expect_focus(mac, 'Retained notes', role='AXTextArea')
+        mac.key(0, flags=1 << 20)
+        mac.key(0)
+    finally:
+        mac.release(field)
+    expect_field(mac, TITLE, 'Retained notes', 'a', role='AXTextArea')
+    activate(mac, mac.wait_find(TITLE, 'Draft'))
+    expect_field(mac, TITLE, 'Retained draft', 'A separate draft with its own native editing history.', role='AXTextArea')
+    hidden = mac.find(TITLE, 'Retained notes', 'AXTextArea')
+    if hidden:
+        mac.release(hidden)
+        raise RuntimeError('Inactive retained tab editor remains accessible')
+    activate(mac, mac.wait_find(TITLE, 'Notes'))
+    expect_field(mac, TITLE, 'Retained notes', 'a', role='AXTextArea')
+    mac.press(TITLE, 'Identity')
+    mac.wait_text(TITLE, 'Stable keys preserve the identity')
+    mac.press(TITLE, 'Behavior')
+    mac.wait_text(TITLE, 'Native controls handle immediate input')
+    mac.press(TITLE, 'Next')
+    mac.wait_text(TITLE, 'Preview page 2 of 12')
+    mac.press(TITLE, 'Last')
+    mac.wait_text(TITLE, 'Preview page 12 of 12')
+    if images:
+        screenshot(mac, images / 'gallery-navigation.png', title=TITLE)
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--images', type=Path)
+    parser.add_argument('--section', choices=['all', 'core', 'pickers', 'overlays', 'navigation'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -92,7 +251,15 @@ def main():
         mac = None
         try:
             mac = Mac(child.pid, child)
-            exercise(mac, args.images)
+            if args.section in ('all', 'core'):
+                exercise(mac, args.images)
+            if args.section in ('all', 'pickers'):
+                exercise_pickers(mac, args.images)
+            if args.section in ('all', 'overlays'):
+                exercise_overlays(mac, args.images)
+            if args.section in ('all', 'navigation'):
+                exercise_navigation(mac, args.images)
+            mac.close(TITLE)
             if child.wait(timeout=15) != 0:
                 raise RuntimeError('Gallery exited unsuccessfully')
         finally:
@@ -107,7 +274,7 @@ def main():
                     child.wait()
             log.seek(0)
             print(log.read(), end='')
-    print('GPUIO_GALLERY_AX_OK: navigation, button, native typing/submit, appearance/size preservation, independent windows, remount, shutdown')
+    print(f'GPUIO_GALLERY_AX_OK: section={args.section}, native actions, state semantics, focus and shutdown')
 
 
 if __name__ == '__main__':
