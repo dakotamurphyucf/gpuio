@@ -63,6 +63,13 @@ module Config : sig
       that picture. Wrong-application handles never cross as unchecked IDs.
 
       [disabled] defaults to false; disabled charts do not accept native input.
+      A native [View data] control (or the D key while focused) opens a read-only
+      paged table of every original value, including gaps and unpainted values.
+      Arrows/Home/End/Page Up/Page Down browse; D or Escape returns to the plot.
+      Browsing does not emit selection events. The table reads current published
+      data even when plot preparation fails. Updates preserve the numeric browsing
+      position, clamped to the new count; reset/hide/unmount close the table.
+
       [legend] defaults to true. Dense legends scroll within the chart; labels
       may ellipsize visually while retaining their full accessible text.
 

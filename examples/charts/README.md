@@ -27,9 +27,18 @@ Arrows/Home/End preview plotted marks, Enter/Space commit, and Escape clears
 Bonsai/Eio. Ordinary updates retain singular native selection when still plotted;
 the example clears its derived readout when it requests replacement data.
 
-The example is still under OCH-40 development. A complete original-data alternative,
-non-color plot identification and streaming measurements remain outstanding.
-The accessible group and plotted-mark keys are not a complete data alternative. `Ready`
+**View data**, or D while focused, opens a read-only native table of every original
+value, including gaps and values omitted from the plot. Arrows/Home/End and
+Page Up/Down browse; D, Escape or **Back to chart** returns. Browsing leaves plot
+selection unchanged. At most ten rows are mounted even for large data. The table
+uses current published data and remains usable when mesh preparation fails.
+
+Choose **Edge cases** for a 100,000-point line with gaps, empty area data, signed
+bars, a zero slice, reordered radar axes, a negative flat candle, and isolated/
+zero-flow graph data. **Sample data** restores the ordinary gallery.
+
+The example is still under OCH-40 development. Non-color plot identification,
+expanded mixed/horizontal examples and streaming measurements remain outstanding. `Ready`
 means prepared; the self-test separately requests a native render callback,
 which is not proof of physical screen presentation.
 
@@ -40,4 +49,9 @@ pass `--foreground` when background windows do not receive frames. Use
 `python3 scripts/test_charts.py --input` to activate the child, exercise real
 AppKit keyboard selection in all seven families, and check pie hover/click/drag
 and cancellation through the asynchronous OCaml callback. The script closes and
+reaps its child window.
+
+`python3 scripts/test_chart_data.py` activates the public app and exercises its
+100,000-row original-data alternative through real macOS AX and keyboard input,
+including every family's edge cases, paging, row focus and reset. It closes and
 reaps its child window.

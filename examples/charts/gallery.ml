@@ -170,3 +170,75 @@ let describe_selection data (selection : Gpuio.Chart_selection.t) =
       (D.Edge.value edge)
   | (Cartesian _ | Pie _ | Radar _ | Candlestick _ | Sankey _), _ -> None
 ;;
+
+let edge_data family =
+  match family with
+  | 0 ->
+    D.line
+      [ D.Series.create
+          ~id:(series_id 1)
+          ~name:"Original values"
+          (List.init 100_000 ~f:(fun i ->
+             D.Point.create
+               ~id:(datum (100_000 - i))
+               ~x:(Float.of_int i)
+               ~y:(if i % 1000 = 0 then None else Some (Float.of_int (i % 17) -. 8.))
+               ()
+             |> ok))
+        |> ok
+      ]
+    |> ok
+  | 1 -> D.area [] |> ok
+  | 2 ->
+    D.bar
+      [ D.Series.create
+          ~id:(series_id 1)
+          ~name:"Signed values"
+          (List.mapi [ -5.; 0.; 7. ] ~f:(fun i y ->
+             D.Point.create ~id:(datum (i + 1)) ~x:(Float.of_int i) ~y:(Some y) () |> ok))
+        |> ok
+      ]
+    |> ok
+  | 3 ->
+    D.pie
+      [ D.Slice.create ~id:(datum 1) ~label:"Zero slice" ~value:0. |> ok
+      ; D.Slice.create ~id:(datum 2) ~label:"Visible slice" ~value:1. |> ok
+      ]
+    |> ok
+  | 4 ->
+    D.radar
+      ~axes:
+        (List.mapi [ "First axis"; "Second axis"; "Third axis" ] ~f:(fun i label ->
+           D.Radar_axis.create ~id:(datum (i + 1)) ~label ~maximum:1. |> ok))
+      [ D.Radar_series.create
+          ~id:(series_id 1)
+          ~name:"Reordered axes"
+          [ datum 3, 0.125; datum 1, 0.; datum 2, 1. ]
+        |> ok
+      ]
+    |> ok
+  | 5 ->
+    D.candlestick
+      [ D.Candle.create
+          ~id:(datum 1)
+          ~x:0.
+          ~label:"Flat session"
+          ~open_:(-2.)
+          ~high:(-2.)
+          ~low:(-2.)
+          ~close:(-2.)
+        |> ok
+      ]
+    |> ok
+  | 6 ->
+    D.sankey
+      ~nodes:
+        (List.mapi [ "Source"; "Target"; "Isolated" ] ~f:(fun i label ->
+           D.Node.create ~id:(node_id (i + 1)) ~label |> ok))
+      ~edges:
+        [ D.Edge.create ~id:(edge_id 1) ~source:(node_id 1) ~target:(node_id 2) ~value:0.
+          |> ok
+        ]
+    |> ok
+  | _ -> invalid_arg "unknown gallery family"
+;;

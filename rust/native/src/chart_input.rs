@@ -5,6 +5,11 @@ use crate::chart_geometry::Point;
 use gpui::{Hitbox, HitboxId, MouseButton, Pixels};
 use gpuio_protocol::chart_selection::Selection;
 type Shared = Rc<RefCell<State>>;
+#[path = "chart_data_view.rs"]
+mod data_view;
+#[cfg(feature = "native-canvas-tests")]
+pub(super) use data_view::capture_browse;
+pub(super) use data_view::element as data_element;
 pub(super) struct Input {
     pub focus: gpui::FocusHandle,
     gate: crate::host::focus::Shared,
@@ -15,6 +20,7 @@ pub(super) struct Input {
     pub selected_index: Option<usize>,
     hover: Option<usize>,
     cursor: Option<usize>,
+    pub data_cursor: Option<usize>,
     blur: Option<gpui::Subscription>,
 }
 impl Input {
@@ -29,6 +35,7 @@ impl Input {
             selected_index: None,
             hover: None,
             cursor: None,
+            data_cursor: None,
             blur: None,
         }
     }
@@ -51,11 +58,22 @@ impl State {
         self.input.hover = None;
         self.input.cursor = None;
     }
-    fn input_allowed(&self, window: &Window, pointer: bool) -> bool {
+    fn base_input_allowed(&self, window: &Window, pointer: bool) -> bool {
         !self.closed
             && !self.config.disabled
             && window.is_window_active()
             && self.input.gate.borrow().allows(self.node)
+            && (!pointer
+                || self.session.upgrade().is_some_and(|session| {
+                    session
+                        .borrow()
+                        .tree(self.window)
+                        .is_some_and(|tree| pointer_enabled(tree, self.node))
+                }))
+    }
+    fn input_allowed(&self, window: &Window, pointer: bool) -> bool {
+        self.base_input_allowed(window, pointer)
+            && self.input.data_cursor.is_none()
             && self.ready.as_ref().is_some_and(|ready| {
                 self.lease
                     .as_ref()
@@ -67,13 +85,6 @@ impl State {
                     && ready.config.legend == self.config.legend
                     && self.requested_frame == self.ready_frame
             })
-            && (!pointer
-                || self.session.upgrade().is_some_and(|session| {
-                    session
-                        .borrow()
-                        .tree(self.window)
-                        .is_some_and(|tree| pointer_enabled(tree, self.node))
-                }))
     }
     fn valid_callback(&self, token: &Rc<()>, window: &Window, pointer: bool) -> bool {
         Rc::ptr_eq(token, &self.input.token) && self.input_allowed(window, pointer)
@@ -136,7 +147,7 @@ impl State {
         window: &mut Window,
         cx: &mut App,
     ) {
-        if !self.valid_callback(token, window, false) || !self.input.focus.is_focused(window) {
+        if !Rc::ptr_eq(token, &self.input.token) || !self.input.focus.is_focused(window) {
             return;
         }
         let key = event.keystroke.key.as_str();
@@ -147,6 +158,12 @@ impl State {
         }
         let mods = event.keystroke.modifiers;
         if mods.control || mods.platform || mods.alt {
+            return;
+        }
+        if self.data_key(key, window, cx) {
+            return;
+        }
+        if !self.valid_callback(token, window, false) {
             return;
         }
         if key == "escape" {
@@ -192,7 +209,7 @@ impl State {
         }
     }
     pub(super) fn input_overlay(&self) -> Option<gpui::AnyElement> {
-        if self.closed || self.config.disabled {
+        if self.closed || self.config.disabled || self.input.data_cursor.is_some() {
             return None;
         }
         let ready = self.ready.as_ref()?;
@@ -288,7 +305,7 @@ pub(super) fn keyboard(
         let mut state = state.borrow_mut();
         let eligible = !state.closed
             && !state.config.disabled
-            && state.ready.is_some()
+            && state.lease.as_ref().and_then(Lease::snapshot).is_some()
             && state.input.gate.borrow().allows(state.node);
         state.input.focus = state.input.focus.clone().tab_stop(eligible);
         (state.input.focus.clone(), state.input.token.clone())
@@ -297,10 +314,13 @@ pub(super) fn keyboard(
     let access_token = token.clone();
     element
         .track_focus(&focus)
+        .aria_description("Arrows browse plotted values; Enter or Space commits. D opens original data, including missing and unpainted values. Escape cancels a drag or clears selection.")
         .on_key_down(move |event, window, cx| state.borrow_mut().key(&token, event, window, cx))
         .on_a11y_action(gpui::AccessibleAction::Focus, move |_, window, cx| {
             let state = access.borrow();
-            if state.valid_callback(&access_token, window, false) {
+            if Rc::ptr_eq(&state.input.token, &access_token)
+                && state.base_input_allowed(window, false)
+            {
                 window.focus(&state.input.focus, cx);
             }
         })
@@ -332,9 +352,6 @@ pub(super) fn prepaint(
     Some(hitbox)
 }
 pub(super) fn paint(state: &Shared, hitbox: Option<Hitbox>, window: &mut Window) {
-    let Some(hitbox) = hitbox else {
-        return;
-    };
     let (token, focus, gate, node, eligible) = {
         let state = state.borrow();
         (
@@ -342,11 +359,15 @@ pub(super) fn paint(state: &Shared, hitbox: Option<Hitbox>, window: &mut Window)
             state.input.focus.clone(),
             state.input.gate.clone(),
             state.node,
-            state.input_allowed(window, false),
+            state.base_input_allowed(window, false)
+                && state.lease.as_ref().and_then(Lease::snapshot).is_some(),
         )
     };
     gate.borrow_mut()
         .record(node, focus.clone(), eligible, focus.is_focused(window));
+    let Some(hitbox) = hitbox else {
+        return;
+    };
     let down = state.clone();
     let down_token = token.clone();
     let down_hit = hitbox.clone();

@@ -73,6 +73,7 @@ impl State {
     fn suspend(&mut self, window: &mut Window) {
         self.cancel_input(window);
         self.input.clear_selection();
+        self.input.data_cursor = None;
         self.input.token = Rc::new(());
         self.job = None;
         self.requested = None;
@@ -121,6 +122,13 @@ impl State {
                 .is_none_or(|new| !Arc::ptr_eq(new, &old.snapshot))
         });
         if changed {
+            if snapshot.as_ref().is_none_or(|new| {
+                self.requested
+                    .as_ref()
+                    .is_some_and(|old| new.generation() != old.snapshot.generation())
+            }) {
+                self.input.data_cursor = None;
+            }
             self.cancel_input(window);
             self.input.token = Rc::new(());
             self.job = None;
@@ -135,10 +143,15 @@ impl State {
                 .is_none_or(|new| new.generation() != old.snapshot.generation())
         }) {
             self.input.clear_selection();
+            self.input.data_cursor = None;
             self.ready = None;
             self.ready_frame = None;
             self.legend_scroll.set_offset(Default::default());
             self.reported_ready = None;
+        }
+        if let (Some(cursor), Some(source)) = (self.input.data_cursor, &snapshot) {
+            self.input.data_cursor =
+                Some(cursor.min(crate::chart_table::count(source.data()).saturating_sub(1)));
         }
         if snapshot.is_none() {
             self.lease = None;
@@ -237,6 +250,9 @@ impl State {
         }
     }
     fn text_element(&self, identity: u64) -> Option<gpui::AnyElement> {
+        if self.input.data_cursor.is_some() {
+            return None;
+        }
         let ready = self.ready.as_ref()?;
         let frame = self.ready_frame?;
         let style = &ready.config.style;
@@ -364,6 +380,9 @@ impl State {
             }
         };
         self.prepare(layout, window, cx);
+        if self.input.data_cursor.is_some() {
+            return;
+        }
         if let (Some(ready), Some(frame)) = (&self.ready, self.ready_frame) {
             // During resize retain the old picture at its original logical size;
             // the enclosing element clips it while replacement work is pending.
@@ -460,8 +479,13 @@ impl View {
         for (id, state) in &self.charts {
             if !self.focus.borrow().visible(*id) {
                 state.borrow_mut().suspend(window);
-            } else if !self.focus.borrow().allows(*id) || !pointer_enabled(tree, *id) {
-                state.borrow_mut().cancel_input(window);
+            } else {
+                if !self.focus.borrow().allows(*id) || !pointer_enabled(tree, *id) {
+                    state.borrow_mut().cancel_input(window);
+                }
+                // Original-data access must also work when mesh admission fails
+                // immediately and cannot trigger a worker completion redraw.
+                state.borrow_mut().refresh_source(window);
             }
         }
     }
@@ -511,6 +535,7 @@ impl View {
         };
         let text = state.borrow().text_element(identity);
         let overlay = state.borrow().input_overlay();
+        let data_view = input::data_element(state.clone());
         let element = input::keyboard(element, state.clone());
         let prepaint = state.clone();
         let budget = self.chart_budget.clone();
@@ -540,7 +565,8 @@ impl View {
                 .size_full(),
             )
             .children(text)
-            .children(overlay);
+            .children(overlay)
+            .children(data_view);
         crate::semantics::State {
             hidden: false,
             metadata: None,

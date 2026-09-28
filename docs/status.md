@@ -40,8 +40,10 @@ scrollable legends now render from the displayed snapshot; dense legend scroll
 persists across updates and clears on reset. Typed semantic-selection events,
 exact-source provenance and a bounded worker-prepared hit index are implemented;
 native hover/drag, plotted-mark keyboard input, tooltips and semantic callbacks now
-pass locally. Complete data accessibility,
-multiple-window/cached-list streaming acceptance and performance measurements remain. See
+pass locally. A built-in read-only original-data table now pages through all source
+values independently of rendering/sampling, with bounded native rows and keyboard/AX
+navigation. Non-color plot distinctions, multiple-window/cached-list streaming
+acceptance and performance measurements remain. See
 [chart contracts and remaining work](design/charts.md).
 The detailed entries below record implementation checkpoints chronologically;
 their earlier pending-gate statements are superseded by this delivery record.

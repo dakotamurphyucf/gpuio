@@ -339,13 +339,76 @@ scoped release. All owned GUI children are reaped. Native and public input stage
 are added to the macOS workflow, but consolidated hosted execution remains
 pending. No Linux GUI acceptance or completed chart capability is claimed.
 
+## Original-data companion acceptance
+
+Local Apple M1 Max / macOS 14.5 arm64, isolated repository toolchain, two jobs.
+The native companion table reads original published data independently of sampling
+and successful mesh preparation. It is read-only: browsing leaves plot selection
+unchanged and emits no semantic selection observations. No extra public wire tag,
+data upload, dataset-sized row cache or accessibility tree is introduced.
+
+The production native input test now additionally verifies D/Escape switching,
+source-row browsing without selection traffic, and rejection of a retained
+previous-publication row callback. A test-only reservation exhausts the renderer's
+actual retained-plan admission allowance; a reset publication then fails through
+the real worker/host `Render_limit` path with no prepared picture. Its original
+data remains keyboard-browsable. Releasing the allowance and changing the plot
+configuration successfully retries preparation. This reserves accounting capacity,
+not 256 MiB of test heap, and does not install a fabricated Ready/Failed result.
+Source shrinking permanently clamps the browsing position; subsequent growth
+cannot restore the formerly out-of-range position. Final native counters are
+`(6, 0, 1, 0, 0)` for input and `(10, 0, 1, 0, 0)` for lifecycle, with empty data
+stores and zero retained plan/workspace charges at shutdown.
+
+The public `scripts/test_chart_data.py` passes real macOS AX and keyboard checks:
+
+- A sampled 100,000-point line exposes AX row count **100,000** while mounting
+  only **eight** native rows in the 330-pixel chart. The implementation caps pages
+  at ten. End reaches original row 100,000; Home, Page Up, previous/next buttons
+  and AX row focus move the browsing position without committing plot selection.
+- Original missing values and source identities are accessible. Ordinary data
+  update preserves the numeric browsing position; D/Escape switch presentation.
+- Every family's edge-case dataset is read through the table: an empty area,
+  signed/zero bars, zero pie slice, radar values supplied out of axis order,
+  negative flat candle, isolated flow node and zero-valued edge. Sankey table
+  count includes nodes and edges; plotted source-value metrics count its edges.
+- Reset while the companion is open returns to plot mode. All children/windows
+  close and are reaped after actual OS close.
+
+The public check caught and fixed an empty derived flow sum rendering as `-0`;
+isolated-node totals now display `0` in the table and tooltips. It also caught
+incorrect test expectations for Core's `100_000` count formatting and Sankey
+edge metrics, and a test pressing the prior publication's button during reset.
+The test now waits for the chosen family's preparation before acting. Empty
+tables retain a minimum native extent so their zero-row metadata is accessible.
+
+There are **58 passing native chart unit tests**, including original-data access
+for every family, all 100,000 source positions, missing/zero values, bounded pages,
+last/out-of-range positions and isolated-node totals. Strict all-target Clippy
+with `native-canvas-tests`, Rust formatting, example compilation and Dune `@fmt`
+pass. The complete public seven-family plot input suite still passes after adding
+the companion, including real pointer/keyboard semantic callbacks and OS close.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native --lib chart_ --locked -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy -p gpuio-native \
+  --features native-canvas-tests --all-targets --locked -j2 -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build @fmt examples/charts/main.exe -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native \
+  --features native-canvas-tests --test native_chart_input --test native_chart_view --locked -j2
+python3 scripts/test_chart_data.py
+python3 scripts/test_charts.py --input
+```
+
+The data acceptance script is wired into the macOS workflow. Consolidated hosted
+macOS/Linux execution and Linux GUI validation are not claimed by this checkpoint.
+
 ## Completion still required
 
 Extend resource/lifecycle acceptance to multiple windows, managed-list caching
 and sustained streaming, including aggregate frame accounting for reused draw
-commands. Complete keyboard/AX/data alternatives including original values that
-have no painted mark, non-color distinctions, real dense-legend wheel checks and
-malformed/empty/degenerate/mixed public examples. Complete the Chart Studio
-presentation, measure actual streaming CPU/frame/queue/retained-memory behavior
-on named hardware, and integrate a chart into OCH-29 alongside its distinct
-canvas/independent-extension requirements.
+commands. Complete non-color distinctions within plots, real dense-legend wheel
+checks and mixed/horizontal public examples. Review companion controls against
+resolved style/theme tokens and finish Chart Studio presentation. Measure actual
+streaming CPU/frame/queue/retained-memory behavior on named hardware, and integrate
+a chart into OCH-29 alongside its distinct canvas/independent-extension requirements.

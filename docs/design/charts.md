@@ -9,8 +9,8 @@ painter passes local hidden-window GPU readback for every family. The resource-b
 Core/Bonsai view now mounts the painter through bounded native workers. A public
 seven-family Chart Studio and hidden production-view lifecycle test pass locally.
 Native labels, scrollable legends, typed selection payloads and prepared hit
-queries, mounted interaction and tooltips are implemented. Complete data alternatives and
-streaming measurements remain. This document separates implemented contracts from
+queries, mounted interaction, tooltips and a bounded original-data companion are
+implemented. Non-color plot identification and streaming measurements remain. This document separates implemented contracts from
 the remaining implementation work.
 
 ## Data contract
@@ -569,7 +569,7 @@ cancels previews and follows normal focus traversal. The focused chart participa
 in the central modal/focus policy; disabled, hidden or pointer-inert charts reject
 the corresponding input. **This is plotted-mark navigation, not the complete
 original-data alternative:** missing, zero-area and downsampled-away originals
-still require that separate implementation.
+are available through the companion table described below.
 
 Native callbacks carry an identity token. A data/config change, reset, source
 replacement, hide, release or close invalidates old callbacks and cancels capture.
@@ -594,6 +594,53 @@ and no synchronous OCaml callback from native input/layout/paint. Chart Studio n
 shows public semantic callback results; its AppKit acceptance covers all seven
 families and real pie hover/click/drag/cancellation.
 
-Complete keyboard/data alternatives, plot-wide non-color identification, dense
-legend wheel acceptance, multi-window/cached-list streaming and measured workloads
-remain required before the chart ticket is complete.
+Plot-wide non-color identification, dense legend wheel acceptance,
+multi-window/cached-list streaming and measured workloads remain required before
+the chart ticket is complete.
+
+## Original-data companion
+
+Every chart has a native **View data** control; D opens it while the chart is
+focused. It displays a read-only table of original values, independently of
+sampling or successful mesh preparation. Line/area gaps appear as `Missing`,
+zero slices and flows remain present, and isolated flow nodes remain browsable.
+Cartesian rows follow layer/source order, radar follows series/axis order
+(resolving values by axis ID), and Sankey exposes nodes followed by edges.
+Numbers use their round-trippable source representation, not rounded axis ticks.
+Stable source IDs and supplied labels accompany the values.
+
+The table has at most ten mounted rows, with fewer rows at smaller chart heights.
+Native accessibility exposes the full row count, absolute row indices, cells,
+values and an active browsing row. No dataset-sized AX tree, row-copy cache or
+additional source registration is constructed. Source lookup is bounded by the
+schema's series/axis/flow limits; it never scans 100,000 points to access one row.
+Allocate sufficient chart height for the toolbar, rows and paging controls
+(144 logical pixels accommodates one row); undersized views clip normally.
+
+Arrow keys move the browsing row, Home/End reach the first/last original, and
+Page Up/Down move by a page. Previous/next page controls and AX row focus provide
+the corresponding accessible actions. D, Escape or **Back to chart** returns to
+the plot. Browsing does not change the committed plot selection or emit
+`Selection_changed`: the table is a data-reading alternative, not a second
+application selection model.
+
+The table takes one immutable snapshot from the current live registration when
+building its bounded page. It can therefore read data while plotting is pending
+or rejected by rendering admission. Old plotted pictures and current original
+data are separate presentations. Routes retain only a weak snapshot reference
+and verify publication identity, callback identity, disabled state and focus/
+pointer policy before changing the browsing position. Stale actions cannot apply
+an old row offset to a replacement publication.
+
+Ordinary publications preserve the numeric browsing position, clamped permanently
+to the new count; growing again does not restore an out-of-range old position.
+This is page-position retention, not selection of a stable datum. Reset/source
+replacement, hidden state, unmount or release close the companion. Blur cancels
+plot previews but retains the chosen presentation. Switching to the table skips
+plot paint/text work while retaining its bounded prepared plan for a return to
+the plot. It introduces no permanent polling, extra upload or synchronous OCaml
+callback.
+
+Chart Studio's **Edge cases** mode supplies a 100,000-point line with gaps,
+empty area data, signed/zero bars, a zero pie slice, reordered radar values,
+a negative flat candle, and a graph with an isolated node and zero-valued edge.

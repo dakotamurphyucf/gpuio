@@ -30,6 +30,12 @@ let () =
   let completed = ref false in
   App.run (fun env app ->
     let family = B.Expert.Var.create 0 in
+    let edge_cases = B.Expert.Var.create false in
+    let dataset family phase =
+      if B.Expert.Var.get edge_cases
+      then Gallery.edge_data family
+      else Gallery.data family phase
+    in
     let handle = B.Expert.Var.create None in
     let status = B.Expert.Var.create "Preparing your workspace" in
     let selection = B.Expert.Var.create None in
@@ -38,7 +44,7 @@ let () =
     let phase = ref 0. in
     let choose n =
       Option.iter !registration ~f:(fun chart ->
-        Registered.reset chart (Gallery.data n !phase) |> checked);
+        Registered.reset chart (dataset n !phase) |> checked);
       observation := None;
       B.Expert.Var.set selection None;
       B.Expert.Var.set family n;
@@ -68,10 +74,15 @@ let () =
                "%s values · native rendering"
                (Int.to_string_hum metrics.source_values)))
     in
+    let toggle_data () =
+      B.Expert.Var.set edge_cases (not (B.Expert.Var.get edge_cases));
+      choose (B.Expert.Var.get family)
+    in
     let clear_selection () = B.Expert.Var.set selection None in
     let component _window _graph =
       let open B.Let_syntax in
       let%arr family = B.Expert.Var.value family
+      and edge_cases = B.Expert.Var.value edge_cases
       and handle = B.Expert.Var.value handle
       and status = B.Expert.Var.value status
       and selection = B.Expert.Var.value selection in
@@ -127,7 +138,12 @@ let () =
             ~style:(style [ Gap (px 8.) ])
             (Array.to_list
                (Array.mapi Gallery.names ~f:(fun i name ->
-                  button name ~selected:(i = family) (fun () -> choose i))))
+                  button name ~selected:(i = family) (fun () -> choose i)))
+             @ [ button
+                   (if edge_cases then "Sample data" else "Edge cases")
+                   ~selected:edge_cases
+                   toggle_data
+               ])
         ; V.column
             ~style:(style [ bg 0x172230; Radius 18.; Padding (px 26.); Gap (px 22.) ])
             [ V.row
@@ -137,7 +153,12 @@ let () =
                 [ V.column
                     ~style:(style [ Gap (px 6.) ])
                     [ text ~size:21. ~tint:0xf0f5ff Gallery.descriptions.(family)
-                    ; text "A small dataset. A clear perspective."
+                    ; text
+                        (if edge_cases
+                         then
+                           "Original data, including gaps, zero values and empty \
+                            datasets."
+                         else "A small dataset. A clear perspective.")
                     ]
                 ; text ~size:12. ~tint:0x72d8c4 Gallery.names.(family)
                 ]
@@ -159,7 +180,7 @@ let () =
                     phase := !phase +. 1.;
                     clear_selection ();
                     Option.iter !registration ~f:(fun chart ->
-                      Registered.set chart (Gallery.data family !phase) |> checked))
+                      Registered.set chart (dataset family !phase) |> checked))
                 ]
             ]
         ; text ~size:12. "Built with OCaml, Bonsai and GPUI  ·  Sample data"
@@ -194,9 +215,7 @@ let () =
               Eio.Time.sleep clock 0.005;
               until f)
           in
-          let chart =
-            on_ui (Registered.create app ~scope (Gallery.data 0 0.)) |> checked
-          in
+          let chart = on_ui (Registered.create app ~scope (dataset 0 0.)) |> checked in
           ui (fun () ->
             registration := Some chart;
             B.Expert.Var.set handle (Some (Registered.handle chart)));

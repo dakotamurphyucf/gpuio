@@ -221,6 +221,18 @@ pub struct Pool {
     pub peak_workers: usize,
 }
 impl Pool {
+    #[cfg(feature = "native-canvas-tests")]
+    pub(crate) fn hold_remaining_budget_for_test(&self) -> Box<dyn std::any::Any> {
+        Box::new(
+            self.output_budget
+                .reserve(
+                    MAX_RETAINED_BYTES - self.output_budget.used_bytes(),
+                    MAX_RETAINED_BYTES,
+                )
+                .unwrap(),
+        )
+    }
+
     pub fn request(&mut self, request: Request) -> Result<Handle, Error> {
         if self.closed {
             return Err(Error::Closed);

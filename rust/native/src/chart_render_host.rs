@@ -243,6 +243,15 @@ pub fn measurements(cx: &App) -> Option<(usize, usize, usize, usize, usize)> {
     ))
 }
 
+#[cfg(feature = "native-canvas-tests")]
+pub(crate) fn hold_remaining_budget_for_test(cx: &App) -> Box<dyn std::any::Any> {
+    cx.global::<Global>()
+        .0
+        .borrow()
+        .pool
+        .hold_remaining_budget_for_test()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

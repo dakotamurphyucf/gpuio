@@ -21,6 +21,7 @@ pub mod chart_jobs;
 pub mod chart_paint;
 mod chart_presentation;
 pub mod chart_render_host;
+mod chart_table;
 #[cfg(feature = "native-canvas-tests")]
 pub fn run_native_chart_paint_test() {
     chart_paint::native_test::run();

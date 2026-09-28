@@ -172,13 +172,11 @@ pub(crate) fn describe(
             let incoming: f64 = edges
                 .iter()
                 .filter(|e| e.target == node.id)
-                .map(|e| e.value)
-                .sum();
+                .fold(0., |total, edge| total + edge.value);
             let outgoing: f64 = edges
                 .iter()
                 .filter(|e| e.source == node.id)
-                .map(|e| e.value)
-                .sum();
+                .fold(0., |total, edge| total + edge.value);
             (
                 node.label.clone(),
                 format!("Incoming {}\nOutgoing {}", y(incoming), y(outgoing)),
