@@ -305,12 +305,12 @@ def exercise_feedback(mac, images):
     mac.wait_text(TITLE, 'No pending notification')
 
 
-def expect_enabled(mac, label, expected):
+def expect_enabled(mac, label, expected, role='AXButton'):
     get = mac.cf.CFBooleanGetValue
     get.restype, get.argtypes = C.c_bool, [C.c_void_p]
     deadline = time.monotonic() + 10
     while time.monotonic() < deadline:
-        node = mac.wait_find(TITLE, label, 'AXButton')
+        node = mac.wait_find(TITLE, label, role)
         value = mac.attr(node, 'AXEnabled')
         try:
             if value and bool(get(value)) == expected:
@@ -621,6 +621,115 @@ def wait_absent(mac, label, role):
 
 
 
+
+def exercise_charts(mac, images):
+    mac.press(TITLE, 'Charts & data')
+    cases = [
+        ('Line', 48, 48, 'Atlas · x 0 · value 30'),
+        ('Area', 24, 24, 'Active capacity · x 0 · value 30'),
+        ('Bar', 24, 24, 'Completed evaluations · x 0 · value 30'),
+        ('Pie', 4, 4, 'Reasoning · 44'),
+        ('Radar', 10, 10, 'Atlas · Quality · 88 / 100'),
+        ('Candlestick', 24, 24, 'Session 1 · close 34'),
+        ('Sankey', 4, 8, 'Incoming → Reasoning · 65'),
+        ('Mixed layers', 72, 72, 'Capacity · x 0 · value 30'),
+    ]
+    for family, plotted, originals, first in cases:
+        mac.press(TITLE, family)
+        mac.wait_text(TITLE, f'Ready: {family} · {plotted} source values')
+        window = mac.window(TITLE)
+        try:
+            mac.set(mac.app, 'AXFrontmost', mac.true)
+            mac.perform(window, 'AXRaise')
+        finally:
+            mac.release(window)
+        chart = mac.wait_find(TITLE, 'Chart preview: ' + family, 'AXGroup')
+        try:
+            mac.set(chart, 'AXFocused', mac.true)
+            try:
+                expect_focus(mac, 'Chart preview: ' + family, 'AXGroup')
+            except RuntimeError:
+                focus = mac.attr(mac.app, 'AXFocusedUIElement')
+                try:
+                    print('CHART_FOCUS_FAILURE', [(k, mac.text(focus, k)) for k in
+                          ['AXRole', 'AXTitle', 'AXDescription']] if focus else None, flush=True)
+                finally:
+                    if focus:
+                        mac.release(focus)
+                raise
+            mac.key(115)  # Home previews without selecting.
+            mac.wait_text(TITLE, 'Select a chart value to inspect it.')
+            mac.key(36)
+            mac.wait_text(TITLE, 'Selected: ' + first)
+        finally:
+            mac.release(chart)
+        if family == 'Line':
+            mac.press(TITLE, 'Update chart samples')
+            mac.wait_text(TITLE, 'Selected: Atlas · x 0 · value 33')
+        if family == 'Pie':
+            mac.press(TITLE, 'Update chart samples')  # Constant sample: no publication needed.
+            mac.wait_text(TITLE, 'Ready: Pie · 4 source values')
+            mac.wait_text(TITLE, 'Selected: Reasoning · 44')
+        mac.press(TITLE, 'View data')
+        table = mac.wait_find(TITLE, 'Chart preview: ' + family + ' · original data', 'AXTable')
+        try:
+            get = mac.cf.CFNumberGetValue
+            get.restype, get.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
+            value = mac.attr(table, 'AXRowCount')
+            count = C.c_longlong()
+            try:
+                assert value and get(value, 4, C.byref(count)) and count.value == originals, (family, count.value)
+            finally:
+                if value:
+                    mac.release(value)
+            rows = mac.children(table, 'AXRows')
+            try:
+                assert 0 < len(rows) <= 10, (family, len(rows))
+            finally:
+                for row in rows:
+                    mac.release(row)
+        finally:
+            mac.release(table)
+        mac.key(119)
+        mac.release(mac.wait_find(TITLE, f'Row {originals}:', 'AXRow', contains=True, search_files=True))
+        mac.press(TITLE, 'Back to chart')
+        mac.release(mac.wait_find(TITLE, 'View data', 'AXButton'))
+    activate(mac, mac.wait_find(TITLE, 'Horizontal axes', 'AXCheckBox'))
+    mac.wait_text(TITLE, 'Ready: Mixed layers · 72 source values')
+    activate(mac, mac.wait_find(TITLE, 'Disable chart input', 'AXCheckBox'))
+    expect_enabled(mac, 'Chart preview: Mixed layers', False, 'AXGroup')
+    activate(mac, mac.wait_find(TITLE, 'Disable chart input', 'AXCheckBox'))
+    expect_enabled(mac, 'Chart preview: Mixed layers', True, 'AXGroup')
+    # Restore theme/size after exercising both. Choices and scoped data stay intact.
+    theme = mac.find(TITLE, 'Dark', 'AXButton')
+    current, next_label = ('Dark', 'Light') if theme else ('Light', 'Dark')
+    if theme:
+        mac.release(theme)
+    mac.press(TITLE, current)
+    mac.release(mac.wait_find(TITLE, next_label, 'AXButton'))
+    mac.wait_text(TITLE, 'Selected: Capacity · x 0 · value 30')
+    for size, next_size in [('Comfortable', 'Large'), ('Large', 'Compact'), ('Compact', 'Comfortable')]:
+        mac.press(TITLE, size)
+        mac.release(mac.wait_find(TITLE, next_size, 'AXButton'))
+        mac.wait_text(TITLE, 'Selected: Capacity · x 0 · value 30')
+    if images:
+        screenshot(mac, images / 'gallery-charts.png', title=TITLE)
+    mac.press(TITLE, next_label)
+    for _ in range(3):
+        mac.press(TITLE, 'Presentation')
+        mac.wait_text(TITLE, 'A little context goes a long way')
+        absent(mac, 'Chart preview: Mixed layers', 'AXGroup')
+        mac.press(TITLE, 'Charts & data')
+        mac.wait_text(TITLE, 'Ready: Mixed layers · 72 source values')
+        mac.wait_text(TITLE, 'Select a chart value to inspect it.')
+    mac.press(TITLE, 'Runtime & windows')
+    mac.press(TITLE, 'Refresh resource counts')
+    mac.wait_text(TITLE, 'Images: 0 · Charts: 0 · Canvases: 0')
+    mac.wait_text(TITLE, 'Registered source bytes: 0')
+    print('GALLERY_CHARTS_OK: seven families plus mixed layers, native keyboard selection, '
+          'data updates, bounded original-data pages, styles and scope cleanup', flush=True)
+
+
 def motion_width(mac, node):
     get = mac.ax.AXValueGetValue
     get.restype, get.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
@@ -745,7 +854,7 @@ def exercise_runtime(mac, images):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--images', type=Path)
-    parser.add_argument('--section', choices=['all', 'core', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'motion', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'charts', 'motion', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -772,6 +881,8 @@ def main():
                 exercise_collections(mac, args.images)
             if args.section in ('all', 'documents'):
                 exercise_documents(mac, args.images)
+            if args.section in ('all', 'charts'):
+                exercise_charts(mac, args.images)
             if args.section in ('all', 'motion'):
                 exercise_motion(mac, args.images,
                                 second_title=('GPUIO · Component Studio 3'

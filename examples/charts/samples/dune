@@ -1,0 +1,5 @@
+(library
+ (name gpuio_chart_samples)
+ (libraries core gpuio)
+ (preprocess
+  (pps ppx_jane)))

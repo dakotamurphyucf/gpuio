@@ -19,6 +19,7 @@ Local platform: macOS 14.5 (23F79), arm64. Use the pinned repository environment
 | Carousels & journeys | Horizontal/vertical carousel and navigation-history transitions preserve native edits; hidden editor/links leave AX; icon/offcanvas sidebar keeps selection | Pointer gestures, timed auto-advance and all scale combinations in gallery |
 | Lists, trees & tables | 1,000 variable-height entries, far reveal and growth elsewhere; loaded hierarchy reveal/selection; 1,000-row table selection/reveal; native AX row/cell limits; retained internal panels | Paging/retry, sort/resize/reorder, drag and full performance workloads |
 | Markdown & code | Scoped Markdown/code/diff, bounded append/reset, parsed code-block controls, native collapse/expand and repeated departure/remount; AX body text/heading/list and read-only code/diff values | Complete screen-reader/selection and rich/image-link semantics, source/selection clipboard and complete theme/scale matrix |
+| Charts & data | Seven native families plus mixed layers; keyboard selection, publication updates, bounded original-data browsing, disabled metadata, theme/scale retention and scope cleanup | Larger/reduced datasets, pointer selection and release performance budgets |
 | Motion & rhythm | Interrupted native targets, tween/spring sequence, pause/resume/cancel/reverse/restart, shared-clock join, live reduced motion and cross-window policy | Full timing/property combinations and resource/performance budgets |
 | Runtime & windows | Public diagnostics, observed content geometry, native file picker cancellation | Desktop identity/links/OS notifications and broader window command matrix |
 
@@ -103,7 +104,7 @@ Detailed family/configuration/event/value review remains explicitly pending.
 Known review topics include GPUIX's previously omitted onVisibleRange/onHighlight,
 ellipsis-start and extra cursor variants, pointer/wheel defaults, selection scope,
 standalone clipboard/automation surfaces and nested editor/document plugin APIs.
-Gallery families still missing include graphics/assets, native extensions,
+Gallery families still missing include canvas/assets, native extensions,
 responsive container rules and remaining desktop
 services. OCH-41 remains In Progress; OCH-17's macOS release audit follows it.
 
@@ -150,3 +151,51 @@ all document keyboard-link checks, the independent additional window, registrati
 cleanup and native file-picker cancellation. All child processes are reaped. The
 focused motion screenshot was inspected. Required hosted checks and the installed
 gallery consumer remain pending; this is not full OCH-41 or OCH-17 acceptance.
+
+## Charts gallery continuation
+
+The fourteenth page covers line, area, bar, pie, radar, candlestick, Sankey and
+mixed layers through public OCaml chart APIs. Deterministic sample data is shared
+with the standalone Chart Studio in `examples/charts/samples`; its family identity
+is a closed variant. The original standalone numeric controls use a small checked
+adapter. These example modules own no native resources and are not a new GPUIO API.
+
+Each page activation acquires one fresh scoped chart registration. Family changes
+reset its selection epoch; sample updates preserve stable identities. Current
+source data resolves native selection descriptions only after publication.
+Per-window family/style choices survive departure, while the source phase and
+selection reset on reacquisition. Ready messages identify the family and source
+value count; Sankey's data companion includes node records as well as numerical
+edge values, so its original table row count differs from that metric.
+
+Focused native macOS acceptance passes all eight presentations, Home/Enter
+selection through OS keyboard delivery, updated line values, unchanged pie
+publication, original-data row counts and End navigation, at most ten mounted
+accessible data rows, disabled metadata, theme and all three preview sizes, and
+three departure/remount cycles. The runtime snapshot then observes zero chart
+registrations and zero registered source bytes. Those are application registry
+counts, not total native/GPU memory or leak-budget acceptance. The light-theme
+mixed-layer screenshot was inspected.
+
+Initial focus fixtures did not reliably establish the active window before
+requesting chart focus; an immediate launch-time activation was also too early
+for the OS AX application. App activation alone passed the focused run but failed
+after the earlier gallery interactions. The final fixture waits for ready
+content, activates the app and explicitly raises the intended window before
+focusing the chart, matching the existing editor test. The unchanged focus
+assertion and complete fourteen-page walkthrough then pass. Failed attempts are
+not counted as native acceptance.
+
+Both gallery and standalone chart builds, gallery expect tests, Dune formatting
+and structural catalog checks pass locally. The standalone `--self-test
+--foreground` also passes all seven families, reset generations and scoped
+release after the sample extraction. No Rust/runtime change or new dependency
+pin is part of this continuation. Consolidated hosted/installed-consumer and
+release performance gates remain pending.
+
+Final combined continuation: `python3 scripts/test_gallery.py --section all`
+passes all fourteen pages on macOS 14.5 arm64, including both chart and motion
+keyboard/focus assertions, document links and final native picker cancellation.
+`dune build @fmt` and `git diff --check` also pass after the final edits. All test
+processes are reaped. This adds gallery coverage, not completion of the detailed
+catalog parity ledger, installed-consumer tests or milestone 07 release gates.

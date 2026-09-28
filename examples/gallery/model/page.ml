@@ -12,6 +12,7 @@ type t =
   | Journeys
   | Collections
   | Documents
+  | Charts
   | Motion
   | Runtime
 [@@deriving equal, compare, sexp_of]
@@ -28,6 +29,7 @@ let all =
   ; Journeys
   ; Collections
   ; Documents
+  ; Charts
   ; Motion
   ; Runtime
   ]
@@ -45,6 +47,7 @@ let title = function
   | Journeys -> "Carousels & journeys"
   | Collections -> "Lists, trees & tables"
   | Documents -> "Markdown & code"
+  | Charts -> "Charts & data"
   | Motion -> "Motion & rhythm"
   | Runtime -> "Runtime & windows"
 ;;
@@ -61,6 +64,7 @@ let description = function
   | Journeys -> "Native transitions with a sense of continuity."
   | Collections -> "Explore more while keeping the visible work small."
   | Documents -> "Rich documents, precise code and thoughtful change reviews."
+  | Charts -> "Clear pictures, with the original values always within reach."
   | Motion -> "Thoughtful transitions, natural springs and a shared rhythm."
   | Runtime -> "Native window behavior and visible resource ownership."
 ;;
@@ -77,6 +81,7 @@ let key = function
   | Journeys -> "journeys"
   | Collections -> "collections"
   | Documents -> "documents"
+  | Charts -> "charts"
   | Motion -> "motion"
   | Runtime -> "runtime"
 ;;

@@ -533,7 +533,7 @@
       "evidence": [
         "docs/evidence/charts-och40.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "charts",
       "contract": "Seven chart families/mixed layers, bounded source/preparation and original-data accessibility; preserve exact/reduced provenance.",
       "upstream_modules": [
         "component/chart",

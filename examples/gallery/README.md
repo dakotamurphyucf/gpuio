@@ -4,7 +4,7 @@ A native public-API gallery under implementation for OCH-41. The first sections
 cover presentation, selection/actions, native text editing, numeric/range inputs,
 verification codes, rating, dates/colors, overlays, navigation/layout and commands/
 feedback, carousel/sidebar/history, managed collections, documents and runtime/
-window previews, plus native motion sequences and shared clocks. Additional v1
+window previews, charts, plus native motion sequences and shared clocks. Additional v1
 families and the complete coverage ledger are still being integrated; this is
 not the completed milestone 07 release.
 
@@ -31,7 +31,7 @@ python3 scripts/test_gallery.py --images scratch/gallery-images
 ```
 
 Use `--section core`, `pickers`, `overlays`, `navigation`, `feedback`, `journeys`,
-`collections`, `documents`, `motion` or `runtime` for focused iteration;
+`collections`, `documents`, `charts`, `motion` or `runtime` for focused iteration;
 the default `all` exercises all currently integrated acceptance stages in one
 application lifetime. Pickers verify draft cancel/apply and focus restoration;
 overlays exercise dialog/drawer/confirmation/popover dismissal and focus; workspace
@@ -45,6 +45,13 @@ preview panels retain native state; leaving the whole page unmounts them.
 Documents acquire a fresh child scope per page visit and release registrations on
 departure. The runtime page samples public registration counts on demand and can
 open a native file picker without reading the selected file.
+
+Charts share typed example datasets with the standalone Chart Studio. All seven
+families and mixed layers support native selection and original-data browsing,
+with horizontal, disabled and data-update controls. Each page visit acquires one
+scoped registration; leaving releases it. Choices survive a revisit while source
+phase and selection start fresh. The original-data table includes node records
+for Sankey flows as well as their numerical edge values.
 
 Motion demonstrates interrupted targets, tween/spring sequences, playback controls,
 reverse/restart and dynamically joined repeating members. System/Reduced/Full is an

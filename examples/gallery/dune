@@ -6,6 +6,7 @@
   gpuio.bonsai
   gpuio.eio
   gpuio_gallery_model
+  gpuio_chart_samples
   bonsai
   eio_main)
  (preprocess

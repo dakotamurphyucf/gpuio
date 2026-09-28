@@ -14,6 +14,7 @@ type t =
   | Journeys
   | Collections
   | Documents
+  | Charts
   | Motion
   | Runtime
 [@@deriving equal, compare, sexp_of]

@@ -315,6 +315,7 @@ let component ~app ~motion window ~page ~palette graph =
   | Journeys -> Journeys_page.component window palette graph
   | Collections -> Collections_page.component palette graph
   | Documents -> Documents_page.component app window palette graph
+  | Charts -> Charts_page.component app window palette graph
   | Motion -> Motion_page.component app ~motion palette graph
   | Runtime -> Runtime_page.component app window palette graph
 ;;
