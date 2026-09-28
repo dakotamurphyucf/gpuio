@@ -45,6 +45,23 @@ end
 
 val traffic : t -> Traffic.t
 
+module Command_queue : sig
+  (** Accepted native commands awaiting dispatch. Bytes count their serialized
+      buffer sizes, not decoded heap memory. Peak bytes is the lifetime high-water
+      mark; rejected submissions do not contribute. Pop/close release current
+      bytes. This excludes currently executing work and output events. *)
+  type t =
+    { commands : int
+    ; bytes : int
+    ; peak_bytes : int
+    }
+  [@@deriving sexp_of]
+end
+
+(** Read-only snapshot under the native mailbox mutex, without a bridge command
+    or wake. Like [traffic], call on the UI domain before native disposal. *)
+val command_queue : t -> Command_queue.t
+
 (** Emergency wake-and-stop, independent of command queue capacity. Cancels all
     outstanding requests. Used when the OCaml worker fails. *)
 val abort : t -> unit

@@ -11,8 +11,8 @@ seven-family Chart Studio and hidden production-view lifecycle test pass locally
 Native labels, scrollable legends, typed selection payloads and prepared hit
 queries, mounted interaction, tooltips and a bounded original-data companion are
 implemented. Bounded non-color identification and two-window/list frame accounting
-now pass locally. Sustained streaming measurements, broader-example integration
-and consolidated gates remain. This document separates implemented contracts
+now pass locally. Public large-data streaming measurements now have a reproducible local baseline;
+broader-example integration and consolidated gates remain. This document separates implemented contracts
 from the remaining work.
 
 ## Data contract
@@ -238,9 +238,6 @@ retain original semantic values and cache layout outside per-frame painting.
 All seven families, mixed Cartesian layers, native interactions and original-data
 alternatives now have local acceptance. Remaining delivery work is:
 
-- Measure sustained large-dataset updates on named hardware: dataset size,
-  CPU/frame work, transport/queue bytes and retained memory. Distinguish
-  accounting quotas from process RSS and bound latest-update work.
 - Integrate a chart into OCH-29's broader graphics application without replacing
   its custom-canvas and independently packaged extension requirements.
 - Complete required hosted macOS/Linux gates and merge. Linux GUI evidence
@@ -464,7 +461,7 @@ as requesting redraw. Row invalidation refreshes retained measurement state;
 the pinned list reconstructs and paints visible elements rather than replaying
 cached view commands. Native acceptance now covers ordinary trees and two
 managed-list windows, shared updates and per-frame accounting. Sustained
-large-data workloads still need measurements.
+large-data measurements are recorded separately below.
 
 [`examples/charts`](../../examples/charts/README.md) uses only public Core/Bonsai/Eio
 APIs and visits every family in its self-test. Native tooltips, plotted-mark
@@ -586,8 +583,8 @@ and no synchronous OCaml callback from native input/layout/paint. Chart Studio n
 shows public semantic callback results; its AppKit acceptance covers all seven
 families and real pie hover/click/drag/cancellation.
 
-Sustained large-dataset streaming and measured workloads remain required before
-the chart ticket is complete.
+Broader-example integration and consolidated gates remain required before the
+chart ticket is complete.
 
 ## Original-data companion
 
@@ -677,3 +674,13 @@ and prepared chart instances. Local hidden-window acceptance covers fourteen
 shared publications, disposal of one observer followed by another update, and
 idle release of the source in the survivor. This is bounded lifecycle coverage,
 not a sustained large-dataset performance benchmark or foreground input test.
+
+## Streaming measurements
+
+The public workload covers 10k/100k sampled, 100k exact and coalesced eight-update
+bursts, with native render callbacks and complete source checks. The
+[baseline](../evidence/chart-streaming-och40.md) records named hardware, process
+CPU/RSS, frame geometry, update latency, bridge bytes and queue/retention charges.
+`App.diagnostics.native_command_queue` snapshots accepted native command count,
+current serialized-size charge and lifetime peak under a short mailbox lock.
+It adds no command/wake and excludes executing work/output events.

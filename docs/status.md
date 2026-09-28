@@ -46,8 +46,10 @@ navigation. Bounded series identifiers, themed data controls and mixed/horizonta
 examples now pass local checks, including actual dense-legend wheel scrolling
 and offset retention/reset. Two hidden managed-list windows now pass repeated
 frame-budget/GPU checks, independent scrolling and fourteen shared publications
-with observer disposal and idle source release. Sustained large-dataset streaming
-and performance measurements remain. See
+with observer disposal and idle source release. A public 80-publication/150-update
+workload now records 10k/100k sampled and exact rendering, coalescing, CPU/RSS,
+queue bytes and retention on Apple M1 Max. Broader-example integration and
+consolidated hosted gates remain. See
 [chart contracts and remaining work](design/charts.md).
 The detailed entries below record implementation checkpoints chronologically;
 their earlier pending-gate statements are superseded by this delivery record.

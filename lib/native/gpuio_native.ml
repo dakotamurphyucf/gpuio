@@ -37,6 +37,22 @@ let wrap raw =
 
 let traffic t = t.traffic
 
+module Command_queue = struct
+  type t =
+    { commands : int
+    ; bytes : int
+    ; peak_bytes : int
+    }
+  [@@deriving sexp_of]
+end
+
+external command_queue_raw : int -> int * int * int = "gpuio_v1_command_queue"
+
+let command_queue t : Command_queue.t =
+  let commands, bytes, peak_bytes = command_queue_raw t.raw in
+  { commands; bytes; peak_bytes }
+;;
+
 external create_raw : file_descr -> int = "gpuio_v1_create"
 external create_options : file_descr -> bool -> int = "gpuio_v1_create_with_options"
 

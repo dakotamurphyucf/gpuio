@@ -233,10 +233,13 @@ module Diagnostics : sig
       they exclude native decoded caches, GPU allocations and model payloads.
       Pending requests include correlated lifecycle, input, resource and frame
       requests; queued commands have not yet been accepted by the native host.
+      Native command-queue bytes count accepted serialized input awaiting dispatch,
+      with a lifetime high-water mark; they exclude executing work and outputs.
       Sampling creates no bridge command and does not request a frame. *)
   type t =
     { runtime : Stats.t
     ; traffic : Gpuio_native.Traffic.t
+    ; native_command_queue : Gpuio_native.Command_queue.t
     ; scopes : Scope.Stats.t
     ; windows : int
     ; queued_jobs : int

@@ -172,6 +172,7 @@ module Diagnostics = struct
   type t =
     { runtime : Stats.t
     ; traffic : Gpuio_native.Traffic.t
+    ; native_command_queue : Gpuio_native.Command_queue.t
     ; scopes : Scope.Stats.t
     ; windows : int
     ; queued_jobs : int
@@ -202,6 +203,7 @@ let diagnostics t : Diagnostics.t =
   let canvases, canvas_scene_bytes = Canvas_registry.Expert.counts t.canvas_registry in
   { runtime = t.stats
   ; traffic = Gpuio_native.traffic t.native
+  ; native_command_queue = Gpuio_native.command_queue t.native
   ; scopes = Scope.stats t.scope
   ; windows =
       Map.count t.windows ~f:(fun window ->

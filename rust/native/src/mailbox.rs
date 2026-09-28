@@ -198,6 +198,7 @@ enum Class {
 pub struct Mailbox {
     commands: VecDeque<Queued>,
     command_bytes: usize,
+    peak_command_bytes: usize,
     events: VecDeque<Output>,
     reserved: usize,
     responses: usize,
@@ -211,6 +212,16 @@ pub struct Mailbox {
 }
 
 impl Mailbox {
+    /// Encoded-size accounting for accepted commands awaiting host dispatch.
+    /// Pop/close release current bytes; the lifetime high-water mark persists.
+    pub fn command_queue(&self) -> (usize, usize, usize) {
+        (
+            self.commands.len(),
+            self.command_bytes,
+            self.peak_command_bytes,
+        )
+    }
+
     /// Successful submission reserves a response. Backpressure is synchronous and
     /// leaves the message unsubmitted; the caller retains its desired UI state.
     pub fn submit(&mut self, message: Message, bytes: usize) -> Result<(), ErrorCode> {
@@ -232,6 +243,7 @@ impl Mailbox {
             return Err(ErrorCode::Busy);
         }
         self.command_bytes += bytes;
+        self.peak_command_bytes = self.peak_command_bytes.max(self.command_bytes);
         self.reserved += 1;
         self.commands.push_back(Queued { message, bytes });
         Ok(())
@@ -1074,5 +1086,40 @@ mod notification_tests {
         assert!(!mailbox.notification_response(65, notification::Response::Closed));
         mailbox.control(Event::NotificationPending);
         assert_eq!(mailbox.drain(256), vec![Event::Stopped]);
+    }
+}
+
+#[cfg(test)]
+mod queue_measurement_tests {
+    use super::*;
+    #[test]
+    fn accepted_queue_bytes_peak_survives_pop_close_and_ignores_rejection() {
+        let mut mailbox = Mailbox::default();
+        assert_eq!(mailbox.command_queue(), (0, 0, 0));
+        mailbox
+            .submit(
+                Message::Chart(1, gpuio_protocol::chart_resource::Request::Create),
+                30,
+            )
+            .unwrap();
+        mailbox
+            .submit(
+                Message::Chart(2, gpuio_protocol::chart_resource::Request::Create),
+                50,
+            )
+            .unwrap();
+        assert_eq!(mailbox.command_queue(), (2, 80, 80));
+        assert_eq!(
+            mailbox.submit(
+                Message::Chart(3, gpuio_protocol::chart_resource::Request::Create),
+                MAX_MESSAGE_BYTES + 1
+            ),
+            Err(ErrorCode::LimitExceeded)
+        );
+        assert_eq!(mailbox.command_queue(), (2, 80, 80));
+        mailbox.pop();
+        assert_eq!(mailbox.command_queue(), (1, 50, 80));
+        mailbox.close();
+        assert_eq!(mailbox.command_queue(), (0, 0, 80));
     }
 }

@@ -482,9 +482,16 @@ GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-native \
   --features native-canvas-tests --test native_chart_view -j2
 ```
 
+## Public streaming workload
+
+A reproducible public Core/Bonsai/Eio workload now passes 80 observed publications
+from 150 desired updates, including 10k/100k sampled, 100k exact and eight-update
+bursts. It records update-to-render latency, native frame geometry counts, bridge
+traffic, actual command-queue high-water bytes, source/plan charges and child
+CPU/RSS on Apple M1 Max. See [the baseline and limitations](chart-streaming-och40.md).
+
 ## Completion still required
 
-Measure sustained large-dataset streaming CPU/frame/queue/retained-memory behavior
-on named hardware, and integrate a chart into OCH-29 alongside its distinct
-canvas/independent-extension requirements. Consolidated hosted macOS/Linux gates
-and merge remain pending; no Linux graphical acceptance is claimed.
+Integrate a chart into OCH-29 alongside its distinct canvas/independent-extension
+requirements. Consolidated hosted macOS/Linux gates and merge remain pending;
+no Linux graphical acceptance is claimed.

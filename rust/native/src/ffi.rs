@@ -246,3 +246,19 @@ pub fn gpuio_v1_desktop_prepare(
         .expect("encode desktop launch response");
     output.to_ocaml(cr)
 }
+
+/// Read-only bounded mailbox counters. Drop the mutex before allocating OCaml.
+#[ocaml_interop::export]
+pub fn gpuio_v1_command_queue(
+    cr: &mut OCamlRuntime,
+    id: OCaml<OCamlInt>,
+) -> OCaml<(OCamlInt, OCamlInt, OCamlInt)> {
+    let id: i64 = id.to_rust();
+    let transport = lookup(id);
+    let (count, bytes, peak) = transport
+        .mailbox
+        .lock()
+        .expect("mailbox poisoned")
+        .command_queue();
+    (count as i64, bytes as i64, peak as i64).to_ocaml(cr)
+}
