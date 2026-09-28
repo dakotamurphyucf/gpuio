@@ -37,3 +37,32 @@ let%expect_test "read-only fences delayed requests and relative bursts saturate"
     (false 0)
   |}]
 ;;
+
+let%expect_test "commands use current availability; old dismissals preserve a replacement"
+  =
+  let module F = Gpuio_gallery_model.Feedback_state in
+  let apply state actions = List.fold actions ~init:state ~f:F.apply in
+  let show state =
+    print_s
+      [%sexp
+        (F.stage state : F.Stage.t)
+      , (F.is_enabled state : bool)
+      , (F.notification state : int option)]
+  in
+  let disabled = apply F.initial [ Toggle_enabled; Advance ] in
+  show disabled;
+  let working = apply disabled [ Toggle_enabled; Advance; Notify ] in
+  show working;
+  let replacement = apply working [ Notify; Dismiss 1; Advance; Advance ] in
+  show replacement;
+  show (apply replacement [ Dismiss 2; Dismiss 2; Advance ]);
+  show (apply replacement [ Leave; Notify; Dismiss 2 ]);
+  [%expect
+    {|
+    (Idle false ())
+    (Working true (1))
+    (Complete true (2))
+    (Idle true ())
+    (Complete true (3))
+  |}]
+;;

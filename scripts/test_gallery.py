@@ -29,6 +29,10 @@ def exercise(mac, images):
     mac.wait_text(TITLE, 'A little context goes a long way')
     if images:
         screenshot(mac, images / 'gallery-presentation-dark.png', title=TITLE)
+    mac.release(mac.wait_find(TITLE, 'Aster avatar', 'AXImage'))
+    activate(mac, mac.wait_find(TITLE, 'Animate loading previews', 'AXCheckBox'))
+    mac.wait_text(TITLE, 'Loading spinner')
+    activate(mac, mac.wait_find(TITLE, 'Animate loading previews', 'AXCheckBox'))
     mac.press(TITLE, 'Selection & actions')
     mac.press(TITLE, 'Pressed 0 times')
     mac.wait_text(TITLE, 'Pressed 1 times')
@@ -51,6 +55,16 @@ def exercise(mac, images):
     finally:
         mac.release(field)
     expect_field(mac, TITLE, 'Document title', 'a')
+    activate(mac, mac.wait_find(TITLE, 'Show validation error', 'AXCheckBox'))
+    mac.wait_text(TITLE, 'Choose a different title for this example.')
+    expect_field(mac, TITLE, 'Document title', 'a')
+    activate(mac, mac.wait_find(TITLE, 'Show validation error', 'AXCheckBox'))
+    field = mac.wait_find(TITLE, 'Document title', 'AXTextField')
+    try:
+        mac.set(field, 'AXFocused', mac.true)
+        expect_focus(mac, 'Document title', 'AXTextField')
+    finally:
+        mac.release(field)
     mac.key(36)  # Return: real OS submit into OCaml effect.
     mac.wait_text(TITLE, 'Submitted: a')
     mac.press(TITLE, 'Dark')
@@ -237,10 +251,73 @@ def exercise_navigation(mac, images):
         screenshot(mac, images / 'gallery-navigation.png', title=TITLE)
 
 
+def exercise_feedback(mac, images):
+    mac.press(TITLE, 'Commands & feedback')
+    mac.wait_text(TITLE, 'Ready to begin')
+    mac.press(TITLE, 'Advance preview')
+    mac.wait_text(TITLE, 'Finding the right pieces')
+    activate(mac, mac.wait_find(TITLE, 'Enable preview command', 'AXCheckBox'))
+    disabled = mac.wait_find(TITLE, 'Advance preview', 'AXButton')
+    value = mac.attr(disabled, 'AXEnabled')
+    get = mac.cf.CFBooleanGetValue
+    get.restype, get.argtypes = C.c_bool, [C.c_void_p]
+    try:
+        if not value or get(value):
+            raise RuntimeError('Disabled command still exposed as enabled')
+    finally:
+        if value:
+            mac.release(value)
+        mac.release(disabled)
+    activate(mac, mac.wait_find(TITLE, 'Enable preview command', 'AXCheckBox'))
+    draft = mac.wait_find(TITLE, 'Command preview draft', 'AXTextField')
+    try:
+        mac.set(mac.app, 'AXFrontmost', mac.true)
+        mac.set(draft, 'AXFocused', mac.true)
+        expect_focus(mac, 'Command preview draft', 'AXTextField')
+        mac.key(40, 1 << 20)  # Command-K.
+    finally:
+        mac.release(draft)
+    mac.wait_text(TITLE, 'Halfway there')
+    mac.key(35, (1 << 20) | (1 << 17))  # Command-Shift-P.
+    mac.wait_text(TITLE, 'Preview commands')
+    mac.key(36)  # Native chooser selects the first enabled command.
+    mac.wait_text(TITLE, 'Everything is in place')
+    mac.press(TITLE, 'Preview actions')
+    activate(mac, mac.wait_find(TITLE, 'Save preview', 'AXMenuItem'))
+    mac.wait_text(TITLE, 'Notification visible')
+    mac.press(TITLE, 'Dismiss saved preview')
+    mac.wait_text(TITLE, 'No pending notification')
+    activate(mac, mac.wait_find(TITLE, 'Preview actions', 'AXMenuItem'))
+    mac.release(mac.wait_find(TITLE, 'Editing', 'AXMenuItem'))
+    mac.key(53)
+    mac.press(TITLE, 'Save preview')
+    mac.wait_text(TITLE, 'Notification visible')
+    mac.wait_text(TITLE, 'Your preview is ready to share.')
+    if images:
+        screenshot(mac, images / 'gallery-feedback.png', title=TITLE)
+    mac.press(TITLE, 'Dismiss saved preview')
+    mac.wait_text(TITLE, 'No pending notification')
+    mac.press(TITLE, 'Save preview')
+    mac.wait_text(TITLE, 'Notification visible')
+    # Native active-time expiry: keep focus and pointer outside the toast.
+    draft = mac.wait_find(TITLE, 'Command preview draft', 'AXTextField')
+    try:
+        mac.set(draft, 'AXFocused', mac.true)
+    finally:
+        mac.release(draft)
+    mac.wait_text(TITLE, 'No pending notification')
+    mac.press(TITLE, 'Save preview')
+    mac.wait_text(TITLE, 'Notification visible')
+    mac.press(TITLE, 'Presentation')
+    mac.press(TITLE, 'Commands & feedback')
+    mac.wait_text(TITLE, 'Everything is in place')
+    mac.wait_text(TITLE, 'No pending notification')
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--images', type=Path)
-    parser.add_argument('--section', choices=['all', 'core', 'pickers', 'overlays', 'navigation'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'pickers', 'overlays', 'navigation', 'feedback'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -259,6 +336,8 @@ def main():
                 exercise_overlays(mac, args.images)
             if args.section in ('all', 'navigation'):
                 exercise_navigation(mac, args.images)
+            if args.section in ('all', 'feedback'):
+                exercise_feedback(mac, args.images)
             mac.close(TITLE)
             if child.wait(timeout=15) != 0:
                 raise RuntimeError('Gallery exited unsuccessfully')

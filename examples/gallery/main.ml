@@ -58,6 +58,7 @@ let component ~open_window ~page ~appearance ~scale window graph =
         ~style:
           (style
              [ Width (px 236.)
+             ; Height full
              ; Shrink 0.
              ; Padding (px 22.)
              ; Gap (px 14.)
@@ -65,14 +66,14 @@ let component ~open_window ~page ~appearance ~scale window graph =
              ; Border_right_width 1.
              ; Border_color (Palette.border p)
              ])
-        ([ Palette.text p ~size:24. "GPUIO"
-         ; Palette.text p ~muted:true "COMPONENT STUDIO"
-         ; Presentation.separator (Palette.appearance p) ()
-         ]
-         @ navigation
-         @ [ V.column ~style:(style [ Grow 1. ]) []
-           ; Palette.text p ~muted:true "Built with OCaml.\nRendered natively."
-           ])
+        [ Palette.text p ~size:24. "GPUIO"
+        ; Palette.text p ~muted:true "COMPONENT STUDIO"
+        ; Presentation.separator (Palette.appearance p) ()
+        ; V.column
+            ~style:(style [ Grow 1.; Min_height (px 0.); Overflow_y Scroll; Gap (px 6.) ])
+            navigation
+        ; Palette.text p ~muted:true "Built with OCaml.\nRendered natively."
+        ]
     ; V.column
         ~style:
           (style

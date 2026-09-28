@@ -8,10 +8,19 @@ type t =
   | Pickers
   | Overlays
   | Navigation
+  | Feedback
 [@@deriving equal, compare, sexp_of]
 
 let all =
-  [ Presentation; Controls; Text_inputs; Numeric_inputs; Pickers; Overlays; Navigation ]
+  [ Presentation
+  ; Controls
+  ; Text_inputs
+  ; Numeric_inputs
+  ; Pickers
+  ; Overlays
+  ; Navigation
+  ; Feedback
+  ]
 ;;
 
 let title = function
@@ -22,6 +31,7 @@ let title = function
   | Pickers -> "Dates & colors"
   | Overlays -> "Overlays & help"
   | Navigation -> "Navigation & layout"
+  | Feedback -> "Commands & feedback"
 ;;
 
 let description = function
@@ -32,6 +42,7 @@ let description = function
   | Pickers -> "Explore a draft, then confirm the value that matters."
   | Overlays -> "Focused decisions and helpful context, without losing your place."
   | Navigation -> "Keep your place as the workspace grows around you."
+  | Feedback -> "Actions within reach, and clear signals along the way."
 ;;
 
 let key = function
@@ -42,4 +53,5 @@ let key = function
   | Pickers -> "pickers"
   | Overlays -> "overlays"
   | Navigation -> "navigation"
+  | Feedback -> "feedback"
 ;;

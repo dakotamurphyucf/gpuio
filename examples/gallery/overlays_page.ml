@@ -21,6 +21,12 @@ let component palette graph =
   let popover, set_popover = B.state false graph in
   let notice, set_notice = B.state "Nothing has been changed." graph in
   let open B.Let_syntax in
+  B.Edge.lifecycle
+    ~on_deactivate:
+      (let%arr set_modal = set_modal
+       and set_popover = set_popover in
+       E.Many [ set_modal Modal.Closed; set_popover false ])
+    graph;
   let%arr p = palette
   and modal = modal
   and set_modal = set_modal

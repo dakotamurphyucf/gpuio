@@ -12,6 +12,8 @@ that every source entry is implemented or validated.
   helpers/infrastructure as well as user-facing families.
 - [Gallery contract](../design/component-gallery.md): public application design
   and remaining behavioral acceptance.
+- [Adapter author and maintenance guide](../component-adapters.md): ownership,
+  validation, styled-layer compatibility, source reconstruction and licenses.
 - `gpuix-styles.json`: all 73 field-to-public-API mappings, with evidence entry
   points and explicit value/behavior reviews still pending. The audit checks
   completeness and that referenced APIs/files exist, not visual equivalence.

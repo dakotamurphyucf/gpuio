@@ -10,6 +10,7 @@ type t =
   | Pickers
   | Overlays
   | Navigation
+  | Feedback
 [@@deriving equal, compare, sexp_of]
 
 val all : t list

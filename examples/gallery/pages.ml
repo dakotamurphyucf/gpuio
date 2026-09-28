@@ -14,9 +14,12 @@ let group children = V.column ~style:(style [ Gap (px 20.) ]) children
 
 let presentation palette graph =
   let notice, set_notice = B.state "Ready when you are" graph in
+  let animate_loading, toggle_loading = B.toggle ~default_model:false graph in
   let open B.Let_syntax in
   let%arr p = palette
   and notice = notice
+  and animate_loading = animate_loading
+  and toggle_loading = toggle_loading
   and set_notice = set_notice in
   let a = Palette.appearance p in
   group
@@ -71,6 +74,17 @@ let presentation palette graph =
             a
             ~author:"Aster"
             ~detail:"Just now"
+            ~avatar:
+              (V.avatar
+                 ~style:
+                   (style
+                      [ Foreground (Palette.background p)
+                      ; Background (Background.solid (Palette.accent p))
+                      ])
+                 (Avatar.Config.create
+                    ~fallback:(Avatar.Fallback.create "AS" |> ok)
+                    ~description:(Image.Description.label "Aster avatar" |> ok)
+                    ()))
             (P.bubble
                a
                (Palette.text p "Native interfaces can be expressive and approachable."))
@@ -97,6 +111,32 @@ let presentation palette graph =
             ~actions:
               (Palette.button p "Create collection" (set_notice "Collection created"))
             ()
+        ]
+    ; Palette.card
+        p
+        ~title:"Waiting can feel considered"
+        [ V.switch
+            ~checked:animate_loading
+            ~on_toggle:toggle_loading
+            "Animate loading previews"
+        ; V.row
+            ~style:(style [ Gap (px 20.); Align_items Center ])
+            (List.map
+               [ Loading.Kind.Skeleton, "Loading skeleton"
+               ; Shimmer, "Loading shimmer"
+               ; Spinner, "Loading spinner"
+               ]
+               ~f:(fun (kind, label) ->
+                 V.loading
+                   ~style:(style [ Foreground (Palette.accent p) ])
+                   ~config:
+                     (Loading.Config.create ~kind ~label ~animated:animate_loading ()
+                      |> ok)
+                   ()))
+        ; Palette.text
+            p
+            ~muted:true
+            "Static by default. Animation follows the application's motion policy."
         ]
     ]
 ;;
@@ -190,6 +230,7 @@ let controls window palette graph =
 
 let editors window palette graph =
   let read_only, toggle_read_only = B.toggle ~default_model:false graph in
+  let invalid, toggle_invalid = B.toggle ~default_model:false graph in
   let submitted, set_submitted = B.state "Nothing submitted yet" graph in
   let open B.Let_syntax in
   let config mode label =
@@ -220,6 +261,8 @@ let editors window palette graph =
   in
   let%arr p = palette
   and read_only = read_only
+  and invalid = invalid
+  and toggle_invalid = toggle_invalid
   and toggle_read_only = toggle_read_only
   and title = title
   and body = body
@@ -229,7 +272,24 @@ let editors window palette graph =
         p
         ~title:"An editor that belongs on your desktop"
         [ V.switch ~checked:read_only ~on_toggle:toggle_read_only "Read-only preview"
-        ; Editor.view ~style:(style [ Height (px (Palette.size p 42.)) ]) title
+        ; V.switch ~checked:invalid ~on_toggle:toggle_invalid "Show validation error"
+        ; Form.field
+            (Form.Field.create
+               ~label:"Document title"
+               ~help:"A name to find this document again."
+               ~required:true
+               ?error:
+                 (if invalid
+                  then Some "Choose a different title for this example."
+                  else None)
+               ()
+             |> ok)
+            ~label_style:(style [ Foreground (Palette.foreground p) ])
+            ~help_style:(style [ Foreground (Palette.muted p) ])
+            ~control:
+              (Editor.view ~style:(style [ Height (px (Palette.size p 42.)) ]) title)
+            ()
+          |> ok
         ; Editor.view ~style:(style [ Height (px (Palette.size p 180.)) ]) body
         ; Palette.text
             p
@@ -251,4 +311,5 @@ let component window ~page ~palette graph =
   | Pickers -> Pickers_page.component window palette graph
   | Overlays -> Overlays_page.component palette graph
   | Navigation -> Navigation_page.component window palette graph
+  | Feedback -> Feedback_page.component window palette graph
 ;;

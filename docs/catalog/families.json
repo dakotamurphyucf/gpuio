@@ -44,7 +44,7 @@
       "evidence": [
         "docs/evidence/presentation-components-och33.md"
       ],
-      "gallery_page": "presentation",
+      "gallery_page": "text-inputs",
       "contract": "Field help/error metadata and label association; validation remains application-owned.",
       "upstream_modules": [
         "component/form"
@@ -60,7 +60,7 @@
       "evidence": [
         "docs/evidence/presentation-components-och33.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "presentation",
       "contract": "Image/fallback/load state, explicit asset ownership and alt semantics.",
       "upstream_modules": [
         "base/avatar",
@@ -93,7 +93,7 @@
       "evidence": [
         "docs/evidence/presentation-components-och33.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "presentation",
       "contract": "Native animation and reduced-motion/static policy; no invented completion value.",
       "upstream_modules": [
         "component/shimmer",
@@ -567,7 +567,7 @@
       "evidence": [
         "docs/evidence/native-palette-och11.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "feedback",
       "contract": "Shared typed commands/key bindings, native menus/palette search and queued invocations; audit searchable-list composition separately.",
       "upstream_modules": [
         "base/actions",
@@ -588,7 +588,7 @@
       "evidence": [
         "docs/evidence/native-progress-och11.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "feedback",
       "contract": "Finite determinate values or native indeterminate work; semantic value/label and reduced motion.",
       "upstream_modules": [
         "base/progress",
@@ -605,7 +605,7 @@
       "evidence": [
         "docs/evidence/native-toasts-och11.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "feedback",
       "contract": "In-application notifications are toast stacks, distinct from OCH-28 OS notifications. Native deadlines, actions, queue bounds and lifecycle.",
       "upstream_modules": [
         "base/toast",
