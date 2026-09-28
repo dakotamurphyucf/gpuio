@@ -37,6 +37,15 @@ Correlated open/close/frame requests are distinct from per-window transactions.
 Acceptance and rendering are distinct events; rendering does not assert physical
 screen presentation. The client submits one transaction per window at a time.
 
+OCH-41's highlighting integration appends Kind50 `Highlight_scope`, Op57
+`Set_highlight_scope` and Event64 `Highlight_observed`. Configuration and optional
+observer bindings are validated; each observation carries a positive scope-local
+epoch plus typed state. Ready contains up to 16 total/stored counts, bounded before
+decoding allocation and checked against the bound configuration. These additions
+are under development: no highlighting capability is advertised until scheduling,
+painting and public native acceptance are complete. See the
+[highlighting contract](subtree-highlighting.md).
+
 Create chooses immutable node kind. Text/style/binding updates preserve identity.
 Style lists replace the previous list, so absent properties reset; repeated
 refinements compose in order, last property wins. Splice uses the current child

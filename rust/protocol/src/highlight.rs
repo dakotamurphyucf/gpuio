@@ -6,6 +6,7 @@ pub const MAX_SPECS: usize = 16;
 pub const MAX_RANGES: usize = 4096;
 pub const MAX_QUERY_BYTES: usize = 4096;
 pub const MAX_CONFIG_BYTES: usize = 262144;
+pub const MAX_OBSERVATION_BYTES: usize = 512;
 
 #[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
 pub struct Query {
@@ -80,6 +81,18 @@ impl Spec {
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub struct Config(pub Vec<Spec>);
 impl Config {
+    pub fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + self.0.len() * std::mem::size_of::<Spec>()
+            + self
+                .0
+                .iter()
+                .map(|s| {
+                    s.ranges.len() * std::mem::size_of::<Range>()
+                        + s.query.as_ref().map_or(0, |q| q.text.len())
+                })
+                .sum::<usize>()
+    }
     pub fn is_valid(&self) -> bool {
         // These bounds also imply the 256-KiB encoded size bound: 16 queries,
         // 4096 pairs of two 9-byte integers, and bounded scalar metadata.
@@ -90,5 +103,92 @@ impl Config {
 
     pub fn same_matchers(&self, other: &Self) -> bool {
         self.0.len() == other.0.len() && self.0.iter().zip(&other.0).all(|(a, b)| a.same_matcher(b))
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct Count {
+    pub total: i64,
+    pub stored: i64,
+}
+impl Count {
+    pub fn is_valid(&self) -> bool {
+        self.total >= 0 && (0..=16384).contains(&self.stored) && self.stored <= self.total
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum RangeError {
+    OutOfBounds,
+    ScalarBoundary,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct InvalidRange {
+    pub spec_index: i64,
+    pub range_index: i64,
+    pub reason: RangeError,
+}
+impl InvalidRange {
+    pub fn is_valid(&self) -> bool {
+        (0..16).contains(&self.spec_index) && (0..4096).contains(&self.range_index)
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum Limit {
+    Source,
+    Work,
+    Admission,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum Failure {
+    SourceUnavailable,
+    WorkerFailed,
+    EpochExhausted,
+}
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum State {
+    Pending,
+    Ready(Vec<Count>),
+    InvalidRange(InvalidRange),
+    Capacity(Limit),
+    Failed(Failure),
+}
+impl State {
+    pub fn is_valid(&self) -> bool {
+        match self {
+            Self::Pending | Self::Capacity(_) | Self::Failed(_) => true,
+            Self::InvalidRange(r) => r.is_valid(),
+            Self::Ready(counts) => {
+                counts.len() <= MAX_SPECS
+                    && counts.iter().all(Count::is_valid)
+                    && counts.iter().map(|c| c.stored).sum::<i64>() <= 16384
+            }
+        }
+    }
+}
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct Observation {
+    pub epoch: i64,
+    pub state: State,
+}
+impl Observation {
+    pub fn is_valid(&self) -> bool {
+        self.epoch > 0 && self.state.is_valid()
+    }
+    pub fn valid_for(&self, config: &Config) -> bool {
+        self.is_valid()
+            && match &self.state {
+                State::Pending | State::Capacity(_) | State::Failed(_) => true,
+                State::Ready(counts) => counts.len() == config.0.len(),
+                State::InvalidRange(r) => config
+                    .0
+                    .get(r.spec_index as usize)
+                    .is_some_and(|s| (r.range_index as usize) < s.ranges.len()),
+            }
+    }
+    pub fn payload_bytes(&self) -> usize {
+        match &self.state {
+            State::Ready(counts) => counts.len() * std::mem::size_of::<Count>(),
+            _ => 0,
+        }
     }
 }

@@ -11,6 +11,7 @@ module View = struct
   let with_accessibility = Gpuio.View.with_accessibility
   let drag_source = Gpuio.View.drag_source
   let drop_target = Gpuio.View.drop_target
+  let highlight_scope = Gpuio.View.highlight_scope
   let input_region = Gpuio.View.input_region
   let pointer_area = Gpuio.View.pointer_area
   let toast = Gpuio.View.toast

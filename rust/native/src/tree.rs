@@ -32,6 +32,7 @@ fn allows_children(kind: Kind) -> bool {
             | Kind::ToastStack
             | Kind::PointerArea
             | Kind::InputRegion
+            | Kind::HighlightScope
             | Kind::DragSource
             | Kind::DropTarget
     )
@@ -120,6 +121,7 @@ pub struct Node {
     pub drop_target: Option<Arc<gpuio_protocol::drag_drop::Target>>,
     pub pointer: Option<Arc<PointerConfig>>,
     pub input_region: Option<Arc<gpuio_protocol::input::Config>>,
+    pub highlight_scope: Option<Arc<gpuio_protocol::highlight::Config>>,
     pub placement: Option<Placement>,
     pub combobox_filter: Option<ComboboxFilter>,
     pub choice_appearance: Option<Arc<ChoiceAppearance>>,
@@ -230,6 +232,10 @@ impl Node {
                 .map_or(0, |config| config.retained_bytes())
             + self
                 .input_region
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
+            + self
+                .highlight_scope
                 .as_ref()
                 .map_or(0, |config| config.retained_bytes())
             + self
@@ -611,6 +617,24 @@ impl Tree {
                             || !node.text.is_empty()
                             || node.control.is_some()
                             || node.choice.is_some()))
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::HighlightScope) != node.highlight_scope.is_some()
+                    || node.highlight_scope.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || !node.text.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if let Some(old) = self.get(node.id)
+                    && old.highlight_scope != node.highlight_scope
+                    && old.highlight_scope.is_some()
+                    && old.handler.is_some()
+                    && old.handler == node.handler
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
@@ -1010,6 +1034,7 @@ impl Tree {
                     | Kind::ToastStack
                     | Kind::PointerArea
                     | Kind::InputRegion
+                    | Kind::HighlightScope
                     | Kind::DragSource
                     | Kind::DropTarget
                     | Kind::CommandScope
@@ -1438,6 +1463,7 @@ impl Plan<'_> {
             | Op::SetDropTarget(id, ..)
             | Op::SetPointer(id, ..)
             | Op::SetInputRegion(id, ..)
+            | Op::SetHighlightScope(id, ..)
             | Op::SetComboboxFilter(id, ..)
             | Op::SetChoiceAppearance(id, ..)
             | Op::Bind(id, ..)
@@ -1559,6 +1585,7 @@ impl Plan<'_> {
                             drop_target: None,
                             pointer: None,
                             input_region: None,
+                            highlight_scope: None,
                             placement: None,
                             style: Arc::from([]),
                             handler: *handler,
@@ -1627,6 +1654,12 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.drop_target = Some(Arc::new(config.clone()));
+            }
+            Op::SetHighlightScope(id, config) => {
+                if self.node(*id)?.kind != Kind::HighlightScope || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.highlight_scope = Some(Arc::new(config.clone()));
             }
             Op::SetInputRegion(id, config) => {
                 if self.node(*id)?.kind != Kind::InputRegion || !config.is_valid() {

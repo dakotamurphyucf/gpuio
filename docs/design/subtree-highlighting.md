@@ -14,11 +14,13 @@ policy. `Highlight.Range` owns a nonempty half-open UTF-8 **byte** interval.
 active match index and virtualized match offset. `Highlight.Config` is an ordered
 list of specs. An empty config deliberately blocks inherited highlighting.
 
-The planned `View.highlight_scope ~config ?on_update children` is a retained scope
+`View.highlight_scope ~config ?on_update children` is a retained scope
 with its own asynchronous observer; it does not replace editor ownership or add a
 second unrelated callback to every widget. Nested declarations replace the entire
 inherited config, including empty declarations. Updating appearance or the active
 cursor must reuse match results; removing a scope cancels its work and subscriptions.
+Its Core/Bonsai declarations, reconciliation and native tree storage are wired;
+native scheduling/painting and observation production remain in development.
 
 Queries default to case-insensitive matching. Matching uses Unicode scalar
 lowercasing on both source and query, without normalization or full case folding.
@@ -117,11 +119,27 @@ or scalar-boundary error and no partial paint result. Separator-only ranges are
 valid but count zero. Updating text may therefore turn a formerly valid config
 into a range-error observation without rejecting the surrounding UI transaction.
 
-Mounted observation states will distinguish Pending, Ready (per-spec total/stored
+Mounted observation states distinguish Pending, Ready (per-spec total/stored
 counts), Invalid_range (spec/range index and reason), and Capacity (source/work/
 admission limit). A truncated Ready result has exact counts; a work-limit result
 does not. Empty overrides resolve to Ready with no specs. Handler/generation and
 source revisions fence asynchronous delivery, independently of paint visibility.
+`Observation.epoch` is positive and local to the mounted scope. State also has
+Failed with Source_unavailable, Worker_failed or Epoch_exhausted; it does not
+pretend those failures are complete zero-match results. Count/range payloads are
+validated against the current config on both native admission and OCaml dispatch.
+Counts have a dedicated bounded sequential bin_prot reader; invalid observations
+become typed protocol errors rather than escaping from the event decoder.
+
+The appended bridge tags are Kind50 `Highlight_scope`, Op57
+`Set_highlight_scope`, and Event64 `Highlight_observed`. A missing configuration
+is invalid; an explicit empty config is a valid nested override. Observers are
+optional. Changing config rotates an existing observer binding while keeping
+child nodes; changing only the closure uses the latest committed callback. The
+scope cannot emit semantic Press events. Observation delivery uses the existing
+bounded ordered mailbox and its overload contract, without bypassing input/
+response barriers or window-retirement accounting. Capability advertisement is
+deferred until native production/rendering and public acceptance pass.
 
 ### Worker pool contract
 

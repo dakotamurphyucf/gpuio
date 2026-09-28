@@ -636,6 +636,7 @@ impl Session {
             && window.tree.get(node).is_some_and(|node| {
                 node.image.is_none()
                     && node.input_region.is_none()
+                    && node.highlight_scope.is_none()
                     && node.slider.is_none()
                     && node.number_input.is_none()
                     && node.otp_input.is_none()
@@ -863,6 +864,30 @@ impl Session {
             && revision <= state.tree.revision())
         .then_some(Event::DropTargetEvent(
             window, node, handler, revision, sample,
+        ))
+    }
+
+    pub fn highlight_observed(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        observation: gpuio_protocol::highlight::Observation,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.highlight_scope.as_ref()?;
+        (!state.overloaded
+            && observation.valid_for(config)
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision())
+        .then_some(Event::HighlightObserved(
+            window,
+            node,
+            handler,
+            revision,
+            observation,
         ))
     }
 

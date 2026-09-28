@@ -5,7 +5,7 @@ use std::io::{Cursor, Read};
 mod input;
 pub use input::{decode_input_config, decode_input_event};
 mod highlight;
-pub use highlight::decode_highlight_config;
+pub use highlight::{decode_highlight_config, decode_highlight_observation};
 mod accessibility;
 mod chart_data;
 mod chart_options;
@@ -918,6 +918,7 @@ impl Decoder<'_> {
                     47 => Kind::Carousel,
                     48 => Kind::ChartView,
                     49 => Kind::InputRegion,
+                    50 => Kind::HighlightScope,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -1014,6 +1015,7 @@ impl Decoder<'_> {
             54 => Op::TableCommand(self.node()?, self.table_command()?),
             55 => Op::SetChart(self.node()?, self.chart_view_config()?),
             56 => Op::SetInputRegion(self.node()?, self.input_config()?),
+            57 => Op::SetHighlightScope(self.node()?, self.highlight_config()?),
             47 => Op::SetColorInput(
                 self.node()?,
                 Box::new(self.color_config()?),

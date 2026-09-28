@@ -84,5 +84,5 @@ pub mod numeric;
 
 pub mod slider;
 
-pub use decode::decode_highlight_config;
+pub use decode::{decode_highlight_config, decode_highlight_observation};
 pub use decode::{decode_input_config, decode_input_event};

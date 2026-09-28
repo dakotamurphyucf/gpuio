@@ -35,6 +35,7 @@ fn event_bytes(event: &Event) -> usize {
             batch.links.iter().map(|link| link.len() + 9).sum()
         }
         Event::InputObserved(_, _, _, _, input) => input.payload_bytes(),
+        Event::HighlightObserved(_, _, _, _, observation) => observation.payload_bytes(),
         Event::TableInput(_, _, _, _, input) => input.request.payload_bytes(),
         Event::TreeInput(
             _,
@@ -713,6 +714,7 @@ impl Mailbox {
             | Event::DropTargetEvent(id, ..)
             | Event::PointerEvent(id, ..)
             | Event::InputObserved(id, ..)
+            | Event::HighlightObserved(id, ..)
             | Event::PaletteDismissed(id, ..)
             | Event::ComboboxSelected(id, ..)
             | Event::SliderResult(_, id, ..)

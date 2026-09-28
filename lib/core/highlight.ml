@@ -93,7 +93,67 @@ module Config = struct
   let specs t = t
 end
 
+module Count = struct
+  type t = Wire.Count.t =
+    { total : int64
+    ; stored : int64
+    }
+  [@@deriving equal, sexp_of]
+end
+
+module Range_error = Wire.Range_error
+
+module Invalid_range = struct
+  type t =
+    { spec_index : int
+    ; range_index : int
+    ; reason : Range_error.t
+    }
+  [@@deriving equal, sexp_of]
+end
+
+module Limit = Wire.Limit
+module Failure = Wire.Failure
+
+module State = struct
+  type t =
+    | Pending
+    | Ready of Count.t list
+    | Invalid_range of Invalid_range.t
+    | Capacity of Limit.t
+    | Failed of Failure.t
+  [@@deriving equal, sexp_of]
+end
+
+module Observation = struct
+  type t =
+    { epoch : int64
+    ; state : State.t
+    }
+  [@@deriving equal, sexp_of]
+end
+
 module Expert = struct
   let to_wire t = t
   let of_wire = Config.create
+
+  let observation_of_wire (t : Wire.Observation.t) =
+    if not (Wire.Observation.valid t)
+    then Or_error.error_string "invalid highlight observation"
+    else (
+      let state : State.t =
+        match t.state with
+        | Pending -> Pending
+        | Ready counts -> Ready counts
+        | Invalid_range r ->
+          Invalid_range
+            { spec_index = Int64.to_int_exn r.spec_index
+            ; range_index = Int64.to_int_exn r.range_index
+            ; reason = r.reason
+            }
+        | Capacity limit -> Capacity limit
+        | Failed failure -> Failed failure
+      in
+      Ok { Observation.epoch = t.epoch; state })
+  ;;
 end

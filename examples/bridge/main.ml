@@ -145,6 +145,8 @@ let worker native notification_read =
       | Tree_input _
       | Table_input _
       | Animation_endpoint _
+      | Input_observed _
+      | Highlight_observed _
       | Command_invoked _ -> ()
     in
     send (Hello (Wire.version, Wire.capabilities));

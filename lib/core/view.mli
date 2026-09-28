@@ -684,6 +684,17 @@ val drop_target
   -> 'action t list
   -> 'action t
 
+(** Retained highlight declaration. Empty config overrides an ancestor. Children
+    retain their identities; updates are asynchronous. Native painting integration
+    is in development and no highlight capability is advertised yet. *)
+val highlight_scope
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Highlight.Config.t
+  -> ?on_update:(Highlight.Observation.t -> 'action)
+  -> 'action t list
+  -> 'action t
+
 (** General opt-in input observations. The region owns its focus and observation
     binding; child native widgets retain their state. Policies execute in Rust and
     callbacks run asynchronously. Changing config retires queued old observations;
@@ -895,6 +906,11 @@ module Expert : sig
     ; on_event : Drag_and_drop.Target_event.t -> 'action
     }
 
+  type 'action highlight_scope =
+    { config : Highlight.Config.t
+    ; on_update : (Highlight.Observation.t -> 'action) option
+    }
+
   type 'action input_region =
     { config : Input_region.Config.t
     ; on_event : Input_region.Event.t -> 'action
@@ -962,6 +978,7 @@ module Expert : sig
       | Carousel
       | Chart_view
       | Input_region
+      | Highlight_scope
     [@@deriving equal, sexp_of]
   end
 
@@ -1041,6 +1058,7 @@ module Expert : sig
     ; drop_target : 'action drop_target option
     ; pointer : 'action pointer option
     ; input_region : 'action input_region option
+    ; highlight_scope : 'action highlight_scope option
     ; notification : 'action notification option
     ; toast_stack : Toast.Stack.t option
     ; progress : Progress.Config.t option

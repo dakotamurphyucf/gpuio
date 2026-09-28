@@ -25,6 +25,7 @@ module type S = sig
   module Canvas_view = Canvas_view_wire
   module Chart_view = Chart_view_wire
   module Input_region = Input_wire
+  module Highlight = Highlight_wire
   module Window = Window_wire
   module Desktop = Desktop_wire
   module Notification = Notification_wire
@@ -88,6 +89,7 @@ module type S = sig
       | Carousel
       | Chart_view
       | Input_region
+      | Highlight_scope
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -767,6 +769,7 @@ module type S = sig
       | Table_command of Node_id.t * Table.Command.t
       | Set_chart of Node_id.t * Chart_view.Config.t
       | Set_input_region of Node_id.t * Input_region.Config.t
+      | Set_highlight_scope of Node_id.t * Highlight.Config.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -1027,6 +1030,8 @@ module type S = sig
           * Chart_view.Observation.t
       | Input_observed of
           Window_id.t * Node_id.t * Handler_id.t * int64 * Input_region.Event.t
+      | Highlight_observed of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Highlight.Observation.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

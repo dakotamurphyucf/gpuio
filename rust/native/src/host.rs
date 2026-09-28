@@ -661,6 +661,7 @@ impl View {
                 | Kind::TabBar
                 | Kind::PointerArea
                 | Kind::InputRegion
+                | Kind::HighlightScope
                 | Kind::DragSource
                 | Kind::DropTarget
         ) {
@@ -1364,6 +1365,7 @@ impl View {
             && node.overlay.is_none()
             && node.pointer.is_none()
             && node.input_region.is_none()
+            && node.highlight_scope.is_none()
             && node.image.is_none()
             && node.animation.is_none()
             && node.animation_program.is_none()

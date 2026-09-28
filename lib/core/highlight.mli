@@ -73,7 +73,75 @@ module Config : sig
   val specs : t -> Spec.t list
 end
 
+module Count : sig
+  (** Exact total and the prefix of complete matches retained for painting. *)
+  type t = private
+    { total : int64
+    ; stored : int64
+    }
+  [@@deriving equal, sexp_of]
+end
+
+module Range_error : sig
+  type t =
+    | Out_of_bounds
+    | Scalar_boundary
+  [@@deriving equal, sexp_of]
+end
+
+module Invalid_range : sig
+  (** Zero-based indices into the configured spec and its explicit ranges. *)
+  type t = private
+    { spec_index : int
+    ; range_index : int
+    ; reason : Range_error.t
+    }
+  [@@deriving equal, sexp_of]
+end
+
+module Limit : sig
+  type t =
+    | Source
+    | Work
+    | Admission
+  [@@deriving equal, sexp_of]
+end
+
+module Failure : sig
+  type t =
+    | Source_unavailable
+    | Worker_failed
+    | Epoch_exhausted
+  [@@deriving equal, sexp_of]
+end
+
+module State : sig
+  (** Ready counts follow spec order. Truncation preserves exact totals; Capacity
+      does not report partial counts. Invalid_range retires the whole result. *)
+  type t = private
+    | Pending
+    | Ready of Count.t list
+    | Invalid_range of Invalid_range.t
+    | Capacity of Limit.t
+    | Failed of Failure.t
+  [@@deriving equal, sexp_of]
+end
+
+module Observation : sig
+  (** Positive source/matcher epoch local to one mounted scope. Cosmetic updates
+      retain it. Do not compare epochs across scopes, windows or remounts. *)
+  type t = private
+    { epoch : int64
+    ; state : State.t
+    }
+  [@@deriving equal, sexp_of]
+end
+
 module Expert : sig
   val to_wire : Config.t -> Gpuio_protocol.Highlight_wire.Config.t
   val of_wire : Gpuio_protocol.Highlight_wire.Config.t -> Config.t Or_error.t
+
+  val observation_of_wire
+    :  Gpuio_protocol.Highlight_wire.Observation.t
+    -> Observation.t Or_error.t
 end

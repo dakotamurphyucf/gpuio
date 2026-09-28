@@ -84,6 +84,7 @@ module Kind = struct
     | Carousel
     | Chart_view
     | Input_region
+    | Highlight_scope
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -635,6 +636,7 @@ end
 
 module Pointer = Pointer_wire
 module Input_region = Input_wire
+module Highlight = Highlight_wire
 module Drag_and_drop = Drag_and_drop_wire
 
 module Op = struct
@@ -696,6 +698,7 @@ module Op = struct
     | Table_command of Node_id.t * Table.Command.t
     | Set_chart of Node_id.t * Chart_view.Config.t
     | Set_input_region of Node_id.t * Input_region.Config.t
+    | Set_highlight_scope of Node_id.t * Highlight.Config.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -1042,6 +1045,8 @@ module Event = struct
         * Chart_view.Observation.t
     | Input_observed of
         Window_id.t * Node_id.t * Handler_id.t * int64 * Input_region.Event.t
+    | Highlight_observed of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Highlight.Observation.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1188,6 +1193,8 @@ module Event = struct
       Int64.(revision >= 0L) && Drag_and_drop.Source_sample.is_valid sample
     | Drop_target_event (_, _, _, revision, sample) ->
       Int64.(revision >= 0L) && Drag_and_drop.Target_sample.is_valid sample
+    | Highlight_observed (_, _, _, revision, observation) ->
+      Int64.(revision >= 0L) && Highlight.Observation.valid observation
     | Input_observed (_, _, _, revision, event) ->
       Int64.(revision >= 0L) && Input_region.Event.valid event
     | Pointer_event (_, _, _, revision, sample) ->
@@ -1274,7 +1281,8 @@ module Event = struct
       | Generational_id.Invalid_wire_handle
       | Drag_and_drop.Invalid_wire_data
       | Animation_program.Invalid_wire_batch
-      | File_dialog.Invalid_wire_result ->
+      | File_dialog.Invalid_wire_result
+      | Highlight.Invalid_wire_observation ->
         Or_error.error_string "malformed event envelope")
   ;;
 end

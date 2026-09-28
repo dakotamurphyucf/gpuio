@@ -92,6 +92,14 @@ module View : sig
     -> t list
     -> t
 
+  val highlight_scope
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Highlight.Config.t
+    -> ?on_update:(Gpuio.Highlight.Observation.t -> unit Bonsai.Effect.t)
+    -> t list
+    -> t
+
   val input_region
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

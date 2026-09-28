@@ -169,6 +169,7 @@ pub enum Kind {
     Carousel,
     ChartView,
     InputRegion,
+    HighlightScope,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -691,6 +692,7 @@ pub enum Op {
     TableCommand(NodeId, crate::table::Command),
     SetChart(NodeId, crate::chart_view::Config),
     SetInputRegion(NodeId, crate::input::Config),
+    SetHighlightScope(NodeId, crate::highlight::Config),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -886,4 +888,11 @@ pub enum Event {
         crate::chart_view::Observation,
     ),
     InputObserved(WindowId, NodeId, HandlerId, i64, crate::input::Event),
+    HighlightObserved(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::highlight::Observation,
+    ),
 }
