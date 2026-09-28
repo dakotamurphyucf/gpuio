@@ -1,5 +1,6 @@
 """Disposable hosted-runner diagnostic, not a substitute for required CI."""
 import os
+import shutil
 from pathlib import Path
 import subprocess
 from test_agent_chat import Mac
@@ -46,8 +47,11 @@ def diagnosed_wait(self, title):
         raise
 
 test.Notifications.wait = diagnosed_wait
+binary = Path(".cache/previous/notification-main.exe").resolve()
+shutil.copy2(Path(".cache/previous/notification-os/GPUIO Notification Lab.app/Contents/MacOS/gpuio-notification"), binary)
+binary.chmod(0o755)
 try:
-    test.exercise(Path(".cache/previous/notification-os/GPUIO Notification Lab.app/Contents/MacOS/gpuio-notification").resolve(),
+    test.exercise(binary,
                   Path(".cache/ci/notification-probe").resolve())
 finally:
     print("DIAGNOSTIC_FINISHED", flush=True)
