@@ -1514,6 +1514,62 @@ def exercise_motion(mac, images, second_title=SECOND):
           'sequence, cancellation/reverse, reduced endpoints, shared phase and departure', flush=True)
 
 
+def exercise_styles(mac, images):
+    mac.press(TITLE, 'Styling details')
+    mac.wait_text(TITLE, 'Text preview width: 250')
+    mac.wait_text(TITLE, 'Cursor 1 of 22: Arrow')
+    source = '/workspace/projects/native-studio/src/main.ml'
+    def text_widths(expected):
+        widths = []
+        def visit(node):
+            if mac.text(node, 'AXRole') == 'AXStaticText' and mac.text(node, 'AXTitle') == source:
+                widths.append(element_rect(mac, node)[2])
+            children = mac.children(node)
+            try:
+                for child in children:
+                    visit(child)
+            finally:
+                for child in children:
+                    mac.release(child)
+        root = mac.window(TITLE)
+        assert root
+        try:
+            visit(root)
+        finally:
+            mac.release(root)
+        assert len(widths) == 3 and all(abs(width-expected) < 1 for width in widths), widths
+    text_widths(250)
+    if images:
+        screenshot(mac, images / 'gallery-styles-wide.png', title=TITLE)
+    mac.press(TITLE, 'Narrow text previews')
+    mac.wait_text(TITLE, 'Text preview width: 140')
+    text_widths(140)
+    labels = ['Text', 'Pointer', 'Crosshair', 'Move', 'Not allowed', 'Horizontal resize',
+              'Vertical resize', 'Grab', 'Grabbing', 'Vertical text', 'Column resize',
+              'Row resize', 'Northwest–southeast resize', 'Northeast–southwest resize',
+              'Left resize', 'Right resize', 'Up resize', 'Down resize', 'Alias', 'Copy',
+              'Context menu', 'Arrow']
+    for i, label in enumerate(labels):
+        mac.press(TITLE, 'Next cursor')
+        mac.wait_text(TITLE, f'Cursor {(i+1)%22+1} of 22: {label}')
+    focus_gallery_control(mac, 'Next cursor', 'AXButton')
+    mac.key(49)
+    mac.wait_text(TITLE, 'Cursor 2 of 22: Text')
+    cycle_preview_appearance(mac, 'Cursor 2 of 22: Text')
+    text_widths(140)
+    if images:
+        screenshot(mac, images / 'gallery-styles-narrow.png', title=TITLE)
+    for _ in range(3):
+        mac.press(TITLE, 'Presentation')
+        mac.wait_text(TITLE, 'A little context goes a long way')
+        absent(mac, 'Cursor preview surface', 'AXGroup')
+        mac.press(TITLE, 'Styling details')
+        mac.wait_text(TITLE, 'Cursor 2 of 22: Text')
+        mac.wait_text(TITLE, 'Text preview width: 140')
+    print('GALLERY_STYLES_OK: all22 cursor configurations, keyboard/theme/size/visit retention, '
+          'three bounded text samples with complete accessible source; physical cursor artwork is not asserted', flush=True)
+
+
 def exercise_desktop(mac, images, *, second_title=SECOND, bundled=False):
     mac.press(TITLE, 'Desktop services')
     mac.wait_text(TITLE, 'GPUIO Component Studio')
@@ -1592,7 +1648,7 @@ def main():
     parser.add_argument('--images', type=Path)
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -1612,6 +1668,8 @@ def main():
             mac = Mac(child.pid, child)
             if args.section in ('all', 'core'):
                 exercise(mac, args.images)
+            if args.section in ('all', 'styles'):
+                exercise_styles(mac, args.images)
             if args.section in ('all', 'pickers'):
                 exercise_pickers(mac, args.images)
             if args.section in ('all', 'overlays'):

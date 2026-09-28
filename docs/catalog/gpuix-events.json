@@ -1,0 +1,333 @@
+{
+  "schema_version": 1,
+  "revision": "18e695ed0ee8121a7793413ca795e08eda2a13df",
+  "status": "Source and public-interface audit; gaps remain required v1 work, not accepted deferrals",
+  "rows": [
+    {
+      "source_event": "onClick",
+      "status": "partial",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4560",
+      "public_interfaces": [
+        "lib/core/view.mli"
+      ],
+      "contract": "Buttons and command routes expose semantic activation, including keyboard/accessibility, with generation-checked delivery.",
+      "remaining": "Generic click observation on arbitrary containers/text with coordinates, modifiers and click count is absent.",
+      "evidence": "docs/evidence/gallery-och41.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    },
+    {
+      "source_event": "onAuxClick",
+      "status": "gap",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4609",
+      "public_interfaces": [
+        "lib/core/pointer.mli",
+        "lib/core/view.mli"
+      ],
+      "contract": "Pointer areas can start a configured non-primary captured gesture; context menus have native triggers.",
+      "remaining": "No generic non-primary click observation or click-count contract. Captured down/up is not automatically a click.",
+      "evidence": "docs/evidence/native-pointer-och11.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    },
+    {
+      "source_event": "onMouseDown",
+      "status": "partial",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4624",
+      "public_interfaces": [
+        "lib/core/pointer.mli",
+        "lib/core/view.mli"
+      ],
+      "contract": "Pointer.Event.Started observes a configured button with modifiers/local and window coordinates.",
+      "remaining": "Capture-only surface, one initiating button; generic uncaptured all-button down and click count are absent.",
+      "evidence": "docs/evidence/gallery-och41.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    },
+    {
+      "source_event": "onMouseUp",
+      "status": "partial",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4646",
+      "public_interfaces": [
+        "lib/core/pointer.mli",
+        "lib/core/view.mli"
+      ],
+      "contract": "Pointer.Event.Released terminates a captured gesture.",
+      "remaining": "Generic up without an initiating captured press is absent.",
+      "evidence": "docs/evidence/gallery-och41.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    },
+    {
+      "source_event": "onMouseEnter",
+      "status": "partial",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4678",
+      "public_interfaces": [
+        "lib/core/pointer.mli",
+        "lib/core/view.mli"
+      ],
+      "contract": "Native hover styles and tooltip/hover-card behavior are implemented.",
+      "remaining": "No general entered observation for arbitrary application logic.",
+      "evidence": "docs/evidence/gallery-och41.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    },
+    {
+      "source_event": "onMouseLeave",
+      "status": "partial",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4678",
+      "public_interfaces": [
+        "lib/core/pointer.mli",
+        "lib/core/view.mli"
+      ],
+      "contract": "Native hover styles and tooltip/hover-card behavior are implemented.",
+      "remaining": "No general left observation for arbitrary application logic.",
+      "evidence": "docs/evidence/gallery-och41.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    },
+    {
+      "source_event": "onMouseMove",
+      "status": "partial",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4662",
+      "public_interfaces": [
+        "lib/core/pointer.mli",
+        "lib/core/view.mli"
+      ],
+      "contract": "Pointer.Event.Moved observes captured motion and may coalesce consecutive samples.",
+      "remaining": "Passive uncaptured movement and pressed-button observations are absent.",
+      "evidence": "docs/evidence/gallery-och41.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    },
+    {
+      "source_event": "onMouseDownOutside",
+      "status": "partial",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4715",
+      "public_interfaces": [
+        "lib/core/pointer.mli",
+        "lib/core/view.mli"
+      ],
+      "contract": "Native overlays/popovers implement outside dismissal.",
+      "remaining": "No general outside-down observation with position/button/modifiers on arbitrary regions.",
+      "evidence": "docs/evidence/gallery-och41.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    },
+    {
+      "source_event": "onKeyDown",
+      "status": "partial",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4764",
+      "public_interfaces": [
+        "lib/core/view.mli",
+        "lib/core/command.mli"
+      ],
+      "contract": "Typed commands and widget-native editing/navigation handle keys without an OCaml round trip.",
+      "remaining": "No general scoped key observation carrying key/character/modifiers/repeat; commands are semantic actions, not raw key edges.",
+      "evidence": "docs/evidence/gallery-och41.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    },
+    {
+      "source_event": "onKeyUp",
+      "status": "partial",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4776",
+      "public_interfaces": [
+        "lib/core/view.mli",
+        "lib/core/command.mli"
+      ],
+      "contract": "Typed commands and widget-native editing/navigation handle keys without an OCaml round trip.",
+      "remaining": "No general scoped key observation carrying key/character/modifiers/repeat; commands are semantic actions, not raw key edges.",
+      "evidence": "docs/evidence/gallery-och41.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    },
+    {
+      "source_event": "onFocus",
+      "status": "partial",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L3980",
+      "public_interfaces": [
+        "lib/core/view.mli",
+        "lib/core/text_input.mli",
+        "lib/core/focus_scope.mli"
+      ],
+      "contract": "Native focus scopes/traversal exist; editor snapshots expose focused state.",
+      "remaining": "No general focus/blur subscription for arbitrary focusable views.",
+      "evidence": "docs/evidence/gallery-och41.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    },
+    {
+      "source_event": "onBlur",
+      "status": "partial",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L3990",
+      "public_interfaces": [
+        "lib/core/view.mli",
+        "lib/core/text_input.mli",
+        "lib/core/focus_scope.mli"
+      ],
+      "contract": "Native focus scopes/traversal exist; editor snapshots expose focused state.",
+      "remaining": "No general focus/blur subscription for arbitrary focusable views.",
+      "evidence": "docs/evidence/gallery-och41.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    },
+    {
+      "source_event": "onScroll",
+      "status": "partial",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4735",
+      "public_interfaces": [
+        "lib/core/view.mli",
+        "lib/core/virtual_list.mli"
+      ],
+      "contract": "Containers scroll natively; managed lists report semantic viewport changes.",
+      "remaining": "No generic wheel observation with precise/line deltas, modifiers and touch phase. Viewport changes are not wheel events.",
+      "evidence": "docs/evidence/scrolling-och11.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    },
+    {
+      "source_event": "onFileDrop",
+      "status": "mapped",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4728",
+      "public_interfaces": [
+        "lib/core/drag_and_drop.mli",
+        "lib/core/view.mli"
+      ],
+      "contract": "View.drop_target accepts Files with native format policy; queued typed payloads preserve validated native paths. No implicit file I/O.",
+      "remaining": "Final platform/capability audit remains; OS file arrivals are covered by standalone native evidence, not the gallery internal-transfer check.",
+      "evidence": "docs/evidence/drag-drop-och11.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    },
+    {
+      "source_event": "onChange",
+      "status": "mapped",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/custom_elements/input.rs",
+      "public_interfaces": [
+        "lib/core/text_input.mli",
+        "lib/eio/text_input.mli"
+      ],
+      "contract": "Native editing applies immediately and publishes revisioned text/selection/composition snapshots; command replacement targets exact leases.",
+      "remaining": "Native editor feature/configuration review remains separate from this event mapping.",
+      "evidence": "docs/evidence/gallery-och41.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    },
+    {
+      "source_event": "onSubmit",
+      "status": "mapped",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/custom_elements/input.rs",
+      "public_interfaces": [
+        "lib/core/text_input.mli",
+        "lib/eio/text_input.mli"
+      ],
+      "contract": "Submitted carries the exact editor snapshot; single/multiline submit policy is explicit.",
+      "remaining": "Remaining editor/IME release validation is OCH-17.",
+      "evidence": "docs/evidence/gallery-och41.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    },
+    {
+      "source_event": "onToggleFile",
+      "status": "partial",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/custom_elements/diff.rs#L660",
+      "public_interfaces": [
+        "lib/core/document.mli"
+      ],
+      "contract": "Document has native whole-document collapse and an initially_collapsed mount/reset value.",
+      "remaining": "Per-file path collapse observations and application-controlled collapsedPaths are absent; whole-document collapse is not equivalent.",
+      "evidence": "docs/evidence/document-accessibility-och17.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    },
+    {
+      "source_event": "onShowMore",
+      "status": "partial",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/custom_elements/diff.rs#L614",
+      "public_interfaces": [
+        "lib/core/document.mli"
+      ],
+      "contract": "Documents bound preparation and support viewport/flow presentations.",
+      "remaining": "No configurable diff maxLines/show-more control or hidden-count observation; bounding work alone is not equivalent.",
+      "evidence": "docs/evidence/document-accessibility-och17.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    },
+    {
+      "source_event": "onLineClick",
+      "status": "mapped_with_difference",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/custom_elements/diff.rs#L842",
+      "public_interfaces": [
+        "lib/core/document.mli"
+      ],
+      "contract": "Document.Navigation.Line reports path, Before/After side and one-based source line.",
+      "remaining": "GPUIX supplies clicked line text plus old/new line numbers. Review callers needing paired-line/content observations before claiming full event equivalence.",
+      "evidence": "docs/evidence/document-accessibility-och17.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    },
+    {
+      "source_event": "onLinkClick",
+      "status": "mapped",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/custom_elements/markdown.rs#L80",
+      "public_interfaces": [
+        "lib/core/document.mli"
+      ],
+      "contract": "Document.Navigation.Link queues the URL; no implicit OS opening. Ordinary inline pointer/keyboard/AX activation uses revision/generation guards.",
+      "remaining": "Rich/image links and full accessibility remain OCH-17 work.",
+      "evidence": "docs/evidence/document-accessibility-och17.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    },
+    {
+      "source_event": "onVisibleRange",
+      "status": "mapped",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L4371",
+      "public_interfaces": [
+        "lib/core/virtual_list.mli",
+        "lib/bonsai/virtual_list.mli"
+      ],
+      "contract": "on_viewport reports half-open visible indices plus requested/pinned keys, anchor, tail policy and budget exhaustion. Observation never drives synchronous layout.",
+      "remaining": "Final full-history/resource gates remain OCH-17; no generic callback is inferred for unrelated elements.",
+      "evidence": "docs/evidence/managed-lists-och13.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    },
+    {
+      "source_event": "onHighlight",
+      "status": "partial",
+      "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L3001",
+      "public_interfaces": [
+        "lib/core/document.mli"
+      ],
+      "contract": "Native document literal search paints matches and exposes native navigation/count UI.",
+      "remaining": "No arbitrary-subtree query/range highlighting, nearest-scope override, active match offsets or count observations to OCaml. Syntax highlighting is a different feature.",
+      "evidence": "docs/evidence/document-accessibility-och17.md",
+      "owner": "OCH-41",
+      "release_scope": "v1",
+      "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
+    }
+  ]
+}

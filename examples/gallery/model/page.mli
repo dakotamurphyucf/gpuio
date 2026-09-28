@@ -4,6 +4,7 @@ open Core
     Each page owns its preview state; switching pages unmounts native previews. *)
 type t =
   | Presentation
+  | Styles
   | Controls
   | Text_inputs
   | Numeric_inputs

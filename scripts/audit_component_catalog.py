@@ -61,6 +61,56 @@ def inventory():
     return result
 
 
+def audit_values_and_events(actual):
+    manifest = json.loads((CATALOG / 'sources/manifest.json').read_text())
+    pin = next(entry['revision'] for entry in manifest
+               if entry['snapshot'] == 'gpuix-host.ts.txt')
+    host = (CATALOG / 'sources/gpuix-host.ts.txt').read_text()
+    style = (ROOT / 'lib/core/style.mli').read_text()
+    values = json.loads((CATALOG / 'gpuix-values.json').read_text())
+    events = json.loads((CATALOG / 'gpuix-events.json').read_text())
+    for ledger in [values, events]:
+        if ledger['revision'] != pin or ledger['schema_version'] != 1:
+            raise ValueError('Value/event ledger must use the pinned GPUIX revision and schema')
+    cursor = re.search(r'^export type CursorValue =\n((?:  \| "[^\n]+"\n)+)', host, re.M)
+    overflow = re.search(r'^  textOverflow\?: ([^\n]+)', interface(host, 'StyleDesc'), re.M)
+    if not cursor or not overflow:
+        raise ValueError('Missing reviewed style value declarations')
+    expected = {'cursor': ('Cursor', re.findall(r'"([^"]+)"', cursor.group(1))),
+                'textOverflow': ('Text_overflow', re.findall(r'"([^"]+)"', overflow.group(1)))}
+    if {row['source_field'] for row in values['rows']} != set(expected):
+        raise ValueError('Value ledger must explicitly cover the reviewed fields only')
+    for field, (module, source_values) in expected.items():
+        rows = [row for row in values['rows'] if row['source_field'] == field]
+        mapped = [value for row in rows for value in row['source_values']]
+        if len(mapped) != len(set(mapped)) or set(mapped) != set(source_values):
+            raise ValueError(f'Style values missing or duplicated: {field}')
+        declaration = re.search(r'^module ' + module + r' : sig\n(.*?)^end', style, re.M | re.S)
+        if not declaration:
+            raise ValueError(f'Missing style value module: {module}')
+        constructors = set(re.findall(r'^    \| (\w+)', declaration.group(1), re.M))
+        for row in rows:
+            if (not row['source_values'] or row['public_type'] != f'Style.{module}'
+                    or row['public_value'] not in constructors):
+                raise ValueError(f'Invalid style value mapping: {row}')
+    references = list(values['evidence'])
+    names = [row['source_event'] for row in events['rows']]
+    if len(names) != len(set(names)) or set(names) != set(actual['gpuix_props_events']):
+        raise ValueError('Event ledger must cover each pinned event exactly once')
+    for row in events['rows']:
+        if (row['status'] not in {'mapped', 'mapped_with_difference', 'partial', 'gap'}
+                or row['release_scope'] != 'v1'
+                or not all(row[key] for key in ['owner', 'contract', 'remaining', 'platform'])
+                or not row['public_interfaces']
+                or not row['upstream'].startswith(f'https://github.com/remorses/gpuix/blob/{pin}/')):
+            raise ValueError(f'Incomplete event audit: {row["source_event"]}')
+        references.extend([*row['public_interfaces'], row['evidence']])
+    for reference in references:
+        if not (ROOT / reference).is_file():
+            raise ValueError(f'Missing value/event reference: {reference}')
+    print(f'Value mapping: {len(expected)} reviewed fields; event contracts: {len(names)}; remaining gaps are explicit.')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--write', action='store_true', help='replace structural inventory after pin review')
@@ -71,6 +121,7 @@ def main():
         path.write_text(json.dumps(actual, indent=2) + '\n')
     elif json.loads(path.read_text()) != actual:
         raise ValueError('Catalog inventory differs from pinned sources; review before --write')
+    audit_values_and_events(actual)
     styles = json.loads((CATALOG / 'gpuix-styles.json').read_text())['rows']
     names = [row['source_field'] for row in styles]
     if len(names) != len(set(names)) or set(names) != set(actual['gpuix_style_fields']):

@@ -54,7 +54,10 @@ pub const CAP_MANAGED_TABLES: i64 = 1_i64 << 40;
 pub const CAP_DESKTOP: i64 = 1_i64 << 41;
 pub const CAP_OS_NOTIFICATIONS: i64 = 1_i64 << 42;
 pub const CAP_CHARTS: i64 = 1_i64 << 43;
-pub const CAPABILITIES: i64 = CAP_CHARTS
+/// Extended cursor values and start-ellipsis styles.
+pub const CAP_STYLE_VALUES: i64 = 1_i64 << 44;
+pub const CAPABILITIES: i64 = CAP_STYLE_VALUES
+    | CAP_CHARTS
     | CAP_OS_NOTIFICATIONS
     | CAP_DESKTOP
     | CAP_MANAGED_TABLES

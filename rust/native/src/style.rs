@@ -77,10 +77,7 @@ pub fn validate_fields(fields: &[Field]) -> Result<(), ErrorCode> {
     for field in fields {
         let valid = match field {
             Field::Display(v) => (0..=3).contains(v),
-            Field::Visibility(v)
-            | Field::Position(v)
-            | Field::WhiteSpace(v)
-            | Field::TextOverflow(v) => (0..=1).contains(v),
+            Field::Visibility(v) | Field::Position(v) | Field::WhiteSpace(v) => (0..=1).contains(v),
             Field::Direction(v)
             | Field::TextDecoration(v)
             | Field::OverflowX(v)
@@ -88,10 +85,11 @@ pub fn validate_fields(fields: &[Field]) -> Result<(), ErrorCode> {
             Field::Wrap(v)
             | Field::GridColumnMinimum(v)
             | Field::GridRowMinimum(v)
-            | Field::TextAlign(v) => (0..=2).contains(v),
+            | Field::TextAlign(v)
+            | Field::TextOverflow(v) => (0..=2).contains(v),
             Field::AlignItems(v) | Field::AlignSelf(v) => (0..=6).contains(v),
             Field::AlignContent(v) | Field::JustifyContent(v) => (0..=8).contains(v),
-            Field::Cursor(v) => (0..=9).contains(v),
+            Field::Cursor(v) => (0..=21).contains(v),
             Field::GridColumns(v) | Field::GridRows(v) | Field::LineClamp(v) => {
                 (1..=1024).contains(v)
             }
@@ -388,11 +386,11 @@ pub fn refine(style: &mut gpui::StyleRefinement, fields: &[Field]) {
                 })
             }
             Field::TextOverflow(v) => {
-                style.text.text_overflow = Some(gpui::TextOverflow::Truncate(if *v == 0 {
-                    "".into()
-                } else {
-                    "…".into()
-                }))
+                style.text.text_overflow = Some(match v {
+                    0 => gpui::TextOverflow::Truncate("".into()),
+                    1 => gpui::TextOverflow::Truncate("…".into()),
+                    _ => gpui::TextOverflow::TruncateStart("…".into()),
+                })
             }
             Field::LineClamp(v) => style.text.line_clamp = Some(*v as usize),
             Field::TextDecoration(v) => {
@@ -415,7 +413,20 @@ pub fn refine(style: &mut gpui::StyleRefinement, fields: &[Field]) {
                     6 => gpui::CursorStyle::ResizeLeftRight,
                     7 => gpui::CursorStyle::ResizeUpDown,
                     8 => gpui::CursorStyle::OpenHand,
-                    _ => gpui::CursorStyle::ClosedHand,
+                    9 => gpui::CursorStyle::ClosedHand,
+                    10 => gpui::CursorStyle::IBeamCursorForVerticalLayout,
+                    11 => gpui::CursorStyle::ResizeColumn,
+                    12 => gpui::CursorStyle::ResizeRow,
+                    // Physical axes, not the swapped CSS comments in this GPUI pin.
+                    13 => gpui::CursorStyle::ResizeUpLeftDownRight,
+                    14 => gpui::CursorStyle::ResizeUpRightDownLeft,
+                    15 => gpui::CursorStyle::ResizeLeft,
+                    16 => gpui::CursorStyle::ResizeRight,
+                    17 => gpui::CursorStyle::ResizeUp,
+                    18 => gpui::CursorStyle::ResizeDown,
+                    19 => gpui::CursorStyle::DragLink,
+                    20 => gpui::CursorStyle::DragCopy,
+                    _ => gpui::CursorStyle::ContextualMenu,
                 })
             }
             Field::PointerEvents(_)
@@ -423,6 +434,63 @@ pub fn refine(style: &mut gpui::StyleRefinement, fields: &[Field]) {
             | Field::SelectionColor(_)
             | Field::AccessibleName(_)
             | Field::Inert(_) => (),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn public_cursor_values_reach_the_corresponding_gpui_refinement() {
+        use gpui::CursorStyle::*;
+        let expected = [
+            Arrow,
+            IBeam,
+            PointingHand,
+            Crosshair,
+            ClosedHand,
+            OperationNotAllowed,
+            ResizeLeftRight,
+            ResizeUpDown,
+            OpenHand,
+            ClosedHand,
+            IBeamCursorForVerticalLayout,
+            ResizeColumn,
+            ResizeRow,
+            ResizeUpLeftDownRight,
+            ResizeUpRightDownLeft,
+            ResizeLeft,
+            ResizeRight,
+            ResizeUp,
+            ResizeDown,
+            DragLink,
+            DragCopy,
+            ContextualMenu,
+        ];
+        for (value, expected) in expected.into_iter().enumerate() {
+            let fields = [Field::Cursor(value as i64)];
+            validate_fields(&fields).unwrap();
+            let mut style = gpui::StyleRefinement::default();
+            refine(&mut style, &fields);
+            assert_eq!(style.mouse_cursor, Some(expected), "cursor {value}");
+        }
+    }
+
+    #[test]
+    fn truncation_direction_survives_refinement_and_replacement() {
+        use gpui::TextOverflow::*;
+        let mut style = gpui::StyleRefinement::default();
+        for (value, expected) in [
+            (2, TruncateStart("…".into())),
+            (1, Truncate("…".into())),
+            (0, Truncate("".into())),
+        ] {
+            let fields = [Field::TextOverflow(value)];
+            validate_fields(&fields).unwrap();
+            refine(&mut style, &fields);
+            assert_eq!(style.text.text_overflow, Some(expected));
         }
     }
 }

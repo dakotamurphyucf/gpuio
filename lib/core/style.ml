@@ -163,11 +163,13 @@ module Text_overflow = struct
   type t =
     | Clip
     | Ellipsis
+    | Ellipsis_start
   [@@deriving equal, sexp_of]
 
   let to_int64 = function
     | Clip -> 0L
     | Ellipsis -> 1L
+    | Ellipsis_start -> 2L
   ;;
 end
 
@@ -215,6 +217,18 @@ module Cursor = struct
     | Resize_vertical
     | Grab
     | Grabbing
+    | Ibeam_vertical
+    | Resize_column
+    | Resize_row
+    | Resize_nw_se
+    | Resize_ne_sw
+    | Resize_left
+    | Resize_right
+    | Resize_up
+    | Resize_down
+    | Alias
+    | Copy
+    | Context_menu
   [@@deriving equal, sexp_of]
 
   let to_int64 = function
@@ -228,6 +242,18 @@ module Cursor = struct
     | Resize_vertical -> 7L
     | Grab -> 8L
     | Grabbing -> 9L
+    | Ibeam_vertical -> 10L
+    | Resize_column -> 11L
+    | Resize_row -> 12L
+    | Resize_nw_se -> 13L
+    | Resize_ne_sw -> 14L
+    | Resize_left -> 15L
+    | Resize_right -> 16L
+    | Resize_up -> 17L
+    | Resize_down -> 18L
+    | Alias -> 19L
+    | Copy -> 20L
+    | Context_menu -> 21L
   ;;
 end
 

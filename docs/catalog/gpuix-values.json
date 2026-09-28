@@ -1,0 +1,213 @@
+{
+  "schema_version": 1,
+  "source": "sources/gpuix-host.ts.txt",
+  "revision": "18e695ed0ee8121a7793413ca795e08eda2a13df",
+  "rows": [
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "default",
+        "auto"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Arrow"
+    },
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "pointer"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Pointer"
+    },
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "text"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Ibeam"
+    },
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "vertical-text"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Ibeam_vertical"
+    },
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "crosshair"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Crosshair"
+    },
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "grab"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Grab"
+    },
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "grabbing"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Grabbing"
+    },
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "move",
+        "all-scroll"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Move"
+    },
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "col-resize"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Resize_column"
+    },
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "row-resize"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Resize_row"
+    },
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "ew-resize"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Resize_horizontal"
+    },
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "ns-resize"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Resize_vertical"
+    },
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "nwse-resize",
+        "nw-resize",
+        "se-resize"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Resize_nw_se"
+    },
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "nesw-resize",
+        "ne-resize",
+        "sw-resize"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Resize_ne_sw"
+    },
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "w-resize"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Resize_left"
+    },
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "e-resize"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Resize_right"
+    },
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "n-resize"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Resize_up"
+    },
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "s-resize"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Resize_down"
+    },
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "not-allowed",
+        "no-drop"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Not_allowed"
+    },
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "alias"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Alias"
+    },
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "copy"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Copy"
+    },
+    {
+      "source_field": "cursor",
+      "source_values": [
+        "context-menu"
+      ],
+      "public_type": "Style.Cursor",
+      "public_value": "Context_menu"
+    },
+    {
+      "source_field": "textOverflow",
+      "source_values": [
+        "ellipsis"
+      ],
+      "public_type": "Style.Text_overflow",
+      "public_value": "Ellipsis"
+    },
+    {
+      "source_field": "textOverflow",
+      "source_values": [
+        "ellipsis-start"
+      ],
+      "public_type": "Style.Text_overflow",
+      "public_value": "Ellipsis_start"
+    }
+  ],
+  "evidence": [
+    "test/view_api/style_values_test.ml",
+    "rust/native/tests/style_values.rs",
+    "rust/native/src/style.rs",
+    "scripts/test_gallery.py"
+  ],
+  "limitations": "This validates complete enum mapping and native refinements. Gallery validates configurations and text paint; physical OS cursor glyphs and Linux desktop acceptance remain separate."
+}

@@ -305,6 +305,7 @@ let component ~app ~desktop ~motion window ~page ~palette graph =
   let open B.Let_syntax in
   match%sub page with
   | Page.Presentation -> presentation palette graph
+  | Styles -> Styles_page.component palette graph
   | Controls -> controls window palette graph
   | Text_inputs -> editors window palette graph
   | Numeric_inputs -> Numeric_page.component window palette graph

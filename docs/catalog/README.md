@@ -17,6 +17,16 @@ that every source entry is implemented or validated.
 - `gpuix-styles.json`: all 73 field-to-public-API mappings, with evidence entry
   points and explicit value/behavior reviews still pending. The audit checks
   completeness and that referenced APIs/files exist, not visual equivalence.
+- `gpuix-values.json`: complete source-value mappings for cursor and text overflow.
+  All 29 cursor keywords map to 22 typed choices, including aliases. Start and end
+  ellipsis map separately. The check validates these two reviewed fields against
+  the pinned declarations and public constructors; other value sets still need
+  review. Native refinement tests and gallery text screenshots provide separate
+  evidence; physical OS cursor glyphs are not asserted.
+- `gpuix-events.json`: all 22 event properties, with current public contracts,
+  exact pinned implementation links, remaining differences, owner and platform
+  limits. Generic input observations, subtree highlighting and per-file diff
+  controls remain required v1 work. A mapped row is not release acceptance.
 - `families.json`: all 146 root-module entries mapped to 43 owning families,
   public interfaces, existing examples, evidence and release scopes. Helpers map
   to their owning runtime/style/interaction contract rather than separate widgets.
@@ -44,9 +54,10 @@ example, an upstream `input` module includes more than a single text field, and
 matching a style field name does not prove support for every value of that field.
 
 The original research inventory omitted `onVisibleRange` and `onHighlight`;
-both are in this source-derived inventory. Review GPUIX's `ellipsis-start` and
-cursor variants explicitly against GPUIO, instead of equating field presence
-with behavior. The completed ledger must link each capability to public API,
+both are in this source-derived inventory and event audit. The value ledger now
+covers `ellipsis-start` and cursor variants; continue reviewing gradient color
+spaces, selection/inheritance and hit-testing semantics rather than equating field
+presence with behavior. The completed ledger must link each capability to public API,
 commands/events, style/accessibility behavior, runnable examples, owner, evidence
 and platform status, with deferred/unsupported entries explicit.
 

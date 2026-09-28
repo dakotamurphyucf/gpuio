@@ -4,7 +4,7 @@ A native public-API gallery under implementation for OCH-41. The first sections
 cover presentation, selection/actions, native text editing, numeric/range inputs,
 verification codes, rating, dates/colors, overlays, navigation/layout and commands/
 feedback, carousel/sidebar/history, managed collections, documents and runtime/
-window previews, canvas, images/icons, charts, plus native motion sequences, shared clocks, responsive layouts, native extensions, input/transfers and desktop services. Additional v1
+window previews, canvas, images/icons, charts, plus native motion sequences, shared clocks, responsive layouts, native extensions, input/transfers, desktop services and styling details. Additional v1
 families and the complete coverage ledger are still being integrated; this is
 not the completed milestone 07 release.
 
@@ -30,7 +30,7 @@ its child, including on failure:
 python3 scripts/test_gallery.py --images scratch/gallery-images
 ```
 
-Use `--section core`, `pickers`, `overlays`, `navigation`, `feedback`, `journeys`,
+Use `--section core`, `styles`, `pickers`, `overlays`, `navigation`, `feedback`, `journeys`,
 `collections`, `documents`, `canvas`, `assets`, `charts`, `motion`, `responsive`, `extensions`, `input`, `desktop` or `runtime` for focused iteration;
 the default `all` exercises all currently integrated acceptance stages in one
 application lifetime. Pickers verify draft cancel/apply and focus restoration;
@@ -40,6 +40,11 @@ The journeys page covers carousel, sidebar and navigation history separately.
 Feedback checks shared command buttons/menus/shortcuts, chooser selection, native
 toast expiry, close and departure cleanup. Core checks include form error updates
 that preserve typed input, avatar semantics and loading-preview controls.
+Styling details demonstrates clip/end/start text truncation at two widths and all
+22 typed cursor choices. Full text remains available to accessibility. Preview
+choices survive page visits; the test verifies configuration, keyboard activation,
+geometry and retention, with screenshots for truncation. It does not assert the
+physical OS cursor artwork, which may share glyphs between related choices.
 Collections use 1,000 loaded records with bounded active rows/cells. Their internal
 preview panels retain native state; leaving the whole page unmounts them.
 Documents acquire a fresh child scope per page visit and release registrations on

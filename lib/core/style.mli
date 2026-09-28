@@ -93,6 +93,7 @@ module Text_overflow : sig
   type t =
     | Clip
     | Ellipsis
+    | Ellipsis_start
   [@@deriving equal, sexp_of]
 end
 
@@ -126,7 +127,24 @@ module Cursor : sig
     | Resize_vertical
     | Grab
     | Grabbing
+    | Ibeam_vertical
+    | Resize_column
+    | Resize_row
+    | Resize_nw_se
+    | Resize_ne_sw
+    | Resize_left
+    | Resize_right
+    | Resize_up
+    | Resize_down
+    | Alias
+    | Copy
+    | Context_menu
   [@@deriving equal, sexp_of]
+
+  (** Diagonals name their physical directions: [Resize_nw_se] runs top-left to
+      bottom-right. Platform cursor artwork may coincide: macOS uses the same
+      glyph for [Resize_column]/[Resize_horizontal] and [Resize_row]/
+      [Resize_vertical]. [Move] and [Grabbing] both use the closed-hand cursor. *)
 end
 
 module State : sig

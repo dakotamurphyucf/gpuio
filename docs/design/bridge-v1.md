@@ -25,9 +25,12 @@ and retained canvas scene registration have separate capability bits. Canvas
 registration alone does not advertise a rendered canvas widget. Extension payloads
 require a registered schema and its bounded package-specific validation.
 Managed trees advertise bit 39 and managed tables bit 40, separately from the
-original retained-view-tree bit. Both language halves require the shared mask
-`2199023255551`; an older host fails capability negotiation instead of accepting
-unsupported tree/table input or commands.
+original retained-view-tree bit. Desktop integration, OS notifications and charts
+use bits 41–43. Extended cursor values and start ellipsis require bit 44
+(`CAP_STYLE_VALUES`). Both language halves require the current shared mask
+`35184372088831`; an older host fails capability negotiation instead of accepting
+unsupported input, commands or style values. Existing style field tags and value
+IDs are unchanged: cursor additions occupy 10–21 and start ellipsis occupies 2.
 Correlated open/close/frame requests are distinct from per-window transactions.
 Acceptance and rendering are distinct events; rendering does not assert physical
 screen presentation. The client submits one transaction per window at a time.

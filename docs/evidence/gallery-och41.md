@@ -461,3 +461,44 @@ map now have a gallery link. The only null root-family links are post-v1 docking
 and excluded development-inspector tooling. This is navigation/example coverage;
 nested configuration, events, style values and accessibility still require the
 explicit behavioral audit and may reveal additional implementation work.
+
+## Styling values and event audit — OCH-41 continuation
+
+The twenty-first page, **Styling details**, uses the public OCaml style API to
+compare clipping, end ellipsis and start ellipsis at 250/140 logical pixels. It
+cycles all 22 typed cursor choices, with keyboard activation and retained choices
+across appearance, three sizes and three page revisits. Complete source text stays
+in the accessible labels. Inspected wide/narrow screenshots show actual start and
+end truncation in the correct directions. The cursor test checks configuration
+and native GPUI refinement, not the physical OS cursor artwork.
+
+The library adds twelve cursor values and `Style.Text_overflow.Ellipsis_start`
+without changing existing value IDs. Capability bit 44 rejects incompatible hosts
+before those values reach native decoding. An independent Rust/OCaml wire fixture
+covers every cursor and overflow value; native session tests reject invalid
+negative/upper-bound values atomically, preserving earlier text/revision/memory,
+and verify registration cleanup after close.
+
+Local macOS 14.5 arm64 checks passed:
+
+- `./scripts/gpuio build examples/gallery/main.exe`.
+- `./scripts/gpuio exec cargo test -p gpuio-protocol --locked -j 2`.
+- `./scripts/gpuio exec cargo test -p gpuio-native --locked -j 2`.
+- `./scripts/gpuio exec cargo clippy -p gpuio-native -p gpuio-protocol --all-targets --locked -j 2 -- -D warnings`.
+- `./scripts/gpuio exec dune runtest`.
+- `python3 scripts/test_gallery.py --section styles --images scratch/agents/root-20260928-m7/images`.
+
+The focused GUI run completed normally and reaped its child. The previous combined
+20-page result above predates this addition; it is not a combined 21-page result.
+Exact local logs use the `style-values-` prefix in the implementing agent's ignored
+notepad directory. The first protocol run correctly detected stale Hello golden
+bytes; reviewed capability-mask expectations were updated and the full suite then
+passed. These results are not hosted or Linux desktop acceptance.
+
+The catalog now checks all 29 pinned cursor keywords, both ellipsis values and
+all 22 event-property audit rows. The event audit distinguishes semantic native
+commands/viewport observations from missing generic pointer/key/focus/wheel
+observations, and whole-document collapse/search from missing per-file diff and
+arbitrary-subtree highlighting controls. These gaps remain required v1 work, not
+accepted deferrals. Detailed remaining style values, nested component behavior,
+installed consumers and OCH-17 release acceptance remain open.
