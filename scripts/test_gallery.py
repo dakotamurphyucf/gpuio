@@ -622,6 +622,240 @@ def wait_absent(mac, label, role):
 
 
 
+
+
+def cycle_preview_appearance(mac, expected):
+    theme = mac.find(TITLE, 'Dark', 'AXButton')
+    current, alternate = ('Dark', 'Light') if theme else ('Light', 'Dark')
+    if theme:
+        mac.release(theme)
+    mac.press(TITLE, current)
+    mac.release(mac.wait_find(TITLE, alternate, 'AXButton'))
+    mac.wait_text(TITLE, expected)
+    for size, next_size in [('Comfortable', 'Large'), ('Large', 'Compact'), ('Compact', 'Comfortable')]:
+        mac.press(TITLE, size)
+        mac.release(mac.wait_find(TITLE, next_size, 'AXButton'))
+        mac.wait_text(TITLE, expected)
+    mac.press(TITLE, alternate)
+    mac.release(mac.wait_find(TITLE, current, 'AXButton'))
+    mac.wait_text(TITLE, expected)
+
+
+def element_rect(mac, node):
+    result = []
+    get = mac.ax.AXValueGetValue
+    get.restype, get.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
+    for attribute, kind in [('AXPosition', 1), ('AXSize', 2)]:
+        value = mac.attr(node, attribute)
+        pair = (C.c_double * 2)()
+        try:
+            assert value and get(value, kind, C.byref(pair)), attribute
+            result.extend(pair)
+        finally:
+            if value:
+                mac.release(value)
+    return result
+
+
+def canvas_shape_rect(mac):
+    node = mac.wait_find(TITLE, 'Orbit', 'AXStaticText')
+    try:
+        return element_rect(mac, node)
+    finally:
+        mac.release(node)
+
+
+
+def drag_canvas_orbit(mac):
+    class Point(C.Structure):
+        _fields_ = [('x', C.c_double), ('y', C.c_double)]
+    window = mac.window(TITLE)
+    try:
+        mac.set(mac.app, 'AXFrontmost', mac.true)
+        mac.perform(window, 'AXRaise')
+    finally:
+        mac.release(window)
+    expect_enabled(mac, 'Orbit', True, 'AXStaticText')
+    x, y, width, height = canvas_shape_rect(mac)
+    start = Point(x + width/2, y + height/2)
+    finish = Point(start.x + 24, start.y + 16)
+    system = mac.ax.AXUIElementCreateSystemWide
+    system.restype, system.argtypes = C.c_void_p, []
+    hit_test = mac.ax.AXUIElementCopyElementAtPosition
+    hit_test.restype, hit_test.argtypes = C.c_int, [C.c_void_p, C.c_float, C.c_float, C.POINTER(C.c_void_p)]
+    get_pid = mac.ax.AXUIElementGetPid
+    get_pid.restype, get_pid.argtypes = C.c_int, [C.c_void_p, C.POINTER(C.c_int)]
+    root, hit, owner = system(), C.c_void_p(), C.c_int()
+    try:
+        assert (not hit_test(root, start.x, start.y, C.byref(hit)) and hit.value
+                and not get_pid(hit, C.byref(owner)) and owner.value == mac.pid), 'Canvas pointer target is occluded'
+    finally:
+        if hit.value:
+            mac.release(hit)
+        mac.release(root)
+    create = mac.cg.CGEventCreateMouseEvent
+    create.restype, create.argtypes = C.c_void_p, [C.c_void_p, C.c_int, Point, C.c_int]
+    post = mac.cg.CGEventPost
+    post.restype, post.argtypes = None, [C.c_int, C.c_void_p]
+    def send(kind, point):
+        event = create(None, kind, point, 0)
+        assert event, 'Cannot create canvas mouse event'
+        try:
+            post(0, event)
+        finally:
+            mac.release(event)
+    try:
+        send(1, start)
+        time.sleep(.05)
+        send(6, finish)
+        time.sleep(.05)
+    finally:
+        send(2, finish)
+    mac.wait_text(TITLE, 'Selected: Orbit · x 134 · y 146')
+    after = canvas_shape_rect(mac)
+    assert abs(after[0]-x-24) < 1 and abs(after[1]-y-16) < 1, ((x, y), after)
+
+
+def exercise_canvas(mac, images):
+    mac.press(TITLE, 'Canvas & drawing')
+    expect_enabled(mac, 'Orbit', True, 'AXStaticText')
+    window = mac.window(TITLE)
+    try:
+        mac.set(mac.app, 'AXFrontmost', mac.true)
+        mac.perform(window, 'AXRaise')
+    finally:
+        mac.release(window)
+    original = canvas_shape_rect(mac)
+    node = mac.wait_find(TITLE, 'Orbit', 'AXStaticText')
+    try:
+        mac.set(node, 'AXFocused', mac.true)
+        expect_focus(mac, 'Orbit', 'AXStaticText')
+    finally:
+        mac.release(node)
+    mac.wait_text(TITLE, 'Selected: Orbit · x 110 · y 130')
+    for key, x, y in [(124, 111, 130), (124, 112, 130), (125, 112, 131)]:
+        window = mac.window(TITLE)
+        try:
+            mac.set(mac.app, 'AXFrontmost', mac.true)
+            mac.perform(window, 'AXRaise')
+        finally:
+            mac.release(window)
+        expect_enabled(mac, 'Orbit', True, 'AXStaticText')
+        # Publication must preserve native focus; do not refocus the object to
+        # conceal a focus loss during the source echo.
+        expect_focus(mac, 'Orbit', 'AXStaticText')
+        mac.key(key, 1 << 17)  # Shift + arrow: commit a native world-space move.
+        mac.wait_text(TITLE, f'Selected: Orbit · x {x} · y {y}')
+    moved = canvas_shape_rect(mac)
+    assert abs(moved[0] - original[0] - 2) < 1, (original, moved)
+    assert abs(moved[1] - original[1] - 1) < 1, (original, moved)
+    expect_enabled(mac, 'Activate Orbit', True)
+    mac.press(TITLE, 'Activate Orbit')
+    mac.wait_text(TITLE, 'Last activation: Orbit')
+    mac.press(TITLE, 'Zoom to 125%')
+    mac.wait_text(TITLE, 'Canvas zoom: 125%')
+    zoomed = canvas_shape_rect(mac)
+    assert abs(zoomed[2] - original[2] * 1.25) < 1, (original, zoomed)
+    mac.press(TITLE, 'Reset canvas view')
+    mac.wait_text(TITLE, 'Canvas zoom: 100%')
+    activate(mac, mac.wait_find(TITLE, 'Disable canvas input', 'AXCheckBox'))
+    expect_enabled(mac, 'Orbit', False, 'AXStaticText')
+    mac.press(TITLE, 'Select Prism')  # Explicit commands still work while input is disabled.
+    mac.wait_text(TITLE, 'Selected: Prism · x 290 · y 100')
+    activate(mac, mac.wait_find(TITLE, 'Disable canvas input', 'AXCheckBox'))
+    expect_enabled(mac, 'Orbit', True, 'AXStaticText')
+    mac.press(TITLE, 'Hide canvas')
+    mac.release(mac.wait_find(TITLE, 'Show canvas', 'AXButton'))
+    absent(mac, 'Orbit', 'AXStaticText')
+    mac.press(TITLE, 'Show canvas')
+    expect_enabled(mac, 'Orbit', True, 'AXStaticText')
+    mac.press(TITLE, 'Select Orbit')
+    mac.wait_text(TITLE, 'Selected: Orbit · x 112 · y 131')
+    mac.press(TITLE, 'Reset canvas scene')
+    mac.wait_text(TITLE, 'Canvas reset')
+    deadline = time.monotonic() + 10
+    while True:
+        reset = canvas_shape_rect(mac)
+        if abs(reset[0] - original[0]) < .5 and abs(reset[1] - original[1]) < .5:
+            break
+        assert time.monotonic() < deadline, (original, reset)
+        time.sleep(.03)
+    mac.press(TITLE, 'Select Orbit')
+    mac.wait_text(TITLE, 'Selected: Orbit · x 110 · y 130')
+    drag_canvas_orbit(mac)
+    cycle_preview_appearance(mac, 'Selected: Orbit · x 134 · y 146')
+    if images:
+        screenshot(mac, images / 'gallery-canvas.png', title=TITLE)
+    for _ in range(3):
+        mac.press(TITLE, 'Presentation')
+        mac.wait_text(TITLE, 'A little context goes a long way')
+        absent(mac, 'Orbit', 'AXStaticText')
+        mac.press(TITLE, 'Canvas & drawing')
+        expect_enabled(mac, 'Orbit', True, 'AXStaticText')
+        mac.wait_text(TITLE, 'No shape activated yet')
+        mac.press(TITLE, 'Select Tile')
+        mac.wait_text(TITLE, 'Selected: Tile · x 470 · y 160')
+    mac.press(TITLE, 'Runtime & windows')
+    mac.press(TITLE, 'Refresh resource counts')
+    mac.wait_text(TITLE, 'Images: 0 · Charts: 0 · Canvases: 0')
+    mac.wait_text(TITLE, 'Registered source bytes: 0')
+    print('GALLERY_CANVAS_OK: OS keyboard/pointer movement, source echo, native geometry/zoom, '
+          'disabled commands, retained hide/show, reset and scoped cleanup', flush=True)
+
+
+def exercise_assets(mac, images):
+    mac.press(TITLE, 'Images & icons')
+    mac.wait_text(TITLE, 'Image ready:')
+    for label in ['Gallery image', 'Gradient thumbnail', 'Check mark']:
+        mac.release(mac.wait_find(TITLE, label, 'AXImage'))
+    roles = tree_counts(mac, mac.window(TITLE))
+    assert roles.get('AXImage') == 3, roles  # Button decoration has no second image target.
+    mac.press(TITLE, 'Show raster gradient')
+    mac.wait_text(TITLE, 'Image ready: 96 × 48 pixels · 1 frame(s)')
+    for fit in ['Cover', 'Fill', 'Scale down', 'Intrinsic size', 'Contain']:
+        mac.press(TITLE, fit)
+        mac.wait_text(TITLE, 'Image fit: ' + fit)
+        mac.wait_text(TITLE, 'Image ready: 96 × 48 pixels · 1 frame(s)')
+    cycle_preview_appearance(mac, 'Image ready: 96 × 48 pixels · 1 frame(s)')
+    mac.press(TITLE, 'Simulate decode failure')
+    mac.wait_text(TITLE, 'Image failed: Invalid_data')
+    mac.press(TITLE, 'Restore image')
+    mac.wait_text(TITLE, 'Image ready: 96 × 48 pixels · 1 frame(s)')
+    window = mac.window(TITLE)
+    try:
+        mac.set(mac.app, 'AXFrontmost', mac.true)
+        mac.perform(window, 'AXRaise')
+    finally:
+        mac.release(window)
+    button = mac.wait_find(TITLE, 'Approve sample', 'AXButton')
+    try:
+        mac.set(button, 'AXFocused', mac.true)
+        expect_focus(mac, 'Approve sample')
+        mac.key(49)
+    finally:
+        mac.release(button)
+    mac.wait_text(TITLE, 'Sample approvals: 1')
+    mac.press(TITLE, 'Approve sample')
+    mac.wait_text(TITLE, 'Sample approvals: 2')
+    mac.press(TITLE, 'Show vector landscape')
+    mac.wait_text(TITLE, 'Image ready: 480 × 240 pixels · 1 frame(s)')
+    if images:
+        screenshot(mac, images / 'gallery-assets.png', title=TITLE)
+    for _ in range(3):
+        mac.press(TITLE, 'Presentation')
+        mac.wait_text(TITLE, 'A little context goes a long way')
+        absent(mac, 'Gallery image', 'AXImage')
+        mac.press(TITLE, 'Images & icons')
+        mac.wait_text(TITLE, 'Image ready:')
+        mac.wait_text(TITLE, 'Sample approvals: 2')
+    mac.press(TITLE, 'Runtime & windows')
+    mac.press(TITLE, 'Refresh resource counts')
+    mac.wait_text(TITLE, 'Images: 0 · Charts: 0 · Canvases: 0')
+    mac.wait_text(TITLE, 'Registered source bytes: 0')
+    print('GALLERY_ASSETS_OK: SVG/raster readiness, fit controls, native decode failure/recovery, '
+          'icon semantics, OS activation and scoped cleanup', flush=True)
+
+
 def exercise_charts(mac, images):
     mac.press(TITLE, 'Charts & data')
     cases = [
@@ -854,13 +1088,15 @@ def exercise_runtime(mac, images):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--images', type=Path)
-    parser.add_argument('--section', choices=['all', 'core', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'charts', 'motion', 'runtime'], default='all')
+    parser.add_argument('--trace-canvas', action='store_true')
+    parser.add_argument('--section', choices=['all', 'core', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'canvas', 'assets', 'charts', 'motion', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
     repo = Path(__file__).resolve().parent.parent
     with tempfile.TemporaryFile(mode='w+') as log:
-        child = subprocess.Popen([str(repo / '_build/default/examples/gallery/main.exe')],
+        child = subprocess.Popen([str(repo / '_build/default/examples/gallery/main.exe'),
+                                  *(['--trace-canvas'] if args.trace_canvas else [])],
                                  cwd=repo, stdout=log, stderr=subprocess.STDOUT, text=True)
         mac = None
         try:
@@ -881,6 +1117,10 @@ def main():
                 exercise_collections(mac, args.images)
             if args.section in ('all', 'documents'):
                 exercise_documents(mac, args.images)
+            if args.section in ('all', 'canvas'):
+                exercise_canvas(mac, args.images)
+            if args.section in ('all', 'assets'):
+                exercise_assets(mac, args.images)
             if args.section in ('all', 'charts'):
                 exercise_charts(mac, args.images)
             if args.section in ('all', 'motion'):

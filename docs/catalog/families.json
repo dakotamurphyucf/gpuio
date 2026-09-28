@@ -638,7 +638,7 @@
       "evidence": [
         "docs/evidence/assets-och11.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "assets",
       "contract": "Explicit scoped image/SVG assets and tintable icons. No mandatory upstream icon macro or implicit network acquisition.",
       "upstream_modules": [
         "component/icon"

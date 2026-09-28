@@ -24,6 +24,13 @@ that every source entry is implemented or validated.
   no module is silently dropped. Nested public families/configuration still need
   detailed audit, including code-editor and document plugin subfamilies.
 
+- `expanded-v1.json`: canvas, native extensions, container rules, desktop
+  integration and OS notifications from the accepted v1 expansion. These additions
+  sit outside the Longbridge root-module map; they must not disappear merely
+  because that source exports no corresponding module. Motion is already in the
+  family map. Null gallery pages and pending review remain explicit. Reference-app
+  consumer/distribution gates stay in the milestone release evidence.
+
 Verify structural inventory without an upstream checkout or network access:
 
 ```sh

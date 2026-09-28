@@ -19,6 +19,8 @@ Local platform: macOS 14.5 (23F79), arm64. Use the pinned repository environment
 | Carousels & journeys | Horizontal/vertical carousel and navigation-history transitions preserve native edits; hidden editor/links leave AX; icon/offcanvas sidebar keeps selection | Pointer gestures, timed auto-advance and all scale combinations in gallery |
 | Lists, trees & tables | 1,000 variable-height entries, far reveal and growth elsewhere; loaded hierarchy reveal/selection; 1,000-row table selection/reveal; native AX row/cell limits; retained internal panels | Paging/retry, sort/resize/reorder, drag and full performance workloads |
 | Markdown & code | Scoped Markdown/code/diff, bounded append/reset, parsed code-block controls, native collapse/expand and repeated departure/remount; AX body text/heading/list and read-only code/diff values | Complete screen-reader/selection and rich/image-link semantics, source/selection clipboard and complete theme/scale matrix |
+| Canvas & drawing | Validated scene model, native selection/movement/activation, viewport commands, hide/disabled state, reset and scope cleanup | Larger scenes, additional drawing primitives and resource budgets |
+| Images & icons | SVG/raster decode, all fit controls, explicit failure/recovery, icon/button semantics and page-scoped registrations | Remaining codec families and full GPU/cache budgets |
 | Charts & data | Seven native families plus mixed layers; keyboard selection, publication updates, bounded original-data browsing, disabled metadata, theme/scale retention and scope cleanup | Larger/reduced datasets, pointer selection and release performance budgets |
 | Motion & rhythm | Interrupted native targets, tween/spring sequence, pause/resume/cancel/reverse/restart, shared-clock join, live reduced motion and cross-window policy | Full timing/property combinations and resource/performance budgets |
 | Runtime & windows | Public diagnostics, observed content geometry, native file picker cancellation | Desktop identity/links/OS notifications and broader window command matrix |
@@ -104,9 +106,8 @@ Detailed family/configuration/event/value review remains explicitly pending.
 Known review topics include GPUIX's previously omitted onVisibleRange/onHighlight,
 ellipsis-start and extra cursor variants, pointer/wheel defaults, selection scope,
 standalone clipboard/automation surfaces and nested editor/document plugin APIs.
-Gallery families still missing include canvas/assets, native extensions,
-responsive container rules and remaining desktop
-services. OCH-41 remains In Progress; OCH-17's macOS release audit follows it.
+Gallery families still missing include native extensions, responsive container
+rules, generic native events and remaining desktop services. OCH-41 remains In Progress; OCH-17's macOS release audit follows it.
 
 Linux build/unit/private-bus/consumer checks remain required. This checkpoint
 adds no real Linux GUI qualification; OCH-47 owns that deferred work. Hosted
@@ -199,3 +200,57 @@ keyboard/focus assertions, document links and final native picker cancellation.
 `dune build @fmt` and `git diff --check` also pass after the final edits. All test
 processes are reaped. This adds gallery coverage, not completion of the detailed
 catalog parity ledger, installed-consumer tests or milestone 07 release gates.
+
+## Canvas and image gallery continuation
+
+The fifteenth and sixteenth pages use public drawing/image/icon and scoped Eio
+registration APIs. The pure `Canvas_study` model caches a validated scene; a move
+validates the whole candidate, including labels, before accepting it. Expect tests
+verify independent shape positions, an unknown ID, coordinate overflow, unsupported
+text rotation and preservation of the initial model. Native moves update source
+transforms without applying movement twice. Activation is displayed independently
+from transient movement/command status. A page visit owns one scene; hide/show
+retains it, while departure reacquires a fresh scene and clears transient state.
+
+Native canvas checks cover repeated OS Shift+Arrow movement with measured bounds,
+activation, 125% viewport geometry and reset, selection commands while user input
+is disabled, retained hide/show positions, source reset, both appearances, all
+three preview sizes and three page visits. Optional `--trace-canvas` records
+public events with publication/window snapshots, including monotonically ordered
+command acknowledgements and fresh scene/command state after reacquisition.
+
+Early canvas fixtures lost an expected movement/activation observation; later AX
+window lookup also failed. Failed logs are retained, without asserting a proven
+native renderer defect or claiming those runs passed. The final test establishes
+native readiness and raises the intended window between consecutive moves.
+A final focused regression asserts that object focus survives each source
+publication without refocusing the object.
+The observed event trace and full combined walkthrough pass with those explicit
+input preconditions. A trace-variable syntax error (`effect` is reserved in this
+compiler) was corrected before the final build; the accidentally reused prior
+binary run during that failed build is not acceptance evidence.
+
+The image page owns four in-memory registrations: an authored SVG landscape, a
+96×48 PNM gradient, a deliberately malformed PNM source and an SVG icon. No file or
+network acquisition is implicit. All fit controls preserve original raster
+metadata; invalid decoding reports `Invalid_data` and switching back recovers.
+Standalone image/icon semantics and actual OS Space/button activation pass.
+Appearance/size changes preserve ready data. Three page visits return image,
+canvas and registered-source-byte counts to zero. These counts exclude native
+caches/GPU allocations and do not replace release memory budgets. Screenshots
+of the canvas and vector/raster/icon compositions were inspected.
+
+Local macOS 14.5 arm64 checks pass: gallery build, gallery expect tests, Dune
+formatting, structural catalog audit and the combined sixteen-page native
+walkthrough. No Rust/runtime or dependency pins changed. Hosted checks, installed
+gallery consumers, detailed parity and complete release gates remain pending.
+The catalog now also records five accepted v1 additions outside the pinned
+root-module map; structural validation is explicitly separate from behavior.
+
+After the combined run, additional focused checks also pass: real macOS pointer
+drag moves Orbit from (110,130) to (134,146), with matching native bounds and one
+accepted source transform; consecutive keyboard moves retain object focus across
+publication without refocusing. The image page exposes exactly three meaningful
+AX images; the button decoration introduces no duplicate accessible image. These
+final assertions were validated in focused canvas/assets runs. All processes are
+reaped, and the working copy's format/expect/catalog/whitespace checks pass.

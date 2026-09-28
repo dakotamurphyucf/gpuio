@@ -12,6 +12,8 @@ type t =
   | Journeys
   | Collections
   | Documents
+  | Canvas
+  | Assets
   | Charts
   | Motion
   | Runtime
@@ -29,6 +31,8 @@ let all =
   ; Journeys
   ; Collections
   ; Documents
+  ; Canvas
+  ; Assets
   ; Charts
   ; Motion
   ; Runtime
@@ -47,6 +51,8 @@ let title = function
   | Journeys -> "Carousels & journeys"
   | Collections -> "Lists, trees & tables"
   | Documents -> "Markdown & code"
+  | Canvas -> "Canvas & drawing"
+  | Assets -> "Images & icons"
   | Charts -> "Charts & data"
   | Motion -> "Motion & rhythm"
   | Runtime -> "Runtime & windows"
@@ -64,6 +70,8 @@ let description = function
   | Journeys -> "Native transitions with a sense of continuity."
   | Collections -> "Explore more while keeping the visible work small."
   | Documents -> "Rich documents, precise code and thoughtful change reviews."
+  | Canvas -> "A native drawing surface, with room to move."
+  | Assets -> "Scalable artwork, crisp icons and thoughtful fallbacks."
   | Charts -> "Clear pictures, with the original values always within reach."
   | Motion -> "Thoughtful transitions, natural springs and a shared rhythm."
   | Runtime -> "Native window behavior and visible resource ownership."
@@ -81,6 +89,8 @@ let key = function
   | Journeys -> "journeys"
   | Collections -> "collections"
   | Documents -> "documents"
+  | Canvas -> "canvas"
+  | Assets -> "assets"
   | Charts -> "charts"
   | Motion -> "motion"
   | Runtime -> "runtime"

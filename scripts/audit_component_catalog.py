@@ -103,10 +103,26 @@ def main():
         for reference in [row['public_interface'], row['example'], *row['evidence']]:
             if not (ROOT / reference).exists():
                 raise ValueError(f'Missing family reference: {reference}')
+    # These accepted OCH-23..28 additions do not map to Longbridge root modules.
+    # Motion is already in families.json; OCH-29 consumer/release gates are tracked
+    # in the milestone evidence, rather than inventing another widget family.
+    additions = json.loads((CATALOG / 'expanded-v1.json').read_text())['capabilities']
+    expected_additions = {'canvas', 'native-extensions', 'container-rules',
+                          'desktop-integration', 'os-notifications'}
+    addition_ids = [row['id'] for row in additions]
+    if len(addition_ids) != len(set(addition_ids)) or set(addition_ids) != expected_additions:
+        raise ValueError('Accepted expanded-v1 capabilities are missing or duplicated')
+    for row in additions:
+        if row['scope'] != 'v1' or not row['contract'] or not row['owner'] or not row['audit_status']:
+            raise ValueError(f'Incomplete expanded-v1 metadata: {row["id"]}')
+        for reference in [row['public_interface'], row['example'], *row['evidence']]:
+            if not (ROOT / reference).exists():
+                raise ValueError(f'Missing expanded-v1 reference: {reference}')
     print('GPUIO_CATALOG_SOURCES_OK:', ', '.join(
         f'{key}={len(value)}' for key, value in actual.items() if isinstance(value, list)))
     print('Structural source coverage only; implementation, values and native behavior require the release ledger.')
     print(f'Family ownership: {len(mapped)} module entries -> {len(families)} families; detailed review status remains explicit.')
+    print(f'Accepted additions outside that module map: {len(additions)}; release acceptance remains separate.')
 
 
 if __name__ == '__main__':

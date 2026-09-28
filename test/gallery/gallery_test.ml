@@ -2,6 +2,42 @@ open Core
 module State = Gpuio_gallery_model.Numeric_state
 module Rating = Gpuio.Rating
 
+let%expect_test "canvas moves preserve other shapes and reject invalid whole scenes" =
+  let module Study = Gpuio_gallery_model.Canvas_study in
+  let module G = Gpuio.Canvas_geometry in
+  let ok = Or_error.ok_exn in
+  let orbit = Study.items Study.initial |> List.hd_exn |> Study.Item.id in
+  let moved =
+    Study.move Study.initial orbit (G.Transform.translate ~x:180. ~y:144. |> ok) |> ok
+  in
+  let positions model =
+    List.map (Study.items model) ~f:(fun item ->
+      let point = Study.Item.position item in
+      Study.Item.name item, (G.Point.x point, G.Point.y point))
+  in
+  print_s [%sexp (positions moved : (string * (float * float)) list)];
+  print_s
+    [%sexp
+      (Or_error.is_error
+         (Study.move
+            moved
+            (Gpuio.Canvas_scene.Item_id.of_int64 999L |> ok)
+            G.Transform.identity)
+       : bool)
+    , (Or_error.is_error
+         (Study.move moved orbit (G.Transform.translate ~x:1_000_000. ~y:0. |> ok))
+       : bool)
+    , (Or_error.is_error (Study.move moved orbit (G.Transform.rotate ~radians:0.5 |> ok))
+       : bool)];
+  print_s [%sexp (positions Study.initial : (string * (float * float)) list)];
+  [%expect
+    {|
+    ((Orbit (180 144)) (Prism (290 100)) (Tile (470 160)))
+    (true true true)
+    ((Orbit (110 130)) (Prism (290 100)) (Tile (470 160)))
+    |}]
+;;
+
 let%expect_test "read-only fences delayed requests and relative bursts saturate" =
   let apply state actions = List.fold actions ~init:state ~f:State.apply in
   let show state =

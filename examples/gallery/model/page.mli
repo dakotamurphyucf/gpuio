@@ -14,6 +14,8 @@ type t =
   | Journeys
   | Collections
   | Documents
+  | Canvas
+  | Assets
   | Charts
   | Motion
   | Runtime

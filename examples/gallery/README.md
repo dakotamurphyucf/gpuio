@@ -4,7 +4,7 @@ A native public-API gallery under implementation for OCH-41. The first sections
 cover presentation, selection/actions, native text editing, numeric/range inputs,
 verification codes, rating, dates/colors, overlays, navigation/layout and commands/
 feedback, carousel/sidebar/history, managed collections, documents and runtime/
-window previews, charts, plus native motion sequences and shared clocks. Additional v1
+window previews, canvas, images/icons, charts, plus native motion sequences and shared clocks. Additional v1
 families and the complete coverage ledger are still being integrated; this is
 not the completed milestone 07 release.
 
@@ -31,7 +31,7 @@ python3 scripts/test_gallery.py --images scratch/gallery-images
 ```
 
 Use `--section core`, `pickers`, `overlays`, `navigation`, `feedback`, `journeys`,
-`collections`, `documents`, `charts`, `motion` or `runtime` for focused iteration;
+`collections`, `documents`, `canvas`, `assets`, `charts`, `motion` or `runtime` for focused iteration;
 the default `all` exercises all currently integrated acceptance stages in one
 application lifetime. Pickers verify draft cancel/apply and focus restoration;
 overlays exercise dialog/drawer/confirmation/popover dismissal and focus; workspace
@@ -45,6 +45,15 @@ preview panels retain native state; leaving the whole page unmounts them.
 Documents acquire a fresh child scope per page visit and release registrations on
 departure. The runtime page samples public registration counts on demand and can
 open a native file picker without reading the selected file.
+
+The canvas page uses a validated pure scene model, with native selection, movement,
+activation, viewport commands and hide/disabled controls. The paper stage remains
+light in both themes. Hiding retains the scene; leaving releases it and starts
+a fresh scene on return. `--trace-canvas` on the app or native test prints public
+events, publication readiness and observed window activation for debugging.
+The image page registers four in-memory fixtures in its page scope, exercises
+SVG/raster fit and native decode failure/recovery, and composes meaningful icons
+with decorative button slots. Registration success is distinct from decode success.
 
 Charts share typed example datasets with the standalone Chart Studio. All seven
 families and mixed layers support native selection and original-data browsing,
