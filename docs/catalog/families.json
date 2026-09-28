@@ -674,9 +674,10 @@
       "public_interface": "lib/core/pointer.mli",
       "example": "examples/pointer",
       "evidence": [
-        "docs/evidence/native-pointer-och11.md"
+        "docs/evidence/native-pointer-och11.md",
+        "docs/evidence/drag-drop-och11.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "input",
       "contract": "Typed semantic pointer capture/events; general hover/key/focus/wheel mappings still require GPUIX event audit.",
       "upstream_modules": [
         "base/event"

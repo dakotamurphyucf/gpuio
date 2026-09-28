@@ -946,6 +946,208 @@ def exercise_charts(mac, images):
           'data updates, bounded original-data pages, styles and scope cleanup', flush=True)
 
 
+class GalleryMouse:
+    class Point(C.Structure):
+        _fields_ = [('x', C.c_double), ('y', C.c_double)]
+
+    def __init__(self, mac):
+        self.mac = mac
+        self.create = mac.cg.CGEventCreateMouseEvent
+        self.create.restype, self.create.argtypes = C.c_void_p, [C.c_void_p, C.c_int, self.Point, C.c_int]
+        self.post = mac.cg.CGEventPost
+        self.post.restype, self.post.argtypes = None, [C.c_int, C.c_void_p]
+
+    def send(self, kind, point):
+        event = self.create(None, kind, self.Point(*point), 0)
+        assert event, 'Cannot create gallery mouse event'
+        try:
+            self.post(0, event)
+        finally:
+            self.mac.release(event)
+
+    def bounds(self, label):
+        node = self.mac.wait_find(TITLE, label, 'AXGroup')
+        try:
+            bounds = element_rect(self.mac, node)
+        finally:
+            self.mac.release(node)
+        self.check_owner((bounds[0] + bounds[2]/2, bounds[1] + bounds[3]/2))
+        return bounds
+
+    def check_owner(self, point):
+        mac = self.mac
+        system = mac.ax.AXUIElementCreateSystemWide
+        system.restype, system.argtypes = C.c_void_p, []
+        hit_test = mac.ax.AXUIElementCopyElementAtPosition
+        hit_test.restype, hit_test.argtypes = C.c_int, [C.c_void_p, C.c_float, C.c_float, C.POINTER(C.c_void_p)]
+        get_pid = mac.ax.AXUIElementGetPid
+        get_pid.restype, get_pid.argtypes = C.c_int, [C.c_void_p, C.POINTER(C.c_int)]
+        root, hit, owner = system(), C.c_void_p(), C.c_int()
+        try:
+            assert (not hit_test(root, *point, C.byref(hit)) and hit.value
+                    and not get_pid(hit, C.byref(owner)) and owner.value == mac.pid), ('Pointer target is occluded', point)
+        finally:
+            if hit.value:
+                mac.release(hit)
+            mac.release(root)
+
+    def transfer(self, *, cancel=False):
+        sx, sy, sw, sh = self.bounds('Idea transfer source')
+        tx, ty, tw, th = self.bounds('Idea transfer inbox')
+        start, finish = (sx+sw/2, sy+sh/2), (tx+tw/2, ty+th/2)
+        try:
+            self.send(5, start)
+            self.send(1, start)
+            time.sleep(.05)
+            for step in range(1, 13):
+                point = tuple(a+(b-a)*step/12 for a, b in zip(start, finish))
+                self.send(6, point)
+                time.sleep(.02)
+            if cancel:
+                self.mac.key(53)
+                self.mac.wait_text(TITLE, 'Transfer cancelled: Escape')
+        finally:
+            self.send(2, finish)
+
+
+def exercise_input(mac, images):
+    mac.press(TITLE, 'Input & transfers')
+    mac.wait_text(TITLE, 'Panel width: 180 logical pixels')
+    raise_gallery(mac)
+    mouse = GalleryMouse(mac)
+    x, y, width, height = mouse.bounds('Panel drag track')
+    start, finish = (x+180, y+height/2), (x+260, y-8)
+    mouse.check_owner(finish)
+    try:
+        mouse.send(5, start)
+        mouse.send(1, start)
+        mac.wait_text(TITLE, 'Pointer: Started')
+        mouse.send(6, finish)  # Capture continues above the region.
+        mac.wait_text(TITLE, 'Pointer: Moved')
+        mac.wait_text(TITLE, 'Panel width: 260 logical pixels')
+    finally:
+        mouse.send(2, finish)
+    mac.wait_text(TITLE, 'Pointer: Released')
+    panel = mac.wait_find(TITLE, 'Sized panel', 'AXGroup')
+    try:
+        assert abs(element_rect(mac, panel)[2] - 260) < 1
+    finally:
+        mac.release(panel)
+    mac.press(TITLE, 'Reset panel')
+    mac.wait_text(TITLE, 'Panel width: 180 logical pixels')
+    try:
+        mouse.send(5, start)
+        mouse.send(1, start)
+        mac.wait_text(TITLE, 'Pointer: Started')
+        mac.key(53)
+        mac.wait_text(TITLE, 'Pointer: (Cancelled Escape)')
+    finally:
+        mouse.send(2, start)
+    mac.wait_text(TITLE, 'Pointer: (Cancelled Escape)')
+    try:
+        mouse.send(5, start)
+        mouse.send(1, start)
+        mac.wait_text(TITLE, 'Pointer: Started')
+        mac.press(TITLE, 'Disable pointer input')
+        mac.wait_text(TITLE, 'Pointer: (Cancelled Disabled)')
+    finally:
+        mouse.send(2, start)
+    mac.release(mac.wait_find(TITLE, 'Enable pointer input', 'AXButton'))
+    try:
+        mouse.send(1, start)
+        mouse.send(6, finish)
+    finally:
+        mouse.send(2, finish)
+    time.sleep(.15)
+    mac.wait_text(TITLE, 'Panel width: 180 logical pixels')
+    focus_gallery_control(mac, 'Widen panel', 'AXButton')
+    mac.key(49)
+    mac.wait_text(TITLE, 'Panel width: 200 logical pixels')
+    mac.press(TITLE, 'Enable pointer input')
+    mouse.transfer()
+    mac.wait_text(TITLE, 'Transfer delivered')
+    mac.wait_text(TITLE, 'Received text · 33 UTF-8 bytes')
+    mac.wait_text(TITLE, 'Received items: 1')
+    mouse.transfer(cancel=True)
+    mac.wait_text(TITLE, 'Received items: 1')
+    mac.press(TITLE, 'Use card payload')
+    mouse.transfer()
+    mac.wait_text(TITLE, 'Received org.gpuio.gallery.card/v1 · 7 bytes')
+    mac.wait_text(TITLE, 'Received items: 2')
+    mac.press(TITLE, 'Reject cards')
+    expect_enabled(mac, 'Receive with keyboard or click', False)
+    mouse.transfer()
+    mac.wait_text(TITLE, 'Transfer ended without an accepted drop')
+    mac.wait_text(TITLE, 'Received items: 2')
+    mac.press(TITLE, 'Accept cards')
+    mac.press(TITLE, 'Disable transfers')
+    expect_enabled(mac, 'Receive with keyboard or click', False)
+    mouse.transfer()
+    time.sleep(.15)
+    mac.wait_text(TITLE, 'Received items: 2')
+    mac.press(TITLE, 'Enable transfers')
+    focus_gallery_control(mac, 'Receive with keyboard or click', 'AXButton')
+    mac.key(49)
+    mac.wait_text(TITLE, 'Received items: 3')
+    cycle_preview_appearance(mac, 'Received items: 3')
+    mac.wait_text(TITLE, 'Panel width: 200 logical pixels')
+    if images:
+        screenshot(mac, images / 'gallery-input.png', title=TITLE)
+    for _ in range(3):
+        mac.press(TITLE, 'Presentation')
+        mac.wait_text(TITLE, 'A little context goes a long way')
+        absent(mac, 'Panel drag track', 'AXGroup')
+        absent(mac, 'Idea transfer source', 'AXGroup')
+        mac.press(TITLE, 'Input & transfers')
+        mac.wait_text(TITLE, 'Pointer: Ready to drag')
+        mac.wait_text(TITLE, 'No active transfer')
+        mac.wait_text(TITLE, 'Received items: 3')
+        mac.wait_text(TITLE, 'Panel width: 200 logical pixels')
+    x, y, width, height = mouse.bounds('Panel drag track')
+    held = (x+180, y+height/2)
+    try:
+        mouse.send(5, held)
+        mouse.send(1, held)
+        mac.wait_text(TITLE, 'Pointer: Started')
+        mac.press(TITLE, 'Presentation')
+        mac.wait_text(TITLE, 'A little context goes a long way')
+        absent(mac, 'Panel drag track', 'AXGroup')
+    finally:
+        mouse.send(2, held)
+    mac.press(TITLE, 'Input & transfers')
+    mac.wait_text(TITLE, 'Pointer: Ready to drag')
+    mac.wait_text(TITLE, 'Panel width: 180 logical pixels')
+    try:
+        mouse.send(5, held)
+        mouse.send(1, held)
+        mac.wait_text(TITLE, 'Pointer: Started')
+    finally:
+        mouse.send(2, held)
+    mac.wait_text(TITLE, 'Pointer: Released')
+    print('GALLERY_INPUT_OK: captured OS pointer outside bounds, cancellation/disabled '
+          'input, keyboard alternatives, text/custom transfers and rejection, themes/sizes, teardown', flush=True)
+
+
+def verify_input_transfers(output):
+    sources = defaultdict(list)
+    targets = defaultdict(list)
+    for line in output.splitlines():
+        match = re.search(r'GALLERY_TRANSFER_(SOURCE|TARGET) gesture=(\d+) phase=(\w+)', line)
+        if match:
+            (sources if match[1] == 'SOURCE' else targets)[int(match[2])].append(match[3])
+    ids = sorted(sources)
+    assert len(ids) == 4, sources
+    assert [sources[identity] for identity in ids] == [
+        ['started', 'delivered'], ['started', 'cancelled'],
+        ['started', 'delivered'], ['started', 'unconfirmed']], sources
+    dropped = [identity for identity, phases in targets.items() for phase in phases if phase == 'dropped']
+    assert sorted(dropped) == [ids[0], ids[2]], targets
+    assert all(identity in sources for identity in targets), (sources, targets)
+    assert all('entered' in targets[identity] for identity in dropped), targets
+    print('GALLERY_TRANSFER_IDENTITIES_OK: four unique gestures, two matching native drops; '
+          'cancelled/rejected/disabled attempts do not deliver', flush=True)
+
+
 def exercise_extensions(mac, images):
     mac.press(TITLE, 'Native extensions')
     mac.wait_text(TITLE, 'Native component mounted')
@@ -1314,7 +1516,7 @@ def main():
     parser.add_argument('--images', type=Path)
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -1325,7 +1527,8 @@ def main():
     with tempfile.TemporaryFile(mode='w+') as log:
         child = subprocess.Popen([str(repo / '_build/default/examples/gallery/main.exe'),
                                   *(['--trace-canvas'] if args.trace_canvas else []),
-                                  *(['--trace-motion'] if args.trace_motion else [])],
+                                  *(['--trace-motion'] if args.trace_motion else []),
+                                  *(['--trace-input'] if args.section in ('all', 'input') else [])],
                                  cwd=repo, env=env, stdout=log, stderr=subprocess.STDOUT, text=True)
         mac = None
         try:
@@ -1360,6 +1563,8 @@ def main():
                 exercise_responsive(mac, args.images)
             if args.section in ('all', 'extensions'):
                 exercise_extensions(mac, args.images)
+            if args.section in ('all', 'input'):
+                exercise_input(mac, args.images)
             if args.section in ('all', 'runtime'):
                 exercise_runtime(mac, args.images)
             mac.close(TITLE)
@@ -1380,6 +1585,8 @@ def main():
             print(output, end='')
         if args.section in ('all', 'extensions'):
             verify_extension_lifetimes(output)
+        if args.section in ('all', 'input'):
+            verify_input_transfers(output)
     print(f'GPUIO_GALLERY_AX_OK: section={args.section}, native actions, state semantics, focus and shutdown')
 
 

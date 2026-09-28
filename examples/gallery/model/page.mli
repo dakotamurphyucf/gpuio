@@ -19,6 +19,7 @@ type t =
   | Charts
   | Motion
   | Extensions
+  | Input
   | Responsive
   | Runtime
 [@@deriving equal, compare, sexp_of]

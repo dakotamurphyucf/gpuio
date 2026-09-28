@@ -17,6 +17,7 @@ type t =
   | Charts
   | Motion
   | Extensions
+  | Input
   | Responsive
   | Runtime
 [@@deriving equal, compare, sexp_of]
@@ -38,6 +39,7 @@ let all =
   ; Charts
   ; Motion
   ; Extensions
+  ; Input
   ; Responsive
   ; Runtime
   ]
@@ -60,6 +62,7 @@ let title = function
   | Charts -> "Charts & data"
   | Motion -> "Motion & rhythm"
   | Extensions -> "Native extensions"
+  | Input -> "Input & transfers"
   | Responsive -> "Responsive layouts"
   | Runtime -> "Runtime & windows"
 ;;
@@ -81,6 +84,7 @@ let description = function
   | Charts -> "Clear pictures, with the original values always within reach."
   | Motion -> "Thoughtful transitions, natural springs and a shared rhythm."
   | Extensions -> "Bring your own native components to the workspace."
+  | Input -> "Direct gestures, simple transfers and keyboard alternatives."
   | Responsive -> "Thoughtful layouts that adapt to the space around them."
   | Runtime -> "Native window behavior and visible resource ownership."
 ;;
@@ -102,6 +106,7 @@ let key = function
   | Charts -> "charts"
   | Motion -> "motion"
   | Extensions -> "extensions"
+  | Input -> "input"
   | Responsive -> "responsive"
   | Runtime -> "runtime"
 ;;

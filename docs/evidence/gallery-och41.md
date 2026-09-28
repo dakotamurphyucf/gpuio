@@ -24,6 +24,7 @@ Local platform: macOS 14.5 (23F79), arm64. Use the pinned repository environment
 | Charts & data | Seven native families plus mixed layers; keyboard selection, publication updates, bounded original-data browsing, disabled metadata, theme/scale retention and scope cleanup | Larger/reduced datasets, pointer selection and release performance budgets |
 | Motion & rhythm | Interrupted native targets, tween/spring sequence, pause/resume/cancel/reverse/restart, shared-clock join, live reduced motion and cross-window policy | Full timing/property combinations and resource/performance budgets |
 | Native extensions | Independently packaged counter, native AX/keyboard activation, property updates, commands while disabled/hidden, generation reset and exact teardown traces | Additional independent packages, failure/overload gallery fixtures and release consumer gates |
+| Input & transfers | Real captured pointer beyond bounds, Escape/disable/page departure, keyboard alternatives, text/custom drag-drop IDs, rejection and retained page state | Gallery OS file arrival and broader generic hover/key/focus/wheel surface audit |
 | Responsive layouts | Width/height boundaries, first-match priority, retained branch drafts/counters, silent same-branch resize, hidden AX/focus fencing and theme/size changes | Nested layouts, physical display movement and larger query workloads |
 | Runtime & windows | Public diagnostics, observed content geometry, native file picker cancellation | Desktop identity/links/OS notifications and broader window command matrix |
 
@@ -108,8 +109,9 @@ Detailed family/configuration/event/value review remains explicitly pending.
 Known review topics include GPUIX's previously omitted onVisibleRange/onHighlight,
 ellipsis-start and extra cursor variants, pointer/wheel defaults, selection scope,
 standalone clipboard/automation surfaces and nested editor/document plugin APIs.
-Gallery families still missing include generic native events and remaining desktop
-services. OCH-41 remains In Progress; OCH-17's macOS release audit follows it.
+Remaining gallery integration includes desktop services. The input/transfer page
+covers existing captured-pointer and drag/drop APIs; broader generic-event
+functionality still requires the detailed GPUIX audit. OCH-41 remains In Progress; OCH-17's macOS release audit follows it.
 
 Linux build/unit/private-bus/consumer checks remain required. This checkpoint
 adds no real Linux GUI qualification; OCH-47 owns that deferred work. Hosted
@@ -351,3 +353,37 @@ outside the scripted sequence, consistent with the owner's report of interacting
 with the gallery during testing; others failed initial chart focus or a motion
 observation wait. The final run keeps all behavioral assertions, uses the explicit
 foreground/initial-focus setup above and verifies terminal extension cleanup.
+
+## Input and transfer gallery continuation
+
+The nineteenth page uses public `View.pointer_area`, `drag_source` and `drop_target`.
+It supplies ordinary keyboard-accessible size/receive controls alongside raw mouse
+surfaces. Width is bounded to 80–360 logical pixels; latest notices and a saturated
+receipt count replace any event history. The inbox accepts text/file metadata and
+optionally one application-specific card format. It does not read/open received
+paths or decode opaque card data. Native rules decide acceptance before queued
+OCaml observations; keyboard alternatives honor the same enabled/format policy.
+
+The focused macOS test posts real mouse events after checking target process
+ownership. It verifies capture above the region, measured 260-pixel output width,
+release, Escape cancellation, disabling during capture, rejection of fresh input
+while disabled, and actual Space activation of size/receive alternatives. It
+unmounts the page during a held gesture, sends the late release, then verifies a
+fresh gesture succeeds after remount. Three additional page visits preserve width
+and received count while clearing transient gesture feedback.
+
+Text and opaque-card transfers each deliver once. Cancellation, a rejected card
+format and a disabled source do not increment the count. Opt-in semantic traces
+contain exactly four source gestures, with matching source/target identities for
+the two accepted native drops; the keyboard alternative is a separate application
+action, not a fabricated native drop. Both themes and three preview sizes preserve
+state. Screenshot inspected; no native runtime or dependency changes were needed.
+
+Gallery build, gallery expect tests, `@fmt`, Python syntax, structural catalog audit
+and focused `--section input` pass. The initial native fixture expected 32 bytes
+for a 33-byte UTF-8 greeting; its failed log is excluded, and the corrected test
+passes. The combined nineteen-page run and hosted gates remain pending after the
+eighteen-page checkpoint above. No general GPU/RSS budget, passive-hover callback,
+OS file-arrival or complete generic-event parity claim follows from this preview.
+Existing standalone OS file-transfer coverage is recorded separately in
+[OCH-11](drag-drop-och11.md).

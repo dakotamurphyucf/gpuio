@@ -4,7 +4,7 @@ A native public-API gallery under implementation for OCH-41. The first sections
 cover presentation, selection/actions, native text editing, numeric/range inputs,
 verification codes, rating, dates/colors, overlays, navigation/layout and commands/
 feedback, carousel/sidebar/history, managed collections, documents and runtime/
-window previews, canvas, images/icons, charts, plus native motion sequences, shared clocks, responsive layouts and native extensions. Additional v1
+window previews, canvas, images/icons, charts, plus native motion sequences, shared clocks, responsive layouts, native extensions and input/transfers. Additional v1
 families and the complete coverage ledger are still being integrated; this is
 not the completed milestone 07 release.
 
@@ -31,7 +31,7 @@ python3 scripts/test_gallery.py --images scratch/gallery-images
 ```
 
 Use `--section core`, `pickers`, `overlays`, `navigation`, `feedback`, `journeys`,
-`collections`, `documents`, `canvas`, `assets`, `charts`, `motion`, `responsive`, `extensions` or `runtime` for focused iteration;
+`collections`, `documents`, `canvas`, `assets`, `charts`, `motion`, `responsive`, `extensions`, `input` or `runtime` for focused iteration;
 the default `all` exercises all currently integrated acceptance stages in one
 application lifetime. Pickers verify draft cancel/apply and focus restoration;
 overlays exercise dialog/drawer/confirmation/popover dismissal and focus; workspace
@@ -85,6 +85,15 @@ command can be pending; matching acknowledgements update the observed model.
 Departure clears pending commands and advances the model generation. The test
 enables the package's opt-in lifecycle trace and checks exact unmount/component/
 callback-value release, as well as command execution without replay.
+
+Input and transfers demonstrate captured pointer sizing, cancellation and keyboard
+alternatives, plus typed text/card drag sources and an inbox for text/custom/file
+metadata. Native configuration decides acceptance. File paths are counted without
+opening files. The app retains only latest notices, width and a saturated receipt
+count; departure clears transient gesture feedback. `--trace-input` records bounded
+per-gesture source/target transitions (not every move). The native test enables it
+to verify matching gesture identities and exactly two accepted native drops.
+This page does not imply passive hover or arbitrary key-event callback parity.
 
 The document AX repair now exposes actual Markdown body text, read-only source/code
 and inline links with keyboard activation. Rich/image links, selected-text/range,
