@@ -2,6 +2,8 @@ use crate::{HandlerId, NodeId, WindowId, v1::*};
 use binprot::BinProtRead;
 use std::io::{Cursor, Read};
 
+mod input;
+pub use input::{decode_input_config, decode_input_event};
 mod accessibility;
 mod chart_data;
 mod chart_options;

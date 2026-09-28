@@ -33,6 +33,7 @@ pub mod file_dialog;
 pub mod file_path;
 mod id;
 pub mod image;
+pub mod input;
 pub mod list;
 pub mod loading;
 mod menu;
@@ -81,3 +82,5 @@ pub mod split;
 pub mod numeric;
 
 pub mod slider;
+
+pub use decode::{decode_input_config, decode_input_event};
