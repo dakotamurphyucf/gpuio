@@ -456,19 +456,57 @@ def exercise_collections(mac, images):
 def exercise_documents(mac, images):
     mac.press(TITLE, 'Markdown & code')
     mac.wait_text(TITLE, 'Markdown preview')
+    mac.wait_text(TITLE, 'A place for ideas')
+    mac.wait_text(TITLE, '世界 · 👨‍👩‍👧‍👦')
+    mac.wait_text(TITLE, 'Explore a direction')
+    mac.wait_text(TITLE, 'Read the design notes')
+    roles = tree_counts(mac, mac.wait_find(TITLE, 'Markdown preview', 'AXGroup'))
+    assert roles.get('AXHeading') == 1 and roles.get('AXList') == 1, roles
     mac.press(TITLE, 'Append a finding')
     mac.wait_text(TITLE, 'Appended findings: 1 / 6')
     mac.release(mac.wait_find(TITLE, 'Copy code', 'AXButton'))
+    mac.wait_text(TITLE, 'Finding 1')
     mac.press(TITLE, 'Code')
     mac.wait_text(TITLE, 'Code preview')
+    editor = mac.wait_find(TITLE, 'Code preview', 'AXTextArea')
+    try:
+        value = mac.text(editor, 'AXValue')
+        assert value and 'let greeting name =' in value and '世界' in value, value
+        settable = C.c_bool()
+        check = mac.ax.AXUIElementIsAttributeSettable
+        check.restype = C.c_int
+        check.argtypes = [C.c_void_p, C.c_void_p, C.POINTER(C.c_bool)]
+        attribute = mac.string('AXValue')
+        try:
+            assert check(editor, attribute, C.byref(settable)) == 0
+            assert not settable.value, 'Read-only document advertises AX value replacement'
+        finally:
+            mac.release(attribute)
+        mac.set(editor, 'AXFocused', mac.true)
+        expect_focus(mac, 'Code preview', 'AXTextArea')
+        mac.key(0, 1 << 20)  # Command-A: select the native document page.
+        mac.key(51)  # Backspace must preserve the selected read-only text.
+        mac.key(0)  # Typing must also preserve it.
+        time.sleep(0.1)
+        assert mac.text(editor, 'AXValue') == value
+    finally:
+        mac.release(editor)
     mac.release(mac.wait_find(TITLE, 'Copy source', 'AXButton'))
     activate(mac, mac.wait_find(TITLE, 'Highlight let', 'AXCheckBox'))
     mac.press(TITLE, 'Diff')
     mac.wait_text(TITLE, 'Diff preview')
+    editor = mac.wait_find(TITLE, 'Diff preview', 'AXTextArea')
+    try:
+        value = mac.text(editor, 'AXValue')
+        assert value and '-let greeting' in value and '+let greeting' in value, value
+    finally:
+        mac.release(editor)
     mac.press(TITLE, 'Collapse')
     mac.release(mac.wait_find(TITLE, 'Expand', 'AXButton'))
+    wait_absent(mac, 'Diff preview', 'AXTextArea')
     mac.press(TITLE, 'Expand')
     mac.release(mac.wait_find(TITLE, 'Collapse', 'AXButton'))
+    mac.release(mac.wait_find(TITLE, 'Diff preview', 'AXTextArea'))
     mac.press(TITLE, 'Markdown')
     mac.release(mac.wait_find(TITLE, 'Copy code', 'AXButton'))
     if images:
@@ -476,6 +514,7 @@ def exercise_documents(mac, images):
     mac.press(TITLE, 'Reset document')
     mac.wait_text(TITLE, 'Document reset')
     wait_absent(mac, 'Copy code', 'AXButton')
+    wait_absent(mac, 'Finding 1', 'AXStaticText')
     for _ in range(3):
         mac.press(TITLE, 'Presentation')
         mac.wait_text(TITLE, 'A little context goes a long way')

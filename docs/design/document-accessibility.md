@@ -1,0 +1,34 @@
+# Document accessibility
+
+Release contract for OCH-17. Implementation and validation progress belongs in
+the evidence ledger; this document does not claim completed screen-reader support.
+
+Read-only code, diff and source pages expose the displayed page as a labelled,
+read-only multiline text input. Its value is the editor's installed text, including
+Unicode and diff markers. It offers focus and native selection/copy, but no
+accessible value replacement. The existing bounded source pagination applies to
+accessible values too; the toolbar announces the displayed byte range. Changing
+pages changes the value rather than materializing the entire source in the
+accessibility tree. Source offsets remain UTF-8 bytes; OS text APIs use their own
+documented native units.
+
+Rendered Markdown exposes text from the actual painted nodes in reading order,
+with headings, lists, table structure, image alternatives and links. Do not add a
+second hidden copy of the raw Markdown as a substitute for these semantics.
+Accessible link activation must use the same queued document-navigation event as
+pointer activation, without ambient URL opening. Links also need keyboard access
+and visible focus. Selection and copying continue to refer to the rendered text.
+Parsing and accessibility remain bounded by the document preparation limits;
+oversized documents use the existing paginated source presentation.
+
+Collapse, unmount and inactive modal scopes remove or disable interaction with
+document bodies. Accessible actions must validate the current native presentation
+and focus scope, including delayed actions after replacement. Streaming preserves
+the last installed reading tree while preparation is pending and replaces it
+when the matching result is installed. No accessibility callback synchronously
+invokes OCaml or parses the source.
+
+Acceptance needs actual macOS accessibility queries for values, structure and
+actions, native selection/copy and keyboard checks, and streaming/collapse/remount
+regressions. AX-tree presence alone is not evidence of complete VoiceOver reading
+or native selected-text range support. Linux desktop acceptance remains OCH-47.

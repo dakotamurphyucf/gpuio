@@ -1,7 +1,7 @@
 # GPUIO macOS disclosure, outline and table adaptation
 
 This is the published `accesskit_macos` **0.26.3**, at AccessKit revision
-`c88605b96d04431f9c3c792464a0f2f253480e94`, with four scoped patches.
+`c88605b96d04431f9c3c792464a0f2f253480e94`, with five scoped patches.
 The upstream MIT/Apache-2.0 notices and both license texts are preserved. Source,
 archive checksum and original per-file checksums are recorded in `UPSTREAM.json`.
 Cargo uses the registry-normalized manifest, retaining its exact dependency ranges.
@@ -52,7 +52,8 @@ state. Actual AppKit tests cover mixed setters before the next application updat
 Reconstruction: download the crate archive from `UPSTREAM.json`, verify its SHA256,
 extract `Cargo.toml`, `Cargo.toml.orig`, README/CHANGELOG and `src/`, then apply
 `patch -p1 < expanded-state.patch` and then `patch -p1 < tree-state.patch` inside
-that directory, followed by `patch -p1 < tree-actions.patch` and `patch -p1 < table-state.patch`. Fetch LICENSE-APACHE and
+that directory, followed by `patch -p1 < tree-actions.patch`, `patch -p1 < table-state.patch`
+and `patch -p1 < document-semantics.patch`. Fetch LICENSE-APACHE and
 LICENSE-MIT from the pinned upstream Git revision and verify their recorded hashes.
 `UPSTREAM.json`, this note and the patches are GPUIO provenance additions. The
 registry archive's Cargo.lock and Cargo cache metadata are not build inputs.
@@ -91,3 +92,19 @@ Press, focus and desired-selection setters. It verifies queued order, a jump to
 row 50,001, unavailable data, pointer-independent accessibility and hidden/disabled
 retirement. Focus assertions activate the local test window; the harness closes
 it on success and failure. This is not VoiceOver speech or Linux GUI evidence.
+
+`document-semantics.patch` corrects the Heading role string to `AXHeading`
+(the same native role already used for DocSubtitle) and implements the legacy
+AppKit AXValue-settable query using the adapter's existing SetValue capability
+predicate. On macOS 14.5, external AX queries reported a read-only code document
+as settable even while `isAccessibilitySelectorAllowed:` returned false with
+read_only=true, text_ranges=false and no SetValue action. The narrow override
+fixes that mismatch and delegates other attribute queries to AppKit.
+
+The gallery's real macOS regression checks Markdown heading/list roles and
+Unicode body text, code/diff values, AXValue not settable, native focus, rejection
+of typing/backspace, collapse and remount. Existing editable fields must still
+accept AXValue replacement. Heading levels exist in the AccessKit tree but
+macOS level exposure, Markdown link actions, selection ranges and VoiceOver
+reading remain separate release work. The expected native heading role is also
+described in [WebKit's heading mapping](https://bugs.webkit.org/show_bug.cgi?id=131920).

@@ -12,9 +12,11 @@ gallery expect tests, formatting, catalog structural audit and strict native
 Clippy pass at implementation checkpoint `7aa65f3`. The
 [gallery evidence](evidence/gallery-och41.md) records exact boundaries. Remaining
 gallery families, detailed behavioral parity, installed-consumer and release
-gates are still pending. The audit found rendered Markdown body text absent from
-macOS accessibility; this remains an OCH-17 release finding. No full document
-screen-reader or Linux desktop acceptance is claimed.
+gates are still pending. OCH-17 is also in progress: the gallery audit's missing
+Markdown body and read-only source semantics have an initial
+[native accessibility repair](evidence/document-accessibility-och17.md).
+Complete document links, selection/ranges, table and screen-reader behavior remain
+open. No full document screen-reader or Linux desktop acceptance is claimed.
 
 The macOS-first/Linux-deferral policy [PR #15](https://github.com/dakotamurphyucf/gpuio/pull/15)
 merged at `af7f6f0c0f9db1c64a8591d9e9a078aa73eacdec` after both required jobs in

@@ -1064,7 +1064,40 @@
  fn parse_table_row(source: &str, table: &mut Table, node: &mdast::TableRow, cx: &mut NodeContext) {
 --- a/src/text/node.rs
 +++ b/src/text/node.rs
-@@ -3656,3 +3656,123 @@
+@@ -2179,6 +2179,7 @@
+                 ..
+             } => v_flex()
+                 .id(("li", options.ix))
++                .role(gpui::Role::ListItem)
+                 .w_full()
+                 .min_w_0()
+                 .when(*spread, |this| this.child(div()))
+@@ -2625,6 +2626,7 @@
+                 .into_any_element(),
+             BlockNode::Paragraph(paragraph) => div()
+                 .id(("p", ix))
++                .role(gpui::Role::Paragraph)
+                 .pb(mb)
+                 .child(paragraph.render(node_cx, window, cx))
+                 .into_any_element(),
+@@ -2648,6 +2650,8 @@
+
+                 div()
+                     .id(SharedString::from(format!("h{}-{}", level, ix)))
++                    .role(gpui::Role::Heading)
++                    .aria_level(*level as usize)
+                     .pb(rems(0.3))
+                     .whitespace_normal()
+                     .text_size(text_size)
+@@ -2679,6 +2683,7 @@
+                 children, ordered, ..
+             } => v_flex()
+                 .id((if *ordered { "ol" } else { "ul" }, ix))
++                .role(gpui::Role::List)
+                 .w_full()
+                 .min_w_0()
+                 .pb(mb)
+@@ -3656,3 +3661,123 @@
          assert_ne!(first, second);
      }
  }
@@ -1607,3 +1640,22 @@
 +                        }
 +                    }
 +                });
+--- a/src/text/inline.rs
++++ b/src/text/inline.rs
+@@ -555,6 +555,16 @@
+
+     fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+         None
++    }
++
++    fn a11y_role(&self) -> Option<gpui::accesskit::Role> {
++        Some(gpui::accesskit::Role::Label)
++    }
++
++    fn write_a11y_info(&self, node: &mut gpui::accesskit::Node) {
++        // StyledText is painted directly below, bypassing its Element wrapper.
++        // Publish the same rendered text here; do not duplicate raw Markdown.
++        node.set_value(self.text.to_string());
+     }
+
+     fn request_layout(

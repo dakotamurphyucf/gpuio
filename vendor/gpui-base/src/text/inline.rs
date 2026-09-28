@@ -557,6 +557,16 @@ impl Element for Inline {
         None
     }
 
+    fn a11y_role(&self) -> Option<gpui::accesskit::Role> {
+        Some(gpui::accesskit::Role::Label)
+    }
+
+    fn write_a11y_info(&self, node: &mut gpui::accesskit::Node) {
+        // StyledText is painted directly below, bypassing its Element wrapper.
+        // Publish the same rendered text here; do not duplicate raw Markdown.
+        node.set_value(self.text.to_string());
+    }
+
     fn request_layout(
         &mut self,
         global_element_id: Option<&GlobalElementId>,

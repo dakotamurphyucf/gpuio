@@ -1,0 +1,41 @@
+--- a/src/node.rs
++++ b/src/node.rs
+@@ -15,7 +15,7 @@
+ };
+ use accesskit_consumer::{FilterResult, Node, NodeId, Tree};
+ use objc2::{
+-    ClassType, DeclaredClass, declare_class, msg_send_id,
++    ClassType, DeclaredClass, declare_class, msg_send, msg_send_id,
+     mutability::InteriorMutable,
+     rc::Id,
+     runtime::{AnyObject, Sel},
+@@ -122,7 +122,7 @@
+             Role::Grid => NSAccessibilityTableRole,
+             Role::Group => NSAccessibilityGroupRole,
+             Role::Header => NSAccessibilityGroupRole,
+-            Role::Heading => ns_string!("Heading"),
++            Role::Heading => ns_string!("AXHeading"),
+             Role::Iframe => NSAccessibilityGroupRole,
+             Role::IframePresentational => NSAccessibilityGroupRole,
+             Role::ImeCandidate => NSAccessibilityUnknownRole,
+@@ -1300,6 +1300,20 @@
+             });
+         }
+
++        // AppKit 14 can report AXValue as settable from the implemented setter
++        // even when isAccessibilitySelectorAllowed rejects that selector.
++        #[method(accessibilityIsAttributeSettable:)]
++        fn is_attribute_settable(&self, attribute: &NSString) -> bool {
++            if unsafe { attribute.isEqualToString(ns_string!("AXValue")) } {
++                self.resolve(|node| {
++                    (node.supports_text_ranges() && !node.is_read_only())
++                        || node.supports_action(Action::SetValue, &filter)
++                }).unwrap_or(false)
++            } else {
++                unsafe { msg_send![super(self), accessibilityIsAttributeSettable: attribute] }
++            }
++        }
++
+         #[method(isAccessibilitySelectorAllowed:)]
+         fn is_selector_allowed(&self, selector: Sel) -> bool {
+             self.resolve(|node| {

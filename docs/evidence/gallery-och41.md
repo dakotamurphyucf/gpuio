@@ -18,7 +18,7 @@ Local platform: macOS 14.5 (23F79), arm64. Use the pinned repository environment
 | Commands & feedback | Command button, popup/in-window menus, disabled semantics, OS shortcuts and chooser selection; progress stages; native toast close/expiry and page departure cleanup | Context-menu/nested-menu keyboard and all theme/scale combinations |
 | Carousels & journeys | Horizontal/vertical carousel and navigation-history transitions preserve native edits; hidden editor/links leave AX; icon/offcanvas sidebar keeps selection | Pointer gestures, timed auto-advance and all scale combinations in gallery |
 | Lists, trees & tables | 1,000 variable-height entries, far reveal and growth elsewhere; loaded hierarchy reveal/selection; 1,000-row table selection/reveal; native AX row/cell limits; retained internal panels | Paging/retry, sort/resize/reorder, drag and full performance workloads |
-| Markdown & code | Scoped Markdown/code/diff, bounded append/reset, parsed code-block controls, native collapse/expand and repeated departure/remount | Body reading/accessibility, link navigation, source/selection clipboard and complete theme/scale matrix |
+| Markdown & code | Scoped Markdown/code/diff, bounded append/reset, parsed code-block controls, native collapse/expand and repeated departure/remount; AX body text/heading/list and read-only code/diff values | Complete screen-reader/selection semantics, link navigation, source/selection clipboard and complete theme/scale matrix |
 | Runtime & windows | Public diagnostics, observed content geometry, native file picker cancellation | Desktop identity/links/OS notifications and broader window command matrix |
 
 The combined native test opens a second independent window, verifies independent
@@ -76,18 +76,17 @@ are application registry counts, not native/GPU allocations or process RSS.
 
 ## Open document accessibility finding
 
-On this macOS backend, the rendered Markdown body is visually present but absent
-from the external AX walk; the document group and toolbar are exposed. The initial
-fixture expecting a heading failed and revealed this gap. The current document
-test checks parser-generated code-block controls after appends, collapse/expand
-and resource lifetime. It does **not** qualify body reading or screen-reader use.
-Investigate Markdown, code and diff reading/selection/link semantics before
-release, including bounded large-document presentation; tracked on OCH-17.
+The initial external AX walk exposed the document group and toolbar but omitted
+the visibly rendered Markdown body. The [OCH-17 repair](document-accessibility-och17.md)
+now exposes actual body text, headings/lists and read-only code/diff values.
+External native queries, source edit rejection, streaming and collapse/remount
+pass. Complete link, selected-text/range, table, heading-level and screen-reader
+behavior remains open; body presence alone does not complete accessibility.
 
 Screenshot review also found Markdown links inheriting an unreadable default
 color on dark backgrounds. The native document adapter now supplies explicit
 light/dark link colors. Native document regression and visual checks accompany
-that correction; it does not resolve the accessibility finding above.
+that correction; link contrast alone does not establish accessible link behavior.
 
 ## Catalog audit boundaries
 

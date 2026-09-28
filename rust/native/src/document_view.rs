@@ -161,6 +161,49 @@ impl Presentation {
                 |state| state.read(cx).focus_handle().clone(),
             )
     }
+    fn configure_source_semantics(&self, cx: &mut Context<Self>) {
+        let presentation = cx.weak_entity();
+        let label = self.config.label.clone();
+        self.editor.update(cx, |editor, _| {
+            editor.set_bridge_decorator(Rc::new(move |element, state, _, cx| {
+                let focus = state.focus_handle(cx);
+                let presentation = presentation.clone();
+                let element = element
+                    .role(gpui::Role::MultilineTextInput)
+                    .aria_label(label.clone())
+                    .aria_value(state.value())
+                    .on_a11y_action(gpui::AccessibleAction::Focus, move |_, window, cx| {
+                        let _ = presentation.update(cx, |this, cx| {
+                            if !this.collapsed
+                                && this.installed.is_some()
+                                && (this.markdown.is_none() || this.source_mode)
+                                && this.root.upgrade().is_some_and(|root| {
+                                    let root = root.read(cx);
+                                    root.focus.borrow().allows(this.node)
+                                        && root
+                                            .documents
+                                            .get(&this.node)
+                                            .and_then(|state| state.presentation.as_ref())
+                                            .is_some_and(|current| current == &cx.entity())
+                                })
+                            {
+                                window.focus(&focus, cx);
+                            }
+                        });
+                    });
+                crate::semantics::State {
+                    hidden: false,
+                    metadata: None,
+                    live: None,
+                    element,
+                    disabled: false,
+                    read_only: true,
+                    modal: false,
+                }
+                .into_any_element()
+            }));
+        });
+    }
     fn focused(&self, window: &Window, cx: &App) -> bool {
         self.buttons.values().any(|focus| focus.is_focused(window))
             || self.editor.read(cx).focus_handle(cx).is_focused(window)
@@ -800,6 +843,7 @@ impl Render for Presentation {
                 content
             });
         } else {
+            self.configure_source_semantics(cx);
             if let Some(installed) = self.installed.as_ref()
                 && (self.page_start > 0 || self.page_end < installed.text.len())
             {

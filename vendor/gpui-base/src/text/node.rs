@@ -2179,6 +2179,7 @@ impl BlockNode {
                 ..
             } => v_flex()
                 .id(("li", options.ix))
+                .role(gpui::Role::ListItem)
                 .w_full()
                 .min_w_0()
                 .when(*spread, |this| this.child(div()))
@@ -2625,6 +2626,7 @@ impl BlockNode {
                 .into_any_element(),
             BlockNode::Paragraph(paragraph) => div()
                 .id(("p", ix))
+                .role(gpui::Role::Paragraph)
                 .pb(mb)
                 .child(paragraph.render(node_cx, window, cx))
                 .into_any_element(),
@@ -2648,6 +2650,8 @@ impl BlockNode {
 
                 div()
                     .id(SharedString::from(format!("h{}-{}", level, ix)))
+                    .role(gpui::Role::Heading)
+                    .aria_level(*level as usize)
                     .pb(rems(0.3))
                     .whitespace_normal()
                     .text_size(text_size)
@@ -2679,6 +2683,7 @@ impl BlockNode {
                 children, ordered, ..
             } => v_flex()
                 .id((if *ordered { "ol" } else { "ul" }, ix))
+                .role(gpui::Role::List)
                 .w_full()
                 .min_w_0()
                 .pb(mb)
