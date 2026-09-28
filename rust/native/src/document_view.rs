@@ -1020,14 +1020,15 @@ impl View {
 pub(crate) mod test;
 
 fn markdown_style(dark: bool) -> gpui_base::TextViewStyle {
-    let (foreground, background, border) = if dark {
-        (0xe6e7ed, 0x1b1e26, 0x2b2f39)
+    let (foreground, background, border, link) = if dark {
+        (0xe6e7ed, 0x1b1e26, 0x2b2f39, 0x93c5fd)
     } else {
-        (0x262832, 0xf3f3f1, 0xe0e1df)
+        (0x262832, 0xf3f3f1, 0xe0e1df, 0x1d4ed8)
     };
     gpui_base::TextViewStyle::default()
         .with_dark(dark)
         .with_foreground(gpui::rgb(foreground).into())
+        .with_link(gpui::rgb(link).into())
         .with_code_background(gpui::rgb(background).into())
         .with_border(gpui::rgb(border).into())
 }

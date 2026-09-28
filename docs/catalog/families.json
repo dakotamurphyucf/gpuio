@@ -407,7 +407,7 @@
       "evidence": [
         "docs/evidence/navigation-components-och37.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "journeys",
       "contract": "Bounded history, separate instance identity and native navigation motion; retention does not imply Eio cancellation.",
       "upstream_modules": [
         "base/nav_stack"
@@ -423,7 +423,7 @@
       "evidence": [
         "docs/evidence/navigation-components-och37.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "journeys",
       "contract": "Revisioned application selection; native gestures/deadlines, reduced motion and bounded retained pages.",
       "upstream_modules": [
         "component/carousel"
@@ -439,7 +439,7 @@
       "evidence": [
         "docs/evidence/agent-chat-m5.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "journeys",
       "contract": "Grouped/nested destinations, independent expansion, collapse modes and current-route semantics.",
       "upstream_modules": [
         "component/sidebar"
@@ -455,7 +455,7 @@
       "evidence": [
         "docs/evidence/managed-lists-och13.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "collections",
       "contract": "Virtual rows/paging/anchors/tail following; explicit state/cache retention; helper masks/scroll ownership mapped to the same native viewport.",
       "upstream_modules": [
         "base/auto_scroll",
@@ -479,7 +479,7 @@
       "evidence": [
         "docs/evidence/managed-trees-och38.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "collections",
       "contract": "Stable lazy tree identity, selection/keyboard/reveal and generation-checked loading; editing deferred OCH-42.",
       "upstream_modules": [
         "base/tree",
@@ -496,7 +496,7 @@
       "evidence": [
         "docs/evidence/data-tables-och39.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "collections",
       "contract": "Read-only virtual tables with native column interaction; structural table composition maps to views; editing deferred OCH-42.",
       "upstream_modules": [
         "base/table",
@@ -513,7 +513,7 @@
       "evidence": [
         "docs/evidence/agent-workspace-m4.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "documents",
       "contract": "Revisioned Markdown/code/diff, native text selection/navigation and literal document search. Audit cross-element selection, highlighting/search counts and custom plugin subfamilies explicitly.",
       "upstream_modules": [
         "base/selectable_text",
@@ -692,7 +692,7 @@
       "evidence": [
         "docs/evidence/theme-scale-och11.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "runtime",
       "contract": "Typed length/placement/layout and View composition; Rust extension traits do not require one-for-one FFI wrappers.",
       "upstream_modules": [
         "base/element_ext",
@@ -710,7 +710,7 @@
       "evidence": [
         "docs/evidence/agent-workspace-m4.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "runtime",
       "contract": "Native window configuration/chrome/commands; no general OS-owned titlebar object crosses FFI.",
       "upstream_modules": [
         "component/title_bar",
@@ -728,7 +728,7 @@
       "evidence": [
         "docs/evidence/runtime-och9.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "runtime",
       "contract": "Native runtime ownership, typed IDs, validated config and scoped Eio tasks replace upstream global helpers/traits.",
       "upstream_modules": [
         "base/async_util",
@@ -751,7 +751,7 @@
       "evidence": [
         "docs/evidence/runtime-och9.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "runtime",
       "contract": "Internal measurement/observation/accessibility integration maps to diagnostics/native automation. Audit general public geometry/automation surface for release.",
       "upstream_modules": [
         "base/macos_accessibility",

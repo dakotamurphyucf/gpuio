@@ -11,10 +11,16 @@ type t =
   ; accent : Color.t
   ; border : Color.t
   ; appearance : Presentation.Appearance.t
+  ; document_appearance : Document.Appearance.t
   ; factor : float
   }
 
 let create appearance scale =
+  let document_appearance =
+    match appearance with
+    | Appearance.Dark -> Document.Appearance.Dark
+    | Light -> Light
+  in
   let background, surface, foreground, muted, accent, border, appearance =
     match appearance with
     | Appearance.Dark ->
@@ -41,6 +47,7 @@ let create appearance scale =
   ; accent = Color.rgb_exn accent
   ; border = Color.rgb_exn border
   ; appearance
+  ; document_appearance
   ; factor = Appearance.Scale.factor scale
   }
 ;;
@@ -52,6 +59,7 @@ let muted t = t.muted
 let accent t = t.accent
 let border t = t.border
 let appearance t = t.appearance
+let document_appearance t = t.document_appearance
 
 let theme t =
   Theme.create

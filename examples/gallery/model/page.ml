@@ -9,6 +9,10 @@ type t =
   | Overlays
   | Navigation
   | Feedback
+  | Journeys
+  | Collections
+  | Documents
+  | Runtime
 [@@deriving equal, compare, sexp_of]
 
 let all =
@@ -20,6 +24,10 @@ let all =
   ; Overlays
   ; Navigation
   ; Feedback
+  ; Journeys
+  ; Collections
+  ; Documents
+  ; Runtime
   ]
 ;;
 
@@ -32,6 +40,10 @@ let title = function
   | Overlays -> "Overlays & help"
   | Navigation -> "Navigation & layout"
   | Feedback -> "Commands & feedback"
+  | Journeys -> "Carousels & journeys"
+  | Collections -> "Lists, trees & tables"
+  | Documents -> "Markdown & code"
+  | Runtime -> "Runtime & windows"
 ;;
 
 let description = function
@@ -43,6 +55,10 @@ let description = function
   | Overlays -> "Focused decisions and helpful context, without losing your place."
   | Navigation -> "Keep your place as the workspace grows around you."
   | Feedback -> "Actions within reach, and clear signals along the way."
+  | Journeys -> "Native transitions with a sense of continuity."
+  | Collections -> "Explore more while keeping the visible work small."
+  | Documents -> "Rich documents, precise code and thoughtful change reviews."
+  | Runtime -> "Native window behavior and visible resource ownership."
 ;;
 
 let key = function
@@ -54,4 +70,8 @@ let key = function
   | Overlays -> "overlays"
   | Navigation -> "navigation"
   | Feedback -> "feedback"
+  | Journeys -> "journeys"
+  | Collections -> "collections"
+  | Documents -> "documents"
+  | Runtime -> "runtime"
 ;;

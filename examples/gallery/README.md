@@ -3,7 +3,8 @@
 A native public-API gallery under implementation for OCH-41. The first sections
 cover presentation, selection/actions, native text editing, numeric/range inputs,
 verification codes, rating, dates/colors, overlays, navigation/layout and commands/
-feedback. Additional v1
+feedback, carousel/sidebar/history, managed collections, documents and runtime/
+window previews. Additional v1
 families and the complete coverage ledger are still being integrated; this is
 not the completed milestone 07 release.
 
@@ -29,15 +30,26 @@ its child, including on failure:
 python3 scripts/test_gallery.py --images scratch/gallery-images
 ```
 
-Use `--section core`, `pickers`, `overlays`, `navigation` or `feedback` for focused iteration;
+Use `--section core`, `pickers`, `overlays`, `navigation`, `feedback`, `journeys`,
+`collections`, `documents` or `runtime` for focused iteration;
 the default `all` exercises all currently integrated acceptance stages in one
 application lifetime. Pickers verify draft cancel/apply and focus restoration;
 overlays exercise dialog/drawer/confirmation/popover dismissal and focus; workspace
 checks verify retained tab text, hidden editor semantics, accordion and pagination.
-This initial navigation preview does not yet cover carousel, sidebar or stack.
+The journeys page covers carousel, sidebar and navigation history separately.
 Feedback checks shared command buttons/menus/shortcuts, chooser selection, native
 toast expiry, close and departure cleanup. Core checks include form error updates
 that preserve typed input, avatar semantics and loading-preview controls.
+Collections use 1,000 loaded records with bounded active rows/cells. Their internal
+preview panels retain native state; leaving the whole page unmounts them.
+Documents acquire a fresh child scope per page visit and release registrations on
+departure. The runtime page samples public registration counts on demand and can
+open a native file picker without reading the selected file.
+
+The current macOS document AX tree exposes toolbar controls but omits rendered
+Markdown body text. This is an open release-audit finding, documented in the
+[evidence ledger](../../docs/evidence/gallery-och41.md); the gallery tests do not
+claim screen-reader acceptance.
 
 The initial macOS test covers semantic navigation, button actions, OS typing and
 submission, theme/size changes without resetting the editor, independent windows,

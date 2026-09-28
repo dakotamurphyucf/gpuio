@@ -14,8 +14,12 @@ Local platform: macOS 14.5 (23F79), arm64. Use the pinned repository environment
 | Numbers & codes | Single/range sliders, number stepper, OTP, rating; native slider AX increment reaches observed value | Gallery OTP/stepper/rating OS interaction and all scales |
 | Dates & colors | Calendar/range and inline color previews; popup date/color changes cancel or confirm correctly; Escape and focus restoration | All constraints/disabled/read-only/scale combinations |
 | Overlays & help | Dialog, drawer, confirmation, popover, tooltip and hover-card previews; native dismiss/confirm/focus checks | Tooltip/hover-card keyboard/hover and complete style/scale matrix |
-| Navigation & layout | Retained native editor tabs, split, accordion, breadcrumb and pagination; tab text retained/hidden semantics; ordered pagination requests | Split pointer/keyboard plus carousel/sidebar/navigation-stack integration |
+| Navigation & layout | Retained native editor tabs, split, accordion, breadcrumb and pagination; tab text retained/hidden semantics; ordered pagination requests | Split pointer/keyboard and all style/scale combinations |
 | Commands & feedback | Command button, popup/in-window menus, disabled semantics, OS shortcuts and chooser selection; progress stages; native toast close/expiry and page departure cleanup | Context-menu/nested-menu keyboard and all theme/scale combinations |
+| Carousels & journeys | Horizontal/vertical carousel and navigation-history transitions preserve native edits; hidden editor/links leave AX; icon/offcanvas sidebar keeps selection | Pointer gestures, timed auto-advance and all scale combinations in gallery |
+| Lists, trees & tables | 1,000 variable-height entries, far reveal and growth elsewhere; loaded hierarchy reveal/selection; 1,000-row table selection/reveal; native AX row/cell limits; retained internal panels | Paging/retry, sort/resize/reorder, drag and full performance workloads |
+| Markdown & code | Scoped Markdown/code/diff, bounded append/reset, parsed code-block controls, native collapse/expand and repeated departure/remount | Body reading/accessibility, link navigation, source/selection clipboard and complete theme/scale matrix |
+| Runtime & windows | Public diagnostics, observed content geometry, native file picker cancellation | Desktop identity/links/OS notifications and broader window command matrix |
 
 The combined native test opens a second independent window, verifies independent
 editor values, closes it, cycles editor page unmount/remount three times and
@@ -37,7 +41,7 @@ All pass locally for this checkpoint. The expect test verifies latest-state
 read-only gating of delayed rating requests, saturated relative bursts and
 clear/toggle behavior. A second reducer test verifies current command availability,
 bounded notification replacement, stale dismissal rejection and departure cleanup.
-The combined eight-section native test reports
+The combined native test reports
 `GPUIO_GALLERY_AX_OK: section=all, native actions, state semantics, focus and shutdown`.
 Focused picker/overlay/navigation runs also pass. The shell's preview sizing is
 logical sizing, not a substitute for native OS display-scale acceptance.
@@ -52,6 +56,38 @@ The first feedback fixture incorrectly expected Bonsai sample state to reset on
 page departure. The corrected contract preserves that state separately from native
 leases, while lifecycle hooks clear transient choosers, modals and notifications.
 The corrected focused and combined runs pass, including departure with a live toast.
+Later fixtures await published command availability and sidebar collapse state
+before testing enabled/hidden semantics; AXPress queues an asynchronous request.
+The native file picker is cancelled through its actual AX Cancel button; a raw
+Escape posted immediately after presentation did not close that panel, so it is
+not reported as a passing native-picker keyboard test.
+
+Managed previews cap active list rows at 24, tree rows at 16 and table rows/cells
+at 24/72. The AX table includes one header row and three header cells in addition
+to that budget. The test counts the native tree, observes a last-row cell selection
+and preserves the outline selection while switching retained internal panels.
+This 1,000-row gallery fixture does not replace release performance/retention tests.
+
+Document registration uses a fresh window child scope on each page activation;
+failure closes partial acquisitions and departure suppresses late completions.
+After repeated document visits, the public diagnostics page observes zero document
+registrations and zero registered source bytes with one window remaining. Those
+are application registry counts, not native/GPU allocations or process RSS.
+
+## Open document accessibility finding
+
+On this macOS backend, the rendered Markdown body is visually present but absent
+from the external AX walk; the document group and toolbar are exposed. The initial
+fixture expecting a heading failed and revealed this gap. The current document
+test checks parser-generated code-block controls after appends, collapse/expand
+and resource lifetime. It does **not** qualify body reading or screen-reader use.
+Investigate Markdown, code and diff reading/selection/link semantics before
+release, including bounded large-document presentation; tracked on OCH-17.
+
+Screenshot review also found Markdown links inheriting an unreadable default
+color on dark backgrounds. The native document adapter now supplies explicit
+light/dark link colors. Native document regression and visual checks accompany
+that correction; it does not resolve the accessibility finding above.
 
 ## Catalog audit boundaries
 
@@ -67,8 +103,8 @@ Detailed family/configuration/event/value review remains explicitly pending.
 Known review topics include GPUIX's previously omitted onVisibleRange/onHighlight,
 ellipsis-start and extra cursor variants, pointer/wheel defaults, selection scope,
 standalone clipboard/automation surfaces and nested editor/document plugin APIs.
-Gallery families still missing include managed collections/documents, graphics/
-motion/assets, remaining presentation/navigation and desktop
+Gallery families still missing include graphics/motion/assets, native extensions,
+responsive container rules and remaining desktop
 services. OCH-41 remains In Progress; OCH-17's macOS release audit follows it.
 
 Linux build/unit/private-bus/consumer checks remain required. This checkpoint

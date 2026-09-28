@@ -301,7 +301,7 @@ let editors window palette graph =
     ]
 ;;
 
-let component window ~page ~palette graph =
+let component ~app window ~page ~palette graph =
   let open B.Let_syntax in
   match%sub page with
   | Page.Presentation -> presentation palette graph
@@ -312,4 +312,8 @@ let component window ~page ~palette graph =
   | Overlays -> Overlays_page.component palette graph
   | Navigation -> Navigation_page.component window palette graph
   | Feedback -> Feedback_page.component window palette graph
+  | Journeys -> Journeys_page.component window palette graph
+  | Collections -> Collections_page.component palette graph
+  | Documents -> Documents_page.component app window palette graph
+  | Runtime -> Runtime_page.component app window palette graph
 ;;

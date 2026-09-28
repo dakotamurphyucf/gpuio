@@ -257,18 +257,9 @@ def exercise_feedback(mac, images):
     mac.press(TITLE, 'Advance preview')
     mac.wait_text(TITLE, 'Finding the right pieces')
     activate(mac, mac.wait_find(TITLE, 'Enable preview command', 'AXCheckBox'))
-    disabled = mac.wait_find(TITLE, 'Advance preview', 'AXButton')
-    value = mac.attr(disabled, 'AXEnabled')
-    get = mac.cf.CFBooleanGetValue
-    get.restype, get.argtypes = C.c_bool, [C.c_void_p]
-    try:
-        if not value or get(value):
-            raise RuntimeError('Disabled command still exposed as enabled')
-    finally:
-        if value:
-            mac.release(value)
-        mac.release(disabled)
+    expect_enabled(mac, 'Advance preview', False)
     activate(mac, mac.wait_find(TITLE, 'Enable preview command', 'AXCheckBox'))
+    expect_enabled(mac, 'Advance preview', True)
     draft = mac.wait_find(TITLE, 'Command preview draft', 'AXTextField')
     try:
         mac.set(mac.app, 'AXFrontmost', mac.true)
@@ -314,10 +305,222 @@ def exercise_feedback(mac, images):
     mac.wait_text(TITLE, 'No pending notification')
 
 
+def expect_enabled(mac, label, expected):
+    get = mac.cf.CFBooleanGetValue
+    get.restype, get.argtypes = C.c_bool, [C.c_void_p]
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        node = mac.wait_find(TITLE, label, 'AXButton')
+        value = mac.attr(node, 'AXEnabled')
+        try:
+            if value and bool(get(value)) == expected:
+                return
+        finally:
+            if value:
+                mac.release(value)
+            mac.release(node)
+        time.sleep(.03)
+    raise RuntimeError(f'{label} did not publish enabled={expected}')
+
+
+def absent(mac, label, role):
+    node = mac.find(TITLE, label, role)
+    if node:
+        mac.release(node)
+        raise RuntimeError(f'Hidden content is still accessible: {label}')
+
+
+def type_a(mac, label):
+    window = mac.window(TITLE)
+    try:
+        mac.set(mac.app, 'AXFrontmost', mac.true)
+        mac.perform(window, 'AXRaise')
+    finally:
+        mac.release(window)
+    field = mac.wait_find(TITLE, label, 'AXTextField')
+    try:
+        mac.set(field, 'AXFocused', mac.true)
+        expect_focus(mac, label, 'AXTextField')
+        mac.key(0, 1 << 20)
+        mac.key(0)
+    finally:
+        mac.release(field)
+    expect_field(mac, TITLE, label, 'a')
+
+
+def exercise_journeys(mac, images):
+    mac.press(TITLE, 'Carousels & journeys')
+    mac.wait_text(TITLE, 'Current idea: Imagine')
+    type_a(mac, 'Carousel idea')
+    mac.press(TITLE, 'Next')
+    mac.wait_text(TITLE, 'Current idea: Shape')
+    absent(mac, 'Carousel idea', 'AXTextField')
+    mac.press(TITLE, 'Previous')
+    mac.wait_text(TITLE, 'Current idea: Imagine')
+    expect_field(mac, TITLE, 'Carousel idea', 'a')
+    mac.press(TITLE, 'Use vertical slides')
+    mac.press(TITLE, 'Next')
+    mac.wait_text(TITLE, 'Current idea: Shape')
+    mac.press(TITLE, 'Previous')
+    mac.wait_text(TITLE, 'Current idea: Imagine')
+    expect_field(mac, TITLE, 'Carousel idea', 'a')
+    mac.press(TITLE, 'Use horizontal slides')
+    type_a(mac, 'Journey note')
+    mac.press(TITLE, 'Continue journey')
+    mac.wait_text(TITLE, 'Current journey: Shape')
+    absent(mac, 'Journey note', 'AXTextField')
+    mac.press(TITLE, 'Go back')
+    mac.wait_text(TITLE, 'Current journey: Imagine')
+    expect_field(mac, TITLE, 'Journey note', 'a')
+    activate(mac, mac.wait_find(TITLE, 'Observatory', 'AXLink'))
+    mac.wait_text(TITLE, 'Destination: Observatory')
+    mac.press(TITLE, 'Collapse sidebar')
+    mac.release(mac.wait_find(TITLE, 'Expand sidebar', 'AXButton'))
+    absent(mac, 'Observatory', 'AXLink')
+    mac.press(TITLE, 'Expand sidebar')
+    mac.release(mac.wait_find(TITLE, 'Observatory', 'AXLink'))
+    mac.press(TITLE, 'Use offcanvas sidebar')
+    mac.press(TITLE, 'Collapse sidebar')
+    mac.release(mac.wait_find(TITLE, 'Expand sidebar', 'AXButton'))
+    absent(mac, 'Projects', 'AXLink')
+    mac.press(TITLE, 'Expand sidebar')
+    mac.release(mac.wait_find(TITLE, 'Observatory', 'AXLink'))
+    mac.wait_text(TITLE, 'Destination: Observatory')
+    if images:
+        screenshot(mac, images / 'gallery-journeys.png', title=TITLE)
+    activate(mac, mac.wait_find(TITLE, 'Auto-advance slides', 'AXCheckBox'))
+    mac.press(TITLE, 'Presentation')
+    mac.wait_text(TITLE, 'A little context goes a long way')
+    absent(mac, 'Carousel idea', 'AXTextField')
+    absent(mac, 'Journey note', 'AXTextField')
+
+
+def tree_counts(mac, root):
+    roles = {}
+    def visit(node):
+        values, children = mac.node_values(node)
+        roles[values[0]] = roles.get(values[0], 0) + 1
+        try:
+            for child in children:
+                visit(child)
+        finally:
+            for child in children:
+                mac.release(child)
+    try:
+        visit(root)
+    finally:
+        mac.release(root)
+    return roles
+
+
+def exercise_collections(mac, images):
+    mac.press(TITLE, 'Lists, trees & tables')
+    mac.wait_text(TITLE, 'Entry 0000')
+    mac.press(TITLE, 'Last entry')
+    mac.wait_text(TITLE, 'Entry 0999')
+    mac.press(TITLE, 'Grow first entry')
+    mac.wait_text(TITLE, 'Extra lines: 1 / 8')
+    mac.wait_text(TITLE, 'Entry 0999')
+    mac.press(TITLE, 'First entry')
+    mac.wait_text(TITLE, 'Another useful detail.')
+    mac.press(TITLE, 'Outline tree')
+    mac.release(mac.wait_find(TITLE, 'Field notes', 'AXRow', search_files=True))
+    mac.press(TITLE, 'Reveal observatory')
+    activate(mac, mac.wait_find(TITLE, 'Observatory study', 'AXRow', search_files=True))
+    mac.wait_text(TITLE, 'Selected outline: observatory')
+    counts = tree_counts(mac, mac.wait_find(TITLE, 'Preview outline', 'AXOutline'))
+    if not 1 <= counts.get('AXRow', 0) <= 16:
+        raise RuntimeError(f'Outline escaped its row budget: {counts}')
+    mac.press(TITLE, 'Result table')
+    mac.release(mac.wait_find(TITLE, '0000', 'AXCell', search_files=True))
+    mac.press(TITLE, 'Select last result')
+    mac.wait_text(TITLE, 'Table selection: Cell 999 / detail')
+    mac.release(mac.wait_find(TITLE, 'Finding 0999 · 日本語 · 👨‍👩‍👧‍👦', 'AXCell', search_files=True))
+    counts = tree_counts(mac, mac.wait_find(TITLE, 'Preview results', 'AXTable'))
+    if not (1 <= counts.get('AXRow', 0) <= 25 and 3 <= counts.get('AXCell', 0) <= 75):
+        raise RuntimeError(f'Table escaped its row/cell budget: {counts}')
+    if images:
+        screenshot(mac, images / 'gallery-collections.png', title=TITLE)
+    mac.press(TITLE, 'First result')
+    mac.release(mac.wait_find(TITLE, '0000', 'AXCell', search_files=True))
+    mac.press(TITLE, 'Outline tree')
+    mac.wait_text(TITLE, 'Selected outline: observatory')
+    mac.press(TITLE, 'Message list')
+    mac.wait_text(TITLE, 'Another useful detail.')
+    mac.press(TITLE, 'Presentation')
+    mac.wait_text(TITLE, 'A little context goes a long way')
+    absent(mac, 'Preview results', 'AXTable')
+    absent(mac, 'Preview outline', 'AXOutline')
+
+
+def exercise_documents(mac, images):
+    mac.press(TITLE, 'Markdown & code')
+    mac.wait_text(TITLE, 'Markdown preview')
+    mac.press(TITLE, 'Append a finding')
+    mac.wait_text(TITLE, 'Appended findings: 1 / 6')
+    mac.release(mac.wait_find(TITLE, 'Copy code', 'AXButton'))
+    mac.press(TITLE, 'Code')
+    mac.wait_text(TITLE, 'Code preview')
+    mac.release(mac.wait_find(TITLE, 'Copy source', 'AXButton'))
+    activate(mac, mac.wait_find(TITLE, 'Highlight let', 'AXCheckBox'))
+    mac.press(TITLE, 'Diff')
+    mac.wait_text(TITLE, 'Diff preview')
+    mac.press(TITLE, 'Collapse')
+    mac.release(mac.wait_find(TITLE, 'Expand', 'AXButton'))
+    mac.press(TITLE, 'Expand')
+    mac.release(mac.wait_find(TITLE, 'Collapse', 'AXButton'))
+    mac.press(TITLE, 'Markdown')
+    mac.release(mac.wait_find(TITLE, 'Copy code', 'AXButton'))
+    if images:
+        screenshot(mac, images / 'gallery-documents.png', title=TITLE)
+    mac.press(TITLE, 'Reset document')
+    mac.wait_text(TITLE, 'Document reset')
+    wait_absent(mac, 'Copy code', 'AXButton')
+    for _ in range(3):
+        mac.press(TITLE, 'Presentation')
+        mac.wait_text(TITLE, 'A little context goes a long way')
+        absent(mac, 'Markdown preview', 'AXGroup')
+        mac.press(TITLE, 'Markdown & code')
+        mac.wait_text(TITLE, 'Markdown preview')
+        wait_absent(mac, 'Copy code', 'AXButton')
+        mac.press(TITLE, 'Append a finding')
+        mac.wait_text(TITLE, 'Appended findings: 1 / 6')
+        mac.release(mac.wait_find(TITLE, 'Copy code', 'AXButton'))
+    mac.press(TITLE, 'Presentation')
+    mac.wait_text(TITLE, 'A little context goes a long way')
+
+
+def wait_absent(mac, label, role):
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        node = mac.find(TITLE, label, role)
+        if not node:
+            return
+        mac.release(node)
+        time.sleep(.03)
+    raise RuntimeError(f'Removed content is still accessible: {label}')
+
+
+def exercise_runtime(mac, images):
+    mac.press(TITLE, 'Runtime & windows')
+    mac.press(TITLE, 'Refresh resource counts')
+    mac.wait_text(TITLE, 'Windows: 1')
+    mac.wait_text(TITLE, 'Documents: 0')
+    mac.wait_text(TITLE, 'Registered source bytes: 0')
+    mac.press(TITLE, 'Observe this window')
+    mac.wait_text(TITLE, 'Observed content:')
+    if images:
+        screenshot(mac, images / 'gallery-runtime.png', title=TITLE)
+    mac.press(TITLE, 'Choose a file')
+    mac.release(mac.wait_find(TITLE, 'Cancel', 'AXButton'))
+    mac.press(TITLE, 'Cancel')
+    mac.wait_text(TITLE, 'File selection cancelled')
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--images', type=Path)
-    parser.add_argument('--section', choices=['all', 'core', 'pickers', 'overlays', 'navigation', 'feedback'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -338,6 +541,14 @@ def main():
                 exercise_navigation(mac, args.images)
             if args.section in ('all', 'feedback'):
                 exercise_feedback(mac, args.images)
+            if args.section in ('all', 'journeys'):
+                exercise_journeys(mac, args.images)
+            if args.section in ('all', 'collections'):
+                exercise_collections(mac, args.images)
+            if args.section in ('all', 'documents'):
+                exercise_documents(mac, args.images)
+            if args.section in ('all', 'runtime'):
+                exercise_runtime(mac, args.images)
             mac.close(TITLE)
             if child.wait(timeout=15) != 0:
                 raise RuntimeError('Gallery exited unsuccessfully')

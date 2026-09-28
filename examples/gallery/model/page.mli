@@ -11,6 +11,10 @@ type t =
   | Overlays
   | Navigation
   | Feedback
+  | Journeys
+  | Collections
+  | Documents
+  | Runtime
 [@@deriving equal, compare, sexp_of]
 
 val all : t list
