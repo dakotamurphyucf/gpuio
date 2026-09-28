@@ -5,6 +5,22 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
 passed on `473407c`; all twelve tickets are Done.
 
+Milestone 07 is in progress. OCH-41's public
+[Component Studio](../examples/gallery/README.md) now has twelve preview sections;
+the combined local macOS AX/keyboard sequence, native document regression,
+gallery expect tests, formatting, catalog structural audit and strict native
+Clippy pass at implementation checkpoint `7aa65f3`. The
+[gallery evidence](evidence/gallery-och41.md) records exact boundaries. Remaining
+gallery families, detailed behavioral parity, installed-consumer and release
+gates are still pending. The audit found rendered Markdown body text absent from
+macOS accessibility; this remains an OCH-17 release finding. No full document
+screen-reader or Linux desktop acceptance is claimed.
+
+The macOS-first/Linux-deferral policy [PR #15](https://github.com/dakotamurphyucf/gpuio/pull/15)
+merged at `af7f6f0c0f9db1c64a8591d9e9a078aa73eacdec` after both required jobs in
+[CI run 36453260976](https://github.com/dakotamurphyucf/gpuio/actions/runs/36453260976)
+passed. These are the policy PR's checks, not hosted acceptance of the new gallery.
+
 Milestone 6's [PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14) merged at
 `bdbae672c97b046fca5d7e0a0f5bb779e24cfd01` after
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36432631460)
