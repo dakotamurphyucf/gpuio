@@ -144,7 +144,7 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-canvas-tests", "--test", "native_chart_view"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-chart-view.log
-          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/charts/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-chart-public.log
+          python3 -c 'import subprocess; subprocess.run(["_build/default/examples/charts/main.exe", "--self-test", "--foreground"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-chart-public.log
       - name: macOS canvas rendering, input and accessibility checks
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-canvas-tests", "--test", "native_canvas", "--test", "native_canvas_view", "--test", "native_canvas_input"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-canvas-native.log

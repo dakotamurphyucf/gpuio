@@ -82,6 +82,7 @@ impl Request {
             && self.config.options == other.config.options
             && self.config.sampling == other.config.sampling
             && self.config.style == other.config.style
+            && self.config.legend == other.config.legend
             && self.layout == other.layout
     }
 }
@@ -384,6 +385,7 @@ mod tests {
             config: Arc::new(Config {
                 source: Some(id),
                 label: "Chart".into(),
+                legend: true,
                 options: Default::default(),
                 sampling: Default::default(),
                 style: Default::default(),

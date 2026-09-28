@@ -73,6 +73,9 @@ pub struct Layout {
     scale: f64,
 }
 impl Layout {
+    pub(crate) fn dimensions(self) -> (f64, f64, f64) {
+        (self.width, self.height, self.scale)
+    }
     pub fn new(width: f64, height: f64, scale: f64) -> Result<Self, Error> {
         if width.is_finite()
             && height.is_finite()

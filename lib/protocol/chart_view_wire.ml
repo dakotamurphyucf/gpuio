@@ -7,6 +7,7 @@ module Config = struct
     ; options : Chart_options_wire.t
     ; sampling : Chart_sampling_wire.t
     ; style : Chart_style_wire.t
+    ; legend : bool
     }
   [@@deriving bin_io, equal, sexp_of]
 

@@ -20,7 +20,14 @@ fn config(source: ResourceId, color: i64) -> Config {
     Config {
         source: Some(source),
         label: "Allocation".into(),
-        options: Default::default(),
+        legend: false,
+        options: gpuio_protocol::chart_options::Options {
+            pie: gpuio_protocol::chart_options::Pie {
+                labels: false,
+                ..gpuio_protocol::chart_options::Options::default().pie
+            },
+            ..Default::default()
+        },
         sampling: Default::default(),
         style,
     }
@@ -42,8 +49,17 @@ fn immediate(session: &SharedSession, request: Request) -> Response {
     }
 }
 fn stage(session: &SharedSession, source: ResourceId, base: i64, generation: i64, value: f64) {
+    stage_data(session, source, base, generation, &data(value));
+}
+fn stage_data(
+    session: &SharedSession,
+    source: ResourceId,
+    base: i64,
+    generation: i64,
+    data: &Data,
+) {
     let mut bytes = vec![];
-    data(value).binprot_write(&mut bytes).unwrap();
+    data.binprot_write(&mut bytes).unwrap();
     assert_eq!(
         immediate(
             session,
@@ -292,6 +308,45 @@ async fn exercise(
         )],
     );
     ready(cx, handle, 1, 0x00ff00ff).await;
+    // Dense native legend has bounded visible height, real scroll extent and
+    // stable scroll position across ordinary updates; reset clears that state.
+    let dense = Data {
+        version: 1,
+        contents: Contents::Pie(
+            (1..=256)
+                .map(|id| Slice {
+                    id,
+                    label: format!("Slice {id}: {}", "long name ".repeat(20)),
+                    value: 1.,
+                })
+                .collect(),
+        ),
+    };
+    let mut dense_config = config(next, 0x00ff00ff);
+    dense_config.legend = true;
+    apply(cx, handle, vec![Op::SetChart(id(1), dense_config)]);
+    for (base, generation) in [(1, 1), (2, 1), (3, 2)] {
+        stage_data(&session, next, base, generation, &dense);
+        cx.update(|cx| dispatch(cx, &transport, 30 + base, Request::Publish(next, base + 1)));
+        ready(cx, handle, base + 1, 0x00ff00ff).await;
+        draw(cx, handle);
+        handle
+            .update(cx, |view, _, _| {
+                let state = view.charts[&id(1)].borrow();
+                let frame = state.ready_frame.unwrap();
+                assert!(frame.legend.height <= 72.);
+                assert!(state.legend_scroll.max_offset().y > px(1000.));
+                if base == 2 {
+                    assert_eq!(state.legend_scroll.offset().y, px(-100.));
+                } else {
+                    assert_eq!(state.legend_scroll.offset().y, px(0.));
+                }
+                state
+                    .legend_scroll
+                    .set_offset(gpui::point(px(0.), px(-100.)));
+            })
+            .unwrap();
+    }
     apply(
         cx,
         handle,
@@ -302,7 +357,7 @@ async fn exercise(
         .unwrap();
     cx.update(|cx| dispatch(cx, &transport, 23, Request::Release(next)));
     eprintln!(
-        "GPUIO_NATIVE_CHART_VIEW_OK: production tree GPU paint, style, async publish, reset, idle release, source replacement, hidden/unmount cleanup"
+        "GPUIO_NATIVE_CHART_VIEW_OK: production tree GPU paint, style, async publish, reset, idle release, source replacement, hidden/unmount cleanup, dense legend scroll/update/reset"
     );
 }
 pub(crate) fn run() {

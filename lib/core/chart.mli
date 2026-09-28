@@ -52,12 +52,16 @@ module Config : sig
       picture until its replacement is prepared. A reset or source change clears
       that picture. Wrong-application handles never cross as unchecked IDs.
 
+      [legend] defaults to true. Dense legends scroll within the chart; labels
+      may ellipsize visually while retaining their full accessible text.
+
       Label is nonblank, valid UTF-8, at most 1024 bytes, without NUL/CR/LF.
       Large/complex geometry can report [Render_limit]; no implicit policy change
       or gap removal is performed to force it to fit. *)
   val create
     :  data:Chart_resource.t
     -> ?label:string
+    -> ?legend:bool
     -> ?options:Chart_options.t
     -> ?sampling:Chart_sampling.t
     -> ?style:Chart_style.t

@@ -9,6 +9,7 @@ impl Decoder<'_> {
             options: self.chart_options()?,
             sampling: self.chart_sampling()?,
             style: self.chart_style()?,
+            legend: self.boolean()?,
         };
         if value.is_valid() {
             Ok(value)

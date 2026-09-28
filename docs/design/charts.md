@@ -8,8 +8,8 @@ and retained logical-pixel geometry now cover all seven families. The prepared
 painter passes local hidden-window GPU readback for every family. The resource-backed
 Core/Bonsai view now mounts the painter through bounded native workers. A public
 seven-family Chart Studio and hidden production-view lifecycle test pass locally.
-Native labels/legends/tooltips, chart interactions, data alternatives and streaming
-measurements remain. This document separates implemented contracts from
+Native labels and scrollable legends are implemented. Tooltips, chart interactions,
+data alternatives and streaming measurements remain. This document separates implemented contracts from
 the remaining implementation work.
 
 ## Data contract
@@ -238,8 +238,7 @@ Sankey extraction do not replace that scope:
 - Extend mounted acceptance to multiple-window readers, managed-list caching,
   streaming updates and interaction retirement.
   Do not put large datasets in each reconciled view node.
-- Connect implemented axes/formatting/labels/styles to mounted presentation;
-  implement legends and tooltips, including non-color distinctions. Shared Cartesian layers provide
+- Complete tooltips and non-color distinctions in the plot. Shared Cartesian layers provide
   useful custom combinations. Preserve the pinned families' applicable styling
   and plotting options while keeping the public API typed.
 - Connect prepared native geometry to semantic selection and validate the
@@ -474,7 +473,42 @@ GPU acceptance covers a normal mounted tree. Multiple windows, cached-list
 streaming/frame budgets, selection/input and measured workloads remain to verify.
 
 [`examples/charts`](../../examples/charts/README.md) uses only public Core/Bonsai/Eio
-APIs and visits every family in its self-test. Native chart text/legend/tooltip
-presentation and complete keyboard/data alternatives remain pending; a chart's
+APIs and visits every family in its self-test. Native tooltips and complete
+keyboard/data alternatives remain pending; a chart's
 current group description is not a replacement for a data alternative. There is
 still no completed chart-rendering capability advertisement.
+
+
+## Native labels and legends
+
+`Chart.Config.create ?legend` defaults to `true`. Axis formatting comes from the
+validated native options; family labels and legend names come from the exact
+immutable snapshot that produced the displayed plan. GPUI text elements own font
+shaping, clipping and accessibility. There are no synchronous OCaml text/layout
+callbacks or additional application font caches.
+
+Numeric plots reserve stable left/bottom gutters, swapping their roles for
+horizontal Cartesian axes. Domain-value length does not change plot margins while
+streaming. Radar labels have bounded surrounding gutters. Small views reduce
+these margins proportionally and clip/ellipsize text rather than creating negative
+plot dimensions. Very long labels retain full accessible names. Pie/flow labels have a neutral
+backing chosen from the resolved foreground to remain readable over series fills;
+terminal flow labels align inward from their nodes. Crowded labels
+are not yet an automatic collision-avoidance or data-navigation mechanism.
+
+A legend uses numbered names and palette swatches in columns of approximately
+180 logical pixels. At most three rows, also capped at 30% of chart height, are
+visible; the remaining entries use a native vertical scroll view. The source
+schema limits legends to 256 entries (32 for Cartesian/radar). Candlesticks use
+named hollow-rise/filled-fall entries. Ordinary updates preserve legend scroll;
+reset, source replacement, hidden state and unmount clear it. No new permanent
+timer is introduced. Hidden visual legends can be requested with `~legend:false`.
+
+Preparation uses only the inner plot dimensions. The installed plan, snapshot,
+style and text frame move together; normal pending updates retain all four, and
+reset/retirement clears them together. Worker results are installed before the
+native element tree is rebuilt, so labels and plot cannot represent different
+publications in the same frame. Text/legend payload bounds are separate from the
+prepared-mesh byte/vertex measurements; those metrics are not total GPUI memory.
+A legend and axis labels are not a substitute for the upcoming complete keyboard
+and data-table alternatives or non-color series identification in the plot.

@@ -4,6 +4,7 @@ fn config() -> Config {
     Config {
         source: Some(ResourceId::from_parts(7, 2).unwrap()),
         label: "Chart 🦀".into(),
+        legend: true,
         options: Default::default(),
         sampling: Default::default(),
         style: gpuio_protocol::chart_style::Style {
@@ -39,6 +40,18 @@ fn bounded_chart_view_and_transaction_match_independent_fixture() {
     for end in 0..bytes.len() {
         assert!(decode_chart_view_config(&bytes[..end]).is_err());
     }
+    let mut hidden_legend = config.clone();
+    hidden_legend.legend = false;
+    assert_eq!(
+        decode_chart_view_config(&encode(&hidden_legend)),
+        Ok(hidden_legend)
+    );
+    let mut malformed_legend = bytes.clone();
+    *malformed_legend.last_mut().unwrap() = 2;
+    assert_eq!(
+        decode_chart_view_config(&malformed_legend),
+        Err(DecodeError::Malformed)
+    );
     let mut trailing = bytes;
     trailing.push(0);
     assert_eq!(

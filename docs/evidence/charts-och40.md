@@ -161,11 +161,67 @@ self-test with bounded execution. Hosted execution and Linux GUI acceptance are
 not claimed. Native metrics and source snapshots are separately accounted;
 workspace allowance is not measured RSS or a hard bound on Lyon allocations.
 
+## Native labels and legend acceptance
+
+Local macOS 14.5 arm64 / Apple M1 Max, isolated repository toolchain, two jobs.
+The mounted chart now has native axis/family text and numbered palette legends.
+The text frame, geometry, config and immutable source publication move together.
+Numeric gutters remain stable as values change; horizontal axes swap margins.
+Long text clips/ellipsizes with a full accessible name. Pie/flow text has a neutral
+contrasting backing, and terminal flow labels align inward beside their nodes.
+
+`Chart.Config.create ~legend:false` hides the visual legend. Its default `true`
+is appended to the unreleased paired chart configuration fixture; Rust rejects
+invalid/truncated Boolean encodings and OCaml verifies default/false behavior.
+The legend has at most three visible rows and a 30%-of-height cap. Native GPUI
+layout for 256 long names produces a real scroll extent, preserves its offset
+through an ordinary publication, and clears it after a reset. Existing pixel,
+restyle, release, source-reuse, hide/show and unmount checks remain passing.
+Final native counters: 10 preparations, one peak worker, zero retained plan and
+workspace charges. These are charge counters, not a process RSS measurement.
+
+Checks passed:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-protocol --test chart_view --locked -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native --lib chart_ --locked -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy -p gpuio-native \
+  --features native-canvas-tests --locked --all-targets -j2 -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native \
+  --features native-canvas-tests --test native_chart_view --locked -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/charts/main.exe @test/chart/runtest @fmt
+./_build/default/examples/charts/main.exe --self-test --foreground
+python3 scripts/test_charts.py --foreground
+```
+
+The final chart unit run passes 44 tests; both protocol chart-view tests pass.
+The full Dune `@all @runtest @fmt` also passed before the final native label
+contrast/scroll refinements; the final targeted rebuild/tests/format and strict
+Clippy pass after those changes. Public self-test visits all seven families,
+checks preparation generations, requests a frame callback and releases its
+registration. The macOS AX script checks numeric endpoint ticks, family labels
+and legend names, invokes the update button, captures every family and closes
+its child through the OS close button. Screenshots were inspected, including the
+contrast/position fixes. The update button smoke is not a revision acknowledgment;
+the separate native test verifies actual publication and scroll retention.
+
+An initial background self-test timed out before reporting preparation. Its
+sample showed an idle AppKit loop, not an active preparation worker. Explicit
+foreground runs passed. The example and AX script now accept `--foreground`;
+the required CI self-test uses it so occluded background windows do not make
+frame-dependent acceptance unreliable. This does not change normal application
+focus policy. Every owned GUI child was closed/reaped.
+
+These are native text and application-control checks. They do not establish
+chart keyboard navigation, semantic selection, dense-legend wheel gestures,
+a complete data alternative, collision-free dense labeling, hosted CI or Linux
+GUI acceptance. No new chart capability is advertised yet.
+
 ## Completion still required
 
 Extend resource/lifecycle acceptance to multiple windows, managed-list caching
 and sustained streaming, including aggregate frame accounting for reused draw
-commands. Implement semantic selection/hover/drag, native labels/legends/tooltips,
+commands. Implement semantic selection/hover/drag and tooltips,
 keyboard/AX/data alternatives and malformed/empty/degenerate public examples.
 Complete the Chart Studio presentation, measure actual streaming CPU/frame/queue/
 retained-memory behavior on named hardware, and integrate a chart into OCH-29

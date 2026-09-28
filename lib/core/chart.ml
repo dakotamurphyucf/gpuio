@@ -48,6 +48,7 @@ module Config = struct
   let create
         ~data
         ?(label = "Chart")
+        ?(legend = true)
         ?(options = Chart_options.default)
         ?(sampling = Chart_sampling.default)
         ?(style = Chart_style.default)
@@ -59,6 +60,7 @@ module Config = struct
       ; options = Chart_options.Expert.to_wire options
       ; sampling = Chart_sampling.Expert.to_wire sampling
       ; style = Chart_style.Expert.to_wire style
+      ; legend
       }
     in
     if Wire.Config.valid wire

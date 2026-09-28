@@ -26,6 +26,7 @@ let text ?(size = 14.) ?(tint = 0x96a4bc) s =
 let () =
   let self_test = Array.exists (Sys.get_argv ()) ~f:(String.equal "--self-test") in
   let background = Array.exists (Sys.get_argv ()) ~f:(String.equal "--background") in
+  let foreground = Array.exists (Sys.get_argv ()) ~f:(String.equal "--foreground") in
   let completed = ref false in
   App.run (fun env app ->
     let family = B.Expert.Var.create 0 in
@@ -143,7 +144,7 @@ let () =
     let window =
       App.open_window
         app
-        ~focus:(not (self_test || background))
+        ~focus:(foreground || not (self_test || background))
         ~title:"GPUIO · Chart Studio"
         ~width:920.
         ~height:820.

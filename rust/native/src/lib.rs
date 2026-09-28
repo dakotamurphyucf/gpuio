@@ -17,6 +17,7 @@ pub mod chart_geometry;
 mod chart_host;
 pub mod chart_jobs;
 pub mod chart_paint;
+mod chart_presentation;
 pub mod chart_render_host;
 #[cfg(feature = "native-canvas-tests")]
 pub fn run_native_chart_paint_test() {

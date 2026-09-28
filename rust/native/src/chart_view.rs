@@ -1,7 +1,8 @@
 //! Mounted chart state; preparation and publication never invoke OCaml callbacks.
 use super::*;
 use crate::{
-    chart_jobs as jobs, chart_paint as paint, chart_render_host as renderer, chart_store::Lease,
+    chart_jobs as jobs, chart_paint as paint, chart_presentation as presentation,
+    chart_render_host as renderer, chart_store::Lease,
 };
 use gpuio_protocol::{
     HandlerId, ResourceId,
@@ -18,6 +19,9 @@ pub(super) struct State {
     job: Option<renderer::Handle>,
     requested: Option<jobs::Request>,
     ready: Option<jobs::Ready>,
+    requested_frame: Option<presentation::Frame>,
+    ready_frame: Option<presentation::Frame>,
+    legend_scroll: gpui::ScrollHandle,
     failure: Option<Error>,
     reported_ready: Option<(i64, i64)>,
     reported_failure: Option<(i64, i64, Error)>,
@@ -65,7 +69,10 @@ impl State {
     fn suspend(&mut self) {
         self.job = None;
         self.requested = None;
+        self.requested_frame = None;
         self.ready = None;
+        self.ready_frame = None;
+        self.legend_scroll.set_offset(Default::default());
         self.lease = None;
         self.failure = None;
         self.reported_ready = None;
@@ -107,6 +114,7 @@ impl State {
         if changed {
             self.job = None;
             self.requested = None;
+            self.requested_frame = None;
             self.failure = None;
             self.reported_failure = None;
         }
@@ -116,6 +124,8 @@ impl State {
                 .is_none_or(|new| new.generation() != old.snapshot.generation())
         }) {
             self.ready = None;
+            self.ready_frame = None;
+            self.legend_scroll.set_offset(Default::default());
             self.reported_ready = None;
         }
         if snapshot.is_none() {
@@ -123,7 +133,7 @@ impl State {
         }
         snapshot
     }
-    fn prepare(&mut self, layout: paint::Layout, window: &mut Window, cx: &mut App) {
+    fn prepare(&mut self, total: paint::Layout, window: &mut Window, cx: &mut App) {
         let Some(snapshot) = self.refresh_source() else {
             self.report(
                 0,
@@ -137,6 +147,10 @@ impl State {
             );
             return;
         };
+        let (width, height, scale) = total.dimensions();
+        let frame = presentation::Frame::new(width, height, snapshot.data(), &self.config);
+        let layout = paint::Layout::new(frame.plot.width, frame.plot.height, scale)
+            .expect("positive bounded chart plot");
         let request = jobs::Request {
             observer: None,
             snapshot: snapshot.clone(),
@@ -149,6 +163,8 @@ impl State {
                 || old.config.options != self.config.options
                 || old.config.sampling != self.config.sampling
                 || old.config.style != self.config.style
+                || old.config.legend != self.config.legend
+                || self.requested_frame != Some(frame)
         });
         if changed {
             self.reported_failure = None;
@@ -160,17 +176,9 @@ impl State {
                 }
             };
             self.requested = Some(request);
+            self.requested_frame = Some(frame);
             if let Err(error) = result {
                 self.failure = Some(job_error(error));
-            }
-        }
-        if let Some(result) = self.job.as_ref().and_then(renderer::Handle::take_ready) {
-            match result {
-                Ok(ready) => {
-                    self.ready = Some(ready);
-                    self.reported_ready = None;
-                }
-                Err(error) => self.failure = Some(job_error(error)),
             }
         }
         if let Some(error) = self.failure {
@@ -190,6 +198,124 @@ impl State {
                 self.emit(stamp.0, stamp.1, Observation::Ready(metrics), cx);
             }
         }
+    }
+    fn poll_ready(&mut self) {
+        if let Some(result) = self.job.as_ref().and_then(renderer::Handle::take_ready) {
+            match result {
+                Ok(ready) => {
+                    self.ready = Some(ready);
+                    self.ready_frame = self.requested_frame;
+                    self.reported_ready = None;
+                }
+                Err(error) => self.failure = Some(job_error(error)),
+            }
+        }
+    }
+    fn text_element(&self, identity: u64) -> Option<gpui::AnyElement> {
+        let ready = self.ready.as_ref()?;
+        let frame = self.ready_frame?;
+        let style = &ready.config.style;
+        let mut text = div()
+            .absolute()
+            .top_0()
+            .left_0()
+            .w(px(frame.width as f32))
+            .h(px(frame.height as f32))
+            .text_size(px(11.))
+            .line_height(px(presentation::TEXT_HEIGHT as f32))
+            .text_color(gpui::rgba(style.label_color as u32));
+        for (index, label) in ready.plan.geometry().labels.iter().enumerate() {
+            let placement = frame.label(label);
+            let r = placement.rect;
+            let backed = matches!(label.kind, crate::chart_geometry::LabelKind::Flow)
+                || (matches!(label.kind, crate::chart_geometry::LabelKind::Radial)
+                    && matches!(
+                        ready.snapshot.data().contents,
+                        gpuio_protocol::chart_data::Contents::Pie(_)
+                    ));
+            let mut content = div().min_w_0().text_ellipsis().child(label.text.clone());
+            if backed {
+                content = content
+                    .px_1()
+                    .rounded_sm()
+                    .bg(gpui::rgba(presentation::label_backing(
+                        style.label_color as u32,
+                    )));
+            }
+            let element = div()
+                .id(("gpuio-chart-label", index as u64))
+                .role(gpui::Role::Label)
+                .absolute()
+                .left(px(r.x as f32))
+                .top(px(r.y as f32))
+                .w(px(r.width as f32))
+                .h(px(r.height as f32))
+                .overflow_hidden()
+                .text_ellipsis()
+                .aria_label(label.text.clone())
+                .flex()
+                .child(content);
+            let element = match placement.align {
+                presentation::Align::Left => element.justify_start(),
+                presentation::Align::Right => element.justify_end(),
+                presentation::Align::Center => element.justify_center(),
+            };
+            text = text.child(element);
+        }
+        if frame.legend.height > 0. {
+            let names = presentation::legend(ready.snapshot.data());
+            let width = frame.width / frame.legend_columns as f64;
+            let mut legend = div()
+                .id(("gpuio-chart-legend", identity))
+                .absolute()
+                .left_0()
+                .top(px(frame.legend.y as f32))
+                .w(px(frame.width as f32))
+                .h(px(frame.legend.height as f32))
+                .overflow_y_scroll()
+                .track_scroll(&self.legend_scroll)
+                .role(gpui::Role::Group)
+                .aria_label("Chart legend");
+            for (row_number, row) in names.chunks(frame.legend_columns).enumerate() {
+                let row_index = row_number * frame.legend_columns;
+                let mut items = div()
+                    .flex()
+                    .h(px(presentation::LEGEND_ROW as f32))
+                    .flex_shrink_0();
+                for (column, name) in row.iter().enumerate() {
+                    let index = row_index + column;
+                    items = items.child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .w(px(width as f32))
+                            .h_full()
+                            .px_1()
+                            .overflow_hidden()
+                            .child(
+                                div()
+                                    .size(px(8.))
+                                    .flex_shrink_0()
+                                    .rounded_sm()
+                                    .bg(gpui::rgba(style.color(index))),
+                            )
+                            .child(
+                                div()
+                                    .id(("gpuio-chart-legend-name", index as u64))
+                                    .role(gpui::Role::Label)
+                                    .min_w_0()
+                                    .text_ellipsis()
+                                    .aria_label((*name).to_owned())
+                                    .child(format!("{} · {}", index + 1, name)),
+                            ),
+                    );
+                }
+                legend = legend.child(items);
+            }
+            text = text.child(legend);
+        }
+        Some(text.into_any_element())
     }
     fn paint(
         &mut self,
@@ -213,11 +339,11 @@ impl State {
             }
         };
         self.prepare(layout, window, cx);
-        if let Some(ready) = &self.ready {
+        if let (Some(ready), Some(frame)) = (&self.ready, self.ready_frame) {
             // During resize retain the old picture at its original logical size;
             // the enclosing element clips it while replacement work is pending.
             let prepared_bounds = Bounds::new(
-                bounds.origin,
+                bounds.origin + gpui::point(px(frame.plot.x as f32), px(frame.plot.y as f32)),
                 gpui::size(
                     px(ready.plan.geometry().width as f32),
                     px(ready.plan.geometry().height as f32),
@@ -284,6 +410,9 @@ impl View {
                         job: None,
                         requested: None,
                         ready: None,
+                        requested_frame: None,
+                        ready_frame: None,
+                        legend_scroll: Default::default(),
                         failure: None,
                         reported_ready: None,
                         reported_failure: None,
@@ -318,6 +447,7 @@ impl View {
             let mut state = state.borrow_mut();
             if source.is_none() || state.config.source == source {
                 state.refresh_source();
+                state.poll_ready();
                 self.invalidate_resource_row(*id);
                 changed = true;
             }
@@ -343,6 +473,7 @@ impl View {
         let Some(state) = self.charts.get(&node.id).cloned() else {
             return element.into_any_element();
         };
+        let text = state.borrow().text_element(identity);
         let budget = self.chart_budget.clone();
         element
             .relative()
@@ -368,6 +499,7 @@ impl View {
                 .left_0()
                 .size_full(),
             )
+            .children(text)
             .into_any_element()
     }
 }

@@ -26,7 +26,7 @@ points, independent binary fixtures and exhaustive small-graph cycle checks. A p
 unchanged GPUI revision. The bounded native resource store and scoped Eio scheduler
 now pass publication/cancellation/retention tests and a connected windowless macOS
 application check with 100,000 points through the public Eio API. Native chart
-rendering/interaction is still pending. Explicit line/area envelopes, bar sum/mean
+interaction is still pending. Explicit line/area envelopes, bar sum/mean
 and candle OHLC policies now have paired types and a tested native reduction kernel
 that preserves gaps and aggregate source ranges. Validated native plotting options
 and retained logical geometry now cover all seven families, with passing local
@@ -35,7 +35,9 @@ painter now passes actual hidden-window GPU checks for every family, mixed layer
 gradients/corners, clipping and hollow/filled candles. The Core/Bonsai chart view
 bridge, scoped event fencing and native tree validation are implemented and locally
 tested. Resource-backed mounted views now pass hidden GPU lifecycle checks and
-the public seven-family Chart Studio self-test. Native labels/input/accessibility,
+the public seven-family Chart Studio self-test. Native axis/family labels and
+scrollable legends now render from the displayed snapshot; dense legend scroll
+persists across updates and clears on reset. Chart input/data accessibility,
 multiple-window/cached-list streaming acceptance and performance measurements remain. See
 [chart contracts and remaining work](design/charts.md).
 The detailed entries below record implementation checkpoints chronologically;
