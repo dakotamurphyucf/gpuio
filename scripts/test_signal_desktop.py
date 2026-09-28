@@ -127,6 +127,11 @@ def exercise(output):
             subprocess.run(['/usr/bin/open', '-g', '-a', str(bundle)], check=True, timeout=10)
             wait('window opened', 2)
             mac.wait_text(TITLE, 'Atlas · latency 769 ms · quality 89%')
+            # Reset retires the counter's native generation. Begin at a
+            # different value so the zero below proves that reset was rendered,
+            # rather than matching the old zero while its callbacks retire.
+            mac.press(TITLE, 'Increment counter, current value 0')
+            mac.wait_text(TITLE, 'Increment counter, current value 1')
             mac.press(TITLE, 'Reset workspace')
             mac.wait_text(TITLE, 'Increment counter, current value 0')
             mac.press(TITLE, 'Reveal file')

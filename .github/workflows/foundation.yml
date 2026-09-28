@@ -36,7 +36,7 @@ jobs:
         run: python3 scripts/test_signal_motion.py --output .cache/ci/signal-motion 2>&1 | tee .cache/ci/signal-motion.log
       - name: Signal workload
         if: ${{ !cancelled() }}
-        run: python3 scripts/measure_signal_studio.py --output .cache/ci/signal-workload 2>&1 | tee .cache/ci/signal-workload.log
+        run: GPUIO_COUNTER_TRACE=1 _build/default/examples/signal_studio/main.exe --workload --background 2>&1 | tee .cache/ci/signal-workload.log
       - name: Signal notifications before Lab
         if: ${{ !cancelled() }}
         run: python3 scripts/test_signal_notifications.py --output .cache/ci/signal-notifications 2>&1 | tee .cache/ci/signal-notifications.log
