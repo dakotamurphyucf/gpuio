@@ -1,12 +1,15 @@
 # Implementation status
 
-Current checkpoint: milestones 1–5 are merged. Milestone 5's
+Current checkpoint: milestones 1–6 are merged. Milestone 5's
 [PR #13](https://github.com/dakotamurphyucf/gpuio/pull/13) merged at `936fb7d` after
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
 passed on `473407c`; all twelve tickets are Done.
 
-Milestone 6 is implemented in [PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14),
-which records the required hosted results, exact checked revision and merge state.
+Milestone 6's [PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14) merged at
+`bdbae672c97b046fca5d7e0a0f5bb779e24cfd01` after
+[required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36432631460)
+passed on `a7a514aa6a8162142be5e6e384797d8c9bd58657`. Source, CI merge-ref and
+merged main have the same tree. All four M6 tickets are Done.
 The [Linear project](https://linear.app/ochat/project/gpuio-8bd4e30f319d) records
 ticket completion against those gates. Its four deliverables are:
 
@@ -31,8 +34,19 @@ unit tests and lint passed in the first
 That run found test setup/sampling failures; the evidence ledgers record their
 locally validated fixes. Use PR #14 for final hosted gate results, not that initial
 run or local passes alone. The [M6 delivery matrix](milestone-6.md) links
-current contracts, examples and evidence. Linux GUI/compositor validation remains
-OCH-17 and is not implied by compilation or private-bus fixtures.
+current contracts, examples and evidence. Linux GUI/compositor validation is not
+implied by compilation or private-bus fixtures.
+
+Owner decision, 2026-09-28: milestone 07 is now a macOS-first v1 release. OCH-41
+retains the full component gallery/catalog; OCH-17 retains macOS validation,
+performance/resource budgets, documentation and clean-machine distribution.
+Linux builds/unit/private-bus/consumer checks remain required and graphical
+smoke remains informational. Full Linux desktop qualification has moved to
+[OCH-47](https://linear.app/ochat/issue/OCH-47/qualify-linux-x11wayland-desktop-behavior-and-distribution-after-macos)
+in deferred milestone 07b; it does not block M7, M8 or ongoing feature work.
+Read the [platform release policy](platform-release-policy.md). No remote Linux
+machine or local VM is required now. Earlier references below assigning full
+Linux release acceptance to OCH-17 are superseded by this decision.
 
 The entries below preserve earlier implementation checkpoints. Their pending-work
 statements are historical; use the delivery record above for current status.

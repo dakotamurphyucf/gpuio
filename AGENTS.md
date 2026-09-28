@@ -5,11 +5,12 @@ Read `docs/status.md`, `CONTRIBUTING.md` and
 Follow the accepted stock OCaml 5.3/Bonsai v0.17/Core/Eio design. Use the repository
 toolchain and isolated environment; never mutate unrelated switches or defaults.
 
-Platform priority (owner, 2026-09-11): macOS native functionality is the current
-development gate. Linux builds/unit tests stay required; Linux graphical smoke
-is informational during implementation, with full GUI validation deferred to
-OCH-17. Do not block feature work on Linux GUI debugging or claim Linux GUI
-acceptance from compilation. No local Linux VM/container setup is required now.
+Platform priority (owner, 2026-09-28): milestone 07 is a macOS-first v1 release.
+Linux builds/unit/private-bus/consumer checks stay required; graphical smoke is
+informational. Full Linux desktop qualification is OCH-47 in deferred milestone
+07b and does not block milestone 07, milestone 08 or feature development. Do not
+claim Linux GUI acceptance from compilation. No local VM or remote machine is
+required now. See `docs/platform-release-policy.md` for the current scope split.
 
 Local desktop courtesy (owner, 2026-09-13, revised): prefer background windows
 where a test permits them, but local foreground GUI/focus/IME tests are explicitly

@@ -44,7 +44,7 @@ A separate milestone 08 holds editable data grids/tree editing, full docking, a 
 
 ## Validation
 
-For each family: meaningful OCaml expect tests, paired codecs where wire schema changes, native interaction and stale-resource tests, bounded full traversal/update/teardown workloads, example documentation and theme/scale checks. macOS is the current native functional gate; Linux builds/unit tests are required during implementation. Record X11 and Wayland GUI/IME/accessibility coverage separately; OCH-17 remains the v1 Linux functional release gate. Post-v1 packages need their own equivalent platform evidence. Compilation and upstream mock tests are not OS behavior acceptance.
+For each family: meaningful OCaml expect tests, paired codecs where wire schema changes, native interaction and stale-resource tests, bounded full traversal/update/teardown workloads, example documentation and theme/scale checks. macOS is the native functional and milestone 07 release gate; Linux builds/unit/private-bus/consumer checks remain required. Record X11 and Wayland GUI/IME/accessibility coverage separately; full Linux desktop qualification is deferred to OCH-47 in milestone 07b and does not block OCH-41 or OCH-17. Post-v1 packages need their own equivalent platform evidence. Compilation and upstream mock tests are not OS behavior acceptance. See the [platform release policy](../platform-release-policy.md), updated by the owner on 2026-09-28.
 
 The new release catalog audit must cover the pinned public family exports, including families whose examples are implemented through existing tickets. Catalog completeness does not mean importing every transitive dependency or matching Rust spelling. Changes to upstream pins require an explicit catalog/compatibility review.
 
