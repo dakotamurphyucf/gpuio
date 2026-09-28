@@ -201,7 +201,9 @@ fn cases() -> Vec<Case> {
             sample(50., 80., 0, 0, 0),
             sample(150., 80., 0, 0, 255),
             sample(16., 80., 255, 0, 0),
-            sample(50., 20., 255, 0, 0),
+            // At 1x, x=50 samples a pixel centered on the wick's exclusive
+            // right edge (50.5). Select a pixel inside the one-unit wick.
+            sample(49.75, 20., 255, 0, 0),
         ],
     );
     add(
@@ -270,7 +272,11 @@ async fn exercise(
     cx: &mut AsyncApp,
     handle: WindowHandle<View>,
     cases: Vec<(Case, Arc<Prepared>)>,
+    scale: f32,
 ) {
+    handle
+        .update(cx, |_, window, _| window.set_scale_factor(scale))
+        .unwrap();
     for (case, prepared) in cases {
         handle
             .update(cx, |view, _, cx| {
@@ -311,8 +317,9 @@ async fn exercise(
                     );
                 }
                 eprintln!(
-                    "CHART_PAINT_GPU {} meshes={} quads={} vertices={} retained_bytes={}",
+                    "CHART_PAINT_GPU {} scale={} meshes={} quads={} vertices={} retained_bytes={}",
                     case.name,
+                    scale,
                     prepared.mesh_count(),
                     prepared.quad_count(),
                     prepared.vertices(),
@@ -325,25 +332,31 @@ async fn exercise(
             .unwrap();
     }
     eprintln!(
-        "GPUIO_NATIVE_CHART_PAINT_OK: all seven families, mixed layer ordering, donut holes, area alpha, hollow/filled candles, bar corners/gradient and clipping; hidden-window GPU pixels only"
+        "GPUIO_NATIVE_CHART_PAINT_OK scale={scale}: all seven families, mixed layer ordering, donut holes, area alpha, hollow/filled candles, bar corners/gradient and clipping; hidden-window GPU pixels only"
     );
 }
 pub(crate) fn run() {
     // Preparation really runs off the native/UI thread.
     let cases = std::thread::spawn(|| {
-        cases()
+        [1.0_f32, 1.25, 1.5, 2.]
             .into_iter()
-            .map(|case| {
-                let prepared = prepare(
-                    &case.data,
-                    Policy::default(),
-                    &case.options,
-                    &case.style,
-                    Layout::new(200., 160., 2.).unwrap(),
-                    &AtomicBool::new(false),
-                )
-                .unwrap();
-                (case, Arc::new(prepared))
+            .map(|scale| {
+                let prepared_cases = cases()
+                    .into_iter()
+                    .map(|case| {
+                        let prepared = prepare(
+                            &case.data,
+                            Policy::default(),
+                            &case.options,
+                            &case.style,
+                            Layout::new(200., 160., f64::from(scale)).unwrap(),
+                            &AtomicBool::new(false),
+                        )
+                        .unwrap();
+                        (case, Arc::new(prepared))
+                    })
+                    .collect::<Vec<_>>();
+                (scale, prepared_cases)
             })
             .collect::<Vec<_>>()
     })
@@ -353,7 +366,7 @@ pub(crate) fn run() {
     let result = failure.clone();
     gpui_platform::application().run(move |cx: &mut App| {
         cx.set_quit_mode(gpui::QuitMode::Explicit);
-        let initial = cases[0].1.clone();
+        let initial = cases[0].1[0].1.clone();
         let handle = cx
             .open_window(
                 WindowOptions {
@@ -361,7 +374,9 @@ pub(crate) fn run() {
                     show: false,
                     window_bounds: Some(gpui::WindowBounds::Windowed(Bounds::centered(
                         None,
-                        size(px(240.), px(200.)),
+                        // Synthetic scale changes do not resize the platform
+                        // drawable. Reserve room for a 2x plot on a 1x display.
+                        size(px(480.), px(400.)),
                         cx,
                     ))),
                     ..Default::default()
@@ -375,9 +390,14 @@ pub(crate) fn run() {
             )
             .unwrap();
         cx.spawn(async move |cx| {
-            *result.borrow_mut() = crate::host::native_test::protect(exercise(cx, handle, cases))
-                .await
-                .err();
+            for (scale, cases) in cases {
+                if let Err(error) =
+                    crate::host::native_test::protect(exercise(cx, handle, cases, scale)).await
+                {
+                    *result.borrow_mut() = Some(error);
+                    break;
+                }
+            }
             let _ = handle.update(cx, |_, window, _| window.remove_window());
             cx.update(crate::host::stop_application);
         })

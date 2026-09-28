@@ -23,6 +23,15 @@ service and owned macOS adapter. The later Linux integration is recorded below.
 
 ## Actual macOS observation
 
+The first M6 hosted run (`36377185296`) stopped both notification walkthroughs
+before posting because the fresh macOS login had no `NotificationCenter` process.
+The shared harness now checks the current user's process, starts the system UI
+helper through Launch Services if absent, and waits with a ten-second bound.
+This changes no notification permissions or preferences and does not terminate
+the user's system helper. Both complete walkthroughs still pass locally after
+the change; startup from an absent helper and first permission remain part of
+the corrected hosted validation.
+
 Local environment: macOS **14.5 (23F79), arm64**, repository OCaml/Rust toolchain,
 unchanged GPUI pin `a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b`.
 

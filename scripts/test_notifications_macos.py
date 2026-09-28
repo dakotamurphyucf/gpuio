@@ -22,6 +22,34 @@ def initial(index): return f"GPUIO · Build complete #{index}"
 UPDATED = "GPUIO · Build updated #4"
 
 
+def notification_center_pid():
+    def find():
+        result = subprocess.run(['pgrep', '-u', str(os.getuid()), '-x', 'NotificationCenter'],
+                                capture_output=True, text=True, timeout=5)
+        if result.returncode == 1:
+            return None
+        result.check_returncode()
+        found = result.stdout.split()
+        assert len(found) == 1, 'Expected one Notification Center in this user session'
+        return int(found[0])
+
+    pid = find()
+    if pid is not None:
+        return pid
+    # A fresh CI login may not have started this system UI helper yet. Starting
+    # it does not grant notification permission or alter another app's settings.
+    subprocess.run(['/usr/bin/open', '-g', '-a',
+                    '/System/Library/CoreServices/NotificationCenter.app'],
+                   check=True, timeout=10)
+    end = time.monotonic() + 10
+    while time.monotonic() < end:
+        pid = find()
+        if pid is not None:
+            return pid
+        time.sleep(.05)
+    raise RuntimeError('Notification Center did not start in the current user session')
+
+
 def pids(executable):
     output = subprocess.check_output(["ps", "-axo", "pid=,command="], text=True)
     return [int(fields[0]) for line in output.splitlines()
@@ -32,7 +60,7 @@ def pids(executable):
 class Notifications:
     def __init__(self, app_name=APP_NAME):
         self.app_name = app_name
-        self.mac = Mac(int(subprocess.check_output(["pgrep", "-x", "NotificationCenter"], text=True).strip()))
+        self.mac = Mac(notification_center_pid())
         self.copy_actions = self.mac.ax.AXUIElementCopyActionNames
         self.copy_actions.restype = C.c_int
         self.copy_actions.argtypes = [C.c_void_p, C.POINTER(C.c_void_p)]

@@ -23,6 +23,15 @@ for final gate status. Actual Linux GUI validation remains OCH-17.
 
 ## Prepared painter
 
+The first M6 hosted run (`36377185296`) exposed a 1x test-sampling error in the
+candlestick fixture: logical x=50 selects a device pixel centered at the wick's
+exclusive right edge, 50.5, and correctly reads background. The test now samples
+the covered pixel at x=49.75 and checks every fixture at GPUI scale factors 1,
+1.25, 1.5 and 2. All four pass locally with the original color tolerance and
+clipping assertions. Synthetic scale overrides reserve enough native drawable
+space; they do not claim four physical displays. No painter implementation or
+stroke width changed. The corrected hosted run remains a required gate.
+
 `native_chart_paint` prepares each fixture on a real worker thread, then mounts
 the retained painter in a hidden GPUI window (`show=false`, `focus=false`). It
 checks GPU pixels, repaints the same prepared objects, closes its window on both
