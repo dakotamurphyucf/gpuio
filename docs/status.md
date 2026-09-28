@@ -14,8 +14,9 @@ The current catalog maps every required v1 family to a gallery page. Detailed
 behavioral parity, installed-consumer and release gates are still pending. The
 [event audit](catalog/gpuix-events.json) records validated input contracts and remaining subtree
 highlighting and diff-control gaps. The [highlighting foundation](evidence/subtree-highlighting-och41.md)
-now has paired validated configuration and a bounded streaming query matcher;
-mounted scopes, observations and painting remain pending. The gallery page count does
+now has paired validated configuration, bounded text/range projections and an
+owned background-work pool. Mounted scopes, observations, GPUI scheduling and
+painting remain pending. The gallery page count does
 not imply parity. General input regions now have mounted Core/Bonsai/native
 integration, native edge-case and public gallery evidence; remaining consumer/
 release acceptance stays open in the [input ledger](evidence/input-observations-och41.md). Start ellipsis and the complete cursor vocabulary now have

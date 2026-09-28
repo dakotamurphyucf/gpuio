@@ -28,6 +28,13 @@ impl Default for Budget {
         }
     }
 }
+impl Budget {
+    /// The projection exhausted complete-match/paint storage. Continue counting
+    /// without allocating ranges that can no longer be published.
+    pub(crate) fn stop_storing(&mut self) {
+        self.remaining_matches = 0;
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {

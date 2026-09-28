@@ -91,6 +91,65 @@ Matching results and callbacks must be queued outside layout/paint; stale jobs
 cannot publish to a replaced handler or closed window. Exact worker/output budgets
 will be recorded with the scheduler implementation and measured workloads.
 
+### Projection and result model
+
+The native projection contains ordered logical groups of immutable text runs.
+Each run has a generational node ID plus a fragment number; fragment zero is the
+ordinary label, while native document adapters may expose multiple painted runs.
+Keys are unique within a projection. Ordinary groups participate in explicit
+byte offsets; native document groups participate only in queries. Rope-backed
+document snapshots retain their original resource reservation and are scanned as
+chunks. Building the projection does not flatten their text.
+
+Projection limits are 4096 groups, 16384 runs and 16 MiB of source text, counting
+shared sources conservatively per occurrence. Empty input groups/runs consume
+admission limits even though they contribute no text. A completed result contains
+per-spec exact match counts, per-spec stored match counts, and at most 32768 paint
+spans. Each span identifies its spec, zero-based local match ordinal, run and byte
+interval; it stores no colors or cursor state. Cross-run matches keep one ordinal.
+Results retain a prefix of complete matches: if every span of the next match will
+not fit, none of it is stored and later matches are counted without painting.
+At most 16384 complete matches are stored across the request.
+
+All explicit ranges are checked against the same immutable ordinary projection
+before matching starts. The first invalid spec/range yields a typed out-of-bounds
+or scalar-boundary error and no partial paint result. Separator-only ranges are
+valid but count zero. Updating text may therefore turn a formerly valid config
+into a range-error observation without rejecting the surrounding UI transaction.
+
+Mounted observation states will distinguish Pending, Ready (per-spec total/stored
+counts), Invalid_range (spec/range index and reason), and Capacity (source/work/
+admission limit). A truncated Ready result has exact counts; a work-limit result
+does not. Empty overrides resolve to Ready with no specs. Handler/generation and
+source revisions fence asynchronous delivery, independently of paint visibility.
+
+### Worker pool contract
+
+An application-wide native pool owns at most 128 mounted scope entries and two running jobs, with
+64 MiB of conservative admission units for queued/running/ready/retired data.
+Admission accounts for retained source/projection/configuration, the maximum
+possible bounded paint output for that input, and query scratch space. These
+units are a quota, not an allocator-RSS measurement. Charges follow immutable
+request data through worker completion and every retained paint result.
+Once work finishes, unused output and scratch reservations are released; the
+source and actual output remain charged through their last reader. This avoids
+holding worst-case match storage for a completed no-match query.
+
+Changing source or matchers immediately retires the old ready state, cancels its
+job and advances a scope epoch. Cosmetic updates keep that epoch/result. An
+admission failure also clears old highlights; it does not keep painting a stale
+query. A failed scope can retry admission explicitly. Only one job per scope runs
+at once; an updated scope queues its latest request behind cancellation of the
+old job. Fair round-robin dispatch prevents a constantly changing first scope
+from starving others. Completion checks pool identity, task identity and scope
+epoch before publishing. Dropping a scope or closing the pool cancels work and
+retired completions cannot revive it. A native service must dispatch these work
+objects on the background executor and drain them at shutdown; no OCaml callback
+may run from the worker or paint.
+Opaque pool-local scope IDs let that service route accepted completions to their
+own windows. A dropped work/completion ticket is detected during pool maintenance
+and releases its worker slot with a typed failure instead of hanging indefinitely.
+
 ## Pinned comparison and acceptance
 
 Compared with GPUIX `18e695ed0ee8121a7793413ca795e08eda2a13df`:
