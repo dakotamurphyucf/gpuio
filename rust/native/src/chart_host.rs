@@ -89,6 +89,7 @@ pub(crate) fn init(session: &Rc<RefCell<Session>>, transport: Arc<Transport>, cx
             if !state.pending.remove(&correlation) {
                 continue;
             }
+            let source = completion.id();
             let response = match state.session.upgrade() {
                 Some(session) if !state.closed => session.borrow_mut().complete_chart(completion),
                 _ => Response::Failed(Error::Closed),
@@ -98,11 +99,7 @@ pub(crate) fn init(session: &Rc<RefCell<Session>>, transport: Arc<Transport>, cx
             state.workers.retain(|done| !done.is_closed());
             drop(state);
             if published {
-                cx.update(|cx| {
-                    for handle in cx.windows() {
-                        let _ = handle.update(cx, |_, window, _| window.refresh());
-                    }
-                });
+                cx.update(|cx| crate::host::chart_source_changed(Some(source), cx));
             }
         }
     })
@@ -124,7 +121,14 @@ pub(crate) fn dispatch(correlation: i64, request: Request, cx: &mut App) {
             .respond_chart(correlation, Response::Failed(Error::Closed));
         return;
     };
-    match session.borrow_mut().chart_request(request) {
+    let released = match &request {
+        Request::Release(id) => Some(*id),
+        _ => None,
+    };
+    let dispatched = session.borrow_mut().chart_request(request);
+    let retired =
+        matches!(&dispatched, ChartDispatch::Immediate(Response::Ack)) && released.is_some();
+    match dispatched {
         ChartDispatch::Immediate(response) => state.transport.respond_chart(correlation, response),
         ChartDispatch::Publish(work) => {
             // Store admission already bounds both pending results and workers.
@@ -142,13 +146,19 @@ pub(crate) fn dispatch(correlation: i64, request: Request, cx: &mut App) {
                 .detach();
         }
     }
+    drop(state);
+    if retired {
+        crate::host::chart_source_changed(released, cx);
+    }
 }
 
 fn begin_close(cx: &mut App) -> Vec<Done> {
     let Some(global) = cx.try_global::<Global>() else {
         return vec![];
     };
-    close_service(&global.0)
+    let workers = close_service(&global.0);
+    crate::host::chart_source_changed(None, cx);
+    workers
 }
 fn close_service(service: &Shared) -> Vec<Done> {
     let mut state = service.borrow_mut();

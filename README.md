@@ -22,6 +22,7 @@ Dune 3.24.2 and Rust 1.97.1. macOS and Linux (Wayland and X11) are v1 targets.
 - [Run the agent workspace](examples/agent_chat/README.md)
 - [Write or consume a native component package](docs/design/extensions.md)
 - [Explore the native canvas](examples/canvas/README.md)
+- [Explore native chart families](examples/charts/README.md)
 - [Navigation and independent content lifetimes](examples/navigation/README.md)
 - [Managed trees, lazy loading and approved moves](examples/tree/README.md)
 - [Virtual read-only tables](examples/table/README.md)

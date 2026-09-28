@@ -34,8 +34,9 @@ extreme/degenerate, 100k exact/sampled and crowded Sankey tests. The prepared na
 painter now passes actual hidden-window GPU checks for every family, mixed layers,
 gradients/corners, clipping and hollow/filled candles. The Core/Bonsai chart view
 bridge, scoped event fencing and native tree validation are implemented and locally
-tested. Resource-backed native mounted views,
-input/accessibility, the Chart Lab and streaming performance measurements remain. See
+tested. Resource-backed mounted views now pass hidden GPU lifecycle checks and
+the public seven-family Chart Studio self-test. Native labels/input/accessibility,
+multiple-window/cached-list streaming acceptance and performance measurements remain. See
 [chart contracts and remaining work](design/charts.md).
 The detailed entries below record implementation checkpoints chronologically;
 their earlier pending-gate statements are superseded by this delivery record.

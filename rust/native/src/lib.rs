@@ -15,10 +15,16 @@ pub mod canvas_state;
 pub mod canvas_store;
 pub mod chart_geometry;
 mod chart_host;
+pub mod chart_jobs;
 pub mod chart_paint;
+pub mod chart_render_host;
 #[cfg(feature = "native-canvas-tests")]
 pub fn run_native_chart_paint_test() {
     chart_paint::native_test::run();
+}
+#[cfg(feature = "native-canvas-tests")]
+pub fn run_native_chart_view_test() {
+    host::chart_view::test::run();
 }
 pub mod chart_reduce;
 pub mod chart_store;

@@ -6,9 +6,10 @@ The native resource store, scoped Eio scheduler and application/host transport n
 pass local ownership and windowless macOS integration tests. Typed plotting options
 and retained logical-pixel geometry now cover all seven families. The prepared
 painter passes local hidden-window GPU readback for every family. The resource-backed
-Core/Bonsai view description, bridge and native tree validation are implemented;
-native mounted presentation, interactions,
-accessibility and public graphical examples remain. This document separates implemented contracts from
+Core/Bonsai view now mounts the painter through bounded native workers. A public
+seven-family Chart Studio and hidden production-view lifecycle test pass locally.
+Native labels/legends/tooltips, chart interactions, data alternatives and streaming
+measurements remain. This document separates implemented contracts from
 the remaining implementation work.
 
 ## Data contract
@@ -153,8 +154,10 @@ normal shutdown, emergency abort and OS quit close chart admission, cancel work,
 retire pending replies and wait for worker exit. Repeated closers retain the same
 completion fences, so an OS quit cannot bypass an asynchronous shutdown already
 waiting. Late replies after transport closure are discarded under the mailbox lock.
-Source-dependent redraw/interaction integration remains part of the chart widget
-work; current publication refreshes native windows.
+Successful publication and release now invalidate dependent chart states and
+retained managed-list presentations. Retirement clears displayed readers even
+before a subsequent paint. Native chart interaction retirement remains part of
+the pending selection/input work.
 
 ## Explicit reduction policy
 
@@ -232,16 +235,15 @@ retain original semantic values and cache layout outside per-frame painting.
 The native implementation must cover all seven families; the pure model and
 Sankey extraction do not replace that scope:
 
-- Connect borrowed resource handles to native chart views and validate multiple-
-  window readers, unmounting, source-dependent redraw and interaction retirement.
+- Extend mounted acceptance to multiple-window readers, managed-list caching,
+  streaming updates and interaction retirement.
   Do not put large datasets in each reconciled view node.
 - Connect implemented axes/formatting/labels/styles to mounted presentation;
   implement legends and tooltips, including non-color distinctions. Shared Cartesian layers provide
   useful custom combinations. Preserve the pinned families' applicable styling
   and plotting options while keeping the public API typed.
-- Connect the prepared native painter to resource/view workers and semantic
-  selection. Bound native worker/geometry/cache memory separately from
-  source data. Expose complete source provenance for aggregates; never substitute
+- Connect prepared native geometry to semantic selection and validate the
+  worker/cache accounting under sustained application updates. Expose complete source provenance for aggregates; never substitute
   line sampling for bar or candle aggregation.
 - Rust owns layout, retained paint geometry, hit testing, hover and drag. Reuse
   prepared plans across idle frames and bound background jobs/caches. Data and
@@ -249,7 +251,7 @@ Sankey extraction do not replace that scope:
 - Provide stable, revision-checked semantic selections, keyboard navigation and
   meaningful accessibility/data-table alternatives. Native observations are
   asynchronous; changing data or closing a window cancels stale gestures/events.
-- Build a polished public Chart Lab with every family, empty/degenerate cases,
+- Complete Chart Studio with empty/degenerate cases,
   streaming updates and interaction. Validate actual macOS paint/input/AX behavior;
   Linux build/unit gates are required, GUI evidence remains separately recorded.
 - Measure named-hardware dataset size, CPU/frame work, transport bytes and retained
@@ -314,8 +316,10 @@ exact line and all default sampled curve modes without silently dropping source
 points or inheriting the canvas wire's 4,096-command cap. Per-plan geometry,
 mesh and quad retention is capped at 64 MiB. A shared frame budget reserves the
 whole chart's draw vertices/quads before painting. Application-wide worker/cache
-admission, mounted lifecycle, native labels/legends/tooltips, interaction and
-end-to-end streaming measurements remain outstanding. See [chart evidence](../evidence/charts-och40.md)
+admission and initial mounted lifecycle are implemented below. Native
+labels/legends/tooltips, interaction and end-to-end streaming measurements remain
+outstanding. Multi-chart managed-list cache acceptance must also verify aggregate
+frame accounting when GPUI reuses prior draw commands. See [chart evidence](../evidence/charts-och40.md)
 for exact current coverage and limits.
 
 ## Current local evidence
@@ -393,15 +397,15 @@ extension backend; 639 Rust native/protocol/plot tests pass across 93 targets.
 Both backend lockfiles add only the existing local `gpuio-plot` dependency.
 Required hosted macOS/Linux validation remains part of the final milestone gate.
 
-## Chart view bridge checkpoint
+## Chart view bridge checkpoint (6b3a468)
 
 `Chart.Config.create ~data:(Gpuio_eio.Chart.handle registration) ()` borrows the
 application-owned registration. `View.chart ~on_event config` is also exposed by
 `Gpuio_bonsai.View`; callbacks there return Bonsai effects. View style supplies
 size; the chart-specific options, sampling and resolved style remain separate.
-The typed view description and transport are implemented at this checkpoint;
-the native mounted presentation is still pending. Do not use this checkpoint
-as evidence that the public view paints or emits observations yet.
+This earlier checkpoint established the typed description and transport. The
+mounted rendering section below records the subsequent production integration;
+the bridge-only tests are not themselves evidence of painted output.
 
 The configuration carries the resource identity, a nonblank UTF-8 description
 (up to 1024 bytes without NUL/CR/LF), options, sampling and style. No dataset is
@@ -426,9 +430,51 @@ reset and accepted or exactly in-flight publication. Native tree transactions
 require a configured chart leaf, bound chart nodes to 128 per window, charge
 retained configuration memory and reject invalid updates atomically.
 
-Required mounted behavior remains: unmount releases the view reader/work but
+The mounted ownership contract is: unmount releases the view reader/work but
 not the registration; release/close clears displayed data; ordinary publications
 may retain the previous picture until replacement is ready; reset or source
 change clears it. Background scheduling, aggregate worker/cache admission and
-source-dependent managed-row invalidation must enforce those rules before public
-chart-view acceptance. There is no new chart-rendering capability advertisement.
+source-dependent managed-row invalidation now enforce the initial lifecycle
+below; complete chart acceptance and capability advertisement remain pending.
+
+## Mounted rendering and worker ownership
+
+The bridge checkpoint above is now connected to the production host. Each native
+chart state borrows a live data lease and keeps the exact immutable snapshot
+beside its prepared geometry. Unmount/hide clears preparation and displayed
+readers; it does not release the application's registration. Normal publications
+may retain the previous picture while newer preparation runs. Reset, source
+replacement and resource retirement clear it. Resize keeps the previous logical
+size under the new element's clip until its replacement is ready.
+
+The application render pool admits at most two workers and 128 live view jobs.
+Requests coalesce to the latest snapshot/options/style/layout. Completion must
+match the exact private cancellation token before releasing a worker slot, so
+numeric identifiers alone cannot admit a foreign completion. Cancelled work and
+queued completions remain accounted for through worker exit and delivery.
+Shutdown closes admission/output, cancels work and joins workers; repeated
+closers share the same completion fences and destruction provides a fallback
+join. Workers never await a UI callback.
+
+Retained plans have a separate 256-MiB quota. Before preparation each work item
+reserves the painter's 64-MiB maximum plus 4096 bytes for fixed metadata, then
+shrinks that reservation to retained plan capacity. Allocation admission failure
+produces a typed render-limit observation; source data has its existing separate
+store charge. A 192-MiB preparation allowance per worker is also admitted before
+work and retained through delivery. It accounts conservatively for reduction,
+geometry, native path conversion and tessellation scratch. It is **not a hard
+allocator or RSS limit** on Lyon's private allocations. Per-source/path/output
+counts remain enforced independently.
+
+Successful publication/release updates only dependent production windows. Worker
+completion invalidates chart-bearing retained rows in its observer window as well
+as requesting redraw. This is necessary for charts inside managed lists; a plain
+window refresh would leave a cached row presentation unchanged. Initial hidden
+GPU acceptance covers a normal mounted tree. Multiple windows, cached-list
+streaming/frame budgets, selection/input and measured workloads remain to verify.
+
+[`examples/charts`](../../examples/charts/README.md) uses only public Core/Bonsai/Eio
+APIs and visits every family in its self-test. Native chart text/legend/tooltip
+presentation and complete keyboard/data alternatives remain pending; a chart's
+current group description is not a replacement for a data alternative. There is
+still no completed chart-rendering capability advertisement.

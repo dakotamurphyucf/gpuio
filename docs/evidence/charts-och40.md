@@ -6,10 +6,10 @@ Jane Street/Bonsai v0.17 and pinned GPUI/Rust toolchains remain unchanged.
 
 | Boundary | Evidence | Remaining |
 | --- | --- | --- |
-| Typed data/options/styles and paired bounded codecs | Core expect and Rust codec tests, independent byte fixtures, malformed/domain/size cases | Mounted view configuration/selection envelopes |
-| Scoped data publication | Public windowless macOS `chart_upload`: 100k source points, coalescing, reset, rejection, cleanup, shutdown | Mounted resource readers and source-dependent redraw/retirement |
+| Typed data/options/styles and paired bounded codecs | Core expect and Rust codec tests, independent byte fixtures, malformed/domain/size cases | Semantic selection envelopes |
+| Scoped data publication | Public windowless macOS `chart_upload`: 100k source points, coalescing, reset, rejection, cleanup, shutdown | Multi-window/cached-list streaming acceptance |
 | Geometry/reduction | All seven families; empty, negative, constant, extreme, subnormal, gaps, aggregates, large input | End-to-end streaming frame measurements |
-| Prepared GPU painting | Hidden native window, real off-thread preparation, actual GPU readback for every family | Resource-backed Core/Bonsai view and application example |
+| Prepared GPU painting | Hidden native window, real off-thread preparation, actual GPU readback for every family | Full chart text/input/AX and streaming acceptance |
 | Styling | Validated palette/theme resolution; real alpha, bar corners/gradient, hollow/filled candles and mixed layer order | Native labels/legend/tooltip presentation and selection visuals |
 | Interaction and accessibility | Not implemented for the chart widget yet | Pointer/drag, keyboard, meaningful AX/data alternatives and stale-event checks |
 | Budgets | Per-plan geometry/mesh caps, conservative shared-frame admission, cancellation and bounded tessellation | Runtime worker/cache admission across mounted views/windows |
@@ -116,12 +116,57 @@ GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-protocol \
   --test chart_view --test chart_sampling -p gpuio-native --test chart_tree --locked -j2
 ```
 
+## Mounted production charts and public application
+
+The production native tree now mounts the prepared painter through bounded chart
+workers. Four worker tests cover 1000 coalesced replacements, actual background
+execution, held workspace/completion charges, exact-token fencing against foreign
+pool completions, owner disposal, shutdown and retained-capacity failure/recovery.
+Two render-host tests cover repeated closer fences and destruction waiting for a
+worker without requiring UI progress.
+
+The hidden macOS `native_chart_view` test passes actual GPU pixels and production
+state checks for initial paint, style replacement, correlated asynchronous data
+publication, reset, idle resource release, resource generation reuse, source
+replacement, hide/show and unmount. It explicitly checks that release removes
+ready geometry/jobs/readers **before** forcing another frame. Cleanup joins both
+resource and render workers and requires zero data/plan/workspace charges.
+
+The public [`Chart Studio`](../../examples/charts/README.md) self-test passes every
+family through Bonsai, Eio and FFI, checks reset generations and a native render
+callback, then releases its registration and shuts down. A separate local
+background-window inspection captured line/donut screenshots, invoked the Pie
+button through macOS accessibility, and closed the owned window through its OS
+close button; the child exited successfully. These are chart rendering and
+application-control checks, not chart selection/keyboard/data accessibility.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native --lib chart_ --locked -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native \
+  --features native-canvas-tests --test native_chart_view --test native_canvas_view --locked -j2
+GPUIO_JOBS=2 ./scripts/gpuio build examples/charts/main.exe
+./_build/default/examples/charts/main.exe --self-test
+```
+
+Final local chart unit run passes 41 tests, including the six new worker/host
+lifecycle cases. The production chart and existing canvas hidden-window suites
+both pass; the chart final counters are six completed preparations, one peak
+worker and zero retained plan/workspace bytes. Strict feature-enabled all-target
+Clippy and full Dune `@all @runtest @fmt` pass. The final public self-test and
+existing 100k-point windowless chart-upload/cleanup regression both pass against
+the rebuilt application. These counters do not substitute for a streaming benchmark.
+
+The required macOS workflow prebuilds and runs the mounted test and public chart
+self-test with bounded execution. Hosted execution and Linux GUI acceptance are
+not claimed. Native metrics and source snapshots are separately accounted;
+workspace allowance is not measured RSS or a hard bound on Lyon allocations.
+
 ## Completion still required
 
-Connect this painter through bounded, cancellable resource/view workers to
-the implemented Core/Bonsai chart descriptions. Validate data publication and release/close invalidation,
-multiple-window readers, semantic selection and reset/revision fencing,
-keyboard/AX/data alternatives, native labels/legends/tooltips and unmount/close
-cleanup. Build the polished public all-family Chart Lab, measure actual streaming
-CPU/frame/queue/retained-memory behavior on named hardware, and integrate a chart
-into OCH-29 alongside its distinct canvas/independent-extension requirements.
+Extend resource/lifecycle acceptance to multiple windows, managed-list caching
+and sustained streaming, including aggregate frame accounting for reused draw
+commands. Implement semantic selection/hover/drag, native labels/legends/tooltips,
+keyboard/AX/data alternatives and malformed/empty/degenerate public examples.
+Complete the Chart Studio presentation, measure actual streaming CPU/frame/queue/
+retained-memory behavior on named hardware, and integrate a chart into OCH-29
+alongside its distinct canvas/independent-extension requirements.
