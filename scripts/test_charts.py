@@ -19,7 +19,7 @@ FAMILIES = [
     ('Area', '24 values', ['Active capacity']),
     ('Bar', '24 values', ['Completed evaluations']),
     ('Pie', '4 values', ['Reasoning', 'Code', 'Research', 'Other']),
-    ('Radar', '5 values', ['Quality', 'Speed', 'Cost', 'Context', 'Reliability', 'Atlas']),
+    ('Radar', '10 values', ['Quality', 'Speed', 'Cost', 'Context', 'Reliability', 'Atlas', 'Nova']),
     ('Candlestick', '24 values', ['Rise · hollow', 'Fall · filled']),
     ('Sankey', '4 values', ['Incoming', 'Reasoning', 'Tools', 'Complete']),
 ]
@@ -35,7 +35,7 @@ FIRST = ['Atlas · x 0', 'Active capacity · x 0', 'Completed evaluations · x 0
          'Reasoning · 44', 'Atlas · Quality · 88 / 100', 'Session 1 · close',
          'Incoming → Reasoning · 65']
 LAST = ['Nova · x 23', 'Active capacity · x 23', 'Completed evaluations · x 23',
-        'Other · 10', 'Atlas · Reliability · 82 / 100', 'Session 24 · close',
+        'Other · 10', 'Nova · Reliability · 86 / 100', 'Session 24 · close',
         'Complete']
 
 

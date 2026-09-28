@@ -594,8 +594,7 @@ and no synchronous OCaml callback from native input/layout/paint. Chart Studio n
 shows public semantic callback results; its AppKit acceptance covers all seven
 families and real pie hover/click/drag/cancellation.
 
-Plot-wide non-color identification, dense legend wheel acceptance,
-multi-window/cached-list streaming and measured workloads remain required before
+Multi-window/cached-list streaming and measured workloads remain required before
 the chart ticket is complete.
 
 ## Original-data companion
@@ -644,3 +643,28 @@ callback.
 Chart Studio's **Edge cases** mode supplies a 100,000-point line with gaps,
 empty area data, signed/zero bars, a zero pie slice, reordered radar values,
 a negative flat candle, and a graph with an isolated node and zero-valued edge.
+
+## Non-color identification and presentation
+
+Multi-series Cartesian and radar plots repeat numeric identifiers at up to three
+actual representative positions per series (96 labels maximum), matching the
+numbered legend. The native accessible name includes the series name. Numbers
+follow current publication order; stable IDs remain the semantic identity. Empty
+series have no fabricated plot markers. Preparation runs on the bounded worker
+and charges label storage to its retained plan.
+
+Pie and flow labels identify slices/nodes, ribbons connect named flow endpoints,
+and candles distinguish rising/falling/flat values through hollow/filled/line
+geometry. Dense or coincident values can still overlap: the tooltip, keyboard
+inspection and complete original-data companion remain necessary alternatives.
+Turning family labels off deliberately removes that text cue; the library does
+not guarantee collision-free charts for arbitrary datasets.
+
+Layout reserves a 32-logical-pixel data-control header within the existing
+bounded top gutter. Tooltips sit below it; donut selection markers sit toward
+the inner edge to avoid the usual slice-label position. Companion controls use
+resolved label/selection colors with derived neutral backing and borders.
+Chart Studio demonstrates mixed area/bar/line layers, horizontal grouped bars,
+light and monochrome styles, and a scrolling dense legend. Real macOS wheel
+acceptance checks the last legend row, retained offset after a new publication,
+and return to the first row after reset.

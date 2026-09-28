@@ -3,7 +3,10 @@ open Core
 (** Source-independent native plotting options. Geometry uses logical pixels;
     colors, theme and the accessible description belong to the mounted view.
     Options for other dataset families are retained but have no effect. No
-    formatting or plotting operation calls back synchronously into OCaml. *)
+    formatting or plotting operation calls back synchronously into OCaml.
+    Native layout reserves space for the data control, axes and legend. Series
+    identifiers repeat at bounded representative positions in multi-series
+    Cartesian/radar plots; dense or coincident values can still overlap. *)
 module Number_format : sig
   type t [@@deriving equal, sexp_of]
 

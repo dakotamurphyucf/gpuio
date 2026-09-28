@@ -46,6 +46,7 @@ impl Route {
         cx.stop_propagation();
     }
     fn button(&self, label: &'static str, action: Action, disabled: bool) -> gpui::AnyElement {
+        let colors = presentation::Controls::new(&self.state.borrow().config.style);
         let click = self.clone();
         let access = self.clone();
         let element = div()
@@ -55,8 +56,18 @@ impl Route {
             .px_2()
             .py_1()
             .rounded_md()
-            .bg(gpui::rgba(0x263648ff))
-            .text_color(gpui::rgba(if disabled { 0x8490a0ff } else { 0xdde8f4ff }))
+            .bg(gpui::rgba(colors.background))
+            .border_1()
+            .border_color(gpui::rgba(if disabled {
+                colors.muted
+            } else {
+                colors.foreground
+            }))
+            .text_color(gpui::rgba(if disabled {
+                colors.muted
+            } else {
+                colors.foreground
+            }))
             .child(label)
             .on_click(move |_, window, cx| {
                 if !disabled {
@@ -127,6 +138,7 @@ pub(in crate::host::chart_view) fn element(state: Shared) -> Option<gpui::AnyEle
         snapshot: Arc::downgrade(&snapshot),
     };
     let disabled = current.config.disabled;
+    let colors = presentation::Controls::new(&current.config.style);
     let Some(cursor) = current.input.data_cursor else {
         return Some(
             div()
@@ -147,7 +159,7 @@ pub(in crate::host::chart_view) fn element(state: Shared) -> Option<gpui::AnyEle
     );
     let mut rows=div().id("original-data-table").role(gpui::Role::Table)
         .aria_label(format!("{} · original data",current.config.label))
-        .aria_row_count(count).aria_column_count(3)
+        .aria_row_count(count).aria_column_count(3).min_h(px(24.))
         .aria_description("Read-only original values. Arrow keys browse rows; Home and End reach the first and last values. Page Up and Page Down change pages. D or Escape returns to the plot.")
         .flex().flex_col().w_full();
     for index in page.start..page.end {
@@ -173,7 +185,16 @@ pub(in crate::host::chart_view) fn element(state: Shared) -> Option<gpui::AnyEle
             .gap_2()
             .px_2()
             .items_center()
-            .bg(gpui::rgba(if active { 0x29485bff } else { 0x172230ff }))
+            .bg(gpui::rgba(if active {
+                colors.accent
+            } else {
+                colors.background
+            }))
+            .text_color(gpui::rgba(if active {
+                colors.active_foreground
+            } else {
+                colors.foreground
+            }))
             .on_a11y_action(gpui::AccessibleAction::Focus, move |_, window, cx| {
                 focus.invoke(Action::Browse(index), false, window, cx)
             })
@@ -238,8 +259,8 @@ pub(in crate::host::chart_view) fn element(state: Shared) -> Option<gpui::AnyEle
             .flex_col()
             .gap_1()
             .p_1()
-            .bg(gpui::rgba(0x172230ff))
-            .text_color(gpui::rgba(0xdde8f4ff))
+            .bg(gpui::rgba(colors.background))
+            .text_color(gpui::rgba(colors.foreground))
             .text_size(px(11.))
             .line_height(px(16.))
             .child(
@@ -249,7 +270,13 @@ pub(in crate::host::chart_view) fn element(state: Shared) -> Option<gpui::AnyEle
                     .items_center()
                     .h(px(28.))
                     .flex_shrink_0()
-                    .child(div().child("Original data · all values"))
+                    .child(
+                        div()
+                            .id("chart-data-title")
+                            .role(gpui::Role::Label)
+                            .aria_label("Original data · all values")
+                            .child("Original data · all values"),
+                    )
                     .child(route.button("Back to chart", Action::Close, disabled)),
             )
             .child(

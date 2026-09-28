@@ -142,7 +142,7 @@ pub(super) async fn exercise(
             let scale = window.scale_factor();
             assert_ne!(
                 image
-                    .get_pixel((50. * scale) as u32, (100. * scale) as u32)
+                    .get_pixel((58. * scale) as u32, (116. * scale) as u32)
                     .0,
                 [255, 0, 0, 255],
                 "selection marker is actually painted"

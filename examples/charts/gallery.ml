@@ -65,6 +65,11 @@ let data family phase =
           ~name:"Atlas"
           (List.mapi [ 88.; 72.; 65.; 94.; 82. ] ~f:(fun i v -> datum (i + 1), v))
         |> ok
+      ; D.Radar_series.create
+          ~id:(series_id 2)
+          ~name:"Nova"
+          (List.mapi [ 80.; 91.; 84.; 72.; 86. ] ~f:(fun i v -> datum (i + 1), v))
+        |> ok
       ]
     |> ok
   | 5 ->
@@ -241,4 +246,50 @@ let edge_data family =
         ]
     |> ok
   | _ -> invalid_arg "unknown gallery family"
+;;
+
+module Preset = struct
+  type t =
+    | Standard
+    | Mixed
+    | Horizontal
+    | Dense_legend
+  [@@deriving equal]
+end
+
+let preset_data preset family phase =
+  match (preset : Preset.t) with
+  | Standard -> data family phase
+  | Mixed ->
+    D.cartesian
+      [ Area (series ~phase ~id:1 ~name:"Capacity")
+      ; Bar (series ~phase:(phase +. 4.) ~id:2 ~name:"Throughput")
+      ; Line (series ~phase:(phase +. 8.) ~id:3 ~name:"Demand")
+      ]
+    |> ok
+  | Horizontal ->
+    D.bar
+      [ series ~phase ~id:1 ~name:"Atlas"
+      ; series ~phase:(phase +. 8.) ~id:2 ~name:"Nova"
+      ]
+    |> ok
+  | Dense_legend ->
+    D.pie
+      (List.init
+         (128 + Float.to_int (Float.min 128. phase))
+         ~f:(fun i ->
+           D.Slice.create
+             ~id:(datum (i + 1))
+             ~label:(sprintf "Channel %03d" (i + 1))
+             ~value:(1. +. (Float.of_int (i % 3) *. phase))
+           |> ok))
+    |> ok
+;;
+
+let description preset family =
+  match (preset : Preset.t) with
+  | Standard -> descriptions.(family)
+  | Mixed -> "Capacity, throughput and demand"
+  | Horizontal -> "Comparing evaluation throughput"
+  | Dense_legend -> "Channel allocation"
 ;;

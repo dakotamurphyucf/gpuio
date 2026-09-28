@@ -59,6 +59,34 @@ pub(crate) fn label_backing(color: u32) -> u32 {
         0xffffffee
     }
 }
+/// Companion controls use resolved chart foreground/selection tokens. Neutral
+/// surfaces remain opaque so hidden plot pixels cannot tint table readability.
+#[derive(Clone, Copy)]
+pub(crate) struct Controls {
+    pub foreground: u32,
+    pub background: u32,
+    pub accent: u32,
+    pub active_foreground: u32,
+    pub muted: u32,
+}
+impl Controls {
+    pub fn new(style: &gpuio_protocol::chart_style::Style) -> Self {
+        let foreground = style.label_color as u32;
+        let background = label_backing(foreground) | 255;
+        let accent = style.selection_color as u32;
+        let blend = |shift: u32| {
+            (((foreground >> shift) & 255_u32) + ((background >> shift) & 255_u32)) / 2
+        };
+        let muted = (blend(24) << 24) | (blend(16) << 16) | (blend(8) << 8) | 255;
+        Self {
+            foreground,
+            background,
+            accent,
+            active_foreground: label_backing(accent) | 255,
+            muted,
+        }
+    }
+}
 impl Frame {
     /// Caller supplies positive finite dimensions validated by the paint layout.
     pub fn new(width: f64, height: f64, data: &Data, config: &Config) -> Self {
@@ -104,11 +132,14 @@ impl Frame {
         } else {
             0.
         };
-        let top: f64 = if (numeric && left_axis) || radar_labels {
-            12.
-        } else {
-            0.
-        };
+        // Reserve a native data-control header instead of covering axis ticks
+        // or making the first/last data points unclickable beneath its button.
+        let top: f64 = 32.
+            + if (numeric && left_axis) || radar_labels {
+                12.
+            } else {
+                0.
+            };
         let bottom: f64 = if numeric && bottom_axis {
             28.
         } else if radar_labels {
@@ -155,6 +186,8 @@ impl Frame {
             )
         } else if bottom_axis {
             (80., x - 40., y + 6., Align::Center)
+        } else if matches!(label.kind, LabelKind::Series(_)) {
+            (22., x - 11., y - TEXT_HEIGHT / 2., Align::Center)
         } else if matches!(label.kind, LabelKind::Flow) {
             if x > self.plot.x + self.plot.width / 2. {
                 (140., x - 6. - 140., y - TEXT_HEIGHT / 2., Align::Right)
@@ -215,6 +248,7 @@ mod tests {
                     LabelKind::Y,
                     LabelKind::Radial,
                     LabelKind::Flow,
+                    LabelKind::Series(0),
                 ] {
                     let placement = frame.label(&Label {
                         position: Point {
@@ -270,5 +304,24 @@ mod tests {
         assert_eq!(legend(&data).len(), 256);
         config.legend = false;
         assert_eq!(Frame::new(720., 400., &data, &config).legend.height, 0.);
+    }
+    #[test]
+    fn controls_follow_resolved_foreground_and_selection_in_both_theme_directions() {
+        for (foreground, background, selection, active) in [
+            (0xeeeeeeff, 0x000000ff, 0xfafafaff, 0x000000ff),
+            (0x102030ff, 0xffffffff, 0x102030ff, 0xffffffff),
+        ] {
+            let style = gpuio_protocol::chart_style::Style {
+                label_color: foreground,
+                selection_color: selection,
+                ..Default::default()
+            };
+            let controls = Controls::new(&style);
+            assert_eq!(controls.foreground, foreground as u32);
+            assert_eq!(controls.background, background);
+            assert_eq!(controls.accent, selection as u32);
+            assert_eq!(controls.active_foreground, active);
+            assert_eq!(controls.muted & 255, 255);
+        }
     }
 }

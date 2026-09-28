@@ -37,8 +37,14 @@ Choose **Edge cases** for a 100,000-point line with gaps, empty area data, signe
 bars, a zero slice, reordered radar axes, a negative flat candle, and isolated/
 zero-flow graph data. **Sample data** restores the ordinary gallery.
 
-The example is still under OCH-40 development. Non-color plot identification,
-expanded mixed/horizontal examples and streaming measurements remain outstanding. `Ready`
+**Mixed layers** combines area/bar/line data; **Horizontal** compares grouped
+bars, and **Dense legend** supplies 128 channels (updates add a channel up to
+256). **Monochrome** and **Light theme** exercise non-color identification and
+resolved styling, including the data companion. Multi-series plots repeat
+numbered identifiers matching their legends; coincident values may overlap.
+
+The example is still under OCH-40 development. Multiple-window/cached-list
+streaming and performance measurements remain outstanding. `Ready`
 means prepared; the self-test separately requests a native render callback,
 which is not proof of physical screen presentation.
 
@@ -55,3 +61,8 @@ reaps its child window.
 100,000-row original-data alternative through real macOS AX and keyboard input,
 including every family's edge cases, paging, row focus and reset. It closes and
 reaps its child window.
+
+`python3 scripts/test_chart_visuals.py` checks mixed/horizontal/radar identifiers,
+monochrome/light presentation and actual wheel scrolling in the dense legend.
+It verifies offset retention across a 128-to-129-value update and reset behavior,
+captures screenshots, then closes and reaps the application.

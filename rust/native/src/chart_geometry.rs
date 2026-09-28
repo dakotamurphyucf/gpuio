@@ -114,6 +114,7 @@ pub enum LabelKind {
     Y,
     Radial,
     Flow,
+    Series(usize),
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct Label {
@@ -788,6 +789,58 @@ fn sankey(
     }
     Ok(())
 }
+/// Attach repeated identifiers to actual representatives. Only a bounded number
+/// become native text elements, even for exact 100,000-point plans. Numbers refer
+/// to the same publication's legend order; source IDs remain semantic identity.
+fn series_identifiers(plan: &mut Plan, count: usize, cancel: &AtomicBool) -> Result<(), Error> {
+    if count > 32 {
+        return Err(Error::InvalidInput);
+    }
+    if count < 2 {
+        return Ok(());
+    }
+    let mut counts = [0_usize; 32];
+    for (index, mark) in plan.marks.iter().enumerate() {
+        if index % 256 == 0 {
+            check(cancel)?;
+        }
+        if mark.layer < count {
+            counts[mark.layer] += 1;
+        }
+    }
+    let mut seen = [0_usize; 32];
+    let mut previous = [None; 32];
+    for (index, mark) in plan.marks.iter().enumerate() {
+        if index % 256 == 0 {
+            check(cancel)?;
+        }
+        let layer = mark.layer;
+        if layer >= count {
+            continue;
+        }
+        let position = match mark.shape {
+            Shape::Dot { center, .. } => center,
+            Shape::Bar(rect) => {
+                Point::new((rect.left + rect.right) / 2., (rect.top + rect.bottom) / 2.)
+            }
+            _ => continue,
+        };
+        let ordinal = seen[layer];
+        seen[layer] += 1;
+        let count = counts[layer];
+        if [count / 10, count / 2, count * 9 / 10].contains(&ordinal)
+            && previous[layer] != Some(position)
+        {
+            plan.labels.push(Label {
+                position,
+                text: (layer + 1).to_string(),
+                kind: LabelKind::Series(layer),
+            });
+            previous[layer] = Some(position);
+        }
+    }
+    Ok(())
+}
 /// Size describes the interior plotting rectangle, excluding labels/legend.
 /// Callers must reserve bounded worker/plan storage before entry. The returned
 /// plan must be retained alongside its exact source snapshot; it has no lifetime
@@ -857,6 +910,11 @@ pub fn prepare(
             sankey(&mut plan, nodes, edges, options.sankey)?
         }
         _ => return Err(Error::InvalidInput),
+    }
+    match &data.contents {
+        data::Contents::Cartesian(layers) => series_identifiers(&mut plan, layers.len(), cancel)?,
+        data::Contents::Radar(_, series) => series_identifiers(&mut plan, series.len(), cancel)?,
+        _ => (),
     }
     check(cancel)?;
     if plan.retained_bytes() > MAX_PLAN_BYTES {

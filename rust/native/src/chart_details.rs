@@ -36,7 +36,12 @@ fn anchor(shape: Shape) -> Point {
             end,
         } => {
             let angle = (start + end) / 2.;
-            let radius = (inner + outer) / 2.;
+            // Keep the marker inward from family labels at 65% of ring width.
+            let radius = if inner > 0. {
+                inner + (outer - inner) * 0.2
+            } else {
+                (inner + outer) / 2.
+            };
             Point {
                 x: center.x + radius * angle.cos(),
                 y: center.y + radius * angle.sin(),

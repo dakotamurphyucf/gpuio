@@ -379,8 +379,10 @@ The public check caught and fixed an empty derived flow sum rendering as `-0`;
 isolated-node totals now display `0` in the table and tooltips. It also caught
 incorrect test expectations for Core's `100_000` count formatting and Sankey
 edge metrics, and a test pressing the prior publication's button during reset.
-The test now waits for the chosen family's preparation before acting. Empty
-tables retain a minimum native extent so their zero-row metadata is accessible.
+The test now waits for the chosen family's preparation before acting. Zero-row
+metadata passed this test; an explicit 24-pixel minimum was added in the later
+presentation checkpoint below (the earlier claim that it was already installed
+was incorrect).
 
 There are **58 passing native chart unit tests**, including original-data access
 for every family, all 100,000 source positions, missing/zero values, bounded pages,
@@ -403,12 +405,60 @@ python3 scripts/test_charts.py --input
 The data acceptance script is wired into the macOS workflow. Consolidated hosted
 macOS/Linux execution and Linux GUI validation are not claimed by this checkpoint.
 
+## Non-color presentation and public visual acceptance
+
+Local Apple M1 Max / macOS 14.5 arm64, isolated repository toolchain, two jobs.
+Multi-series Cartesian/radar identifiers are generated on the worker, at most
+three per series / 96 total, and identify actual plotted representatives. Their
+accessible names include series names. Legend numbers follow publication order;
+semantic identity remains the stable ID. Coincident values may overlap, so this
+is not a universal label-placement guarantee.
+
+Chart Studio now includes mixed layers, horizontal bars, dense legend, monochrome
+and light styling. Original-data controls derive their colors from chart style;
+the table explicitly retains 24 pixels even when empty. Its title now has native
+label semantics. A reserved header keeps View data clear of the upper axis labels;
+the tooltip sits below it, and donut selection markers move inward.
+
+Local checks pass:
+
+- **61 native chart unit tests**, including both Cartesian orientations, missing/
+  empty series, 32-series label bounds, reordered radar axes and light/dark control
+  colors; strict feature-enabled all-target Clippy, Dune example build and format.
+- Actual native input, prepared GPU pixels for all families and mounted lifecycle
+  suites. Final counters remain `(6, 0, 1, 0, 0)` / `(10, 0, 1, 0, 0)` with zero
+  retained charges. Native input verifies the relocated donut selection pixels.
+- Public `test_chart_visuals.py`: mixed/horizontal/radar series identifiers;
+  monochrome/light plots and companion; real OS wheel scrolling to Channel 128,
+  its retained visible position after a distinct 128-to-129-value publication,
+  and reset returning to Channel 001. Wheel input produces no plot selection.
+- Full `test_charts.py --input` seven-family real AppKit keyboard/pointer callbacks
+  and `test_chart_data.py` 100,000-original bounded-table regression. All children
+  close and are reaped. Radar's ordinary example now has two series / ten values.
+
+Screenshots of mixed/light, horizontal, radar, pie and original-data presentation
+were inspected locally. Dense overlapping marks may obscure individual labels;
+repeated identifiers and the inspection/data alternatives remain necessary.
+The new visual acceptance is wired into macOS CI; hosted execution remains pending.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native --lib chart_ --locked -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy -p gpuio-native \
+  --features native-canvas-tests --all-targets --locked -j2 -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build @fmt examples/charts/main.exe -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native \
+  --features native-canvas-tests --test native_chart_input --test native_chart_paint \
+  --test native_chart_view --locked -j2
+python3 scripts/test_chart_visuals.py
+python3 scripts/test_charts.py --input
+python3 scripts/test_chart_data.py
+```
+
 ## Completion still required
 
 Extend resource/lifecycle acceptance to multiple windows, managed-list caching
 and sustained streaming, including aggregate frame accounting for reused draw
-commands. Complete non-color distinctions within plots, real dense-legend wheel
-checks and mixed/horizontal public examples. Review companion controls against
-resolved style/theme tokens and finish Chart Studio presentation. Measure actual
-streaming CPU/frame/queue/retained-memory behavior on named hardware, and integrate
-a chart into OCH-29 alongside its distinct canvas/independent-extension requirements.
+commands. Measure actual streaming CPU/frame/queue/retained-memory behavior on
+named hardware, and integrate a chart into OCH-29 alongside its distinct canvas/
+independent-extension requirements. Consolidated hosted macOS/Linux gates and
+merge remain pending; no Linux graphical acceptance is claimed.

@@ -10,7 +10,10 @@ type t [@@deriving equal, sexp_of]
     makes bars fade from their palette color to that color along the value axis.
     Corner radii clamp to each bar's size. Other filled families use palette
     colors; area/radar fills additionally apply [area_opacity]. Native labels
-    inherit the view's font and use [label_color]. *)
+    inherit the view's font and use [label_color]. The original-data companion
+    derives its foreground, neutral backing and borders from [label_color], and
+    its active row from [selection_color]. Multiple Cartesian/radar series also
+    have numeric identifiers matching legend order; color is not their only cue. *)
 val create
   :  ?palette:Color.t list
   -> ?axis_color:Color.t

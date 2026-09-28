@@ -265,15 +265,19 @@ impl State {
             .text_size(px(11.))
             .line_height(px(presentation::TEXT_HEIGHT as f32))
             .text_color(gpui::rgba(style.label_color as u32));
+        let series_names = presentation::legend(ready.snapshot.data());
         for (index, label) in ready.plan.geometry().labels.iter().enumerate() {
             let placement = frame.label(label);
             let r = placement.rect;
-            let backed = matches!(label.kind, crate::chart_geometry::LabelKind::Flow)
-                || (matches!(label.kind, crate::chart_geometry::LabelKind::Radial)
-                    && matches!(
-                        ready.snapshot.data().contents,
-                        gpuio_protocol::chart_data::Contents::Pie(_)
-                    ));
+            let backed = matches!(
+                label.kind,
+                crate::chart_geometry::LabelKind::Flow
+                    | crate::chart_geometry::LabelKind::Series(_)
+            ) || (matches!(label.kind, crate::chart_geometry::LabelKind::Radial)
+                && matches!(
+                    ready.snapshot.data().contents,
+                    gpuio_protocol::chart_data::Contents::Pie(_)
+                ));
             let mut content = div().min_w_0().text_ellipsis().child(label.text.clone());
             if backed {
                 content = content
@@ -293,7 +297,12 @@ impl State {
                 .h(px(r.height as f32))
                 .overflow_hidden()
                 .text_ellipsis()
-                .aria_label(label.text.clone())
+                .aria_label(match label.kind {
+                    crate::chart_geometry::LabelKind::Series(series) => {
+                        format!("Series {} · {}", series + 1, series_names[series])
+                    }
+                    _ => label.text.clone(),
+                })
                 .flex()
                 .child(content);
             let element = match placement.align {

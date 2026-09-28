@@ -656,3 +656,103 @@ fn empty_series_domains_and_crowded_sankey_columns_remain_usable() {
         }
     }
 }
+
+#[test]
+fn identifiers_repeat_on_actual_representatives_and_remain_bounded() {
+    let data = dataset(data::Contents::Cartesian(vec![
+        data::Layer::Line(series(42, &vec![Some(1.); 1000])),
+        data::Layer::Bar(series(7, &vec![Some(2.); 1000])),
+    ]));
+    for orientation in [
+        options::Orientation::Vertical,
+        options::Orientation::Horizontal,
+    ] {
+        let mut options = options();
+        options.cartesian.orientation = orientation;
+        let plan = prepare(
+            &data,
+            Policy::default(),
+            &options,
+            800.,
+            400.,
+            &AtomicBool::new(false),
+        )
+        .unwrap();
+        let labels = plan
+            .labels
+            .iter()
+            .filter(|label| matches!(label.kind, LabelKind::Series(_)))
+            .collect::<Vec<_>>();
+        assert_eq!(labels.len(), 6);
+        for label in labels {
+            let LabelKind::Series(layer) = label.kind else {
+                unreachable!()
+            };
+            assert_eq!(label.text, (layer + 1).to_string());
+            assert!(plan.marks.iter().any(|m| m.layer == layer
+                && match m.shape {
+                    Shape::Dot { center, .. } => center == label.position,
+                    Shape::Bar(r) =>
+                        Point::new((r.left + r.right) / 2., (r.top + r.bottom) / 2.)
+                            == label.position,
+                    _ => false,
+                }));
+        }
+    }
+    let empty = plan(data::Contents::Cartesian(vec![
+        data::Layer::Line(series(1, &[])),
+        data::Layer::Area(series(2, &[None])),
+    ]));
+    assert!(
+        !empty
+            .labels
+            .iter()
+            .any(|label| matches!(label.kind, LabelKind::Series(_)))
+    );
+    let many = plan(data::Contents::Cartesian(
+        (1..=32)
+            .map(|i| data::Layer::Line(series(i, &vec![Some(i as f64); 100])))
+            .collect(),
+    ));
+    assert_eq!(
+        many.labels
+            .iter()
+            .filter(|l| matches!(l.kind, LabelKind::Series(_)))
+            .count(),
+        96
+    );
+}
+
+#[test]
+fn radar_series_identifiers_follow_axes_and_do_not_require_colored_fills() {
+    let axes = (1..=5)
+        .map(|id| data::RadarAxis {
+            id,
+            label: format!("Axis {id}"),
+            maximum: 100.,
+        })
+        .collect();
+    let values = (1..=2)
+        .map(|id| data::RadarSeries {
+            id,
+            name: format!("Series {id}"),
+            values: (1..=5)
+                .rev()
+                .map(|axis| (axis, 50. + id as f64 * 5.))
+                .collect(),
+        })
+        .collect();
+    let plan = plan(data::Contents::Radar(axes, values));
+    for series in 0..2 {
+        let labels = plan
+            .labels
+            .iter()
+            .filter(|label| label.kind == LabelKind::Series(series))
+            .collect::<Vec<_>>();
+        assert_eq!(labels.len(), 3);
+        for label in labels {
+            assert!(plan.marks.iter().any(|mark| mark.layer == series
+                && matches!(mark.shape,Shape::Dot{center,..} if center==label.position)));
+        }
+    }
+}
