@@ -21,6 +21,19 @@ class Sources(Review):
         # deadline while the inspector already shows the requested value.
         return super().find(title, label, role, contains, search_files=True)
 
+    def wait_inspector_closed(self):
+        # Closing unmounts the native subtree asynchronously. Observe that
+        # transition before reopening: old retained text cannot prove that a
+        # newly mounted inspector is ready for the next accessibility action.
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            node = self.find(TITLE, 'Close workspace inspector', 'AXButton')
+            if not node:
+                return
+            self.release(node)
+            time.sleep(.05)
+        raise RuntimeError('Source inspector did not unmount after closing')
+
     def check_row_budget(self):
         tree = self.wait_find(TITLE, 'Sample workspace sources', 'AXOutline', search_files=True)
         def count_rows(node):
@@ -154,6 +167,7 @@ class Sources(Review):
         self.wait_text(TITLE, 'Selected: App.ml')
         self.wait_text(TITLE, 'Location: Archive')
         self.press(TITLE, 'Close workspace inspector')
+        self.wait_inspector_closed()
         self.press(TITLE, 'Explore workspace')
         self.wait_text(TITLE, 'Location: Archive')
         self.press(TITLE, 'Load 100,000 sources')

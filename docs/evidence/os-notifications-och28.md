@@ -180,3 +180,26 @@ passes for all three crates. The public notification executable rebuild, targete
 OCaml notification expectations and `@fmt` also pass after host cleanup integration.
 No additional GUI walkthrough was needed for this worker-only change; earlier
 macOS OS observations remain the separately dated native evidence above.
+
+## Hosted macOS notification service setup (2026-09-28)
+
+The initial required runs failed to display fresh authorization prompts. Focused
+[diagnostic run 36385032994](https://github.com/dakotamurphyucf/gpuio/actions/runs/36385032994)
+identified the hosted image's disabled `com.apple.notificationcenterui.agent` and
+`usernoted` failing to connect to `com.apple.notificationcenterui.main`. Opening
+the Notification Center application alone did not register that Mach service.
+
+`ci_macos_notifications.py` restores the installed launch agent only on disposable
+GitHub-hosted macOS runners whose user owns the console. It validates the installed
+plist and service, enables/bootstrap-loads it if needed, starts it without killing
+a running service, and verifies readiness. It does not pregrant application
+permission or modify production notification behavior. Local invocation refuses
+to change user service settings.
+
+[Focused run 36419596393](https://github.com/dakotamurphyucf/gpuio/actions/runs/36419596393)
+on diagnostic commit `30e0e04` passed the original fresh permission and real OS
+actions using the existing application binary: named/default activation, dismissal,
+replacement, stale closed-window isolation, and service cleanup. This proves the
+runner setup fix; the separate diagnostic branch is not part of the merge. The
+complete required workflow, including Signal Studio, must still pass on the final
+PR revision. Linux graphical notification acceptance remains OCH-17.
