@@ -26,7 +26,8 @@ Local platform: macOS 14.5 (23F79), arm64. Use the pinned repository environment
 | Native extensions | Independently packaged counter, native AX/keyboard activation, property updates, commands while disabled/hidden, generation reset and exact teardown traces | Additional independent packages, failure/overload gallery fixtures and release consumer gates |
 | Input & transfers | Real captured pointer beyond bounds, Escape/disable/page departure, keyboard alternatives, text/custom drag-drop IDs, rejection and retained page state | Gallery OS file arrival and broader generic hover/key/focus/wheel surface audit |
 | Responsive layouts | Width/height boundaries, first-match priority, retained branch drafts/counters, silent same-branch resize, hidden AX/focus fencing and theme/size changes | Nested layouts, physical display movement and larger query workloads |
-| Runtime & windows | Public diagnostics, observed content geometry, native file picker cancellation | Desktop identity/links/OS notifications and broader window command matrix |
+| Desktop services | Shared identity/link/notification receivers, per-window metadata, actual packaged OS links, picker/open/reveal, notification permission/presentation/replacement/action/dismissal | Gallery default-handler reassignment and release packaging/clean-machine gates |
+| Runtime & windows | Public diagnostics, observed content geometry, native file picker cancellation | Broader window command matrix |
 
 The combined native test opens a second independent window, verifies independent
 editor values, closes it, cycles editor page unmount/remount three times and
@@ -109,7 +110,7 @@ Detailed family/configuration/event/value review remains explicitly pending.
 Known review topics include GPUIX's previously omitted onVisibleRange/onHighlight,
 ellipsis-start and extra cursor variants, pointer/wheel defaults, selection scope,
 standalone clipboard/automation surfaces and nested editor/document plugin APIs.
-Remaining gallery integration includes desktop services. The input/transfer page
+The gallery now includes desktop services. The input/transfer page
 covers existing captured-pointer and drag/drop APIs; broader generic-event
 functionality still requires the detailed GPUIX audit. OCH-41 remains In Progress; OCH-17's macOS release audit follows it.
 
@@ -387,3 +388,76 @@ eighteen-page checkpoint above. No general GPU/RSS budget, passive-hover callbac
 OS file-arrival or complete generic-event parity claim follows from this preview.
 Existing standalone OS file-transfer coverage is recorded separately in
 [OCH-11](drag-drop-och11.md).
+
+## Desktop gallery continuation
+
+The twentieth page uses public `App.run_desktop`, `Desktop`, `Notification`,
+`File_dialog` and `Desktop_package` APIs. One application-owned service of each
+kind survives page/window changes. Only latest observations and one receipt are
+retained. An effect-execution guard serializes notification operations across all
+windows; terminal events retire only the matching receipt. Actions update the
+shared model without automatically activating a window. Document metadata is
+observed from each exact native window on page entry. Selecting a represented file
+neither reads nor writes it; Open/Reveal, handler registration and notification
+permission are separate explicit actions. Native path bytes are not UI labels.
+
+Direct macOS execution passes startup-link delivery, actual edited/saved metadata,
+independent windows, shared observations, three page visits, both themes/three
+sizes, disabled file actions without a path and native picker cancellation. It
+also checks actual `Unavailable` responses for unbundled notification posting and
+scheme registration. This is expected platform behavior, not a fallback claiming
+that a notification was delivered.
+
+`python3 scripts/test_gallery_desktop_macos.py` builds a disposable ad-hoc signed
+bundle using the gallery's generated plist. It passes:
+
+- Actual Launch Services links to the same process, including receipt while the
+  desktop page is hidden and rejection of an invalid authority.
+- Real AppKit picker selection of a disposable Unicode-named fixture. The
+  OS-selected temporary handler records the exact requested path; Finder exposes
+  that fixture after Reveal. Clearing the path disables file actions again.
+- Actual notification support/authorization. Posting before permission returns
+  `Not_ready`; the explicit permission action presents the OS prompt and granting
+  it yields `Authorized`. Native Notification Center shows the posted content,
+  its replacement and the named action. The action reaches OCaml while the page
+  is hidden and clears the matching receipt. A second window posts the next
+  receipt; closing that window preserves the receipt so the first can dismiss it.
+  The test confirms native disappearance and normal final application shutdown.
+
+The final packaged run passes in `desktop-packaged-ax-4.log` (local scratch).
+Earlier failures are excluded: the picker fixture assumed a named combo box and
+used process-targeted keys. A focused native diagnostic showed Sonoma exposes an
+unnamed text field in a nested sheet and needs the foreground event stream for
+its shortcut. The final test checks foreground ownership and waits for the nested
+sheet's arrival/departure. A separate run failed to expose the initial AX window;
+setup now repeats bounded activation until that first window is available. No
+library/runtime changes were made for these fixture fixes.
+
+Gallery build, expect tests, formatting, Python syntax and structural catalog
+checks pass. The direct gallery screenshot was inspected. Combined twenty-page
+validation passes (`desktop-all-ax-2.log`); hosted review and release gates remain
+pending. The packaged fixture does not establish clean-machine distribution,
+Developer ID signing/notarization, global accessibility or resource budgets.
+Default-handler reassignment is an explicit gallery action but was not exercised
+by this packaged fixture; earlier standalone native coverage remains separate.
+
+
+The first combined twenty-page attempt reached motion but missed its intended
+interruption interval: a new accessibility-tree search between contraction and
+reversal let the sample approach its narrow endpoint (97 pixels). The revised
+fixture resolves the same native sample/toggle before starting the interval;
+it retains the original intermediate/endpoint/no-jump assertions. Focused motion
+passes with 283 pixels before reversal, a 279-pixel minimum afterward and the
+310-pixel final endpoint. The combined rerun passes too (288 pixels before reversal, 279-pixel minimum
+and 310-pixel endpoint). This is a fixture change, not a relaxation of the motion contract or a production animation change.
+
+
+The combined run also verifies exact extension teardown (five mount/unmount/
+component/value lifetimes, two commands without replay), matching transfer
+identities (four source gestures/two native drops), zero registered source bytes
+at the final runtime page, picker cancellation and normal application shutdown.
+All required v1 entries in the current root-family map and expanded-capability
+map now have a gallery link. The only null root-family links are post-v1 docking
+and excluded development-inspector tooling. This is navigation/example coverage;
+nested configuration, events, style values and accessibility still require the
+explicit behavioral audit and may reveal additional implementation work.

@@ -13,7 +13,7 @@ let style = Style.create_exn
 let px = Length.px_exn
 let full = Length.percent_exn 100.
 
-let component ~app ~motion ~open_window ~page ~appearance ~scale window graph =
+let component ~app ~desktop ~motion ~open_window ~page ~appearance ~scale window graph =
   let open B.Let_syntax in
   B.Edge.on_change
     (B.Expert.Var.value appearance)
@@ -31,7 +31,9 @@ let component ~app ~motion ~open_window ~page ~appearance ~scale window graph =
     and s = B.Expert.Var.value scale in
     Palette.create a s
   in
-  let content = Pages.component ~app ~motion window ~page:page_value ~palette graph in
+  let content =
+    Pages.component ~app ~desktop ~motion window ~page:page_value ~palette graph
+  in
   let%arr page_value = page_value
   and p = palette
   and content = content
@@ -107,12 +109,17 @@ let component ~app ~motion ~open_window ~page ~appearance ~scale window graph =
     ]
 ;;
 
-let () =
+let main () =
   let catalog = App.extension_catalog () |> ok in
   if not (List.exists catalog ~f:(Extension.Schema.equal Gpuio_example_counter.schema))
   then failwith "The gallery backend must provide the example.counter schema";
   let background = Array.exists (Sys.get_argv ()) ~f:(String.equal "--background") in
-  App.run (fun _env app ->
+  let startup_links =
+    Array.filter_map (Sys.get_argv ()) ~f:(String.chop_prefix ~prefix:"--open-uri=")
+    |> Array.to_list
+  in
+  App.run_desktop Desktop_session.identity ~startup_links (fun _env app ->
+    let desktop = Desktop_session.create app in
     let motion = B.Expert.Var.create Animation.Preference.System in
     let windows = ref [] in
     let serial = ref 0 in
@@ -134,10 +141,31 @@ let () =
             ~title:(sprintf "GPUIO · Component Studio %d" !serial)
             ~width:1120.
             ~height:820.
-            (component ~app ~motion ~open_window ~page ~appearance ~scale)
+            (component ~app ~desktop ~motion ~open_window ~page ~appearance ~scale)
           |> ok
         in
         windows := window :: !windows)
     in
-    open_window ())
+    App.on_reopen app (fun () -> E.of_thunk open_window);
+    open_window ();
+    Desktop_session.ready desktop)
+  |> function
+  | Ok (App.Launch_outcome.Exited | Forwarded) -> ()
+  | Error error -> raise_s [%sexp (error : Gpuio.Desktop.Error.t)]
+;;
+
+let () =
+  if Array.exists (Sys.get_argv ()) ~f:(String.equal "--print-info-plist")
+  then (
+    let package =
+      Desktop_package.macos_info_plist
+        Desktop_session.identity
+        ~executable:"gpuio-studio"
+        ~version:"0.1.0"
+        ~build:"1"
+      |> ok
+    in
+    Eio_main.run (fun env ->
+      Eio.Flow.copy_string (Desktop_package.contents package) (Eio.Stdenv.stdout env)))
+  else main ()
 ;;

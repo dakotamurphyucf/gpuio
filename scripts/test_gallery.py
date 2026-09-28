@@ -1424,8 +1424,27 @@ def exercise_motion(mac, images, second_title=SECOND):
     opening = motion_samples(mac, 'Resize sample', 1.3, 'Expand preview')
     assert abs(opening[-1] - 310) < 1, opening
     assert any(98 < width < 308 for width in opening), opening
-    early = motion_samples(mac, 'Resize sample', .25, 'Contract preview')
-    reopening = motion_samples(mac, 'Resize sample', 1.3, 'Expand preview')
+    # Resolve native elements before starting the interruption interval. A full
+    # AX tree traversal between the two presses can outlast the animation.
+    resize = mac.wait_find(TITLE, 'Resize sample', 'AXGroup')
+    toggle = mac.wait_find(TITLE, 'Contract preview', 'AXButton')
+    def sample_resize(seconds):
+        samples = []
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline:
+            samples.append(motion_width(mac, resize))
+            time.sleep(.015)
+        return samples
+    try:
+        mac.perform(toggle, 'AXPress')
+        early = sample_resize(.25)
+        mac.perform(toggle, 'AXPress')
+        reopening = sample_resize(1.3)
+    finally:
+        mac.release(toggle)
+        mac.release(resize)
+    print('GALLERY_MOTION_INTERRUPTION', 'before=', early[-1],
+          'after_min=', min(reopening), 'end=', reopening[-1], flush=True)
     assert 98 < early[-1] < 308, early
     assert abs(reopening[-1] - 310) < 1, reopening
     assert min(reopening) > 98, reopening  # No jump to the declared narrow endpoint.
@@ -1495,6 +1514,63 @@ def exercise_motion(mac, images, second_title=SECOND):
           'sequence, cancellation/reverse, reduced endpoints, shared phase and departure', flush=True)
 
 
+def exercise_desktop(mac, images, *, second_title=SECOND, bundled=False):
+    mac.press(TITLE, 'Desktop services')
+    mac.wait_text(TITLE, 'GPUIO Component Studio')
+    mac.wait_text(TITLE, 'Received link: gpuio-studio://preview/startup')
+    mac.press(TITLE, 'Check desktop support')
+    mac.wait_text(TITLE, 'Desktop support: links, registration, activation, reveal, open, document metadata')
+    if not bundled:
+        mac.wait_text(TITLE, 'Notification support: Unavailable')
+        mac.wait_text(TITLE, 'Notification access: Unavailable')
+        mac.press(TITLE, 'Post preview notification')
+        mac.wait_text(TITLE, 'Notification post: Unavailable')
+        expect_enabled(mac, 'Replace preview notification', False)
+        expect_enabled(mac, 'Dismiss preview notification', False)
+        mac.press(TITLE, 'Register Studio links with the OS')
+        mac.wait_text(TITLE, 'Link registration: Unavailable')
+    mac.press(TITLE, 'Activate application')
+    mac.wait_text(TITLE, 'Application activation: request accepted')
+    mac.press(TITLE, 'Clear represented file')
+    mac.wait_text(TITLE, 'Document metadata observed')
+    mac.wait_text(TITLE, 'Represented file: none')
+    expect_enabled(mac, 'Open represented file', False)
+    expect_enabled(mac, 'Reveal represented file', False)
+    mac.press(TITLE, 'Mark document edited')
+    mac.wait_text(TITLE, 'Document edited: true')
+    for _ in range(3):
+        mac.press(TITLE, 'Presentation')
+        mac.wait_text(TITLE, 'A little context goes a long way')
+        absent(mac, 'Post preview notification', 'AXButton')
+        mac.press(TITLE, 'Desktop services')
+        mac.wait_text(TITLE, 'Document edited: true')
+        mac.wait_text(TITLE, 'Received link: gpuio-studio://preview/startup')
+    cycle_preview_appearance(mac, 'Document edited: true')
+    if images:
+        screenshot(mac, images / 'gallery-desktop.png', title=TITLE)
+    mac.press(TITLE, 'New window')
+    mac.wait_text(second_title, 'A little context goes a long way')
+    mac.press(second_title, 'Desktop services')
+    mac.wait_text(second_title, 'Document edited: false')
+    mac.wait_text(second_title, 'Received link: gpuio-studio://preview/startup')
+    if not bundled:
+        mac.wait_text(second_title, 'Notification post: Unavailable')
+    mac.press(second_title, 'Mark document edited')
+    mac.wait_text(second_title, 'Document edited: true')
+    mac.press(TITLE, 'Mark document saved')
+    mac.wait_text(TITLE, 'Document edited: false')
+    mac.wait_text(second_title, 'Document edited: true')
+    mac.close(second_title)
+    raise_gallery(mac)
+    mac.press(TITLE, 'Choose represented file')
+    mac.release(mac.wait_find(TITLE, 'Cancel', 'AXButton'))
+    mac.press(TITLE, 'Cancel')
+    mac.wait_text(TITLE, 'Document selection cancelled')
+    mac.wait_text(TITLE, 'Represented file: none')
+    print('GALLERY_DESKTOP_OK: incoming startup link, shared application services, '
+          'per-window observed metadata, explicit OS results, themes/sizes and teardown', flush=True)
+
+
 def exercise_runtime(mac, images):
     mac.press(TITLE, 'Runtime & windows')
     mac.press(TITLE, 'Refresh resource counts')
@@ -1516,7 +1592,7 @@ def main():
     parser.add_argument('--images', type=Path)
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -1528,7 +1604,8 @@ def main():
         child = subprocess.Popen([str(repo / '_build/default/examples/gallery/main.exe'),
                                   *(['--trace-canvas'] if args.trace_canvas else []),
                                   *(['--trace-motion'] if args.trace_motion else []),
-                                  *(['--trace-input'] if args.section in ('all', 'input') else [])],
+                                  *(['--trace-input'] if args.section in ('all', 'input') else []),
+                                  *(['--open-uri=gpuio-studio://preview/startup'] if args.section in ('all', 'desktop') else [])],
                                  cwd=repo, env=env, stdout=log, stderr=subprocess.STDOUT, text=True)
         mac = None
         try:
@@ -1565,6 +1642,8 @@ def main():
                 exercise_extensions(mac, args.images)
             if args.section in ('all', 'input'):
                 exercise_input(mac, args.images)
+            if args.section in ('all', 'desktop'):
+                exercise_desktop(mac, args.images, second_title=('GPUIO · Component Studio 4' if args.section == 'all' else SECOND))
             if args.section in ('all', 'runtime'):
                 exercise_runtime(mac, args.images)
             mac.close(TITLE)

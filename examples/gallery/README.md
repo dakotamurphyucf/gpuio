@@ -4,7 +4,7 @@ A native public-API gallery under implementation for OCH-41. The first sections
 cover presentation, selection/actions, native text editing, numeric/range inputs,
 verification codes, rating, dates/colors, overlays, navigation/layout and commands/
 feedback, carousel/sidebar/history, managed collections, documents and runtime/
-window previews, canvas, images/icons, charts, plus native motion sequences, shared clocks, responsive layouts, native extensions and input/transfers. Additional v1
+window previews, canvas, images/icons, charts, plus native motion sequences, shared clocks, responsive layouts, native extensions, input/transfers and desktop services. Additional v1
 families and the complete coverage ledger are still being integrated; this is
 not the completed milestone 07 release.
 
@@ -19,7 +19,7 @@ DPI emulation. Each new window has independent navigation, appearance and editor
 state. Leaving a page unmounts its native editor leases; appearance/size changes
 on the current page preserve native text and selection. Preview model state is
 local to its Bonsai branch and survives page changes. Transient modal, chooser and
-notification state is cleared on departure. At most four windows are opened by the gallery.
+in-app toast state is cleared on departure. Application-owned OS notification/link state survives page and window changes. At most four windows are opened by the gallery.
 
 The `--background` launch option avoids requesting focus. macOS accessibility
 may not expose an inactive background app's window until activation; interactive
@@ -31,7 +31,7 @@ python3 scripts/test_gallery.py --images scratch/gallery-images
 ```
 
 Use `--section core`, `pickers`, `overlays`, `navigation`, `feedback`, `journeys`,
-`collections`, `documents`, `canvas`, `assets`, `charts`, `motion`, `responsive`, `extensions`, `input` or `runtime` for focused iteration;
+`collections`, `documents`, `canvas`, `assets`, `charts`, `motion`, `responsive`, `extensions`, `input`, `desktop` or `runtime` for focused iteration;
 the default `all` exercises all currently integrated acceptance stages in one
 application lifetime. Pickers verify draft cancel/apply and focus restoration;
 overlays exercise dialog/drawer/confirmation/popover dismissal and focus; workspace
@@ -105,3 +105,38 @@ submission, theme/size changes without resetting the editor, independent windows
 repeated page unmount/remount and window shutdown. It is not an OS IME or complete
 catalog qualification claim. See the [design contract](../../docs/design/component-gallery.md)
 and [catalog inputs](../../docs/catalog/README.md).
+
+## Desktop integration
+
+The gallery runs with identity `com.gpuio.component-studio` and scheme
+`gpuio-studio`. One application-owned receiver per service survives page changes;
+all windows share the latest link/support observations and one notification
+receipt. Notification operations admit one request at a time across all windows.
+Terminal actions retire only the matching receipt, and never activate a window.
+Document metadata belongs to each exact native window and is observed again on
+page entry. Selecting a represented file does not read it; Open and Reveal are
+separate actions. Path bytes are not used as UTF-8 display labels.
+
+Support/permission queries do not prompt. Only Allow OS notifications requests
+permission; posting success reports OS acceptance, not guaranteed presentation.
+Notification services and runtime link registration require a matching macOS app
+bundle; direct development launches display `Unavailable`. The Register button
+explicitly changes the handler for Studio's declared scheme. It is not called at
+startup. `--open-uri=gpuio-studio://preview/startup` demonstrates startup delivery;
+`--print-info-plist` emits metadata using the public packaging API without opening
+windows. Linux launching requires a session bus because the gallery uses
+`App.run_desktop`; full Linux desktop qualification remains deferred.
+
+The focused `--section desktop` check covers direct execution. Packaged macOS
+integration has a separate foreground test:
+
+```sh
+python3 scripts/test_gallery_desktop_macos.py --artifacts scratch/gallery-desktop
+```
+
+It builds an ad-hoc signed disposable bundle from the existing gallery executable,
+requests permission for Component Studio through its UI if needed, and tests
+actual OS links, notifications and a disposable file-handler fixture. It targets
+only fixture applications/notifications, closes its windows and unregisters
+fixture bundles afterward. An existing notification denial is not overridden.
+This local fixture is not a signed/notarized release or clean-machine acceptance.

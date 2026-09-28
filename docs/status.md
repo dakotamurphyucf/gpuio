@@ -6,12 +6,12 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 passed on `473407c`; all twelve tickets are Done.
 
 Milestone 07 is in progress. OCH-41's public
-[Component Studio](../examples/gallery/README.md) now has nineteen preview sections,
-including canvas, images/icons, charts, native motion, responsive layouts, native extensions and input/transfers. The [gallery evidence](evidence/gallery-och41.md) records
+[Component Studio](../examples/gallery/README.md) now has twenty preview sections,
+including canvas, images/icons, charts, native motion, responsive layouts, native extensions, input/transfers and desktop services. The [gallery evidence](evidence/gallery-och41.md) records
 local macOS interaction, geometry, gallery expect tests, formatting and structural
 catalog checks, separately from earlier native document/Clippy regression checks.
-Remaining gallery families, detailed behavioral parity, installed-consumer and
-release gates are still pending. OCH-17 is also in progress: the
+The current catalog maps every required v1 family to a gallery page. Detailed
+behavioral parity, installed-consumer and release gates are still pending. OCH-17 is also in progress: the
 [native document accessibility repair](evidence/document-accessibility-och17.md)
 now exposes body text, read-only source/code, keyboard/AX inline-link activation
 and distant-link reveal. Rich/image links, selection/ranges, table and screen-reader

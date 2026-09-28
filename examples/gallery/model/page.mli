@@ -21,6 +21,7 @@ type t =
   | Extensions
   | Input
   | Responsive
+  | Desktop
   | Runtime
 [@@deriving equal, compare, sexp_of]
 

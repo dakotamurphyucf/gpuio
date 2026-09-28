@@ -19,6 +19,7 @@ type t =
   | Extensions
   | Input
   | Responsive
+  | Desktop
   | Runtime
 [@@deriving equal, compare, sexp_of]
 
@@ -41,6 +42,7 @@ let all =
   ; Extensions
   ; Input
   ; Responsive
+  ; Desktop
   ; Runtime
   ]
 ;;
@@ -64,6 +66,7 @@ let title = function
   | Extensions -> "Native extensions"
   | Input -> "Input & transfers"
   | Responsive -> "Responsive layouts"
+  | Desktop -> "Desktop services"
   | Runtime -> "Runtime & windows"
 ;;
 
@@ -86,6 +89,7 @@ let description = function
   | Extensions -> "Bring your own native components to the workspace."
   | Input -> "Direct gestures, simple transfers and keyboard alternatives."
   | Responsive -> "Thoughtful layouts that adapt to the space around them."
+  | Desktop -> "A workspace that feels at home on your desktop."
   | Runtime -> "Native window behavior and visible resource ownership."
 ;;
 
@@ -108,5 +112,6 @@ let key = function
   | Extensions -> "extensions"
   | Input -> "input"
   | Responsive -> "responsive"
+  | Desktop -> "desktop"
   | Runtime -> "runtime"
 ;;

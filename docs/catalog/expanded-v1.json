@@ -52,7 +52,7 @@
         "docs/design/desktop-services.md",
         "docs/milestone-6.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "desktop",
       "contract": "Application identity, readiness-aware deep links, document metadata, OS open/reveal and packaging contracts."
     },
     {
@@ -65,7 +65,7 @@
       "evidence": [
         "docs/evidence/os-notifications-och28.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "desktop",
       "contract": "Explicit capability/permission queries, owned notification receipts, replace/dismiss and stale-safe action delivery."
     }
   ]

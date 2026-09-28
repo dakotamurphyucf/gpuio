@@ -28,7 +28,7 @@ that every source entry is implemented or validated.
   integration and OS notifications from the accepted v1 expansion. These additions
   sit outside the Longbridge root-module map; they must not disappear merely
   because that source exports no corresponding module. Motion is already in the
-  family map. Null gallery pages and pending review remain explicit. Reference-app
+  family map. Gallery links and pending behavioral review remain explicit. Reference-app
   consumer/distribution gates stay in the milestone release evidence.
 
 Verify structural inventory without an upstream checkout or network access:
