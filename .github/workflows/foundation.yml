@@ -21,6 +21,8 @@ jobs:
           xcrun swift -module-cache-path .cache/macos-display-modules scripts/ci_macos_display.swift --apply
           gh run download 36377185296 --repo dakotamurphyucf/gpuio --name foundation-logs-macOS-ARM64 --dir .cache/previous
           chmod +x '.cache/previous/notification-os/GPUIO Notification Lab.app/Contents/MacOS/gpuio-notification'
+      - name: Restore hosted notification launch agent
+        run: python3 scripts/ci_macos_notifications.py
       - name: Observe fresh notification authorization and accessibility
         run: python3 scripts/diagnose_notification_permission.py 2>&1 | tee .cache/ci/notification-diagnostic.log
       - name: Preserve diagnostic evidence
