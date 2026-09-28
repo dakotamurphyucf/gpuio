@@ -497,6 +497,55 @@ def exercise_documents(mac, images):
     mac.wait_text(TITLE, 'Appended findings: 1 / 6')
     mac.release(mac.wait_find(TITLE, 'Copy code', 'AXButton'))
     mac.wait_text(TITLE, 'Finding 1')
+    for finding in range(2, 7):
+        mac.press(TITLE, 'Append a finding')
+        mac.wait_text(TITLE, f'Appended findings: {finding} / 6')
+    focus = mac.wait_find(TITLE, 'Copy source', 'AXButton')
+    try:
+        mac.set(focus, 'AXFocused', mac.true)
+    finally:
+        mac.release(focus)
+    expect_focus(mac, 'Copy source')
+    mac.key(48)  # Tab from toolbar to the document's native focus owner.
+    expect_focus(mac, 'Document content', 'AXGroup')
+    for destination in ('notes', 'unicode', *(f'finding-{i}' for i in range(1, 7))):
+        mac.key(48)
+        label = {'notes': 'Read the design notes', 'unicode': '世界 guide'}.get(
+            destination, 'Explore ' + destination.replace('-', ' '))
+        expect_focus(mac, label, 'AXLink')
+        mac.key(36)
+        mac.wait_text(TITLE, 'Link requested: gpuio-preview:' + destination)
+    def bounds(node):
+        values = []
+        get = mac.ax.AXValueGetValue
+        get.restype, get.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
+        for attribute, kind in [('AXPosition', 1), ('AXSize', 2)]:
+            value = mac.attr(node, attribute)
+            point = (C.c_double * 2)()
+            try:
+                assert value and get(value, kind, C.byref(point)), attribute
+                values.extend(point)
+            finally:
+                if value:
+                    mac.release(value)
+        return values
+    content = mac.wait_find(TITLE, 'Document content', 'AXGroup')
+    link = mac.wait_find(TITLE, 'Explore finding 6', 'AXLink')
+    try:
+        x, y, width, height = bounds(content)
+        lx, ly, lw, lh = bounds(link)
+        assert x <= lx and lx + lw <= x + width + 2, (bounds(content), bounds(link))
+        assert y <= ly and ly + lh <= y + height + 2, (bounds(content), bounds(link))
+    finally:
+        mac.release(content)
+        mac.release(link)
+    if images:
+        screenshot(mac, images / 'gallery-document-keyboard-link.png', title=TITLE)
+    mac.key(48, 1 << 17)  # Shift-Tab returns to the preceding logical link.
+    mac.key(36)
+    mac.wait_text(TITLE, 'Link requested: gpuio-preview:finding-5')
+    mac.key(53)  # Escape clears link focus without leaving the document.
+    expect_focus(mac, 'Document content', 'AXGroup')
     mac.press(TITLE, 'Code')
     mac.wait_text(TITLE, 'Code preview')
     editor = mac.wait_find(TITLE, 'Code preview', 'AXTextArea')

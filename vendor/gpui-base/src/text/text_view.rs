@@ -1,3 +1,4 @@
+use gpui::StatefulInteractiveElement as _;
 use std::{ops::Range, sync::Arc};
 
 use gpui::prelude::FluentBuilder as _;
@@ -592,8 +593,20 @@ impl Element for TextView {
 
         let mut el = div()
             .id(("text-view-scroll", state.entity_id()))
+            .role(gpui::Role::Document)
+            .aria_label("Document content")
             .key_context("TextView")
             .track_focus(&focus_handle)
+            .on_key_down(window.listener_for(&state, TextViewState::on_link_key))
+            .on_mouse_down(
+                MouseButton::Left,
+                window.listener_for(&state, |state, _, _, cx| {
+                    if state.link_navigation.active.take().is_some() {
+                        state.link_reveal = None;
+                        cx.notify();
+                    }
+                }),
+            )
             .when(self.scrollable, |this| this.size_full())
             .when_some(max_lines_cap, |this, cap| this.max_h(cap).overflow_hidden())
             .relative()
@@ -636,20 +649,22 @@ impl Element for TextView {
     ) -> Self::PrepaintState {
         let state = request_layout.state.clone();
         let max_lines_active = state.read(cx).max_lines.is_some();
+        state.update(cx, |state, _| {
+            state.link_reveal_claimed = false;
+            state.link_active_owner = None;
+        });
         if max_lines_active {
             if let Ok(mut line_spans) = state.read(cx).line_spans.lock() {
                 line_spans.clear();
             }
             // Descendant `Inline`s report their line spans through the state
             // stack during prepaint (in addition to the paint-time push below).
-            GlobalState::global_mut(cx)
-                .text_view_state_stack
-                .push(state.clone());
         }
+        GlobalState::global_mut(cx)
+            .text_view_state_stack
+            .push(state.clone());
         request_layout.element.prepaint(window, cx);
-        if max_lines_active {
-            GlobalState::global_mut(cx).text_view_state_stack.pop();
-        }
+        GlobalState::global_mut(cx).text_view_state_stack.pop();
 
         let mut clip_bottom = None;
         if max_lines_active {
@@ -719,6 +734,11 @@ impl Element for TextView {
         }
         GlobalState::global_mut(cx).text_view_state_stack.pop();
 
+        state.update(cx, |state, _| {
+            if state.link_reveal_claimed {
+                state.link_reveal = None;
+            }
+        });
         if self.selectable {
             let (adapter, scroll_offset, content_bounds, self_scroll) = {
                 let state = state.read(cx);
@@ -1205,6 +1225,48 @@ mod tests {
             .join("\n\n")
     }
 
+    #[gpui::test]
+    fn keyboard_links_reveal_positions_inside_one_tall_virtual_block(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let source = (0..60)
+            .map(|i| format!("- [Link {i}](test:{i})\n"))
+            .collect::<String>();
+        let (root, cx) = cx.add_window_view(|_, cx| ScrollExtentTestRoot {
+            text_view: cx.new(|cx| TextViewState::markdown(&source, cx)),
+        });
+        let cx: &mut VisualTestContext = cx;
+        cx.run_until_parked();
+        let view = root.read_with(cx, |root, _| root.text_view.clone());
+        cx.update(|window, cx| {
+            let focus = view.read(cx).focus_handle().clone();
+            window.focus(&focus, cx);
+        });
+        for i in 0..60 {
+            cx.simulate_keystrokes("tab");
+            cx.run_until_parked();
+            cx.update(|window, cx| window.draw(cx).clear(cx));
+            view.read_with(cx, |view, _| {
+                assert_eq!(view.list_state.item_count(), 1);
+                assert_eq!(view.link_navigation.selected().unwrap().url.as_ref(), format!("test:{i}"));
+                let offset = view.list_state.logical_scroll_top();
+                assert_eq!(offset.item_ix, 0);
+                if i == 0 { assert!(offset.offset_in_item <= px(2.), "first link must reveal the top, not the bottom of its tall block: {offset:?}"); }
+                if i == 59 { assert!(offset.offset_in_item > px(600.), "last link must reveal the bottom: {offset:?}"); }
+            });
+        }
+        for _ in 0..59 {
+            cx.simulate_keystrokes("shift-tab");
+            cx.run_until_parked();
+        }
+        view.read_with(cx, |view, _| {
+            assert_eq!(
+                view.link_navigation.selected().unwrap().url.as_ref(),
+                "test:0"
+            );
+            assert!(view.list_state.logical_scroll_top().offset_in_item <= px(2.));
+        });
+    }
+
     /// Replacing a document with one that happens to have the *same* block
     /// count must still re-measure. `Document::render_root` only resets the
     /// list when the count changes, so without an explicit re-measure every
@@ -1268,17 +1330,15 @@ mod tests {
 
     struct StatelessMarkdownRoot {
         renders: Arc<AtomicUsize>,
+        source: SharedString,
     }
 
     impl Render for StatelessMarkdownRoot {
         fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
             self.renders.fetch_add(1, Ordering::Relaxed);
             div().child(
-                TextView::markdown(
-                    "stateless-markdown",
-                    include_str!("../../UPSTREAM_README.md"),
-                )
-                .markdown_block_parser(|_, _| None),
+                TextView::markdown("stateless-markdown", self.source.clone())
+                    .markdown_block_parser(|_, _| None),
             )
         }
     }
@@ -1308,7 +1368,14 @@ mod tests {
         let renders = Arc::new(AtomicUsize::new(0));
         let (_, cx) = cx.add_window_view({
             let renders = renders.clone();
-            move |_, _| StatelessMarkdownRoot { renders }
+            move |_, _| StatelessMarkdownRoot {
+                renders,
+                // Exercise asynchronous parsing and a freshly rebuilt parser,
+                // without image-loading notifications changing the render count.
+                source: "A stable paragraph with **formatting** and [a link](test:stable).\n\n"
+                    .repeat(80)
+                    .into(),
+            }
         });
         let cx: &mut VisualTestContext = cx;
 
@@ -1318,6 +1385,38 @@ mod tests {
             "an unchanged TextView must settle after its parse, but rendered {} times",
             renders.load(Ordering::Relaxed),
         );
+    }
+
+    #[gpui::test]
+    fn stateless_markdown_with_images_does_not_keep_redrawing_after_settling(
+        cx: &mut TestAppContext,
+    ) {
+        let settle = |cx: &mut VisualTestContext| {
+            cx.run_until_parked();
+            cx.executor()
+                .advance_clock(std::time::Duration::from_secs(1));
+            cx.run_until_parked();
+        };
+        cx.update(crate::init);
+        let renders = Arc::new(AtomicUsize::new(0));
+        let (_, cx) = cx.add_window_view({
+            let renders = renders.clone();
+            move |_, _| StatelessMarkdownRoot {
+                renders,
+                source: include_str!("../../UPSTREAM_README.md").into(),
+            }
+        });
+        let cx: &mut VisualTestContext = cx;
+        settle(cx);
+        let settled = renders.load(Ordering::Relaxed);
+        for _ in 0..3 {
+            settle(cx);
+            assert_eq!(
+                renders.load(Ordering::Relaxed),
+                settled,
+                "idle Markdown must not redraw"
+            );
+        }
     }
 
     #[gpui::test]

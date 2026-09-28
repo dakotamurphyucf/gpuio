@@ -45,8 +45,8 @@ Both modified vendor trees reconstruct from their pinned upstream archives and
 ordered patches; source comparison excludes GPUI Base's generated Cargo.lock.
 Failed intermediate probes remain local notes, not acceptance evidence.
 
-Remaining release requirements include keyboard Markdown link navigation,
-rich-fragment link identity, macOS heading-level exposure, table reading semantics, native selected
+Remaining release requirements include rich-fragment/image link accessibility,
+macOS heading-level exposure, table reading semantics, native selected
 text/range APIs, copy, modal/stale-action cases, bounded source pagination through
 assistive tools, and actual VoiceOver reading/navigation. No hidden duplicate raw source substitutes for these
 requirements. Linux desktop accessibility remains deferred to OCH-47.
@@ -69,9 +69,44 @@ activate it, then expands and continues through streaming/reset/remount. A focus
 GPUI Base unit test verifies text partitioning, Unicode boundaries, adjacent styled
 runs and invalid-range rejection. These tests cover ordinary Inline rendering.
 
-Keyboard traversal/visible focus remains unimplemented. Links split across rich
-inline objects, code-font fragments or multiple InlineFlow elements need a shared
-logical identity review; the bold-link fixture does not prove that case. Also keep
-heading levels, tables, selected-text/range/copy, source pagination and VoiceOver
-acceptance open. Synthetic AX Click support alone is not keyboard or screen-reader
-navigation acceptance.
+Links split across rich inline objects, code-font fragments or multiple InlineFlow
+elements still need complete accessible reading/focus coverage; the bold-link
+fixture does not prove that case. Also keep heading levels, tables,
+selected-text/range/copy, source pagination and VoiceOver acceptance open.
+
+## Keyboard navigation and focus
+
+Markdown links now carry source identities shared by their styled pieces. The
+prepared document produces an ordered logical catalog independently of mounted
+rows. Tab/Shift-Tab navigate it, Enter activates through the guarded callback,
+Escape clears link focus, and pointer interaction clears keyboard link selection.
+Append preserves an unchanged selected target; reset or a changed target clears
+it. Native text selection is not used to represent keyboard link focus.
+
+Inline's transparent semantic children now use actual GPUI Label/Link elements
+instead of synthetic leaves. This preserves reading order and allows the selected
+link to claim accessible descendant focus while the document retains real keyboard
+focus. The renderer outlines the selected link. Elements are created only when
+accessibility is active. Offscreen navigation first reveals the containing virtual
+block and then makes a one-shot GPUI autoscroll request for the link's text position.
+
+Actual macOS key delivery traverses eight links through six streamed findings,
+asserts AX focus and the distinct queued OCaml destination at each link, checks
+the distant final link's bounds lie inside the viewport, reverses direction and
+uses Escape to restore document focus. The focus-outline screenshot was inspected.
+The existing Unicode/read-only/collapse/reset/remount checks continue to pass.
+
+GPUI layout tests traverse 60 links forward/backward inside one tall virtual block,
+proving link-position reveal instead of merely aligning that block's bottom.
+Catalog tests cover formatted/code spans, references, list/table placement,
+adjacent same-URL links, nonwrapping boundaries, append retention and replacement.
+The broader text suite passed 146 tests before the additional tall-block test;
+the tall-block test also passes independently.
+
+That suite exposed an existing idle-test failure: the previous commit also rendered
+the README seven times during initial settlement. The strict parser-settlement test
+now uses deterministic asynchronous-sized text without image-loading work. A separate
+README test retains the image fixture and verifies no additional renders across
+three subsequent simulated seconds. Both pass; this does not replace the release's
+real-process idle/resource measurements. Direct AX focus requests and full image/
+inline-object link behavior remain open, as does VoiceOver acceptance.

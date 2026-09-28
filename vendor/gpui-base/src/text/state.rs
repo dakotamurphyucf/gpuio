@@ -117,6 +117,10 @@ pub struct TextViewState {
     pub(super) selection_adapter: TextViewSelectionAdapter,
 
     pub(super) parsed_content: ParsedContent,
+    pub(super) link_navigation: super::link_navigation::Navigation,
+    pub(super) link_reveal: Option<usize>,
+    pub(super) link_reveal_claimed: bool,
+    pub(super) link_active_owner: Option<gpui::GlobalElementId>,
     /// Content format (markdown / html), used for bounded synchronous parsing
     /// of small full-replace updates.
     format: TextViewFormat,
@@ -184,6 +188,7 @@ impl TextViewState {
         self.text = prepared.content.document.source.to_string();
         self.markdown_extensions = prepared.content.node_cx.markdown_extensions.clone();
         self.parsed_content = prepared.content;
+        self.refresh_links(unchanged_prefix);
         self.parsed_error = None;
         self.preserve_inline_selection = preserve;
         self.compatible_layout_update = preserve;
@@ -228,6 +233,7 @@ impl TextViewState {
                             match parsed_update.result {
                                 Ok(content) => {
                                     state.parsed_content = content;
+                                    state.refresh_links(None);
                                     state.parsed_error = None;
                                     state.compatible_layout_update =
                                         parsed_update.selection_compatible;
@@ -284,6 +290,10 @@ impl TextViewState {
             auto_scroll: AutoScroll::default(),
             selection_adapter,
             parsed_content: Default::default(),
+            link_navigation: Default::default(),
+            link_reveal: None,
+            link_reveal_claimed: false,
+            link_active_owner: None,
             format,
             parsed_error: None,
             text: text.to_string(),
@@ -299,6 +309,57 @@ impl TextViewState {
             this.increment_update(&text, false, cx);
         }
         this
+    }
+
+    fn refresh_links(&mut self, unchanged_prefix: Option<usize>) {
+        self.link_navigation.refresh(
+            &self.parsed_content.document,
+            &self.parsed_content.node_cx,
+            unchanged_prefix,
+        );
+        self.link_reveal = None;
+    }
+
+    pub(super) fn on_link_key(
+        &mut self,
+        event: &gpui::KeyDownEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.focus_handle.is_focused(window) {
+            return;
+        }
+        let modifiers = event.keystroke.modifiers;
+        if modifiers.control || modifiers.alt || modifiers.platform || modifiers.function {
+            return;
+        }
+        if event.keystroke.key == "tab" {
+            self.link_reveal = None;
+            if let Some(link) = self.link_navigation.step(modifiers.shift) {
+                self.link_reveal = Some(link.source_start);
+                if self.scrollable {
+                    self.list_state.scroll_to_reveal_item(link.block);
+                }
+                cx.stop_propagation();
+            }
+            cx.notify();
+        } else if event.keystroke.key == "enter" && !modifiers.shift {
+            if let Some(link) = self.link_navigation.selected() {
+                super::text_view::handle_link_click(
+                    &self.link_click_handler,
+                    link.url.clone(),
+                    gpui::ClickEvent::Keyboard(gpui::KeyboardClickEvent::default()),
+                    window,
+                    cx,
+                );
+                cx.stop_propagation();
+            }
+        } else if event.keystroke.key == "escape" && self.link_navigation.active.is_some() {
+            self.link_navigation.active = None;
+            self.link_reveal = None;
+            cx.notify();
+            cx.stop_propagation();
+        }
     }
 
     /// Get the text content.
@@ -523,6 +584,7 @@ impl TextViewState {
             match parse_content(self.format, ParsedContent::default(), &update_options) {
                 Ok(content) => {
                     self.parsed_content = content;
+                    self.refresh_links(None);
                     self.parsed_error = None;
                     self.invalidate_measured_heights();
                     if !self.is_selecting {

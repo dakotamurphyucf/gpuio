@@ -318,6 +318,7 @@ fn parse_paragraph(
         }
         Node::Link(val) => {
             let link_mark = Some(LinkMark {
+                source_start: val.position.as_ref().map(|p| cx.offset + p.start.offset),
                 url: val.url.clone().into(),
                 title: val.title.clone().map(|s| s.into()),
                 ..Default::default()
@@ -399,6 +400,7 @@ fn parse_paragraph(
         }
         Node::LinkReference(link) => {
             let link_mark = LinkMark {
+                source_start: link.position.as_ref().map(|p| cx.offset + p.start.offset),
                 url: "".into(),
                 title: link.label.clone().map(Into::into),
                 identifier: Some(link.identifier.clone().into()),
@@ -617,6 +619,7 @@ fn ast_to_node(source: &str, value: mdast::Node, cx: &mut NodeContext) -> BlockN
                 def.identifier.clone().into(),
                 LinkMark {
                     url: def.url.clone().into(),
+                    source_start: None,
                     identifier: Some(def.identifier.clone().into()),
                     title: def.title.clone().map(Into::into),
                 },

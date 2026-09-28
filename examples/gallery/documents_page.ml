@@ -75,7 +75,10 @@ module Resources = struct
            Small changes can make a useful difference.\n\n\
            ```ocaml\n\
            let step = %d\n\
-           ```\n\n"
+           ```\n\n\
+           [Explore finding %d](gpuio-preview:finding-%d)\n\n"
+          next
+          next
           next
           next
       in

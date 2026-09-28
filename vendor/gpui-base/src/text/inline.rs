@@ -1,4 +1,4 @@
-use gpui::Corners;
+use gpui::{Corners, prelude::*};
 use std::{
     ops::Range,
     rc::Rc,
@@ -178,13 +178,12 @@ pub(super) struct Inline {
 
 pub(super) struct InlinePrepaint {
     hitbox: Hitbox,
-    scale: f32,
-    links: Vec<(gpui::accesskit::NodeId, SharedString, Bounds<Pixels>)>,
+    semantics: Vec<gpui::AnyElement>,
 }
 
 /// Partition rendered text in reading order. Adjacent style runs of the same
 /// link remain one accessible action; ordinary text is not duplicated beside it.
-fn accessible_runs(
+pub(super) fn accessible_runs(
     text: &str,
     links: &[(Range<usize>, LinkMark)],
 ) -> Vec<(Range<usize>, Option<LinkMark>)> {
@@ -287,6 +286,104 @@ impl Inline {
     ) -> Self {
         self.selection_source = Some((state, range));
         self
+    }
+
+    fn semantic_elements(
+        &self,
+        owner: Option<&GlobalElementId>,
+        bounds: Bounds<Pixels>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Vec<gpui::AnyElement> {
+        if self.links.is_empty() || !window.is_a11y_active() {
+            return Vec::new();
+        }
+        let layout = self.styled_text.layout();
+        let height = layout.line_height();
+        let view = GlobalState::global(cx).text_view_state().cloned();
+        let mut elements = Vec::new();
+        for (range, link) in accessible_runs(&self.text, &self.links) {
+            let (Some(start), Some(end)) = (
+                layout.position_for_index(range.start),
+                layout.position_for_index(range.end),
+            ) else {
+                continue;
+            };
+            let area = if start.y == end.y {
+                Bounds::from_corners(
+                    point(start.x.min(end.x), start.y),
+                    point(start.x.max(end.x), end.y + height),
+                )
+            } else {
+                Bounds::from_corners(
+                    point(bounds.left(), start.y),
+                    point(bounds.right(), end.y + height),
+                )
+            };
+            let id: SharedString = format!(
+                "semantic-{}-{}-{}",
+                range.start,
+                range.end,
+                link.as_ref().map_or("", |link| link.url.as_ref())
+            )
+            .into();
+            let text = self.text[range].to_owned();
+            let mut element = gpui::div().id(id).w(area.size.width).h(area.size.height);
+            if let Some(link) = link {
+                let active = view.as_ref().is_some_and(|view| {
+                    view.update(cx, |state, _| {
+                        if link.source_start.is_none()
+                            || state.link_navigation.active != link.source_start
+                        {
+                            return false;
+                        }
+                        let Some(owner) = owner else {
+                            return false;
+                        };
+                        if state.link_active_owner.is_none() {
+                            state.link_active_owner = Some(owner.clone());
+                        }
+                        state.link_active_owner.as_ref() == Some(owner)
+                    })
+                });
+                let url = link.url;
+                let metadata_url = url.clone();
+                let handler = self.link_click_handler.clone();
+                element = element
+                    .role(gpui::Role::Link)
+                    .aria_label(text)
+                    .when(active, |element| element.aria_active_descendant())
+                    .a11y_synthetic_children(move |builder| {
+                        builder.parent_node().set_url(metadata_url.to_string())
+                    })
+                    .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
+                        handle_link_click(
+                            &handler,
+                            url.clone(),
+                            ClickEvent::Keyboard(gpui::KeyboardClickEvent {
+                                bounds: area,
+                                ..Default::default()
+                            }),
+                            window,
+                            cx,
+                        );
+                    });
+            } else {
+                element = element.role(gpui::Role::Label).aria_value(text);
+            }
+            let mut element = element.into_any_element();
+            element.prepaint_as_root(
+                area.origin,
+                gpui::size(
+                    gpui::AvailableSpace::Definite(area.size.width),
+                    gpui::AvailableSpace::Definite(area.size.height),
+                ),
+                window,
+                cx,
+            );
+            elements.push(element);
+        }
+        elements
     }
 
     /// Get link at given mouse position.
@@ -616,64 +713,6 @@ impl Element for Inline {
         }
     }
 
-    fn a11y_synthetic_children(
-        &mut self,
-        prepaint: &mut Self::PrepaintState,
-        builder: &mut gpui::A11ySubtreeBuilder,
-    ) {
-        if self.links.is_empty() {
-            return;
-        }
-        let layout = self.styled_text.layout();
-        let height = layout.line_height();
-        for (range, link) in accessible_runs(&self.text, &self.links) {
-            let Some(start) = layout.position_for_index(range.start) else {
-                continue;
-            };
-            let Some(end) = layout.position_for_index(range.end) else {
-                continue;
-            };
-            let bounds = if start.y == end.y {
-                Bounds::from_corners(
-                    point(start.x.min(end.x), start.y),
-                    point(start.x.max(end.x), end.y + height),
-                )
-            } else {
-                Bounds::from_corners(
-                    point(prepaint.hitbox.bounds.left(), start.y),
-                    point(prepaint.hitbox.bounds.right(), end.y + height),
-                )
-            };
-            let url = link.as_ref().map(|link| link.url.as_ref());
-            let id = builder.synthetic_node_id((range.start, range.end, url));
-            let mut node = gpui::accesskit::Node::new(if link.is_some() {
-                gpui::accesskit::Role::Link
-            } else {
-                gpui::accesskit::Role::Label
-            });
-            let text = self.text[range].to_owned();
-            if let Some(link) = &link {
-                node.set_label(text);
-                node.set_url(link.url.to_string());
-                node.add_action(gpui::accesskit::Action::Click);
-            } else {
-                node.set_value(text);
-            }
-            let scale = prepaint.scale;
-            node.set_bounds(gpui::accesskit::Rect {
-                x0: (bounds.left().as_f32() * scale) as f64,
-                y0: (bounds.top().as_f32() * scale) as f64,
-                x1: (bounds.right().as_f32() * scale) as f64,
-                y1: (bounds.bottom().as_f32() * scale) as f64,
-            });
-            if builder.push_child(id, node)
-                && let Some(link) = link
-            {
-                prepaint.links.push((id, link.url, bounds));
-            }
-        }
-    }
-
     fn request_layout(
         &mut self,
         global_element_id: Option<&GlobalElementId>,
@@ -710,8 +749,7 @@ impl Element for Inline {
 
         // Report this element's laid-out extent so an ancestor TextView with
         // `max_lines` can snap its clip to a whole-line boundary. The state
-        // stack only holds an entry during prepaint when that view set
-        // `max_lines`, so this is a no-op otherwise.
+        // stack also supplies the one-shot keyboard link reveal request.
         if let Some(text_view_state) = GlobalState::global(cx).text_view_state().cloned() {
             let state = text_view_state.read(cx);
             if state.max_lines.is_some()
@@ -725,10 +763,33 @@ impl Element for Inline {
             }
         }
 
+        if let Some(view) = GlobalState::global(cx).text_view_state().cloned() {
+            let target = {
+                let state = view.read(cx);
+                state.link_reveal.filter(|_| !state.link_reveal_claimed)
+            };
+            if let Some(target) = target {
+                let layout = self.styled_text.layout();
+                if let Some((range, _)) = self
+                    .links
+                    .iter()
+                    .find(|(_, link)| link.source_start == Some(target))
+                    && let Some(start) = layout.position_for_index(range.start)
+                {
+                    // Reveal the start of the logical link, including when its
+                    // containing list/table block is taller than the viewport.
+                    window.request_autoscroll(Bounds::from_corners(
+                        start,
+                        point(start.x + px(2.), start.y + layout.line_height()),
+                    ));
+                    view.update(cx, |state, _| state.link_reveal_claimed = true);
+                }
+            }
+        }
+
         InlinePrepaint {
             hitbox: window.insert_hitbox(bounds, HitboxBehavior::Normal),
-            scale: window.scale_factor(),
-            links: Vec::new(),
+            semantics: self.semantic_elements(id, bounds, window, cx),
         }
     }
 
@@ -744,27 +805,55 @@ impl Element for Inline {
     ) {
         let bounds = Bounds::new(self.paint_origin.unwrap_or(bounds.origin), bounds.size);
         let current_view = window.current_view();
-        for (id, url, bounds) in &prepaint.links {
-            let url = url.clone();
-            let bounds = *bounds;
-            let handler = self.link_click_handler.clone();
-            window.on_a11y_action(*id, gpui::accesskit::Action::Click, move |_, window, cx| {
-                handle_link_click(
-                    &handler,
-                    url.clone(),
-                    ClickEvent::Keyboard(gpui::KeyboardClickEvent {
-                        bounds,
-                        ..Default::default()
-                    }),
-                    window,
-                    cx,
-                );
-            });
+        for element in &mut prepaint.semantics {
+            element.paint(window, cx);
         }
         let hitbox = &prepaint.hitbox;
         let text_layout = self.styled_text.layout().clone();
         self.styled_text
             .paint(global_id, None, bounds, &mut (), &mut (), window, cx);
+
+        if let Some(view) = GlobalState::global(cx).text_view_state() {
+            let view = view.read(cx);
+            if view.focus_handle().is_focused(window)
+                && let Some(active) = view.link_navigation.active
+            {
+                for (range, link) in accessible_runs(&self.text, &self.links) {
+                    if link.as_ref().and_then(|link| link.source_start) != Some(active) {
+                        continue;
+                    }
+                    if let (Some(start), Some(end)) = (
+                        text_layout.position_for_index(range.start),
+                        text_layout.position_for_index(range.end),
+                    ) {
+                        let focus_bounds = if start.y == end.y {
+                            Bounds::from_corners(
+                                point(start.x.min(end.x), start.y),
+                                point(start.x.max(end.x), end.y + text_layout.line_height()),
+                            )
+                        } else {
+                            Bounds::from_corners(
+                                point(bounds.left(), start.y),
+                                point(bounds.right(), end.y + text_layout.line_height()),
+                            )
+                        };
+                        window.paint_quad(quad(
+                            focus_bounds,
+                            px(2.),
+                            gpui::transparent_black(),
+                            Edges {
+                                top: px(1.5),
+                                right: px(1.5),
+                                bottom: px(1.5),
+                                left: px(1.5),
+                            },
+                            view.text_view_style.link(),
+                            BorderStyle::default(),
+                        ));
+                    }
+                }
+            }
+        }
 
         // layout selections
         let (is_selectable, is_selection, selection) =

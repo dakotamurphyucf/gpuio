@@ -6,6 +6,7 @@ mod inline_flow;
 mod inline_object;
 #[cfg(test)]
 mod inline_virtual_tests;
+mod link_navigation;
 mod markdown_ext;
 mod node;
 pub(crate) mod selection;

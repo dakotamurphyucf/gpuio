@@ -360,10 +360,25 @@ impl BlockNode {
 #[allow(unused)]
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct LinkMark {
+    /// Source identity shared by styled/line-wrapped pieces of one Markdown link.
+    pub source_start: Option<usize>,
     pub url: SharedString,
     /// Optional identifier for footnotes.
     pub identifier: Option<SharedString>,
     pub title: Option<SharedString>,
+}
+
+impl LinkMark {
+    pub(super) fn resolved(&self, references: &HashMap<SharedString, LinkMark>) -> Self {
+        let mut link = self
+            .identifier
+            .as_ref()
+            .and_then(|id| references.get(id))
+            .unwrap_or(self)
+            .clone();
+        link.source_start = self.source_start;
+        link
+    }
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -1665,11 +1680,7 @@ impl Paragraph {
                         });
 
                         // convert link references, replace link
-                        if let Some(identifier) = link_mark.identifier.as_ref() {
-                            if let Some(mark) = node_cx.link_refs.get(identifier) {
-                                link_mark = mark.clone();
-                            }
-                        }
+                        link_mark = link_mark.resolved(&node_cx.link_refs);
 
                         links.push((inner_range.clone(), link_mark));
                     }
@@ -1742,13 +1753,7 @@ impl Paragraph {
                 for (_, mark) in &inline_node.marks {
                     object_style = object_style.highlight(mark_highlight(mark, node_cx, cx).style);
                     if let Some(link) = &mark.link {
-                        object_link = Some(
-                            link.identifier
-                                .as_ref()
-                                .and_then(|id| node_cx.link_refs.get(id))
-                                .unwrap_or(link)
-                                .clone(),
-                        );
+                        object_link = Some(link.resolved(&node_cx.link_refs));
                         object_style.color = Some(node_cx.style.link());
                         object_style.underline = Some(gpui::UnderlineStyle {
                             thickness: px(1.),
@@ -1813,11 +1818,7 @@ impl Paragraph {
                             ..Default::default()
                         });
 
-                        if let Some(identifier) = link_mark.identifier.as_ref()
-                            && let Some(mark) = node_cx.link_refs.get(identifier)
-                        {
-                            link_mark = mark.clone();
-                        }
+                        link_mark = link_mark.resolved(&node_cx.link_refs);
 
                         links.push((inner_range.clone(), link_mark));
                     }

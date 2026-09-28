@@ -21,6 +21,17 @@ and visible focus. Selection and copying continue to refer to the rendered text.
 Parsing and accessibility remain bounded by the document preparation limits;
 oversized documents use the existing paginated source presentation.
 
+The rendered document owns keyboard focus. Tab and Shift-Tab move through its
+logical Markdown links in source order; moving past either end returns traversal
+to the containing widget. Enter activates the selected link, Escape returns to
+document focus, and pointer interaction clears keyboard link selection. Text
+selection remains separate. Links have source identities shared across styled
+fragments; an ordered catalog includes offscreen blocks. Navigation reveals the
+block and requests autoscroll to the actual link position, including inside a
+block taller than the viewport. This is a one-shot request, not a permanent scroll
+lock. Unchanged links can retain selection through an append; reset or a changed
+target clears it. Only the active link claims accessible descendant focus.
+
 Collapse, unmount and inactive modal scopes remove or disable interaction with
 document bodies. Accessible actions must validate the current native presentation
 and focus scope, including delayed actions after replacement. Streaming preserves
