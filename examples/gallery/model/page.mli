@@ -18,6 +18,7 @@ type t =
   | Assets
   | Charts
   | Motion
+  | Extensions
   | Responsive
   | Runtime
 [@@deriving equal, compare, sexp_of]

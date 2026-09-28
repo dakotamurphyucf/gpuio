@@ -2,6 +2,61 @@ open Core
 module State = Gpuio_gallery_model.Numeric_state
 module Rating = Gpuio.Rating
 
+let%expect_test "extension commands serialize properties and fence obsolete generations" =
+  let module S = Gpuio_gallery_model.Extension_state in
+  let apply state actions = List.fold actions ~init:state ~f:S.apply in
+  let show state =
+    print_s
+      [%sexp
+        (S.value state : int)
+      , (S.step state : int)
+      , (S.generation state : int64)
+      , (S.command state : (int64 * int) option)
+      , (S.disabled state : bool)
+      , (S.visible state : bool)]
+  in
+  let pending =
+    apply
+      S.initial
+      [ Send_command
+      ; Set_property
+      ; Toggle_step
+      ; Send_command
+      ; Toggle_disabled
+      ; Observe (1L, Data 99)
+      ; Observe (1L, Command_completed 99L)
+      ]
+  in
+  show pending;
+  let completed = S.apply pending (Observe (1L, Command_completed 1L)) in
+  show completed;
+  let reset =
+    apply
+      completed
+      [ Reset; Observe (1L, Data 99); Toggle_disabled; Observe (2L, Data 8) ]
+  in
+  show reset;
+  let departed =
+    apply
+      reset
+      [ Toggle_visible
+      ; Observe (2L, Data 99)
+      ; Send_command
+      ; Depart
+      ; Observe (2L, Command_completed 1L)
+      ; Observe (2L, Data 100)
+      ]
+  in
+  show departed;
+  [%expect
+    {|
+    (7 1 1 ((1 42)) true true)
+    (42 1 1 () true true)
+    (8 1 2 () false true)
+    (8 1 3 () false false)
+    |}]
+;;
+
 let%expect_test "canvas moves preserve other shapes and reject invalid whole scenes" =
   let module Study = Gpuio_gallery_model.Canvas_study in
   let module G = Gpuio.Canvas_geometry in

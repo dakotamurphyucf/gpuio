@@ -19,4 +19,11 @@ val theme : t -> Gpuio.Theme.t
 val size : t -> float -> float
 val text : t -> ?size:float -> ?muted:bool -> string -> Gpuio_bonsai.View.t
 val card : t -> title:string -> Gpuio_bonsai.View.t list -> Gpuio_bonsai.View.t
-val button : t -> ?selected:bool -> string -> unit Bonsai.Effect.t -> Gpuio_bonsai.View.t
+
+val button
+  :  t
+  -> ?selected:bool
+  -> ?disabled:bool
+  -> string
+  -> unit Bonsai.Effect.t
+  -> Gpuio_bonsai.View.t

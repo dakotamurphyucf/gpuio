@@ -118,3 +118,21 @@ controls may own additional handles under the package's documented focus policy.
 Pointer callbacks use `EventSink.guard_pointer`; keyboard/accessibility actions
 use `guard`. Inherited pointer disabling does not disable keyboard or accessible
 activation. Both guards reject hidden, disabled, obsolete and closed instances.
+
+## Accessible state inside a package
+
+The host's disabled accessible group does not implicitly mark the package's
+individual controls disabled in the pinned AccessKit adapter. Authors must expose
+state on their actual focusable controls. During render, `cx.events.check().is_ok()`
+provides the current non-pointer input eligibility; the counter sample uses it to
+set its button's disabled flag through GPUI's public accessibility builder. This
+is semantic metadata, not a replacement for `guard`/`guard_pointer`: callbacks
+must still check the live lease, since eligibility may change after rendering.
+Pointer-only disabling must not mark keyboard/accessibility input disabled.
+
+A generation replacement can preserve the logical accessible element's identity.
+A retained OS accessibility reference may therefore resolve the replacement's
+current name and action. This differs from invoking a captured obsolete native
+callback: that callback's revoked event lease must reject mutation/delivery. The
+gallery validates current accessible action resolution separately from hidden
+reference rejection and generation-fenced OCaml observations.

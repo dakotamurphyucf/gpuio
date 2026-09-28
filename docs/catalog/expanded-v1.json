@@ -25,7 +25,7 @@
       "evidence": [
         "docs/evidence/extensions-och23.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "extensions",
       "contract": "Statically linked independent native components, negotiated schemas, bounded messages and explicit native ownership; no dynamic plugin ABI."
     },
     {

@@ -59,6 +59,7 @@ let observation_label = function
 ;;
 
 let component app ~motion palette graph =
+  let trace = Array.exists (Sys.get_argv ()) ~f:(String.equal "--trace-motion") in
   let expanded, toggle_expanded = B.toggle ~default_model:false graph in
   let endpoint, set_endpoint = B.state "Ready to resize" graph in
   let program, set_program = B.state (A.Program.with_playback sequence Paused) graph in
@@ -177,13 +178,22 @@ let component app ~motion palette graph =
                 ~key:(Key.of_string_exn "sequence-preview")
                 ~style:(bar (Color.rgb_exn 0xa897ed))
                 ~on_event:(fun event ->
-                  set_observations
-                    (sprintf
-                       "Run %Ld · %s"
-                       (A.Run_id.to_int64 event.run_id)
-                       (String.concat
-                          ~sep:" · "
-                          (List.map event.observations ~f:observation_label))))
+                  E.Many
+                    [ (if trace
+                       then
+                         E.of_thunk (fun () ->
+                           Eio.traceln
+                             "GALLERY_MOTION_EVENT: %s"
+                             (Sexp.to_string_hum [%sexp (event : A.Program.Event.t)]))
+                       else E.Ignore)
+                    ; set_observations
+                        (sprintf
+                           "Run %Ld · %s"
+                           (A.Run_id.to_int64 event.run_id)
+                           (String.concat
+                              ~sep:" · "
+                              (List.map event.observations ~f:observation_label)))
+                    ])
                 program
                 [ sample "Sequence sample" ]
             ]

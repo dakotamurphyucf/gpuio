@@ -7,6 +7,8 @@
   gpuio.eio
   gpuio_gallery_model
   gpuio_chart_samples
+  gpuio_example_counter
+  gpuio_counter_backend
   bonsai
   eio_main)
  (preprocess

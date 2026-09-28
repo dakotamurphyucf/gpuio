@@ -10,6 +10,9 @@ Start with the [engineering standards](design/engineering-standards.md),
 [catalog](catalog/README.md), and the relevant family's design and evidence.
 For application-specific native components, prefer the existing
 [extension SDK](design/extensions.md) and its independent consumer example.
+Expose disabled/read-only state on the actual accessible controls inside a package;
+state on the host group does not automatically propagate to child controls.
+Keep live event guards in addition to render-time accessibility metadata.
 Do not add an internal bridge opcode merely to avoid using that SDK.
 
 ## Choose the smallest implementation that owns the behavior

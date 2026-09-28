@@ -103,8 +103,9 @@ let card t ~title children =
      :: children)
 ;;
 
-let button t ?(selected = false) label on_click =
+let button t ?(selected = false) ?(disabled = false) label on_click =
   V.button
+    ~disabled
     label
     ~on_click
     ~style:

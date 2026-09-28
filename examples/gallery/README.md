@@ -4,7 +4,7 @@ A native public-API gallery under implementation for OCH-41. The first sections
 cover presentation, selection/actions, native text editing, numeric/range inputs,
 verification codes, rating, dates/colors, overlays, navigation/layout and commands/
 feedback, carousel/sidebar/history, managed collections, documents and runtime/
-window previews, canvas, images/icons, charts, plus native motion sequences, shared clocks and responsive layouts. Additional v1
+window previews, canvas, images/icons, charts, plus native motion sequences, shared clocks, responsive layouts and native extensions. Additional v1
 families and the complete coverage ledger are still being integrated; this is
 not the completed milestone 07 release.
 
@@ -31,7 +31,7 @@ python3 scripts/test_gallery.py --images scratch/gallery-images
 ```
 
 Use `--section core`, `pickers`, `overlays`, `navigation`, `feedback`, `journeys`,
-`collections`, `documents`, `canvas`, `assets`, `charts`, `motion`, `responsive` or `runtime` for focused iteration;
+`collections`, `documents`, `canvas`, `assets`, `charts`, `motion`, `responsive`, `extensions` or `runtime` for focused iteration;
 the default `all` exercises all currently integrated acceptance stages in one
 application lifetime. Pickers verify draft cancel/apply and focus restoration;
 overlays exercise dialog/drawer/confirmation/popover dismissal and focus; workspace
@@ -67,7 +67,8 @@ reverse/restart and dynamically joined repeating members. System/Reduced/Full is
 application-wide preference shared by all gallery windows. Leaving the motion page
 pauses its sequence and stops its repeating preview. The native test measures
 intermediate geometry, interruption, held playback, cancellation, reduced endpoints
-and shared phase; there is no OCaml animation-frame timer.
+and shared phase; there is no OCaml animation-frame timer. `--trace-motion` on
+the app or test records semantic sequence batches for diagnosing acceptance runs.
 
 Responsive layouts demonstrate first-match width/height rules and exact logical
 breakpoint boundaries. Each branch keeps its own draft and counter while hidden;
@@ -75,6 +76,15 @@ only the selected presentation is accessible. The wide branch places editing and
 saving side by side. Selection feedback reports the size at the last painted
 branch change, not every resize. Leaving the page disposes all branch editors;
 returning preserves chosen size and counts but acquires fresh native drafts.
+
+Native extensions consume the independently packaged counter's OCaml library and
+reuse `gpuio_counter_backend` from the extension consumer. The app verifies the
+linked schema catalog before opening a window. Properties, sequenced commands,
+input disabling, retained hiding and generation reset use only public APIs. One
+command can be pending; matching acknowledgements update the observed model.
+Departure clears pending commands and advances the model generation. The test
+enables the package's opt-in lifecycle trace and checks exact unmount/component/
+callback-value release, as well as command execution without replay.
 
 The document AX repair now exposes actual Markdown body text, read-only source/code
 and inline links with keyboard activation. Rich/image links, selected-text/range,

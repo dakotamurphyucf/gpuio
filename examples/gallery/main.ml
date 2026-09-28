@@ -108,6 +108,9 @@ let component ~app ~motion ~open_window ~page ~appearance ~scale window graph =
 ;;
 
 let () =
+  let catalog = App.extension_catalog () |> ok in
+  if not (List.exists catalog ~f:(Extension.Schema.equal Gpuio_example_counter.schema))
+  then failwith "The gallery backend must provide the example.counter schema";
   let background = Array.exists (Sys.get_argv ()) ~f:(String.equal "--background") in
   App.run (fun _env app ->
     let motion = B.Expert.Var.create Animation.Preference.System in

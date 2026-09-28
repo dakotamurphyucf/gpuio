@@ -2,6 +2,9 @@
 """Exercise the public gallery's native navigation, editing and window isolation."""
 import argparse
 import ctypes as C
+from collections import Counter, defaultdict
+import os
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -871,32 +874,11 @@ def exercise_charts(mac, images):
     for family, plotted, originals, first in cases:
         mac.press(TITLE, family)
         mac.wait_text(TITLE, f'Ready: {family} · {plotted} source values')
-        window = mac.window(TITLE)
-        try:
-            mac.set(mac.app, 'AXFrontmost', mac.true)
-            mac.perform(window, 'AXRaise')
-        finally:
-            mac.release(window)
-        chart = mac.wait_find(TITLE, 'Chart preview: ' + family, 'AXGroup')
-        try:
-            mac.set(chart, 'AXFocused', mac.true)
-            try:
-                expect_focus(mac, 'Chart preview: ' + family, 'AXGroup')
-            except RuntimeError:
-                focus = mac.attr(mac.app, 'AXFocusedUIElement')
-                try:
-                    print('CHART_FOCUS_FAILURE', [(k, mac.text(focus, k)) for k in
-                          ['AXRole', 'AXTitle', 'AXDescription']] if focus else None, flush=True)
-                finally:
-                    if focus:
-                        mac.release(focus)
-                raise
-            mac.key(115)  # Home previews without selecting.
-            mac.wait_text(TITLE, 'Select a chart value to inspect it.')
-            mac.key(36)
-            mac.wait_text(TITLE, 'Selected: ' + first)
-        finally:
-            mac.release(chart)
+        focus_gallery_control(mac, 'Chart preview: ' + family, 'AXGroup')
+        mac.key(115)  # Home previews without selecting.
+        mac.wait_text(TITLE, 'Select a chart value to inspect it.')
+        mac.key(36)
+        mac.wait_text(TITLE, 'Selected: ' + first)
         if family == 'Line':
             mac.press(TITLE, 'Update chart samples')
             mac.wait_text(TITLE, 'Selected: Atlas · x 0 · value 33')
@@ -962,6 +944,125 @@ def exercise_charts(mac, images):
     mac.wait_text(TITLE, 'Registered source bytes: 0')
     print('GALLERY_CHARTS_OK: seven families plus mixed layers, native keyboard selection, '
           'data updates, bounded original-data pages, styles and scope cleanup', flush=True)
+
+
+def exercise_extensions(mac, images):
+    mac.press(TITLE, 'Native extensions')
+    mac.wait_text(TITLE, 'Native component mounted')
+    mac.wait_text(TITLE, 'Observed counter: 7')
+    mac.press(TITLE, 'Increment counter, current value 7')
+    mac.wait_text(TITLE, 'Observed counter: 8')
+    window = mac.window(TITLE)
+    try:
+        mac.set(mac.app, 'AXFrontmost', mac.true)
+        mac.perform(window, 'AXRaise')
+    finally:
+        mac.release(window)
+    node = mac.wait_find(TITLE, 'Increment counter, current value 8', 'AXButton')
+    try:
+        mac.set(node, 'AXFocused', mac.true)
+        expect_focus(mac, 'Increment counter, current value 8')
+        mac.key(49)  # Space must activate exactly once.
+    finally:
+        mac.release(node)
+    mac.wait_text(TITLE, 'Observed counter: 9')
+    mac.press(TITLE, 'Use step 5')
+    mac.wait_text(TITLE, 'Counter step: 5')
+    node = mac.wait_find(TITLE, 'Increment counter, current value 9', 'AXButton')
+    try:
+        mac.set(node, 'AXFocused', mac.true)
+        expect_focus(mac, 'Increment counter, current value 9')
+        mac.key(36)
+    finally:
+        mac.release(node)
+    mac.wait_text(TITLE, 'Observed counter: 14')
+    mac.press(TITLE, 'Set property to 12')
+    mac.release(mac.wait_find(TITLE, 'Increment counter, current value 12', 'AXButton'))
+    mac.wait_text(TITLE, 'Observed counter: 12')
+    mac.press(TITLE, 'Disable native input')
+    expect_enabled(mac, 'Increment counter, current value 12', False)
+    disabled = mac.wait_find(TITLE, 'Increment counter, current value 12', 'AXButton')
+    try:
+        try:
+            mac.perform(disabled, 'AXPress')
+        except RuntimeError:
+            pass
+        time.sleep(.15)
+        mac.wait_text(TITLE, 'Observed counter: 12')
+    finally:
+        mac.release(disabled)
+    mac.press(TITLE, 'Send command to 42')
+    mac.wait_text(TITLE, 'Native command 1 completed')
+    mac.wait_text(TITLE, 'Observed counter: 42')
+    expect_enabled(mac, 'Increment counter, current value 42', False)
+    mac.press(TITLE, 'Enable native input')
+    expect_enabled(mac, 'Increment counter, current value 42', True)
+    mac.press(TITLE, 'Set property to 12')
+    retained = mac.wait_find(TITLE, 'Increment counter, current value 12', 'AXButton')
+    try:
+        mac.press(TITLE, 'Hide native counter')
+        mac.release(mac.wait_find(TITLE, 'Show native counter', 'AXButton'))
+        absent(mac, 'Increment counter, current value 12', 'AXButton')
+        try:
+            mac.perform(retained, 'AXPress')
+        except RuntimeError:
+            pass
+        time.sleep(.15)
+        mac.wait_text(TITLE, 'Observed counter: 12')
+    finally:
+        mac.release(retained)
+    mac.press(TITLE, 'Send command to 42')
+    mac.wait_text(TITLE, 'Native command 2 completed')
+    mac.press(TITLE, 'Show native counter')
+    mac.release(mac.wait_find(TITLE, 'Increment counter, current value 42', 'AXButton'))
+    cycle_preview_appearance(mac, 'Observed counter: 42')
+    if images:
+        screenshot(mac, images / 'gallery-extensions.png', title=TITLE)
+    retained = mac.wait_find(TITLE, 'Increment counter, current value 42', 'AXButton')
+    try:
+        mac.press(TITLE, 'Reset native instance')
+        mac.wait_text(TITLE, 'Instance generation: 2')
+        mac.wait_text(TITLE, 'Native component mounted')
+        mac.wait_text(TITLE, 'Observed counter: 7')
+        # The logical accessible button survives a native generation reset.
+        # A retained AX reference resolves its current label/action, not an old
+        # native closure. Verify activation uses the replacement's value of 7.
+        labels = (mac.text(retained, 'AXTitle'), mac.text(retained, 'AXDescription'))
+        print('EXTENSION_RESET_AX_LABELS', labels, flush=True)
+        assert 'Increment counter, current value 7' in labels, labels
+        mac.perform(retained, 'AXPress')
+        mac.wait_text(TITLE, 'Observed counter: 12')
+    finally:
+        mac.release(retained)
+    for generation in range(3, 6):
+        mac.press(TITLE, 'Presentation')
+        mac.wait_text(TITLE, 'A little context goes a long way')
+        absent(mac, 'Increment counter, current value 12', 'AXButton')
+        mac.press(TITLE, 'Native extensions')
+        mac.wait_text(TITLE, f'Instance generation: {generation}')
+        mac.wait_text(TITLE, 'Native component mounted')
+        mac.wait_text(TITLE, 'Counter step: 5')
+        mac.release(mac.wait_find(TITLE, 'Increment counter, current value 12', 'AXButton'))
+    print('GALLERY_EXTENSIONS_OK: native AX/OS keyboard, property updates, sequenced '
+          'commands while disabled/hidden, hidden AX fencing, current reset actions, themes/sizes and remount', flush=True)
+
+
+def verify_extension_lifetimes(output):
+    lifetimes = defaultdict(Counter)
+    commands = []
+    for line in output.splitlines():
+        match = re.search(r'COUNTER_LIFETIME id=(\d+) phase=(\w+)', line)
+        if match:
+            lifetimes[int(match[1])][match[2]] += 1
+        match = re.search(r'COUNTER_COMMAND id=(\d+) value=(\d+)', line)
+        if match:
+            commands.append((int(match[1]), int(match[2])))
+    expected = Counter(mount=1, unmount=1, component_drop=1, value_drop=1)
+    assert len(lifetimes) == 5 and all(value == expected for value in lifetimes.values()), lifetimes
+    first = min(lifetimes)
+    assert commands == [(first, 42), (first, 42)], commands
+    print('GALLERY_EXTENSION_LIFETIMES_OK: five exact mount/unmount/component/value lifetimes; '
+          'two commands, no replay during render/theme/resize/remount', flush=True)
 
 
 def exercise_responsive(mac, images):
@@ -1048,6 +1149,43 @@ def exercise_responsive(mac, images):
           'theme/size and fresh native editors on revisit', flush=True)
 
 
+def raise_gallery(mac):
+    window = mac.window(TITLE)
+    assert window, 'Gallery window must exist before foreground rendering checks'
+    try:
+        mac.set(mac.app, 'AXFrontmost', mac.true)
+        mac.perform(window, 'AXRaise')
+    finally:
+        mac.release(window)
+
+
+def focus_gallery_control(mac, label, role):
+    # Foregrounding and the GPUI activation observation are asynchronous. This
+    # establishes focus before input; retention assertions still use expect_focus
+    # without requesting focus again.
+    raise_gallery(mac)
+    get = mac.cf.CFBooleanGetValue
+    get.restype, get.argtypes = C.c_bool, [C.c_void_p]
+    deadline, requests = time.monotonic() + 10, 0
+    while time.monotonic() < deadline:
+        node = mac.wait_find(TITLE, label, role)
+        try:
+            mac.set(node, 'AXFocused', mac.true)
+            requests += 1
+            time.sleep(.04)
+            value = mac.attr(node, 'AXFocused')
+            try:
+                if value and get(value):
+                    print('GALLERY_FOCUS_READY', label, 'requests=', requests, flush=True)
+                    return
+            finally:
+                if value:
+                    mac.release(value)
+        finally:
+            mac.release(node)
+    raise RuntimeError(f'Initial focus request did not settle for {label}')
+
+
 def motion_width(mac, node):
     get = mac.ax.AXValueGetValue
     get.restype, get.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
@@ -1078,6 +1216,7 @@ def motion_samples(mac, label, seconds, after_press=None):
 
 def exercise_motion(mac, images, second_title=SECOND):
     mac.press(TITLE, 'Motion & rhythm')
+    raise_gallery(mac)
     mac.press(TITLE, 'Use full motion')
     mac.wait_text(TITLE, 'Motion preference: Full')
     opening = motion_samples(mac, 'Resize sample', 1.3, 'Expand preview')
@@ -1107,6 +1246,7 @@ def exercise_motion(mac, images, second_title=SECOND):
     reduced = motion_samples(mac, 'Resize sample', .4, 'Contract preview')
     assert abs(reduced[-1] - 96) < 1, reduced
     assert all(min(abs(width-96), abs(width-310)) < 1 for width in reduced), reduced
+    raise_gallery(mac)
     mac.press(TITLE, 'Replay sequence')
     mac.wait_text(TITLE, 'Stage 1 reduced · Stage 2 reduced · Stage 3 reduced · Finished')
     mac.press(TITLE, 'New window')
@@ -1115,7 +1255,7 @@ def exercise_motion(mac, images, second_title=SECOND):
     mac.press(second_title, 'Use full motion')
     mac.wait_text(TITLE, 'Motion preference: Full')
     mac.close(second_title)
-    mac.set(mac.app, 'AXFrontmost', mac.true)
+    raise_gallery(mac)
     mac.press(TITLE, 'Start shared motion')
     first = motion_samples(mac, 'Shared member 1', .35)
     assert max(first) - min(first) > 3, first
@@ -1173,15 +1313,20 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--images', type=Path)
     parser.add_argument('--trace-canvas', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'runtime'], default='all')
+    parser.add_argument('--trace-motion', action='store_true')
+    parser.add_argument('--section', choices=['all', 'core', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
     repo = Path(__file__).resolve().parent.parent
+    env = os.environ.copy()
+    if args.section in ('all', 'extensions'):
+        env['GPUIO_COUNTER_TRACE'] = '1'
     with tempfile.TemporaryFile(mode='w+') as log:
         child = subprocess.Popen([str(repo / '_build/default/examples/gallery/main.exe'),
-                                  *(['--trace-canvas'] if args.trace_canvas else [])],
-                                 cwd=repo, stdout=log, stderr=subprocess.STDOUT, text=True)
+                                  *(['--trace-canvas'] if args.trace_canvas else []),
+                                  *(['--trace-motion'] if args.trace_motion else [])],
+                                 cwd=repo, env=env, stdout=log, stderr=subprocess.STDOUT, text=True)
         mac = None
         try:
             mac = Mac(child.pid, child)
@@ -1213,6 +1358,8 @@ def main():
                                               if args.section == 'all' else SECOND))
             if args.section in ('all', 'responsive'):
                 exercise_responsive(mac, args.images)
+            if args.section in ('all', 'extensions'):
+                exercise_extensions(mac, args.images)
             if args.section in ('all', 'runtime'):
                 exercise_runtime(mac, args.images)
             mac.close(TITLE)
@@ -1229,7 +1376,10 @@ def main():
                     child.kill()
                     child.wait()
             log.seek(0)
-            print(log.read(), end='')
+            output = log.read()
+            print(output, end='')
+        if args.section in ('all', 'extensions'):
+            verify_extension_lifetimes(output)
     print(f'GPUIO_GALLERY_AX_OK: section={args.section}, native actions, state semantics, focus and shutdown')
 
 

@@ -6,8 +6,8 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 passed on `473407c`; all twelve tickets are Done.
 
 Milestone 07 is in progress. OCH-41's public
-[Component Studio](../examples/gallery/README.md) now has seventeen preview sections,
-including canvas, images/icons, charts, native motion and responsive layouts. The [gallery evidence](evidence/gallery-och41.md) records
+[Component Studio](../examples/gallery/README.md) now has eighteen preview sections,
+including canvas, images/icons, charts, native motion, responsive layouts and native extensions. The [gallery evidence](evidence/gallery-och41.md) records
 local macOS interaction, geometry, gallery expect tests, formatting and structural
 catalog checks, separately from earlier native document/Clippy regression checks.
 Remaining gallery families, detailed behavioral parity, installed-consumer and

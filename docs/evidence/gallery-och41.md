@@ -23,6 +23,7 @@ Local platform: macOS 14.5 (23F79), arm64. Use the pinned repository environment
 | Images & icons | SVG/raster decode, all fit controls, explicit failure/recovery, icon/button semantics and page-scoped registrations | Remaining codec families and full GPU/cache budgets |
 | Charts & data | Seven native families plus mixed layers; keyboard selection, publication updates, bounded original-data browsing, disabled metadata, theme/scale retention and scope cleanup | Larger/reduced datasets, pointer selection and release performance budgets |
 | Motion & rhythm | Interrupted native targets, tween/spring sequence, pause/resume/cancel/reverse/restart, shared-clock join, live reduced motion and cross-window policy | Full timing/property combinations and resource/performance budgets |
+| Native extensions | Independently packaged counter, native AX/keyboard activation, property updates, commands while disabled/hidden, generation reset and exact teardown traces | Additional independent packages, failure/overload gallery fixtures and release consumer gates |
 | Responsive layouts | Width/height boundaries, first-match priority, retained branch drafts/counters, silent same-branch resize, hidden AX/focus fencing and theme/size changes | Nested layouts, physical display movement and larger query workloads |
 | Runtime & windows | Public diagnostics, observed content geometry, native file picker cancellation | Desktop identity/links/OS notifications and broader window command matrix |
 
@@ -107,8 +108,8 @@ Detailed family/configuration/event/value review remains explicitly pending.
 Known review topics include GPUIX's previously omitted onVisibleRange/onHighlight,
 ellipsis-start and extra cursor variants, pointer/wheel defaults, selection scope,
 standalone clipboard/automation surfaces and nested editor/document plugin APIs.
-Gallery families still missing include native extensions, generic native events
-and remaining desktop services. OCH-41 remains In Progress; OCH-17's macOS release audit follows it.
+Gallery families still missing include generic native events and remaining desktop
+services. OCH-41 remains In Progress; OCH-17's macOS release audit follows it.
 
 Linux build/unit/private-bus/consumer checks remain required. This checkpoint
 adds no real Linux GUI qualification; OCH-47 owns that deferred work. Hosted
@@ -281,7 +282,72 @@ screenshots were inspected.
 `python3 scripts/test_gallery.py --section responsive --images scratch/gallery-images`
 pass locally, along with gallery expect tests, `@fmt` and the structural catalog
 audit. This focused continuation follows the earlier sixteen-page combined run;
-the seventeen-page combined run and hosted checks are still pending. No native
+the subsequent eighteen-page combined run passes as recorded below; hosted checks
+remain pending. No native
 runtime or dependency change was needed. This gallery check does not substitute
 for the independent native-resize/no-OCaml-commit evidence in
 [OCH-26](container-queries-och26.md), physical DPI acceptance or release budgets.
+
+## Native extension gallery continuation
+
+The eighteenth page consumes `Gpuio_example_counter` and the existing generated
+`gpuio_counter_backend`. The gallery verifies the linked schema catalog before
+opening a window. It uses properties, typed observations, one outstanding
+sequenced command, explicit input disabling, retained hiding and native generation
+replacement. A bounded immutable controller checks the captured generation of
+observations, serializes property/step changes behind pending commands, and clears
+pending work on departure. Reset and departure advance generation; pure expect
+tests verify mismatched acknowledgements, obsolete generations and pending-command
+behavior. Native page revisits restore the current model rather than replaying
+an old command.
+
+The focused macOS test passes AX activation, real Space/Enter delivery, updated
+step/value properties, disabled input rejection, explicit commands while disabled
+and while hidden, hidden accessible-reference rejection, theme/size changes,
+generation reset, and three page revisits. A retained OS accessibility reference
+resolves the current logical button after generation replacement: its label changes
+from 42 to 7 and activation advances the replacement to 12 with step 5. This is
+current action resolution, not permission for revoked native callbacks to run.
+An earlier test incorrectly required that live logical reference to become inert;
+the corrected test checks its current name and the replacement's value.
+
+This integration also found the sample button reporting enabled metadata while
+the host correctly blocked disabled input. The host group's disabled state does
+not inherit to its child's AccessKit node. The counter package now sets disabled
+state on its actual button using the public GPUI accessibility builder and the
+current SDK event-lease check. Live callback guards remain unchanged. The focused
+native test verifies both disabled metadata and input rejection, then recovery.
+No SDK, wire schema, runtime ownership or dependency pin changed.
+
+Opt-in package traces verify exactly five mount/unmount/component-drop/value-drop
+lifetimes across initial mount, reset, three revisits and final close. Exactly two
+native commands execute; theme/resize/re-render/revisit does not replay them.
+The trace checks last callback-value release, not just component object disposal.
+This does not measure general GPU/process-memory budgets. Screenshot inspected.
+
+Gallery build/expect tests, Dune/Rust formatting and strict all-target counter
+package Clippy pass locally. Focused `--section extensions` and the combined eighteen-page walkthrough pass
+with this composed backend. The full run includes the responsive page, document
+keyboard/accessibility behavior, canvas pointer movement, charts, motion and
+resource cleanup. All test children are reaped. Hosted and installed-consumer
+gates remain open.
+
+During combined validation, a Line chart's initial focus request was not accepted
+after raising the window. The fixture had sent one request and then waited
+without retrying it. The chart's native focus action requires current window
+activation and input eligibility; raising a macOS window is asynchronous. Initial
+chart setup now uses a bounded request/confirmation loop before sending keys.
+The focused run needed two requests for Line, one for each subsequent family,
+and passed all original keyboard/selection/data assertions. Focus-retention
+checks elsewhere still assert focus without reacquiring it. This changes test
+setup, not production chart behavior. The complete cause of earlier reduced-motion
+observation/AX-window timeouts remains unverified; focused motion passes unchanged.
+`--trace-motion` records semantic batches and the motion fixture explicitly raises
+the intended window before foreground rendering checks.
+
+The final combined run passes with both diagnostic traces enabled. Earlier
+attempts are not acceptance: one included extra shape drags and viewport panning
+outside the scripted sequence, consistent with the owner's report of interacting
+with the gallery during testing; others failed initial chart focus or a motion
+observation wait. The final run keeps all behavioral assertions, uses the explicit
+foreground/initial-focus setup above and verifies terminal extension cleanup.
