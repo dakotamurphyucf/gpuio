@@ -964,6 +964,90 @@ def exercise_charts(mac, images):
           'data updates, bounded original-data pages, styles and scope cleanup', flush=True)
 
 
+def exercise_responsive(mac, images):
+    mac.press(TITLE, 'Responsive layouts')
+    mac.wait_text(TITLE, 'Painted layout: Compact · 400 × 300 · observation 1')
+    expect_field(mac, TITLE, 'Compact layout draft', 'Compact ideas stay here.')
+    absent(mac, 'Wide layout draft', 'AXTextField')
+    absent(mac, 'Short layout draft', 'AXTextField')
+    type_a(mac, 'Compact layout draft')
+    compact = mac.wait_find(TITLE, 'Compact layout draft', 'AXTextField')
+    try:
+        before = element_rect(mac, compact)
+        mac.press(TITLE, 'Compact saves: 0')
+        mac.wait_text(TITLE, 'Compact saves: 1')
+        mac.press(TITLE, 'Width 479')
+        mac.wait_text(TITLE, 'Offered size: 479 × 300 logical pixels')
+        # Selection observations carry the size at the last branch change.
+        # A same-branch resize must neither emit again nor replace the editor.
+        time.sleep(.15)
+        mac.wait_text(TITLE, 'Painted layout: Compact · 400 × 300 · observation 1')
+        after = element_rect(mac, compact)
+        assert abs(after[2] - before[2] - 79) < 1, (before, after)
+        expect_field(mac, TITLE, 'Compact layout draft', 'a')
+        mac.press(TITLE, 'Width 480')
+        mac.wait_text(TITLE, 'Painted layout: Wide · 480 × 300 · observation 2')
+        absent(mac, 'Compact layout draft', 'AXTextField')
+        # A retained accessibility reference must not activate the hidden editor.
+        try:
+            mac.set(compact, 'AXFocused', mac.true)
+        except RuntimeError:
+            pass
+        time.sleep(.1)
+        active = mac.attr(mac.app, 'AXFocusedUIElement')
+        if active:
+            try:
+                assert 'Compact layout draft' not in (mac.text(active, 'AXTitle'),
+                                                     mac.text(active, 'AXDescription'))
+            finally:
+                mac.release(active)
+    finally:
+        mac.release(compact)
+    type_a(mac, 'Wide layout draft')
+    mac.press(TITLE, 'Wide saves: 0')
+    mac.wait_text(TITLE, 'Wide saves: 1')
+    mac.press(TITLE, 'Height 200')
+    mac.wait_text(TITLE, 'Painted layout: Short · 480 × 200 · observation 3')
+    absent(mac, 'Wide layout draft', 'AXTextField')
+    type_a(mac, 'Short layout draft')
+    mac.press(TITLE, 'Short saves: 0')
+    mac.wait_text(TITLE, 'Short saves: 1')
+    mac.press(TITLE, 'Width 600')
+    mac.wait_text(TITLE, 'Offered size: 600 × 200 logical pixels')
+    time.sleep(.15)
+    mac.wait_text(TITLE, 'Painted layout: Short · 480 × 200 · observation 3')
+    expect_field(mac, TITLE, 'Short layout draft', 'a')
+    mac.press(TITLE, 'Height 230')
+    mac.wait_text(TITLE, 'Painted layout: Wide · 600 × 230 · observation 4')
+    expect_field(mac, TITLE, 'Wide layout draft', 'a')
+    mac.release(mac.wait_find(TITLE, 'Wide saves: 1', 'AXButton'))
+    if images:
+        screenshot(mac, images / 'gallery-responsive-wide.png', title=TITLE)
+    cycle_preview_appearance(mac, 'Painted layout: Wide · 600 × 230 · observation 4')
+    expect_field(mac, TITLE, 'Wide layout draft', 'a')
+    mac.press(TITLE, 'Width 400')
+    mac.wait_text(TITLE, 'Painted layout: Compact · 400 × 230 · observation 5')
+    expect_field(mac, TITLE, 'Compact layout draft', 'a')
+    mac.release(mac.wait_find(TITLE, 'Compact saves: 1', 'AXButton'))
+    if images:
+        screenshot(mac, images / 'gallery-responsive.png', title=TITLE)
+    for _ in range(3):
+        mac.press(TITLE, 'Presentation')
+        mac.wait_text(TITLE, 'A little context goes a long way')
+        absent(mac, 'Compact layout draft', 'AXTextField')
+        mac.press(TITLE, 'Responsive layouts')
+        expect_field(mac, TITLE, 'Compact layout draft', 'Compact ideas stay here.')
+        mac.release(mac.wait_find(TITLE, 'Compact saves: 1', 'AXButton'))
+    mac.press(TITLE, 'Width 600')
+    expect_field(mac, TITLE, 'Wide layout draft', 'Wide ideas stay here.')
+    mac.press(TITLE, 'Height 200')
+    expect_field(mac, TITLE, 'Short layout draft', 'Short ideas stay here.')
+    mac.release(mac.wait_find(TITLE, 'Short saves: 1', 'AXButton'))
+    print('GALLERY_RESPONSIVE_OK: native half-open boundaries and first-match priority, '
+          'silent same-branch resize, retained drafts/counts, hidden AX/focus fencing, '
+          'theme/size and fresh native editors on revisit', flush=True)
+
+
 def motion_width(mac, node):
     get = mac.ax.AXValueGetValue
     get.restype, get.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
@@ -1089,7 +1173,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--images', type=Path)
     parser.add_argument('--trace-canvas', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'canvas', 'assets', 'charts', 'motion', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -1127,6 +1211,8 @@ def main():
                 exercise_motion(mac, args.images,
                                 second_title=('GPUIO · Component Studio 3'
                                               if args.section == 'all' else SECOND))
+            if args.section in ('all', 'responsive'):
+                exercise_responsive(mac, args.images)
             if args.section in ('all', 'runtime'):
                 exercise_runtime(mac, args.images)
             mac.close(TITLE)

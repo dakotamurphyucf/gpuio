@@ -4,7 +4,7 @@ A native public-API gallery under implementation for OCH-41. The first sections
 cover presentation, selection/actions, native text editing, numeric/range inputs,
 verification codes, rating, dates/colors, overlays, navigation/layout and commands/
 feedback, carousel/sidebar/history, managed collections, documents and runtime/
-window previews, canvas, images/icons, charts, plus native motion sequences and shared clocks. Additional v1
+window previews, canvas, images/icons, charts, plus native motion sequences, shared clocks and responsive layouts. Additional v1
 families and the complete coverage ledger are still being integrated; this is
 not the completed milestone 07 release.
 
@@ -31,7 +31,7 @@ python3 scripts/test_gallery.py --images scratch/gallery-images
 ```
 
 Use `--section core`, `pickers`, `overlays`, `navigation`, `feedback`, `journeys`,
-`collections`, `documents`, `canvas`, `assets`, `charts`, `motion` or `runtime` for focused iteration;
+`collections`, `documents`, `canvas`, `assets`, `charts`, `motion`, `responsive` or `runtime` for focused iteration;
 the default `all` exercises all currently integrated acceptance stages in one
 application lifetime. Pickers verify draft cancel/apply and focus restoration;
 overlays exercise dialog/drawer/confirmation/popover dismissal and focus; workspace
@@ -68,6 +68,13 @@ application-wide preference shared by all gallery windows. Leaving the motion pa
 pauses its sequence and stops its repeating preview. The native test measures
 intermediate geometry, interruption, held playback, cancellation, reduced endpoints
 and shared phase; there is no OCaml animation-frame timer.
+
+Responsive layouts demonstrate first-match width/height rules and exact logical
+breakpoint boundaries. Each branch keeps its own draft and counter while hidden;
+only the selected presentation is accessible. The wide branch places editing and
+saving side by side. Selection feedback reports the size at the last painted
+branch change, not every resize. Leaving the page disposes all branch editors;
+returning preserves chosen size and counts but acquires fresh native drafts.
 
 The document AX repair now exposes actual Markdown body text, read-only source/code
 and inline links with keyboard activation. Rich/image links, selected-text/range,

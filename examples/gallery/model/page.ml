@@ -16,6 +16,7 @@ type t =
   | Assets
   | Charts
   | Motion
+  | Responsive
   | Runtime
 [@@deriving equal, compare, sexp_of]
 
@@ -35,6 +36,7 @@ let all =
   ; Assets
   ; Charts
   ; Motion
+  ; Responsive
   ; Runtime
   ]
 ;;
@@ -55,6 +57,7 @@ let title = function
   | Assets -> "Images & icons"
   | Charts -> "Charts & data"
   | Motion -> "Motion & rhythm"
+  | Responsive -> "Responsive layouts"
   | Runtime -> "Runtime & windows"
 ;;
 
@@ -74,6 +77,7 @@ let description = function
   | Assets -> "Scalable artwork, crisp icons and thoughtful fallbacks."
   | Charts -> "Clear pictures, with the original values always within reach."
   | Motion -> "Thoughtful transitions, natural springs and a shared rhythm."
+  | Responsive -> "Thoughtful layouts that adapt to the space around them."
   | Runtime -> "Native window behavior and visible resource ownership."
 ;;
 
@@ -93,5 +97,6 @@ let key = function
   | Assets -> "assets"
   | Charts -> "charts"
   | Motion -> "motion"
+  | Responsive -> "responsive"
   | Runtime -> "runtime"
 ;;

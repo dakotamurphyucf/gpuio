@@ -23,6 +23,7 @@ Local platform: macOS 14.5 (23F79), arm64. Use the pinned repository environment
 | Images & icons | SVG/raster decode, all fit controls, explicit failure/recovery, icon/button semantics and page-scoped registrations | Remaining codec families and full GPU/cache budgets |
 | Charts & data | Seven native families plus mixed layers; keyboard selection, publication updates, bounded original-data browsing, disabled metadata, theme/scale retention and scope cleanup | Larger/reduced datasets, pointer selection and release performance budgets |
 | Motion & rhythm | Interrupted native targets, tween/spring sequence, pause/resume/cancel/reverse/restart, shared-clock join, live reduced motion and cross-window policy | Full timing/property combinations and resource/performance budgets |
+| Responsive layouts | Width/height boundaries, first-match priority, retained branch drafts/counters, silent same-branch resize, hidden AX/focus fencing and theme/size changes | Nested layouts, physical display movement and larger query workloads |
 | Runtime & windows | Public diagnostics, observed content geometry, native file picker cancellation | Desktop identity/links/OS notifications and broader window command matrix |
 
 The combined native test opens a second independent window, verifies independent
@@ -106,8 +107,8 @@ Detailed family/configuration/event/value review remains explicitly pending.
 Known review topics include GPUIX's previously omitted onVisibleRange/onHighlight,
 ellipsis-start and extra cursor variants, pointer/wheel defaults, selection scope,
 standalone clipboard/automation surfaces and nested editor/document plugin APIs.
-Gallery families still missing include native extensions, responsive container
-rules, generic native events and remaining desktop services. OCH-41 remains In Progress; OCH-17's macOS release audit follows it.
+Gallery families still missing include native extensions, generic native events
+and remaining desktop services. OCH-41 remains In Progress; OCH-17's macOS release audit follows it.
 
 Linux build/unit/private-bus/consumer checks remain required. This checkpoint
 adds no real Linux GUI qualification; OCH-47 owns that deferred work. Hosted
@@ -254,3 +255,33 @@ publication without refocusing. The image page exposes exactly three meaningful
 AX images; the button decoration introduces no duplicate accessible image. These
 final assertions were validated in focused canvas/assets runs. All processes are
 reaped, and the working copy's format/expect/catalog/whitespace checks pass.
+
+## Responsive gallery continuation
+
+The seventeenth page uses the public `View.container_query` API. Explicit logical
+sizes make the rule order and half-open boundaries inspectable: below 230 pixels
+high selects Short at any width; otherwise width at least 480 selects Wide;
+otherwise Compact. The outer size is independent of preview typography scale.
+Each supplied Bonsai branch owns its own counter and native editor. All three
+branches remain mounted while selecting between them. The wide presentation
+places the draft and save action in a row; the other presentations stack them.
+
+The focused macOS run passes initial selection at 400 × 300, a resize to 479
+without another observation, transition at exactly 480, height precedence at
+200, another silent width change to 600, and transition at exactly 230 tall.
+It checks actual editor geometry after the 79-pixel same-branch resize, retained
+text and counts on return, hidden-editor absence from AX and a stale reference
+unable to focus the hidden editor. Real OS typing updates all three drafts.
+Light/dark and all three preview sizes preserve selection and draft state.
+Three page departures remove accessible editors; re-entry acquires fresh drafts
+while preserving the Bonsai counts and chosen dimensions. Both compact and wide
+screenshots were inspected.
+
+`./scripts/gpuio build examples/gallery/main.exe` and
+`python3 scripts/test_gallery.py --section responsive --images scratch/gallery-images`
+pass locally, along with gallery expect tests, `@fmt` and the structural catalog
+audit. This focused continuation follows the earlier sixteen-page combined run;
+the seventeen-page combined run and hosted checks are still pending. No native
+runtime or dependency change was needed. This gallery check does not substitute
+for the independent native-resize/no-OCaml-commit evidence in
+[OCH-26](container-queries-och26.md), physical DPI acceptance or release budgets.

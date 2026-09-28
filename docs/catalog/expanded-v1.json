@@ -38,7 +38,7 @@
       "evidence": [
         "docs/evidence/container-queries-och26.md"
       ],
-      "gallery_page": null,
+      "gallery_page": "responsive",
       "contract": "Native declarative breakpoints and containment with deterministic property precedence; no OCaml layout callbacks."
     },
     {
