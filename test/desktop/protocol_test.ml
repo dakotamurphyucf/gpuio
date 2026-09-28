@@ -166,6 +166,18 @@ let%expect_test "packaging quotes literal arguments and keeps identity declarati
   in
   print_endline (Gpuio.Desktop_package.file_name entry);
   print_string (Gpuio.Desktop_package.contents entry);
+  let direct =
+    Gpuio.Desktop_package.linux_entry
+      identity
+      ~executable:(path "/opt/Our App/bin/app")
+      ~arguments:[ "100%" ]
+      ()
+    |> Or_error.ok_exn
+  in
+  assert (
+    String.is_substring
+      (Gpuio.Desktop_package.contents direct)
+      ~substring:"Exec=\"/opt/Our App/bin/app\" \"100%%\" --open-uris %U");
   List.iter [ "/tmp/a=b"; "/tmp/é"; "/tmp/new\nline" ] ~f:(fun executable ->
     assert (
       Or_error.is_error
@@ -197,7 +209,7 @@ let%expect_test "packaging quotes literal arguments and keeps identity declarati
     Type=Application
     Version=1.0
     Name=Example\s&\s<Studio>\s🎨
-    Exec="/opt/Our App/bin/100%%app" "--label" "\\$HOME \\`id\\` \\\\\\"quoted" "" --open-uris %U
+    Exec="/usr/bin/env" "--" "/opt/Our App/bin/100%%app" "--label" "\\$HOME \\`id\\` \\\\\\"quoted" "" --open-uris %U
     Terminal=false
     DBusActivatable=false
     MimeType=x-scheme-handler/example;

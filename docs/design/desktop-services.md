@@ -152,6 +152,17 @@ do not silently change that default.
 
 ## File services and explicit registration
 
+Linux desktop metadata quotes each literal argument and doubles percent signs.
+For an executable path containing `%`, it uses `/usr/bin/env --` to launch the
+absolute application path. GLib 2.80 checks the first executable before expanding
+`%%`; directly naming the escaped application can therefore fail handler loading.
+The launcher replaces itself with the application, preserving identity, arguments
+and environment without a shell. Ordinary executable paths stay direct. See
+[GLib's loader](https://github.com/GNOME/glib/blob/2.80.0/gio/gdesktopappinfo.c) and
+the [Exec specification](https://specifications.freedesktop.org/desktop-entry/latest/exec-variables.html).
+`test_desktop_entry_linux.py` checks actual GIO launch and literal argv without a
+display; the separate graphical test checks cold/warm default URL dispatch.
+
 `Gpuio_eio.Desktop.open_file app path` uses a validated `File_path` and macOS
 `NSWorkspace.openURL:configuration:completionHandler:`. It waits for the workspace
 completion without blocking GPUI or the OCaml UI domain. Success means the OS

@@ -97,6 +97,9 @@ jobs:
       - name: Linux desktop instance arbitration (private bus, no display)
         if: runner.os == 'Linux'
         run: scripts/test_desktop_instance_bus.sh 2>&1 | tee .cache/ci/desktop-instance.log
+      - name: Linux desktop entry executable dispatch (no display)
+        if: runner.os == 'Linux'
+        run: python3 scripts/test_desktop_entry_linux.py 2>&1 | tee .cache/ci/desktop-entry-exec.log
       - name: Linux notification transport (private bus, no display)
         if: runner.os == 'Linux'
         run: scripts/test_notification_bus.sh 2>&1 | tee .cache/ci/notification-bus.log

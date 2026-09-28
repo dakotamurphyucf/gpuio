@@ -95,6 +95,7 @@ def exercise(binary, artifact):
         finally:
             artifact.parent.mkdir(parents=True, exist_ok=True)
             artifact.write_text(content())
+            artifact.with_suffix('.desktop').write_bytes(entry.read_bytes())
             for pid in owned_pids(executable):
                 try:
                     os.kill(pid, signal.SIGTERM)

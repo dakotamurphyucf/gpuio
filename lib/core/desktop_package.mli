@@ -16,6 +16,9 @@ val contents : t -> string
     not contain [=]; use an ASCII installation path or launcher when necessary.
     At most 32 arguments of 1024 bytes each. Literal percent signs and reserved
     characters are escaped, without a shell. Display names remain UTF-8.
+    Executable paths containing [%] use [/usr/bin/env --] as a launcher: GIO
+    checks the first executable before expanding percent escapes. The launcher
+    replaces itself with the application and preserves its arguments/environment.
     Does not declare standard D-Bus activation: GPUIO's forwarding protocol is
     independent of org.freedesktop.Application. *)
 val linux_entry

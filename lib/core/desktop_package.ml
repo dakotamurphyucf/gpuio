@@ -48,9 +48,14 @@ let linux_entry identity ~executable ?(arguments = []) () =
       "desktop arguments require at most 32 printable ASCII strings of 1024 bytes"
   else (
     let identifier = Desktop.Identity.identifier identity in
-    let command =
-      List.map (executable :: arguments) ~f:exec_argument |> String.concat ~sep:" "
+    (* GIO checks argv[0] before expanding %% to %. Keep that lookup literal;
+       env replaces itself with the application, without invoking a shell. *)
+    let argv =
+      if String.contains executable '%'
+      then "/usr/bin/env" :: "--" :: executable :: arguments
+      else executable :: arguments
     in
+    let command = List.map argv ~f:exec_argument |> String.concat ~sep:" " in
     let schemes =
       Desktop.Identity.schemes identity
       |> List.map ~f:(fun scheme ->
