@@ -109,11 +109,20 @@ class Notifications:
         return None
 
     def wait(self, title):
-        end = time.monotonic() + 10
-        while time.monotonic() < end:
-            node = self.find(title)
-            if node: return node
-            time.sleep(.05)
+        # A delivered notification can outlive its transient banner (or the OS
+        # can suppress a repeated banner). Require the actual OS row, opening
+        # Notification Center once if it is not currently presented. Permission
+        # prompts must appear on their own and are not delivered notifications.
+        permission = title == f'“{self.app_name}” Notifications'
+        for attempt in range(1 if permission else 2):
+            if attempt:
+                print('NOTIFICATION_LOOKUP_IN_CENTER', title, flush=True)
+                self.open_center()
+            end = time.monotonic() + 10
+            while time.monotonic() < end:
+                node = self.find(title)
+                if node: return node
+                time.sleep(.05)
         raise AssertionError(f"Test notification not present: {title}")
 
     def act(self, title, name):

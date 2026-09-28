@@ -203,3 +203,23 @@ replacement, stale closed-window isolation, and service cleanup. This proves the
 runner setup fix; the separate diagnostic branch is not part of the merge. The
 complete required workflow, including Signal Studio, must still pass on the final
 PR revision. Linux graphical notification acceptance remains OCH-17.
+
+The subsequent full run `36419908242` passed Signal Studio's notification flow
+and the Lab's permission/named/default/dismiss actions, but did not find the
+fourth transient banner. The Lab harness now opens Notification Center once on
+delivered-row lookup timeout; it still requires the actual matching native row
+and action callbacks, and permission prompts receive no such fallback. It does
+not equate successful submission with visible presentation. The original missing
+banner's cause is not established. A local retained-delivery probe explicitly
+opened then closed Notification Center, confirmed the notification was no longer
+presented, and passed the original action/lifetime walkthrough after the fallback
+found its retained OS row. The ordinary local walkthrough also passes.
+
+[Focused hosted run 36424019983](https://github.com/dakotamurphyucf/gpuio/actions/runs/36424019983)
+passes these harness changes in sequence with Signal input, desktop, Full/Reduce
+motion, bounded workload, Signal notifications and the Notification Lab. It
+reuses previously built binaries; it does not replace final required builds,
+independent-consumer checks or the full performance measurement wrapper.
+
+The focused run actually exercised `NOTIFICATION_LOOKUP_IN_CENTER` for the
+fourth notification before passing all remaining action and cleanup assertions.

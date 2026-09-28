@@ -110,3 +110,27 @@ workload rerun records 4.06 seconds wall time, 1.70/0.37 seconds user/system CPU
 and window cycles, 24 component/value lifetimes and final zero resource charges
 pass again. These measurements have the same visibility and presentation limits
 described above; the separate large-chart ledger preserves its latency outlier.
+
+## Native automation transitions (2026-09-28)
+
+Full run `36419908242` passed Signal Studio input, motion, workload and
+notifications, but the desktop walkthrough timed out on its first counter action
+after reset. Reset advances the component generation. Its old check waited for
+zero while the old counter was already zero, so it could proceed before observing
+the new generation. The test now increments to one before resetting and observes
+zero afterward, preserving the native-generation fence. The complete local
+document/picker/link/Finder walkthrough passes with this distinct transition.
+
+A separate diagnostic run observed the completed closing spring but missed its
+intermediate heights: it queried unrelated accessibility nodes before sampling.
+The motion fixture now acquires the geometry node before activation and begins
+sampling immediately afterward. Full/Reduce endpoint, intermediate-height,
+interruption, sequence, shared-paint and cleanup assertions remain unchanged;
+both local motion modes pass. These harness changes do not alter application or
+framework behavior. Final required CI results are recorded in PR #14.
+
+[Focused hosted run 36424019983](https://github.com/dakotamurphyucf/gpuio/actions/runs/36424019983)
+passes these harness changes in sequence with Signal input, desktop, Full/Reduce
+motion, bounded workload, Signal notifications and the Notification Lab. It
+reuses previously built binaries; it does not replace final required builds,
+independent-consumer checks or the full performance measurement wrapper.

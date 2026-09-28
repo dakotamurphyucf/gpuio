@@ -20,11 +20,13 @@ class Motion(Studio):
         finally:
             self.release(node)
 
-    def heights(self, seconds):
+    def heights(self, seconds, *, after_press=None):
         node = self.wait_find(TITLE, 'Signal history and inspector', 'AXGroup')
         values = []
-        deadline = time.monotonic() + seconds
         try:
+            if after_press is not None:
+                self.press(TITLE, after_press)
+            deadline = time.monotonic() + seconds
             while time.monotonic() < deadline:
                 values.append(self.rect(node)[3])
                 time.sleep(.015)
@@ -44,14 +46,14 @@ class Motion(Studio):
         self.resize(1160)
         time.sleep(.4)
         baseline = self.bounds('Signal history and inspector')[3]
-        self.press(TITLE, 'Hide inspector')
+        # Capture the transition before querying the rest of the AX tree:
+        # those round trips can consume the whole spring on a hosted desktop.
+        closing = self.heights(1.6, after_press='Hide inspector')
         self.wait_text(TITLE, 'Show inspector')
         self.absent('Lock control', 'AXButton')
-        closing = self.heights(1.6)
         collapsed = closing[-1]
         assert abs(baseline - collapsed - 172) < 1, (baseline, closing)
-        self.press(TITLE, 'Show inspector')
-        opening = self.heights(1.6)
+        opening = self.heights(1.6, after_press='Show inspector')
         assert abs(opening[-1] - baseline) < 1, (baseline, opening)
         if not reduced:
             assert any(collapsed+1 < height < baseline-1 for height in opening), opening
