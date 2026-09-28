@@ -31,6 +31,7 @@ pub mod drag_drop;
 pub mod extension;
 pub mod file_dialog;
 pub mod file_path;
+pub mod highlight;
 mod id;
 pub mod image;
 pub mod input;
@@ -83,4 +84,5 @@ pub mod numeric;
 
 pub mod slider;
 
+pub use decode::decode_highlight_config;
 pub use decode::{decode_input_config, decode_input_event};

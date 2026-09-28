@@ -4,6 +4,8 @@ use std::io::{Cursor, Read};
 
 mod input;
 pub use input::{decode_input_config, decode_input_event};
+mod highlight;
+pub use highlight::decode_highlight_config;
 mod accessibility;
 mod chart_data;
 mod chart_options;

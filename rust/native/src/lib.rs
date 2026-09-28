@@ -196,6 +196,7 @@ pub fn run_native_document_test() {
 }
 
 pub mod document_search;
+pub mod highlight_search;
 
 #[cfg(all(feature = "native-tests", target_os = "macos"))]
 pub fn run_native_window_test() {
