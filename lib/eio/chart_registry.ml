@@ -417,7 +417,7 @@ let accepts_event t source ~data_revision ~data_generation observation =
     &&
     match observation with
     | Gpuio_protocol.Chart_view_wire.Observation.Failed _ -> true
-    | Ready _ -> false
+    | Ready _ | Selection_changed _ -> false
   in
   (not t.closed)
   && Gpuio_protocol.Chart_view_wire.Observation.valid observation
@@ -428,7 +428,8 @@ let accepts_event t source ~data_revision ~data_generation observation =
     &&
       (match observation with
       | Failed Wrong_application -> true
-      | Failed (Unavailable_data | Render_limit | Native_failure) | Ready _ -> false)
+      | Failed (Unavailable_data | Render_limit | Native_failure)
+      | Ready _ | Selection_changed _ -> false)
   | Some id ->
     if before_data
     then

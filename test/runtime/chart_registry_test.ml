@@ -469,6 +469,15 @@ let%expect_test "view observations reject retired resources and forged pre-data 
       ; bytes = 500L
       }
     in
+    let selected =
+      Gpuio_protocol.Chart_view_wire.Observation.Selection_changed
+        (Some (Gpuio_protocol.Chart_selection_wire.Slice 7L))
+    in
+    assert (not (accepts selected));
+    assert (not (accepts ~source:None ~revision:1L ~generation:1L selected));
+    assert (accepts ~revision:1L ~generation:1L selected);
+    assert (
+      not (accepts ~revision:1L ~generation:1L (Selection_changed (Some (Slice 0L)))));
     assert (not (accepts (Ready metrics)));
     assert (accepts ~revision:1L ~generation:1L (Ready metrics));
     assert (
@@ -479,6 +488,7 @@ let%expect_test "view observations reject retired resources and forged pre-data 
            (Ready { metrics with bytes = Int64.max_value })));
     change (Registration.reset registration (empty "new identity"));
     assert (not (accepts ~revision:1L ~generation:1L (Ready metrics)));
+    assert (not (accepts ~revision:1L ~generation:1L selected));
     Registration.release registration;
     assert (not (accepts (Failed Unavailable_data)));
     Registry.close registry;
@@ -487,4 +497,33 @@ let%expect_test "view observations reject retired resources and forged pre-data 
     "pre-data failure, valid publication, reset, release and shutdown fences pass";
   [%expect
     {| pre-data failure, valid publication, reset, release and shutdown fences pass |}]
+;;
+
+let%expect_test "selection and clear observations each retire on reset, release or close" =
+  let verify retire =
+    with_registry (fun scope registry _ ->
+      let registration = registered registry scope (empty "selection publication") in
+      let accepts observation =
+        Registry.accepts_event
+          registry
+          (Some id)
+          ~data_revision:1L
+          ~data_generation:1L
+          observation
+      in
+      let observations =
+        [ Gpuio_protocol.Chart_view_wire.Observation.Selection_changed None
+        ; Selection_changed (Some (Gpuio_protocol.Chart_selection_wire.Slice 7L))
+        ]
+      in
+      assert (List.for_all observations ~f:accepts);
+      retire registration registry;
+      assert (List.for_all observations ~f:(fun event -> not (accepts event))))
+  in
+  verify (fun registration _ ->
+    change (Registration.reset registration (empty "replacement")));
+  verify (fun registration _ -> Registration.release registration);
+  verify (fun _ registry -> Registry.close registry);
+  print_endline "fresh publication: both select and clear fenced by each retirement path";
+  [%expect {| fresh publication: both select and clear fenced by each retirement path |}]
 ;;

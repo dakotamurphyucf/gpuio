@@ -217,6 +217,63 @@ chart keyboard navigation, semantic selection, dense-legend wheel gestures,
 a complete data alternative, collision-free dense labeling, hosted CI or Linux
 GUI acceptance. No new chart capability is advertised yet.
 
+## Selection schema, provenance and hit-index acceptance
+
+Local Apple M1 Max / macOS 14.5 arm64, the same isolated toolchain and two-job
+limit. Typed Core selections and the appended `Selection_changed` observation
+now have independent paired fixtures for exact/sum/mean Cartesian targets,
+slices, radar series/axes, exact/OHLC candles and Sankey nodes/edges. Tests reject
+invalid spans, IDs, aggregation tags, Boolean tags, truncation and trailing data.
+Exact targets require one datum; aggregate endpoints preserve source order even
+when their IDs decrease. Selection and explicit-clear observations reject
+pre-data epochs and are each fenced by fresh reset, release and shutdown cases.
+
+Native provenance tests resolve actual prepared geometry for all seven families.
+They verify full original membership for summed/mean bars and OHLC candles with
+IDs `42, 99, 7`, and exact original representatives for a 1,000-point envelope.
+Malformed internal indices/family mismatches return no target without indexing
+outside the source. The source resolver is paired with immutable data; this is
+not a callback into OCaml or a lookup against a newer publication.
+
+The prepared painter now owns a bounded spatial hit index, charged with its
+geometry and meshes. An exhaustive mark-scan oracle agrees with indexed exact
+queries across all families and both orientations. Separate analytic checks
+cover donut holes, curved ribbon interiors and thin candle wicks. The wick test
+caught and fixed a broad-phase margin smaller than its analytic hit tolerance.
+Actual 100,000-point vertical/horizontal datasets pass exact-sample targeting,
+retained-index limits, pruning checks, cancellation and non-finite/out-of-plot
+rejection. Empty and nearest plotted-sample queries are also covered. These
+checks demonstrate bounded storage and pruning on those workloads, not a frame
+latency benchmark or a worst-case logarithmic query bound.
+
+Final checks passed:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-protocol \
+  --test chart_selection --test chart_view --locked -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native --lib chart_ --locked -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native \
+  --features native-canvas-tests --test native_chart_paint --test native_chart_view --locked -j2
+./_build/default/examples/charts/main.exe --self-test --foreground
+```
+
+There are 51 passing native chart unit tests and four passing protocol selection/
+view tests. Strict all-target native Clippy with the native-test feature passes;
+full Dune checks pass, followed by another runtime expect-test/format check for
+separate selection/clear retirement cases. The actual hidden-window GPU suites
+still pass every chart family, mixed layers, clipping and production resource/
+legend lifecycle. The mounted final counters remain ten preparations, one peak
+worker and zero retained plan/workspace charges. The rebuilt public seven-family
+self-test passes reset epochs, frame callback and scoped cleanup; its foreground
+window exits cleanly. All owned test children were reaped.
+
+**Not yet accepted:** mounted pointer/drag/keyboard handling, tooltips, real
+semantic selection callbacks, complete data alternatives, multi-window/cached-row
+streaming, or the required named-hardware performance report. This checkpoint
+implements their typed contract and query machinery; it does not claim completed
+interactive charts, hosted CI, Linux GUI acceptance or a new capability bit.
+
 ## Completion still required
 
 Extend resource/lifecycle acceptance to multiple windows, managed-list caching

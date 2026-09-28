@@ -47,12 +47,14 @@ impl Metrics {
 pub enum Observation {
     Ready(Metrics),
     Failed(Error),
+    SelectionChanged(Option<crate::chart_selection::Selection>),
 }
 impl Observation {
     pub fn is_valid(&self) -> bool {
         match self {
             Self::Ready(metrics) => metrics.is_valid(),
             Self::Failed(_) => true,
+            Self::SelectionChanged(selection) => selection.is_none_or(|s| s.is_valid()),
         }
     }
 }

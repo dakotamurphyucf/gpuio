@@ -14,6 +14,7 @@ pub mod canvas_plan;
 pub mod canvas_state;
 pub mod canvas_store;
 pub mod chart_geometry;
+mod chart_hit;
 mod chart_host;
 pub mod chart_jobs;
 pub mod chart_paint;
@@ -28,6 +29,7 @@ pub fn run_native_chart_view_test() {
     host::chart_view::test::run();
 }
 pub mod chart_reduce;
+pub mod chart_selection;
 pub mod chart_store;
 mod desktop_host;
 #[cfg(any(target_os = "linux", test))]

@@ -37,7 +37,9 @@ bridge, scoped event fencing and native tree validation are implemented and loca
 tested. Resource-backed mounted views now pass hidden GPU lifecycle checks and
 the public seven-family Chart Studio self-test. Native axis/family labels and
 scrollable legends now render from the displayed snapshot; dense legend scroll
-persists across updates and clears on reset. Chart input/data accessibility,
+persists across updates and clears on reset. Typed semantic-selection events,
+exact-source provenance and a bounded worker-prepared hit index are implemented;
+mounted input/data accessibility,
 multiple-window/cached-list streaming acceptance and performance measurements remain. See
 [chart contracts and remaining work](design/charts.md).
 The detailed entries below record implementation checkpoints chronologically;

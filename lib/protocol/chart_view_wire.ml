@@ -64,10 +64,13 @@ module Observation = struct
   type t =
     | Ready of Metrics.t
     | Failed of Error.t
+    | Selection_changed of Chart_selection_wire.t option
   [@@deriving bin_io, equal, sexp_of]
 
   let valid = function
     | Ready metrics -> Metrics.valid metrics
     | Failed _ -> true
+    | Selection_changed selection ->
+      Option.for_all selection ~f:Chart_selection_wire.valid
   ;;
 end

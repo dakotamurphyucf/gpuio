@@ -22,10 +22,13 @@ module Metrics = struct
   ;;
 end
 
+module Selection = Chart_selection
+
 module Observation = struct
   type t =
     | Ready of Metrics.t
     | Failed of Error.t
+    | Selection_changed of Selection.t option
   [@@deriving equal, sexp_of]
 end
 
@@ -89,16 +92,25 @@ module Expert = struct
           &&
           match observation with
           | Wire.Observation.Failed _ -> true
-          | Ready _ -> false)
+          | Ready _ | Selection_changed _ -> false)
     in
     if not (valid_identity && Wire.Observation.valid observation)
     then Or_error.error_string "invalid chart observation"
     else (
-      let observation =
+      let%map.Or_error observation =
         match observation with
-        | Wire.Observation.Ready metrics -> Observation.Ready (Metrics.of_wire metrics)
-        | Failed error -> Observation.Failed error
+        | Wire.Observation.Ready metrics ->
+          Ok (Observation.Ready (Metrics.of_wire metrics))
+        | Failed error -> Ok (Observation.Failed error)
+        | Selection_changed selection ->
+          let%map.Or_error selection =
+            match selection with
+            | None -> Ok None
+            | Some selection ->
+              Selection.Expert.of_wire selection |> Or_error.map ~f:Option.some
+          in
+          Observation.Selection_changed selection
       in
-      Ok { Event.data_revision; data_generation; observation })
+      { Event.data_revision; data_generation; observation })
   ;;
 end

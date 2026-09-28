@@ -46,6 +46,7 @@ let () =
       E.of_thunk (fun () ->
         observation := Some event;
         match event.observation with
+        | Selection_changed _ -> ()
         | Failed error ->
           B.Expert.Var.set status (Sexp.to_string_hum [%sexp (error : Chart.Error.t)])
         | Ready metrics ->
@@ -185,7 +186,7 @@ let () =
                   Int64.equal data_generation generation
                 | Some { observation = Failed e; _ } ->
                   raise_s [%sexp (e : Chart.Error.t)]
-                | None -> false)
+                | Some { observation = Selection_changed _; _ } | None -> false)
             in
             wait_ready 1L;
             for n = 1 to 6 do

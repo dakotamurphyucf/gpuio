@@ -8,8 +8,9 @@ and retained logical-pixel geometry now cover all seven families. The prepared
 painter passes local hidden-window GPU readback for every family. The resource-backed
 Core/Bonsai view now mounts the painter through bounded native workers. A public
 seven-family Chart Studio and hidden production-view lifecycle test pass locally.
-Native labels and scrollable legends are implemented. Tooltips, chart interactions,
-data alternatives and streaming measurements remain. This document separates implemented contracts from
+Native labels, scrollable legends, typed selection payloads and prepared hit
+queries are implemented. Mounted interaction, tooltips, data alternatives and
+streaming measurements remain. This document separates implemented contracts from
 the remaining implementation work.
 
 ## Data contract
@@ -512,3 +513,47 @@ publications in the same frame. Text/legend payload bounds are separate from the
 prepared-mesh byte/vertex measurements; those metrics are not total GPUI memory.
 A legend and axis labels are not a substitute for the upcoming complete keyboard
 and data-table alternatives or non-color series identification in the plot.
+
+## Semantic selection contract and hit-test preparation
+
+The public `Chart_selection` module (also `Chart.Selection`) describes a target
+in the publication named by `Chart.Event.data_revision` and `data_generation`.
+Cartesian targets carry a stable series ID, source span and `Exact`, `Sum` or
+`Mean` aggregation. Candles carry a source span and an OHLC-aggregation flag.
+Slices, radar series/axes and Sankey nodes/edges use their distinct stable IDs.
+The source span is a validated half-open index interval with stable endpoint IDs;
+its endpoints **are not a numeric ID range**. IDs need not increase with source
+order. Exact points/candles contain one datum. Envelope sampling still selects
+an original single representative; it is not misreported as an aggregate.
+
+`Selection_changed of Selection.t option` is appended after existing Ready/Failed
+observations. `None` represents an explicit clear. The payload contains fixed-size
+fields instead of transferring every member of a large aggregate. Selection
+observations require a positive publication identity and pass the existing
+application/resource/tree-handler/revision/reset/release fences. Core construction,
+wire decoding and native provenance resolution each validate their boundaries.
+The source resolver takes the exact immutable dataset and sampling policy that
+produced a mark. It does not look up indices in a newer publication.
+
+Each prepared painter now owns a worker-built hit index. A median-split hierarchy
+bounds mark candidates; leaves contain at most eight entries. Dots, bars, candle
+bodies/wicks, pie annuli, Sankey nodes and curved ribbons use analytic tests.
+Nodes take precedence over ribbons as in painting; overlapping points choose
+the nearer point, with draw order resolving ties. Cartesian line/area columns
+also support a nearest plotted-sample fallback between points. That result is an
+existing datum, not an interpolated value or a claim that a gap contains data.
+Queries outside the plot or with non-finite coordinates return no target.
+
+The index admits at most 100,000 marks and 16 MiB of retained arrays, counted
+inside the existing 64-MiB prepared-plan limit and render-pool charge. Cancellation
+is checked during preparation; queries do not allocate or rebuild geometry.
+Spatial pruning reduces ordinary query work, but heavily overlapping geometry
+can still require many candidates; no unconditional logarithmic-time guarantee
+or measured frame-performance claim is made.
+
+**Current integration boundary:** paired selection types/events, provenance
+resolution and prepared hit queries are implemented. Mounted pointer capture,
+hover/drag previews, tooltips, keyboard focus/navigation, data-table alternatives,
+selection retention across publication and actual semantic callback delivery are
+still being implemented. The new event shape is not evidence that a chart can
+already be selected through the public application.

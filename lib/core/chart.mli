@@ -12,7 +12,7 @@ end
 module Metrics : sig
   (** Preparation counts, not frame latency or operating-system memory. Retained
       values count source representatives after explicit reduction, including
-      zero-area values. [bytes] charges the retained logical/mesh plan. *)
+      zero-area values. [bytes] charges the retained geometry, meshes and hit-test index. *)
   type t =
     { source_values : int
     ; retained_values : int
@@ -23,10 +23,17 @@ module Metrics : sig
   [@@deriving equal, sexp_of]
 end
 
+module Selection = Chart_selection
+
 module Observation : sig
+  (** Selection observations identify a committed native target or an explicit
+      clear. Hover and drag previews do not cross into OCaml. Source positions
+      are relative to the event's data revision; they must not be applied to a
+      newer publication. Native input integration is still under development. *)
   type t =
     | Ready of Metrics.t
     | Failed of Error.t
+    | Selection_changed of Selection.t option
   [@@deriving equal, sexp_of]
 end
 

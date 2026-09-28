@@ -114,6 +114,7 @@ struct Quad {
 /// invalidation and application-wide admission belong to the mounted owner.
 pub struct Prepared {
     geometry: geometry::Plan,
+    hit_index: crate::chart_hit::Index,
     meshes: Vec<MeshDraw>,
     quads: Vec<Quad>,
     draws: Vec<Draw>,
@@ -123,8 +124,14 @@ impl Prepared {
     pub fn geometry(&self) -> &geometry::Plan {
         &self.geometry
     }
+    pub fn hit_test(&self, point: geometry::Point) -> Option<&geometry::Mark> {
+        self.hit_index
+            .query(&self.geometry, point, true)
+            .map(|index| &self.geometry.marks[index])
+    }
     pub fn retained_bytes(&self) -> usize {
         size_of::<Self>()
+            + self.hit_index.retained_bytes()
             + self.geometry.retained_bytes()
             + self.meshes.capacity() * size_of::<MeshDraw>()
             + self
@@ -647,8 +654,20 @@ pub fn prepare(
         }
     }
     check(cancel)?;
+    let hit_index = crate::chart_hit::Index::prepare(
+        &geometry,
+        options.cartesian.orientation,
+        style.point_radius,
+        cancel,
+    )
+    .map_err(|error| match error {
+        crate::chart_hit::Error::Cancelled => Error::Cancelled,
+        crate::chart_hit::Error::InvalidGeometry => Error::InvalidInput,
+        crate::chart_hit::Error::LimitExceeded => Error::RenderLimit,
+    })?;
     let prepared = Prepared {
         geometry,
+        hit_index,
         meshes: build.meshes,
         quads: build.quads,
         draws: build.draws,
