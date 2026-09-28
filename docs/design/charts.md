@@ -12,8 +12,13 @@ Native labels, scrollable legends, typed selection payloads and prepared hit
 queries, mounted interaction, tooltips and a bounded original-data companion are
 implemented. Bounded non-color identification and two-window/list frame accounting
 now pass locally. Public large-data streaming measurements now have a reproducible local baseline;
-broader-example integration and consolidated gates remain. This document separates implemented contracts
+Signal Studio integration and its repeated resource workload also pass locally.
+The paired bridge now advertises chart resources, rendering and interaction with
+bit43 (`8796093022208`); its current aggregate is `17592186044415`.
+Consolidated gates remain. This document separates implemented contracts
 from the remaining work.
+The chronology below retains earlier unadvertised/unfinished checkpoints; this
+delivery record supersedes those states.
 
 ## Data contract
 

@@ -4,12 +4,12 @@ Native OCaml applications built with Jane Street Bonsai and Zed's GPUI.
 OCaml owns application state; Rust owns native rendering, input and UI resources.
 The bridge exchanges versioned bin_prot commands and events.
 
-**Status:** milestones 1–3 are merged. Milestone 4 implements streaming documents,
-windows/tabs/splits and a polished, runnable agent-chat workspace in
-[PR #12](https://github.com/dakotamurphyucf/gpuio/pull/12). Milestone 5 adds native
-extensions, canvas, richer motion, responsive containers and general-purpose
-widgets, with an [integrated chat showcase](docs/design/agent-chat-m5-showcase.md).
-Its consolidated acceptance and hosted gates are in progress. See
+**Status:** milestones 1–5 are merged, including streaming documents,
+windows/tabs/splits, native extensions, canvas, richer motion, responsive
+containers and an [integrated chat showcase](docs/design/agent-chat-m5-showcase.md).
+Milestone 6 adds desktop integration, OS notifications, seven native chart families
+and the Signal Studio graphics workbench. Local feature acceptance passes;
+consolidated validation and hosted gates are in progress. See
 [current status](docs/status.md) for validation limits. This is an experimental
 framework with no stable API release yet.
 
@@ -23,6 +23,9 @@ Dune 3.24.2 and Rust 1.97.1. macOS and Linux (Wayland and X11) are v1 targets.
 - [Write or consume a native component package](docs/design/extensions.md)
 - [Explore the native canvas](examples/canvas/README.md)
 - [Explore native chart families](examples/charts/README.md)
+- [Run the Signal Studio graphics workbench](examples/signal_studio/README.md)
+- [Desktop links and file integration](examples/desktop/README.md)
+- [OS notifications and action routing](examples/notification/README.md)
 - [Navigation and independent content lifetimes](examples/navigation/README.md)
 - [Managed trees, lazy loading and approved moves](examples/tree/README.md)
 - [Virtual read-only tables](examples/table/README.md)

@@ -508,6 +508,6 @@ fn color_capability_uses_the_shared_64_bit_handshake() {
     use gpuio_protocol::{decode, v1::*};
     assert_eq!(CAPABILITIES & CAP_COLOR_INPUTS, 1_i64 << 37);
     let hello = Message::Hello(VERSION, CAPABILITIES);
-    let encoded = fixture(&hello, "0001fcffffffffff030000");
+    let encoded = fixture(&hello, "0001fcffffffffff0f0000");
     assert_eq!(decode(&encoded), Ok(hello));
 }

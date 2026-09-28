@@ -36,6 +36,30 @@ full Linux graphical release validation under OCH-17.
 
 ## Current evidence
 
+Local feature acceptance now covers all four tickets, including Signal Studio's
+combined workflow and independently packaged component lifetime workload.
+Notification bit42 and chart bit43 join desktop bit41 in the paired bridge;
+the aggregate is `17592186044415` and independent OCaml/Rust Hello fixtures are
+`0001fcffffffffff0f0000`. Runtime notification/desktop capability queries remain
+necessary: a compiled adapter cannot promise a service, permission or display.
+Consolidated local suites, required hosted macOS/Linux checks, final review and
+merge still gate completion. Earlier entries below record intermediate states.
+
+### Delivery entry points
+
+| Ticket | Public API and example | Acceptance entry points |
+| -- | -- | -- |
+| OCH-27 | `Gpuio.Desktop_package`, `Gpuio_eio.Desktop`, `App.run_desktop`; `examples/desktop` | `test/desktop`; native window tests; `test_desktop_links_macos.py --services`; `test_desktop_instance_bus.sh`; Linux portal worker/peer tests |
+| OCH-28 | `Gpuio.Notification`, `Gpuio_eio.Notification`; `examples/notification` | `test/notification`; native notification tests; `test_notifications_macos.py`; `test_notification_bus.sh` |
+| OCH-40 | `Gpuio.Chart*`, `Gpuio_eio.Chart`, `View.chart`; `examples/charts`, `chart_upload`, `chart_stream` | `test/chart`, chart registry tests; native chart paint/view/input tests; `test_charts.py`, `test_chart_data.py`, `test_chart_visuals.py`, `measure_chart_stream.py` |
+| OCH-29 | `examples/signal_studio` and separate `examples/extension_package` | Model/file/notification expect tests; `test_extension_consumer.py --example signal_studio`; Signal Studio input/desktop/notification/motion scripts; `measure_signal_studio.py` |
+
+The [Signal Studio matrix](design/signal-studio.md) and its
+[workload evidence](evidence/signal-studio-och29.md) map combined capabilities to
+actual local checks. The [chart workload](evidence/chart-streaming-och40.md) covers
+larger datasets separately. Linux build/unit validation is required; real
+X11/Wayland display behavior remains a distinct OCH-17 release gate.
+
 `Deep_link` expect tests pass valid/malformed/unsupported schemes, encoded Unicode,
 exact byte preservation, empty components and size boundaries. `Desktop_inbox`
 tests pass pre-readiness ordering, duplicates, entry/byte backpressure, permanent

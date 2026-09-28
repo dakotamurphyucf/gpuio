@@ -147,6 +147,9 @@ jobs:
       - name: macOS notification service and real OS actions
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         run: python3 scripts/test_notifications_macos.py --artifact .cache/ci/notification-os 2>&1 | tee .cache/ci/macos-notification-os.log
+      - name: macOS desktop links and actual file services
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        run: python3 scripts/test_desktop_links_macos.py --services --log .cache/ci/desktop-services.log 2>&1 | tee .cache/ci/macos-desktop-services.log
       # Independent GUI families continue after another family's failure once
       # their build prerequisites pass. Failures remain required/red; cancellation
       # still stops subsequent tests. This collects diagnostics in one CI run.

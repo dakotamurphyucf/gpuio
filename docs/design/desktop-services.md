@@ -11,7 +11,8 @@ native and public macOS tests. macOS file open/reveal and explicit scheme
 registration also have public OS acceptance. Linux portal file services are
 implemented with local peer/worker tests; actual Linux builds/GUI evidence and
 real session-bus/OS invocation remain pending. Linux launch forwarding now has
-private D-Bus peer tests and a typed preflight entry point. Desktop bridge bit41 is now advertised (aggregate4398046511103). Backend
+private D-Bus peer tests and a typed preflight entry point. Desktop bridge bit41 is
+advertised; the current paired aggregate is `17592186044415`. Backend
 capabilities still distinguish supported operations from unavailable services.
 
 ## Ownership and delivery
@@ -375,7 +376,8 @@ reports `Unsupported`; metadata-based installation works independently of it.
 | Represented path / edited-window state | Native observed document metadata | `Unsupported` in the pinned backend |
 
 The desktop bridge capability is bit41 (`2199023255552`); the current aggregate
-is `4398046511103`. New clients require that bit during their handshake. This is
+is `17592186044415`, including M6 notifications and charts. New clients require
+the paired feature mask during their handshake. This is
 an experimental paired OCaml/Rust wire revision, including the new represented-
 document snapshot field; rebuild both sides. It is not a stable ABI promise to
 mix artifacts from older revisions.

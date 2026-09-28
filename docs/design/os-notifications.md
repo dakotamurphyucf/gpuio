@@ -5,7 +5,10 @@ delivery, the public Eio service and the owned macOS adapter are implemented.
 The packaged macOS example passes real OS action routing; see the
 [evidence ledger](../evidence/os-notifications-och28.md). The Linux worker is wired
 to the application and passes local private-bus tests; Linux build and desktop
-presentation gates remain pending. No notification capability is advertised yet.
+presentation gates remain pending. The paired bridge advertises notification
+support as bit42 (`4398046511104`); actual service availability, permission and
+operation support still come from typed runtime queries. The current aggregate
+mask is `17592186044415`, including the chart bit added in this milestone.
 These notifications are independent of in-application toast widgets.
 
 ## Identity and updates

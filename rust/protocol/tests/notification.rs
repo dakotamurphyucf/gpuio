@@ -191,3 +191,17 @@ fn application_envelopes_keep_correlation_and_distinct_availability() {
         vec![2, 59, 7, 3, 60]
     );
 }
+#[test]
+fn notifications_and_charts_require_the_paired_milestone_six_backend() {
+    use gpuio_protocol::{
+        decode,
+        v1::{CAP_CHARTS, CAP_OS_NOTIFICATIONS, CAPABILITIES, Message, VERSION},
+    };
+    assert_eq!(CAPABILITIES & CAP_OS_NOTIFICATIONS, 1_i64 << 42);
+    assert_eq!(CAPABILITIES & CAP_CHARTS, 1_i64 << 43);
+    assert_eq!(CAPABILITIES, 17_592_186_044_415);
+    let hello = Message::Hello(VERSION, CAPABILITIES);
+    let bytes = vec![0, 1, 252, 255, 255, 255, 255, 255, 15, 0, 0];
+    assert_eq!(encode(&hello), bytes);
+    assert_eq!(decode(&bytes), Ok(hello));
+}
