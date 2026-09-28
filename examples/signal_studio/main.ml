@@ -45,6 +45,7 @@ let main () =
     | false, false -> System
   in
   let trace_motion = flag "--motion-check" in
+  let workload = flag "--workload-check" in
   let document_path =
     Array.find_map (Sys.get_argv ()) ~f:(String.chop_prefix ~prefix:"--document-path=")
     |> Option.map ~f:(fun path -> Gpuio.File_path.of_string path |> ok)
@@ -85,6 +86,7 @@ let main () =
          ; running = false
          ; status = "Preparing workspace"
          ; extension_generation = 1L
+         ; extension_command = None
          ; extension_disabled = false
          ; extension_visible = true
          ; documents = Documents.State.initial
@@ -113,6 +115,7 @@ let main () =
      and ack = ref 0L in
      let chart_ready = ref 0L
      and extension_mounts = ref 0
+     and extension_ack = ref 0L
      and motion_events = ref 0 in
      let layout = ref "" in
      let emit message = Eio.traceln "SIGNAL_STUDIO: %s" message in
@@ -194,7 +197,10 @@ let main () =
          E.of_thunk (fun () ->
            incr extension_mounts;
            emit "extension mounted")
-       | Command_completed _ -> E.Ignore
+       | Command_completed sequence ->
+         E.of_thunk (fun () ->
+           extension_ack := sequence;
+           emit (sprintf "extension command completed %Ld" sequence))
        | Failed error ->
          E.of_thunk (fun () -> raise_s [%sexp (error : Gpuio.Extension.Error.t)])
      in
@@ -295,7 +301,10 @@ let main () =
              stop ();
              publish initial;
              update (fun s ->
-               { s with extension_generation = Int64.succ s.extension_generation });
+               { s with
+                 extension_generation = Int64.succ s.extension_generation
+               ; extension_command = None
+               });
              ignore (command (Select None) : int64);
              E.Expert.handle (Documents.reset document_controller))
        ; lock_control =
@@ -442,13 +451,14 @@ let main () =
        | Ok value -> value
        | Error error -> raise_s [%sexp (error : Desktop.Error.t)]
      in
-     let window = ensure_window () in
+     let window = ensure_window ~focus:(not (flag "--background")) () in
      let scope = App.scope app in
      Scope.start
        scope
        ~f:(fun () ->
          let clock = Eio.Stdenv.clock env in
-         Eio.Time.with_timeout_exn clock 60. (fun () ->
+         let timeout = if workload then 150. else 60. in
+         Eio.Time.with_timeout_exn clock timeout (fun () ->
            let on_ui ui_effect =
              let promise, resolver = Eio.Promise.create () in
              Scope.Expert.enqueue scope (fun () ->
@@ -473,12 +483,174 @@ let main () =
                ; chart = Some (Chart.handle signal)
                ; status = "Ready to explore"
                }));
-           until (fun () -> Int64.(!chart_ready > 0L) && !extension_mounts > 0);
+           (* Routing needs live model/resources and a native window, not paint.
+              macOS may defer an occluded window's first container-layout frame;
+              waiting for chart paint here could prevent the link that activates it. *)
+           until (fun () -> Option.is_some (App.Window.snapshot window));
            ui (fun () ->
              emit "ready";
              Desktop.ready receiver;
              N.ready notification);
            on_ui (Alerts.probe run_alerts);
+           if self_test || workload
+           then until (fun () -> Int64.(!chart_ready > 0L) && !extension_mounts > 0);
+           if workload
+           then (
+             let mono () = Eio.Time.Mono.now (Eio.Stdenv.mono_clock env) in
+             let elapsed start =
+               Mtime.Span.to_float_ns (Mtime.span start (mono ())) /. 1e6
+             in
+             let peak_source = ref 0 in
+             let peak_pending = ref 0 in
+             let sample () =
+               let d = App.diagnostics app in
+               peak_source
+               := Int.max !peak_source (d.chart_data_bytes + d.canvas_scene_bytes);
+               peak_pending := Int.max !peak_pending d.pending_requests;
+               d
+             in
+             let await f =
+               until (fun () ->
+                 ignore (sample () : App.Diagnostics.t);
+                 f ())
+             in
+             let frame window =
+               let promise, resolver = Eio.Promise.create () in
+               ui (fun () ->
+                 App.Window.request_frame window ~on_rendered:(fun ~revision:_ ->
+                   E.of_thunk (fun () -> Eio.Promise.resolve resolver ()))
+                 |> ok);
+               Eio.Promise.await promise
+             in
+             let settled () =
+               Scene.is_published scene
+               && Chart.is_published signal
+               && (App.diagnostics app).pending_requests = 0
+             in
+             let counter_sequence = ref 0L in
+             for cycle = 0 to 11 do
+               let window = ui (fun () -> ensure_window ()) in
+               await (fun () -> Option.is_some (App.Window.snapshot window));
+               frame window;
+               for batch = 0 to 7 do
+                 let before = ui sample in
+                 let previous_data = ui (fun () -> Chart.data signal) in
+                 let previous_revision = ui (fun () -> !chart_ready) in
+                 let start = mono () in
+                 (* One UI turn publishes four desired snapshots; resource
+                    schedulers admit only the latest unstarted publication. *)
+                 let run =
+                   ui (fun () ->
+                     let run = ref 0 in
+                     for offset = 0 to 3 do
+                       run := ((((cycle * 8) + batch) * 4) + offset + 1) % 101;
+                       set_run !run
+                     done;
+                     !run)
+                 in
+                 let publish_ms = elapsed start in
+                 let changed =
+                   ui (fun () ->
+                     not
+                       (Option.equal
+                          Gpuio.Chart_data.equal
+                          previous_data
+                          (Chart.data signal)))
+                 in
+                 await (fun () ->
+                   Option.iter (Chart.error signal) ~f:(fun error ->
+                     raise_s [%sexp (error : Chart.Error.t)]);
+                   Option.iter (Scene.error scene) ~f:(fun error ->
+                     raise_s [%sexp (error : Scene.Error.t)]);
+                   settled ()
+                   && ((not changed) || Int64.(!chart_ready > previous_revision)));
+                 frame window;
+                 let after = ui sample in
+                 ui (fun () ->
+                   assert (W.run (B.Expert.Var.get state).workspace = run);
+                   assert (
+                     Option.equal
+                       Gpuio.Chart_data.equal
+                       (Chart.data signal)
+                       (Some (W.chart (B.Expert.Var.get state).workspace)));
+                   assert (after.canvases = 1 && after.charts = 1));
+                 emit
+                   (sprintf
+                      "workload sample cycle=%d batch=%d run=%d publish_ms=%.3f \
+                       update_frame_ms=%.3f source_charge=%d submitted_bytes=%d \
+                       submitted_messages=%d"
+                      cycle
+                      batch
+                      run
+                      publish_ms
+                      (elapsed start)
+                      (after.chart_data_bytes + after.canvas_scene_bytes)
+                      (after.traffic.submitted_bytes - before.traffic.submitted_bytes)
+                      (after.traffic.submitted_messages
+                       - before.traffic.submitted_messages))
+               done;
+               (* A command is distinct from a property update: keep the same
+                  generation, await its exact acknowledgement, then clear it so
+                  later windows never replay a completed command. *)
+               let mounts = ui (fun () -> !extension_mounts) in
+               counter_sequence := Int64.succ !counter_sequence;
+               let command_sequence = !counter_sequence in
+               ui (fun () ->
+                 set_run (cycle + 20);
+                 update (fun s ->
+                   { s with extension_command = Some (command_sequence, cycle + 20) }));
+               await (fun () -> Int64.equal !extension_ack command_sequence && settled ());
+               frame window;
+               ui (fun () ->
+                 assert (!extension_mounts = mounts);
+                 update (fun s -> { s with extension_command = None }));
+               (* Hidden presentation retains its instance. Explicit generation
+                  change retires it; window close must retire the replacement. *)
+               ui (fun () -> update (fun s -> { s with extension_visible = false }));
+               frame window;
+               ui (fun () -> update (fun s -> { s with extension_visible = true }));
+               frame window;
+               ui (fun () -> assert (!extension_mounts = mounts));
+               ui (fun () ->
+                 update (fun s ->
+                   { s with extension_generation = Int64.succ s.extension_generation }));
+               await (fun () -> !extension_mounts = mounts + 1);
+               frame window;
+               ui (fun () -> App.Window.close window);
+               await (fun () ->
+                 let d = App.diagnostics app in
+                 d.windows = 0 && d.pending_requests = 0 && d.queued_commands = 0);
+               let closed = ui sample in
+               assert (closed.charts = 1 && closed.canvases = 1);
+               emit
+                 (sprintf
+                    "workload closed cycle=%d windows=%d scopes=%d tasks=%d \
+                     source_charge=%d"
+                    cycle
+                    closed.windows
+                    closed.scopes.scopes
+                    closed.scopes.tasks
+                    (closed.chart_data_bytes + closed.canvas_scene_bytes))
+             done;
+             ui (fun () ->
+               Scene.release scene;
+               Chart.release signal;
+               update (fun s -> { s with canvas = None; chart = None }));
+             await (fun () ->
+               let d = App.diagnostics app in
+               d.charts = 0 && d.canvases = 0 && d.pending_requests = 0);
+             let final = ui sample in
+             assert (final.chart_data_bytes = 0 && final.canvas_scene_bytes = 0);
+             emit
+               (sprintf
+                  "workload passed samples=96 desired_updates=384 cycles=12 mounts=%d \
+                   peak_source_charge=%d peak_pending=%d final_source_charge=0 \
+                   native_queue_peak_bytes=%d"
+                  !extension_mounts
+                  !peak_source
+                  !peak_pending
+                  final.native_command_queue.peak_bytes);
+             completed := true);
            if unavailable_check
            then (
              ui (fun () ->
@@ -651,14 +823,14 @@ let main () =
        ~on_result:(fun result ->
          E.of_thunk (fun () ->
            ok result;
-           if self_test || unavailable_check then App.shutdown app))
+           if self_test || unavailable_check || workload then App.shutdown app))
      |> ok
      |> fun (_ : Scope.Task.t) -> ())
    |> function
    | Ok App.Launch_outcome.Exited -> ()
    | Ok Forwarded -> Eio.traceln "SIGNAL_STUDIO: forwarded"
    | Error error -> raise_s [%sexp (error : Desktop.Error.t)]);
-  if self_test || unavailable_check then assert !completed
+  if self_test || unavailable_check || workload then assert !completed
 ;;
 
 let () =

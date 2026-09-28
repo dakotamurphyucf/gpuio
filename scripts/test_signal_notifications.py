@@ -31,7 +31,7 @@ def exercise(output):
     output.mkdir(parents=True, exist_ok=True)
     binary = Path('_build/default/examples/signal_studio/main.exe').resolve(strict=True)
     with (output / 'unavailable.log').open('w') as log:
-        subprocess.run([str(binary), '--notification-unavailable-check'],
+        subprocess.run([str(binary), '--notification-unavailable-check', '--background'],
                        stdout=log, stderr=subprocess.STDOUT, check=True, timeout=30)
     assert 'unbundled alerts fallback passed' in (output / 'unavailable.log').read_text()
     bundle = output / f'{APP_NAME}.app'

@@ -17,6 +17,7 @@ module Snapshot = struct
     ; running : bool
     ; status : string
     ; extension_generation : int64
+    ; extension_command : (int64 * int) option
     ; extension_disabled : bool
     ; extension_visible : bool
     ; documents : Documents.State.t
@@ -310,6 +311,7 @@ let view snapshot (actions : Actions.t) =
     Counter.instance
       (Counter.Properties.create ~value:run ~step:1 () |> ok)
       ~generation:snapshot.extension_generation
+      ?set_value:snapshot.extension_command
       ~disabled:(snapshot.extension_disabled || run = 100)
       ()
     |> ok

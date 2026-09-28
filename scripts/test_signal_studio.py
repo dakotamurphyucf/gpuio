@@ -87,11 +87,51 @@ class Studio(Outline):
         finally:
             self.release(event)
 
+    def active_layout_only(self, *, compact):
+        ready = self.wait_find(TITLE, 'Model evaluation canvas', 'AXList')
+        self.release(ready)
+        labels = {
+            ('AXList', 'Model evaluation canvas'): [],
+            ('AXGroup', 'Latency across 24 evaluations'): [],
+            ('AXGroup', 'Signal history and inspector'): [],
+            ('AXStaticText', 'Canvas activity'): [],
+            ('AXStaticText', 'Chart activity'): [],
+        }
+        deadline = time.monotonic() + 8
+        def visit(node, depth):
+            assert depth < 48 and time.monotonic() < deadline, 'AX traversal exceeded its bound'
+            values, children = self.node_values(node)
+            try:
+                for (role, label), found in labels.items():
+                    if values[0] == role and label in values[1:]:
+                        found.append(self.rect(node))
+                for child in children:
+                    visit(child, depth + 1)
+            finally:
+                for child in children:
+                    self.release(child)
+        window = self.window(TITLE)
+        try:
+            visit(window, 0)
+        finally:
+            self.release(window)
+        assert all(len(found) == 1 for found in labels.values()), labels
+        canvas = labels[('AXList', 'Model evaluation canvas')][0]
+        assert abs(canvas[2] - (490 if compact else 700)) < 1, canvas
+        print(f'SIGNAL_ACTIVE_LAYOUT_ONLY compact={compact} labels=5 canvas_width={canvas[2]}', flush=True)
+
     def exercise(self, output):
-        self.wait_log('SIGNAL_STUDIO: ready')
+        # Canvas/chart readiness needs the first active container-layout frame.
+        # Activate our child before waiting; an occluded macOS window may defer it.
+        deadline = time.monotonic() + 15
+        while not self.has_window(TITLE):
+            assert self.child.poll() is None and time.monotonic() < deadline
+            time.sleep(.05)
         self.set(self.app, 'AXFrontmost', self.true)
         self.resize(1160)
+        self.wait_log('SIGNAL_STUDIO: ready')
         self.wait_log('layout wide')
+        self.active_layout_only(compact=False)
         screenshot(self, output / 'wide.png', title=TITLE)
         self.press(TITLE, 'Alerts')
         self.wait_text(TITLE, 'Desktop alerts are unavailable; run results stay in this window.')
@@ -169,10 +209,12 @@ class Studio(Outline):
         screenshot(self, output / 'updated.png', title=TITLE)
         self.resize(650)
         self.wait_log('layout compact')
+        self.active_layout_only(compact=True)
         self.wait_text(TITLE, 'Increment counter, current value 14')
         screenshot(self, output / 'compact.png', title=TITLE)
         self.resize(1160)
         self.wait_log('layout wide', 2)
+        self.active_layout_only(compact=False)
         self.wait_text(TITLE, 'Swift · latency 243 ms · quality 28%')
         self.press(TITLE, 'Reset workspace')
         self.wait_log('extension mounted', 2)

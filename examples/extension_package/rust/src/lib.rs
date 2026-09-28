@@ -4,7 +4,14 @@ use gpuio_extension_sdk::{
     gpui::{self, prelude::*},
 };
 use sdk::Factory as _;
-use std::{cell::Cell, rc::Rc, sync::Arc};
+use std::{
+    cell::Cell,
+    rc::Rc,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
+};
 
 // Schema: properties=(value:u8,step:u8), command=(value:u8), event=(value:u8).
 // All values 0..100, step 1..10. Fixed bytes, no nested allocation.
@@ -13,9 +20,34 @@ pub fn factory() -> Arc<dyn sdk::Factory> {
     Arc::new(Factory)
 }
 struct Factory;
+static NEXT_TRACE_ID: AtomicU64 = AtomicU64::new(1);
+
+// Opt-in acceptance diagnostics belong to this example package, not the SDK or
+// its wire schema. The Rc payload outlives Counter if a native callback retains it.
+struct CounterValue {
+    value: Cell<u8>,
+    trace_id: Option<u64>,
+}
+impl CounterValue {
+    fn trace(&self, phase: &str) {
+        if let Some(id) = self.trace_id {
+            eprintln!("COUNTER_LIFETIME id={id} phase={phase}");
+        }
+    }
+}
+impl Drop for CounterValue {
+    fn drop(&mut self) {
+        self.trace("value_drop");
+    }
+}
 struct Counter {
-    value: Rc<Cell<u8>>,
+    value: Rc<CounterValue>,
     step: u8,
+}
+impl Drop for Counter {
+    fn drop(&mut self) {
+        self.value.trace("component_drop");
+    }
 }
 impl sdk::Factory for Factory {
     fn descriptor(&self) -> sdk::Descriptor {
@@ -48,8 +80,15 @@ impl sdk::Factory for Factory {
         _: &mut sdk::Context<'_>,
     ) -> Result<Box<dyn sdk::Component>, sdk::Error> {
         self.validate_properties(bytes)?;
+        let value = Rc::new(CounterValue {
+            value: Cell::new(bytes[0]),
+            trace_id: (std::env::var_os("GPUIO_COUNTER_TRACE").as_deref()
+                == Some(std::ffi::OsStr::new("1")))
+            .then(|| NEXT_TRACE_ID.fetch_add(1, Ordering::Relaxed)),
+        });
+        value.trace("mount");
         Ok(Box::new(Counter {
-            value: Rc::new(Cell::new(bytes[0])),
+            value,
             step: bytes[1],
         }))
     }
@@ -57,14 +96,20 @@ impl sdk::Factory for Factory {
 impl sdk::Component for Counter {
     fn update(&mut self, bytes: &[u8], _: &mut sdk::Context<'_>) -> Result<(), sdk::Error> {
         Factory.validate_properties(bytes)?;
-        self.value.set(bytes[0]);
+        self.value.value.set(bytes[0]);
         self.step = bytes[1];
         Ok(())
     }
     fn command(&mut self, bytes: &[u8], _: &mut sdk::Context<'_>) -> Result<(), sdk::Error> {
         Factory.validate_command(bytes)?;
-        self.value.set(bytes[0]);
+        self.value.value.set(bytes[0]);
+        if let Some(id) = self.value.trace_id {
+            eprintln!("COUNTER_COMMAND id={id} value={}", bytes[0]);
+        }
         Ok(())
+    }
+    fn unmount(&mut self) {
+        self.value.trace("unmount");
     }
     fn render(&mut self, cx: &mut sdk::Context<'_>) -> Result<gpui::AnyElement, sdk::Error> {
         let value = self.value.clone();
@@ -74,10 +119,10 @@ impl sdk::Component for Counter {
         let activate = Rc::new(
             move |pointer: bool, window: &mut gpui::Window, app: &mut gpui::App| {
                 let action = || {
-                    let next = value.get().saturating_add(step).min(100);
+                    let next = value.value.get().saturating_add(step).min(100);
                     // Admission precedes local mutation so overload does not hide a change.
                     events.emit(vec![next])?;
-                    value.set(next);
+                    value.value.set(next);
                     window.focus(&focus, app);
                     window.refresh();
                     Ok(())
@@ -96,7 +141,7 @@ impl sdk::Component for Counter {
             .role(gpui::Role::Button)
             .aria_label(format!(
                 "Increment counter, current value {}",
-                self.value.get()
+                self.value.value.get()
             ))
             .flex()
             .items_center()
@@ -112,7 +157,7 @@ impl sdk::Component for Counter {
             .child(
                 gpui::div()
                     .text_xl()
-                    .child(format!("{}  +", self.value.get())),
+                    .child(format!("{}  +", self.value.value.get())),
             )
             // GPUI's click listener already handles focused Enter/Space. A
             // second key-down handler would activate once on down and again

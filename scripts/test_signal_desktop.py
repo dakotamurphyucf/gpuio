@@ -66,7 +66,7 @@ def exercise(output):
         try:
             proxy = subprocess.Popen(['/usr/bin/open', '-W', '-n', '-g', '-a', str(bundle),
                                       '--stdout', str(log), '--stderr', str(log),
-                                      '-u', 'gpuio-signal://sample/2', '--args', '--directory=' + str(fixture),
+                                      '-u', 'gpuio-signal://sample/2', '--args', '--background', '--directory=' + str(fixture),
                                       '--open-uri=gpuio-signal://sample/4', '--open-uris', 'gpuio-signal://sample/1'])
             wait('link gpuio-signal://sample/2')
             recorded = log.read_text()

@@ -20,3 +20,10 @@ source checkout and commit their Cargo.lock.
 See [the consumer](../extension_consumer/README.md) and
 [the SDK contract](../../docs/design/extensions.md). Component authors write Rust;
 application consumers use the typed OCaml library and a composition manifest.
+
+For local lifetime checks, `GPUIO_COUNTER_TRACE=1` enables this package's bounded
+per-lifecycle diagnostics: mount, unmount, component drop, last callback-value
+drop, and accepted command values. Normal runs are silent. The reference-counted
+value trace detects callbacks retaining data after the component object drops;
+it is not a new SDK API or event-schema contract. Signal Studio's workload
+verifies these traces across generation replacement and window close/reopen.

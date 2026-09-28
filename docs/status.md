@@ -63,7 +63,10 @@ completion, dismissal and quit cleanup pass in a real local macOS bundle; five
 controlled expect tests and an actual unbundled fallback cover unavailable and
 late-event behavior. Actual Finder reveal and missing-file model preservation
 pass, as do Full/Reduce spring geometry/interruption, ordered native sequence
-stages, synchronized activity pixels and paused paint. Resource/lifetime checks, Linux builds and
+stages, synchronized activity pixels and paused paint. The combined workload
+passes 384 desired updates, 96 render samples, twelve commands/window cycles and
+all 24 native component/callback lifetimes, with source charges returning to zero.
+Linux builds and
 consolidated hosted gates remain; see [Signal Studio](design/signal-studio.md).
 The detailed entries below record implementation checkpoints chronologically;
 their earlier pending-gate statements are superseded by this delivery record.

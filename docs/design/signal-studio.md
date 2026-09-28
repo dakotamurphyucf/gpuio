@@ -3,7 +3,8 @@
 Status: OCH-29 in progress. The pure workspace model and combined canvas/chart/
 component application pass local macOS checks. Packaged links/reopen and Eio
 documents, packaged OS notifications and full/reduced motion now pass combined-app
-checks. Repeated lifecycle/workload acceptance and consolidated hosted gates remain pending. The existing
+checks. Repeated component lifetime/resource checks also pass locally; consolidated
+hosted gates remain pending. The existing
 agent-chat example stays intact. This is a focused model-evaluation plotting
 workbench, not a complete diagramming product or scientific environment.
 
@@ -77,14 +78,14 @@ policy must settle appropriately; no per-frame OCaml animation callback is added
 | -- | -- | -- |
 | Public OCaml canvas and native chart | Rendered app; selection, real drag, pan/zoom, keyboard and chart callbacks | Local AppKit script passes |
 | Pure workspace and document invariants | Expect tests, all valid run values, malformed/oversized/version/ID/bounds checks | Five passing expect tests, including all 101 valid run values |
-| Independent component | Combined-app style, pointer/key/AX, commands/events, hide/remount and disposal | Combined style, AX/key, disabled pointer, events and hide/remount pass; explicit package command/repeated disposal checks remain |
+| Independent component | Combined-app style, pointer/key/AX, commands/events, hide/remount and disposal | Combined style, AX/key, disabled pointer, events and hide/remount pass; twelve explicit commands and all 24 native component/callback lifetimes pass |
 | Clean consumer | Staged installed libraries, separate component, locked generated backend; macOS run and Linux build | Fresh macOS consumer build/self-test passes; Linux hosted build pending |
-| Responsive layout | Real resize across breakpoint; retained state and only active branch exposed to input/AX | Wide/compact/wide resize retains run and moved sample; explicit inactive-branch/motion checks remain |
+| Responsive layout | Real resize across breakpoint; retained state and only active branch exposed to input/AX | Wide/compact/wide resize retains data, checks active 700/490/700 canvas widths and exactly one exposed set of canvas/chart/inspector/activity nodes; native input and hidden-control checks pass |
 | Springs, sequences, synchronized indicators | Native geometry/phase and reduced-motion checks in combined app | Full/Reduce actual spring heights/interruption, ordered native stages, synchronized painted intensity and paused paint pass locally |
 | Documents and files | Eio save/load round trip; dirty metadata; actual OS file actions and typed unsupported behavior | Real macOS Save/Open panels and Finder reveal, unsaved reveal fallback, Eio round trip, native dirty/file metadata and concurrency/invalid/missing-file preservation pass; Linux unsupported metadata/private-bus evidence remains separate |
 | Deep links/reopen | Packaged cold/warm OS delivery and current-window selection/focus | Local packaged startup/cold/warm/invalid links and same-process reopen pass |
 | OS notifications | Packaged action/receipt routing; denied/unavailable fallback; stale-window handling | Real macOS named/default actions, same-process reopen, replacement, stream completion, dismissal and quit cleanup pass; five pure expect tests and real unbundled fallback pass; first-time permission on a fresh hosted runner pending |
-| Workloads and lifetime | Named hardware, native resources/queue charges, repeated window/resource cleanup | Pending |
+| Workloads and lifetime | Named hardware, native resources/queue charges, repeated window/resource cleanup | 384 desired updates, 96 render samples, twelve window cycles/commands, exact native lifetimes and final source release pass; named M1 Max CPU/RSS/queue measurements recorded |
 | Cross-platform release | Required macOS/Linux CI; report X11/Wayland GUI separately | Pending; full Linux GUI under OCH-17 |
 
 Existing chart, canvas, extension, desktop, notification and motion test suites
@@ -126,7 +127,8 @@ left drag to a right-click. No canvas production change was needed.
 
 The public `--self-test` checks resource publication, semantic command completion,
 render callback and zero OCaml canvas/chart registration charges after release.
-This is not yet the repeated lifecycle/performance workload. Dedicated native
+The separate repeated lifecycle/performance workload is recorded in
+[the evidence ledger](../evidence/signal-studio-och29.md). Dedicated native
 phase/geometry/reduced-motion evidence is now recorded below; declarations alone
 do not satisfy that acceptance row.
 
@@ -225,4 +227,14 @@ two captures show identical paused-label pixels. These measurements check shared
 painted phase, not frame rate or input latency. Wide/compact/wide resize retains
 run 13 and inspector controls. Logs, captured images and raw height/intensity
 samples are retained by the script; required macOS CI now includes it. Resource
-workloads and explicit repeated extension disposal remain separate acceptance.
+workloads and explicit repeated extension disposal have separate evidence in
+[the combined workload ledger](../evidence/signal-studio-och29.md).
+
+## Startup readiness
+
+Desktop routing becomes ready after model/resource publication and native window
+creation. It does not wait for chart paint: macOS may defer the first layout of an
+occluded window, including the frame needed by the link that activates it.
+`--background` opens the initial window without requesting focus. Background
+unbundled notification fallback and packaged cold-link tests exercise this path.
+Rendering acceptance modes still explicitly await chart/component readiness.

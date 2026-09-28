@@ -41,6 +41,8 @@ Closing the window keeps the workspace in this process. Reopening the packaged a
 restores it; `Quit Studio` ends the process. There is no autosave or quit-confirmation
 flow in this acceptance example, so save changes before quitting. `--exit-on-close`
 is available for the interaction harness.
+`--background` avoids requesting initial focus; desktop readiness does not depend
+on the first chart paint, so incoming links can activate an initially occluded app.
 
 Packaged `gpuio-signal://sample/{1..4}` links select a known sample after readiness;
 links never grant filesystem access. Generate platform metadata with
@@ -57,7 +59,7 @@ quitting cleans up the application's notification service. Unbundled macOS and
 unavailable or denied services keep an in-app result instead. macOS notifications
 require the packaged application identity, as used by the walkthrough below.
 
-Resource/lifetime workloads and final platform gates remain in progress.
+Resource/lifetime workloads pass locally; final platform gates remain in progress.
 See [design and acceptance](../../docs/design/signal-studio.md).
 
 ## Local checks
@@ -68,6 +70,7 @@ GPUIO_JOBS=2 ./scripts/gpuio exec dune build examples/signal_studio/main.exe @ex
 python3 scripts/test_signal_studio.py --output scratch/signal-studio
 python3 scripts/test_signal_desktop.py --output scratch/signal-desktop
 python3 scripts/test_signal_motion.py --output scratch/signal-motion
+python3 scripts/measure_signal_studio.py --output scratch/signal-workload
 python3 scripts/test_signal_notifications.py --output scratch/signal-notifications
 GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example signal_studio --run
 ```
@@ -99,6 +102,14 @@ activity intensity from both labels in the same window capture. Full motion
 changes their intensity together; reduced motion holds both at the initial
 value. Paused indicators stop changing. It also resizes across both layouts and
 checks retained run/control state. Each child is terminated and reaped on failure.
+
+The workload performs 384 desired updates in 96 batches, twelve explicit native
+counter commands, and twelve window close/reopen cycles with generation resets.
+It measures process CPU/RSS, update-to-render callbacks and resource/queue charges.
+Opt-in diagnostics from the separately packaged counter verify all 24 component
+and callback-value lifetimes end. Canvas/chart data survives window close, then
+explicit release returns source registrations and charges to zero. See the
+[measurement and lifetime evidence](../../docs/evidence/signal-studio-och29.md).
 
 The notification walkthrough ad hoc signs a disposable app bundle and exercises
 real Notification Center actions, replacement, stream completion, dismissal and

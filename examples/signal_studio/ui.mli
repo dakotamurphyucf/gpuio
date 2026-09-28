@@ -13,6 +13,7 @@ module Snapshot : sig
     ; running : bool
     ; status : string
     ; extension_generation : int64
+    ; extension_command : (int64 * int) option
     ; extension_disabled : bool
     ; extension_visible : bool
     ; documents : Documents.State.t
