@@ -8,9 +8,10 @@ The bridge exchanges versioned bin_prot commands and events.
 windows/tabs/splits, native extensions, canvas, richer motion, responsive
 containers and an [integrated chat showcase](docs/design/agent-chat-m5-showcase.md).
 Milestone 6 adds desktop integration, OS notifications, seven native chart families
-and the Signal Studio graphics workbench. Local feature acceptance passes;
-consolidated validation and hosted gates are in progress. See
-[current status](docs/status.md) for validation limits. This is an experimental
+and the Signal Studio graphics workbench. Its [delivery handoff](docs/milestone-6.md)
+links contracts and validation; [PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14)
+records required hosted results, the checked revision and merge status. See
+[current status](docs/status.md) for platform limits. This is an experimental
 framework with no stable API release yet.
 
 The baseline is stock OCaml 5.3.0, Bonsai/Jane Street v0.17, Core, Eio 1.3,

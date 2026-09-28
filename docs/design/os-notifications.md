@@ -1,12 +1,13 @@
 # OS notifications
 
-OCH-28 is in progress. Typed Core values, bounded lifetime state, application-domain
+Typed Core values, bounded lifetime state, application-domain
 delivery, the public Eio service and the owned macOS adapter are implemented.
 The packaged macOS example passes real OS action routing; see the
 [evidence ledger](../evidence/os-notifications-och28.md). The Linux worker is wired
 to the application and passes local private-bus tests; consolidated macOS/Linux
-builds and unit tests pass. Hosted native gates and merge remain; Linux desktop
-presentation is deferred to OCH-17. The paired bridge advertises notification
+builds and unit tests pass. [PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14)
+records required hosted native gates and merge; Linux desktop presentation is
+deferred to OCH-17. The paired bridge advertises notification
 support as bit42 (`4398046511104`); actual service availability, permission and
 operation support still come from typed runtime queries. The current aggregate
 mask is `17592186044415`, including the chart bit added in this milestone.

@@ -1,17 +1,17 @@
-# Milestone 6 implementation plan
+# Milestone 6 delivery and validation
 
 Started 2026-09-27 from milestone 5 merge `936fb7d`. Milestone 5's required
 macOS/Linux checks passed on `473407c`; all 12 tickets are Done. Its implementation
 and evidence remain in [the milestone 5 handoff](milestone-5.md).
 
-## Scope and order
+## Deliverables
 
-| Ticket | Deliverable | Current state |
+| Ticket | Deliverable | Local evidence |
 | -- | -- | -- |
-| OCH-27 | Application identity, deep links, activation, file reveal/open and document metadata | Local macOS OS acceptance and private-bus arbitration/portal tests pass; hosted native gates and merge pending |
-| OCH-28 | OS notifications, permissions/capabilities, replacement/dismissal and stale-safe action routing | Local packaged macOS actions and private-bus worker/lifecycle tests pass; hosted native gates and merge pending |
-| OCH-40 | Seven native chart families, mixed layers, typed datasets, native input and accessible original-data alternatives | Local GPU/input/AX, 100k streaming, two-window/list retention and Signal Studio integration pass; hosted native gates and merge pending |
-| OCH-29 | Focused graphics application with public canvas, independent native component, chart and desktop workflows | All local combined walkthroughs, Full/Reduce motion, fresh installed consumer and repeated lifetime workloads pass; hosted gates and merge pending |
+| OCH-27 | Application identity, deep links, activation, file reveal/open and document metadata | Local macOS OS acceptance and private-bus arbitration/portal tests pass |
+| OCH-28 | OS notifications, permissions/capabilities, replacement/dismissal and stale-safe action routing | Local packaged macOS actions and private-bus worker/lifecycle tests pass |
+| OCH-40 | Seven native chart families, mixed layers, typed datasets, native input and accessible original-data alternatives | Local GPU/input/AX, 100k streaming, two-window/list retention and Signal Studio integration pass |
+| OCH-29 | Focused graphics application with public canvas, independent native component, chart and desktop workflows | All local combined walkthroughs, Full/Reduce motion, fresh installed consumer and repeated lifetime workloads pass |
 
 The goal includes all four tickets, local functional acceptance, required hosted
 macOS/Linux gates, merge, and final versioned/Linear handoff. Starting a ticket or
@@ -45,17 +45,24 @@ necessary: a compiled adapter cannot promise a service, permission or display.
 Consolidated local format/build/lint and Dune/Rust suites pass (719 Rust tests),
 as do all 18 M6 native/build/private-bus/OS stages. A fresh installed consumer
 passes its native self-test and full lifetime workload. Required hosted builds,
-unit tests and lint pass on macOS and Linux in
-[run 36377185296](https://github.com/dakotamurphyucf/gpuio/actions/runs/36377185296);
-native suites continue. [PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14)
-remains a draft until final gates and review. Earlier entries below record
-intermediate states and do not override this delivery record.
+unit tests and lint pass on macOS and Linux in the first
+[consolidated run](https://github.com/dakotamurphyucf/gpuio/actions/runs/36377185296).
+That run exposed an absent Notification Center process on the fresh CI desktop,
+a 1x chart pixel sampled at a wick's exclusive edge, and a percent-path GIO lookup
+failure in the informational Linux GUI smoke. Their fixes have targeted local
+coverage; fresh hosted results remain separate from that initial run.
+
+[PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14) is the authoritative
+record of the final checked revision, required macOS/Linux results and merge.
+Completion requires those gates and all four Linear tickets; local passes do not
+substitute for them. The source/evidence links here form the versioned handoff.
+Earlier entries below record intermediate states and do not override this record.
 
 ### Delivery entry points
 
 | Ticket | Public API and example | Acceptance entry points |
 | -- | -- | -- |
-| OCH-27 | `Gpuio.Desktop_package`, `Gpuio_eio.Desktop`, `App.run_desktop`; `examples/desktop` | `test/desktop`; native window tests; `test_desktop_links_macos.py --services`; `test_desktop_instance_bus.sh`; Linux portal worker/peer tests |
+| OCH-27 | `Gpuio.Desktop_package`, `Gpuio_eio.Desktop`, `App.run_desktop`; `examples/desktop` | `test/desktop`; native window tests; `test_desktop_links_macos.py --services`; `test_desktop_instance_bus.sh`; `test_desktop_entry_linux.py`; Linux portal worker/peer tests |
 | OCH-28 | `Gpuio.Notification`, `Gpuio_eio.Notification`; `examples/notification` | `test/notification`; native notification tests; `test_notifications_macos.py`; `test_notification_bus.sh` |
 | OCH-40 | `Gpuio.Chart*`, `Gpuio_eio.Chart`, `View.chart`; `examples/charts`, `chart_upload`, `chart_stream` | `test/chart`, chart registry tests; native chart paint/view/input tests; `test_charts.py`, `test_chart_data.py`, `test_chart_visuals.py`, `measure_chart_stream.py` |
 | OCH-29 | `examples/signal_studio` and separate `examples/extension_package` | Model/file/notification expect tests; `test_extension_consumer.py --example signal_studio`; Signal Studio input/desktop/notification/motion scripts; `measure_signal_studio.py` |

@@ -1,7 +1,9 @@
 # Native chart evidence (OCH-40)
 
-Local component and combined-application acceptance pass; required hosted native
-gates and merge remain. This delivery table supersedes the historical checkpoints
+Local component and combined-application acceptance pass. Required hosted native
+gates, the checked revision and merge are recorded on
+[PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14). This delivery table
+supersedes the historical checkpoints
 below, which record the order in which individual layers were built. Current local
 machine: Apple M1 Max, macOS 14.5 (23F79), arm64. The repository's stock OCaml 5.3,
 Jane Street/Bonsai v0.17 and pinned GPUI/Rust toolchains remain unchanged.

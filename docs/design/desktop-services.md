@@ -11,8 +11,9 @@ native and public macOS tests. macOS file open/reveal and explicit scheme
 registration also have public OS acceptance. Linux portal file services are
 implemented with local peer/worker tests. Linux launch forwarding has a typed
 preflight entry point and actual private-bus arbitration tests. Consolidated
-macOS/Linux build and unit tests pass; required native hosted checks and merge
-remain pending. Real Linux desktop/session-bus invocation is deferred to OCH-17,
+macOS/Linux build and unit tests pass; [PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14)
+records required hosted checks, the checked revision and merge. Real Linux
+desktop/session-bus invocation is deferred to OCH-17,
 separately from private-bus fixtures. Desktop bridge bit41 is
 advertised; the current paired aggregate is `17592186044415`. Backend
 capabilities still distinguish supported operations from unavailable services.

@@ -1,6 +1,6 @@
 # Native charts (OCH-40)
 
-Status: in progress. The validated Core data model and paired bounded codecs are implemented and tested.
+The validated Core data model and paired bounded codecs are implemented and tested.
 The extracted Sankey layout source compiles against the existing GPUI revision.
 The native resource store, scoped Eio scheduler and application/host transport now
 pass local ownership and windowless macOS integration tests. Typed plotting options
@@ -15,8 +15,9 @@ now pass locally. Public large-data streaming measurements now have a reproducib
 Signal Studio integration and its repeated resource workload also pass locally.
 The paired bridge now advertises chart resources, rendering and interaction with
 bit43 (`8796093022208`); its current aggregate is `17592186044415`.
-Consolidated gates remain. This document separates implemented contracts
-from the remaining work.
+[PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14) records required hosted
+gates, the checked revision and merge. These contracts and local evidence do not
+substitute for that completion record.
 The chronology below retains earlier unadvertised/unfinished checkpoints; this
 delivery record supersedes those states.
 
@@ -243,7 +244,8 @@ retain original semantic values and cache layout outside per-frame painting.
 All seven families, mixed Cartesian layers, native interactions and original-data
 alternatives now have local acceptance. Signal Studio integrates a chart alongside
 its OCaml canvas and independently packaged extension; its fresh public consumer
-and repeated lifetime workload pass. Required hosted gates and merge remain.
+and repeated lifetime workload pass. Required hosted gates and merge are recorded
+on PR #14.
 Linux GUI evidence stays separately recorded under OCH-17.
 
 Continue to preserve explicit sampling/provenance, stable revision-checked

@@ -5,8 +5,10 @@ Current checkpoint: milestones 1–5 are merged. Milestone 5's
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
 passed on `473407c`; all twelve tickets are Done.
 
-Milestone 6 is implemented in [draft PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14),
-with all four tickets still In Progress until final hosted gates and merge:
+Milestone 6 is implemented in [PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14),
+which records the required hosted results, exact checked revision and merge state.
+The [Linear project](https://linear.app/ochat/project/gpuio-8bd4e30f319d) records
+ticket completion against those gates. Its four deliverables are:
 
 - OCH-27: typed desktop identity/packaging, readiness-aware link routing,
   native document metadata, OS file open/reveal and Linux private-bus arbitration.
@@ -24,9 +26,11 @@ with all four tickets still In Progress until final hosted gates and merge:
 Consolidated local format, Dune/Rust tests (719 Rust tests), strict lint, all 18 M6
 native/build/private-bus/OS stages, and a fresh public consumer's self-test and
 complete workload pass on macOS 14.5 arm64. Required hosted macOS/Linux build,
-unit tests and lint have passed in
-[run 36377185296](https://github.com/dakotamurphyucf/gpuio/actions/runs/36377185296);
-native suites are still running. The [M6 delivery matrix](milestone-6.md) links
+unit tests and lint passed in the first
+[consolidated run](https://github.com/dakotamurphyucf/gpuio/actions/runs/36377185296).
+That run found test setup/sampling failures; the evidence ledgers record their
+locally validated fixes. Use PR #14 for final hosted gate results, not that initial
+run or local passes alone. The [M6 delivery matrix](milestone-6.md) links
 current contracts, examples and evidence. Linux GUI/compositor validation remains
 OCH-17 and is not implied by compilation or private-bus fixtures.
 

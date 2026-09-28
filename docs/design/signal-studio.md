@@ -1,10 +1,11 @@
 # Signal Studio — milestone 6 acceptance application
 
-Status: OCH-29 in progress. The pure workspace model and combined canvas/chart/
+OCH-29 implementation and acceptance contract. The pure workspace model and combined canvas/chart/
 component application pass local macOS checks. Packaged links/reopen and Eio
 documents, packaged OS notifications and full/reduced motion now pass combined-app
-checks. Repeated component lifetime/resource checks also pass locally; consolidated
-hosted gates remain pending. The existing
+checks. Repeated component lifetime/resource checks also pass locally.
+[PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14) records final required
+hosted checks and merge; local evidence alone is not ticket completion. The existing
 agent-chat example stays intact. This is a focused model-evaluation plotting
 workbench, not a complete diagramming product or scientific environment.
 
@@ -79,14 +80,14 @@ policy must settle appropriately; no per-frame OCaml animation callback is added
 | Public OCaml canvas and native chart | Rendered app; selection, real drag, pan/zoom, keyboard and chart callbacks | Local AppKit script passes |
 | Pure workspace and document invariants | Expect tests, all valid run values, malformed/oversized/version/ID/bounds checks | Five passing expect tests, including all 101 valid run values |
 | Independent component | Combined-app style, pointer/key/AX, commands/events, hide/remount and disposal | Combined style, AX/key, disabled pointer, events and hide/remount pass; twelve explicit commands and all 24 native component/callback lifetimes pass |
-| Clean consumer | Staged installed libraries, separate component, locked generated backend; macOS run and Linux build | Fresh macOS consumer build/self-test passes; Linux hosted build pending |
+| Clean consumer | Staged installed libraries, separate component, locked generated backend; macOS run and Linux build | Fresh macOS consumer build/self-test and full lifetime workload pass; hosted Linux consumer build passes |
 | Responsive layout | Real resize across breakpoint; retained state and only active branch exposed to input/AX | Wide/compact/wide resize retains data, checks active 700/490/700 canvas widths and exactly one exposed set of canvas/chart/inspector/activity nodes; native input and hidden-control checks pass |
 | Springs, sequences, synchronized indicators | Native geometry/phase and reduced-motion checks in combined app | Full/Reduce actual spring heights/interruption, ordered native stages, synchronized painted intensity and paused paint pass locally |
 | Documents and files | Eio save/load round trip; dirty metadata; actual OS file actions and typed unsupported behavior | Real macOS Save/Open panels and Finder reveal, unsaved reveal fallback, Eio round trip, native dirty/file metadata and concurrency/invalid/missing-file preservation pass; Linux unsupported metadata/private-bus evidence remains separate |
 | Deep links/reopen | Packaged cold/warm OS delivery and current-window selection/focus | Local packaged startup/cold/warm/invalid links and same-process reopen pass |
-| OS notifications | Packaged action/receipt routing; denied/unavailable fallback; stale-window handling | Real macOS named/default actions, same-process reopen, replacement, stream completion, dismissal and quit cleanup pass; five pure expect tests and real unbundled fallback pass; first-time permission on a fresh hosted runner pending |
+| OS notifications | Packaged action/receipt routing; denied/unavailable fallback; stale-window handling | Real macOS named/default actions, same-process reopen, replacement, stream completion, dismissal and quit cleanup pass; five pure expect tests and real unbundled fallback pass; the required hosted notification steps on PR #14 must also verify fresh-runner permission |
 | Workloads and lifetime | Named hardware, native resources/queue charges, repeated window/resource cleanup | 384 desired updates, 96 render samples, twelve window cycles/commands, exact native lifetimes and final source release pass; named M1 Max CPU/RSS/queue measurements recorded |
-| Cross-platform release | Required macOS/Linux CI; report X11/Wayland GUI separately | Pending; full Linux GUI under OCH-17 |
+| Cross-platform release | Required macOS/Linux CI; report X11/Wayland GUI separately | Final required results/checked revision on PR #14; full Linux GUI under OCH-17 |
 
 Existing chart, canvas, extension, desktop, notification and motion test suites
 provide supporting evidence. They do not replace this application-level matrix.
