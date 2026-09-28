@@ -48,3 +48,9 @@ GPUIO's Base adaptations also expose externally prepared bounded Markdown,
 selection transfer across compatible snapshots, safe reference-image resolution,
 and a source line origin for read-only document pages. They are recorded in the
 same source patch; GPUIO's worker/transport code remains outside the vendor tree.
+
+`rust/plot` retains the Sankey layout and ribbon geometry from the same Longbridge
+commit, independently of its styled component crate. Its [source provenance and
+adaptations](rust/plot/UPSTREAM.md) and [Apache-2.0 license](rust/plot/LICENSE-APACHE)
+remain with the extracted sources. The validated GPUIO chart adapter lives outside
+that extraction.

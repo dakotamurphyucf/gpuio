@@ -87,3 +87,26 @@ notifications and Full/Reduce motion to their own actual platform walkthroughs.
 The same complete workload also passes in the staged independent consumer after
 building against installed public libraries and the separately copied component.
 Required hosted macOS/Linux gates remain pending, with Linux GUI tracked in OCH-17.
+
+## Consolidated local validation
+
+At `08423cd`, the complete Dune expect suites, 719 Rust workspace tests,
+formatting, example builds and strict Clippy pass on the same macOS host. The
+native chart GPU/input/AX checks, private-bus desktop/notification fixtures,
+packaged desktop and notification OS walkthroughs, and all five Signal Studio
+walkthroughs pass together with the following test-harness adjustments:
+
+- Raise only the owned child window before screenshots and native pickers.
+  A live occluded window was absent from the on-screen capture list.
+- Wait for the native Save button to be enabled with stable geometry before one
+  AX press. The previous immediate press could leave the presented sheet open.
+- Observe the final accessible counter value before capturing the completed
+  stream, independently of its earlier application-log event.
+
+These changes do not alter document persistence or renderer behavior. The native
+workload rerun records 4.06 seconds wall time, 1.70/0.37 seconds user/system CPU,
+139,362,304 bytes peak RSS and update-to-render median/p95/max of
+24.97/41.60/48.33 ms. All 384 desired updates, 96 render samples, twelve commands
+and window cycles, 24 component/value lifetimes and final zero resource charges
+pass again. These measurements have the same visibility and presentation limits
+described above; the separate large-chart ledger preserves its latency outlier.

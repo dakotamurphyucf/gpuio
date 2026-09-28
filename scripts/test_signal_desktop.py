@@ -24,6 +24,39 @@ def pids_for(executable):
     return matches
 
 
+def press_picker_button(mac, label):
+    # AppKit exposes sheet controls before its presentation animation finishes.
+    # Wait for an enabled, stationary button before issuing exactly one action.
+    previous = None
+    stable_since = time.monotonic()
+    end = stable_since + 10
+    while time.monotonic() < end:
+        node = mac.find(TITLE, label, 'AXButton')
+        if node:
+            try:
+                enabled = mac.attr(node, 'AXEnabled')
+                try:
+                    ready = enabled == mac.true
+                finally:
+                    if enabled:
+                        mac.release(enabled)
+                geometry = mac.rect(node)
+                if not ready or geometry != previous:
+                    stable_since = time.monotonic()
+                elif time.monotonic() - stable_since >= .4:
+                    print('PICKER_PRESS', label, geometry, flush=True)
+                    mac.perform(node, 'AXPress')
+                    return
+                previous = geometry
+            finally:
+                mac.release(node)
+        else:
+            previous = None
+            stable_since = time.monotonic()
+        time.sleep(.05)
+    raise RuntimeError(f'Picker button did not become ready: {label}')
+
+
 def exercise(output):
     root = Path(__file__).resolve().parent.parent
     output = output.resolve()
@@ -100,20 +133,23 @@ def exercise(output):
             wait('Save a workspace before revealing it.')
             mac.press(TITLE, 'Increment counter, current value 0')
             mac.wait_text(TITLE, 'Increment counter, current value 1')
+            mac.activate()
             mac.press(TITLE, 'Save workspace')
             field = mac.wait_find(TITLE, 'workspace.signal', 'AXTextField')
             mac.release(field)
-            mac.press(TITLE, 'Save')
+            press_picker_button(mac, 'Save')
             wait('Workspace saved.')
             saved = fixture / 'workspace.signal'
             assert saved.is_file() and '(run 1)' in saved.read_text()
             mac.wait_text(TITLE, 'Saved workspace')
             mac.press(TITLE, 'Increment counter, current value 1')
             mac.wait_text(TITLE, 'Unsaved changes')
+            mac.activate()
             mac.press(TITLE, 'Open workspace')
             wait('Save or reset changes before opening another workspace.')
             mac.press(TITLE, 'Reset workspace')
             mac.wait_text(TITLE, 'Increment counter, current value 0')
+            mac.activate()
             mac.press(TITLE, 'Open workspace')
             node = mac.wait_find(TITLE, 'workspace.signal', search_files=True)
             try:
@@ -123,7 +159,7 @@ def exercise(output):
             wait('Workspace loaded.')
             mac.wait_text(TITLE, 'Increment counter, current value 1')
             mac.wait_text(TITLE, 'Saved workspace')
-            screenshot(mac, output / 'loaded.png', title=TITLE)
+            mac.capture(output / 'loaded.png')
             mac.press(TITLE, 'Reveal file')
             wait('Reveal requested.')
             finder_pids = pids_for(Path('/System/Library/CoreServices/Finder.app/Contents/MacOS/Finder'))
@@ -143,6 +179,13 @@ def exercise(output):
             assert not pids_for(executable)
             print('SIGNAL_DESKTOP_OK: packaged cold/warm/rejected links, same-process reopen, native save/open pickers, Eio persistence, dirty/open guard, actual Finder reveal, unsaved reveal fallback, restored model and shutdown', flush=True)
         except BaseException:
+            if mac:
+                windows = mac.children(mac.app, 'AXWindows')
+                try:
+                    print('OWNED_WINDOWS_ON_FAILURE', [mac.text(window, 'AXTitle') for window in windows], flush=True)
+                finally:
+                    for window in windows:
+                        mac.release(window)
             if mac and mac.has_window(TITLE):
                 mac.dump(TITLE)
                 screenshot(mac, output / 'failure.png', title=TITLE)

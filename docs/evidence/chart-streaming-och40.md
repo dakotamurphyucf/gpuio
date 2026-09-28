@@ -70,3 +70,28 @@ plot work but does not avoid uploading/validating the original dataset. Incremen
 native dataset editing and optimized-build comparisons are future optimizations,
 not silently assumed capabilities. Required hosted macOS/Linux build/test gates,
 OCH-29 integration and Linux graphical release validation remain separate.
+
+## Consolidated rerun at `08423cd`
+
+The final local 80-publication workload also passed all data, queue and cleanup
+assertions, with peak RSS 797,048,832 bytes and the same native queue/source-charge
+bounds. Median update→render callbacks were 46.43 ms (10k sampled), 224.59 ms
+(100k sampled), 602.15 ms (100k exact), and 218.31 ms (100k sampled eight-update
+burst). The run took 89.33 seconds wall time, 22.83 seconds user CPU and 2.02 seconds
+system CPU. **One exact-mode sample took 63,050.99 ms**, so its p95/max is also
+63,050.99 ms. The earlier baseline must not be read as a latency guarantee.
+
+The workload did not record window visibility at that sample, so its cause is
+unverified. The pinned GPUI macOS backend explicitly stops the display link when
+its native window becomes occluded (`gpui_macos/src/window.rs`,
+`window_did_change_occlusion_state`); a requested render callback can therefore
+wait for visibility rather than measure continuous rendering work. A later local
+Signal Studio screenshot check separately found its live child missing from the
+on-screen window list. These observations are consistent with desktop visibility
+interference, but do not prove it caused the benchmark outlier.
+
+`App.Window.request_frame` documents this limitation. Application/data readiness
+must not wait for paint; Signal Studio now uses model/resource/native-window
+readiness and tests initially unfocused link delivery. The input harness raises
+only its owned window before capturing evidence. No renderer performance fix or
+stronger latency claim is inferred from a successful workload result.

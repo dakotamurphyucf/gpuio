@@ -17,6 +17,23 @@ class Studio(Outline):
         super().__init__(child.pid if pid is None else pid, child)
         self.log_path = log_path
 
+    def activate(self):
+        self.set(self.app, 'AXFrontmost', self.true)
+        window = self.window(TITLE)
+        try:
+            assert window
+            self.perform(window, 'AXRaise')
+        finally:
+            if window:
+                self.release(window)
+        time.sleep(.25)
+
+    def capture(self, path):
+        # A desktop/Space change can remove our otherwise live window from the
+        # on-screen capture list. Raise only our child and let its frame resume.
+        self.activate()
+        screenshot(self, path, title=TITLE)
+
     def wait_log(self, text, count=1):
         end = time.monotonic() + 20
         while time.monotonic() < end:
@@ -132,10 +149,10 @@ class Studio(Outline):
         self.wait_log('SIGNAL_STUDIO: ready')
         self.wait_log('layout wide')
         self.active_layout_only(compact=False)
-        screenshot(self, output / 'wide.png', title=TITLE)
+        self.capture(output / 'wide.png')
         self.press(TITLE, 'Alerts')
         self.wait_text(TITLE, 'Desktop alerts are unavailable; run results stay in this window.')
-        screenshot(self, output / 'alerts-unavailable.png', title=TITLE)
+        self.capture(output / 'alerts-unavailable.png')
         self.press(TITLE, 'Close alerts')
         self.press(TITLE, 'Increment counter, current value 0')
         self.wait_log('SIGNAL_STUDIO: run 1')
@@ -151,7 +168,7 @@ class Studio(Outline):
         self.wait_log('chart ready', ready_before + 1)
         start = self.center('Swift', 'AXStaticText')
         print('DRAG_START', start.x, start.y, flush=True)
-        screenshot(self, output / 'before-drag.png', title=TITLE)
+        self.capture(output / 'before-drag.png')
         self.send(5, start)
         self.send(1, start)
         point = start
@@ -165,7 +182,7 @@ class Studio(Outline):
         try:
             self.wait_log('canvas moved', 2)
         except RuntimeError:
-            screenshot(self, output / 'failed-drag.png', title=TITLE)
+            self.capture(output / 'failed-drag.png')
             self.dump(TITLE)
             raise
         self.wait_text(TITLE, 'Swift · latency 243 ms · quality 28%')
@@ -203,15 +220,16 @@ class Studio(Outline):
         self.wait_text(TITLE, 'Increment counter, current value 2')
         self.press(TITLE, 'Stream runs')
         self.wait_log('SIGNAL_STUDIO: run 5')
-        screenshot(self, output / 'streaming.png', title=TITLE)
+        self.capture(output / 'streaming.png')
         self.wait_log('stream complete')
         self.wait_log('SIGNAL_STUDIO: run 14')
-        screenshot(self, output / 'updated.png', title=TITLE)
+        self.wait_text(TITLE, 'Increment counter, current value 14')
+        self.capture(output / 'updated.png')
         self.resize(650)
         self.wait_log('layout compact')
         self.active_layout_only(compact=True)
         self.wait_text(TITLE, 'Increment counter, current value 14')
-        screenshot(self, output / 'compact.png', title=TITLE)
+        self.capture(output / 'compact.png')
         self.resize(1160)
         self.wait_log('layout wide', 2)
         self.active_layout_only(compact=False)

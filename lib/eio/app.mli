@@ -49,7 +49,9 @@ module Window : sig
 
   (** At most one request per open window. Call after activation; requests
       before native opening return an error. This observes a render callback,
-      not physical screen presentation. *)
+      not physical screen presentation. Delivery can be deferred while a window
+      is occluded: the pinned macOS backend stops its display link then. Do not
+      use a frame callback as an application/data readiness barrier. *)
   val request_frame
     :  t
     -> on_rendered:(revision:int64 -> unit Bonsai.Effect.t)
