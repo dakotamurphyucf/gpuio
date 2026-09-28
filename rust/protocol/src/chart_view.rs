@@ -8,6 +8,7 @@ pub struct Config {
     pub sampling: Policy,
     pub style: Style,
     pub legend: bool,
+    pub disabled: bool,
 }
 impl Config {
     pub fn is_valid(&self) -> bool {

@@ -60,6 +60,11 @@ gpuio-portal = { path = "../portal" }
 gpuio-wayland = { path = "../wayland" }
 
 [[test]]
+name = "native_chart_input"
+harness = false
+required-features = ["native-canvas-tests"]
+
+[[test]]
 name = "native_chart_view"
 harness = false
 required-features = ["native-canvas-tests"]

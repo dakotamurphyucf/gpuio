@@ -464,7 +464,7 @@ impl View {
         self.sync_tooltips(window, cx);
         self.sync_carousels(window, cx);
         self.sync_canvases(dirty, window, cx);
-        self.sync_charts(dirty);
+        self.sync_charts(dirty, window, cx);
         self.sync_splits(window, cx);
         self.sync_sliders(dirty, window, cx);
         self.sync_numbers(dirty, window, cx);
@@ -1717,7 +1717,7 @@ impl Render for View {
         }
         self.hide_unvisited_extensions();
         self.hide_unvisited_canvases(window);
-        self.hide_unvisited_charts();
+        self.hide_unvisited_charts(window);
         self.hide_unvisited_sliders(window, cx);
         self.hide_unvisited_numbers(window, cx);
         self.hide_unvisited_otps(window, cx);
@@ -1810,6 +1810,10 @@ impl Render for View {
                     .canvases
                     .values()
                     .any(|state| state.borrow().canvas_focused(window))
+                || self
+                    .charts
+                    .values()
+                    .any(|state| state.borrow().chart_focused(window))
                 || root_focus.is_focused(window)
                 || self
                     .buttons
@@ -2158,7 +2162,7 @@ pub fn run(transport: Arc<Transport>) {
                                     transport.respond(Event::Closed(correlation, id));
                                     if let Some(window) = windows.remove(&id) {
                                         let _ = window
-                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); view.cancel_tree_drag(window, cx); view.close_color_inputs(window, cx); view.cancel_split_drag(window, cx); view.extensions.clear(); for state in view.canvases.values() { state.borrow_mut().close(window); } view.canvases.clear(); for state in view.charts.values() {state.borrow_mut().close();} view.charts.clear(); window.remove_window(); });
+                                            .update(cx, |view, window, cx| { drag_drop::cancel(view.id, gpuio_protocol::drag_drop::CancelReason::WindowClosed, window, cx); view.cancel_tree_drag(window, cx); view.close_color_inputs(window, cx); view.cancel_split_drag(window, cx); view.extensions.clear(); for state in view.canvases.values() { state.borrow_mut().close(window); } view.canvases.clear(); for state in view.charts.values() {state.borrow_mut().close(window);} view.charts.clear(); window.remove_window(); });
                                     }
                                 }
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),
@@ -2300,7 +2304,7 @@ pub(super) mod window_test;
 pub(crate) fn refresh_chart_window(handle: gpui::AnyWindowHandle, cx: &mut App) {
     let _ = handle.update(cx, |root, window, cx| {
         let changed = match root.downcast::<View>() {
-            Ok(view) => view.update(cx, |view, cx| view.charts_changed(None, cx)),
+            Ok(view) => view.update(cx, |view, cx| view.charts_changed(None, window, cx)),
             Err(_) => true,
         };
         if changed {
@@ -2312,7 +2316,7 @@ pub(crate) fn chart_source_changed(source: Option<gpuio_protocol::ResourceId>, c
     for handle in cx.windows() {
         let _ = handle.update(cx, |root, window, cx| {
             if let Ok(view) = root.downcast::<View>()
-                && view.update(cx, |view, cx| view.charts_changed(source, cx))
+                && view.update(cx, |view, cx| view.charts_changed(source, window, cx))
             {
                 window.refresh();
             }

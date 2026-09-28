@@ -13,6 +13,7 @@ pub mod canvas_paint;
 pub mod canvas_plan;
 pub mod canvas_state;
 pub mod canvas_store;
+mod chart_details;
 pub mod chart_geometry;
 mod chart_hit;
 mod chart_host;
@@ -23,6 +24,10 @@ pub mod chart_render_host;
 #[cfg(feature = "native-canvas-tests")]
 pub fn run_native_chart_paint_test() {
     chart_paint::native_test::run();
+}
+#[cfg(feature = "native-canvas-tests")]
+pub fn run_native_chart_input_test() {
+    host::chart_view::test::run_input();
 }
 #[cfg(feature = "native-canvas-tests")]
 pub fn run_native_chart_view_test() {

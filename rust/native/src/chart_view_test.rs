@@ -21,6 +21,7 @@ fn config(source: ResourceId, color: i64) -> Config {
         source: Some(source),
         label: "Allocation".into(),
         legend: false,
+        disabled: false,
         options: gpuio_protocol::chart_options::Options {
             pie: gpuio_protocol::chart_options::Pie {
                 labels: false,
@@ -360,7 +361,15 @@ async fn exercise(
         "GPUIO_NATIVE_CHART_VIEW_OK: production tree GPU paint, style, async publish, reset, idle release, source replacement, hidden/unmount cleanup, dense legend scroll/update/reset"
     );
 }
+#[path = "chart_input_test.rs"]
+mod interaction;
 pub(crate) fn run() {
+    run_mode(false);
+}
+pub(crate) fn run_input() {
+    run_mode(true);
+}
+fn run_mode(interactive: bool) {
     let failure = Rc::new(RefCell::new(None));
     let task_failure = failure.clone();
     let mut fds = [0; 2];
@@ -383,12 +392,16 @@ pub(crate) fn run() {
             Response::Created(id) => id,
             _ => panic!("create chart"),
         };
-        publish(&session, source, 0, 1);
+        if interactive {
+            interaction::publish_input(&session, source, 0, 1, false);
+        } else {
+            publish(&session, source, 0, 1);
+        }
         let handle = cx
             .open_window(
                 WindowOptions {
-                    focus: false,
-                    show: false,
+                    focus: interactive,
+                    show: interactive,
                     window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
                         None,
                         gpui::size(px(240.), px(240.)),
@@ -396,21 +409,33 @@ pub(crate) fn run() {
                     ))),
                     ..Default::default()
                 },
-                |_, cx| cx.new(|_| View::new(window_id, session.clone(), transport.clone())),
+                |window, cx| {
+                    cx.new(|cx| {
+                        let view = View::new(window_id, session.clone(), transport.clone());
+                        if interactive {
+                            crate::host::window_host::watch(&view, window, cx);
+                        }
+                        view
+                    })
+                },
             )
             .unwrap();
+        if interactive {
+            cx.activate(true);
+        }
         cx.spawn(async move |cx| {
-            let result = crate::host::native_test::protect(exercise(
-                cx,
-                handle,
-                source,
-                session.clone(),
-                transport.clone(),
-            ))
+            let result = crate::host::native_test::protect(async {
+                if interactive {
+                    interaction::exercise(cx, handle, source, session.clone(), transport.clone())
+                        .await;
+                } else {
+                    exercise(cx, handle, source, session.clone(), transport.clone()).await;
+                }
+            })
             .await;
             let _ = handle.update(cx, |view, window, _| {
                 for state in view.charts.values() {
-                    state.borrow_mut().close();
+                    state.borrow_mut().close(window);
                 }
                 view.charts.clear();
                 window.remove_window();

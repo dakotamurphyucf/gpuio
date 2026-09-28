@@ -52,6 +52,7 @@ module Config = struct
         ~data
         ?(label = "Chart")
         ?(legend = true)
+        ?(disabled = false)
         ?(options = Chart_options.default)
         ?(sampling = Chart_sampling.default)
         ?(style = Chart_style.default)
@@ -64,6 +65,7 @@ module Config = struct
       ; sampling = Chart_sampling.Expert.to_wire sampling
       ; style = Chart_style.Expert.to_wire style
       ; legend
+      ; disabled
       }
     in
     if Wire.Config.valid wire

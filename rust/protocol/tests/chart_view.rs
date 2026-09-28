@@ -5,6 +5,7 @@ fn config() -> Config {
         source: Some(ResourceId::from_parts(7, 2).unwrap()),
         label: "Chart 🦀".into(),
         legend: true,
+        disabled: false,
         options: Default::default(),
         sampling: Default::default(),
         style: gpuio_protocol::chart_style::Style {
@@ -46,12 +47,19 @@ fn bounded_chart_view_and_transaction_match_independent_fixture() {
         decode_chart_view_config(&encode(&hidden_legend)),
         Ok(hidden_legend)
     );
-    let mut malformed_legend = bytes.clone();
-    *malformed_legend.last_mut().unwrap() = 2;
-    assert_eq!(
-        decode_chart_view_config(&malformed_legend),
-        Err(DecodeError::Malformed)
-    );
+    let mut disabled = config.clone();
+    disabled.disabled = true;
+    assert_eq!(decode_chart_view_config(&encode(&disabled)), Ok(disabled));
+    // The final two fields are independently validated booleans.
+    for offset in [1, 2] {
+        let mut malformed = bytes.clone();
+        let index = malformed.len() - offset;
+        malformed[index] = 2;
+        assert_eq!(
+            decode_chart_view_config(&malformed),
+            Err(DecodeError::Malformed)
+        );
+    }
     let mut trailing = bytes;
     trailing.push(0);
     assert_eq!(

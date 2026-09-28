@@ -55,6 +55,92 @@ pub fn resolve(data: &Data, policy: &Policy, source: Source) -> Option<Selection
     target.is_valid().then_some(target)
 }
 
+/// Singular identities survive publication without reusing old source indices.
+/// Aggregates deliberately have no stable key: endpoint IDs don't prove that
+/// their interior membership remains the same.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum Key {
+    Cartesian(i64, i64),
+    Slice(i64),
+    Radar(i64, i64),
+    Candle(i64),
+    Node(i64),
+    Edge(i64),
+}
+fn key(selection: Selection) -> Option<Key> {
+    match selection {
+        Selection::Cartesian {
+            series,
+            span,
+            aggregation: Aggregation::Exact,
+        } => Some(Key::Cartesian(series, span.first)),
+        Selection::Cartesian { .. }
+        | Selection::Candlestick {
+            aggregated: true, ..
+        } => None,
+        Selection::Slice(id) => Some(Key::Slice(id)),
+        Selection::Radar { series, axis } => Some(Key::Radar(series, axis)),
+        Selection::Candlestick {
+            span,
+            aggregated: false,
+        } => Some(Key::Candle(span.first)),
+        Selection::Node(id) => Some(Key::Node(id)),
+        Selection::Edge(id) => Some(Key::Edge(id)),
+    }
+}
+pub struct StableIndex(Vec<(Key, usize)>);
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum IndexError {
+    Cancelled,
+    InvalidSource,
+    LimitExceeded,
+}
+impl StableIndex {
+    pub fn prepare(
+        data: &Data,
+        policy: &Policy,
+        plan: &crate::chart_geometry::Plan,
+        cancel: &std::sync::atomic::AtomicBool,
+    ) -> Result<Self, IndexError> {
+        use std::sync::atomic::Ordering;
+        if plan.marks.len() > 100_000 {
+            return Err(IndexError::LimitExceeded);
+        }
+        let mut entries = Vec::new();
+        for (index, mark) in plan.marks.iter().enumerate() {
+            if index % 256 == 0 && cancel.load(Ordering::Relaxed) {
+                return Err(IndexError::Cancelled);
+            }
+            let selection = resolve(data, policy, mark.source).ok_or(IndexError::InvalidSource)?;
+            if let Some(key) = key(selection) {
+                entries.push((key, index));
+            }
+        }
+        entries.sort_unstable_by_key(|(key, _)| *key);
+        if cancel.load(Ordering::Relaxed) {
+            return Err(IndexError::Cancelled);
+        }
+        if entries.windows(2).any(|pair| pair[0].0 == pair[1].0) {
+            return Err(IndexError::InvalidSource);
+        }
+        let index = Self(entries);
+        if index.retained_bytes() > 8 * 1024 * 1024 {
+            return Err(IndexError::LimitExceeded);
+        }
+        Ok(index)
+    }
+    pub fn find(&self, selection: Selection) -> Option<usize> {
+        let key = key(selection)?;
+        self.0
+            .binary_search_by_key(&key, |(key, _)| *key)
+            .ok()
+            .map(|i| self.0[i].1)
+    }
+    pub fn retained_bytes(&self) -> usize {
+        self.0.capacity() * std::mem::size_of::<(Key, usize)>()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -267,5 +353,74 @@ mod tests {
             assert_eq!(span.length, 1);
             assert_eq!(span.first, 1000 - span.start_index);
         }
+    }
+    #[test]
+    fn stable_lookup_follows_identity_after_source_positions_change() {
+        let original = Data {
+            version: 1,
+            contents: Contents::Cartesian(vec![Layer::Line(Series {
+                id: 9,
+                name: "Series".into(),
+                points: [42, 7]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, id)| Point {
+                        id,
+                        x: i as f64,
+                        y: Some(1.),
+                        label: String::new(),
+                    })
+                    .collect(),
+            })]),
+        };
+        let policy = Policy::default();
+        let old_plan = plan(&original, policy);
+        let old = resolve(&original, &policy, old_plan.marks[1].source).unwrap();
+        let mut updated = original.clone();
+        let Contents::Cartesian(layers) = &mut updated.contents else {
+            unreachable!()
+        };
+        let Layer::Line(series) = &mut layers[0] else {
+            unreachable!()
+        };
+        series.points.remove(0);
+        let new_plan = plan(&updated, policy);
+        let index =
+            StableIndex::prepare(&updated, &policy, &new_plan, &AtomicBool::new(false)).unwrap();
+        assert_eq!(index.find(old), Some(0));
+        assert_eq!(
+            index.find(resolve(&original, &policy, old_plan.marks[0].source).unwrap()),
+            None
+        );
+        assert!(index.retained_bytes() >= std::mem::size_of::<(Key, usize)>());
+        assert!(matches!(
+            StableIndex::prepare(&updated, &policy, &new_plan, &AtomicBool::new(true)),
+            Err(IndexError::Cancelled)
+        ));
+    }
+    #[test]
+    fn aggregated_membership_is_not_inferred_from_endpoint_identity() {
+        let data = Data {
+            version: 1,
+            contents: Contents::Cartesian(vec![Layer::Bar(Series {
+                id: 9,
+                name: "One sample still aggregated".into(),
+                points: vec![Point {
+                    id: 7,
+                    x: 0.,
+                    y: Some(2.),
+                    label: String::new(),
+                }],
+            })]),
+        };
+        let policy = Policy {
+            bars: Bar::Sum(1),
+            ..Default::default()
+        };
+        let plan = plan(&data, policy);
+        let selection = resolve(&data, &policy, plan.marks[0].source).unwrap();
+        let index = StableIndex::prepare(&data, &policy, &plan, &AtomicBool::new(false)).unwrap();
+        assert_eq!(index.find(selection), None);
+        assert_eq!(index.retained_bytes(), 0);
     }
 }

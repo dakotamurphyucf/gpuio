@@ -386,6 +386,7 @@ mod tests {
                 source: Some(id),
                 label: "Chart".into(),
                 legend: true,
+                disabled: false,
                 options: Default::default(),
                 sampling: Default::default(),
                 style: Default::default(),

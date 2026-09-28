@@ -103,7 +103,12 @@ pub(super) fn watch(view: &View, window: &mut Window, cx: &mut Context<View>) {
     });
     cx.observe_window_bounds(window, |view, window, _| observe(view, window))
         .detach();
-    cx.observe_window_activation(window, |view, window, _| observe(view, window))
-        .detach();
+    cx.observe_window_activation(window, |view, window, cx| {
+        if !window.is_window_active() {
+            view.cancel_chart_input(window, cx);
+        }
+        observe(view, window);
+    })
+    .detach();
     observe(view, window);
 }

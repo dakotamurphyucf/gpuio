@@ -29,7 +29,10 @@ module Observation : sig
   (** Selection observations identify a committed native target or an explicit
       clear. Hover and drag previews do not cross into OCaml. Source positions
       are relative to the event's data revision; they must not be applied to a
-      newer publication. Native input integration is still under development. *)
+      newer publication. Ordinary updates silently retain singular stable IDs
+      that remain plotted; aggregate selection clears. Reset/release clear native
+      selection without a user event. Arrows/Home/End preview plotted marks,
+      Enter/Space commit, and Escape cancels a drag or clears selection. *)
   type t =
     | Ready of Metrics.t
     | Failed of Error.t
@@ -59,6 +62,7 @@ module Config : sig
       picture until its replacement is prepared. A reset or source change clears
       that picture. Wrong-application handles never cross as unchecked IDs.
 
+      [disabled] defaults to false; disabled charts do not accept native input.
       [legend] defaults to true. Dense legends scroll within the chart; labels
       may ellipsize visually while retaining their full accessible text.
 
@@ -69,6 +73,7 @@ module Config : sig
     :  data:Chart_resource.t
     -> ?label:string
     -> ?legend:bool
+    -> ?disabled:bool
     -> ?options:Chart_options.t
     -> ?sampling:Chart_sampling.t
     -> ?style:Chart_style.t

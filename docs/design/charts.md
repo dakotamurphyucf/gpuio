@@ -9,7 +9,7 @@ painter passes local hidden-window GPU readback for every family. The resource-b
 Core/Bonsai view now mounts the painter through bounded native workers. A public
 seven-family Chart Studio and hidden production-view lifecycle test pass locally.
 Native labels, scrollable legends, typed selection payloads and prepared hit
-queries are implemented. Mounted interaction, tooltips, data alternatives and
+queries, mounted interaction and tooltips are implemented. Complete data alternatives and
 streaming measurements remain. This document separates implemented contracts from
 the remaining implementation work.
 
@@ -551,9 +551,49 @@ Spatial pruning reduces ordinary query work, but heavily overlapping geometry
 can still require many candidates; no unconditional logarithmic-time guarantee
 or measured frame-performance claim is made.
 
-**Current integration boundary:** paired selection types/events, provenance
-resolution and prepared hit queries are implemented. Mounted pointer capture,
-hover/drag previews, tooltips, keyboard focus/navigation, data-table alternatives,
-selection retention across publication and actual semantic callback delivery are
-still being implemented. The new event shape is not evidence that a chart can
-already be selected through the public application.
+## Mounted input and selection ownership
+
+`Chart.Config.create ?disabled` defaults to false. The chart owns a native focus
+handle, local hover/keyboard preview and pointer capture. Only the plot receives
+selection gestures; legend/gutter interaction does not implicitly select a value.
+A left click or drag released inside the plot commits its current target; release
+on blank plot space explicitly clears. Release outside the plot cancels the drag.
+Hover and drag previews update native text and a marker without OCaml events.
+The tooltip reads the displayed immutable source. Actual bar/OHLC reduction values
+are retained during worker preparation, so hovering an aggregate does not rescan
+a large source interval or infer values from pixels.
+
+Arrow keys, Home and End preview plotted marks. Enter or Space commits a preview;
+Escape cancels an active drag, or clears the committed selection otherwise. Tab
+cancels previews and follows normal focus traversal. The focused chart participates
+in the central modal/focus policy; disabled, hidden or pointer-inert charts reject
+the corresponding input. **This is plotted-mark navigation, not the complete
+original-data alternative:** missing, zero-area and downsampled-away originals
+still require that separate implementation.
+
+Native callbacks carry an identity token. A data/config change, reset, source
+replacement, hide, release or close invalidates old callbacks and cancels capture.
+Blur/window deactivation also cancels previews/capture. Input requires that the
+prepared snapshot be the registration's current publication and that the displayed
+frame/config match the requested ones. A retained older picture while preparation
+is pending is not permission to emit a selection from stale geometry.
+
+Ordinary same-generation publications preserve a selected singular stable ID when
+that ID remains in the newly prepared marks. Its source position is resolved again;
+old offsets are never reused. Aggregates clear on publication because matching
+endpoint IDs cannot prove unchanged membership. A worker-built sorted identity
+index admits at most 100,000 entries and 8 MiB, charged inside the prepared plan's
+64-MiB limit. Reset/source replacement/retirement clear selection. Automatic
+reconciliation is silent; `Selection_changed` is emitted only for a user commit or
+explicit clear and names the exact publication used. Applications that display
+selection-derived values must interpret those values against that publication.
+
+Redraw invalidates the affected managed row and owning view, with deferred view
+updates to avoid reentrant native state borrows. There is no permanent input timer
+and no synchronous OCaml callback from native input/layout/paint. Chart Studio now
+shows public semantic callback results; its AppKit acceptance covers all seven
+families and real pie hover/click/drag/cancellation.
+
+Complete keyboard/data alternatives, plot-wide non-color identification, dense
+legend wheel acceptance, multi-window/cached-list streaming and measured workloads
+remain required before the chart ticket is complete.

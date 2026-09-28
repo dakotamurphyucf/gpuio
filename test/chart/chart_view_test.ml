@@ -36,6 +36,9 @@ let%expect_test "chart view owner and append-only envelopes match independent fi
   let wire = Chart.Expert.to_wire config ~owner:(Some owner) in
   assert (W.Config.valid wire);
   assert wire.legend;
+  assert (not wire.disabled);
+  let disabled = Chart.Config.create ~data:handle ~disabled:true () |> ok in
+  assert (Chart.Expert.to_wire disabled ~owner:(Some owner)).disabled;
   let hidden_legend = Chart.Config.create ~data:handle ~legend:false () |> ok in
   assert (not (Chart.Expert.to_wire hidden_legend ~owner:(Some owner)).legend);
   assert (Resource.equal (Chart.Config.data config) handle);

@@ -274,12 +274,78 @@ streaming, or the required named-hardware performance report. This checkpoint
 implements their typed contract and query machinery; it does not claim completed
 interactive charts, hosted CI, Linux GUI acceptance or a new capability bit.
 
+## Mounted input and public semantic callback acceptance
+
+Local Apple M1 Max / macOS 14.5 arm64, repository toolchain, two build jobs.
+Native chart input now owns local hover/drag/keyboard previews, focus and pointer
+capture. Actual GPUI input dispatch through the production view passes:
+
+- Hover and drag previews emit no selection events; click/release commits and
+  changes the actual rendered marker pixels.
+- Outside release and Escape during capture cancel without changing selection;
+  Escape without capture emits an explicit clear.
+- Home/End and Enter/Space preview/commit plotted values.
+- Same-generation source reordering preserves singular selection by stable ID
+  and resolves its new position silently. Source mutation immediately cancels
+  capture. Disable/re-enable before repaint rejects retained old callbacks.
+- Blur/reset/native release cancel capture and prevent a stale release from
+  committing. Unmount drops chart state and all charged retained data/plans.
+
+The separate production lifecycle test still covers actual paint, style change,
+asynchronous publication, source replacement, hide/unmount and dense legend
+scroll/update/reset. The input and lifecycle suites finish with respectively
+`(3, 0, 1, 0, 0)` and `(10, 0, 1, 0, 0)` counters: completed, discarded, peak
+worker count, retained plan bytes and outstanding workspace allowance. Both
+assert an empty native data store on shutdown.
+
+`python3 scripts/test_charts.py --input` passes against the rebuilt public
+Bonsai/Eio application. Real AppKit keys focus each of the seven charts, preview
+first/last plotted marks without changing the OCaml readout, commit with
+Enter/Space, and clear with Escape. Real pointer hover/click/drag on the donut
+shows the actual source values and reaches `Selection_changed` in OCaml;
+outside release preserves the prior committed target. The script verifies native
+labels, updates every family, captures screenshots and closes/reaps its child.
+Global pointer events check that each target belongs to the child before posting.
+A process-targeted pointer attempt could hover but did not deliver the click as
+needed; the accepted test uses the existing native-test approach with actual
+system pointer delivery. A first run also launched an older executable before
+Dune finished linking; all final checks used the completed build. A Sankey test
+expectation was corrected to its actual ribbon-before-node navigation order.
+
+Additional worker tests verify actual Sum/Mean/OHLC tooltip values, descriptions
+for every family's prepared marks, singular ID lookup after source-position
+changes, removed IDs, cancellation, retained index storage and intentional refusal
+to retain aggregate selection even when its span has one sample. There are now
+55 passing native chart unit tests. Paired config fixture tests cover default and
+explicit `disabled`, and reject malformed values in both appended Boolean fields.
+
+Commands passed:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native --lib chart_ --locked -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-protocol --test chart_view --locked -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy -p gpuio-native \
+  --features native-canvas-tests --all-targets --locked -j2 -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build @runtest examples/charts/main.exe -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build @fmt -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native \
+  --features native-canvas-tests --test native_chart_input --test native_chart_view --locked -j2
+./_build/default/examples/charts/main.exe --self-test --foreground
+python3 scripts/test_charts.py --input
+```
+
+The final self-test also passes all seven families/reset epochs/frame callback/
+scoped release. All owned GUI children are reaped. Native and public input stages
+are added to the macOS workflow, but consolidated hosted execution remains
+pending. No Linux GUI acceptance or completed chart capability is claimed.
+
 ## Completion still required
 
 Extend resource/lifecycle acceptance to multiple windows, managed-list caching
 and sustained streaming, including aggregate frame accounting for reused draw
-commands. Implement semantic selection/hover/drag and tooltips,
-keyboard/AX/data alternatives and malformed/empty/degenerate public examples.
-Complete the Chart Studio presentation, measure actual streaming CPU/frame/queue/
-retained-memory behavior on named hardware, and integrate a chart into OCH-29
-alongside its distinct canvas/independent-extension requirements.
+commands. Complete keyboard/AX/data alternatives including original values that
+have no painted mark, non-color distinctions, real dense-legend wheel checks and
+malformed/empty/degenerate/mixed public examples. Complete the Chart Studio
+presentation, measure actual streaming CPU/frame/queue/retained-memory behavior
+on named hardware, and integrate a chart into OCH-29 alongside its distinct
+canvas/independent-extension requirements.

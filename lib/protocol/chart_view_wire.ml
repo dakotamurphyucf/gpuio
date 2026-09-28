@@ -8,6 +8,7 @@ module Config = struct
     ; sampling : Chart_sampling_wire.t
     ; style : Chart_style_wire.t
     ; legend : bool
+    ; disabled : bool
     }
   [@@deriving bin_io, equal, sexp_of]
 

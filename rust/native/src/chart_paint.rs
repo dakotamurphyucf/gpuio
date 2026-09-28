@@ -115,6 +115,7 @@ struct Quad {
 pub struct Prepared {
     geometry: geometry::Plan,
     hit_index: crate::chart_hit::Index,
+    stable_index: crate::chart_selection::StableIndex,
     meshes: Vec<MeshDraw>,
     quads: Vec<Quad>,
     draws: Vec<Draw>,
@@ -124,6 +125,15 @@ impl Prepared {
     pub fn geometry(&self) -> &geometry::Plan {
         &self.geometry
     }
+    pub fn hit_index(&self, point: geometry::Point) -> Option<usize> {
+        self.hit_index.query(&self.geometry, point, true)
+    }
+    pub fn selection_index(
+        &self,
+        selection: gpuio_protocol::chart_selection::Selection,
+    ) -> Option<usize> {
+        self.stable_index.find(selection)
+    }
     pub fn hit_test(&self, point: geometry::Point) -> Option<&geometry::Mark> {
         self.hit_index
             .query(&self.geometry, point, true)
@@ -132,6 +142,7 @@ impl Prepared {
     pub fn retained_bytes(&self) -> usize {
         size_of::<Self>()
             + self.hit_index.retained_bytes()
+            + self.stable_index.retained_bytes()
             + self.geometry.retained_bytes()
             + self.meshes.capacity() * size_of::<MeshDraw>()
             + self
@@ -665,9 +676,18 @@ pub fn prepare(
         crate::chart_hit::Error::InvalidGeometry => Error::InvalidInput,
         crate::chart_hit::Error::LimitExceeded => Error::RenderLimit,
     })?;
+    let stable_index = crate::chart_selection::StableIndex::prepare(
+        data, &policy, &geometry, cancel,
+    )
+    .map_err(|error| match error {
+        crate::chart_selection::IndexError::Cancelled => Error::Cancelled,
+        crate::chart_selection::IndexError::InvalidSource => Error::InvalidInput,
+        crate::chart_selection::IndexError::LimitExceeded => Error::RenderLimit,
+    })?;
     let prepared = Prepared {
         geometry,
         hit_index,
+        stable_index,
         meshes: build.meshes,
         quads: build.quads,
         draws: build.draws,

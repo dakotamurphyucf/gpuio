@@ -32,6 +32,7 @@ let () =
     let family = B.Expert.Var.create 0 in
     let handle = B.Expert.Var.create None in
     let status = B.Expert.Var.create "Preparing your workspace" in
+    let selection = B.Expert.Var.create None in
     let registration = ref None in
     let observation = ref None in
     let phase = ref 0. in
@@ -39,28 +40,41 @@ let () =
       Option.iter !registration ~f:(fun chart ->
         Registered.reset chart (Gallery.data n !phase) |> checked);
       observation := None;
+      B.Expert.Var.set selection None;
       B.Expert.Var.set family n;
       B.Expert.Var.set status "Updating chart"
     in
     let on_event (event : Chart.Event.t) =
       E.of_thunk (fun () ->
-        observation := Some event;
         match event.observation with
-        | Selection_changed _ -> ()
+        | Selection_changed target ->
+          let description =
+            Option.bind !registration ~f:(fun chart ->
+              if Registered.is_published chart
+              then
+                Option.bind (Registered.data chart) ~f:(fun data ->
+                  Option.bind target ~f:(Gallery.describe_selection data))
+              else None)
+          in
+          B.Expert.Var.set selection description
         | Failed error ->
+          observation := Some event;
           B.Expert.Var.set status (Sexp.to_string_hum [%sexp (error : Chart.Error.t)])
         | Ready metrics ->
+          observation := Some event;
           B.Expert.Var.set
             status
             (sprintf
                "%s values · native rendering"
                (Int.to_string_hum metrics.source_values)))
     in
+    let clear_selection () = B.Expert.Var.set selection None in
     let component _window _graph =
       let open B.Let_syntax in
       let%arr family = B.Expert.Var.value family
       and handle = B.Expert.Var.value handle
-      and status = B.Expert.Var.value status in
+      and status = B.Expert.Var.value status
+      and selection = B.Expert.Var.value selection in
       let button label ~selected f =
         V.button
           label
@@ -128,6 +142,14 @@ let () =
                 ; text ~size:12. ~tint:0x72d8c4 Gallery.names.(family)
                 ]
             ; chart
+            ; text
+                ~size:12.
+                ~tint:0xa3e7df
+                (Option.value_map
+                   selection
+                   ~default:
+                     "Select a value · Click or use arrows, then Enter · Escape clears"
+                   ~f:(fun label -> "Selected: " ^ label))
             ; V.row
                 ~style:
                   (style
@@ -135,6 +157,7 @@ let () =
                 [ text ~size:12. status
                 ; button "Update data ↗" ~selected:false (fun () ->
                     phase := !phase +. 1.;
+                    clear_selection ();
                     Option.iter !registration ~f:(fun chart ->
                       Registered.set chart (Gallery.data family !phase) |> checked))
                 ]

@@ -12,6 +12,7 @@ fn config() -> Config {
         source: Some(ResourceId::from_parts(0, 1).unwrap()),
         label: "Diagram".into(),
         legend: true,
+        disabled: false,
         options: Default::default(),
         sampling: Default::default(),
         style: Default::default(),

@@ -190,6 +190,7 @@ mod tests {
             sampling: Default::default(),
             style: Default::default(),
             legend: true,
+            disabled: false,
         }
     }
     #[test]

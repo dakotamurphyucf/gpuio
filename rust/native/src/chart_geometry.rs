@@ -168,12 +168,23 @@ impl Domain {
         result
     }
 }
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Summary {
+    Bar(f64),
+    Candle {
+        open: f64,
+        high: f64,
+        low: f64,
+        close: f64,
+    },
+}
 #[derive(Debug)]
 pub struct Plan {
     pub width: f64,
     pub height: f64,
     pub paths: Vec<Path>,
     pub marks: Vec<Mark>,
+    pub summaries: Vec<(usize, Summary)>,
     pub labels: Vec<Label>,
     pub grid: Vec<(Point, Point)>,
     pub x_domain: Option<Domain>,
@@ -182,6 +193,12 @@ pub struct Plan {
     pub rendered_values: usize,
 }
 impl Plan {
+    pub fn summary(&self, mark: usize) -> Option<Summary> {
+        self.summaries
+            .binary_search_by_key(&mark, |(i, _)| *i)
+            .ok()
+            .map(|i| self.summaries[i].1)
+    }
     pub fn retained_bytes(&self) -> usize {
         size_of::<Self>()
             + self.paths.capacity() * size_of::<Path>()
@@ -191,6 +208,7 @@ impl Plan {
                 .map(|p| p.commands.capacity() * size_of::<Command>())
                 .sum::<usize>()
             + self.marks.capacity() * size_of::<Mark>()
+            + self.summaries.capacity() * size_of::<(usize, Summary)>()
             + self.labels.capacity() * size_of::<Label>()
             + self.labels.iter().map(|l| l.text.capacity()).sum::<usize>()
             + self.grid.capacity() * size_of::<(Point, Point)>()
@@ -442,6 +460,10 @@ fn cartesian(
                 let offset = (bar_index as f64 - (bars - 1) as f64 / 2.) * bar_width;
                 for (i, b) in values.iter().enumerate() {
                     checkpoint(i, cancel)?;
+                    if b.source.len() > 1 {
+                        plan.summaries
+                            .push((plan.marks.len(), Summary::Bar(b.value)));
+                    }
                     plan.marks.push(Mark {
                         layer: series,
                         source: Source::Cartesian {
@@ -641,6 +663,17 @@ fn candles(
         let center = c.category(candle.x);
         let half = slot * options.candlestick.body_width / 2.;
         let y = |v| c.height - c.y.unit(v) * c.height;
+        if candle.source.len() > 1 {
+            plan.summaries.push((
+                plan.marks.len(),
+                Summary::Candle {
+                    open: candle.open,
+                    high: candle.high,
+                    low: candle.low,
+                    close: candle.close,
+                },
+            ));
+        }
         plan.marks.push(Mark {
             layer: 0,
             source: Source::Candle(candle.source),
@@ -803,6 +836,7 @@ pub fn prepare(
         height,
         paths: vec![],
         marks: Vec::with_capacity(reduction.rendered_values),
+        summaries: vec![],
         labels: vec![],
         grid: vec![],
         x_domain: None,

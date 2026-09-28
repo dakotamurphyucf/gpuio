@@ -172,6 +172,7 @@ impl Manager {
         if item.table.as_ref().is_some_and(|config| config.disabled)
             || item.carousel.as_ref().is_some_and(|config| config.disabled)
             || item.canvas.as_ref().is_some_and(|config| config.disabled)
+            || item.chart.as_ref().is_some_and(|config| config.disabled)
             || item
                 .extension
                 .as_ref()

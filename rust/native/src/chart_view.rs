@@ -9,7 +9,11 @@ use gpuio_protocol::{
     chart_view::{Config, Error, Metrics, Observation},
 };
 
+#[path = "chart_input.rs"]
+mod input;
+
 pub(super) struct State {
+    input: input::Input,
     node: NodeId,
     window: WindowId,
     config: Arc<Config>,
@@ -66,7 +70,10 @@ impl State {
             self.emit(revision, generation, Observation::Failed(error), cx);
         }
     }
-    fn suspend(&mut self) {
+    fn suspend(&mut self, window: &mut Window) {
+        self.cancel_input(window);
+        self.input.clear_selection();
+        self.input.token = Rc::new(());
         self.job = None;
         self.requested = None;
         self.requested_frame = None;
@@ -78,13 +85,15 @@ impl State {
         self.reported_ready = None;
         self.reported_failure = None;
     }
-    pub(super) fn close(&mut self) {
+    pub(super) fn close(&mut self, window: &mut Window) {
         self.closed = true;
-        self.suspend();
+        self.suspend(window);
     }
-    fn configure(&mut self, node: &crate::tree::Node, revision: i64) {
+    fn configure(&mut self, node: &crate::tree::Node, revision: i64, window: &mut Window) {
         let config = node.chart.as_ref().expect("validated chart");
         if self.handler != node.handler || self.config != *config {
+            self.cancel_input(window);
+            self.input.token = Rc::new(());
             self.reported_ready = None;
             self.reported_failure = None;
         }
@@ -94,7 +103,7 @@ impl State {
     }
     /// Polling the live lease also fences a completion delivered in the same UI
     /// turn as a release/reset; source notifications provide immediate idle cleanup.
-    fn refresh_source(&mut self) -> Option<Arc<crate::chart_store::Snapshot>> {
+    fn refresh_source(&mut self, window: &mut Window) -> Option<Arc<crate::chart_store::Snapshot>> {
         if self.closed {
             return None;
         }
@@ -112,6 +121,8 @@ impl State {
                 .is_none_or(|new| !Arc::ptr_eq(new, &old.snapshot))
         });
         if changed {
+            self.cancel_input(window);
+            self.input.token = Rc::new(());
             self.job = None;
             self.requested = None;
             self.requested_frame = None;
@@ -123,6 +134,7 @@ impl State {
                 .as_ref()
                 .is_none_or(|new| new.generation() != old.snapshot.generation())
         }) {
+            self.input.clear_selection();
             self.ready = None;
             self.ready_frame = None;
             self.legend_scroll.set_offset(Default::default());
@@ -134,7 +146,7 @@ impl State {
         snapshot
     }
     fn prepare(&mut self, total: paint::Layout, window: &mut Window, cx: &mut App) {
-        let Some(snapshot) = self.refresh_source() else {
+        let Some(snapshot) = self.refresh_source(window) else {
             self.report(
                 0,
                 0,
@@ -199,10 +211,23 @@ impl State {
             }
         }
     }
-    fn poll_ready(&mut self) {
+    fn poll_ready(&mut self, window: &mut Window) {
         if let Some(result) = self.job.as_ref().and_then(renderer::Handle::take_ready) {
             match result {
                 Ok(ready) => {
+                    self.cancel_input(window);
+                    self.input.token = Rc::new(());
+                    self.input.selected_index = self
+                        .input
+                        .selected
+                        .and_then(|selected| ready.plan.selection_index(selected));
+                    self.input.selected = self.input.selected_index.and_then(|index| {
+                        crate::chart_selection::resolve(
+                            ready.snapshot.data(),
+                            &ready.config.sampling,
+                            ready.plan.geometry().marks[index].source,
+                        )
+                    });
                     self.ready = Some(ready);
                     self.ready_frame = self.requested_frame;
                     self.reported_ready = None;
@@ -374,11 +399,16 @@ fn job_error(error: jobs::Error) -> Error {
     }
 }
 impl View {
-    pub(super) fn sync_charts(&mut self, dirty: &[NodeId]) {
+    pub(super) fn sync_charts(
+        &mut self,
+        dirty: &[NodeId],
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let session = self.session.borrow();
         let Some(tree) = session.tree(self.id) else {
             for state in self.charts.values() {
-                state.borrow_mut().close();
+                state.borrow_mut().close(window);
             }
             self.charts.clear();
             return;
@@ -389,7 +419,7 @@ impl View {
                 .and_then(|n| n.chart.as_ref())
                 .is_some_and(|config| config.source == state.borrow().config.source);
             if !keep {
-                state.borrow_mut().close();
+                state.borrow_mut().close(window);
             }
             keep
         });
@@ -400,7 +430,8 @@ impl View {
             self.charts
                 .entry(*id)
                 .or_insert_with(|| {
-                    Rc::new(RefCell::new(State {
+                    let state = Rc::new(RefCell::new(State {
+                        input: input::Input::new(self.focus.clone(), cx),
                         node: *id,
                         window: self.id,
                         config: node.chart.clone().unwrap(),
@@ -419,35 +450,40 @@ impl View {
                         closed: false,
                         transport: Arc::downgrade(&self.transport),
                         session: Rc::downgrade(&self.session),
-                    }))
+                    }));
+                    input::install_blur(&state, window, cx);
+                    state
                 })
                 .borrow_mut()
-                .configure(node, tree.revision());
+                .configure(node, tree.revision(), window);
         }
         for (id, state) in &self.charts {
             if !self.focus.borrow().visible(*id) {
-                state.borrow_mut().suspend();
+                state.borrow_mut().suspend(window);
+            } else if !self.focus.borrow().allows(*id) || !pointer_enabled(tree, *id) {
+                state.borrow_mut().cancel_input(window);
             }
         }
     }
-    pub(super) fn hide_unvisited_charts(&self) {
+    pub(super) fn hide_unvisited_charts(&self, window: &mut Window) {
         for (id, state) in &self.charts {
             if !self.visited.contains(id) {
-                state.borrow_mut().suspend();
+                state.borrow_mut().suspend(window);
             }
         }
     }
     pub(super) fn charts_changed(
         &self,
         source: Option<ResourceId>,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
         let mut changed = false;
         for (id, state) in &self.charts {
             let mut state = state.borrow_mut();
             if source.is_none() || state.config.source == source {
-                state.refresh_source();
-                state.poll_ready();
+                state.refresh_source(window);
+                state.poll_ready(window);
                 self.invalidate_resource_row(*id);
                 changed = true;
             }
@@ -469,29 +505,33 @@ impl View {
             .id(("gpuio-chart", identity))
             .role(gpui::Role::Group)
             .aria_label(config.label.clone());
-        let (element, _) = apply_styles(element, &node.style, interaction, false);
+        let (element, _) = apply_styles(element, &node.style, interaction, config.disabled);
         let Some(state) = self.charts.get(&node.id).cloned() else {
             return element.into_any_element();
         };
         let text = state.borrow().text_element(identity);
+        let overlay = state.borrow().input_overlay();
+        let element = input::keyboard(element, state.clone());
+        let prepaint = state.clone();
         let budget = self.chart_budget.clone();
-        element
+        let element = element
             .relative()
             .overflow_hidden()
             .child(
                 canvas(
-                    |_, _, _| (),
-                    move |bounds, _, window, cx| {
+                    move |bounds, window, _| input::prepaint(&prepaint, bounds, window),
+                    move |bounds, hitbox, window, cx| {
                         if bounds.size.width <= px(0.)
                             || bounds.size.height <= px(0.)
                             || !bounds.intersects(&window.content_mask().bounds)
                         {
-                            state.borrow_mut().suspend();
+                            state.borrow_mut().suspend(window);
                             return;
                         }
                         state
                             .borrow_mut()
                             .paint(bounds, &mut budget.borrow_mut(), window, cx);
+                        input::paint(&state, hitbox, window);
                     },
                 )
                 .absolute()
@@ -500,7 +540,17 @@ impl View {
                 .size_full(),
             )
             .children(text)
-            .into_any_element()
+            .children(overlay);
+        crate::semantics::State {
+            hidden: false,
+            metadata: None,
+            element,
+            disabled: config.disabled,
+            read_only: false,
+            modal: false,
+            live: None,
+        }
+        .into_any_element()
     }
 }
 
