@@ -11,6 +11,7 @@ import tempfile
 import time
 from test_signal_studio import Studio, TITLE
 from test_canvas import screenshot
+from test_agent_chat import Mac
 
 
 def pids_for(executable):
@@ -48,6 +49,7 @@ def exercise(output):
         log.write_text('')
         proxy = None
         mac = None
+        finder = None
 
         def wait(marker, count=1):
             end = time.monotonic() + 20
@@ -94,6 +96,8 @@ def exercise(output):
             mac.wait_text(TITLE, 'Atlas · latency 769 ms · quality 89%')
             mac.press(TITLE, 'Reset workspace')
             mac.wait_text(TITLE, 'Increment counter, current value 0')
+            mac.press(TITLE, 'Reveal file')
+            wait('Save a workspace before revealing it.')
             mac.press(TITLE, 'Increment counter, current value 0')
             mac.wait_text(TITLE, 'Increment counter, current value 1')
             mac.press(TITLE, 'Save workspace')
@@ -120,17 +124,38 @@ def exercise(output):
             mac.wait_text(TITLE, 'Increment counter, current value 1')
             mac.wait_text(TITLE, 'Saved workspace')
             screenshot(mac, output / 'loaded.png', title=TITLE)
+            mac.press(TITLE, 'Reveal file')
+            wait('Reveal requested.')
+            finder_pids = pids_for(Path('/System/Library/CoreServices/Finder.app/Contents/MacOS/Finder'))
+            assert len(finder_pids) == 1, finder_pids
+            finder = Mac(finder_pids[0])
+            node = finder.wait_find(fixture.name, 'workspace', contains=True, search_files=True)
+            finder.release(node)
+            # Only the uniquely named disposable directory belongs to this test.
+            finder.close(fixture.name)
+            finder.release(finder.app)
+            finder = None
+            mac.set(mac.app, 'AXFrontmost', mac.true)
+            mac.wait_text(TITLE, 'Increment counter, current value 1')
             assert pids_for(executable) == pids
             mac.press(TITLE, 'Quit Studio')
             assert proxy.wait(timeout=15) == 0
             assert not pids_for(executable)
-            print('SIGNAL_DESKTOP_OK: packaged cold/warm/rejected links, same-process reopen, native save/open pickers, Eio persistence, dirty/open guard, restored model and shutdown', flush=True)
+            print('SIGNAL_DESKTOP_OK: packaged cold/warm/rejected links, same-process reopen, native save/open pickers, Eio persistence, dirty/open guard, actual Finder reveal, unsaved reveal fallback, restored model and shutdown', flush=True)
         except BaseException:
             if mac and mac.has_window(TITLE):
                 mac.dump(TITLE)
                 screenshot(mac, output / 'failure.png', title=TITLE)
             raise
         finally:
+            if finder:
+                try:
+                    window = finder.window(fixture.name)
+                    if window:
+                        finder.release(window)
+                        finder.close(fixture.name)
+                finally:
+                    finder.release(finder.app)
             if mac:
                 mac.release(mac.app)
             for pid in pids_for(executable):

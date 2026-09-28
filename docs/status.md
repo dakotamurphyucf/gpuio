@@ -61,7 +61,9 @@ persistence also pass, including native edited/file metadata and delayed-operati
 races. Combined notification actions, current-window reopen, replacement, streamed
 completion, dismissal and quit cleanup pass in a real local macOS bundle; five
 controlled expect tests and an actual unbundled fallback cover unavailable and
-late-event behavior. Dedicated motion/workload checks, Linux builds and
+late-event behavior. Actual Finder reveal and missing-file model preservation
+pass, as do Full/Reduce spring geometry/interruption, ordered native sequence
+stages, synchronized activity pixels and paused paint. Resource/lifetime checks, Linux builds and
 consolidated hosted gates remain; see [Signal Studio](design/signal-studio.md).
 The detailed entries below record implementation checkpoints chronologically;
 their earlier pending-gate statements are superseded by this delivery record.

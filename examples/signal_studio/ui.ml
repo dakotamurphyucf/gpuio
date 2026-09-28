@@ -47,7 +47,7 @@ module Actions = struct
     ; enable_alerts : unit Bonsai.Effect.t
     ; notify_run : unit Bonsai.Effect.t
     ; dismiss_alert : unit Bonsai.Effect.t
-    ; on_motion : Gpuio.Animation.Program.Event.t -> unit Bonsai.Effect.t
+    ; on_motion : name:string -> Gpuio.Animation.Program.Event.t -> unit Bonsai.Effect.t
     }
 end
 
@@ -82,7 +82,7 @@ let target property value = A.Target.create [ property, value ] |> ok
 let stage timing value = A.Stage.create ~timing ~target:value () |> ok
 let tween ms = A.Timing.tween ~easing:A.Easing.ease_out (Time_ns.Span.of_ms ms) |> ok
 
-let indicator ~name ~running =
+let indicator ~name ~label ~running =
   let program =
     A.Program.create
       ~initial:(target Opacity 1.)
@@ -95,7 +95,15 @@ let indicator ~name ~running =
   V.animate_program
     ~key:(key name)
     program
-    [ text ~size:11. ~tint:0x73dcc1 (if running then "●  UPDATING" else "●  READY") ]
+    [ V.with_accessibility
+        (text ~size:11. ~tint:0x73dcc1 (if running then "●  UPDATING" else "●  READY"))
+        (Gpuio.Accessibility.create
+           ~label
+           ~description:(if running then "Updating" else "Ready")
+           ()
+         |> ok)
+      |> ok
+    ]
 ;;
 
 let inspector snapshot actions =
@@ -129,7 +137,7 @@ let inspector snapshot actions =
   in
   V.animate_program
     ~key:(key "inspector-spring")
-    ~on_event:actions.Actions.on_motion
+    ~on_event:(actions.Actions.on_motion ~name:"inspector")
     ~style:(style [ Width full; Overflow_y Hidden; Shrink 0. ])
     program
     [ V.panel
@@ -212,7 +220,10 @@ let body snapshot actions ~compact =
       [ V.row
           ~style:(style [ Justify_content Space_between; Align_items Center ])
           [ text ~size:15. ~tint:0xeaf2f9 "Quality × latency"
-          ; indicator ~name:"canvas-live" ~running:snapshot.running
+          ; indicator
+              ~name:"canvas-live"
+              ~label:"Canvas activity"
+              ~running:snapshot.running
           ]
       ; canvas
       ; text ~size:11. "Drag to explore · Scroll to pan · Ctrl + scroll to zoom"
@@ -226,7 +237,10 @@ let body snapshot actions ~compact =
           [ V.row
               ~style:(style [ Justify_content Space_between; Align_items Center ])
               [ text ~size:15. ~tint:0xeaf2f9 "Signal history"
-              ; indicator ~name:"chart-live" ~running:snapshot.running
+              ; indicator
+                  ~name:"chart-live"
+                  ~label:"Chart activity"
+                  ~running:snapshot.running
               ]
           ; chart
           ]
@@ -240,7 +254,13 @@ let body snapshot actions ~compact =
     ~style:
       (style
          [ Gap (px 14.); Align_items Start; Overflow_y Scroll; Height full; Width full ])
-    [ plot; side ]
+    [ plot
+    ; V.with_accessibility
+        side
+        (Gpuio.Accessibility.create ~role:Group ~label:"Signal history and inspector" ()
+         |> ok)
+      |> ok
+    ]
 ;;
 
 let alerts_panel snapshot (actions : Actions.t) =
@@ -396,7 +416,7 @@ let view snapshot (actions : Actions.t) =
       |> ok
     ; V.animate_program
         ~key:(Gpuio.Key.of_int run)
-        ~on_event:actions.on_motion
+        ~on_event:(actions.on_motion ~name:"run")
         sequence
         [ text ~size:12. ~tint:0x73dcc1 (sprintf "RUN %02d  /  %s" run snapshot.status) ]
     ; text ~size:11. "Simulated data · Built with OCaml, Bonsai and GPUI"

@@ -43,7 +43,7 @@ module Actions : sig
     ; enable_alerts : unit Bonsai.Effect.t
     ; notify_run : unit Bonsai.Effect.t
     ; dismiss_alert : unit Bonsai.Effect.t
-    ; on_motion : Gpuio.Animation.Program.Event.t -> unit Bonsai.Effect.t
+    ; on_motion : name:string -> Gpuio.Animation.Program.Event.t -> unit Bonsai.Effect.t
     }
 end
 

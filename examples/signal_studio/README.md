@@ -24,6 +24,9 @@ share a native animation clock. The component can be locked, hidden or remounted
 by resetting the workspace. Native canvas/chart handles belong to the application
 scope and survive responsive branch changes. OCaml stores accepted point
 positions; pan/zoom stay in the native view.
+Motion follows the system preference by default. `--full-motion` and
+`--reduced-motion` provide explicit application overrides without changing OS
+preferences; `--motion-check` logs native stage/completion observations for checks.
 
 `Save workspace` and `Open workspace` use native file panels and Eio I/O. Saves
 atomically replace the chosen file with the submitted workspace snapshot; edits
@@ -54,7 +57,7 @@ quitting cleans up the application's notification service. Unbundled macOS and
 unavailable or denied services keep an in-app result instead. macOS notifications
 require the packaged application identity, as used by the walkthrough below.
 
-Dedicated motion/resource workloads and final platform gates remain in progress.
+Resource/lifetime workloads and final platform gates remain in progress.
 See [design and acceptance](../../docs/design/signal-studio.md).
 
 ## Local checks
@@ -64,6 +67,7 @@ GPUIO_JOBS=2 ./scripts/gpuio exec dune build examples/signal_studio/main.exe @ex
 ./scripts/gpuio exec dune exec examples/signal_studio/main.exe -- --self-test
 python3 scripts/test_signal_studio.py --output scratch/signal-studio
 python3 scripts/test_signal_desktop.py --output scratch/signal-desktop
+python3 scripts/test_signal_motion.py --output scratch/signal-motion
 python3 scripts/test_signal_notifications.py --output scratch/signal-notifications
 GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example signal_studio --run
 ```
@@ -84,7 +88,17 @@ The desktop walkthrough creates and removes a disposable application bundle,
 checks actual Launch Services cold/warm delivery and same-process window reopen,
 and drives real save/open panels. It also runs a document self-test with native
 edited/file metadata assertions, delayed-load races, busy admission, reset fencing,
-and invalid-load preservation. Its files stay inside the disposable fixture.
+and invalid/missing-load preservation. Finder reveal is checked against only the
+disposable directory window, which is closed afterward. macOS's reveal API
+acknowledges submission; it cannot certify that a missing file was selected.
+Its files stay inside the disposable fixture.
+
+The motion walkthrough measures actual inspector heights through spring
+collapse/expansion/reversal, ordered native run-sequence stages, and painted
+activity intensity from both labels in the same window capture. Full motion
+changes their intensity together; reduced motion holds both at the initial
+value. Paused indicators stop changing. It also resizes across both layouts and
+checks retained run/control state. Each child is terminated and reaped on failure.
 
 The notification walkthrough ad hoc signs a disposable app bundle and exercises
 real Notification Center actions, replacement, stream completion, dismissal and

@@ -36,6 +36,15 @@ let identity =
 
 let main () =
   let self_test = Array.exists (Sys.get_argv ()) ~f:(String.equal "--self-test") in
+  let flag name = Array.exists (Sys.get_argv ()) ~f:(String.equal name) in
+  let motion =
+    match flag "--full-motion", flag "--reduced-motion" with
+    | true, true -> failwith "Choose only one motion override"
+    | true, false -> Gpuio.Animation.Preference.Full
+    | false, true -> Reduce
+    | false, false -> System
+  in
+  let trace_motion = flag "--motion-check" in
   let document_path =
     Array.find_map (Sys.get_argv ()) ~f:(String.chop_prefix ~prefix:"--document-path=")
     |> Option.map ~f:(fun path -> Gpuio.File_path.of_string path |> ok)
@@ -63,7 +72,7 @@ let main () =
     in
     List.filter_map before ~f:(String.chop_prefix ~prefix:"--open-uri=") @ trailing
   in
-  (App.run_desktop identity ~startup_links ~exit_on_last_window (fun env app ->
+  (App.run_desktop identity ~motion ~startup_links ~exit_on_last_window (fun env app ->
      let initial = W.create () in
      let state =
        B.Expert.Var.create
@@ -316,7 +325,17 @@ let main () =
            with_alerts (fun alerts ->
              Alerts.notify alerts ~run:(W.run (B.Expert.Var.get state).workspace))
        ; dismiss_alert = with_alerts Alerts.dismiss
-       ; on_motion = (fun _ -> E.of_thunk (fun () -> incr motion_events))
+       ; on_motion =
+           (fun ~name event ->
+             E.of_thunk (fun () ->
+               incr motion_events;
+               if trace_motion
+               then
+                 emit
+                   (sprintf
+                      "motion %s %s"
+                      name
+                      (Sexp.to_string ([%sexp_of: Gpuio.Animation.Program.Event.t] event)))))
        }
      in
      let component _window _graph =
@@ -592,6 +611,17 @@ let main () =
                on_ui (Documents.load_path document_controller path);
                wait_document document_controller;
                ui (fun () -> assert (W.run (B.Expert.Var.get state).workspace = 10));
+               Eio.Path.unlink
+                 Eio.Path.(Eio.Stdenv.fs env / Gpuio.File_path.to_string path);
+               on_ui (Documents.load_path document_controller path);
+               wait_document document_controller;
+               ui (fun () ->
+                 assert (W.run (B.Expert.Var.get state).workspace = 10);
+                 assert (
+                   String.equal
+                     (B.Expert.Var.get state).status
+                     "Could not load the workspace."));
+               emit "missing-file load preserves workspace";
                emit
                  "document snapshot, metadata, concurrent-edit, reset, invalid-load and \
                   busy checks passed");

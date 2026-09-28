@@ -2,8 +2,8 @@
 
 Status: OCH-29 in progress. The pure workspace model and combined canvas/chart/
 component application pass local macOS checks. Packaged links/reopen and Eio
-documents and packaged OS notifications now pass combined-app checks. Dedicated
-motion/workload acceptance and consolidated hosted gates remain pending. The existing
+documents, packaged OS notifications and full/reduced motion now pass combined-app
+checks. Repeated lifecycle/workload acceptance and consolidated hosted gates remain pending. The existing
 agent-chat example stays intact. This is a focused model-evaluation plotting
 workbench, not a complete diagramming product or scientific environment.
 
@@ -80,8 +80,8 @@ policy must settle appropriately; no per-frame OCaml animation callback is added
 | Independent component | Combined-app style, pointer/key/AX, commands/events, hide/remount and disposal | Combined style, AX/key, disabled pointer, events and hide/remount pass; explicit package command/repeated disposal checks remain |
 | Clean consumer | Staged installed libraries, separate component, locked generated backend; macOS run and Linux build | Fresh macOS consumer build/self-test passes; Linux hosted build pending |
 | Responsive layout | Real resize across breakpoint; retained state and only active branch exposed to input/AX | Wide/compact/wide resize retains run and moved sample; explicit inactive-branch/motion checks remain |
-| Springs, sequences, synchronized indicators | Native geometry/phase and reduced-motion checks in combined app | Pending |
-| Documents and files | Eio save/load round trip; dirty metadata; actual OS file actions and typed unsupported behavior | Real macOS Save/Open panels, Eio round trip, exact native dirty/file metadata and concurrency/error checks pass; combined Reveal/unavailable checks remain |
+| Springs, sequences, synchronized indicators | Native geometry/phase and reduced-motion checks in combined app | Full/Reduce actual spring heights/interruption, ordered native stages, synchronized painted intensity and paused paint pass locally |
+| Documents and files | Eio save/load round trip; dirty metadata; actual OS file actions and typed unsupported behavior | Real macOS Save/Open panels and Finder reveal, unsaved reveal fallback, Eio round trip, native dirty/file metadata and concurrency/invalid/missing-file preservation pass; Linux unsupported metadata/private-bus evidence remains separate |
 | Deep links/reopen | Packaged cold/warm OS delivery and current-window selection/focus | Local packaged startup/cold/warm/invalid links and same-process reopen pass |
 | OS notifications | Packaged action/receipt routing; denied/unavailable fallback; stale-window handling | Real macOS named/default actions, same-process reopen, replacement, stream completion, dismissal and quit cleanup pass; five pure expect tests and real unbundled fallback pass; first-time permission on a fresh hosted runner pending |
 | Workloads and lifetime | Named hardware, native resources/queue charges, repeated window/resource cleanup | Pending |
@@ -127,8 +127,8 @@ left drag to a right-click. No canvas production change was needed.
 The public `--self-test` checks resource publication, semantic command completion,
 render callback and zero OCaml canvas/chart registration charges after release.
 This is not yet the repeated lifecycle/performance workload. Dedicated native
-phase/geometry/reduced-motion checks also remain required; merely declaring the
-spring, sequence and shared clock does not satisfy that acceptance row.
+phase/geometry/reduced-motion evidence is now recorded below; declarations alone
+do not satisfy that acceptance row.
 
 ## Document and desktop checkpoint
 
@@ -164,8 +164,13 @@ readiness, unknown-sample rejection, same-process close/reopen, native Save/Open
 panels, dirty-state open guard and restored run/component state. The script owns
 its launch proxy, cleans up only the exact bundle's processes, unregisters the
 bundle, and retains logs/screenshots in the specified output directory. The
-actual combined-app Reveal result and remaining matrix
-rows are still outstanding. Linux build and desktop-entry generation are separate
+same walkthrough now checks real Finder visibility for the uniquely named
+disposable directory and closes only that window. Unsaved reveal keeps an in-app
+message; missing-file load preserves the model and reports failure. An attempted
+missing-file reveal check confirmed the documented macOS contract: AppKit has no
+completion result, so submission succeeds even when the path has disappeared.
+The test does not misreport that as visible selection or unavailable detection.
+Linux build and desktop-entry generation are separate
 from Linux GUI acceptance, which remains under OCH-17.
 
 ## Run notifications checkpoint
@@ -197,3 +202,27 @@ input/resize/streaming. Current retained packaged evidence starts with previousl
 authorized permission; first-time permission on a fresh hosted runner remains
 unverified. The required macOS workflow includes both this combined-app check and
 the separate notification-service walkthrough. Hosted results remain pending.
+
+## Combined motion checkpoint
+
+The app defaults to `Animation.Preference.System`; explicit `--full-motion` and
+`--reduced-motion` options override only this application. `--motion-check` logs
+bounded stage/completion observations by source, without per-frame OCaml callbacks.
+The inspector region and two activity labels have named accessibility metadata.
+
+`python3 scripts/test_signal_motion.py` passes on local macOS in both policies.
+The inspector region changes by exactly 172 logical pixels; Full traverses
+intermediate heights and settles after reversal, while Reduce uses only accepted
+endpoints. A queued AX press may briefly expose the previous layout before the
+application processes it. Hidden inspector controls disappear from accessibility.
+The keyed run sequence reports ordered stages 0 and 1 plus completion, with
+`Played` versus `Reduced_motion` outcomes from the actual native painter.
+
+Eight owned-window captures compare both labels in each frame. Full-mode green
+intensity changes together (local retained sample spans 99–218, equal pairs);
+Reduce stays at 221 for both labels in all eight captures. After streaming ends,
+two captures show identical paused-label pixels. These measurements check shared
+painted phase, not frame rate or input latency. Wide/compact/wide resize retains
+run 13 and inspector controls. Logs, captured images and raw height/intensity
+samples are retained by the script; required macOS CI now includes it. Resource
+workloads and explicit repeated extension disposal remain separate acceptance.
