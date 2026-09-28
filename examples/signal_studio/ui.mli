@@ -14,6 +14,7 @@ module Snapshot : sig
     ; extension_generation : int64
     ; extension_disabled : bool
     ; extension_visible : bool
+    ; documents : Documents.State.t
     }
 end
 
@@ -30,6 +31,10 @@ module Actions : sig
     ; lock_control : unit Bonsai.Effect.t
     ; hide_control : unit Bonsai.Effect.t
     ; on_layout : Gpuio.Container_query.Selection.t -> unit Bonsai.Effect.t
+    ; open_document : unit Bonsai.Effect.t
+    ; save_document : unit Bonsai.Effect.t
+    ; reveal_document : unit Bonsai.Effect.t
+    ; quit : unit Bonsai.Effect.t
     ; on_motion : Gpuio.Animation.Program.Event.t -> unit Bonsai.Effect.t
     }
 end

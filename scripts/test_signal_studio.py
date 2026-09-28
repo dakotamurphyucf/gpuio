@@ -13,8 +13,8 @@ TITLE = 'GPUIO · Signal Studio'
 
 
 class Studio(Outline):
-    def __init__(self, child, log_path):
-        super().__init__(child.pid, child)
+    def __init__(self, child, log_path, *, pid=None):
+        super().__init__(child.pid if pid is None else pid, child)
         self.log_path = log_path
 
     def wait_log(self, text, count=1):
@@ -186,7 +186,7 @@ def main():
     args.output.mkdir(parents=True, exist_ok=True)
     path = args.output / 'application.log'
     with path.open('w') as log:
-        child = subprocess.Popen(['_build/default/examples/signal_studio/main.exe'], stdout=log, stderr=subprocess.STDOUT)
+        child = subprocess.Popen(['_build/default/examples/signal_studio/main.exe', '--exit-on-close'], stdout=log, stderr=subprocess.STDOUT)
         mac = None
         try:
             signal.alarm(120)

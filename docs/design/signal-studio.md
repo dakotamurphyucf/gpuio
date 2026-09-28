@@ -1,8 +1,9 @@
 # Signal Studio — milestone 6 acceptance application
 
 Status: OCH-29 in progress. The pure workspace model and combined canvas/chart/
-component application pass local macOS checks. Desktop integration, dedicated
-motion/workload acceptance and consolidated hosted gates remain pending. The existing
+component application pass local macOS checks. Packaged links/reopen and Eio
+documents now pass combined-app checks. Notifications, dedicated motion/workload
+acceptance and consolidated hosted gates remain pending. The existing
 agent-chat example stays intact. This is a focused model-evaluation plotting
 workbench, not a complete diagramming product or scientific environment.
 
@@ -80,8 +81,8 @@ policy must settle appropriately; no per-frame OCaml animation callback is added
 | Clean consumer | Staged installed libraries, separate component, locked generated backend; macOS run and Linux build | Fresh macOS consumer build/self-test passes; Linux hosted build pending |
 | Responsive layout | Real resize across breakpoint; retained state and only active branch exposed to input/AX | Wide/compact/wide resize retains run and moved sample; explicit inactive-branch/motion checks remain |
 | Springs, sequences, synchronized indicators | Native geometry/phase and reduced-motion checks in combined app | Pending |
-| Documents and files | Eio save/load round trip; dirty metadata; actual OS file actions and typed unsupported behavior | Pending |
-| Deep links/reopen | Packaged cold/warm OS delivery and current-window selection/focus | Pending |
+| Documents and files | Eio save/load round trip; dirty metadata; actual OS file actions and typed unsupported behavior | Real macOS Save/Open panels, Eio round trip, exact native dirty/file metadata and concurrency/error checks pass; combined Reveal/unavailable checks remain |
+| Deep links/reopen | Packaged cold/warm OS delivery and current-window selection/focus | Local packaged startup/cold/warm/invalid links and same-process reopen pass |
 | OS notifications | Packaged action/receipt routing; denied/unavailable fallback; stale-window handling | Pending |
 | Workloads and lifetime | Named hardware, native resources/queue charges, repeated window/resource cleanup | Pending |
 | Cross-platform release | Required macOS/Linux CI; report X11/Wayland GUI separately | Pending; full Linux GUI under OCH-17 |
@@ -128,3 +129,41 @@ render callback and zero OCaml canvas/chart registration charges after release.
 This is not yet the repeated lifecycle/performance workload. Dedicated native
 phase/geometry/reduced-motion checks also remain required; merely declaring the
 spring, sequence and shared clock does not satisfy that acceptance row.
+
+## Document and desktop checkpoint
+
+`Documents` owns one picker/I/O admission and a saved snapshot. It compares the
+current workspace to that snapshot for the edited state. Saving an older snapshot
+does not mark newer edits saved. Load captures the workspace before picker/read
+and abandons replacement if it changes; reset invalidates older completions.
+Native metadata has a separate, revision-fenced result, so an unsupported badge
+cannot turn a successful file write into a file failure. The main process retains
+the model/resources across native window close/reopen and reapplies metadata to
+the new window handle. The example has no autosave or quit-confirmation flow;
+users explicitly save before quitting.
+
+`files/Document_file` receives explicit Eio path/random capabilities. Reads use a
+16 KiB+1 bounded buffer before the validated codec. Saves hold the parent directory,
+create a private exclusive temporary sibling, write/sync, then atomically rename
+it over the selected destination. Cleanup is cancellation-protected. Existing
+permissions are not preserved, destination symlinks are replaced rather than
+followed, and directory crash durability is not promised. Three expect tests cover
+round trips/overwrites, the exact size boundary, oversized/malformed/missing input,
+failed replacement cleanup and symlink replacement.
+
+`--self-test --document-path=/absolute/fixture.signal` checks an actual Eio file,
+exact native represented-file/edited observations, save-versus-edit consistency,
+load-versus-edit preservation, reset fencing, busy rejection and invalid-load
+preservation. The delayed race uses controlled Eio promises rather than a slow disk.
+This flag is a test operation that overwrites the caller-provided fixture; it is
+not interpreted from a deep link.
+
+`python3 scripts/test_signal_desktop.py` runs that test in a disposable fixture,
+then packages the public app and checks startup/cold/warm link ordering after
+readiness, unknown-sample rejection, same-process close/reopen, native Save/Open
+panels, dirty-state open guard and restored run/component state. The script owns
+its launch proxy, cleans up only the exact bundle's processes, unregisters the
+bundle, and retains logs/screenshots in the specified output directory. The
+actual combined-app Reveal result, notification workflow and remaining matrix
+rows are still outstanding. Linux build and desktop-entry generation are separate
+from Linux GUI acceptance, which remains under OCH-17.

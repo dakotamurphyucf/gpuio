@@ -18,6 +18,7 @@ module Snapshot = struct
     ; extension_generation : int64
     ; extension_disabled : bool
     ; extension_visible : bool
+    ; documents : Documents.State.t
     }
 end
 
@@ -34,6 +35,10 @@ module Actions = struct
     ; lock_control : unit Bonsai.Effect.t
     ; hide_control : unit Bonsai.Effect.t
     ; on_layout : Gpuio.Container_query.Selection.t -> unit Bonsai.Effect.t
+    ; open_document : unit Bonsai.Effect.t
+    ; save_document : unit Bonsai.Effect.t
+    ; reveal_document : unit Bonsai.Effect.t
+    ; quit : unit Bonsai.Effect.t
     ; on_motion : Gpuio.Animation.Program.Event.t -> unit Bonsai.Effect.t
     }
 end
@@ -307,6 +312,22 @@ let view snapshot (actions : Actions.t) =
            ; button "Reset view" actions.reset_viewport
            ; button "Reset workspace" actions.reset
            ])
+    ; V.row
+        ~style:(style [ Gap (px 8.); Align_items Center ])
+        [ button "Open workspace" actions.open_document
+        ; button "Save workspace" actions.save_document
+        ; button "Reveal file" actions.reveal_document
+        ; button "Quit Studio" actions.quit
+        ; text
+            ~size:11.
+            (if snapshot.documents.busy
+             then "Working…"
+             else if snapshot.documents.edited
+             then "Unsaved changes"
+             else if Option.is_some snapshot.documents.path
+             then "Saved workspace"
+             else "Untitled workspace")
+        ]
     ; V.container_query
         ~key:(key "workspace-layout")
         ~on_select:actions.on_layout

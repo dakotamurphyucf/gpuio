@@ -1,0 +1,11 @@
+(library
+ (name signal_studio_file_tests)
+ (libraries
+  core
+  eio_main
+  signal_studio_model
+  signal_studio_files
+  expect_test_helpers_core)
+ (inline_tests)
+ (preprocess
+  (pps ppx_jane ppx_expect)))

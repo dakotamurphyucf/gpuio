@@ -300,6 +300,7 @@ class Mac:
                     raise RuntimeError('Cannot create native file click')
                 try:
                     set_integer(event, 1, count)  # kCGMouseEventClickState.
+                    self.key_flags(event, 0)  # Never inherit Control as a secondary click.
                     post(0, event)
                 finally:
                     self.release(event)
