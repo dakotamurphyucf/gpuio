@@ -46,16 +46,25 @@ links never grant filesystem access. Generate platform metadata with
 `--open-uris` followed by URLs; explicit `--open-uri=URL` arguments work as well.
 Use `--directory=/absolute/path` to choose the file panels' initial folder.
 
-Notifications, dedicated motion/resource workloads and final platform gates remain
-in progress. See [design and acceptance](../../docs/design/signal-studio.md).
+`Alerts` offers explicit permission and opt-in for completed-run notifications.
+After enabling, a completed stream posts or updates one notification; `Notify
+current run` exercises the same path immediately. Its action opens the current
+workspace, including after the old window closes. `Dismiss alert` retires it;
+quitting cleans up the application's notification service. Unbundled macOS and
+unavailable or denied services keep an in-app result instead. macOS notifications
+require the packaged application identity, as used by the walkthrough below.
+
+Dedicated motion/resource workloads and final platform gates remain in progress.
+See [design and acceptance](../../docs/design/signal-studio.md).
 
 ## Local checks
 
 ```sh
-GPUIO_JOBS=2 ./scripts/gpuio exec dune build examples/signal_studio/main.exe @examples/signal_studio/model/runtest @examples/signal_studio/files/runtest @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build examples/signal_studio/main.exe @examples/signal_studio/model/runtest @examples/signal_studio/files/runtest @examples/signal_studio/notifications/runtest @fmt
 ./scripts/gpuio exec dune exec examples/signal_studio/main.exe -- --self-test
 python3 scripts/test_signal_studio.py --output scratch/signal-studio
 python3 scripts/test_signal_desktop.py --output scratch/signal-desktop
+python3 scripts/test_signal_notifications.py --output scratch/signal-notifications
 GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example signal_studio --run
 ```
 
@@ -76,3 +85,11 @@ checks actual Launch Services cold/warm delivery and same-process window reopen,
 and drives real save/open panels. It also runs a document self-test with native
 edited/file metadata assertions, delayed-load races, busy admission, reset fencing,
 and invalid-load preservation. Its files stay inside the disposable fixture.
+
+The notification walkthrough ad hoc signs a disposable app bundle and exercises
+real Notification Center actions, replacement, stream completion, dismissal and
+cleanup. It requests permission only for GPUIO Signal Studio and leaves global
+notification settings unchanged. If this identity was previously denied, allow
+it in System Settings before rerunning. The script unregisters its exact bundle
+and reaps its own process. Pure expect tests separately cover denial, unavailable
+services, early/stale events, coalescing and late replies after cleanup.

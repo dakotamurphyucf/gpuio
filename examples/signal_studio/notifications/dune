@@ -1,0 +1,5 @@
+(library
+ (name signal_studio_notifications)
+ (libraries core gpuio bonsai)
+ (preprocess
+  (pps ppx_jane)))

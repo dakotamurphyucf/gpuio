@@ -135,6 +135,12 @@ jobs:
       - name: macOS Signal Studio documents and packaged desktop
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.signal-consumer.outcome == 'success'
         run: python3 scripts/test_signal_desktop.py --output .cache/ci/signal-desktop 2>&1 | tee .cache/ci/macos-signal-desktop.log
+      - name: macOS Signal Studio packaged run notifications
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.signal-consumer.outcome == 'success'
+        run: python3 scripts/test_signal_notifications.py --output .cache/ci/signal-notifications 2>&1 | tee .cache/ci/macos-signal-notifications.log
+      - name: macOS notification service and real OS actions
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        run: python3 scripts/test_notifications_macos.py --artifact .cache/ci/notification-os 2>&1 | tee .cache/ci/macos-notification-os.log
       # Independent GUI families continue after another family's failure once
       # their build prerequisites pass. Failures remain required/red; cancellation
       # still stops subsequent tests. This collects diagnostics in one CI run.

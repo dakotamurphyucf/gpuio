@@ -2,8 +2,8 @@
 
 Status: OCH-29 in progress. The pure workspace model and combined canvas/chart/
 component application pass local macOS checks. Packaged links/reopen and Eio
-documents now pass combined-app checks. Notifications, dedicated motion/workload
-acceptance and consolidated hosted gates remain pending. The existing
+documents and packaged OS notifications now pass combined-app checks. Dedicated
+motion/workload acceptance and consolidated hosted gates remain pending. The existing
 agent-chat example stays intact. This is a focused model-evaluation plotting
 workbench, not a complete diagramming product or scientific environment.
 
@@ -83,7 +83,7 @@ policy must settle appropriately; no per-frame OCaml animation callback is added
 | Springs, sequences, synchronized indicators | Native geometry/phase and reduced-motion checks in combined app | Pending |
 | Documents and files | Eio save/load round trip; dirty metadata; actual OS file actions and typed unsupported behavior | Real macOS Save/Open panels, Eio round trip, exact native dirty/file metadata and concurrency/error checks pass; combined Reveal/unavailable checks remain |
 | Deep links/reopen | Packaged cold/warm OS delivery and current-window selection/focus | Local packaged startup/cold/warm/invalid links and same-process reopen pass |
-| OS notifications | Packaged action/receipt routing; denied/unavailable fallback; stale-window handling | Pending |
+| OS notifications | Packaged action/receipt routing; denied/unavailable fallback; stale-window handling | Real macOS named/default actions, same-process reopen, replacement, stream completion, dismissal and quit cleanup pass; five pure expect tests and real unbundled fallback pass; first-time permission on a fresh hosted runner pending |
 | Workloads and lifetime | Named hardware, native resources/queue charges, repeated window/resource cleanup | Pending |
 | Cross-platform release | Required macOS/Linux CI; report X11/Wayland GUI separately | Pending; full Linux GUI under OCH-17 |
 
@@ -164,6 +164,36 @@ readiness, unknown-sample rejection, same-process close/reopen, native Save/Open
 panels, dirty-state open guard and restored run/component state. The script owns
 its launch proxy, cleans up only the exact bundle's processes, unregisters the
 bundle, and retains logs/screenshots in the specified output directory. The
-actual combined-app Reveal result, notification workflow and remaining matrix
+actual combined-app Reveal result and remaining matrix
 rows are still outstanding. Linux build and desktop-entry generation are separate
 from Linux GUI acceptance, which remains under OCH-17.
+
+## Run notifications checkpoint
+
+`notifications/Run_alerts` owns explicit opt-in, one receipt, one in-flight
+operation and one latest pending run on the OCaml UI domain. A nonprompting probe
+does not opt in. Only `Enable alerts` requests permission and retries initial
+service availability. Native notification mutations remain asynchronous through
+`Gpuio_eio.Notification`. Content respects body/action capabilities, replaces an
+existing receipt when supported, or dismisses before posting again. Terminal
+service errors disable automatic alerts; run results remain visible in the app.
+
+Serial event delivery waits asynchronously if an action arrives before its post
+reply. Only the current receipt and declared action activate the workspace; the
+activation callback resolves the live window at invocation time. Scope cleanup
+closes admission, clears pending state and fences late replies/events without
+calling view/log callbacks. Five controlled expect tests cover explicit opt-in,
+permission denial, unavailable services, coalescing, capability fallbacks,
+early/stale events, terminal errors and cleanup races.
+
+`python3 scripts/test_signal_notifications.py` now passes locally on macOS with
+an ad hoc signed bundle: real named/default Notification Center actions,
+same-process reopen after window close, replacement, streamed-run completion,
+explicit dismissal and disappearance on quit. Replacement is checked in
+Notification Center rather than assumed to produce a new banner. It also runs
+the unbundled executable and verifies typed `Unavailable` with an in-app result.
+The ordinary graphics walkthrough checks the unavailable popover and still passes
+input/resize/streaming. Current retained packaged evidence starts with previously
+authorized permission; first-time permission on a fresh hosted runner remains
+unverified. The required macOS workflow includes both this combined-app check and
+the separate notification-service walkthrough. Hosted results remain pending.

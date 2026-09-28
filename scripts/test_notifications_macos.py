@@ -30,7 +30,8 @@ def pids(executable):
 
 
 class Notifications:
-    def __init__(self):
+    def __init__(self, app_name=APP_NAME):
+        self.app_name = app_name
         self.mac = Mac(int(subprocess.check_output(["pgrep", "-x", "NotificationCenter"], text=True).strip()))
         self.copy_actions = self.mac.ax.AXUIElementCopyActionNames
         self.copy_actions.restype = C.c_int
@@ -61,7 +62,7 @@ class Notifications:
         def visit(node, depth=0):
             values, children = m.node_values(node)
             try:
-                if values[0] == "AXGroup" and any(APP_NAME in v for v in values[1:]) and contains(node, title):
+                if values[0] == "AXGroup" and any(self.app_name in v for v in values[1:]) and contains(node, title):
                     return m.retain(node)
                 if depth < 18:
                     for child in children:
@@ -98,6 +99,10 @@ class Notifications:
             self.mac.release(node)
 
     def open_center(self):
+        # Escape dismisses any existing presentation before the clock toggle,
+        # making this an open operation rather than an accidental close.
+        self.mac.key(53)
+        time.sleep(.35)
         m = Mac(int(subprocess.check_output(["pgrep", "-x", "ControlCenter"], text=True).strip()))
         def visit(node, depth=0):
             values, children = m.node_values(node)
@@ -288,6 +293,10 @@ def exercise(binary, artifact):
                 except ProcessLookupError: pass
             proxy.terminate()
             proxy.wait(timeout=5)
+        subprocess.run([
+            "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+            "-u", str(bundle),
+        ], check=False, timeout=10)
 
 
 if __name__ == "__main__":

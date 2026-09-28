@@ -1,5 +1,6 @@
 open Core
 module W = Signal_studio_model.Workspace
+module Alerts = Signal_studio_notifications.Run_alerts
 
 module Snapshot : sig
   type t =
@@ -15,6 +16,8 @@ module Snapshot : sig
     ; extension_disabled : bool
     ; extension_visible : bool
     ; documents : Documents.State.t
+    ; alerts : Alerts.State.t
+    ; alerts_open : bool
     }
 end
 
@@ -35,6 +38,11 @@ module Actions : sig
     ; save_document : unit Bonsai.Effect.t
     ; reveal_document : unit Bonsai.Effect.t
     ; quit : unit Bonsai.Effect.t
+    ; toggle_alerts : unit Bonsai.Effect.t
+    ; close_alerts : unit Bonsai.Effect.t
+    ; enable_alerts : unit Bonsai.Effect.t
+    ; notify_run : unit Bonsai.Effect.t
+    ; dismiss_alert : unit Bonsai.Effect.t
     ; on_motion : Gpuio.Animation.Program.Event.t -> unit Bonsai.Effect.t
     }
 end

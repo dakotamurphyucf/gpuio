@@ -58,8 +58,11 @@ updates and responsive resize with retained data. A fresh staged public-library
 consumer builds its locked backend and passes the native self-test. Packaged
 startup/cold/warm links, same-process reopen, native Save/Open panels and Eio
 persistence also pass, including native edited/file metadata and delayed-operation
-races. Notification integration, dedicated motion/workload checks, Linux builds
-and consolidated hosted gates remain; see [Signal Studio](design/signal-studio.md).
+races. Combined notification actions, current-window reopen, replacement, streamed
+completion, dismissal and quit cleanup pass in a real local macOS bundle; five
+controlled expect tests and an actual unbundled fallback cover unavailable and
+late-event behavior. Dedicated motion/workload checks, Linux builds and
+consolidated hosted gates remain; see [Signal Studio](design/signal-studio.md).
 The detailed entries below record implementation checkpoints chronologically;
 their earlier pending-gate statements are superseded by this delivery record.
 

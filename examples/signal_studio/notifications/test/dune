@@ -1,0 +1,11 @@
+(library
+ (name signal_studio_notification_tests)
+ (libraries
+  core
+  gpuio
+  bonsai
+  signal_studio_notifications
+  expect_test_helpers_core)
+ (inline_tests)
+ (preprocess
+  (pps ppx_jane ppx_expect)))

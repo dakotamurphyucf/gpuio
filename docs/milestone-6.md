@@ -11,7 +11,7 @@ and evidence remain in [the milestone 5 handoff](milestone-5.md).
 | OCH-27 | Application identity, deep-link packaging/startup/live delivery, activation, file reveal/open, document-window metadata | In progress: macOS OS acceptance passes; Linux portal file adapters pass local peer/worker tests; typed packaging and real bus arbitration pass locally; Linux GUI and consolidated hosted gates pending |
 | OCH-28 | OS notifications, permissions/capabilities, replacement/dismissal and stale-safe action routing | In progress: Core/Eio ownership, bounded paired protocol and owned macOS adapter; public packaged macOS OS actions pass; Linux worker/private-bus routing pass locally; Linux build/display and consolidated gates pending |
 | OCH-40 | Line, area, bar, pie, radar, candlestick and Sankey components with typed bounded datasets, native interaction and accessible alternatives | In progress: typed data/options/styles/codecs, native resources/Eio API, 100k-point macOS resource integration, sampling/geometry and actual all-family prepared GPU paint; mounted Core/Bonsai charts, hidden GPU lifecycle and public seven-family Chart Studio; native labels/scrollable legends, selection schema/provenance and bounded hit queries; native pointer/drag/tooltips and plotted-mark keys with public semantic callbacks pass locally; bounded original-data keyboard/AX companion implemented; bounded non-color identifiers/theme controls and public dense-legend wheel checks pass; two-window/list frame accounting and bounded shared updates pass; public 10k/100k streaming/coalescing and named-hardware measurements pass; OCH-29 integration and hosted gates pending |
-| OCH-29 | Focused graphics application consuming public canvas and an independently packaged native component; desktop workflows and one chart | In progress: pure workspace model/document/routes; combined UI and platform integration pending |
+| OCH-29 | Focused graphics application consuming public canvas and an independently packaged native component; desktop workflows and one chart | In progress: combined canvas/chart/component input and responsive UI, packaged links/reopen, Eio documents and real macOS notifications pass locally; dedicated motion/resource acceptance and hosted gates pending |
 
 The goal includes all four tickets, local functional acceptance, required hosted
 macOS/Linux gates, merge, and final versioned/Linear handoff. Starting a ticket or
@@ -185,5 +185,7 @@ OCH-29 integration and consolidated hosted gates remain for chart completion.
 OCH-29 now has the [Signal Studio design and acceptance matrix](design/signal-studio.md).
 Its pure workspace owns stable samples, clamped native-world motion, run/selection,
 OCaml canvas scenes, native chart data, bounded versioned documents and strict
-selection-only deep links. UI composition, clean consumer and combined platform
-acceptance remain pending; the model alone is not graphical acceptance.
+selection-only deep links. Local macOS combined input/resize, staged consumer,
+packaged links/reopen, Eio documents/native panels and Notification Center
+actions/replacement/cleanup now pass. The design matrix records remaining combined
+Reveal, motion, repeated lifecycle/workload and required hosted acceptance.

@@ -1,5 +1,6 @@
 open Core
 module W = Signal_studio_model.Workspace
+module Alerts = Signal_studio_notifications.Run_alerts
 module V = Gpuio_bonsai.View
 module A = Gpuio.Animation
 module Q = Gpuio.Container_query
@@ -19,6 +20,8 @@ module Snapshot = struct
     ; extension_disabled : bool
     ; extension_visible : bool
     ; documents : Documents.State.t
+    ; alerts : Alerts.State.t
+    ; alerts_open : bool
     }
 end
 
@@ -39,6 +42,11 @@ module Actions = struct
     ; save_document : unit Bonsai.Effect.t
     ; reveal_document : unit Bonsai.Effect.t
     ; quit : unit Bonsai.Effect.t
+    ; toggle_alerts : unit Bonsai.Effect.t
+    ; close_alerts : unit Bonsai.Effect.t
+    ; enable_alerts : unit Bonsai.Effect.t
+    ; notify_run : unit Bonsai.Effect.t
+    ; dismiss_alert : unit Bonsai.Effect.t
     ; on_motion : Gpuio.Animation.Program.Event.t -> unit Bonsai.Effect.t
     }
 end
@@ -55,8 +63,9 @@ let text ?(size = 13.) ?(tint = 0x93a6bd) value =
   V.text ~style:(style [ Font_size size; Foreground (color tint) ]) value
 ;;
 
-let button label action =
+let button ?(disabled = false) label action =
   V.button
+    ~disabled
     label
     ~on_click:action
     ~style:
@@ -234,6 +243,47 @@ let body snapshot actions ~compact =
     [ plot; side ]
 ;;
 
+let alerts_panel snapshot (actions : Actions.t) =
+  let alerts = snapshot.Snapshot.alerts in
+  V.popover
+    ~key:(key "run-alerts")
+    ~config:
+      (Gpuio.Overlay.Config.create
+         ~label:"Run alerts"
+         ~width:340.
+         ~dismiss_on_outside_pointer:true
+         ()
+       |> ok)
+    ~anchor:(button "Alerts" actions.toggle_alerts)
+    ~on_dismiss:(fun _ -> actions.close_alerts)
+    (if not snapshot.alerts_open
+     then None
+     else
+       Some
+         (V.column
+            ~style:(style [ Padding (px 16.); Gap (px 12.); bg 0x14202d; Radius 14. ])
+            [ text ~size:17. ~tint:0xeaf2f9 "Keep track of your runs"
+            ; text "Get a desktop alert when a run finishes."
+            ; button
+                ~disabled:(alerts.busy || alerts.enabled)
+                "Enable alerts"
+                actions.enable_alerts
+            ; V.row
+                ~style:(style [ Gap (px 8.) ])
+                [ button
+                    ~disabled:(alerts.busy || not alerts.enabled)
+                    "Notify current run"
+                    actions.notify_run
+                ; button
+                    ~disabled:(alerts.busy || not alerts.has_notification)
+                    "Dismiss alert"
+                    actions.dismiss_alert
+                ]
+            ; text ~size:12. ~tint:0x73dcc1 alerts.message
+            ; button "Close alerts" actions.close_alerts
+            ]))
+;;
+
 let view snapshot (actions : Actions.t) =
   let run = W.run snapshot.Snapshot.workspace in
   let counter =
@@ -318,6 +368,7 @@ let view snapshot (actions : Actions.t) =
         ; button "Save workspace" actions.save_document
         ; button "Reveal file" actions.reveal_document
         ; button "Quit Studio" actions.quit
+        ; alerts_panel snapshot actions
         ; text
             ~size:11.
             (if snapshot.documents.busy

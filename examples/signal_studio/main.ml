@@ -10,6 +10,8 @@ module E = Bonsai.Effect
 module Counter = Gpuio_example_counter
 module Desktop = Gpuio_eio.Desktop
 module File = Signal_studio_files.Document_file
+module N = Gpuio_eio.Notification
+module Alerts = Signal_studio_notifications.Run_alerts
 
 let ok = Or_error.ok_exn
 
@@ -37,6 +39,9 @@ let main () =
   let document_path =
     Array.find_map (Sys.get_argv ()) ~f:(String.chop_prefix ~prefix:"--document-path=")
     |> Option.map ~f:(fun path -> Gpuio.File_path.of_string path |> ok)
+  in
+  let unavailable_check =
+    Array.exists (Sys.get_argv ()) ~f:(String.equal "--notification-unavailable-check")
   in
   let completed = ref false in
   let catalog = App.extension_catalog () |> ok in
@@ -74,9 +79,19 @@ let main () =
          ; extension_disabled = false
          ; extension_visible = true
          ; documents = Documents.State.initial
+         ; alerts = Alerts.State.initial
+         ; alerts_open = false
          }
      in
      let update f = B.Expert.Var.set state (f (B.Expert.Var.get state)) in
+     let alerts = ref None in
+     let with_alerts f =
+       E.bind
+         (E.of_thunk (fun () -> !alerts))
+         ~f:(function
+           | None -> E.Ignore
+           | Some alerts -> f alerts)
+     in
      let current_window = ref None in
      let documents = ref None in
      let refresh_document () =
@@ -201,12 +216,16 @@ let main () =
                Eio.Promise.await promise
              done)
            ~on_result:(fun result ->
-             E.of_thunk (fun () ->
-               ok result;
-               task := None;
-               update (fun s ->
-                 { s with running = false; status = "Run sequence complete" });
-               emit "stream complete"))
+             E.bind
+               (E.of_thunk (fun () ->
+                  ok result;
+                  task := None;
+                  update (fun s ->
+                    { s with running = false; status = "Run sequence complete" });
+                  emit "stream complete"))
+               ~f:(fun () ->
+                 with_alerts (fun alerts ->
+                   Alerts.notify alerts ~run:(W.run (B.Expert.Var.get state).workspace))))
          |> ok
        in
        task := Some job
@@ -287,6 +306,16 @@ let main () =
        ; save_document = Documents.save_as document_controller ~directory
        ; reveal_document = Documents.reveal document_controller
        ; quit = E.of_thunk (fun () -> App.shutdown app)
+       ; toggle_alerts =
+           E.of_thunk (fun () ->
+             update (fun s -> { s with alerts_open = not s.alerts_open }))
+       ; close_alerts =
+           E.of_thunk (fun () -> update (fun s -> { s with alerts_open = false }))
+       ; enable_alerts = with_alerts Alerts.enable
+       ; notify_run =
+           with_alerts (fun alerts ->
+             Alerts.notify alerts ~run:(W.run (B.Expert.Var.get state).workspace))
+       ; dismiss_alert = with_alerts Alerts.dismiss
        ; on_motion = (fun _ -> E.of_thunk (fun () -> incr motion_events))
        }
      in
@@ -330,6 +359,39 @@ let main () =
            | Error error ->
              emit
                ("Activation: " ^ Sexp.to_string ([%sexp_of: Gpuio.Window.Error.t] error)))
+     in
+     let notification =
+       N.attach app ~on_event:(fun event ->
+         with_alerts (fun alerts -> Alerts.handle_event alerts event))
+       |> function
+       | Ok service -> service
+       | Error error -> raise_s [%sexp (error : N.Error.t)]
+     in
+     let run_alerts =
+       Alerts.create
+         { Alerts.Backend.authorization = (fun () -> N.authorization notification)
+         ; authorize =
+             (fun () ->
+               E.bind
+                 (E.of_thunk (fun () -> N.retry notification))
+                 ~f:(fun () -> N.request_authorization notification))
+         ; capabilities = (fun () -> N.capabilities notification)
+         ; post =
+             (fun content ->
+               N.post notification ~tag:(N.Tag.of_string "completed-run" |> ok) content)
+         ; replace = N.replace notification
+         ; dismiss = N.dismiss notification
+         ; close = (fun () -> N.close notification)
+         }
+         ~activate:(fun () ->
+           E.bind (activate ()) ~f:(fun () ->
+             E.of_thunk (fun () -> emit "notification workspace activated")))
+         ~on_state:(fun alerts -> update (fun s -> { s with alerts }))
+         ~log:emit
+     in
+     alerts := Some run_alerts;
+     let (_unregister_alerts : unit -> unit) =
+       Scope.on_cancel (App.scope app) (fun () -> Alerts.close run_alerts) |> ok
      in
      App.on_reopen app (fun () -> activate ());
      let receiver =
@@ -395,7 +457,27 @@ let main () =
            until (fun () -> Int64.(!chart_ready > 0L) && !extension_mounts > 0);
            ui (fun () ->
              emit "ready";
-             Desktop.ready receiver);
+             Desktop.ready receiver;
+             N.ready notification);
+           on_ui (Alerts.probe run_alerts);
+           if unavailable_check
+           then (
+             ui (fun () ->
+               assert (
+                 Option.equal
+                   (Result.equal N.Authorization.equal N.Error.equal)
+                   (Alerts.state run_alerts).authorization
+                   (Some (Error Unavailable))));
+             on_ui (Alerts.enable run_alerts);
+             on_ui (Alerts.notify run_alerts ~run:12);
+             ui (fun () ->
+               assert (not (Alerts.state run_alerts).enabled);
+               assert (
+                 String.is_substring
+                   (Alerts.state run_alerts).message
+                   ~substring:"unavailable"));
+             emit "unbundled alerts fallback passed";
+             completed := true);
            if self_test
            then (
              let selected =
@@ -539,14 +621,14 @@ let main () =
        ~on_result:(fun result ->
          E.of_thunk (fun () ->
            ok result;
-           if self_test then App.shutdown app))
+           if self_test || unavailable_check then App.shutdown app))
      |> ok
      |> fun (_ : Scope.Task.t) -> ())
    |> function
    | Ok App.Launch_outcome.Exited -> ()
    | Ok Forwarded -> Eio.traceln "SIGNAL_STUDIO: forwarded"
    | Error error -> raise_s [%sexp (error : Desktop.Error.t)]);
-  if self_test then assert !completed
+  if self_test || unavailable_check then assert !completed
 ;;
 
 let () =

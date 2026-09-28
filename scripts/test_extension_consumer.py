@@ -46,7 +46,7 @@ manifest = json.loads((example / "native.json").read_text())
 for path in example.iterdir():
     if path.suffix in (".ml", ".mli") or path.name == "dune":
         shutil.copyfile(path, consumer / path.name)
-for directory in ("model", "files"):
+for directory in ("model", "files", "notifications"):
     if (example / directory).exists():
         shutil.copytree(example / directory, consumer / directory)
 (consumer / "dune-project").write_text("(lang dune 3.21)\n(name independent_extension_consumer)\n")
