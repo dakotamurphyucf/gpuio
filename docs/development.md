@@ -24,11 +24,14 @@ seat. Bare headless Weston does not supply the seat GPUI requires. These fixture
 exercise native backend windows with software rendering, not physical input/GPU
 hardware. Set `GPUIO_NATIVE_LOG=1` for native diagnostic logs.
 
-macOS is the functional development gate. Linux builds and unit tests remain
-required, while the two Linux graphical CI steps are informational per the
-owner's 2026-09-11 priority. Their real outcomes are preserved in logs and
-`linux-gui-status.json`, even when the overall build job passes. Full Linux GUI
-acceptance remains tracked in OCH-17; a successful build job is not proof of it.
+macOS is the functional development and milestone 07 release gate. Linux builds,
+unit tests, private-bus checks and independent consumer builds remain required;
+the two Linux graphical CI steps stay informational. Their real outcomes are
+preserved in logs and `linux-gui-status.json`, even when the overall job passes.
+Full Linux desktop qualification is deferred to OCH-47 in milestone 07b and does
+not block the macOS-first release or further feature development. A successful
+build job is not proof of desktop acceptance. See the current
+[platform release policy](platform-release-policy.md).
 
 ```sh
 ./scripts/gpuio bootstrap
