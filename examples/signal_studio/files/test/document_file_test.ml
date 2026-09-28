@@ -27,7 +27,7 @@ let%expect_test "atomic snapshot replacement and bounded validation" =
     print_s [%sexp (Or_error.is_error (File.load path) : bool)];
     print_s [%sexp (Or_error.is_error (File.load Eio.Path.(dir / "missing")) : bool)]);
   [%expect
-    {| 
+    {|
     true
     42
     (workspace.signal)
@@ -70,7 +70,7 @@ let%expect_test "exact size boundary and destination symlink replacement" =
     print_s [%sexp (W.run (File.load link |> Or_error.ok_exn) : int)];
     print_s [%sexp (W.run (File.load target |> Or_error.ok_exn) : int)]);
   [%expect
-    {| 
+    {|
     0
     51
     0
