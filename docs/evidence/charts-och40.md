@@ -454,11 +454,37 @@ python3 scripts/test_charts.py --input
 python3 scripts/test_chart_data.py
 ```
 
+## Two-window managed-list frame accounting
+
+The production `native_chart_view` test now mounts two hidden 240×240 windows,
+each showing two of three 200×120 chart rows in a managed list. Repeated forced
+frames assert that the window budget equals the sum of both visible prepared
+plans, and actual GPU readback verifies green chart pixels in both rows.
+Scrolling one window changes its visible rows without moving the other.
+Fourteen shared-source publications reach the visible charts; explicitly disposing
+and closing one window permits the remaining observer to receive the last update.
+Release immediately drops its ready plans, jobs and data leases.
+
+Local macOS acceptance passes with final renderer counters `(65, 0, 2, 0, 0)`: no
+remaining retained-plan/workspace charge, at most two concurrent workers, and an
+empty data store at shutdown. This extends the existing lifecycle test; it does
+not add a new CI binary or any production renderer changes.
+
+The earlier cached-draw concern was a review hypothesis, not a reproduced defect.
+Inspection of the pinned GPUI `elements/list.rs` confirms measurement retention
+with fresh visible row elements; `List::paint` invokes each row's paint. The native
+host has no `.cached()` embedding. The regression confirms actual frame accounting
+for this path. Initial fixture failures were retired/gapped node IDs, corrected
+by using fresh windows with contiguous IDs. No list invalidation fix was needed.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-native \
+  --features native-canvas-tests --test native_chart_view -j2
+```
+
 ## Completion still required
 
-Extend resource/lifecycle acceptance to multiple windows, managed-list caching
-and sustained streaming, including aggregate frame accounting for reused draw
-commands. Measure actual streaming CPU/frame/queue/retained-memory behavior on
-named hardware, and integrate a chart into OCH-29 alongside its distinct canvas/
-independent-extension requirements. Consolidated hosted macOS/Linux gates and
-merge remain pending; no Linux graphical acceptance is claimed.
+Measure sustained large-dataset streaming CPU/frame/queue/retained-memory behavior
+on named hardware, and integrate a chart into OCH-29 alongside its distinct
+canvas/independent-extension requirements. Consolidated hosted macOS/Linux gates
+and merge remain pending; no Linux graphical acceptance is claimed.

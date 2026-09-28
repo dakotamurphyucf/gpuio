@@ -44,8 +44,10 @@ pass locally. A built-in read-only original-data table now pages through all sou
 values independently of rendering/sampling, with bounded native rows and keyboard/AX
 navigation. Bounded series identifiers, themed data controls and mixed/horizontal
 examples now pass local checks, including actual dense-legend wheel scrolling
-and offset retention/reset. Multiple-window/cached-list streaming acceptance and
-performance measurements remain. See
+and offset retention/reset. Two hidden managed-list windows now pass repeated
+frame-budget/GPU checks, independent scrolling and fourteen shared publications
+with observer disposal and idle source release. Sustained large-dataset streaming
+and performance measurements remain. See
 [chart contracts and remaining work](design/charts.md).
 The detailed entries below record implementation checkpoints chronologically;
 their earlier pending-gate statements are superseded by this delivery record.

@@ -10,8 +10,10 @@ Core/Bonsai view now mounts the painter through bounded native workers. A public
 seven-family Chart Studio and hidden production-view lifecycle test pass locally.
 Native labels, scrollable legends, typed selection payloads and prepared hit
 queries, mounted interaction, tooltips and a bounded original-data companion are
-implemented. Non-color plot identification and streaming measurements remain. This document separates implemented contracts from
-the remaining implementation work.
+implemented. Bounded non-color identification and two-window/list frame accounting
+now pass locally. Sustained streaming measurements, broader-example integration
+and consolidated gates remain. This document separates implemented contracts
+from the remaining work.
 
 ## Data contract
 
@@ -233,30 +235,20 @@ retain original semantic values and cache layout outside per-frame painting.
 
 ## Remaining implementation contract
 
-The native implementation must cover all seven families; the pure model and
-Sankey extraction do not replace that scope:
+All seven families, mixed Cartesian layers, native interactions and original-data
+alternatives now have local acceptance. Remaining delivery work is:
 
-- Extend mounted acceptance to multiple-window readers, managed-list caching,
-  streaming updates and interaction retirement.
-  Do not put large datasets in each reconciled view node.
-- Complete tooltips and non-color distinctions in the plot. Shared Cartesian layers provide
-  useful custom combinations. Preserve the pinned families' applicable styling
-  and plotting options while keeping the public API typed.
-- Connect prepared native geometry to semantic selection and validate the
-  worker/cache accounting under sustained application updates. Expose complete source provenance for aggregates; never substitute
-  line sampling for bar or candle aggregation.
-- Rust owns layout, retained paint geometry, hit testing, hover and drag. Reuse
-  prepared plans across idle frames and bound background jobs/caches. Data and
-  label access cannot synchronously call OCaml from layout or paint.
-- Provide stable, revision-checked semantic selections, keyboard navigation and
-  meaningful accessibility/data-table alternatives. Native observations are
-  asynchronous; changing data or closing a window cancels stale gestures/events.
-- Complete Chart Studio with empty/degenerate cases,
-  streaming updates and interaction. Validate actual macOS paint/input/AX behavior;
-  Linux build/unit gates are required, GUI evidence remains separately recorded.
-- Measure named-hardware dataset size, CPU/frame work, transport bytes and retained
-  memory. Integrate a chart into OCH-29's broader application without replacing its
-  custom-canvas and independent-extension requirements.
+- Measure sustained large-dataset updates on named hardware: dataset size,
+  CPU/frame work, transport/queue bytes and retained memory. Distinguish
+  accounting quotas from process RSS and bound latest-update work.
+- Integrate a chart into OCH-29's broader graphics application without replacing
+  its custom-canvas and independently packaged extension requirements.
+- Complete required hosted macOS/Linux gates and merge. Linux GUI evidence
+  remains separately recorded under OCH-17.
+
+Continue to preserve explicit sampling/provenance, stable revision-checked
+selections, asynchronous observations, native ownership and bounded resources.
+No per-point synchronous OCaml callbacks belong in layout, paint or hit testing.
 
 ## Presentation options and prepared geometry
 
@@ -265,7 +257,7 @@ options for axes, Cartesian layers, pie/donut, radar, candlesticks and Sankey.
 Irrelevant family options are retained but have no effect. Its version-1 binary
 record has a bounded native reader (256 bytes), independent paired fixtures and
 validation after decoding. Color/theme, legends, tooltips and the accessible
-description belong to the forthcoming mounted-view configuration.
+description belong to the mounted-view configuration.
 
 - Axes use linear numeric domains, 2–12 ticks and native Compact/Fixed/Scientific/
   Percent formatting with 0–6 decimal places. Percent changes labels only.
@@ -468,16 +460,16 @@ counts remain enforced independently.
 
 Successful publication/release updates only dependent production windows. Worker
 completion invalidates chart-bearing retained rows in its observer window as well
-as requesting redraw. This is necessary for charts inside managed lists; a plain
-window refresh would leave a cached row presentation unchanged. Initial hidden
-GPU acceptance covers a normal mounted tree. Multiple windows, cached-list
-streaming/frame budgets, selection/input and measured workloads remain to verify.
+as requesting redraw. Row invalidation refreshes retained measurement state;
+the pinned list reconstructs and paints visible elements rather than replaying
+cached view commands. Native acceptance now covers ordinary trees and two
+managed-list windows, shared updates and per-frame accounting. Sustained
+large-data workloads still need measurements.
 
 [`examples/charts`](../../examples/charts/README.md) uses only public Core/Bonsai/Eio
-APIs and visits every family in its self-test. Native tooltips and complete
-keyboard/data alternatives remain pending; a chart's
-current group description is not a replacement for a data alternative. There is
-still no completed chart-rendering capability advertisement.
+APIs and visits every family in its self-test. Native tooltips, plotted-mark
+keyboard navigation and the original-data companion are implemented and tested.
+There is still no completed chart-rendering capability advertisement.
 
 
 ## Native labels and legends
@@ -594,7 +586,7 @@ and no synchronous OCaml callback from native input/layout/paint. Chart Studio n
 shows public semantic callback results; its AppKit acceptance covers all seven
 families and real pie hover/click/drag/cancellation.
 
-Multi-window/cached-list streaming and measured workloads remain required before
+Sustained large-dataset streaming and measured workloads remain required before
 the chart ticket is complete.
 
 ## Original-data companion
@@ -668,3 +660,20 @@ Chart Studio demonstrates mixed area/bar/line layers, horizontal grouped bars,
 light and monochrome styles, and a scrolling dense legend. Real macOS wheel
 acceptance checks the last legend row, retained offset after a new publication,
 and return to the first row after reset.
+
+## Managed lists and shared sources
+
+The pinned GPUI list retains measurements/scroll state but reconstructs visible
+row elements and paints them each frame. GPUIO does not embed these rows through
+`ViewElement::cached`; cached-view draw-command replay is a different GPUI path.
+The root resets a per-window chart budget before child painting. Every visible
+chart reserves its complete plan before drawing. Native integration now verifies
+that the counter equals the sum of both visible plans on repeated frames and
+after scrolling, with GPU pixels confirming both rows painted. No broad row
+invalidation or GPUI patch was introduced for this accounting check.
+
+Two windows can observe the same source while keeping independent list offsets
+and prepared chart instances. Local hidden-window acceptance covers fourteen
+shared publications, disposal of one observer followed by another update, and
+idle release of the source in the survivor. This is bounded lifecycle coverage,
+not a sustained large-dataset performance benchmark or foreground input test.

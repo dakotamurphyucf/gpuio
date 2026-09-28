@@ -43,8 +43,8 @@ bars, and **Dense legend** supplies 128 channels (updates add a channel up to
 resolved styling, including the data companion. Multi-series plots repeat
 numbered identifiers matching their legends; coincident values may overlap.
 
-The example is still under OCH-40 development. Multiple-window/cached-list
-streaming and performance measurements remain outstanding. `Ready`
+The example is still under OCH-40 development. Sustained large-dataset streaming
+and performance measurements remain outstanding. `Ready`
 means prepared; the self-test separately requests a native render callback,
 which is not proof of physical screen presentation.
 

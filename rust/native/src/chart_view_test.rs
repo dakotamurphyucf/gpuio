@@ -363,6 +363,8 @@ async fn exercise(
 }
 #[path = "chart_input_test.rs"]
 mod interaction;
+#[path = "chart_stream_test.rs"]
+mod streaming;
 pub(crate) fn run() {
     run_mode(false);
 }
@@ -430,6 +432,7 @@ fn run_mode(interactive: bool) {
                         .await;
                 } else {
                     exercise(cx, handle, source, session.clone(), transport.clone()).await;
+                    streaming::exercise(cx, handle, session.clone(), transport.clone()).await;
                 }
             })
             .await;

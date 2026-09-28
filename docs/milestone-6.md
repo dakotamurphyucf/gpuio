@@ -10,7 +10,7 @@ and evidence remain in [the milestone 5 handoff](milestone-5.md).
 | -- | -- | -- |
 | OCH-27 | Application identity, deep-link packaging/startup/live delivery, activation, file reveal/open, document-window metadata | In progress: macOS OS acceptance passes; Linux portal file adapters pass local peer/worker tests; typed packaging and real bus arbitration pass locally; Linux GUI and consolidated hosted gates pending |
 | OCH-28 | OS notifications, permissions/capabilities, replacement/dismissal and stale-safe action routing | In progress: Core/Eio ownership, bounded paired protocol and owned macOS adapter; public packaged macOS OS actions pass; Linux worker/private-bus routing pass locally; Linux build/display and consolidated gates pending |
-| OCH-40 | Line, area, bar, pie, radar, candlestick and Sankey components with typed bounded datasets, native interaction and accessible alternatives | In progress: typed data/options/styles/codecs, native resources/Eio API, 100k-point macOS resource integration, sampling/geometry and actual all-family prepared GPU paint; mounted Core/Bonsai charts, hidden GPU lifecycle and public seven-family Chart Studio; native labels/scrollable legends, selection schema/provenance and bounded hit queries; native pointer/drag/tooltips and plotted-mark keys with public semantic callbacks pass locally; bounded original-data keyboard/AX companion implemented; bounded non-color identifiers/theme controls and public dense-legend wheel checks pass; streaming/cache acceptance and measurements pending |
+| OCH-40 | Line, area, bar, pie, radar, candlestick and Sankey components with typed bounded datasets, native interaction and accessible alternatives | In progress: typed data/options/styles/codecs, native resources/Eio API, 100k-point macOS resource integration, sampling/geometry and actual all-family prepared GPU paint; mounted Core/Bonsai charts, hidden GPU lifecycle and public seven-family Chart Studio; native labels/scrollable legends, selection schema/provenance and bounded hit queries; native pointer/drag/tooltips and plotted-mark keys with public semantic callbacks pass locally; bounded original-data keyboard/AX companion implemented; bounded non-color identifiers/theme controls and public dense-legend wheel checks pass; two-window/list frame accounting and bounded shared updates pass; sustained streaming measurements pending |
 | OCH-29 | Focused graphics application consuming public canvas and an independently packaged native component; desktop workflows and one chart | Pending integration of preceding capabilities |
 
 The goal includes all four tickets, local functional acceptance, required hosted
@@ -168,3 +168,9 @@ regressions; the 100,000-row companion and real dense-legend wheel/update/reset
 checks pass. Native unit, painter and lifecycle checks pass. Cached multi-window
 streaming/frame accounting, named-hardware measurements, OCH-29 and consolidated
 hosted gates remain; see [chart evidence](evidence/charts-och40.md).
+
+Two managed-list chart windows now pass repeated-frame budget/GPU checks,
+independent scrolling, fourteen shared publications, observer disposal and idle
+release. Review confirmed measurement retention rather than cached draw replay
+in this list path; no production cache changes were needed. Sustained large-data
+measurements, OCH-29 and consolidated platform gates remain.
