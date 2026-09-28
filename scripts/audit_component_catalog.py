@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+"""Verify pinned catalog inputs and their structural surface inventory.
+
+This is an inventory check, not behavior or release acceptance. It intentionally
+includes private root modules so helper/facade families cannot silently vanish.
+Use --write only after reviewing an intentional upstream pin change.
+"""
+import argparse
+import hashlib
+import json
+from pathlib import Path
+import re
+
+ROOT = Path(__file__).resolve().parent.parent
+CATALOG = ROOT / 'docs/catalog'
+
+
+def interface(source, name):
+    match = re.search(r'^export interface ' + re.escape(name) + r'(?: extends \w+)? \{\n(.*?)^\}',
+                      source, re.M | re.S)
+    if not match:
+        raise ValueError(f'Missing interface {name}')
+    return match.group(1)
+
+
+def inventory():
+    sources = CATALOG / 'sources'
+    manifest = json.loads((sources / 'manifest.json').read_text())
+    seen = set()
+    for entry in manifest:
+        name = entry['snapshot']
+        if Path(name).name != name or name in seen:
+            raise ValueError(f'Invalid or duplicate snapshot: {name}')
+        seen.add(name)
+        content = (sources / name).read_bytes()
+        actual = hashlib.sha256(content).hexdigest()
+        if actual != entry['sha256']:
+            raise ValueError(f'Snapshot checksum mismatch: {name}')
+        if not re.fullmatch(r'[0-9a-f]{40}', entry['revision']):
+            raise ValueError(f'Unpinned revision: {name}')
+    declared = {p.name for p in sources.iterdir() if p.is_file()} - {'manifest.json'}
+    if declared != seen:
+        raise ValueError(f'Manifest does not cover snapshots: {declared ^ seen}')
+    result = {'schema_version': 1, 'status': 'source inventory; not implementation acceptance'}
+    for layer in ['base', 'component']:
+        source = (sources / f'{layer}-lib.rs.txt').read_text()
+        result[f'gpui_{layer}_root_modules'] = sorted(set(re.findall(
+            r'^(?:pub(?:\(crate\))? )?mod (\w+)', source, re.M)))
+    host = (sources / 'gpuix-host.ts.txt').read_text()
+    result['gpuix_style_fields'] = re.findall(r'^  (\w+)\??:', interface(host, 'StyleDesc'), re.M)
+    result['gpuix_props_events'] = re.findall(r'^  (on\w+)\??:', interface(host, 'Props'), re.M)
+    element_type = re.search(r'^export type ElementType =\n((?:  \| "[^\n]+"\n)+)', host, re.M)
+    if not element_type:
+        raise ValueError('Missing ElementType union')
+    result['gpuix_intrinsic_elements'] = re.findall(r'"([^\"]+)"', element_type.group(1))
+    index = (sources / 'gpuix-index.ts.txt').read_text()
+    result['gpuix_export_modules'] = sorted(set(re.findall(r'from "([^"]+)"', index)))
+    for key, values in result.items():
+        if isinstance(values, list) and (not values or len(set(values)) != len(values)):
+            raise ValueError(f'Empty or repeated inventory: {key}')
+    return result
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--write', action='store_true', help='replace structural inventory after pin review')
+    args = parser.parse_args()
+    actual = inventory()
+    path = CATALOG / 'inventory.json'
+    if args.write:
+        path.write_text(json.dumps(actual, indent=2) + '\n')
+    elif json.loads(path.read_text()) != actual:
+        raise ValueError('Catalog inventory differs from pinned sources; review before --write')
+    styles = json.loads((CATALOG / 'gpuix-styles.json').read_text())['rows']
+    names = [row['source_field'] for row in styles]
+    if len(names) != len(set(names)) or set(names) != set(actual['gpuix_style_fields']):
+        raise ValueError('Style mapping must cover each pinned field exactly once')
+    source = (ROOT / 'lib/core/style.mli').read_text()
+    properties = source.split('module Property : sig', 1)[1].split('module Name : sig', 1)[0]
+    known = set(re.findall(r'^    \| (\w+)', properties, re.M))
+    for row in styles:
+        api = row['public_api']
+        if api.startswith('Style.Property.'):
+            if api.removeprefix('Style.Property.') not in known:
+                raise ValueError(f'Style API no longer exists: {api}')
+        elif api not in ('Style.with_state Hovered', 'Style.with_state Pressed'):
+            raise ValueError(f'Unknown style mapping: {api}')
+        for reference in [row['interface'], *row['evidence']]:
+            if not (ROOT / reference).is_file():
+                raise ValueError(f'Missing style reference: {reference}')
+    print('GPUIO_CATALOG_SOURCES_OK:', ', '.join(
+        f'{key}={len(value)}' for key, value in actual.items() if isinstance(value, list)))
+    print('Structural source coverage only; implementation, values and native behavior require the release ledger.')
+
+
+if __name__ == '__main__':
+    main()

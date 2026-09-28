@@ -1,0 +1,34 @@
+# Component Studio
+
+A native public-API gallery under implementation for OCH-41. The first sections
+cover presentation, selection/actions, native text editing, numeric/range inputs,
+verification codes and rating. Additional v1
+families and the complete coverage ledger are still being integrated; this is
+not the completed milestone 07 release.
+
+```sh
+./scripts/gpuio build examples/gallery/main.exe
+./_build/default/examples/gallery/main.exe
+```
+
+Use the sidebar to switch previews, the light/dark button for appearance, and the
+size button for compact/comfortable/large logical sizing. This sizing is not OS
+DPI emulation. Each new window has independent navigation, appearance and editor
+state. Leaving a page unmounts its native editor leases; appearance/size changes
+on the current page preserve native text and selection. Preview model state is
+local to its Bonsai branch. At most four windows are opened by the gallery.
+
+The `--background` launch option avoids requesting focus. macOS accessibility
+may not expose an inactive background app's window until activation; interactive
+keyboard acceptance therefore launches normally. The native test owns and reaps
+its child, including on failure:
+
+```sh
+python3 scripts/test_gallery.py --images scratch/gallery-images
+```
+
+The initial macOS test covers semantic navigation, button actions, OS typing and
+submission, theme/size changes without resetting the editor, independent windows,
+repeated page unmount/remount and window shutdown. It is not an OS IME or complete
+catalog qualification claim. See the [design contract](../../docs/design/component-gallery.md)
+and [catalog inputs](../../docs/catalog/README.md).

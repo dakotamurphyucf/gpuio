@@ -1,0 +1,42 @@
+# Pinned component catalog
+
+OCH-41 is building the implementation coverage ledger and public gallery. The
+files currently here establish reproducible source inputs; they do **not** claim
+that every source entry is implemented or validated.
+
+- `sources/manifest.json`: exact upstream revisions, source paths and SHA-256
+  hashes. Snapshots are unmodified Git blobs; upstream licenses are alongside.
+- `inventory.json`: root modules from both Longbridge layers, GPUIX intrinsic
+  elements, React export modules, style fields and all generic event properties.
+  Private root modules are included deliberately so review must account for
+  helpers/infrastructure as well as user-facing families.
+- [Gallery contract](../design/component-gallery.md): public application design
+  and remaining behavioral acceptance.
+- `gpuix-styles.json`: all 73 field-to-public-API mappings, with evidence entry
+  points and explicit value/behavior reviews still pending. The audit checks
+  completeness and that referenced APIs/files exist, not visual equivalence.
+
+Verify structural inventory without an upstream checkout or network access:
+
+```sh
+python3 scripts/audit_component_catalog.py
+```
+
+`--write` regenerates the structural inventory after an intentional, reviewed
+source update. It does not update GPUIO's dependency pins or bless parity. Review
+nested public families and configuration values as well as root names. For
+example, an upstream `input` module includes more than a single text field, and
+matching a style field name does not prove support for every value of that field.
+
+The original research inventory omitted `onVisibleRange` and `onHighlight`;
+both are in this source-derived inventory. Review GPUIX's `ellipsis-start` and
+cursor variants explicitly against GPUIO, instead of equating field presence
+with behavior. The completed ledger must link each capability to public API,
+commands/events, style/accessibility behavior, runnable examples, owner, evidence
+and platform status, with deferred/unsupported entries explicit.
+
+Longbridge GPUI Kit is pinned at
+`84f57fdfcb4910623fb0bb7f795b077e249f9271`; GPUIX is pinned at
+`18e695ed0ee8121a7793413ca795e08eda2a13df`. These documentation snapshots are not
+compiled dependencies. Actual native dependency provenance stays in
+`third_party/sources.json` and the adapter reconstruction records.

@@ -54,3 +54,10 @@ commit, independently of its styled component crate. Its [source provenance and
 adaptations](rust/plot/UPSTREAM.md) and [Apache-2.0 license](rust/plot/LICENSE-APACHE)
 remain with the extracted sources. The validated GPUIO chart adapter lives outside
 that extraction.
+
+`docs/catalog/sources` contains unmodified documentation snapshots from Longbridge
+GPUI Kit `84f57fdfcb4910623fb0bb7f795b077e249f9271` and GPUIX
+`18e695ed0ee8121a7793413ca795e08eda2a13df`, both Apache-2.0. Their complete license
+texts and an exact-source/SHA-256 manifest are retained in that directory. These
+entry-point/contract snapshots support the OCH-41 audit and are not new compiled
+or runtime dependencies.

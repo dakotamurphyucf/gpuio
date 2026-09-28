@@ -1,0 +1,955 @@
+{
+  "schema_version": 1,
+  "source": "sources/gpuix-host.ts.txt",
+  "rows": [
+    {
+      "source_field": "display",
+      "public_api": "Style.Property.Display",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "visibility",
+      "public_api": "Style.Property.Visibility",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "flexDirection",
+      "public_api": "Style.Property.Direction",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "flexWrap",
+      "public_api": "Style.Property.Wrap",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "flexGrow",
+      "public_api": "Style.Property.Grow",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "flexShrink",
+      "public_api": "Style.Property.Shrink",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "flexBasis",
+      "public_api": "Style.Property.Basis",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "alignItems",
+      "public_api": "Style.Property.Align_items",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "alignSelf",
+      "public_api": "Style.Property.Align_self",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "alignContent",
+      "public_api": "Style.Property.Align_content",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "justifyContent",
+      "public_api": "Style.Property.Justify_content",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "gap",
+      "public_api": "Style.Property.Gap",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "rowGap",
+      "public_api": "Style.Property.Row_gap",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "columnGap",
+      "public_api": "Style.Property.Column_gap",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "gridTemplateColumns",
+      "public_api": "Style.Property.Grid_columns",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Pinned upstream takes a column count, not arbitrary CSS grid track syntax; compare to Grid_columns.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "gridTemplateRows",
+      "public_api": "Style.Property.Grid_rows",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Pinned upstream takes a row count, not arbitrary CSS grid track syntax; compare to Grid_rows.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "gridColumnMin",
+      "public_api": "Style.Property.Grid_column_minimum",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "gridRowMin",
+      "public_api": "Style.Property.Grid_row_minimum",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "width",
+      "public_api": "Style.Property.Width",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "height",
+      "public_api": "Style.Property.Height",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "minWidth",
+      "public_api": "Style.Property.Min_width",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "minHeight",
+      "public_api": "Style.Property.Min_height",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "maxWidth",
+      "public_api": "Style.Property.Max_width",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "maxHeight",
+      "public_api": "Style.Property.Max_height",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "padding",
+      "public_api": "Style.Property.Padding",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "paddingTop",
+      "public_api": "Style.Property.Padding_top",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "paddingRight",
+      "public_api": "Style.Property.Padding_right",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "paddingBottom",
+      "public_api": "Style.Property.Padding_bottom",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "paddingLeft",
+      "public_api": "Style.Property.Padding_left",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "margin",
+      "public_api": "Style.Property.Margin",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "marginTop",
+      "public_api": "Style.Property.Margin_top",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "marginRight",
+      "public_api": "Style.Property.Margin_right",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "marginBottom",
+      "public_api": "Style.Property.Margin_bottom",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "marginLeft",
+      "public_api": "Style.Property.Margin_left",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "position",
+      "public_api": "Style.Property.Position",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "top",
+      "public_api": "Style.Property.Top",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "right",
+      "public_api": "Style.Property.Right",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "bottom",
+      "public_api": "Style.Property.Bottom",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "left",
+      "public_api": "Style.Property.Left",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "background",
+      "public_api": "Style.Property.Background",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Background.solid/linear_gradient, with validated colors/stops and explicit typed values; CSS parsing is not required.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "backgroundColor",
+      "public_api": "Style.Property.Background",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Functional alias of Background.solid; typed Color replaces CSS strings.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "color",
+      "public_api": "Style.Property.Foreground",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "opacity",
+      "public_api": "Style.Property.Opacity",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "borderWidth",
+      "public_api": "Style.Property.Border_width",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "borderTopWidth",
+      "public_api": "Style.Property.Border_top_width",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "borderRightWidth",
+      "public_api": "Style.Property.Border_right_width",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "borderBottomWidth",
+      "public_api": "Style.Property.Border_bottom_width",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "borderLeftWidth",
+      "public_api": "Style.Property.Border_left_width",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "borderColor",
+      "public_api": "Style.Property.Border_color",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "borderRadius",
+      "public_api": "Style.Property.Radius",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "borderTopLeftRadius",
+      "public_api": "Style.Property.Top_left_radius",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "borderTopRightRadius",
+      "public_api": "Style.Property.Top_right_radius",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "borderBottomLeftRadius",
+      "public_api": "Style.Property.Bottom_left_radius",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "borderBottomRightRadius",
+      "public_api": "Style.Property.Bottom_right_radius",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "boxShadow",
+      "public_api": "Style.Property.Shadows",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed Shadow values and list replace upstream single object spelling. Review blur/spread/offset/color behavior.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "fontSize",
+      "public_api": "Style.Property.Font_size",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "fontFamily",
+      "public_api": "Style.Property.Font_family",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "fontWeight",
+      "public_api": "Style.Property.Font_weight",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed integer weight replaces string-or-number spelling. Compare actual valid weight range and native rendering.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "textAlign",
+      "public_api": "Style.Property.Text_align",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "lineHeight",
+      "public_api": "Style.Property.Line_height",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "whiteSpace",
+      "public_api": "Style.Property.White_space",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "textOverflow",
+      "public_api": "Style.Property.Text_overflow",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Value gap: GPUIX declares ellipsis-start; GPUIO currently exposes Clip/Ellipsis. Audit native feasibility and resolve in OCH-17 before claiming full value parity.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "lineClamp",
+      "public_api": "Style.Property.Line_clamp",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "textDecoration",
+      "public_api": "Style.Property.Text_decoration",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "overflow",
+      "public_api": "Style.Property.Overflow",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "overflowX",
+      "public_api": "Style.Property.Overflow_x",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "overflowY",
+      "public_api": "Style.Property.Overflow_y",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "cursor",
+      "public_api": "Style.Property.Cursor",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Value gap: GPUIX declares directional/diagonal resize, vertical-text, alias/copy/context-menu and other cursors beyond the present GPUIO enum. Review functional equivalents and missing cursor variants in OCH-17.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "pointerEvents",
+      "public_api": "Style.Property.Pointer_events",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Review semantics: upstream documents auto/none/unset hit and wheel blocking. GPUIO has a Boolean style; audit default, click-through and nested wheel behavior independently.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "userSelect",
+      "public_api": "Style.Property.User_select",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Review semantics: upstream text/none/auto inheritance vs GPUIO Boolean/inherited default. Audit subtree selection and reset behavior.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "selectionColor",
+      "public_api": "Style.Property.Selection_color",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "hover",
+      "public_api": "Style.with_state Hovered",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Native Style.with_state Hovered; only supported state refinements are valid. Structural/input refinements are intentionally rejected. Review upstream differences by value.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    },
+    {
+      "source_field": "active",
+      "public_api": "Style.with_state Pressed",
+      "interface": "lib/core/style.mli",
+      "status": "mapped; value/behavior acceptance pending",
+      "note": "Native Style.with_state Pressed; only supported state refinements are valid. Structural/input refinements are intentionally rejected. Review upstream differences by value.",
+      "evidence": [
+        "test/view_api/style_fixture_test.ml",
+        "test/view_api/view_api_test.ml",
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "release_owner": "OCH-17"
+    }
+  ]
+}

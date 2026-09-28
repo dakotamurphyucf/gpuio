@@ -1,0 +1,58 @@
+[
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/base/src/lib.rs",
+    "snapshot": "base-lib.rs.txt",
+    "sha256": "09d9a7cf3ce358b98859958ec36c3ad918decf666581da4b30c6287dccbe230e"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/lib.rs",
+    "snapshot": "component-lib.rs.txt",
+    "sha256": "d1ed0462c38444c27288f3c7d97ef44bce5acd982ec2ad27e64e2a92c0f7d808"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "LICENSE-APACHE",
+    "snapshot": "gpui-kit-LICENSE",
+    "sha256": "d1b0449e5478c574ba4f686c2656df7fe77d66821a61f8b6ed3378a58ed9a811"
+  },
+  {
+    "project": "gpuix",
+    "revision": "18e695ed0ee8121a7793413ca795e08eda2a13df",
+    "repository": "https://github.com/remorses/gpuix",
+    "source": "packages/react/src/types/host.ts",
+    "snapshot": "gpuix-host.ts.txt",
+    "sha256": "65b666f290638741b39f0d0ee010a2714261a749fd831044e6107a046a6d7d7d"
+  },
+  {
+    "project": "gpuix",
+    "revision": "18e695ed0ee8121a7793413ca795e08eda2a13df",
+    "repository": "https://github.com/remorses/gpuix",
+    "source": "packages/react/src/index.ts",
+    "snapshot": "gpuix-index.ts.txt",
+    "sha256": "ded131900b2b45b0172bb3ae924199317d921470c4c24429168ffb080d65fa19"
+  },
+  {
+    "project": "gpuix",
+    "revision": "18e695ed0ee8121a7793413ca795e08eda2a13df",
+    "repository": "https://github.com/remorses/gpuix",
+    "source": "packages/native/index.d.ts",
+    "snapshot": "gpuix-native.d.ts.txt",
+    "sha256": "4d66f867ace7aa5ccaf2648c06c5b9801eefb209166cde5d86d30bab5ab23d14"
+  },
+  {
+    "project": "gpuix",
+    "revision": "18e695ed0ee8121a7793413ca795e08eda2a13df",
+    "repository": "https://github.com/remorses/gpuix",
+    "source": "LICENSE",
+    "snapshot": "gpuix-LICENSE",
+    "sha256": "043b2e38b6d079a31838b3be6a80f6c1253d126f66fc4981d034126b9efeb6f2"
+  }
+]
