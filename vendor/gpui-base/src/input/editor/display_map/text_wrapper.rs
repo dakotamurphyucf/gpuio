@@ -818,6 +818,53 @@ impl LineLayout {
         }
     }
 
+    pub(crate) fn paint_range_background(
+        &self,
+        bytes: Range<usize>,
+        origin: Point<Pixels>,
+        line_height: Pixels,
+        align: TextAlign,
+        width: Pixels,
+        color: gpui::Hsla,
+        radius: Pixels,
+        window: &mut Window,
+    ) {
+        let mut offset = 0;
+        for (row, line) in self.wrapped_lines.iter().enumerate() {
+            let end = offset + line.len;
+            let start_byte = bytes.start.max(offset);
+            let end_byte = bytes.end.min(end);
+            if start_byte < end_byte {
+                let x1 = line.x_for_index(start_byte - offset);
+                let x2 = line.x_for_index(end_byte - offset);
+                let align_x = match align {
+                    TextAlign::Left => px(0.),
+                    TextAlign::Center => (width - line.width).half().max(px(0.)),
+                    TextAlign::Right => (width - line.width).max(px(0.)),
+                };
+                let bounds = gpui::Bounds::new(
+                    origin
+                        + point(
+                            self.line_indent(row) + align_x + x1.min(x2),
+                            row * line_height,
+                        ),
+                    size((x2 - x1).abs(), line_height),
+                );
+                if bounds.size.width > px(0.) && bounds.intersects(&window.content_mask().bounds) {
+                    window.paint_quad(gpui::quad(
+                        bounds,
+                        radius,
+                        color,
+                        px(0.),
+                        gpui::transparent_black(),
+                        Default::default(),
+                    ));
+                }
+            }
+            offset = end;
+        }
+    }
+
     pub(crate) fn paint(
         &self,
         pos: Point<Pixels>,

@@ -12,6 +12,8 @@ pub(crate) const MASK_CHAR: char = '•';
 
 #[path = "editor/auto_close.rs"]
 mod auto_close;
+#[path = "editor/backgrounds.rs"]
+mod backgrounds;
 mod base;
 #[path = "base/blink_cursor.rs"]
 pub(crate) mod blink_cursor;
@@ -68,6 +70,7 @@ pub(crate) fn init(cx: &mut App) {
 }
 
 pub use crate::number_input::{NumberInputEvent, NumberStep};
+pub use backgrounds::{RangeBackground, RangeBackgroundError, RangeBackgrounds};
 pub use base::{InputBase, InputContextMenuCapabilities, InputStyles};
 pub use cursor::Selection;
 pub use decorations::{TextDecoration, TextDecorationCollection};

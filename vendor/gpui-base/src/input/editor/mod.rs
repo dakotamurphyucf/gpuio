@@ -36,6 +36,7 @@ impl InputModeKind for EditorMode {
     }
 
     fn reset_annotations(state: &mut InputBaseState<Self>) {
+        state.extras.range_backgrounds = None;
         state.extras.hover_popover = None;
         state.extras.decorations.clear();
     }
@@ -49,6 +50,7 @@ impl InputModeKind for EditorMode {
         range: &std::ops::Range<usize>,
         new_len: usize,
     ) {
+        state.extras.range_backgrounds = None;
         state.extras.decorations.adjust_for_edit(range, new_len);
     }
 
@@ -214,6 +216,9 @@ impl RenderOnce for Editor {
 
 /// What a code editor exposes to the renderer. See [`crate::input::InputExtras`].
 impl crate::input::InputExtras for super::EditorExtras {
+    fn range_backgrounds(&self) -> Option<std::rc::Rc<dyn crate::input::RangeBackgrounds>> {
+        self.range_backgrounds.clone()
+    }
     fn decoration_layers(&self) -> Vec<&[super::TextDecoration]> {
         self.decorations.iter().collect()
     }

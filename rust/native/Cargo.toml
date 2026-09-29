@@ -298,3 +298,8 @@ required-features = ["native-image-tests"]
 name = "native_highlight_view"
 harness = false
 required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_highlight_document"
+harness = false
+required-features = ["native-image-tests"]

@@ -1617,6 +1617,7 @@ struct CursorRenderInfo {
 }
 
 pub(super) struct PrepaintState {
+    range_backgrounds: Option<Rc<dyn crate::input::RangeBackgrounds>>,
     /// The lines of entire lines.
     last_layout: LastLayout,
     /// The lines only contains the visible lines in the viewport, based on `visible_range`.
@@ -2136,10 +2137,15 @@ impl<M: InputModeKind> Element for TextElement<M> {
                 cursor_scroll_offset,
                 state,
             )));
+        let range_backgrounds = state
+            .readonly
+            .then(|| state.extras.range_backgrounds())
+            .flatten();
         let fold_icon_layout =
             self.layout_fold_icons(original_x, &bounds, &last_layout, window, cx);
 
         PrepaintState {
+            range_backgrounds,
             bounds,
             last_layout,
             scroll_size,
@@ -2273,6 +2279,43 @@ impl<M: InputModeKind> Element for TextElement<M> {
             // Ghost lines shift every later line down.
             if Some(buffer_line) == prepaint.current_row {
                 offset_y += prepaint.ghost_lines_height;
+            }
+        }
+
+        // Prepared document washes are independent ordered layers above syntax
+        // backgrounds and below native search/selection decoration. Preserve the
+        // frame's immutable owner even if the state changes before the next draw.
+        if let Some(backgrounds) = &prepaint.range_backgrounds {
+            for wash in backgrounds.ranges() {
+                let mut offset_y = invisible_top_padding;
+                for ((line, &buffer_line), &start) in prepaint
+                    .last_layout
+                    .lines
+                    .iter()
+                    .zip(prepaint.last_layout.visible_buffer_lines.iter())
+                    .zip(prepaint.last_layout.visible_line_byte_offsets.iter())
+                {
+                    let end = start.saturating_add(line.len());
+                    if wash.bytes.start < end && wash.bytes.end > start {
+                        line.paint_range_background(
+                            wash.bytes.start.max(start) - start..wash.bytes.end.min(end) - start,
+                            point(
+                                origin.x + prepaint.last_layout.line_number_width + scroll_offset,
+                                origin.y + offset_y,
+                            ),
+                            line_height,
+                            text_align,
+                            prepaint.last_layout.content_width,
+                            wash.color,
+                            wash.radius,
+                            window,
+                        );
+                    }
+                    offset_y += line.size(line_height).height;
+                    if Some(buffer_line) == prepaint.current_row {
+                        offset_y += prepaint.ghost_lines_height;
+                    }
+                }
             }
         }
 

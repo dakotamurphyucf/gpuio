@@ -77,6 +77,9 @@ impl MultiLineMode for EditorMode {}
 /// during an edit. Adding a field an editor renders belongs here and leaves
 /// the engine's callbacks alone.
 pub trait InputExtras: Default + 'static {
+    fn range_backgrounds(&self) -> Option<std::rc::Rc<dyn crate::input::RangeBackgrounds>> {
+        None
+    }
     /// Decoration ranges to paint, innermost collection first.
     fn decoration_layers(&self) -> Vec<&[TextDecoration]> {
         Vec::new()
@@ -334,6 +337,7 @@ impl InputModeKind for TextareaMode {
 
 /// What a code editor adds on top of multi-line text: language features.
 pub struct EditorExtras {
+    pub(crate) range_backgrounds: Option<std::rc::Rc<dyn crate::input::RangeBackgrounds>>,
     pub(crate) lsp: Lsp,
     pub(crate) decorations: DecorationCollections,
     pub(crate) inline_completion: InlineCompletion,
@@ -346,6 +350,7 @@ pub struct EditorExtras {
 impl Default for EditorExtras {
     fn default() -> Self {
         Self {
+            range_backgrounds: None,
             lsp: Lsp::default(),
             decorations: DecorationCollections::default(),
             inline_completion: InlineCompletion::default(),

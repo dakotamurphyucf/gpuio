@@ -30,6 +30,32 @@ impl Paint {
     pub fn is_empty(&self) -> bool {
         self.washes.is_empty()
     }
+    pub(crate) fn same_paint(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.ready, &other.ready) && Arc::ptr_eq(&self.washes, &other.washes)
+    }
+    pub(crate) fn editor_backgrounds(&self) -> Rc<dyn gpui_base::input::RangeBackgrounds> {
+        struct Backgrounds {
+            _paint: Paint,
+            ranges: Vec<gpui_base::input::RangeBackground>,
+        }
+        impl gpui_base::input::RangeBackgrounds for Backgrounds {
+            fn ranges(&self) -> &[gpui_base::input::RangeBackground] {
+                &self.ranges
+            }
+        }
+        Rc::new(Backgrounds {
+            _paint: self.clone(),
+            ranges: self
+                .washes
+                .iter()
+                .map(|wash| gpui_base::input::RangeBackground {
+                    bytes: wash.bytes.clone(),
+                    color: wash.color,
+                    radius: px(wash.radius),
+                })
+                .collect(),
+        })
+    }
 }
 pub fn resolve(ready: Arc<Ready>, key: RunKey, config: &Config) -> Paint {
     Paint {

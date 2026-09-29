@@ -19,7 +19,9 @@ owned background-work pool, retained scope declarations, validated observation
 routing, bounded retained-tree collection, a GPUI executor service and an
 independently verified shaped-text highlight painter. Mounted ordinary/selectable
 text now passes GPU painting, queued observations, cosmetic reuse, source and
-visibility updates, and unmount cleanup. Installed native-document adapters,
+visibility updates, and unmount cleanup. Installed code/diff/source-mode pages
+now pass rounded GPU highlights, selection precedence, native page/collapse changes,
+streaming revision replacement and owner disposal. Rendered Markdown fragments,
 virtual-list/multiwindow acceptance and the public highlighting gallery remain
 pending. The gallery page count does
 not imply parity. General input regions now have mounted Core/Bonsai/native

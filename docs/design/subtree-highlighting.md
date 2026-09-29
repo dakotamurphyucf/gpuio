@@ -22,7 +22,9 @@ cursor must reuse match results; removing a scope cancels its work and subscript
 Its Core/Bonsai declarations, reconciliation and native tree storage are wired.
 The retained-tree collector and GPUI executor service now connect to mounted
 ordinary/selectable views, source caching, base/structural visibility and queued
-observations. Native document fragments and the public gallery remain in development.
+observations. Installed code/diff/source-mode pages also have native matching and
+rounded painting. Rendered Markdown fragments and the public gallery remain in
+development.
 
 Queries default to case-insensitive matching. Matching uses Unicode scalar
 lowercasing on both source and query, without normalization or full case folding.
@@ -163,9 +165,10 @@ identities independently of presentation. Equal immutable strings may reuse the
 old projection; document snapshots require the same Arc, preserving installed
 revision fences. A mounted cache must invalidate on visibility, page, tree/source
 and installed-document changes and may keep its existing Arc when comparison
-succeeds. The mounted ordinary-text cache is implemented. Its document provider
-still returns SourceUnavailable for nonempty native documents rather than treating
-raw Markdown syntax as displayed source.
+succeeds. The mounted cache and installed source-page provider are implemented.
+Code, diff and Markdown source-mode pages use their installed snapshot interval. Rendered
+Markdown still returns SourceUnavailable until its displayed fragment adapter is
+implemented.
 
 Native page projections can now use `Source::document_slice(snapshot, bytes)`.
 The constructor validates ordered, in-bounds UTF-8 byte endpoints before creating
@@ -173,8 +176,8 @@ an opaque slice. Matching streams only that rope interval and returns page-local
 byte offsets. Source equivalence requires both the same snapshot identity and the
 same interval, so even a same-content new installed revision retires old paints.
 The slice retains the original document-store reservation; highlight admission
-counts the displayed interval separately. This primitive is implemented and tested;
-connecting it to the installed document presenter and painter remains pending.
+counts the displayed interval separately. This primitive now connects to the
+installed code/diff/source-mode document presenter and rounded editor painter. Rendered Markdown remains pending.
 
 An application-wide native pool owns at most 128 mounted scope entries and two running jobs, with
 64 MiB of conservative admission units for queued/running/ready/retired data.
@@ -236,7 +239,7 @@ Native selection backgrounds paint afterward. Active-index comparison subtracts
 the virtualized offset after checking its lower bound, avoiding signed overflow.
 
 The helper and mounted ordinary/selectable views pass native GPU tests. Binding
-Markdown/code/diff fragments remains required. The geometry fixtures are not broad
+rendered Markdown fragments remains required. The geometry fixtures are not broad
 script/bidirectional-text acceptance, and highlighting has not yet passed the
 milestone's application-scale performance budget.
 
@@ -274,8 +277,9 @@ until dropped.
 
 ## Installed native-document adapter plan
 
-The document presenter keeps the last installed revision visible while the next
-parse is pending. Its highlighting source must use that same installed snapshot,
+The code/diff/source-mode adapter is implemented; the Markdown fragment adapter
+below remains planned. The document presenter keeps the last installed revision
+visible while the next parse is pending. Its highlighting source must use that same installed snapshot,
 mode and page, with a separate identity that also changes for collapse/expand and
 native page changes. Publishing a new parse must invalidate the enclosing scope
 and wake the root without reentering its current render. Before first installation,
@@ -283,12 +287,21 @@ collection reports Pending; collapsed bodies contribute no text. A completion fo
 a prior installed page must never decorate the replacement page.
 
 The source editor exposes shaped visible lines and their original buffer-byte
-offsets internally. Extend its existing background paint pass with immutable
-rounded range washes, preserving syntax backgrounds below and native selection
-above. The range data must retain the match-result lease through its last frame
-reader. Existing TextDecoration backgrounds alone are insufficient because they
-do not preserve radius or independently overlapping washes. Folded lines, tabs,
-soft wraps and scrolled clipping must use the editor's actual layout.
+offsets internally. Its background pass now accepts immutable rounded range washes,
+preserving syntax backgrounds below and active-window native selection above.
+An Rc-owned provider retains the match-result lease through its last frame reader;
+replacing/editing text clears prepared ranges. Only read-only buffers accept this
+API. Range count, UTF-8 endpoints and radius are validated; invalid input clears
+old washes. The frame retains its own provider and paints visible buffer lines,
+using actual soft wraps and alignment rather than treating displayed/folded rows
+as a contiguous byte string. Dedicated broad wrap/tab/fold/scroll and load tests
+remain required beyond the current native source-page checks.
+
+The enclosing scope's source/observation stamp includes a shared document identity.
+Native document invalidations replace that identity and defer a root wakeup, avoiding
+reentry during child rendering. The painter verifies its fragment key and exact
+installed snapshot/page against Ready's projection. Cosmetic updates reuse result
+and background owners; page or installed revision changes cannot reuse stale paint.
 
 Markdown needs an immutable displayed-fragment table tied to its prepared AST,
 with the same structural fragment identities reused by paragraph, inline-flow,
@@ -296,9 +309,9 @@ code-block and table-cell rendering. Do not derive it from visited/painted block
 or the plain-text copy representation: virtualized blocks can be unpainted, and
 copy text includes semantic separators and inline-object alternatives. The table
 must stay bounded at preparation time, and replacement must preserve the existing
-streaming layout/selection retention. These adapter steps remain unimplemented;
-they are requirements for the next integration, not evidence of native-document
-highlighting acceptance.
+streaming layout/selection retention. These Markdown adapter steps remain unimplemented. Code/diff/source-mode GPU
+and lifecycle evidence does not establish rendered Markdown highlighting or full
+application-scale acceptance.
 
 ## Pinned comparison and acceptance
 

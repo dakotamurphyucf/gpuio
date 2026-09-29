@@ -4,9 +4,10 @@ The current checkpoint implements validated configuration, a windowless native
 query kernel, range/run projections, an owned worker pool, retained scope
 declarations and observation routing, bounded retained-tree collection and a GPUI
 worker service, a shaped-text paint adapter, and mounted ordinary/selectable text
-with real GPU painting, cached sources and queued observations. Native document
-providers/painting, virtual-list and multiwindow highlighting acceptance, application
-performance and the public gallery remain pending. No highlighting capability is
+with real GPU painting, cached sources and queued observations. Installed native
+code/diff/source-mode pages now have rounded background painting and revision/page
+fences. Rendered Markdown, virtual-list and multiwindow highlighting acceptance,
+application performance and the public gallery remain pending. No highlighting capability is
 advertised.
 OCH-41 remains In Progress. The sections below distinguish each implementation
 checkpoint; constructed projections and injected observations do not establish
@@ -306,3 +307,55 @@ No native window test is claimed for this source primitive. Installed document
 collection, rounded editor backgrounds and Markdown fragment/paint adapters remain
 pending; the mounted provider still reports SourceUnavailable for nonempty native
 document queries. No protocol, capability or OCaml API changes.
+
+
+## Installed code/diff/source-mode highlighting
+
+The production document presenter now supplies its exact installed page to the
+scope collector. Initial preparation reports Pending, collapsed content contributes
+no text, and streaming continues matching the still-displayed installed revision
+until its replacement is installed. A shared native document identity invalidates
+source stamps and queued observations on page/content changes. Document painters
+verify their fragment key and exact snapshot interval against the prepared result.
+
+The small GPUI Base adaptation adds immutable, bounded read-only range-background
+owners. It validates bytes/radii, clears them on text edits, retains the owner
+through frame painting and uses shaped visible buffer-line offsets. Rounded washes
+paint above syntax backgrounds and below native search/selection. Prepared native
+Paint readers retain the original Ready/store reservations. No synchronous OCaml
+callback or query work runs in paint.
+
+Local macOS 14.5 arm64, isolated repository toolchain:
+
+- `native_highlight_document`, built with `native-image-tests` and executed under
+  a 40-second subprocess timeout, passes `GPUIO_NATIVE_HIGHLIGHT_DOCUMENT_OK`.
+  Actual GPU pixels verify code and diff washes, reduced painted area for radius8
+  versus radius0, selection precedence, unchanged cosmetic epoch, collapse/expand,
+  native page changes, old installed revision during pending replacement, new
+  streamed counts/pixels, unmount and final prepared-background owner disposal.
+- The first background-only run passed rendering/lifecycle checks. Adding selection
+  exposed the native editor's existing active-window-and-focus guard. The final
+  fixture briefly activates/focuses its window for that check and passes. Selection
+  is set through the native editor bridge, not physical keyboard/IME input. All
+  windows close and processes are reaped.
+- Existing `native_highlight_view` and `native_document` binaries rebuilt against
+  this integration also pass. The latter retains code/Markdown/table/fence/image,
+  diff, Unicode selection/streaming and lease teardown coverage. Its diagnostic
+  layout/paint sample is 16914 microseconds and peak process RSS 69500928 bytes;
+  these are observations, not the milestone's application performance budgets.
+- `cargo test -p gpuio-native --lib --test highlight_projection --test highlight_collect --test highlight_jobs --test highlight_scope --locked -j2`
+  through the wrapper passes **389 tests** (357 library, ten projection, six
+  collector, 13 jobs, three scope/observation); two existing private-bus notification
+  tests are excluded from this command. Strict all-target native/protocol Clippy
+  with `native-image-tests`, Rust format, shell syntax and diff checks pass.
+- The updated Base patch and checksum reconstruct exactly from the pinned archive,
+  comparing all committed vendor files and excluding generated Cargo.lock. The
+  patch attribute allows the single-space blank context line used by unified diffs;
+  source whitespace/formatting checks remain unchanged. New native test compilation
+  and macOS execution are in CI; Linux graphical invocation is informational.
+
+No hosted or Linux GUI acceptance is claimed. Rendered Markdown still reports
+SourceUnavailable until its immutable fragment/paint adapter is implemented.
+Virtual-list/independent-window and broad wrap/tab/fold/scroll behavior, application
+performance/resource budgets and public gallery acceptance remain open. No new
+protocol, OCaml API or capability advertisement in this checkpoint.

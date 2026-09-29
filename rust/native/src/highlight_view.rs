@@ -25,6 +25,26 @@ pub(super) type Shared = Rc<RefCell<State>>;
 struct Stamp {
     revision: i64,
     visibility: Rc<()>,
+    documents: Rc<()>,
+}
+
+#[derive(Clone)]
+pub(super) struct DocumentBinding {
+    scope: std::rc::Weak<RefCell<State>>,
+    key: RunKey,
+}
+impl DocumentBinding {
+    pub(super) fn paint(&self, source: &projection::Source) -> Option<paint::Paint> {
+        let scope = self.scope.upgrade()?;
+        let mut state = scope.borrow_mut();
+        let jobs::Status::Ready(ready) = state.job.as_ref()?.status() else {
+            return None;
+        };
+        if !ready.source().has_source(self.key, source) {
+            return None;
+        }
+        state.paint(self.key).map(|(paint, _)| paint)
+    }
 }
 struct CachedPaint {
     ready: Arc<jobs::Ready>,
@@ -228,9 +248,12 @@ impl View {
     ) -> Shared {
         let scope = self.highlights.entry(node.id).or_default().clone();
         let visibility = self.focus.borrow().visibility_identity();
+        let documents = self.highlight_documents.borrow().clone();
         let mut state = scope.borrow_mut();
         if state.stamp.as_ref().is_none_or(|s| {
-            s.revision != tree.revision() || !Rc::ptr_eq(&s.visibility, &visibility)
+            s.revision != tree.revision()
+                || !Rc::ptr_eq(&s.visibility, &visibility)
+                || !Rc::ptr_eq(&s.documents, &documents)
         }) {
             let focus = self.focus.borrow();
             let projection = collect::collect(
@@ -238,12 +261,13 @@ impl View {
                 node.id,
                 |node| focus.highlight_visible(tree, node.id),
                 |node| {
-                    // Installed Markdown/code/diff fragment providers are the next
-                    // adapter. Never count raw syntax as if it were displayed text.
                     if node.document.as_ref().is_some_and(|c| c.source.is_none()) {
                         Ok(vec![])
                     } else {
-                        Err(collect::DocumentError::Unavailable)
+                        self.documents
+                            .get(&node.id)
+                            .ok_or(collect::DocumentError::Pending)?
+                            .highlight_groups(cx)
                     }
                 },
             );
@@ -257,6 +281,7 @@ impl View {
             state.stamp = Some(Stamp {
                 revision: tree.revision(),
                 visibility,
+                documents,
             });
         }
         drop(state);
@@ -281,6 +306,20 @@ impl View {
         }
         None
     }
+    pub(super) fn document_highlight(&self, tree: &Tree, node: NodeId) -> Option<DocumentBinding> {
+        let mut cursor = Some(node);
+        while let Some(id) = cursor {
+            let current = tree.get(id)?;
+            if current.highlight_scope.is_some() {
+                return Some(DocumentBinding {
+                    scope: Rc::downgrade(self.highlights.get(&id)?),
+                    key: RunKey { node, fragment: 0 },
+                });
+            }
+            cursor = current.parent;
+        }
+        None
+    }
     pub(super) fn begin_highlight_paint(&mut self) {
         for scope in self.highlights.values() {
             scope.borrow_mut().painted = false;
@@ -291,6 +330,7 @@ impl View {
         self.highlights.retain(|_, scope| scope.borrow().painted);
         let released = self.highlights.len() != previous;
         let visibility = self.focus.borrow().visibility_identity();
+        let documents = self.highlight_documents.borrow().clone();
         let events = {
             let session = self.session.borrow();
             let Some(tree) = session.tree(self.id) else {
@@ -306,6 +346,7 @@ impl View {
                     let stamp = state.stamp.as_ref()?;
                     if stamp.revision != tree.revision()
                         || !Rc::ptr_eq(&stamp.visibility, &visibility)
+                        || !Rc::ptr_eq(&stamp.documents, &documents)
                     {
                         return None;
                     }

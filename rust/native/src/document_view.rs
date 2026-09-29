@@ -17,7 +17,7 @@ use gpuio_protocol::{
     document::{Config, Layout, Navigation},
     v1::*,
 };
-use std::{collections::BTreeMap, rc::Rc, sync::Arc};
+use std::{cell::RefCell, collections::BTreeMap, rc::Rc, sync::Arc};
 
 pub(super) struct State {
     source: Option<ResourceId>,
@@ -61,6 +61,12 @@ fn page(snapshot: &Snapshot, start: usize) -> Page {
 }
 
 pub(super) struct Presentation {
+    highlight_identity: Rc<RefCell<Rc<()>>>,
+    highlight: Option<super::highlight::DocumentBinding>,
+    highlight_paint: Option<(
+        crate::highlight_paint::Paint,
+        Rc<dyn gpui_base::input::RangeBackgrounds>,
+    )>,
     buttons: BTreeMap<&'static str, gpui::FocusHandle>,
     root: WeakEntity<View>,
     node: NodeId,
@@ -89,11 +95,58 @@ pub(super) struct Presentation {
     images: document_markdown::Images,
 }
 impl Presentation {
+    fn highlight_source(
+        &self,
+    ) -> Result<Option<crate::highlight_projection::Source>, crate::highlight_collect::DocumentError>
+    {
+        use crate::highlight_collect::DocumentError;
+        if self.collapsed {
+            return Ok(None);
+        }
+        let installed = self.installed.as_ref().ok_or(DocumentError::Pending)?;
+        if !self.source_mode {
+            return Err(DocumentError::Unavailable);
+        }
+        crate::highlight_projection::Source::document_slice(
+            installed.clone(),
+            self.installed_page_start..self.page_end,
+        )
+        .map(Some)
+        .map_err(|_| DocumentError::Unavailable)
+    }
+    fn install_highlight(&mut self, cx: &mut Context<Self>) {
+        let paint = self
+            .highlight_source()
+            .ok()
+            .flatten()
+            .and_then(|source| self.highlight.as_ref()?.paint(&source));
+        let same = match (&self.highlight_paint, &paint) {
+            (Some((old, _)), Some(new)) => old.same_paint(new),
+            (None, None) => true,
+            _ => false,
+        };
+        if !same {
+            self.highlight_paint = paint.map(|paint| {
+                let backgrounds = paint.editor_backgrounds();
+                (paint, backgrounds)
+            });
+        }
+        let backgrounds = self
+            .highlight_paint
+            .as_ref()
+            .map(|(_, backgrounds)| backgrounds.clone());
+        self.editor.update(cx, |editor, cx| {
+            // The provider is fenced to this exact installed page above. Rejecting
+            // malformed metadata clears old washes rather than decorating stale text.
+            let _ = editor.set_range_backgrounds(backgrounds, cx);
+        });
+    }
     fn new(
         root: WeakEntity<View>,
         node: NodeId,
         lease: Lease,
         config: Arc<Config>,
+        highlight_identity: Rc<RefCell<Rc<()>>>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
@@ -119,6 +172,9 @@ impl Presentation {
             editor
         });
         Self {
+            highlight_identity,
+            highlight: None,
+            highlight_paint: None,
             buttons: BTreeMap::new(),
             root,
             node,
@@ -220,6 +276,7 @@ impl Presentation {
             })
     }
     fn invalidate_row(&self, cx: &mut Context<Self>) {
+        *self.highlight_identity.borrow_mut() = Rc::new(());
         let root = self.root.clone();
         let id = self.node;
         cx.defer(move |cx| {
@@ -347,6 +404,7 @@ impl Presentation {
         self.source_mode = true;
         self.installed_page_start = self.page_start;
         self.installed = Some(self.snapshot.clone());
+        self.invalidate_row(cx);
     }
     fn accept_ready(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let ready = match &self.job {
@@ -584,6 +642,7 @@ impl Render for Presentation {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.refresh(self.config.clone(), cx);
         self.accept_ready(window, cx);
+        self.install_highlight(cx);
         let weak = cx.weak_entity();
         for name in [
             "document-collapse",
@@ -893,6 +952,21 @@ impl Render for Presentation {
     }
 }
 impl State {
+    pub(super) fn highlight_groups(
+        &self,
+        cx: &App,
+    ) -> Result<crate::highlight_collect::DocumentGroups, crate::highlight_collect::DocumentError>
+    {
+        let presentation = self
+            .presentation
+            .as_ref()
+            .ok_or(crate::highlight_collect::DocumentError::Pending)?;
+        Ok(presentation
+            .read(cx)
+            .highlight_source()?
+            .map(|source| vec![vec![source]])
+            .unwrap_or_default())
+    }
     pub(super) fn retained(&self, window: &Window, cx: &App) -> bool {
         self.presentation
             .as_ref()
@@ -999,7 +1073,7 @@ impl View {
     }
     pub(super) fn document_element(
         &mut self,
-        _tree: &Tree,
+        tree: &Tree,
         node: &Node,
         interaction: Interaction,
         window: &mut Window,
@@ -1009,6 +1083,8 @@ impl View {
         let identity = (node.id.generation() as u64) << 32 | node.id.slot() as u64;
         let root = div().id(("gpuio-document", identity)).w_full();
         let (root, _) = apply_styles(root, &node.style, interaction, false);
+        let highlight = self.document_highlight(tree, node.id);
+        let highlight_identity = self.highlight_documents.clone();
         let Some(state) = self.documents.get_mut(&node.id) else {
             return root.child("Document unavailable").into_any_element();
         };
@@ -1020,7 +1096,17 @@ impl View {
         let config = node.document.clone().unwrap();
         let presentation = state.presentation.get_or_insert_with(|| {
             let root = cx.weak_entity();
-            cx.new(|cx| Presentation::new(root, node.id, lease.clone(), config.clone(), window, cx))
+            cx.new(|cx| {
+                Presentation::new(
+                    root,
+                    node.id,
+                    lease.clone(),
+                    config.clone(),
+                    highlight_identity,
+                    window,
+                    cx,
+                )
+            })
         });
         let images = state
             .images
@@ -1033,6 +1119,7 @@ impl View {
             })
             .collect();
         presentation.update(cx, |state, cx| {
+            state.highlight = highlight;
             let images: BTreeMap<String, Arc<gpui::RenderImage>> = images;
             let changed = images.len() != state.images.0.len()
                 || images.iter().any(|(url, image)| {
@@ -1051,6 +1138,7 @@ impl View {
                 cx.notify();
             }
             state.refresh(config, cx);
+            state.install_highlight(cx);
         });
         let presentation = presentation.clone();
         let weak = presentation.downgrade();
@@ -1085,6 +1173,10 @@ impl View {
 #[cfg(feature = "native-tests")]
 #[path = "document_test.rs"]
 pub(crate) mod test;
+
+#[cfg(feature = "native-image-tests")]
+#[path = "highlight_document_test.rs"]
+pub(crate) mod highlight_test;
 
 fn markdown_style(dark: bool) -> gpui_base::TextViewStyle {
     let (foreground, background, border, link) = if dark {

@@ -248,6 +248,14 @@ impl Projection {
         self.source_bytes
     }
 
+    /// Fence a native fragment's painter against its currently installed source.
+    pub(crate) fn has_source(&self, key: RunKey, source: &Source) -> bool {
+        self.groups
+            .iter()
+            .flat_map(|group| &group.runs)
+            .any(|run| run.key == key && run.source.same_source(source))
+    }
+
     /// Compare ordered source identities and run keys, excluding presentation.
     /// A mounted cache may keep its existing Arc when this returns true, so
     /// unrelated tree/style changes do not cancel matching or advance its epoch.

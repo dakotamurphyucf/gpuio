@@ -944,32 +944,6 @@
      }
 
      #[gpui::test]
---- a/src/input/base/element.rs
-+++ b/src/input/base/element.rs
-@@ -987,7 +987,7 @@
-         style: &TextStyle,
-         window: &mut Window,
-     ) -> (Pixels, usize) {
--        let total_lines = text.lines_len();
-+        let total_lines = text.lines_len().saturating_add(state.line_number_offset);
-         // One extra column beyond the widest line number, so right-aligned
-         // numbers keep a gap from the left edge.
-         let line_number_len = total_lines.max(1).ilog10() as usize + 2;
-@@ -2095,8 +2095,12 @@
-                 .iter()
-                 .zip(last_layout.visible_buffer_lines.iter())
-             {
--                let line_no: SharedString =
--                    format!("{:>width$}", buffer_line + 1, width = line_number_len).into();
-+                let line_no: SharedString = format!(
-+                    "{:>width$}",
-+                    buffer_line + 1 + state.line_number_offset,
-+                    width = line_number_len
-+                )
-+                .into();
- 
-                 let runs = if current_row == Some(buffer_line) {
-                     &current_line_runs
 --- a/src/input/base/state.rs
 +++ b/src/input/base/state.rs
 @@ -427,6 +427,7 @@
@@ -2565,3 +2539,315 @@
 +        assert!(navigation.selected().is_none());
 +    }
 +}
+--- a/src/input/base/element.rs
++++ b/src/input/base/element.rs
+@@ -987,7 +987,7 @@
+         style: &TextStyle,
+         window: &mut Window,
+     ) -> (Pixels, usize) {
+-        let total_lines = text.lines_len();
++        let total_lines = text.lines_len().saturating_add(state.line_number_offset);
+         // One extra column beyond the widest line number, so right-aligned
+         // numbers keep a gap from the left edge.
+         let line_number_len = total_lines.max(1).ilog10() as usize + 2;
+@@ -1617,6 +1617,7 @@
+ }
+ 
+ pub(super) struct PrepaintState {
++    range_backgrounds: Option<Rc<dyn crate::input::RangeBackgrounds>>,
+     /// The lines of entire lines.
+     last_layout: LastLayout,
+     /// The lines only contains the visible lines in the viewport, based on `visible_range`.
+@@ -2095,8 +2096,12 @@
+                 .iter()
+                 .zip(last_layout.visible_buffer_lines.iter())
+             {
+-                let line_no: SharedString =
+-                    format!("{:>width$}", buffer_line + 1, width = line_number_len).into();
++                let line_no: SharedString = format!(
++                    "{:>width$}",
++                    buffer_line + 1 + state.line_number_offset,
++                    width = line_number_len
++                )
++                .into();
+ 
+                 let runs = if current_row == Some(buffer_line) {
+                     &current_line_runs
+@@ -2132,10 +2137,15 @@
+                 cursor_scroll_offset,
+                 state,
+             )));
++        let range_backgrounds = state
++            .readonly
++            .then(|| state.extras.range_backgrounds())
++            .flatten();
+         let fold_icon_layout =
+             self.layout_fold_icons(original_x, &bounds, &last_layout, window, cx);
+ 
+         PrepaintState {
++            range_backgrounds,
+             bounds,
+             last_layout,
+             scroll_size,
+@@ -2269,6 +2279,43 @@
+             // Ghost lines shift every later line down.
+             if Some(buffer_line) == prepaint.current_row {
+                 offset_y += prepaint.ghost_lines_height;
++            }
++        }
++
++        // Prepared document washes are independent ordered layers above syntax
++        // backgrounds and below native search/selection decoration. Preserve the
++        // frame's immutable owner even if the state changes before the next draw.
++        if let Some(backgrounds) = &prepaint.range_backgrounds {
++            for wash in backgrounds.ranges() {
++                let mut offset_y = invisible_top_padding;
++                for ((line, &buffer_line), &start) in prepaint
++                    .last_layout
++                    .lines
++                    .iter()
++                    .zip(prepaint.last_layout.visible_buffer_lines.iter())
++                    .zip(prepaint.last_layout.visible_line_byte_offsets.iter())
++                {
++                    let end = start.saturating_add(line.len());
++                    if wash.bytes.start < end && wash.bytes.end > start {
++                        line.paint_range_background(
++                            wash.bytes.start.max(start) - start..wash.bytes.end.min(end) - start,
++                            point(
++                                origin.x + prepaint.last_layout.line_number_width + scroll_offset,
++                                origin.y + offset_y,
++                            ),
++                            line_height,
++                            text_align,
++                            prepaint.last_layout.content_width,
++                            wash.color,
++                            wash.radius,
++                            window,
++                        );
++                    }
++                    offset_y += line.size(line_height).height;
++                    if Some(buffer_line) == prepaint.current_row {
++                        offset_y += prepaint.ghost_lines_height;
++                    }
++                }
+             }
+         }
+ 
+--- a/src/input/base/kind.rs
++++ b/src/input/base/kind.rs
+@@ -77,6 +77,9 @@
+ /// during an edit. Adding a field an editor renders belongs here and leaves
+ /// the engine's callbacks alone.
+ pub trait InputExtras: Default + 'static {
++    fn range_backgrounds(&self) -> Option<std::rc::Rc<dyn crate::input::RangeBackgrounds>> {
++        None
++    }
+     /// Decoration ranges to paint, innermost collection first.
+     fn decoration_layers(&self) -> Vec<&[TextDecoration]> {
+         Vec::new()
+@@ -334,6 +337,7 @@
+ 
+ /// What a code editor adds on top of multi-line text: language features.
+ pub struct EditorExtras {
++    pub(crate) range_backgrounds: Option<std::rc::Rc<dyn crate::input::RangeBackgrounds>>,
+     pub(crate) lsp: Lsp,
+     pub(crate) decorations: DecorationCollections,
+     pub(crate) inline_completion: InlineCompletion,
+@@ -346,6 +350,7 @@
+ impl Default for EditorExtras {
+     fn default() -> Self {
+         Self {
++            range_backgrounds: None,
+             lsp: Lsp::default(),
+             decorations: DecorationCollections::default(),
+             inline_completion: InlineCompletion::default(),
+--- /dev/null
++++ b/src/input/editor/backgrounds.rs
+@@ -0,0 +1,84 @@
++//! Immutable background layers for a prepared read-only document revision.
++use crate::input::EditorState;
++use gpui::{Context, Hsla, Pixels, px};
++use std::{ops::Range, rc::Rc};
++
++#[derive(Clone, Debug)]
++pub struct RangeBackground {
++    /// Half-open UTF-8 bytes in the currently installed editor buffer.
++    pub bytes: Range<usize>,
++    pub color: Hsla,
++    pub radius: Pixels,
++}
++
++/// Frozen ordered layers. Implementations may retain a prepared-result lease;
++/// the editor and in-flight frame keep this owner alive while reading its data.
++/// `ranges` must return the same immutable slice for this owner's lifetime and
++/// must not run matching, I/O, or application callbacks.
++pub trait RangeBackgrounds: 'static {
++    fn ranges(&self) -> &[RangeBackground];
++}
++
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub enum RangeBackgroundError {
++    Editable,
++    Limit,
++    InvalidRange,
++    InvalidRadius,
++}
++
++impl EditorState {
++    /// Replace prepared washes without changing syntax styles or selection.
++    /// Text replacement clears the owner. Invalid input also clears old washes.
++    /// Only read-only buffers accept this revision-bound decoration API.
++    pub fn set_range_backgrounds(
++        &mut self,
++        backgrounds: Option<Rc<dyn RangeBackgrounds>>,
++        cx: &mut Context<Self>,
++    ) -> Result<(), RangeBackgroundError> {
++        let same = match (&self.extras.range_backgrounds, &backgrounds) {
++            (Some(a), Some(b)) => Rc::ptr_eq(a, b),
++            (None, None) => true,
++            _ => false,
++        };
++        if same && (self.readonly || backgrounds.is_none()) {
++            return Ok(());
++        }
++        let valid = backgrounds.as_ref().map_or(Ok(()), |source| {
++            if !self.readonly {
++                return Err(RangeBackgroundError::Editable);
++            }
++            let ranges = source.ranges();
++            if ranges.len() > 32768 {
++                return Err(RangeBackgroundError::Limit);
++            }
++            for wash in ranges {
++                if wash.bytes.start >= wash.bytes.end
++                    || wash.bytes.end > self.text.len()
++                    || !self.text.is_char_boundary(wash.bytes.start)
++                    || !self.text.is_char_boundary(wash.bytes.end)
++                {
++                    return Err(RangeBackgroundError::InvalidRange);
++                }
++                if !wash.radius.as_f32().is_finite()
++                    || wash.radius < px(0.)
++                    || wash.radius > px(64.)
++                {
++                    return Err(RangeBackgroundError::InvalidRadius);
++                }
++            }
++            Ok(())
++        });
++        let backgrounds = valid.is_ok().then_some(backgrounds).flatten();
++        let same = match (&self.extras.range_backgrounds, &backgrounds) {
++            (Some(a), Some(b)) => Rc::ptr_eq(a, b),
++            (None, None) => true,
++            _ => false,
++        };
++        if !same {
++            self.extras.range_backgrounds = backgrounds;
++            cx.notify();
++        }
++        valid
++    }
++}
+--- a/src/input/editor/display_map/text_wrapper.rs
++++ b/src/input/editor/display_map/text_wrapper.rs
+@@ -815,6 +815,53 @@
+                 window,
+                 cx,
+             );
++        }
++    }
++
++    pub(crate) fn paint_range_background(
++        &self,
++        bytes: Range<usize>,
++        origin: Point<Pixels>,
++        line_height: Pixels,
++        align: TextAlign,
++        width: Pixels,
++        color: gpui::Hsla,
++        radius: Pixels,
++        window: &mut Window,
++    ) {
++        let mut offset = 0;
++        for (row, line) in self.wrapped_lines.iter().enumerate() {
++            let end = offset + line.len;
++            let start_byte = bytes.start.max(offset);
++            let end_byte = bytes.end.min(end);
++            if start_byte < end_byte {
++                let x1 = line.x_for_index(start_byte - offset);
++                let x2 = line.x_for_index(end_byte - offset);
++                let align_x = match align {
++                    TextAlign::Left => px(0.),
++                    TextAlign::Center => (width - line.width).half().max(px(0.)),
++                    TextAlign::Right => (width - line.width).max(px(0.)),
++                };
++                let bounds = gpui::Bounds::new(
++                    origin
++                        + point(
++                            self.line_indent(row) + align_x + x1.min(x2),
++                            row * line_height,
++                        ),
++                    size((x2 - x1).abs(), line_height),
++                );
++                if bounds.size.width > px(0.) && bounds.intersects(&window.content_mask().bounds) {
++                    window.paint_quad(gpui::quad(
++                        bounds,
++                        radius,
++                        color,
++                        px(0.),
++                        gpui::transparent_black(),
++                        Default::default(),
++                    ));
++                }
++            }
++            offset = end;
+         }
+     }
+ 
+--- a/src/input/editor/mod.rs
++++ b/src/input/editor/mod.rs
+@@ -36,6 +36,7 @@
+     }
+ 
+     fn reset_annotations(state: &mut InputBaseState<Self>) {
++        state.extras.range_backgrounds = None;
+         state.extras.hover_popover = None;
+         state.extras.decorations.clear();
+     }
+@@ -49,6 +50,7 @@
+         range: &std::ops::Range<usize>,
+         new_len: usize,
+     ) {
++        state.extras.range_backgrounds = None;
+         state.extras.decorations.adjust_for_edit(range, new_len);
+     }
+ 
+@@ -214,6 +216,9 @@
+ 
+ /// What a code editor exposes to the renderer. See [`crate::input::InputExtras`].
+ impl crate::input::InputExtras for super::EditorExtras {
++    fn range_backgrounds(&self) -> Option<std::rc::Rc<dyn crate::input::RangeBackgrounds>> {
++        self.range_backgrounds.clone()
++    }
+     fn decoration_layers(&self) -> Vec<&[super::TextDecoration]> {
+         self.decorations.iter().collect()
+     }
+--- a/src/input/mod.rs
++++ b/src/input/mod.rs
+@@ -12,6 +12,8 @@
+ 
+ #[path = "editor/auto_close.rs"]
+ mod auto_close;
++#[path = "editor/backgrounds.rs"]
++mod backgrounds;
+ mod base;
+ #[path = "base/blink_cursor.rs"]
+ pub(crate) mod blink_cursor;
+@@ -68,6 +70,7 @@
+ }
+ 
+ pub use crate::number_input::{NumberInputEvent, NumberStep};
++pub use backgrounds::{RangeBackground, RangeBackgroundError, RangeBackgrounds};
+ pub use base::{InputBase, InputContextMenuCapabilities, InputStyles};
+ pub use cursor::Selection;
+ pub use decorations::{TextDecoration, TextDecorationCollection};
