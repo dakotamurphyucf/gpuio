@@ -64,6 +64,7 @@ let status_regions palette graph =
 
 let presentation app window palette graph =
   let badge_preview = Badge_preview.component app window palette graph in
+  let label_preview = Label_preview.component palette graph in
   let status_regions = status_regions palette graph in
   let notice, set_notice = B.state "Ready when you are" graph in
   let animate_loading, toggle_loading = B.toggle ~default_model:false graph in
@@ -74,6 +75,7 @@ let presentation app window palette graph =
   and toggle_loading = toggle_loading
   and status_regions = status_regions
   and badge_preview = badge_preview
+  and label_preview = label_preview
   and set_notice = set_notice in
   let a = Palette.appearance p in
   group
@@ -102,6 +104,7 @@ let presentation app window palette graph =
         ; status_regions
         ; badge_preview
         ]
+    ; Palette.card p ~title:"Text with context" [ label_preview ]
     ; Palette.card
         p
         ~title:"Feedback with a purpose"

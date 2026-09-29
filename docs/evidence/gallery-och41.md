@@ -18,6 +18,32 @@ adds public inline-code/bold and safe image-placeholder links, with exact AX
 reading-order/action checks and retained keyboard navigation. Its focused result
 is separate from the combined/installed-consumer checkpoints below.
 
+## Enhanced labels — focused checkpoint, 2026-09-29
+
+The public Presentation card now exercises `Label.create` and
+`Presentation.styled_label`: inline secondary text, scalar-aware prefix/all-match
+foregrounds and display masking in one selectable text flow. The focused driver
+passes 48 combinations (two palettes, two widths, secondary on/off, three match
+modes and masked/unmasked). Each case sends real Command+A/C and compares exact
+clipboard text, checks stable native identity, and verifies that masked AX no
+longer exposes the original complete label. Page teardown returns resource counts
+to zero. Light/dark and masked screenshots were inspected. The driver pins the
+clipboard commands to UTF-8 and restores prior clipboard text.
+
+The combined `--section core` walkthrough also passes with the label checks in
+place: status-bar and overlay-badge geometry/input, label wrapping/copy/masking,
+editor behavior, independent windows and repeated page navigation all retain their
+assertions. The full Dune `@all @runtest @fmt` check passes. The current changes
+are OCaml compositions and gallery/driver/docs; they add no Rust or fork patch.
+
+Five new Core expect tests cover matching, expanded Unicode offsets, overlap and
+secondary precedence, source/query/output/run limits, masked serialized contents,
+and public helper/theme/reconciliation behavior. See the
+[pinned label review](../catalog/presentation-review.md#label-functional-equivalent)
+for the contract, differences from upstream and reproduction commands.
+This focused evidence does not replace the full 23-section/installed-consumer,
+IME/VoiceOver, performance, Linux desktop or hosted release gates.
+
 ## Latest combined checkpoint — 2026-09-29
 
 Both the repository application and a fresh independent consumer of the staged

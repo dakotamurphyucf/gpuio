@@ -63,6 +63,17 @@ end
     truncation; empty/localized labels do not allocate hidden placeholder text. *)
 val label : ?key:Key.t -> ?style:Style.t -> string -> 'action View.t
 
+(** Inline secondary text, match coloring and display masking from [Label.create].
+    Uses one ordinary/selectable text layout. Style refines the inherited primary
+    foreground; secondary and matched runs use the appearance's muted/accent colors.
+    State remains caller-owned; masked values expose only their replacement text. *)
+val styled_label
+  :  Appearance.t
+  -> ?key:Key.t
+  -> ?style:Style.t
+  -> Label.t
+  -> 'action View.t
+
 val badge
   :  Appearance.t
   -> ?key:Key.t

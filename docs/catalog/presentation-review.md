@@ -142,7 +142,7 @@ These are local API/geometry/input/resource checks, not a full VoiceOver journey
 physical display transition, arbitrary custom overflow/layout, performance budget
 or Linux desktop acceptance. The other catalog and release gates remain open.
 
-## Label: configuration review remains incomplete
+## Label: functional equivalent
 
 Source: [component/label](sources/component-label.rs.txt). Beyond `new` and
 `Styled`, it exposes `secondary`, `masked` and `highlights`, with
@@ -150,26 +150,37 @@ Source: [component/label](sources/component-label.rs.txt). Beyond `new` and
 muted styling, a bullet per Unicode scalar when masked, and case-insensitive
 prefix/all-occurrence highlighting. It has no action or persistent controller.
 
-GPUIO's `Presentation.label` supplies ordinary text with Label semantics and
-style. Secondary text can compose through ordinary views, and the separately
-implemented `Highlight` system supplies scoped searches/ranges and GPU painting.
-These facts do not yet prove the particular secondary/prefix/masking behavior.
-There is no label masking configuration in the current public helper.
+Public equivalent: `Label.create` plus `Presentation.styled_label`; the existing
+simple `Presentation.label` remains available. The [ordinary text-span contract](../design/text-content.md)
+describes the shared Text node, atomic transport, one-layout rendering and retained
+selection behavior used by this composition.
 
-The [ordinary text-span API](../design/text-content.md) now validates one logical
-UTF-8 string with bounded foreground ranges and transports it through atomic native
-updates. View/Bonsai reconciliation and ordinary/selectable rendering use one
-shaped layout, with local GPU, source AX, selection/copy and theme-diff evidence.
-The enhanced label helper and its public gallery example remain required; this
-lower-level API does not close the label configuration gap.
+| Surface | GPUIO contract and evidence |
+| --- | --- |
+| Primary/secondary | A single UTF-8 source joins primary and optional secondary with one space. The separator and secondary use muted foreground; absent secondary adds no separator. Empty source/secondary cases have expect coverage. |
+| Prefix/all matches | `Label.Match.prefix` and `all` validate a query. Matching lowercases scalars independently and maps matches to original byte ranges; overlapping/adjacent results coalesce. Matches override secondary coloring. Expanding `İ`, accented text, CJK neighbors, overlap, empty query and split-source boundaries have explicit tests. |
+| Case policy | Locale-independent scalar lowercasing, without normalization, context-sensitive final sigma or full case folding. `SS` does not match `ß`; composed/decomposed forms are not silently equated. A match inside a lowercase expansion covers the entire original scalar. This explicit policy avoids indexing original text using transformed byte offsets; it is not a claim to reproduce every upstream Unicode edge behavior. |
+| Masked display | One bullet U+2022 per source scalar, including the secondary separator. Only the replacement string and empty runs remain in the value; source-dependent formatting is suppressed. The value retains no query. Native default AX and copy receive only bullets. This is display masking, not secret entry or memory erasure; caller-owned source and explicit metadata remain caller-owned. |
+| Styling | `Appearance` supplies primary/muted/accent colors; `~style` refines inherited primary/layout properties. Native foreground runs preserve one text flow. Ordinary selection is opt-in with `User_select true`; font/line-height and overflow remain normal application styles. Defaults are GPUIO's, not a pixel-identical clone of upstream. |
+| Bounds/work | Combined source/output <=262144 UTF-8 bytes, query <=4096 bytes, lowered temporary source/query <=1048576/16384 bytes, <=4096 final foreground runs. Overflow returns `Or_error`, never truncation. The KMP search and mapping/coalescing are linear in source/query/occurrences. Matching happens in value construction; native painting never calls OCaml. |
+| Identity/disposal | The helper emits one ordinary Text leaf, no controller/task/registration. Same-key configuration changes retain native identity. Palette-only updates change resolved colors; masked updates atomically replace source/runs. Gallery page departure releases native state. |
+| Evidence/platform | Five Core expect tests cover values, budgets and public reconciliation/theme/masked payloads. Local macOS gallery passes 48 theme/width/secondary/match/mask cases, actual Command+A/C, exact clipboard source, native identity and original-source absence from masked AX. Light/dark/masked screenshots were inspected. Linux desktop remains deferred; consumer/hosted/release gates remain separate. |
 
-Required follow-up: review an explicit public recipe or API for secondary text,
-prefix/all-match styling and masked display, including non-ASCII boundaries and
-accessibility/copy behavior. A visually masked string must not accidentally
-expose its original text through AX/copy/highlight metadata. Use validated source
-offsets; do not copy upstream's lowercased-byte offset arithmetic without checking
-Unicode expansion. This is a remaining audit/implementation item, not a claim of
-an upstream bug or a new secret-entry widget contract.
+The gallery's **Text with context** card exposes matching, secondary, masking and
+compact/wide controls. Run the focused native driver with:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 \
+  @test/label/runtest examples/gallery/main.exe
+python3 scripts/test_gallery.py --section labels --images scratch/label-gallery
+```
+
+The test explicitly sets UTF-8 locale for macOS clipboard commands; default
+`pbpaste` encoding otherwise produced non-UTF-8 bytes in the first harness run.
+It restores prior clipboard text and closes its window. The combined core-gallery walkthrough and full Dune build/tests/format also pass,
+including explicit compact-versus-wide wrapping checks. It does not establish
+IME or VoiceOver navigation acceptance. Broader gallery and release evidence
+is recorded separately in [the gallery report](../evidence/gallery-och41.md).
 
 ## Remaining presentation modules
 

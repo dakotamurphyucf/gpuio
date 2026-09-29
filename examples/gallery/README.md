@@ -21,6 +21,14 @@ on the current page preserve native text and selection. Preview model state is
 local to its Bonsai branch and survives page changes. Transient modal, chooser and
 in-app toast state is cleared on departure. Application-owned OS notification/link state survives page and window changes. At most four windows are opened by the gallery.
 
+The Presentation page includes a **Text with context** card using `Label.create`
+and `Presentation.styled_label`. It demonstrates one selectable text flow with
+muted secondary text, prefix/all-occurrence Unicode match coloring and display
+masking. Theme, secondary, match and compact/wide changes preserve native text
+identity. Masked values submit only bullets; default accessibility and copy expose
+that replacement text. This is display masking, not a password editor.
+The focused native check is `python3 scripts/test_gallery.py --section labels`.
+
 The Input observations page wraps a retained native editor with public
 `View.input_region` subscriptions. Capture/bubble and enable controls update the
 observer without replacing the editor. A floating action uses explicit pointer

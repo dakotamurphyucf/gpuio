@@ -2,9 +2,9 @@
 
 Status: ordinary text spans are implemented for OCH-41's pinned presentation-label
 review. Typed values, atomic native updates, View/Bonsai reconciliation and ordinary/
-selectable rendering are integrated. The enhanced label helper, matching/masking
-configuration and public gallery acceptance remain required; this is not completed
-label parity or milestone release acceptance.
+selectable rendering are integrated. The enhanced label helper and focused public gallery checks are implemented;
+see the [label review](../catalog/presentation-review.md#label-functional-equivalent).
+Broader catalog, consumer, hosted and release acceptance remain required.
 
 The pinned upstream label has secondary text and prefix/all-occurrence foreground
 highlighting within a single shaped text flow. GPUIO's subtree-highlight API paints
@@ -49,8 +49,8 @@ receive new ones. Existing operation tags retain their values.
 Capability bit 47 (`CAP_STYLED_TEXT`) is required by the paired OCaml client and
 advertised by this Rust host. The shared mask is `281474976710655`. Older hosts
 reject the client's handshake rather than receiving an unknown operation.
-This capability covers ordinary foreground runs; it does not promise the pending
-higher-level label matching/masking API.
+This capability covers ordinary foreground runs. The higher-level label
+composition adds no separate native opcode or resource.
 
 `View.styled_text ?key ?style content` and `Gpuio_bonsai.View.styled_text` preserve
 the ordinary Text kind and identity. Reconciliation caches resolved wire colors,
@@ -80,22 +80,39 @@ let%map content = Text_content.create ~spans:[ secondary ] "Hello world" in
 View.styled_text ~style:(Style.create_exn [ User_select true ]) content
 ```
 
-## Required label integration
+## Enhanced label composition
 
-1. Add the enhanced presentation-label helper without replacing the existing
-   simple helper. Secondary text uses muted runs; prefix/all-occurrence matches
-   use explicit accent runs. Map Unicode scalar lowercasing back to original byte
-   ranges, merge overlapping matches and define precedence. Do not use transformed
-   byte offsets as original source offsets. Matching bounds and case behavior must
-   be documented and tested before this helper ships.
-2. Mask before generating/submitting the native value. The masked value must
-   contain only replacement text and its ranges, with source-dependent formatting
-   suppressed; original text must not appear in AX, copy or highlight metadata.
-   This is display masking, not a secure-memory/zeroization contract.
-3. Validate the higher-level secondary/match configuration, theme changes and
-   masked/unmasked transitions through a public gallery example with keyboard,
-   selection/copy and AX evidence.
-   Complete local checks and the milestone's consumer/hosted/release gates.
+`Label.create ?secondary ?highlight ?masked text` validates a display value;
+`Presentation.styled_label appearance ?key ?style label` renders it through this
+ordinary-text API. `Label.Match.prefix` and `all` accept up to 4096 UTF-8 query
+bytes. Search uses independent scalar lowercasing without normalization or locale
+rules. Original-byte mapping handles expansions such as `İ`; overlapping/adjacent
+matches coalesce and take precedence over muted secondary ranges. More than 4096
+final runs fails explicitly. The source/output limits are unchanged; temporary
+lowercase source/query are bounded to 1048576/16384 bytes. Work is linear in the
+lowered input/query and match count using Core's KMP search and a scalar-offset map.
+
+The masked constructor replaces source scalars with bullets before creating the
+retained label value. It stores neither original source nor query and suppresses
+all source-dependent runs. Bullet expansion is checked against the output byte
+budget. Copy and default AX therefore receive only the displayed replacement.
+This is not secret entry or zeroization; caller-owned original values and explicit
+metadata remain outside the label value's ownership. The public helper preserves
+the simpler existing `Presentation.label` API.
+
+```ocaml
+let open Core in
+let open Gpuio in
+let open Or_error.Let_syntax in
+let%bind highlight = Label.Match.all "agent" in
+let%map label = Label.create ~secondary:"agent notes" ~highlight "Agent" in
+Presentation.styled_label Presentation.Appearance.dark
+  ~style:(Style.create_exn [ User_select true ]) label
+```
+
+The [presentation review](../catalog/presentation-review.md#label-functional-equivalent)
+records the pinned upstream mapping, exact behavioral boundaries and focused
+48-case macOS gallery evidence. Full catalog/consumer/CI/release gates are separate.
 
 ## Foundation evidence
 
@@ -157,7 +174,8 @@ The background `native_styled_text` and expanded `native_highlight_view` runs pa
 the former confirms foregrounds on Latin, accented and CJK glyphs as well as the
 mixed-script source and selection checks above. All-target native/protocol Clippy
 with `native-image-tests` and `-D warnings`, Rustfmt and catalog source checks pass.
-The public enhanced-label example and milestone-wide release gates remain pending.
+The enhanced-label example is covered by the focused evidence below; milestone-wide
+release gates remain pending.
 
 ```sh
 GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt
@@ -167,3 +185,16 @@ GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt
   --test native_styled_text --test native_highlight_view --locked -j2 --no-run
 # Run each resulting native GUI binary separately under a bounded process wrapper.
 ```
+
+Enhanced label checkpoint: five expect tests pass for source/range/case/mask/budget
+semantics and public appearance/reconciliation. The 48-case `--section labels`
+macOS gallery run passes with real Command+A/C clipboard input, default AX source
+checks, same-key native identity across configuration changes and page cleanup.
+Screenshots confirm the inline primary/muted/matched flow in light/dark appearances
+and uniform bullet output when masked. Full installed-consumer and hosted results
+for this addition remain pending.
+
+The combined core-gallery walkthrough also passes with explicit native compact/
+wide wrapping checks and its existing status-bar/badge/editor/window scenarios.
+The full Dune `@all @runtest @fmt`, Python syntax, source catalog and diff checks
+pass for this OCaml-only composition addition. No Rust/fork source changed.

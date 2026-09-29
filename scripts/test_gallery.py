@@ -32,6 +32,7 @@ def exercise(mac, images):
     mac.wait_text(TITLE, 'A little context goes a long way')
     exercise_status_regions(mac, images)
     exercise_badges(mac, images)
+    exercise_labels(mac, images)
     if images:
         screenshot(mac, images / 'gallery-presentation-dark.png', title=TITLE)
     mac.release(mac.wait_find(TITLE, 'Aster avatar', 'AXImage'))
@@ -91,6 +92,126 @@ def exercise(mac, images):
             raise RuntimeError('Unmounted editor remains accessible')
         mac.press(TITLE, 'Text editing')
         expect_field(mac, TITLE, 'Document title', 'A place for good ideas')
+
+
+def exercise_labels(mac, images):
+    """Public label data -> Bonsai diff -> native foreground/selection/AX."""
+    primary = 'İstanbul · Élan · agent'
+    secondary = 'agent notes · 世界'
+    mac.wait_text(TITLE, 'Labels that read naturally')
+    raise_gallery(mac)
+    mouse = GalleryMouse(mac)
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    original = mac.wait_find(TITLE, primary + ' ' + secondary, 'AXStaticText')
+    clipboard_env = dict(os.environ, LANG='en_US.UTF-8', LC_ALL='en_US.UTF-8')
+    saved_clipboard = subprocess.run(['/usr/bin/pbpaste'], capture_output=True, check=True, env=clipboard_env).stdout
+    dark_button = mac.find(TITLE, 'Dark', 'AXButton')
+    current, alternate = ('Dark', 'Light') if dark_button else ('Light', 'Dark')
+    if dark_button:
+        mac.release(dark_button)
+
+    def reveal(label):
+        window = mac.window(TITLE)
+        try:
+            wx, wy, ww, wh = element_rect(mac, window)
+        finally:
+            mac.release(window)
+        point = (wx + ww * .78, wy + wh * .67)
+        create = mac.cg.CGEventCreateScrollWheelEvent
+        create.restype, create.argtypes = C.c_void_p, [C.c_void_p, C.c_uint, C.c_uint, C.c_int]
+        locate = mac.cg.CGEventSetLocation
+        locate.restype, locate.argtypes = None, [C.c_void_p, GalleryMouse.Point]
+        for _ in range(24):
+            node = mac.wait_find(TITLE, label, 'AXStaticText')
+            try:
+                x, y, w, h = element_rect(mac, node)
+            finally:
+                mac.release(node)
+            if y >= wy + 170 and y + h <= wy + wh - 30:
+                return x, y, w, h
+            mouse.send(5, point)
+            mouse.check_owner(point)
+            event = create(None, 0, 1, C.c_int(-75 if y + h > wy + wh - 30 else 75))
+            assert event
+            try:
+                locate(event, GalleryMouse.Point(*point))
+                mouse.post(0, event)
+            finally:
+                mac.release(event)
+            time.sleep(.08)
+        raise RuntimeError('Label did not become visible')
+
+    def copy(label):
+        focus_gallery_control(mac, label, 'AXStaticText')
+        mac.key(0, flags=1 << 20)
+        mac.key(8, flags=1 << 20)
+        deadline = time.monotonic() + 5
+        while True:
+            actual = subprocess.run(['/usr/bin/pbpaste'], capture_output=True, check=True, env=clipboard_env).stdout.decode('utf-8')
+            if actual == label:
+                break
+            assert time.monotonic() < deadline, 'Label clipboard did not match its display source'
+            time.sleep(.025)
+        mac.key(124)  # collapse selection before screenshots
+
+    def native_identity(label):
+        node = mac.wait_find(TITLE, label, 'AXStaticText')
+        try:
+            assert equal(original, node), 'Label configuration replaced native text identity'
+        finally:
+            mac.release(node)
+
+    cases = 0
+    try:
+        for appearance in (current, alternate):
+            for width in ('compact', 'wide'):
+                for enabled in (True, False):
+                    source = primary + (' ' + secondary if enabled else '')
+                    for mode in ('plain', 'prefix i', 'all agent'):
+                        mac.press(TITLE, 'Label: ' + mode)
+                        native_identity(source)
+                        _, _, _, height = reveal(source)
+                        if enabled:
+                            assert (height > 40 if width == 'compact' else height < 40), (width, height)
+                        copy(source)
+                        activate(mac, mac.wait_find(TITLE, 'Mask label', 'AXCheckBox'))
+                        masked = '•' * len(source)
+                        native_identity(masked)
+                        _, _, _, height = reveal(masked)
+                        if enabled:
+                            assert (height > 40 if width == 'compact' else height < 40), (width, height)
+                        # Original complete labels must disappear from native AX.
+                        for unmasked in (primary, primary + ' ' + secondary):
+                            old = mac.find(TITLE, unmasked, 'AXStaticText')
+                            if old:
+                                mac.release(old)
+                                raise AssertionError('Masked label exposed its original AX source')
+                        copy(masked)
+                        if images and width == 'compact' and enabled and mode == 'all agent':
+                            screenshot(mac, images / f'gallery-label-{appearance.lower()}-masked.png', title=TITLE)
+                        activate(mac, mac.wait_find(TITLE, 'Mask label', 'AXCheckBox'))
+                        mac.wait_text(TITLE, source)
+                        if images and width == 'compact' and enabled and mode == 'all agent':
+                            reveal(source)
+                            screenshot(mac, images / f'gallery-label-{appearance.lower()}.png', title=TITLE)
+                        cases += 2
+                    activate(mac, mac.wait_find(TITLE, 'Label secondary text', 'AXCheckBox'))
+                mac.press(TITLE, 'Label width: ' + width)
+                mac.release(mac.wait_find(TITLE, 'Label width: ' + ('wide' if width == 'compact' else 'compact'), 'AXButton'))
+            mac.press(TITLE, appearance)
+            mac.release(mac.wait_find(TITLE, alternate if appearance == current else current, 'AXButton'))
+    finally:
+        mac.release(original)
+        subprocess.run(['/usr/bin/pbcopy'], input=saved_clipboard, check=True, env=clipboard_env)
+    mac.press(TITLE, 'Runtime & windows')
+    mac.press(TITLE, 'Refresh resource counts')
+    mac.wait_text(TITLE, 'Images: 0 · Charts: 0 · Canvases: 0')
+    mac.wait_text(TITLE, 'Registered source bytes: 0')
+    mac.press(TITLE, 'Presentation')
+    mac.wait_text(TITLE, primary + ' ' + secondary)
+    print(f'GALLERY_LABEL_OK: {cases} theme/width/secondary/match/mask cases, real keyboard '
+          'copy of visible-only source, native text identity, AX secrecy and page teardown', flush=True)
 
 
 def exercise_badges(mac, images):
@@ -2418,7 +2539,7 @@ def main():
                         help='Run an independently built gallery instead of the repository executable')
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -2439,6 +2560,8 @@ def main():
             mac = Mac(child.pid, child)
             if args.section in ('all', 'core'):
                 exercise(mac, args.images)
+            if args.section == 'labels':
+                exercise_labels(mac, args.images)
             if args.section == 'badges':
                 exercise_badges(mac, args.images)
             if args.section == 'status-regions':

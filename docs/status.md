@@ -31,12 +31,15 @@ gallery theme/size/slot combinations with geometry, keyboard and identity checks
 Overlay badges now provide capped counts, zero hiding, dots and SVG icons while
 preserving the existing text-chip helper. Local native checks pass 36 kind/size/
 theme cases and 72 pointer/Return activations, uncapped AX labels, underlying
-control identity and scoped asset cleanup. Label secondary/masking/highlight
-configurations remain an explicit gap; the presentation family is not fully reviewed.
+control identity and scoped asset cleanup. Enhanced labels now supply inline
+secondary text, Unicode-aware prefix/all-match coloring and display masking.
+Local gallery checks pass 48 theme/width/configuration cases with real keyboard
+copy, native identity, masked AX source and cleanup. The presentation family
+remains only partially reviewed.
 The [ordinary text-span API](design/text-content.md) now supplies bounded
 foreground runs through atomic bridge updates and View/Bonsai reconciliation.
-Local checks cover native GPU paint, wrapping, selection/copy and source AX labels;
-the enhanced label helper and its public gallery example remain pending.
+Local checks cover native GPU paint, wrapping, selection/copy and source AX labels.
+The public label helper and gallery build on this same text primitive.
 OCH-41's public
 [Component Studio](../examples/gallery/README.md) now has twenty-three preview sections,
 including canvas, images/icons, charts, native motion, responsive layouts, native extensions, input/transfers, input observations, desktop services and styling details. The [gallery evidence](evidence/gallery-och41.md) records

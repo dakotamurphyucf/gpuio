@@ -133,6 +133,19 @@ let slot name content =
 let optional_slot name content = Option.map content ~f:(slot name)
 let label ?key ?style text = View.text ?key ?style text |> semantic Label
 
+let styled_label (appearance : Appearance.t) ?key ?(style = Style.empty) config =
+  let content =
+    Label.Expert.to_text_content
+      config
+      ~secondary:appearance.muted
+      ~highlight:appearance.accent
+  in
+  View.styled_text
+    ?key
+    ~style:(Style.merge [ Style.create_exn [ Foreground appearance.foreground ]; style ])
+    content
+;;
+
 let tag
       (p : Appearance.t)
       ?key
