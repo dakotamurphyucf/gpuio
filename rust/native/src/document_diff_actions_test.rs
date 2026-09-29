@@ -4,6 +4,9 @@ use gpuio_protocol::{
     HandlerId,
     document_diff::{Config as DiffConfig, LineLimit, Observation},
 };
+#[path = "document_diff_line_test.rs"]
+mod lines;
+
 const SOURCE: &str = "--- a/a.ml\n+++ b/a.ml\n@@ -1,3 +1,3 @@\n a\n b\n c\n";
 fn apply(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>, operations: Vec<Op>) {
     window
@@ -281,6 +284,7 @@ pub(super) async fn exercise(
             Op::Bind(node(), None),
         ],
     );
+    lines::exercise(cx, window, session).await;
     eprintln!(
         "GPUIO_NATIVE_DIFF_MORE_OK: pointer, Enter/Space, macOS AX press, managed local state and controlled queued intent, focus handoff, retired page/config/handler/reset/release rejection"
     );

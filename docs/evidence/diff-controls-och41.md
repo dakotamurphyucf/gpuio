@@ -218,3 +218,43 @@ and whitespace checks pass. This is local native input/AX action evidence, not a
 VoiceOver walkthrough, physical keyboard/IME, Linux GUI or release acceptance.
 Interactive file headers and richer line activation remain the next mounted work;
 gallery/consumer, style parity, application budgets and release gates stay open.
+
+## Rich line activation
+
+The installed diff editor now reports line activation from a primary click on
+laid-out text, unmodified Enter, and the existing Go to line toolbar/AX action.
+All use the same snapshot/page/config/handler admission as Show more. Pointer
+activation requires a caret, so selection drags and gutter controls do not produce
+line observations. Raw source keeps legacy navigation; rich observations require
+the explicit diff projection. Toolbar activation preserves legacy navigation where
+available, so an application registering both handlers may receive both callbacks.
+
+`native_document` now passes actual native pointer/key dispatch and macOS AX press
+on a two-file patch with the preceding file collapsed. Checks verify exact canonical
+Unicode text, CRLF removal, source-local file index/key, added/removed/context old
+and new line numbers, annotation rows without coordinates, and final-row EOF
+without a trailing newline. It also verifies native drag selection and actual
+gutter fold/expand produce no line event; an older installed revision can still
+report its exact payload while same-generation preparation is pending; replaced
+projections reject captured older line actions.
+
+The page fold bound now includes a complete final nonterminated row at EOF. The
+native gutter test verifies that final hunk actually hides/restores its body, after
+moving the caret outside it and allowing layout to settle. Earlier checks of only
+an empty event queue were insufficient to establish that the fold had happened.
+No Base fork change was needed for line activation or this page-bound correction.
+
+Local macOS14.5 arm64 commands pass:
+
+```sh
+./scripts/gpuio exec cargo test -p gpuio-native --test native_document --features native-image-tests --locked -j2
+./scripts/gpuio exec cargo test -p gpuio-native --test native_highlight_document --features native-image-tests --locked -j2
+./scripts/gpuio exec cargo clippy -p gpuio-native -p gpuio-protocol --all-targets --features native-image-tests --locked -j2 -- -D warnings
+./scripts/gpuio exec cargo check -p gpuio-native --features native-tests --locked -j2
+```
+
+The highlight regression includes projected GPU washes, gutter folding, selection,
+source/Markdown/images, style visibility and painter disposal. Formatting and
+whitespace checks pass. Physical keyboard/IME, VoiceOver, Linux GUI, gallery/
+consumer and release acceptance remain separate. Per-file interactive headers,
+path-based syntax parity and the full milestone07 gates are still open.

@@ -5,8 +5,9 @@ projection, Core configuration/event types, paired standalone codecs and native
 control state exist. View configuration, live transport and stale-event routing
 also exist. Mounted configuration now drives one projected native editor, with
 selection/page/search and GPU highlight evidence. Show more also has native
-pointer/keyboard/macOS accessibility and queued-event evidence. Per-file/header
-actions, richer line activation and gallery/consumer acceptance remain pending.
+pointer/keyboard/macOS accessibility and queued-event evidence. Rich line
+activation now also has mounted pointer/Enter/AX evidence. Per-file/header actions
+and gallery/consumer acceptance remain pending.
 This document does not advertise a capability.
 
 The reference is GPUIX at
@@ -24,7 +25,8 @@ Bonsai `View.document ?on_diff` now share the document node's handler router wit
 unchanged navigation. Supplying `on_diff` without explicit diff configuration is
 a reconciliation error. Controlled collapse and preview settings now change the
 mounted editor. Show more supports managed updates and controlled asynchronous
-intent. Interactive file headers and extended line actions remain unfinished.
+intent. Rich line observations are mounted; interactive file headers remain
+unfinished.
 
 The following constructors exist under `Document.Diff`:
 
@@ -198,6 +200,16 @@ application callback is required. Controlled activation only queues intent.
 Removing the footer after a managed expansion or controlled config update repairs
 keyboard focus to the current primary document control.
 
+For rich line observations, a primary click must land on laid-out source text
+with a collapsed selection; gutter/blank-area clicks and selection drags are not
+line activation. Unmodified Enter activates the editor caret, including EOF on a
+nonterminated final row. Headers do not emit line observations. Added, removed,
+context and annotation rows retain their distinct coordinate/payload semantics.
+The existing Go to line toolbar/AX action also sends the rich observation when
+explicit diff settings are installed, while preserving legacy navigation where
+a coordinate exists. Raw-source mode keeps legacy navigation without rich events.
+Both callbacks can therefore run for one toolbar action when both are registered.
+
 Pointer and keyboard/accessibility activation share the same native operation. No
 synchronous callback, filesystem read, syntax acquisition or network access is
 allowed from native rendering. File labels are display/navigation metadata only.
@@ -213,7 +225,7 @@ registry tests also pass. Mounted config updates now pass retained-editor,
 selection/direction, canonical navigation/search, bounded-page and source-revision
 checks. Native GPU checks cover projected matches, selection precedence, hunk
 folding and retired painter disposal. Completion still requires native
-per-file keyboard, AX and pointer controls; richer line activation; source/page/search/copy
+per-file keyboard, AX and pointer controls; source/page/search/copy
 behavior; selection and GPU highlight mapping under streaming; bounded lifetime/resource tests; the public
 gallery and independent consumer; and the required release gates. Audit word-diff
 options and path-based syntax behavior separately before claiming GPUIX parity.

@@ -366,11 +366,39 @@ impl Presentation {
     fn configure_source_semantics(&self, cx: &mut Context<Self>) {
         let presentation = cx.weak_entity();
         let label = self.config.label.clone();
+        let diff_action = self.diff_action();
         self.editor.update(cx, |editor, _| {
             editor.set_bridge_decorator(Rc::new(move |element, state, _, cx| {
                 let focus = state.focus_handle(cx);
+                let click_owner = presentation.clone();
+                let key_owner = presentation.clone();
+                let click_action = diff_action.clone();
+                let key_action = diff_action.clone();
                 let presentation = presentation.clone();
+                let key_focus = focus.clone();
                 let element = element
+                    .on_click(move |event, _, cx| {
+                        if let (Some(action), Some(point)) = (&click_action, event.mouse_position())
+                        {
+                            let _ = click_owner.update(cx, |this, cx| {
+                                this.observe_diff_line(action, Some(point), cx);
+                            });
+                        }
+                    })
+                    .capture_key_down(move |event, window, cx| {
+                        if event.keystroke.key == "enter"
+                            && event.keystroke.modifiers == gpui::Modifiers::default()
+                            && key_focus.is_focused(window)
+                            && let Some(action) = &key_action
+                        {
+                            let applied = key_owner
+                                .update(cx, |this, cx| this.observe_diff_line(action, None, cx))
+                                .unwrap_or(false);
+                            if applied {
+                                cx.stop_propagation();
+                            }
+                        }
+                    })
                     .role(gpui::Role::MultilineTextInput)
                     .aria_label(label.clone())
                     .aria_value(state.value())
@@ -633,34 +661,44 @@ impl Presentation {
         cx: &mut Context<Self>,
     ) {
         let projection = self.active_projection();
-        let (page, origin, final_line, candidates, projected_runs) =
-            if let Some(projection) = projection {
-                let text = projection.text();
-                let start = text.floor_char_boundary(self.page_start.min(text.len()));
-                let limit = text.floor_char_boundary((start + 65536).min(text.len()));
-                let page = bounded_page(&text[start..limit], start);
-                let origin = text[..start].bytes().filter(|b| *b == b'\n').count();
-                let final_line = origin + page.text.bytes().filter(|b| *b == b'\n').count();
-                let hunks = projection.hunks(self.diff.as_ref().expect("projected diff"));
-                let runs = projection
-                    .highlights(&self.runs)
-                    .expect("prepared diff runs");
-                (page, origin, final_line, hunks, Some(runs))
-            } else {
-                let page = page(&snapshot, self.page_start);
-                let origin = snapshot.text.byte_to_line_idx(
-                    self.page_start.min(snapshot.text.len()),
-                    ropey::LineType::LF,
+        let (page, origin, final_line, candidates, projected_runs) = if let Some(projection) =
+            projection
+        {
+            let text = projection.text();
+            let start = text.floor_char_boundary(self.page_start.min(text.len()));
+            let limit = text.floor_char_boundary((start + 65536).min(text.len()));
+            let page = bounded_page(&text[start..limit], start);
+            let origin = text[..start].bytes().filter(|b| *b == b'\n').count();
+            let final_line = origin
+                + page.text.bytes().filter(|b| *b == b'\n').count()
+                + usize::from(
+                    page.end == text.len() && !page.text.is_empty() && !page.text.ends_with('\n'),
                 );
-                let final_line = snapshot
-                    .text
-                    .byte_to_line_idx(page.end, ropey::LineType::LF);
-                let hunks = self
-                    .diff
-                    .as_ref()
-                    .map_or_else(Vec::new, |diff| diff.hunks.clone());
-                (page, origin, final_line, hunks, None)
-            };
+            let hunks = projection.hunks(self.diff.as_ref().expect("projected diff"));
+            let runs = projection
+                .highlights(&self.runs)
+                .expect("prepared diff runs");
+            (page, origin, final_line, hunks, Some(runs))
+        } else {
+            let page = page(&snapshot, self.page_start);
+            let origin = snapshot.text.byte_to_line_idx(
+                self.page_start.min(snapshot.text.len()),
+                ropey::LineType::LF,
+            );
+            let final_line = snapshot
+                .text
+                .byte_to_line_idx(page.end, ropey::LineType::LF)
+                + usize::from(
+                    page.end == snapshot.text.len()
+                        && !page.text.is_empty()
+                        && !page.text.ends_with('\n'),
+                );
+            let hunks = self
+                .diff
+                .as_ref()
+                .map_or_else(Vec::new, |diff| diff.hunks.clone());
+            (page, origin, final_line, hunks, None)
+        };
         self.page_start = page.end - page.text.len();
         self.page_end = page.end;
         self.projected_page = projected_runs
@@ -982,6 +1020,83 @@ impl Presentation {
             }
         });
     }
+    fn observe_diff_line(
+        &self,
+        action: &DiffAction,
+        pointer: Option<gpui::Point<gpui::Pixels>>,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        if !self.accepts_diff_action(action, cx) {
+            return false;
+        }
+        let (anchor, caret) = self.editor.read(cx).bridge_selection();
+        if pointer.is_some() && anchor != caret {
+            return false;
+        }
+        let projection = self.active_projection().unwrap();
+        let display_caret = self.installed_page_start + caret;
+        let row = projection
+            .rows()
+            .iter()
+            .find(|row| row.display.contains(&display_caret))
+            .or_else(|| {
+                (display_caret == projection.text().len() && !projection.text().ends_with('\n'))
+                    .then(|| projection.rows().last())
+                    .flatten()
+            });
+        let Some(row) = row else {
+            return false;
+        };
+        if let Some(point) = pointer {
+            let end =
+                row.display.end - usize::from(projection.text()[..row.display.end].ends_with('\n'));
+            let bytes = row.display.start.max(self.installed_page_start) - self.installed_page_start
+                ..end
+                    .min(self.page_end)
+                    .saturating_sub(self.installed_page_start);
+            let editor = self.editor.read(cx);
+            if !editor.input_bounds().contains(&point)
+                || !editor
+                    .range_to_bounds(&bytes)
+                    .is_some_and(|bounds| bounds.contains(&point))
+            {
+                return false;
+            }
+        }
+        let line = &self.diff.as_ref().unwrap().lines[row.source_line];
+        use crate::document_diff::Kind;
+        if !matches!(
+            line.kind,
+            Kind::Context | Kind::Added | Kind::Removed | Kind::Meta
+        ) {
+            return false;
+        }
+        let Some(index) = line.file else {
+            return false;
+        };
+        let file = &self.diff.as_ref().unwrap().files[index];
+        use gpuio_protocol::document_diff::{File, FileKey, Line, Observation};
+        let payload = Line {
+            file: File {
+                index: index as i64,
+                key: file
+                    .path()
+                    .map_or(FileKey::Unnamed, |path| FileKey::Path(path.to_owned())),
+                before_path: file.before_path.as_deref().map(str::to_owned),
+                after_path: file.after_path.as_deref().map(str::to_owned),
+            },
+            before: line.before.map(|value| value as i64),
+            after: line.after.map(|value| value as i64),
+            start_byte: line.content.start as i64,
+            end_byte: line.content.end as i64,
+            text: action.snapshot.text.slice(line.content.clone()).to_string(),
+        };
+        if !payload.is_valid() {
+            return false;
+        }
+        self.emit_diff(action, Observation::Line(payload), cx);
+        true
+    }
     fn show_more_diff(&mut self, action: &DiffAction, window: &mut Window, cx: &mut Context<Self>) {
         if !self.accepts_diff_action(action, cx) {
             return;
@@ -1281,11 +1396,20 @@ impl Render for Presentation {
             ));
         }
         let navigation = self.navigation_at_caret(cx);
-        if let Some(navigation) = navigation.clone() {
+        let line_action = self.diff_action();
+        if navigation.is_some() || line_action.is_some() {
             toolbar = toolbar.child(self.button(
                 "document-location",
                 "Go to line",
-                move |this, _, cx| this.navigate(navigation.clone(), cx),
+                move |this, _, cx| {
+                    if line_action
+                        .as_ref()
+                        .is_none_or(|action| this.observe_diff_line(action, None, cx))
+                        && let Some(navigation) = this.navigation_at_caret(cx)
+                    {
+                        this.navigate(navigation, cx);
+                    }
+                },
                 cx,
             ));
         }
@@ -1314,7 +1438,7 @@ impl Render for Presentation {
         if self.raw_diff && self.projection.is_some() {
             order.push(self.buttons["document-diff-view"].clone());
         }
-        if navigation.is_some() {
+        if navigation.is_some() || self.diff_action().is_some() {
             order.push(self.buttons["document-location"].clone());
         }
         if !self.collapsed && self.installed.is_some() {
