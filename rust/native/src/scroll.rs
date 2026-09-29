@@ -104,6 +104,11 @@ pub(super) struct Frame<E> {
     element: E,
     state: Weak<State>,
 }
+impl<E: InteractiveElement> InteractiveElement for Frame<E> {
+    fn interactivity(&mut self) -> &mut gpui::Interactivity {
+        self.element.interactivity()
+    }
+}
 impl<E> Frame<E> {
     pub(super) fn new(element: E, state: &Rc<State>) -> Self {
         Self {

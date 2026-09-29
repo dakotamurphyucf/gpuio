@@ -666,3 +666,55 @@ contract. No production code or native validation changed. This is background
 rendering evidence, not physical input, accessibility or application performance
 acceptance. Dynamic state-style visibility, native diff hunk-fold mapping and the
 remaining catalog/consumer/CI/release gates stay open.
+
+## Resolved state-style visibility
+
+Ordinary styled roots now pass their actual GPUI-computed Display/Visibility to
+the window's search-visibility state. The last sample in a completed paint cycle
+is committed before the highlight observation fence. Intermediate cached-hover
+layout samples cannot churn epochs against the final paint sample. Unchanged
+visibility causes no refresh; actual changes request another native frame.
+Records use weak admitted-style identity and generational node IDs, and tree
+synchronization discards obsolete records. Scroll clipping does not hide logical
+source. The wrapper delegates native identity and accessibility unchanged and
+requires no GPUI or Base fork change.
+
+Selectable text's outer styled root now follows its inner selection widget's
+focus handle, matching the existing native-editor wrapper behavior. This fixes
+focus refinements that previously had no tracked outer focus handle.
+
+The production `native_highlight_view` fixture verifies:
+
+- Hover-hidden ancestor content disappears from counts and GPU washes, returns
+  on hover exit, and does not change the retained tree revision.
+- Moving within the same hidden region preserves the prepared result and emits
+  no count/epoch observation.
+- Pressed hiding removes counts/washes; an explicit restyle restores them.
+- Focus can override a hidden base visibility on selectable text; losing focus
+  hides it again. Focused `display:none` also removes matching source even though
+  the text child does not paint, and losing focus restores it.
+- Replacing the style discards stale resolved visibility.
+
+The full View suite and `native_highlight_document` pass locally on macOS 14.5
+arm64 under sequential 60-second watchdogs; all windows close. This includes
+the previous navigation, independent-window, virtual-row, ordinary/selectable,
+responsive, source/document viewport, Markdown, image and RTL regression cases.
+`cargo test -p gpuio-native --lib --locked -j2` through `scripts/gpuio` passes
+363 tests, with two private-bus tests ignored in this command. A new pure test
+verifies final-sample commits, unchanged identity, ancestor propagation, inert
+text eligibility, rejection of old frames after value-equal restyles, and removal
+cleanup. These are synthetic native state/layout checks, not physical input/IME.
+Strict native/protocol all-target Clippy with `native-image-tests`, workspace
+formatting and diff checks pass. No hosted, installed-consumer or Linux GUI run
+is implied by this local checkpoint.
+
+An independent interaction gap remains: the pinned GPUI Div skips mouse-up
+listener registration while visibility-hidden. In this fixture, hiding on press
+therefore remains hidden after synthetic release; explicitly restyling recovers.
+Highlighting follows the actual hidden result, but that is **not** acceptance of
+pressed-hide release behavior. The state-style audit must resolve it before
+claiming complete styling parity. Deferred popup/toast/tooltip and other specialized
+renderer visibility paths also remain to be integrated/verified; this checkpoint
+does not claim every state-style path. Native diff hunk-fold mapping, application
+resource/performance, combined gallery/consumer/CI and remaining release gates
+stay open.

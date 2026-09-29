@@ -4,6 +4,8 @@ use super::*;
 
 #[path = "highlight_navigation_test.rs"]
 mod navigation;
+#[path = "highlight_state_style_test.rs"]
+mod state_style;
 
 fn frame_style(width: Length, height: f64) -> Vec<Style> {
     vec![Style::Fields(vec![
@@ -52,7 +54,14 @@ async fn count(
             return sample.clone();
         }
     }
-    panic!("missing current visible count {total}: last queued {sample:?}");
+    let current = handle
+        .update(cx, |view, _, _| {
+            view.highlights
+                .get(&id(1))
+                .map(|scope| scope.borrow().observation())
+        })
+        .unwrap();
+    panic!("missing current visible count {total}: last queued {sample:?}; current {current:?}");
 }
 fn red_pixels(cx: &mut AsyncApp, handle: WindowHandle<View>) -> usize {
     handle
@@ -350,6 +359,7 @@ pub(super) async fn exercise(
         scroll_checks(cx,handle,transport).await;
         panel_checks(cx,handle,transport).await;
         responsive_checks(cx,handle,transport).await;
+        state_style::exercise(cx,handle,transport).await;
         navigation::exercise(cx,handle,transport).await;
         eprintln!("GPUIO_NATIVE_HIGHLIGHT_VISIBILITY_OK: scroll clipping and result reuse, offscreen changes, retained tabs/disclosures, native responsive selection and silent same-branch resizing");
     }).await;

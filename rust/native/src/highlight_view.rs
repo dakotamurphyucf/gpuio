@@ -330,6 +330,9 @@ impl View {
         }
     }
     pub(super) fn finish_highlight_paint(&mut self, cx: &mut Context<Self>) {
+        if self.focus.borrow_mut().commit_highlight_styles() {
+            cx.notify();
+        }
         let previous = self.highlights.len();
         self.highlights.retain(|_, scope| scope.borrow().painted);
         let released = self.highlights.len() != previous;

@@ -75,6 +75,8 @@ pub(super) mod editor_test;
 mod focus;
 #[path = "highlight_view.rs"]
 pub(crate) mod highlight;
+#[path = "highlight_style.rs"]
+mod highlight_style;
 #[path = "image_corners.rs"]
 mod image_corners;
 #[path = "image_view.rs"]
@@ -1074,6 +1076,12 @@ impl View {
                 {
                     element.style().refine(&style);
                 }
+            } else if let Some(selection) = self.selections.get(&id) {
+                // The inner selectable text owns focus; the styled outer Div
+                // must follow that handle just like native editor wrappers do.
+                if selection.borrow().focus.is_focused(window) {
+                    element.style().refine(&style);
+                }
             } else {
                 element = element.focus(move |_| style);
             }
@@ -1583,13 +1591,16 @@ impl View {
             None => self.finish_element(element, node, tree.revision(), disabled),
         }
     }
-    fn finish_element<E: gpui::Element>(
+    fn finish_element<
+        E: gpui::Element<PrepaintState = Option<gpui::Hitbox>> + gpui::InteractiveElement,
+    >(
         &self,
         element: E,
         node: &crate::tree::Node,
         revision: i64,
         disabled: bool,
     ) -> gpui::AnyElement {
+        let element = highlight_style::Frame::new(element, node, &self.focus);
         let id = node.id;
         // The managed list row wrapper owns this metadata and the row focus
         // handle. Rendering it again on the description would duplicate AX rows.

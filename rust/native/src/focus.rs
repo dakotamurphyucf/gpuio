@@ -81,6 +81,102 @@ mod search_visibility_tests {
         manager.select_query(&children, Some(children[1]));
         assert!(!Rc::ptr_eq(&selected, &manager.visibility_identity()));
     }
+
+    #[test]
+    fn native_visibility_commits_final_sample_and_fences_style_identity() {
+        let session = Rc::new(RefCell::new(crate::session::Session::default()));
+        let window = WindowId::from_parts(0, 1).unwrap();
+        session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
+        session
+            .borrow_mut()
+            .open(1, window, "visibility", 400., 200.)
+            .unwrap();
+        let parent = NodeId::from_parts(0, 1).unwrap();
+        let child = NodeId::from_parts(1, 1).unwrap();
+        let apply = |operations| {
+            let base = session.borrow().tree(window).unwrap().revision();
+            session
+                .borrow_mut()
+                .apply(&Transaction {
+                    window,
+                    base,
+                    revision: base + 1,
+                    operations,
+                })
+                .unwrap();
+        };
+        let styles = || {
+            vec![
+                Style::Fields(vec![Field::Visibility(0), Field::Inert(true)]),
+                Style::State(2, vec![Field::Visibility(1)]),
+            ]
+        };
+        apply(vec![
+            Op::Create(parent, Kind::Container, "".into(), None),
+            Op::SetStyle(parent, styles()),
+            Op::Create(child, Kind::Text, "aaa".into(), None),
+            Op::Splice(parent, 0, 0, vec![child]),
+            Op::SetRoot(Some(parent)),
+        ]);
+        let manager = Manager::new(window, session.clone());
+        let mut manager = manager.borrow_mut();
+        let source = session
+            .borrow()
+            .tree(window)
+            .unwrap()
+            .get(parent)
+            .unwrap()
+            .style
+            .clone();
+        let initial = manager.visibility_identity();
+        manager.highlight_style(parent, &source, true);
+        manager.highlight_style(parent, &source, false);
+        assert!(
+            !manager.commit_highlight_styles(),
+            "intermediate samples are not visibility changes"
+        );
+        assert!(Rc::ptr_eq(&initial, &manager.visibility_identity()));
+        assert!(
+            manager.highlight_visible(session.borrow().tree(window).unwrap(), child),
+            "inertness is not search hiding"
+        );
+        manager.highlight_style(parent, &source, true);
+        assert!(manager.commit_highlight_styles());
+        assert!(!manager.highlight_visible(session.borrow().tree(window).unwrap(), child));
+        assert!(
+            !manager.commit_highlight_styles(),
+            "unchanged frames never wake"
+        );
+
+        // Even value-equal replacement has a new admitted identity. Old frames
+        // cannot reapply their hidden result after the new tree is committed.
+        apply(vec![Op::SetStyle(parent, styles())]);
+        manager.prune_highlight_styles();
+        assert!(manager.highlight_styles.is_empty());
+        manager.highlight_style(parent, &source, true);
+        assert!(manager.highlight_styles.is_empty());
+        assert!(manager.highlight_visible(session.borrow().tree(window).unwrap(), child));
+        let source = session
+            .borrow()
+            .tree(window)
+            .unwrap()
+            .get(parent)
+            .unwrap()
+            .style
+            .clone();
+        manager.highlight_style(parent, &source, true);
+        manager.commit_highlight_styles();
+        apply(vec![
+            Op::SetRoot(None),
+            Op::Remove(child),
+            Op::Remove(parent),
+        ]);
+        manager.prune_highlight_styles();
+        assert!(
+            manager.highlight_styles.is_empty(),
+            "removed nodes retain no visibility records"
+        );
+    }
 }
 
 fn navigation_hidden(tree: &crate::tree::Tree, node: &crate::tree::Node) -> bool {
@@ -103,6 +199,11 @@ struct Navigation {
 }
 
 pub(super) type Shared = Rc<RefCell<Manager>>;
+struct HighlightStyle {
+    source: std::sync::Weak<[Style]>,
+    hidden: bool,
+    pending: Option<bool>,
+}
 struct Scope {
     handle: FocusHandle,
     restore: Option<WeakFocusHandle>,
@@ -129,6 +230,7 @@ pub(super) struct Manager {
     hidden: BTreeSet<NodeId>,
     query_hidden: BTreeSet<NodeId>,
     visibility_identity: Rc<()>,
+    highlight_styles: BTreeMap<NodeId, HighlightStyle>,
     last_command_target: Option<NodeId>,
     order: u64,
     enter: Option<NodeId>,
@@ -149,6 +251,7 @@ impl Manager {
             hidden: BTreeSet::new(),
             query_hidden: BTreeSet::new(),
             visibility_identity: Rc::new(()),
+            highlight_styles: BTreeMap::new(),
             last_command_target: None,
             order: 0,
             enter: None,
@@ -219,6 +322,60 @@ impl Manager {
     pub(super) fn visibility_identity(&self) -> Rc<()> {
         self.visibility_identity.clone()
     }
+    /// Called with GPUI's computed style, independent of clipping or input gates.
+    /// Weak style identity prevents old frames from overriding a later restyle.
+    pub(super) fn highlight_style(
+        &mut self,
+        node: NodeId,
+        styles: &std::sync::Arc<[Style]>,
+        hidden: bool,
+    ) {
+        let session = self.session.borrow();
+        if !session
+            .tree(self.window)
+            .and_then(|t| t.get(node))
+            .is_some_and(|n| std::sync::Arc::ptr_eq(&n.style, styles))
+        {
+            return;
+        }
+        let previous = self
+            .highlight_styles
+            .get(&node)
+            .filter(|entry| entry.source.ptr_eq(&std::sync::Arc::downgrade(styles)))
+            .map_or_else(|| search_style_hidden(styles), |entry| entry.hidden);
+        self.highlight_styles.insert(
+            node,
+            HighlightStyle {
+                source: std::sync::Arc::downgrade(styles),
+                hidden: previous,
+                pending: Some(hidden),
+            },
+        );
+    }
+
+    /// Layout can use yesterday's hover state while paint has today's hitbox.
+    /// Commit only the last sample after the complete paint cycle, so intermediate
+    /// samples cannot repeatedly invalidate the same stable native frame.
+    pub(super) fn commit_highlight_styles(&mut self) -> bool {
+        let mut changed = false;
+        for entry in self.highlight_styles.values_mut() {
+            if let Some(hidden) = entry.pending.take() {
+                changed |= entry.hidden != hidden;
+                entry.hidden = hidden;
+            }
+        }
+        if changed {
+            self.visibility_identity = Rc::new(());
+        }
+        changed
+    }
+
+    fn highlight_style_hidden(&self, node: &crate::tree::Node) -> bool {
+        self.highlight_styles
+            .get(&node.id)
+            .filter(|entry| entry.source.ptr_eq(&std::sync::Arc::downgrade(&node.style)))
+            .map_or_else(|| search_style_hidden(&node.style), |entry| entry.hidden)
+    }
     /// Visual search eligibility is independent of focus, disabled controls and
     /// modal interaction gates. Hidden popup/query/navigation branches still
     /// contribute no displayed source.
@@ -231,7 +388,7 @@ impl Manager {
             if self.hidden.contains(&id)
                 || self.query_hidden.contains(&id)
                 || navigation_hidden(tree, item)
-                || search_style_hidden(&item.style)
+                || self.highlight_style_hidden(item)
             {
                 return false;
             }
@@ -385,7 +542,16 @@ impl Manager {
         None
     }
 
+    fn prune_highlight_styles(&mut self) {
+        let session = self.session.borrow();
+        let tree = session.tree(self.window);
+        self.highlight_styles.retain(|id, entry| {
+            tree.and_then(|tree| tree.get(*id))
+                .is_some_and(|node| entry.source.ptr_eq(&std::sync::Arc::downgrade(&node.style)))
+        });
+    }
     pub(super) fn sync(&mut self, window: &mut Window, cx: &mut App) {
+        self.prune_highlight_styles();
         self.sync_navigation_focus(window);
         // Keep the previous painted ancestry: removed editor nodes are already
         // absent from the new tree. Select the first still-eligible outer trigger

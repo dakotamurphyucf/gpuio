@@ -285,8 +285,14 @@ disabled input and modal input gates do not remove visually present text. During
 navigation transitions only the selected route participates in matching; an
 outgoing route can still paint its content but contributes no matches or washes.
 Native slides, interrupted back navigation, reduced motion and mid-transition
-disposal now verify that contract. Dynamic state-style visibility still requires
-integration. Actual virtual-list recycling, installed native pages, controlled
+disposal now verify that contract. Ordinary styled roots now observe GPUI's
+computed Display/Visibility, including hover/pressed/focus refinements. The
+window records the final layout/paint sample, commits it after the complete paint
+cycle and invalidates matching only when resolved visibility changes. Offscreen
+clipping does not mark a node hidden. Records use generational IDs and weak style
+identity; restyles and removals invalidate them. Deferred/specialized renderer
+paths still require the same integration and acceptance audit.
+Actual virtual-list recycling, installed native pages, controlled
 tabs/disclosures and native responsive branch changes also have focused evidence.
 
 A scope marks itself during paint. The window sweeps unused scopes only after the
