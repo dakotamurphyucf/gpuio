@@ -639,3 +639,30 @@ These are functional clipping/visibility checks, not application performance
 budgets or physical wheel/keyboard/IME acceptance. Animated navigation transitions,
 native diff hunk-fold byte mapping, broader script/input matrices, combined gallery,
 installed consumers and consolidated release gates remain open.
+
+## Animated navigation
+
+`native_highlight_view` now also mounts a two-page NavigationStack under the
+production highlight scope. A forward slide changes the logical count from one
+to two. GPU readback confirms that both colored pages are on screen and every
+highlight pixel lies over the selected page, with no wash on the outgoing page.
+Editing the outgoing page preserves the matching result and emits no observation.
+Reversing the slide before completion exposes that page's three updated matches,
+advances the epoch, and removes the other page's washes while both pages still
+paint. Reduced motion settles directly to the selected page. Unmounting during
+another active transition releases both scope and presenter owners, clears
+highlight pixels and emits no later highlight observations.
+
+Local macOS 14.5 arm64: the feature-enabled `native_highlight_view` target builds
+and its binary passes under a 60-second watchdog, including the existing
+ordinary/selectable, multiwindow, virtual-row and visibility cases. All windows
+close and the process exits. Strict native/protocol all-target Clippy with
+`native-image-tests`, workspace formatting and diff checks pass.
+
+The first run passed forward/reverse/reduced-motion checks, then rejected an
+invalid fixture operation: a nonempty NavigationStack cannot select `None`.
+That step was removed; the successful final fixture obeys the existing selection
+contract. No production code or native validation changed. This is background
+rendering evidence, not physical input, accessibility or application performance
+acceptance. Dynamic state-style visibility, native diff hunk-fold mapping and the
+remaining catalog/consumer/CI/release gates stay open.

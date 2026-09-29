@@ -28,8 +28,10 @@ text, literal HTML and image placeholders now share that painter; decoded images
 remove placeholder matches without changing document revisions. Focused native
 checks now also pass for 100k logical-list row reuse and independent windows;
 scroll clipping, retained tabs/disclosures and responsive branch changes now also
-have focused native evidence. Animated navigation, diff hunk-fold mapping and
-application performance/resource acceptance remain pending. The public Find &
+have focused native evidence. Animated navigation now verifies selected-route
+counts and pixels, interrupted slides, reduced motion and transition disposal.
+Dynamic state-style visibility, diff hunk-fold mapping and application
+performance/resource acceptance remain pending. The public Find &
 highlight gallery now demonstrates
 live queries, ranges, nested exclusions, selected matches and growing/collapsed
 Markdown, with focused local native interaction evidence. Targeted Hebrew/Arabic

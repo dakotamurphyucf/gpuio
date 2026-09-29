@@ -281,10 +281,13 @@ The mounted observation epoch is independent of a recreated worker handle.
 
 Search visibility currently follows explicit/query hidden branches, navigation
 selection and base Display/Visibility fields (last declaration wins). Inertness,
-disabled input and modal input gates do not remove visually present text. Dynamic
-state-style visibility and animated navigation still require dedicated integration
-checks. Actual virtual-list recycling, installed native pages, controlled
-tabs/disclosures and native responsive branch changes now have focused evidence.
+disabled input and modal input gates do not remove visually present text. During
+navigation transitions only the selected route participates in matching; an
+outgoing route can still paint its content but contributes no matches or washes.
+Native slides, interrupted back navigation, reduced motion and mid-transition
+disposal now verify that contract. Dynamic state-style visibility still requires
+integration. Actual virtual-list recycling, installed native pages, controlled
+tabs/disclosures and native responsive branch changes also have focused evidence.
 
 A scope marks itself during paint. The window sweeps unused scopes only after the
 complete paint effect cycle, including lazy children and deferred surfaces; render

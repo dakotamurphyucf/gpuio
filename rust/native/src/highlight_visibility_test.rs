@@ -2,6 +2,9 @@
 //! activation is needed; controlled panels use the same tree updates as Bonsai.
 use super::*;
 
+#[path = "highlight_navigation_test.rs"]
+mod navigation;
+
 fn frame_style(width: Length, height: f64) -> Vec<Style> {
     vec![Style::Fields(vec![
         Field::Width(width),
@@ -347,6 +350,7 @@ pub(super) async fn exercise(
         scroll_checks(cx,handle,transport).await;
         panel_checks(cx,handle,transport).await;
         responsive_checks(cx,handle,transport).await;
+        navigation::exercise(cx,handle,transport).await;
         eprintln!("GPUIO_NATIVE_HIGHLIGHT_VISIBILITY_OK: scroll clipping and result reuse, offscreen changes, retained tabs/disclosures, native responsive selection and silent same-branch resizing");
     }).await;
     let _ = handle.update(cx, |_, window, _| window.remove_window());
