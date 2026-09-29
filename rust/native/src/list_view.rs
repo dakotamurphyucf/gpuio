@@ -436,7 +436,9 @@ impl View {
                     match field {
                         Field::PointerEvents(value) => interaction.pointer = *value,
                         Field::UserSelect(value) => interaction.selectable = *value,
-                        Field::SelectionColor(value) => interaction.selection_color = color(value),
+                        Field::SelectionColor(value) => {
+                            interaction.selection_color = Some(color(value))
+                        }
                         Field::AccessibleName(value) => accessible_name = value.clone().into(),
                         _ => (),
                     }

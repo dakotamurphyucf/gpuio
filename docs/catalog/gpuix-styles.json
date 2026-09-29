@@ -907,11 +907,12 @@
       "public_api": "Style.Property.User_select",
       "interface": "lib/core/style.mli",
       "status": "mapped; value/behavior acceptance pending",
-      "note": "Review semantics: upstream text/none/auto inheritance vs GPUIO Boolean/inherited default. Audit subtree selection and reset behavior.",
+      "note": "Pinned text/auto both map to User_select true; none maps false; omitted/unset inherits. GPUIO ordinary text deliberately defaults off. Document bodies still need selection-disable policy, and ordinary cross-node/window selection remains a functional audit gap; do not claim complete parity.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/design/selection-style-audit.md"
       ],
       "release_owner": "OCH-17"
     },
@@ -920,11 +921,12 @@
       "public_api": "Style.Property.Selection_color",
       "interface": "lib/core/style.mli",
       "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "note": "Inherited/local selection color reaches ordinary text and native source/Markdown document bodies; child overrides and removal/default restoration have focused GPU evidence. Complete specialized/deferred-root, public/consumer and release acceptance remains.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/design/selection-style-audit.md"
       ],
       "release_owner": "OCH-17"
     },

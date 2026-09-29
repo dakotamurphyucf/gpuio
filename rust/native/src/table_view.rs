@@ -729,7 +729,7 @@ impl View {
                             interaction.selectable = *value
                         }
                         gpuio_protocol::v1::Field::SelectionColor(value) => {
-                            interaction.selection_color = super::color(value)
+                            interaction.selection_color = Some(super::color(value))
                         }
                         _ => (),
                     }

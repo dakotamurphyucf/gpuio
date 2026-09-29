@@ -43,7 +43,9 @@ Markdown, with focused local native interaction evidence. Targeted Hebrew/Arabic
 and mixed-direction GPU checks now pass after fixing reordered-glyph range
 geometry; full typography/input acceptance
 remains broader than these cases. The gallery page count does
-not imply parity. General input regions now have mounted Core/Bonsai/native
+not imply parity. Document selection colors now inherit and restore defaults with
+source/Markdown GPU evidence; the [selection audit](design/selection-style-audit.md)
+records remaining document-disable and cross-node selection gaps. General input regions now have mounted Core/Bonsai/native
 integration, native edge-case and public gallery evidence; remaining consumer/
 release acceptance stays open in the [input ledger](evidence/input-observations-och41.md). Start ellipsis and the complete cursor vocabulary now have
 paired codec, native validation and focused gallery evidence. OCH-17 is also in progress: the

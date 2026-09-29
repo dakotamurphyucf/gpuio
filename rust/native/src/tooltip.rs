@@ -433,7 +433,7 @@ impl View {
                             }
                             Field::UserSelect(value) => panel_interaction.selectable = *value,
                             Field::SelectionColor(value) => {
-                                panel_interaction.selection_color = super::color(value)
+                                panel_interaction.selection_color = Some(super::color(value))
                             }
                             _ => (),
                         }

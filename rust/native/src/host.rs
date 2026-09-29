@@ -146,14 +146,14 @@ struct ButtonState {
 struct Interaction {
     pointer: bool,
     selectable: bool,
-    selection_color: gpui::Hsla,
+    selection_color: Option<gpui::Hsla>,
 }
 impl Default for Interaction {
     fn default() -> Self {
         Self {
             pointer: true,
             selectable: false,
-            selection_color: rgba(0x386ac880).into(),
+            selection_color: None,
         }
     }
 }
@@ -614,7 +614,7 @@ impl View {
                     match field {
                         Field::PointerEvents(v) => interaction.pointer = *v,
                         Field::UserSelect(v) => interaction.selectable = *v,
-                        Field::SelectionColor(v) => interaction.selection_color = color(v),
+                        Field::SelectionColor(v) => interaction.selection_color = Some(color(v)),
                         Field::AccessibleName(v) => accessible_name = v.clone().into(),
                         _ => (),
                     }
@@ -1283,7 +1283,9 @@ impl View {
             let highlight = self.highlight_for(tree, id);
             element = element.child(crate::selection::element(
                 selection,
-                interaction.selection_color,
+                interaction
+                    .selection_color
+                    .unwrap_or_else(|| rgba(0x386ac880).into()),
                 interaction.pointer,
                 cx.entity_id(),
                 highlight,

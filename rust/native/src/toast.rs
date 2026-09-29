@@ -50,7 +50,7 @@ fn inherit_interaction(mut interaction: Interaction, styles: &[Style]) -> Intera
                     Field::PointerEvents(value) => interaction.pointer = *value,
                     Field::UserSelect(value) => interaction.selectable = *value,
                     Field::SelectionColor(value) => {
-                        interaction.selection_color = super::color(value)
+                        interaction.selection_color = Some(super::color(value))
                     }
                     _ => (),
                 }

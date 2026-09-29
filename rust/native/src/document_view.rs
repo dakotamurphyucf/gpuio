@@ -78,6 +78,7 @@ pub(super) struct Presentation {
     node: NodeId,
     lease: Lease,
     config: Arc<Config>,
+    selection_color: Option<gpui::Hsla>,
     snapshot: Arc<Snapshot>,
     job: Result<document_host::Handle, document_jobs::Error>,
     markdown: Option<Entity<TextViewState>>,
@@ -319,6 +320,7 @@ impl Presentation {
             lease,
             collapsed: config.initially_collapsed,
             config,
+            selection_color: None,
             snapshot,
             job,
             editor,
@@ -791,7 +793,7 @@ impl Presentation {
             );
             state.set_line_number(self.config.line_numbers, window, cx);
             state.set_line_number_offset(origin, cx);
-            state.set_editor_style(editor_style(self.config.dark));
+            state.set_editor_style(editor_style(self.config.dark, self.selection_color));
             state.set_search_query(self.config.search.clone(), false, cx);
         });
         self.source_mode = true;
@@ -1560,7 +1562,7 @@ impl Render for Presentation {
                 .clone()
                 .expect("prepared Markdown highlighter");
             let text = TextView::new(state)
-                .style(markdown_style(self.config.dark))
+                .style(markdown_style(self.config.dark, self.selection_color))
                 .selectable(true)
                 .scrollable(matches!(self.config.layout, Layout::Viewport(_)))
                 .markdown_extensions(self.markdown_extensions.clone())
@@ -1826,6 +1828,18 @@ impl View {
         if let Some(style) = pressed {
             root = root.active(move |_| style);
         }
+        let selection_color = node
+            .style
+            .iter()
+            .filter_map(|style| match style {
+                Style::Fields(fields) => fields.iter().rev().find_map(|field| match field {
+                    Field::SelectionColor(value) => Some(super::color(value)),
+                    _ => None,
+                }),
+                _ => None,
+            })
+            .next_back()
+            .or(interaction.selection_color);
         let highlight = self.document_highlight(tree, node.id);
         let highlight_identity = self.highlight_documents.clone();
         let Some(state) = self.documents.get_mut(&node.id) else {
@@ -1871,6 +1885,13 @@ impl View {
             .collect();
         presentation.update(cx, |state, cx| {
             state.highlight = highlight;
+            if state.selection_color != selection_color {
+                state.selection_color = selection_color;
+                state.editor.update(cx, |editor, _| {
+                    editor.set_editor_style(editor_style(state.config.dark, selection_color));
+                });
+                cx.notify();
+            }
             let images: BTreeMap<String, Arc<gpui::RenderImage>> = images;
             let changed = images.len() != state.images.0.len()
                 || images.iter().any(|(url, image)| {
@@ -1942,13 +1963,13 @@ pub(crate) mod test;
 #[path = "highlight_document_test.rs"]
 pub(crate) mod highlight_test;
 
-fn markdown_style(dark: bool) -> gpui_base::TextViewStyle {
+fn markdown_style(dark: bool, selection: Option<gpui::Hsla>) -> gpui_base::TextViewStyle {
     let (foreground, background, border, link) = if dark {
         (0xe6e7ed, 0x1b1e26, 0x2b2f39, 0x93c5fd)
     } else {
         (0x262832, 0xf3f3f1, 0xe0e1df, 0x1d4ed8)
     };
-    gpui_base::TextViewStyle::default()
+    let style = gpui_base::TextViewStyle::default()
         .with_dark(dark)
         .with_foreground(gpui::rgb(foreground).into())
         .with_link(gpui::rgb(link).into())
@@ -1959,16 +1980,25 @@ fn markdown_style(dark: bool) -> gpui_base::TextViewStyle {
             background_color: Some(gpui::rgb(background).into()),
             ..Default::default()
         })
-        .with_border(gpui::rgb(border).into())
+        .with_border(gpui::rgb(border).into());
+    if let Some(selection) = selection {
+        style.with_selection(selection)
+    } else {
+        style
+    }
 }
-fn editor_style(dark: bool) -> gpui_base::input::InputEditorStyle {
-    let style = markdown_style(dark);
-    gpui_base::input::InputEditorStyle {
+fn editor_style(dark: bool, selection: Option<gpui::Hsla>) -> gpui_base::input::InputEditorStyle {
+    let style = markdown_style(dark, selection);
+    let mut editor = gpui_base::input::InputEditorStyle {
         foreground: style.foreground(),
         background: style.code_background(),
         border: style.border(),
         ..Default::default()
+    };
+    if let Some(selection) = selection {
+        editor.selection = selection;
     }
+    editor
 }
 
 #[path = "document_file_headers.rs"]

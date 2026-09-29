@@ -103,10 +103,13 @@ distinguishes synthetic GPUI dispatch from physical input testing.
 clipboard operations; no per-drag callback crosses the bridge. Mouse selection,
 shift-click, double-click word selection, triple-click select-all, grapheme-aware
 Left/Right, Shift extension, Home/End and Cmd/Ctrl+A/C are supported. Selection
-color inherits. Offsets are UTF-8 bytes and clamp to valid boundaries on text
+color inherits into ordinary text and document bodies, with child overrides and
+restoration of native defaults when declarations are removed. Offsets are UTF-8 bytes and clamp to valid boundaries on text
 changes. Native state is preserved for a stable node and discarded on removal,
 replacement or deselection. This is per-text-node selection, not a rich-text editor
-or cross-node document selection; editable text is implemented in its own ticket.
+or cross-node document selection. Native editors own their editing selection.
+The [selection-style audit](selection-style-audit.md) records the pinned GPUIX
+default differences and remaining document-selection/cross-node gaps.
 
 ## Keys, events and commit ownership
 
