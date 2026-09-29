@@ -43,6 +43,16 @@ Public interfaces live in `lib/core/{text_source,document}.mli` and
 `lib/eio/document.mli`. The [M4 evidence ledger](../evidence/agent-workspace-m4.md)
 records tested behavior, measurements and platform limits.
 
+## Document appearance
+
+Each document's light/dark appearance supplies a coherent native text, code,
+table and border palette independently of Base's application-wide theme. Table
+bodies have an explicit opaque surface (dark `#111318`, light `#ffffff`); headers
+keep the document code-background color. Appearance changes preserve the source
+and native presentation. The native adapter passes this surface through the
+existing table style refinement, so both wrapping and horizontal-scroll renderer
+paths use it without changing application-global colors.
+
 ## Syntax implementation
 
 Pinned Syntect 5.3.0 with Two Face 0.5.2+bat-0.26.1 supplies grammars using the

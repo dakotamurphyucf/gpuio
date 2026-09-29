@@ -109,7 +109,12 @@ native ownership/reset regressions and 225 Base text tests pass locally.
 Decoded image alternatives now have named Image nodes, single linked targets and
 silent decorative semantics in a public gallery preview. The explicit-empty-text
 parser defect is fixed; exact native reading order, focus/activation, collapse and
-remount pass with 226 Base text tests and seven native parser tests. Custom-control
+remount pass with 226 Base text tests and seven native parser tests.
+The dark Markdown table-body contrast finding is also repaired: the native
+adapter supplies the document surface independently of Base's global theme.
+Actual GPU checks cover both table render paths, repeated appearance switches,
+painted colors and contrast; full document/selection/highlighting and public
+gallery regressions pass, with light/dark screenshots inspected. Custom-control
 accessibility, selection/ranges, complete
 table and screen-reader behavior remain open. The Base initial-render failure
 reproduced on unchanged `dc25013` is now fixed by applying the initial selection

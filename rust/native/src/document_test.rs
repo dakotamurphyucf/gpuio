@@ -15,6 +15,9 @@ mod diff_actions;
 mod diff_view;
 #[path = "document_reset_test.rs"]
 mod reset;
+#[cfg(feature = "native-image-tests")]
+#[path = "document_table_appearance_test.rs"]
+mod table_appearance;
 
 static LAYOUT_US: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 fn draw(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
@@ -455,6 +458,8 @@ async fn exercise(
     diff_view::exercise(cx, window, &session).await;
     diff_actions::exercise(cx, window, &session).await;
     reset::exercise(cx, window, &session).await;
+    #[cfg(feature = "native-image-tests")]
+    table_appearance::exercise(cx, window, &session).await;
     let huge = format!("{}last λ target", "row\n".repeat(25000));
     publish(&mut session.borrow_mut(), source, 5, 4, 0, &huge);
     configure(cx, window, source, Mode::Markdown, "last λ target");

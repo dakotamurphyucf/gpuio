@@ -2061,16 +2061,19 @@ pub(crate) mod test;
 pub(crate) mod highlight_test;
 
 fn markdown_style(dark: bool, selection: Option<gpui::Hsla>) -> gpui_base::TextViewStyle {
-    let (foreground, background, border, link) = if dark {
-        (0xe6e7ed, 0x1b1e26, 0x2b2f39, 0x93c5fd)
+    let (foreground, surface, background, border, link) = if dark {
+        (0xe6e7ed, 0x111318, 0x1b1e26, 0x2b2f39, 0x93c5fd)
     } else {
-        (0x262832, 0xf3f3f1, 0xe0e1df, 0x1d4ed8)
+        (0x262832, 0xffffff, 0xf3f3f1, 0xe0e1df, 0x1d4ed8)
     };
     let style = gpui_base::TextViewStyle::default()
         .with_dark(dark)
         .with_foreground(gpui::rgb(foreground).into())
         .with_link(gpui::rgb(link).into())
         .with_code_background(gpui::rgb(background).into())
+        // Base tables otherwise use the global theme's surface, which can
+        // differ from this document's independently controlled appearance.
+        .with_table(gpui::StyleRefinement::default().bg(gpui::rgb(surface)))
         // Base's default inline-code style already has an explicit light
         // background, so the code-background fallback alone cannot theme it.
         .with_inline_code(gpui::HighlightStyle {

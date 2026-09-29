@@ -4,6 +4,42 @@ Partial release finding repair, 2026-09-28, macOS 14.5 (23F79), arm64.
 The [contract](../design/document-accessibility.md) describes the full intended
 behavior. This checkpoint does not complete document accessibility or OCH-17.
 
+## Independent table appearance — 2026-09-29
+
+The dark table-body contrast finding is repaired. Base's wrapping and scroll
+table containers defaulted to its global theme surface, while GPUIO supplied
+the foreground/header from each document's independent appearance. With a light
+global theme, a dark document painted near-white body text on a white surface.
+The native adapter now supplies the document's explicit table surface through
+the existing style refinement. No public API, protocol or vendor change is
+needed; the header, foreground and border palette remain coherent.
+
+The new real GPU regression first failed against the previous implementation:
+its first dark body-row sample contained **92,069 white pixels, zero expected
+dark-surface pixels**, and 3,465 foreground pixels. After the repair, the dark
+row contains the intended surface and no white surface pixels. It tests four
+production appearance switches without replacing the native presenter, then
+both wrapping and horizontal-scroll renderer paths through the same native style
+adapter, always using an opposite Base global theme. Painted header/body/text/
+border colors are checked; the fixed foreground versus header/body pairs must
+meet the test's 7:1 contrast target. This is a preset-color regression, not a
+claim of complete application accessibility or contrast coverage for custom
+colors. The extra renderer fixture does not claim an OCaml table-layout API or
+horizontal-gesture acceptance.
+
+The full native document suite and selection/highlighting suite pass. The latter
+retains GPU washes, selection-color precedence, native Copy, streamed ownership,
+table/fence behavior and unmount checks. The complete public document gallery
+walkthrough passes with light/dark screenshots inspected, table/header semantics
+checked across switching, and the existing image/link/copy/diff/reset/remount
+stages. Strict native/protocol Clippy, gallery build, Rust formatting, Python
+compilation and diff checks pass locally on macOS 14.5 arm64.
+
+Reproduce the GPU check with `native_document` built using
+`--features native-image-tests`; its success marker is
+`GPUIO_DOCUMENT_TABLE_APPEARANCE_OK`. Linux desktop appearance and all remaining
+catalog, assistive navigation, performance/resource and release gates stay open.
+
 ## Decoded image alternatives — 2026-09-29
 
 The safe Markdown image renderer now exposes named decoded images as Image nodes
@@ -52,7 +88,8 @@ cause. The strict native scrolling/copy assertions remain in place.
 Actual VoiceOver, custom native-control reading order, selected-text/range APIs,
 complete modal assistive navigation and release performance/resource acceptance
 remain open. Screenshot review also found low-contrast Markdown table body cells
-in dark mode; that appearance finding remains to be repaired and validated.
+in dark mode; the later independent-table-appearance checkpoint above repairs
+and validates that finding.
 
 ## Direct link focus — 2026-09-29
 

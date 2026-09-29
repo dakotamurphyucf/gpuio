@@ -731,6 +731,20 @@ def exercise_document_links(mac, images):
     assert roles.get('AXLink') == 2, roles
     document_link_reading_order(mac)
     document_structure(mac)
+    theme = mac.find(TITLE, 'Dark', 'AXButton')
+    current, alternate = ('Dark', 'Light') if theme else ('Light', 'Dark')
+    if theme:
+        mac.release(theme)
+    if images:
+        screenshot(mac, images / f'gallery-document-table-{current.lower()}.png', title=TITLE)
+    mac.press(TITLE, current)
+    mac.release(mac.wait_find(TITLE, alternate, 'AXButton'))
+    document_structure(mac)
+    if images:
+        screenshot(mac, images / f'gallery-document-table-{alternate.lower()}.png', title=TITLE)
+    mac.press(TITLE, alternate)
+    mac.release(mac.wait_find(TITLE, current, 'AXButton'))
+    document_structure(mac)
     for label in ['Read the design notes', '世界 guide']:
         link = mac.wait_find(TITLE, label, 'AXLink')
         try:
