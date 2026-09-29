@@ -1,5 +1,10 @@
 //! Shared Copy and retirement across ordinary text and prepared Markdown.
 use super::*;
+#[cfg(target_os = "macos")]
+#[path = "document_copy_control_test.rs"]
+mod copy_controls;
+#[path = "document_multi_selection_test.rs"]
+mod multiple;
 use crate::host::{
     editor_test::{frame, key},
     native_test::{mouse, move_mouse},
@@ -175,6 +180,9 @@ pub(super) async fn exercise(
             )
         })
         .unwrap();
+    multiple::exercise(cx, handle, session, transport, source, p).await;
+    #[cfg(target_os = "macos")]
+    copy_controls::exercise(cx, handle, session, transport, source, p).await;
     cx.update(|cx| {
         cx.write_to_clipboard(
             saved.unwrap_or_else(|| gpui::ClipboardItem::new_string(String::new())),

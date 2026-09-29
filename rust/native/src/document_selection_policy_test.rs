@@ -83,6 +83,40 @@ fn source_pointer(cx: &mut AsyncApp, handle: WindowHandle<View>, p: &Entity<Pres
     });
 }
 
+fn markdown_pointer(cx: &mut AsyncApp, handle: WindowHandle<View>, p: &Entity<Presentation>) {
+    let bounds = p.read_with(cx, |p, cx| p.markdown.as_ref().unwrap().read(cx).bounds());
+    let start = gpui::point(bounds.left() + px(2.), bounds.top() + px(10.));
+    let end = start + gpui::point(px(60.), px(0.));
+    for click_count in [1, 2, 3] {
+        move_mouse(cx, handle, start, false);
+        handle
+            .update(cx, |_, window, cx| {
+                window.dispatch_event(
+                    gpui::PlatformInput::MouseDown(gpui::MouseDownEvent {
+                        position: start,
+                        button: gpui::MouseButton::Left,
+                        modifiers: Default::default(),
+                        click_count,
+                        first_mouse: false,
+                    }),
+                    cx,
+                );
+            })
+            .unwrap();
+        move_mouse(cx, handle, end, true);
+        draw(cx, handle);
+        mouse(cx, handle, end, false);
+        draw(cx, handle);
+        assert!(
+            selected(cx, p).is_empty(),
+            "disabled Markdown click/drag count={click_count}"
+        );
+        key(cx, handle, "secondary-c");
+        assert_eq!(clipboard(cx).as_deref(), Some("selection sentinel"));
+    }
+    focus(cx, handle, p);
+}
+
 async fn cancel_drag(cx: &mut AsyncApp, handle: WindowHandle<View>, p: &Entity<Presentation>) {
     let bounds = p.read_with(cx, |p, cx| {
         if !p.source_mode {
@@ -281,6 +315,7 @@ pub(super) async fn exercise(
         if !matches!(mode, Mode::Markdown) {
             source_pointer(cx, handle, p);
         } else {
+            markdown_pointer(cx, handle, p);
             // Links use their own keyboard path and queued bridge event.
             transport.mailbox.lock().unwrap().drain(128);
             key(cx, handle, "tab");
@@ -391,6 +426,6 @@ pub(super) async fn exercise(
         )
     });
     eprintln!(
-        "GPUIO_DOCUMENT_SELECTION_POLICY_OK: code/diff/Markdown default, inherited disable, local override, unset, stale-range clearing, keyboard and source pointer rejection, programmatic selection, selection Copy rejection, explicit Copy source, Markdown keyboard link, retained native identity, active-drag cancellation, no selection resurrection, streamed policy retention, and modal Copy isolation"
+        "GPUIO_DOCUMENT_SELECTION_POLICY_OK: code/diff/Markdown default, inherited disable, local override, unset, stale-range clearing, keyboard and source/Markdown single/double/triple-click pointer rejection, programmatic selection, selection Copy rejection, explicit Copy source, Markdown keyboard link, retained native identity, active-drag cancellation, no selection resurrection, streamed policy retention, and modal Copy isolation"
     );
 }

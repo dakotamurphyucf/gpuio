@@ -58,8 +58,12 @@ Ordinary pointer projection now preserves extended graphemes and uses shaped
 visual cells, with focused left/center/right, Hebrew/Arabic, soft-wrap and LF/CRLF
 Copy evidence. Native word/caret hits and keyboard-to-Shift-click anchors now use
 that geometry too, with focused accented/Hebrew/Arabic and whole-grapheme evidence.
-Broader typography/input, multiple-document and virtualized cases, plus the complete
-accessibility matrix, remain open. General input regions now have mounted Core/Bonsai/native
+Two independent Markdown documents now pass shared Copy, local Select All, reorder,
+source replacement, unmount and node-generation reuse checks. Measured macOS
+pointer Copy source/code/table controls also pass with selection disabled, and
+Markdown single/double/triple-click drags respect inherited disable. Broader
+typography/input, mixed document modes, virtualization and the complete accessibility
+matrix remain open. General input regions now have mounted Core/Bonsai/native
 integration, native edge-case and public gallery evidence; remaining consumer/
 release acceptance stays open in the [input ledger](evidence/input-observations-och41.md). Start ellipsis and the complete cursor vocabulary now have
 paired codec, native validation and focused gallery evidence. OCH-17 is also in progress: the

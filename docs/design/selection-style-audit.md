@@ -418,15 +418,65 @@ reconstruction. The two 100k-row traversals reported in the preceding section
 belong to the prior range-projection revision, not a new performance measurement
 of the bidi/caret path.
 
+## Multiple rendered documents and pointer Copy controls
+
+`document_multi_selection_test.rs` mounts two independently prepared Markdown
+sources in the same window. Forward and reverse drags copy their rendered text in
+paint order, with the same result when either document owns keyboard focus. Select
+All remains local to the focused document. Reordering retains both Markdown
+entities; a fresh drag follows the new rendered order. Replacing a selected source
+retires the shared range, and a fresh gesture uses only the installed replacement.
+
+Removing a selected document clears the surviving range and releases both its
+presentation and Markdown owner. Reusing its protocol slot with a new generation
+starts without selection; a fresh drag copies the new mounted document, and its
+subsequent removal releases its presentation too. These checks cover two rendered
+Markdown documents. They do not establish all mixed source-editor/document modes,
+independent-window document combinations or virtualized interior-row eviction.
+
+The selection-policy fixture also rejects Markdown single-, double- and triple-
+click drags under inherited disable, preserving an empty selection and unchanged
+clipboard. The existing keyboard link and toolbar paths remain usable.
+
+The macOS `document_copy_control_test.rs` locates each native AXButton by label,
+requires a unique nonempty screen frame, converts that frame to view coordinates
+and asserts that its center is inside the viewport. It dispatches pointer
+move/down/up at that point rather than invoking an accessibility action. With
+`User_select false`, pointer Copy source preserves exact Unicode and newline bytes
+in Markdown, code and diff modes. Markdown Copy code returns the fenced code
+payload, and Copy table returns the renderer's normalized table Markdown.
+
+This establishes the pointer activation path and native AX button labels/frames
+for those controls. It is not a physical mouse/clipboard-shortcut or VoiceOver
+workflow test, and it does not establish the complete table accessibility model.
+The outer fixture restores the clipboard and closes its window. No production
+code, public API, protocol, dependencies or fork changes are required by this
+acceptance checkpoint.
+
+The final `native_highlight_document` executable exited 0 locally under a
+90-second process-group watchdog, including the existing GPU, source/diff,
+streaming, selection-policy, modal and resource-release checks. Strict all-target
+native/protocol Clippy with `native-image-tests`, formatting, diff and structural
+catalog checks passed. Build the executable with:
+
+```sh
+./scripts/gpuio exec cargo test -p gpuio-native --test native_highlight_document --features native-image-tests --locked -j2 --no-run
+```
+
+This is focused local macOS evidence; hosted gates, full document accessibility,
+application performance/resource budgets and release acceptance remain open.
+
 ## Remaining implementation and acceptance
 
-- Complete document selection policy evidence for disabled Markdown multi-click,
-  scrolling, file controls and accessible selection/range commands. The focused
-  native checks above are not the whole OCH-17 input/AX matrix.
-- Complete multiple-document drag/copy, broader virtualized/interior-row lifecycle
-  cases, broader mixed-direction wrapping and caret/word combinations,
-  multi-click cross-node semantics and pointer-operated Copy controls. Ordinary
-  two-window isolation and managed endpoint eviction/reuse are now covered above.
+- Complete document selection policy evidence for scrolling, remaining file controls
+  and accessible selection/range commands. Disabled Markdown multi-click now has
+  native evidence above. These focused checks are not the whole OCH-17 input/AX
+  matrix.
+- Complete broader mixed-document/source-editor and independent-window combinations,
+  virtualized/interior-row lifecycle cases, mixed-direction wrapping and caret/word
+  combinations, and multi-click cross-node semantics. Two rendered Markdown
+  documents, ordinary two-window isolation, managed endpoint eviction/reuse and
+  measured macOS pointer Copy controls are covered above.
   The focused ordinary-node regression does not prove those combinations.
 - Measure projection and copy cost for large selected text and bounded retention
   during repeated mount/unmount/window cycles.
