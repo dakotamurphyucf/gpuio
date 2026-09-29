@@ -4487,3 +4487,55 @@
          self.stop_anchor_auto_scroll(cx);
          self.anchor = None;
          self.cursor = None;
+--- a/src/text/selection_adapter.rs
++++ b/src/text/selection_adapter.rs
+@@ -143,7 +143,10 @@
+                 }
+                 let last = state.parsed_content.document.blocks.len().saturating_sub(1);
+                 let blocks = blocks_for_copy.borrow().block_range(selection_id, last);
+-                state.selected_text_in(blocks)
++                // Normalize this renderer's paragraph-edge separators here.
++                // Trimming the window result would also strip neighboring plain
++                // text and make Copy depend on which participant has focus.
++                state.selected_text_in(blocks).trim().to_string()
+             },
+             cx,
+         );
+--- a/src/text/text_view.rs
++++ b/src/text/text_view.rs
+@@ -580,6 +580,8 @@
+             }
+         });
+ 
++        let select_all_state = state.downgrade();
++        let select_all_listener = window.listener_for(&state, TextViewState::on_action_select_all);
+         let focus_handle = state.read(cx).focus_handle.clone();
+         let list_state = state.read(cx).list_state.clone();
+         // Cap the box at `n` body-text lines (the effective text style may be
+@@ -612,14 +614,24 @@
+             .relative()
+             .text_color(text_view_style.foreground())
+             .on_action(move |_: &crate::input::Copy, window, cx| {
+-                let text = TextSelection::selected_text(window, cx).trim().to_string();
++                let text = TextSelection::selected_text(window, cx);
+                 if text.is_empty() {
+                     cx.propagate();
+                     return;
+                 }
+                 cx.write_to_clipboard(gpui::ClipboardItem::new_string(text));
+             })
+-            .on_action(window.listener_for(&state, TextViewState::on_action_select_all))
++            .on_action(move |action: &crate::input::SelectAll, window, cx| {
++                if select_all_state
++                    .upgrade()
++                    .is_some_and(|state| state.read(cx).is_selectable())
++                {
++                    // Clear shared geometry before the listener borrows this
++                    // view: clear callbacks may update the same native entity.
++                    TextSelection::clear(window, cx);
++                }
++                select_all_listener(action, window, cx);
++            })
+             .child(state.clone())
+             // Overlay controls must paint after the document, otherwise rich
+             // content and selection backgrounds cover the thumb and hitbox.

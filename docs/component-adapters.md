@@ -171,3 +171,9 @@ source and displayed text differ, project displayed glyphs and map their ranges
 back to source bytes; never treat ellipsis byte offsets as source offsets. Reuse
 `text_projection` for this mapping and highlight painting. Retiring a registered
 endpoint must retire the window gesture, not just its current painted range.
+
+Renderer-specific Copy normalization belongs in that participant's callback;
+never trim the combined window result in a focused widget's Copy handler.
+Markdown Select All clears shared geometry before borrowing its native state,
+then invokes the local selection listener. Clear callbacks can revisit that same
+entity, so clearing from inside the listener's mutable borrow is unsafe.

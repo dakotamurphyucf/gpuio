@@ -50,8 +50,10 @@ drag/copy through the window selection layer, retained focus-trap Copy isolation
 and passing document/UI/editor/control regressions. Ordinary text now participates
 in window selection with scoped Copy, source retirement, whitespace preservation
 and mapped truncation. The new native fixture covers cross-node drag, keyboard
-Shift-click, reorder and hidden endpoint retirement; mixed-document/window/virtual
-boundaries and the complete input/accessibility matrix remain open. General input regions now have mounted Core/Bonsai/native
+Shift-click, reorder and hidden endpoint retirement. A mixed ordinary/Markdown
+fixture also checks focus-independent Copy, local Select All, source replacement
+and endpoint removal. Separate-window/multiple-document/virtual boundaries and
+the complete input/accessibility matrix remain open. General input regions now have mounted Core/Bonsai/native
 integration, native edge-case and public gallery evidence; remaining consumer/
 release acceptance stays open in the [input ledger](evidence/input-observations-och41.md). Start ellipsis and the complete cursor vocabulary now have
 paired codec, native validation and focused gallery evidence. OCH-17 is also in progress: the

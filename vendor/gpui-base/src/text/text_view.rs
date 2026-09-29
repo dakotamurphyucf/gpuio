@@ -580,6 +580,8 @@ impl Element for TextView {
             }
         });
 
+        let select_all_state = state.downgrade();
+        let select_all_listener = window.listener_for(&state, TextViewState::on_action_select_all);
         let focus_handle = state.read(cx).focus_handle.clone();
         let list_state = state.read(cx).list_state.clone();
         // Cap the box at `n` body-text lines (the effective text style may be
@@ -612,14 +614,24 @@ impl Element for TextView {
             .relative()
             .text_color(text_view_style.foreground())
             .on_action(move |_: &crate::input::Copy, window, cx| {
-                let text = TextSelection::selected_text(window, cx).trim().to_string();
+                let text = TextSelection::selected_text(window, cx);
                 if text.is_empty() {
                     cx.propagate();
                     return;
                 }
                 cx.write_to_clipboard(gpui::ClipboardItem::new_string(text));
             })
-            .on_action(window.listener_for(&state, TextViewState::on_action_select_all))
+            .on_action(move |action: &crate::input::SelectAll, window, cx| {
+                if select_all_state
+                    .upgrade()
+                    .is_some_and(|state| state.read(cx).is_selectable())
+                {
+                    // Clear shared geometry before the listener borrows this
+                    // view: clear callbacks may update the same native entity.
+                    TextSelection::clear(window, cx);
+                }
+                select_all_listener(action, window, cx);
+            })
             .child(state.clone())
             // Overlay controls must paint after the document, otherwise rich
             // content and selection backgrounds cover the thumb and hitbox.

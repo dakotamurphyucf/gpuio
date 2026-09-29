@@ -28,9 +28,10 @@ Ordinary `View.text` nodes now participate in Base's window selection engine,
 sharing native paint order and focus-trap scopes with Markdown participants.
 Single-click drags can span ordinary nodes, while keyboard ranges and double/
 triple-click gestures remain local to the focused node. This is a cross-node
-foundation, not complete cross-document acceptance: mixed ordinary/Markdown,
-virtualized boundaries, separate windows and the broader input matrix remain
-required before closing the catalog audit.
+foundation, not complete cross-document acceptance. Mixed ordinary/Markdown
+native checks are recorded below; virtualized boundaries, separate windows,
+multiple documents and the broader input matrix remain required before closing
+the catalog audit.
 
 ## Selection color implementation
 
@@ -186,11 +187,12 @@ source bytes; no production source-copy change was needed.
 The Base patch is reconstructed from the unchanged pinned archive by
 `scripts/vendor_gpui_base.py`; the resulting tree matches `vendor/gpui-base`
 (excluding generated `Cargo.lock`). `third_party/sources.json` records patch SHA256
-`e9bde1369b51a16f156abe3098ae4a6437a782e068b8d6ebbb9d2541434b9c82`.
+`0db2c9136afa1e987e90f70591b8c81bcf8a28125164374a5d715d8432d2059c`.
 The patch adds the editor policy, Markdown disable cleanup and copy guard, public
 native scope wrapper, active-scope Copy/presence filtering, ordinary participant
 paint-order/local-anchor APIs, whitespace Copy preservation and retired-endpoint
-cleanup. No public OCaml or
+cleanup. Markdown copy normalization is participant-local, and its Select All
+action retires prior shared geometry outside the widget borrow. No public OCaml or
 wire format changes are needed.
 
 ## Ordinary window-selection adapter
@@ -266,14 +268,53 @@ reconstruction matched the committed snapshot excluding generated `Cargo.lock`.
 The catalog check establishes structural coverage only (three reviewed style value
 sets); no new capability advertisement or hosted release acceptance is implied.
 
+## Mixed ordinary text and Markdown
+
+Window Copy now produces the same result regardless of whether ordinary text or
+Markdown owns keyboard focus. Markdown keeps its existing rendered-copy edge
+trimming within its participant callback; it cannot trim neighboring ordinary
+text. The aggregate inserts one newline between nonempty participant results.
+This also avoids adding both a Markdown trailing paragraph separator and a second
+aggregate separator at that boundary. Ordinary text still preserves selected
+source whitespace. This is rendered selection Copy; explicit Copy source remains
+independent and preserves the original document source.
+
+The native mixed fixture puts formatted Markdown between ordinary text nodes with
+leading/trailing spaces and Unicode. It checks both drag directions, switches
+keyboard focus between participant types without changing the selected range,
+and begins a drag inside Markdown. Full source replacement retires the mixed
+geometric range before a fresh gesture can copy the new installed document.
+Removing the ordinary endpoint nodes clears the remaining shared selection.
+
+User Select All in Markdown replaces the previous mixed range with that document's
+local selection. The action clears window geometry before invoking the existing
+state listener; doing so while the listener held the document's mutable borrow
+would let clear callbacks re-enter the same entity. Disabled Select All retains
+its existing propagation behavior. Programmatic selection APIs remain distinct.
+
+`document_mixed_selection_test.rs` runs inside `native_highlight_document`.
+Its Select All regression initially copied the previous neighboring text; the
+native action repair fixes that state transition. These focused mixed checks do
+not establish separate-window, all virtualized content, physical input or VoiceOver
+acceptance.
+
+On the final mixed-selection revision, both `native_highlight_document` and
+`native_ui` exited 0 under separate 90-second process-group watchdogs. The document
+suite includes existing code/diff/Markdown GPU, selection-policy, streaming,
+focus-scope and source-retention regressions in addition to the mixed fixture.
+Strict all-target native/protocol Clippy, default production compilation, formatting,
+structural catalog and exact Base fork reconstruction also passed. The preceding
+100k list evidence belongs to the ordinary-window-selection checkpoint above;
+this narrower Markdown action change did not rerun that traversal.
+
 ## Remaining implementation and acceptance
 
 - Complete document selection policy evidence for disabled Markdown multi-click,
   scrolling, file controls and accessible selection/range commands. The focused
   native checks above are not the whole OCH-17 input/AX matrix.
-- Complete mixed ordinary/Markdown and cross-document drag/copy, removed/replaced
-  endpoints, virtual-row reuse, separate-window boundaries, wrapped/mixed-direction
-  text, multi-click cross-node semantics and pointer-operated Copy controls.
+- Complete multiple-document drag/copy, replaced endpoint identities, virtual-row
+  reuse, separate-window boundaries, wrapped/mixed-direction text, multi-click
+  cross-node semantics and pointer-operated Copy controls.
   The focused ordinary-node regression does not prove those combinations.
 - Measure projection and copy cost for large selected text and bounded retention
   during repeated mount/unmount/window cycles.
