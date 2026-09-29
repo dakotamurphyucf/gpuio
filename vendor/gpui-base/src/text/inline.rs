@@ -171,6 +171,8 @@ pub(super) struct Inline {
     paint_origin: Option<Point<Pixels>>,
     selection_bounds: Option<Bounds<Pixels>>,
     selection_source: Option<(Arc<Mutex<InlineState>>, Range<usize>)>,
+    range_backgrounds: Option<(Rc<dyn crate::input::RangeBackgrounds>, Range<usize>)>,
+    style_backgrounds: Vec<crate::input::RangeBackground>,
     link_click_handler: Option<Arc<LinkClickHandlerFn>>,
 
     state: Arc<Mutex<InlineState>>,
@@ -225,6 +227,7 @@ pub(crate) struct InlineState {
     /// The text that actually rendering, matched with selection.
     pub(super) text: SharedString,
     pub(super) selection: Option<Selection>,
+    pub(super) displayed_fragment: Option<super::DisplayedFragment>,
 }
 
 impl InlineState {
@@ -257,6 +260,8 @@ impl Inline {
             paint_origin: None,
             selection_bounds: None,
             selection_source: None,
+            range_backgrounds: None,
+            style_backgrounds: Vec::new(),
             link_click_handler,
             state,
         }
@@ -724,7 +729,41 @@ impl Element for Inline {
             .text_style
             .clone()
             .unwrap_or_else(|| window.text_style());
-        let runs = text_runs(self.text.len(), &text_style, &self.highlights);
+        let (source_state, source_range) = self
+            .selection_source
+            .as_ref()
+            .map(|(state, range)| (state, range.clone()))
+            .unwrap_or((&self.state, 0..self.text.len()));
+        let fragment = source_state
+            .lock()
+            .ok()
+            .and_then(|state| state.displayed_fragment.clone());
+        self.range_backgrounds = fragment.and_then(|fragment| {
+            if fragment.text().get(source_range.clone()) != Some(self.text.as_ref()) {
+                return None;
+            }
+            let view = GlobalState::global(cx).text_view_state()?.read(cx);
+            let layer = view.text_backgrounds.as_ref()?.layer(&fragment)?;
+            Some((layer, source_range))
+        });
+        let mut runs = text_runs(self.text.len(), &text_style, &self.highlights);
+        self.style_backgrounds.clear();
+        if self.range_backgrounds.is_some() {
+            // StyledText normally paints backgrounds and glyphs together. Move
+            // only its backgrounds into our first pass so rounded prepared
+            // washes sit above syntax/mark colors and below the glyphs.
+            let mut offset = 0;
+            for run in &mut runs {
+                if let Some(color) = run.background_color.take() {
+                    self.style_backgrounds.push(crate::input::RangeBackground {
+                        bytes: offset..offset + run.len,
+                        color,
+                        radius: px(0.),
+                    });
+                }
+                offset += run.len;
+            }
+        }
 
         self.styled_text = StyledText::new(self.text.clone()).with_runs(runs);
         let (layout_id, _) =
@@ -810,6 +849,20 @@ impl Element for Inline {
         }
         let hitbox = &prepaint.hitbox;
         let text_layout = self.styled_text.layout().clone();
+        if let Some((layers, source)) = &self.range_backgrounds {
+            let align = self
+                .text_style
+                .as_ref()
+                .map_or_else(|| window.text_style().text_align, |style| style.text_align);
+            super::backgrounds::paint(
+                &self.style_backgrounds,
+                0..self.text.len(),
+                &text_layout,
+                align,
+                window,
+            );
+            super::backgrounds::paint(layers.ranges(), source.clone(), &text_layout, align, window);
+        }
         self.styled_text
             .paint(global_id, None, bounds, &mut (), &mut (), window, cx);
 

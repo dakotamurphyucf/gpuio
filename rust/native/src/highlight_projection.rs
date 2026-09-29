@@ -26,6 +26,15 @@ pub enum Source {
     Document(Arc<Snapshot>),
     /// The exact installed native page, with offsets local to this slice.
     DocumentSlice(DocumentSlice),
+    /// A prepared rendered fragment, fenced to both the installed document
+    /// revision and this particular AST's immutable text allocation.
+    DocumentText(DocumentText),
+}
+
+#[derive(Clone)]
+pub struct DocumentText {
+    snapshot: Arc<Snapshot>,
+    text: Arc<str>,
 }
 
 /// Validated UTF-8 byte boundaries into an immutable document-store snapshot.
@@ -36,6 +45,9 @@ pub struct DocumentSlice {
     bytes: Range<usize>,
 }
 impl Source {
+    pub fn document_text(snapshot: Arc<Snapshot>, text: Arc<str>) -> Self {
+        Self::DocumentText(DocumentText { snapshot, text })
+    }
     pub fn document_slice(
         snapshot: Arc<Snapshot>,
         bytes: Range<usize>,
@@ -55,6 +67,7 @@ impl Source {
             Self::Text(text) => text.len(),
             Self::Document(s) => s.text.len(),
             Self::DocumentSlice(s) => s.bytes.len(),
+            Self::DocumentText(s) => s.text.len(),
         }
     }
     fn same_source(&self, other: &Self) -> bool {
@@ -66,6 +79,9 @@ impl Source {
             (Self::DocumentSlice(a), Self::DocumentSlice(b)) => {
                 Arc::ptr_eq(&a.snapshot, &b.snapshot) && a.bytes == b.bytes
             }
+            (Self::DocumentText(a), Self::DocumentText(b)) => {
+                Arc::ptr_eq(&a.snapshot, &b.snapshot) && Arc::ptr_eq(&a.text, &b.text)
+            }
             _ => false,
         }
     }
@@ -76,6 +92,7 @@ impl Source {
             Self::DocumentSlice(s) => {
                 offset <= s.bytes.len() && s.snapshot.text.is_char_boundary(s.bytes.start + offset)
             }
+            Self::DocumentText(s) => s.text.is_char_boundary(offset),
         }
     }
     fn chunks(&self) -> Chunks<'_> {
@@ -85,6 +102,7 @@ impl Source {
             Self::DocumentSlice(s) => {
                 Chunks::Document(s.snapshot.text.slice(s.bytes.clone()).chunks())
             }
+            Self::DocumentText(s) => Chunks::Text(Some(&s.text)),
         }
     }
 }

@@ -87,6 +87,136 @@ impl MarkdownPlugin for LiteralHtml {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gpui_base::text::PreparedMarkdown;
+
+    fn fragments(document: &PreparedMarkdown) -> Vec<String> {
+        let displayed = document.displayed_text();
+        assert!(
+            displayed
+                .fragments()
+                .iter()
+                .enumerate()
+                .all(|(ix, fragment)| { fragment.id() as usize == ix })
+        );
+        assert_eq!(
+            displayed.text_bytes(),
+            displayed
+                .fragments()
+                .iter()
+                .map(|f| f.text().len())
+                .sum::<usize>()
+        );
+        displayed
+            .fragments()
+            .iter()
+            .map(|f| f.text().to_string())
+            .collect()
+    }
+
+    #[test]
+    fn displayed_fragments_follow_structural_order_without_copy_separators() {
+        let prepared = PreparedMarkdown::parse(
+            "# Head **bold**\n\nhello *café* and `code`\n\n> quoted\n\n- first\n  - nested\n- last\n\n```rs\nlet λ = 1;\n```\n\n| one | two |\n|---|---|\n| α | β |\n",
+            MarkdownExtensions::default(),
+        ).unwrap();
+        assert_eq!(
+            fragments(&prepared),
+            [
+                "Head bold",
+                "hello café and code",
+                "quoted",
+                "first",
+                "nested",
+                "last",
+                "let λ = 1;",
+                "one",
+                "two",
+                "α",
+                "β",
+            ]
+        );
+        assert_eq!(prepared.displayed_text().opaque_nodes(), 0);
+        assert!(Arc::ptr_eq(
+            &prepared.displayed_text(),
+            &prepared.displayed_text()
+        ));
+    }
+
+    #[test]
+    fn displayed_fragments_exist_before_paint_and_survive_prepared_owner_drop() {
+        let source = (0..200).map(|i| format!("row {i}\n\n")).collect::<String>();
+        let before = PreparedMarkdown::parse(&source, MarkdownExtensions::default()).unwrap();
+        let retained = before.displayed_text();
+        assert_eq!(retained.fragments().len(), 200);
+        assert_eq!(retained.fragments()[199].text().as_ref(), "row 199");
+        let after = PreparedMarkdown::parse(&source, MarkdownExtensions::default()).unwrap();
+        assert!(!Arc::ptr_eq(&retained, &after.displayed_text()));
+        drop(before);
+        assert_eq!(retained.fragments()[0].text().as_ref(), "row 0");
+    }
+
+    #[test]
+    fn images_and_custom_nodes_are_explicit_opaque_boundaries() {
+        let source = "left ![not glyphs](asset://image) right\n\n![alone](asset://image)\n\n<a>literal</a>\n";
+        let native = PreparedMarkdown::parse(source, extensions(Images::default())).unwrap();
+        assert_eq!(fragments(&native), ["left ", " right", "literal"]);
+        assert_eq!(native.displayed_text().opaque_nodes(), 4);
+        let builtin = PreparedMarkdown::parse(
+            "left ![not glyphs](asset://image) right",
+            MarkdownExtensions::default(),
+        )
+        .unwrap();
+        assert_eq!(fragments(&builtin), ["left ", " right"]);
+        assert_eq!(builtin.displayed_text().opaque_nodes(), 1);
+    }
+
+    #[test]
+    fn prepared_backgrounds_validate_count_utf8_ranges_and_radius() {
+        use gpui_base::{
+            input::{RangeBackground, RangeBackgroundError, RangeBackgrounds},
+            text::TextBackgrounds,
+        };
+        use std::rc::Rc;
+        struct Layers(Vec<RangeBackground>);
+        impl RangeBackgrounds for Layers {
+            fn ranges(&self) -> &[RangeBackground] {
+                &self.0
+            }
+        }
+        let prepared = PreparedMarkdown::parse("α🙂", MarkdownExtensions::default()).unwrap();
+        let source = prepared.displayed_text();
+        assert!(matches!(
+            TextBackgrounds::new(source.clone(), vec![]),
+            Err(RangeBackgroundError::InvalidRange)
+        ));
+        let layer = |bytes, radius, count| -> Option<Rc<dyn RangeBackgrounds>> {
+            Some(Rc::new(Layers(vec![
+                RangeBackground {
+                    bytes,
+                    color: gpui::red(),
+                    radius: px(radius)
+                };
+                count
+            ])))
+        };
+        assert!(TextBackgrounds::new(source.clone(), vec![layer(0..6, 8., 1)]).is_ok());
+        for range in [1..2, 2..3, 2..7, 0..0] {
+            assert!(matches!(
+                TextBackgrounds::new(source.clone(), vec![layer(range, 0., 1)]),
+                Err(RangeBackgroundError::InvalidRange)
+            ));
+        }
+        for radius in [f32::NAN, f32::INFINITY, -1., 65.] {
+            assert!(matches!(
+                TextBackgrounds::new(source.clone(), vec![layer(0..2, radius, 1)]),
+                Err(RangeBackgroundError::InvalidRadius)
+            ));
+        }
+        assert!(matches!(
+            TextBackgrounds::new(source, vec![layer(0..2, 0., 32769)]),
+            Err(RangeBackgroundError::Limit)
+        ));
+    }
     #[test]
     fn reference_images_resolve_and_html_is_literal() {
         let text =

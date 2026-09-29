@@ -23,8 +23,9 @@ Its Core/Bonsai declarations, reconciliation and native tree storage are wired.
 The retained-tree collector and GPUI executor service now connect to mounted
 ordinary/selectable views, source caching, base/structural visibility and queued
 observations. Installed code/diff/source-mode pages also have native matching and
-rounded painting. Rendered Markdown fragments and the public gallery remain in
-development.
+rounded painting. Prepared Markdown text fragments now share a validated native
+paint adapter. Custom/image projections, broader acceptance and the public gallery
+remain in development.
 
 Queries default to case-insensitive matching. Matching uses Unicode scalar
 lowercasing on both source and query, without normalization or full case folding.
@@ -166,9 +167,10 @@ old projection; document snapshots require the same Arc, preserving installed
 revision fences. A mounted cache must invalidate on visibility, page, tree/source
 and installed-document changes and may keep its existing Arc when comparison
 succeeds. The mounted cache and installed source-page provider are implemented.
-Code, diff and Markdown source-mode pages use their installed snapshot interval. Rendered
-Markdown still returns SourceUnavailable until its displayed fragment adapter is
-implemented.
+Code, diff and Markdown source-mode pages use their installed snapshot interval.
+Rendered Markdown uses the immutable fragment table of its installed prepared AST.
+Documents with opaque custom/image nodes still report SourceUnavailable until those
+renderers provide an explicit displayed-text contract; partial counts are not Ready.
 
 Native page projections can now use `Source::document_slice(snapshot, bytes)`.
 The constructor validates ordered, in-bounds UTF-8 byte endpoints before creating
@@ -177,7 +179,9 @@ byte offsets. Source equivalence requires both the same snapshot identity and th
 same interval, so even a same-content new installed revision retires old paints.
 The slice retains the original document-store reservation; highlight admission
 counts the displayed interval separately. This primitive now connects to the
-installed code/diff/source-mode document presenter and rounded editor painter. Rendered Markdown remains pending.
+installed code/diff/source-mode document presenter and rounded editor painter.
+Rendered fragments use `Source::document_text`, retaining the original snapshot
+and requiring both its identity and the prepared fragment allocation to match.
 
 An application-wide native pool owns at most 128 mounted scope entries and two running jobs, with
 64 MiB of conservative admission units for queued/running/ready/retired data.
@@ -238,8 +242,8 @@ ellipsis. A clipping mask skips off-screen rows; GPUI clips the painted pixels.
 Native selection backgrounds paint afterward. Active-index comparison subtracts
 the virtualized offset after checking its lower bound, avoiding signed overflow.
 
-The helper and mounted ordinary/selectable views pass native GPU tests. Binding
-rendered Markdown fragments remains required. The geometry fixtures are not broad
+The helper and mounted ordinary/selectable and prepared Markdown text views pass
+focused native GPU tests. Opaque custom/image fragments remain unresolved. The geometry fixtures are not broad
 script/bidirectional-text acceptance, and highlighting has not yet passed the
 milestone's application-scale performance budget.
 
@@ -275,10 +279,10 @@ selection backgrounds paint above the search wash. Scope removal releases caches
 and cancels matching; retired frame readers continue to carry their reservation
 until dropped.
 
-## Installed native-document adapter plan
+## Installed native-document adapters
 
-The code/diff/source-mode adapter is implemented; the Markdown fragment adapter
-below remains planned. The document presenter keeps the last installed revision
+The code/diff/source-mode and prepared Markdown text adapters are implemented.
+Custom/image projection and broader acceptance remain open. The document presenter keeps the last installed revision
 visible while the next parse is pending. Its highlighting source must use that same installed snapshot,
 mode and page, with a separate identity that also changes for collapse/expand and
 native page changes. Publishing a new parse must invalidate the enclosing scope
@@ -303,15 +307,33 @@ reentry during child rendering. The painter verifies its fragment key and exact
 installed snapshot/page against Ready's projection. Cosmetic updates reuse result
 and background owners; page or installed revision changes cannot reuse stale paint.
 
-Markdown needs an immutable displayed-fragment table tied to its prepared AST,
-with the same structural fragment identities reused by paragraph, inline-flow,
-code-block and table-cell rendering. Do not derive it from visited/painted blocks
-or the plain-text copy representation: virtualized blocks can be unpainted, and
-copy text includes semantic separators and inline-object alternatives. The table
-must stay bounded at preparation time, and replacement must preserve the existing
-streaming layout/selection retention. These Markdown adapter steps remain unimplemented. Code/diff/source-mode GPU
-and lifecycle evidence does not establish rendered Markdown highlighting or full
-application-scale acceptance.
+Bounded Markdown preparation now builds `DisplayedText`: at most 4,096 immutable
+fragments and 64 KiB of text, with consecutive IDs in structural display order.
+Paragraph/heading formatting stays in one run; images and custom objects split
+runs, and each cell and code block is independent. The table exists before any
+paint, including virtualized blocks. It is not the copy/AX representation: those
+representations include separators and alternative text that may not be glyphs.
+Opaque nodes are counted explicitly and currently prevent whole-document query
+acceptance. Their renderer contracts remain an implementation requirement.
+
+The prepared inline state carries its fragment identity; `InlineFlow` retains the
+original fragment byte interval when splitting by font size, inline code or wraps.
+`TextBackgrounds` validates the complete layer array, UTF-8 ranges, radius and
+32,768-range aggregate bound. Installation requires the same prepared table Arc.
+Replacement or ordinary asynchronous parsing clears the old provider. Before
+painting a fragment, its exact text allocation and displayed byte slice must agree.
+Formatting backgrounds paint first, rounded query washes next, glyphs next and
+native selection last. Providers retain Ready leases through their last frame.
+No matching, I/O or OCaml callbacks run in paint. Cosmetic changes preserve the
+AST, selection and measured list layout; streamed parsing retains old fragments
+until the replacement is actually installed.
+
+Focused native GPU tests cover headings, cross-format text, inline and fenced
+code, table cells, wrapping, rounded corners, selection, streaming, collapse and
+owner disposal. Broader script/bidi, tabs/folding/scroll, custom objects, concurrent
+windows/virtual rows and application-scale resource/performance acceptance remain
+required. The current Markdown range geometry uses GPUI's index lookup; dense
+match/long-line benchmarking and measured optimization remain release work.
 
 ## Pinned comparison and acceptance
 

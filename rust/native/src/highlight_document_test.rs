@@ -155,6 +155,190 @@ fn presentation(cx: &mut AsyncApp, handle: WindowHandle<View>) -> Entity<Present
         })
         .unwrap()
 }
+
+async fn installed_revision(
+    cx: &mut AsyncApp,
+    handle: WindowHandle<View>,
+    transport: &Transport,
+    p: &Entity<Presentation>,
+    revision: i64,
+) {
+    for _ in 0..1000 {
+        // Rebinding while preparation is pending can correctly report the old
+        // installed document. Wait for the requested installation, then bind a
+        // fresh observer after draining those acknowledged older samples.
+        transport.mailbox.lock().unwrap().drain(128);
+        draw(cx, handle);
+        if p.read_with(cx, |p, _| {
+            p.installed.as_ref().is_some_and(|s| s.revision == revision)
+        }) {
+            transport.mailbox.lock().unwrap().drain(128);
+            apply(
+                cx,
+                handle,
+                vec![Op::Bind(node(0), Some(handler(100 + revision)))],
+            );
+            return;
+        }
+        pause(cx).await;
+    }
+    panic!("requested document revision {revision} was not installed");
+}
+
+async fn markdown_checks(
+    cx: &mut AsyncApp,
+    handle: WindowHandle<View>,
+    session: &Rc<RefCell<Session>>,
+    transport: &Transport,
+    source: ResourceId,
+    p: &Entity<Presentation>,
+) {
+    let mut base = 3;
+    for (name, text, count) in [
+        ("heading", "# aaa\n", 1),
+        ("formatting", "a**a**a\n", 1),
+        ("inline code split", "a`a`a\n", 1),
+        ("fenced code", "```txt\naaa\n```\n", 1),
+        (
+            "table cells",
+            "| aaa | aaa |\n|---|---|\n| aaa | aaa |\n",
+            4,
+        ),
+        (
+            "wrapped text",
+            "aaa aaa aaa aaa aaa aaa aaa aaa aaa aaa aaa aaa aaa aaa aaa aaa aaa aaa aaa aaa\n",
+            20,
+        ),
+    ] {
+        // Drop acknowledged observations before starting a distinct revision.
+        transport.mailbox.lock().unwrap().drain(128);
+        publish(&mut session.borrow_mut(), source, base, text);
+        handle
+            .update(cx, |view, _, cx| view.document_changed(source, cx))
+            .unwrap();
+        apply(
+            cx,
+            handle,
+            vec![
+                Op::SetDocument(node(1), document(source, Mode::Markdown)),
+                Op::Bind(node(0), Some(handler(base + 3))),
+                Op::SetHighlightScope(node(0), config(0.)),
+            ],
+        );
+        installed_revision(cx, handle, transport, p, base + 1).await;
+        ready(cx, handle, transport, count).await;
+        p.read_with(cx, |p, _| {
+            assert_eq!(p.installed.as_ref().unwrap().revision, base + 1)
+        });
+        let pixels = red_pixels(cx, handle);
+        assert!(
+            pixels > 20,
+            "{name} paints rounded-background provider: {pixels}"
+        );
+        let markdown = p.read_with(cx, |p, _| p.markdown.clone()).unwrap();
+        markdown.update(cx, |state, cx| state.select_all(cx));
+        draw(cx, handle);
+        assert!(
+            red_pixels(cx, handle) < pixels,
+            "{name}: selection paints above highlights"
+        );
+        markdown.update(cx, |state, cx| state.clear_selection(cx));
+        draw(cx, handle);
+        assert_eq!(
+            red_pixels(cx, handle),
+            pixels,
+            "{name}: removing selection restores washes"
+        );
+        base += 1;
+    }
+    let before = p.read_with(cx, |p, cx| {
+        p.markdown
+            .as_ref()
+            .unwrap()
+            .read(cx)
+            .displayed_text()
+            .unwrap()
+    });
+    let old_backgrounds = p.read_with(cx, |p, _| {
+        p.markdown_highlight.as_ref().unwrap().backgrounds.clone()
+    });
+    publish(
+        &mut session.borrow_mut(),
+        source,
+        base,
+        "# aaa\n\naaa **aaa** aaa\n",
+    );
+    handle
+        .update(cx, |view, _, cx| view.document_changed(source, cx))
+        .unwrap();
+    p.read_with(cx, |p, cx| {
+        assert!(
+            Arc::ptr_eq(
+                &before,
+                &p.markdown
+                    .as_ref()
+                    .unwrap()
+                    .read(cx)
+                    .displayed_text()
+                    .unwrap()
+            ),
+            "pending parse retains installed fragments"
+        )
+    });
+    installed_revision(cx, handle, transport, p, base + 1).await;
+    ready(cx, handle, transport, 4).await;
+    p.read_with(cx, |p, cx| {
+        assert!(!Arc::ptr_eq(
+            &before,
+            &p.markdown
+                .as_ref()
+                .unwrap()
+                .read(cx)
+                .displayed_text()
+                .unwrap()
+        ))
+    });
+    let square = red_pixels(cx, handle);
+    let markdown = p.read_with(cx, |p, _| p.markdown.clone()).unwrap();
+    assert!(
+        !markdown.update(cx, |state, cx| state
+            .set_text_backgrounds(Some(old_backgrounds), cx)),
+        "an old prepared AST cannot reinstall its backgrounds on a streamed replacement"
+    );
+    draw(cx, handle);
+    assert_eq!(
+        red_pixels(cx, handle),
+        square,
+        "current presenter restores only the valid prepared owner"
+    );
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Bind(node(0), Some(handler(40))),
+            Op::SetHighlightScope(node(0), config(8.)),
+        ],
+    );
+    ready(cx, handle, transport, 4).await;
+    let rounded = red_pixels(cx, handle);
+    assert!(
+        rounded > 20 && rounded < square,
+        "Markdown radius: square={square}, rounded={rounded}"
+    );
+    p.update(cx, |p, cx| {
+        p.collapsed = true;
+        p.invalidate_row(cx);
+        cx.notify();
+    });
+    ready(cx, handle, transport, 0).await;
+    assert_eq!(red_pixels(cx, handle), 0);
+    p.update(cx, |p, cx| {
+        p.collapsed = false;
+        p.invalidate_row(cx);
+        cx.notify();
+    });
+    ready(cx, handle, transport, 4).await;
+}
 pub(crate) fn run() {
     let failure = Rc::new(RefCell::new(None));
     let task_failure = failure.clone();
@@ -207,11 +391,14 @@ pub(crate) fn run() {
                 ready(cx,handle,&transport,2).await;assert!(red_pixels(cx,handle)>20,"diff washes paint over syntax backgrounds");
                 let retired=p.read_with(cx,|p,_|p.highlight_paint.as_ref().map(|(paint,_)|paint.clone())).unwrap();
                 let background_owner=p.read_with(cx,|p,_|Rc::downgrade(&p.highlight_paint.as_ref().unwrap().1));
+                markdown_checks(cx,handle,&session,&transport,source,&p).await;
+                let markdown_owner=p.read_with(cx,|p,_|Rc::downgrade(&p.markdown_highlight.as_ref().unwrap().backgrounds));
                 apply(cx,handle,vec![Op::SetRoot(None),Op::Remove(node(1)),Op::Remove(node(0))]);
                 draw(cx,handle);pause(cx).await;drop(p);drop(retired);draw(cx,handle);
                 assert!(background_owner.upgrade().is_none(),"retired editor frame releases prepared owner");
+                assert!(markdown_owner.upgrade().is_none(),"retired Markdown frame releases prepared owner");
                 assert_eq!(red_pixels(cx,handle),0);
-                eprintln!("GPUIO_NATIVE_HIGHLIGHT_DOCUMENT_OK: code/diff GPU washes, rounded radius, selection precedence, cosmetic epoch, collapse, native pages, pending installed revision, streaming replacement and unmount/owner disposal");
+                eprintln!("GPUIO_NATIVE_HIGHLIGHT_DOCUMENT_OK: code/diff/Markdown GPU washes; headings, cross-format and inline-code runs, fenced code, tables and wrap; rounded radius, selection precedence, cosmetic epoch, collapse, native pages, pending installed revision, streaming replacement and unmount/owner disposal");
             }).await;
             *task_failure.borrow_mut()=checked.err();
             let _=handle.update(cx,|_,window,_|window.remove_window());

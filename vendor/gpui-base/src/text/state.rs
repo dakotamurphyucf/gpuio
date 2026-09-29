@@ -117,6 +117,7 @@ pub struct TextViewState {
     pub(super) selection_adapter: TextViewSelectionAdapter,
 
     pub(super) parsed_content: ParsedContent,
+    pub(super) text_backgrounds: Option<std::rc::Rc<super::TextBackgrounds>>,
     pub(super) link_navigation: super::link_navigation::Navigation,
     pub(super) link_reveal: Option<usize>,
     pub(super) link_reveal_claimed: bool,
@@ -136,6 +137,38 @@ pub struct TextViewState {
 }
 
 impl TextViewState {
+    /// Install immutable decoration layers for this exact prepared AST. A stale
+    /// source clears the old owner and returns false. This does not reparse or
+    /// invalidate list measurements, selection or scrolling.
+    pub fn set_text_backgrounds(
+        &mut self,
+        layers: Option<std::rc::Rc<super::TextBackgrounds>>,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let valid = layers.as_ref().is_none_or(|layers| {
+            self.parsed_content
+                .displayed_text
+                .as_ref()
+                .is_some_and(|source| Arc::ptr_eq(source, &layers.source))
+        });
+        let layers = valid.then_some(layers).flatten();
+        let same = match (&self.text_backgrounds, &layers) {
+            (Some(a), Some(b)) => std::rc::Rc::ptr_eq(a, b),
+            (None, None) => true,
+            _ => false,
+        };
+        if !same {
+            self.text_backgrounds = layers;
+            cx.notify();
+        }
+        valid
+    }
+    /// The immutable fragments of the installed bounded preparation. Ordinary
+    /// asynchronous Markdown/HTML updates do not advertise this contract.
+    pub fn displayed_text(&self) -> Option<Arc<super::DisplayedText>> {
+        self.parsed_content.displayed_text.clone()
+    }
+
     /// Install a single-use snapshot from an externally bounded worker. No
     /// parser work or source queue is started by this operation. The caller
     /// rejects stale document generations/revisions before calling it.
@@ -188,6 +221,7 @@ impl TextViewState {
         self.text = prepared.content.document.source.to_string();
         self.markdown_extensions = prepared.content.node_cx.markdown_extensions.clone();
         self.parsed_content = prepared.content;
+        self.text_backgrounds = None;
         self.refresh_links(unchanged_prefix);
         self.parsed_error = None;
         self.preserve_inline_selection = preserve;
@@ -233,6 +267,7 @@ impl TextViewState {
                             match parsed_update.result {
                                 Ok(content) => {
                                     state.parsed_content = content;
+                                    state.text_backgrounds = None;
                                     state.refresh_links(None);
                                     state.parsed_error = None;
                                     state.compatible_layout_update =
@@ -290,6 +325,7 @@ impl TextViewState {
             auto_scroll: AutoScroll::default(),
             selection_adapter,
             parsed_content: Default::default(),
+            text_backgrounds: None,
             link_navigation: Default::default(),
             link_reveal: None,
             link_reveal_claimed: false,
@@ -584,6 +620,7 @@ impl TextViewState {
             match parse_content(self.format, ParsedContent::default(), &update_options) {
                 Ok(content) => {
                     self.parsed_content = content;
+                    self.text_backgrounds = None;
                     self.refresh_links(None);
                     self.parsed_error = None;
                     self.invalidate_measured_heights();
@@ -920,6 +957,7 @@ impl Render for TextViewState {
 pub(crate) struct ParsedContent {
     pub(crate) document: ParsedDocument,
     pub(crate) node_cx: node::NodeContext,
+    displayed_text: Option<Arc<super::DisplayedText>>,
 }
 
 /// A single-use full Markdown parse prepared outside the native UI thread.
@@ -939,9 +977,23 @@ impl PreparedMarkdown {
             ..NodeContext::default()
         };
         let document = format::markdown::parse_bounded(source, &mut node_cx)?;
+        let displayed_text = Some(super::DisplayedText::prepare(&document)?);
         Ok(Self {
-            content: ParsedContent { document, node_cx },
+            content: ParsedContent {
+                document,
+                node_cx,
+                displayed_text,
+            },
         })
+    }
+
+    /// Available before any layout/paint, including all virtualized blocks.
+    pub fn displayed_text(&self) -> Arc<super::DisplayedText> {
+        self.content
+            .displayed_text
+            .as_ref()
+            .expect("bounded preparation")
+            .clone()
     }
 
     pub fn source(&self) -> SharedString {
@@ -1088,6 +1140,9 @@ fn parse_content(
     mut content: ParsedContent,
     options: &UpdateOptions,
 ) -> Result<ParsedContent, SharedString> {
+    // A later ordinary parse cannot reuse identities from an installed bounded
+    // snapshot. It has no admission contract for this extra representation.
+    content.displayed_text = None;
     let mut node_cx = NodeContext {
         markdown_extensions: options.markdown_extensions.clone(),
         ..NodeContext::default()

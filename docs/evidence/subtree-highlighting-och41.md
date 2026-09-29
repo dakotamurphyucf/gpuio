@@ -6,7 +6,8 @@ declarations and observation routing, bounded retained-tree collection and a GPU
 worker service, a shaped-text paint adapter, and mounted ordinary/selectable text
 with real GPU painting, cached sources and queued observations. Installed native
 code/diff/source-mode pages now have rounded background painting and revision/page
-fences. Rendered Markdown, virtual-list and multiwindow highlighting acceptance,
+fences. Prepared Markdown text fragments now have focused native GPU evidence.
+Custom/image fragments, virtual-list and multiwindow highlighting acceptance,
 application performance and the public gallery remain pending. No highlighting capability is
 advertised.
 OCH-41 remains In Progress. The sections below distinguish each implementation
@@ -359,3 +360,59 @@ SourceUnavailable until its immutable fragment/paint adapter is implemented.
 Virtual-list/independent-window and broad wrap/tab/fold/scroll behavior, application
 performance/resource budgets and public gallery acceptance remain open. No new
 protocol, OCaml API or capability advertisement in this checkpoint.
+
+
+## Prepared Markdown text integration
+
+The bounded parser now creates an immutable structural fragment table before
+layout or painting, with 4,096-fragment/64-KiB bounds. Paragraph/heading formatting
+stays contiguous; code blocks and table cells are separate groups. Inline-flow
+splits carry the original fragment's byte range. Matching uses `DocumentText`,
+fenced to both the installed document snapshot and prepared text allocation.
+Original document-store reservations and prepared-match owners stay retained by
+their readers. Pending parsing keeps the old AST and its displayed fragments.
+
+Base's `TextBackgrounds` validates the complete layer count, UTF-8 endpoints,
+radius and aggregate 32,768-range limit. Installation checks the prepared table
+identity; replacement clears the prior owner. Inline painting verifies the exact
+fragment slice, then paints formatting backgrounds, rounded query washes, glyphs
+and native selection in order. It runs no queries or OCaml callbacks. Cosmetic
+updates do not reset measured list layout, scrolling or selection.
+
+Local macOS evidence through the isolated toolchain:
+
+- `native_highlight_document` now checks actual GPU pixels and counts for headings,
+  matches crossing bold styling and inline-code font/size splits, fenced code,
+  table cells and wrapped paragraphs. It also checks rounded corners, selection
+  precedence/restoration, old installed fragments during streamed parsing,
+  replacement identity, rejection of an explicitly reinstalled old-AST provider,
+  collapse/expand and final Markdown background-owner disposal, alongside the
+  earlier source/code/diff cases. Each final binary ran under a 60-second watchdog;
+  all windows closed and processes were reaped.
+- The first expanded run revealed a fixture error: rebinding an observer while a
+  replacement parse is pending may correctly report the old installed document.
+  The fixture now waits for the requested revision and binds a fresh observer
+  after draining acknowledged older samples. The corrected run passes. Selection
+  is driven through native state APIs; this is not physical keyboard or IME evidence.
+- Rebuilt `native_highlight_view` and `native_document` also pass. The latter
+  retains existing safe-image, table/fence, Unicode selection/streaming and lease
+  teardown coverage. Its diagnostic layout/paint sample is 17278 microseconds
+  and peak process RSS 68517888 bytes; these are not application budget acceptance.
+- The full library/projection/collector/jobs/scope command passes **394 tests**:
+  361 library, 11 projection, six collector, 13 jobs and three scope. Two existing
+  private-bus notification tests remain excluded from this command. New checks
+  cover ordered pre-paint text, Unicode/code/table runs, all 200 unpainted blocks,
+  ownership after prepared-AST disposal, distinct AST/revision identities,
+  original store retention, opaque boundaries and malformed background metadata.
+- Strict all-target native/protocol Clippy with `native-image-tests`, workspace and
+  changed-vendor formatting, and diff checks pass. The Base patch reconstructs
+  exactly from the pinned archive, excluding generated Cargo.lock. Its SHA-256 is
+  `04d4d8b3444bd90fc8de184125d81bffb18b5d6e3726b61288ad9f8a829b6038`.
+
+Custom/image renderers still require an explicit displayed-text contract. Their
+copy/AX labels are not reliable glyph sources; the prepared table reports opaque
+nodes and the mounted adapter returns SourceUnavailable for such documents,
+without publishing partial Ready counts. This remains required follow-up work.
+Broad tabs/folds/scroll/bidi, virtual-row and independent-window behavior, public
+gallery and application resource/performance acceptance remain open. No hosted,
+Linux GUI, new capability advertisement or full highlighting acceptance is implied.

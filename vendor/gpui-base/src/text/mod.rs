@@ -1,3 +1,5 @@
+mod backgrounds;
+mod displayed_text;
 mod document;
 mod format;
 mod inline;
@@ -16,6 +18,8 @@ mod style;
 mod text_view;
 mod utils;
 
+pub use backgrounds::TextBackgrounds;
+pub use displayed_text::{DisplayedFragment, DisplayedText};
 use gpui::{App, ElementId, IntoElement, RenderOnce, SharedString, Window};
 pub use inline_element::*;
 pub use markdown_ext::*;

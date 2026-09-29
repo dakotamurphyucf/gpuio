@@ -21,9 +21,11 @@ independently verified shaped-text highlight painter. Mounted ordinary/selectabl
 text now passes GPU painting, queued observations, cosmetic reuse, source and
 visibility updates, and unmount cleanup. Installed code/diff/source-mode pages
 now pass rounded GPU highlights, selection precedence, native page/collapse changes,
-streaming revision replacement and owner disposal. Rendered Markdown fragments,
-virtual-list/multiwindow acceptance and the public highlighting gallery remain
-pending. The gallery page count does
+streaming revision replacement and owner disposal. Prepared Markdown headings,
+formatted/inline-code text, fences, tables and wrapped paragraphs now also pass
+focused native GPU/selection/streaming/collapse/cleanup checks. Custom/image
+fragment contracts, virtual-list/multiwindow acceptance and the public highlighting
+gallery remain pending. The gallery page count does
 not imply parity. General input regions now have mounted Core/Bonsai/native
 integration, native edge-case and public gallery evidence; remaining consumer/
 release acceptance stays open in the [input ledger](evidence/input-observations-och41.md). Start ellipsis and the complete cursor vocabulary now have

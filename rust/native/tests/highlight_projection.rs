@@ -449,3 +449,46 @@ fn native_slices_validate_endpoints_and_keep_retired_snapshot_charge() {
     assert!(weak.upgrade().is_none());
     assert_eq!(store.reserved_bytes(), 0);
 }
+
+#[test]
+fn rendered_fragments_fence_ast_and_revision_and_retain_store_charge() {
+    let mut store = Store::default();
+    let (id, snapshot) = published(&mut store, "**λfind**");
+    let text: Arc<str> = Arc::from("λfind");
+    let projection = |snapshot, text| {
+        Projection::new(vec![group(
+            Kind::NativeDocument,
+            vec![Run {
+                key: key(0),
+                source: Source::document_text(snapshot, text),
+            }],
+        )])
+        .unwrap()
+    };
+    let p = projection(snapshot.clone(), text.clone());
+    assert_eq!(p.source_bytes(), 6);
+    assert_eq!(p.ordinary_bytes(), 0);
+    assert!(p.same_source(&projection(snapshot.clone(), text.clone())));
+    assert!(
+        !p.same_source(&projection(snapshot.clone(), Arc::from("λfind"))),
+        "new AST identity fences the same rendered bytes"
+    );
+    let (_, other) = published(&mut store, "**λfind**");
+    assert!(
+        !p.same_source(&projection(other, text.clone())),
+        "new document identity fences the same fragment allocation"
+    );
+    let found = p
+        .find(&Config(vec![spec(Some("λfind"), &[])]), || false)
+        .unwrap();
+    assert_eq!(spans(&found, 0), vec![(0, 0, 0, 6)]);
+    let weak = Arc::downgrade(&snapshot);
+    drop(snapshot);
+    store.release(id).unwrap();
+    assert!(
+        weak.upgrade().is_some(),
+        "rendered fragment keeps its original document reservation"
+    );
+    drop(p);
+    assert!(weak.upgrade().is_none());
+}

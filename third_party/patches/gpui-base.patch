@@ -1260,635 +1260,6 @@
                      identifier: Some(def.identifier.clone().into()),
                      title: def.title.clone().map(Into::into),
                  },
---- a/src/text/node.rs
-+++ b/src/text/node.rs
-@@ -360,10 +360,25 @@
- #[allow(unused)]
- #[derive(Debug, Default, Clone, PartialEq)]
- pub struct LinkMark {
-+    /// Source identity shared by styled/line-wrapped pieces of one Markdown link.
-+    pub source_start: Option<usize>,
-     pub url: SharedString,
-     /// Optional identifier for footnotes.
-     pub identifier: Option<SharedString>,
-     pub title: Option<SharedString>,
-+}
-+
-+impl LinkMark {
-+    pub(super) fn resolved(&self, references: &HashMap<SharedString, LinkMark>) -> Self {
-+        let mut link = self
-+            .identifier
-+            .as_ref()
-+            .and_then(|id| references.get(id))
-+            .unwrap_or(self)
-+            .clone();
-+        link.source_start = self.source_start;
-+        link
-+    }
- }
-
- #[derive(Debug, Default, Clone, PartialEq)]
-@@ -1665,11 +1680,7 @@
-                         });
-
-                         // convert link references, replace link
--                        if let Some(identifier) = link_mark.identifier.as_ref() {
--                            if let Some(mark) = node_cx.link_refs.get(identifier) {
--                                link_mark = mark.clone();
--                            }
--                        }
-+                        link_mark = link_mark.resolved(&node_cx.link_refs);
-
-                         links.push((inner_range.clone(), link_mark));
-                     }
-@@ -1742,13 +1753,7 @@
-                 for (_, mark) in &inline_node.marks {
-                     object_style = object_style.highlight(mark_highlight(mark, node_cx, cx).style);
-                     if let Some(link) = &mark.link {
--                        object_link = Some(
--                            link.identifier
--                                .as_ref()
--                                .and_then(|id| node_cx.link_refs.get(id))
--                                .unwrap_or(link)
--                                .clone(),
--                        );
-+                        object_link = Some(link.resolved(&node_cx.link_refs));
-                         object_style.color = Some(node_cx.style.link());
-                         object_style.underline = Some(gpui::UnderlineStyle {
-                             thickness: px(1.),
-@@ -1813,11 +1818,7 @@
-                             ..Default::default()
-                         });
-
--                        if let Some(identifier) = link_mark.identifier.as_ref()
--                            && let Some(mark) = node_cx.link_refs.get(identifier)
--                        {
--                            link_mark = mark.clone();
--                        }
-+                        link_mark = link_mark.resolved(&node_cx.link_refs);
-
-                         links.push((inner_range.clone(), link_mark));
-                     }
-@@ -2179,6 +2180,7 @@
-                 ..
-             } => v_flex()
-                 .id(("li", options.ix))
-+                .role(gpui::Role::ListItem)
-                 .w_full()
-                 .min_w_0()
-                 .when(*spread, |this| this.child(div()))
-@@ -2625,6 +2627,7 @@
-                 .into_any_element(),
-             BlockNode::Paragraph(paragraph) => div()
-                 .id(("p", ix))
-+                .role(gpui::Role::Paragraph)
-                 .pb(mb)
-                 .child(paragraph.render(node_cx, window, cx))
-                 .into_any_element(),
-@@ -2648,6 +2651,8 @@
-
-                 div()
-                     .id(SharedString::from(format!("h{}-{}", level, ix)))
-+                    .role(gpui::Role::Heading)
-+                    .aria_level(*level as usize)
-                     .pb(rems(0.3))
-                     .whitespace_normal()
-                     .text_size(text_size)
-@@ -2679,6 +2684,7 @@
-                 children, ordered, ..
-             } => v_flex()
-                 .id((if *ordered { "ol" } else { "ul" }, ix))
-+                .role(gpui::Role::List)
-                 .w_full()
-                 .min_w_0()
-                 .pb(mb)
-@@ -3656,3 +3662,123 @@
-         assert_ne!(first, second);
-     }
- }
-+
-+// Transfer logical selection ranges into a fully reparsed immutable snapshot.
-+// Rendering/layout state is never shared between different mounted views.
-+fn transfer_inline_selection(
-+    old: &Arc<Mutex<InlineState>>,
-+    new: &Arc<Mutex<InlineState>>,
-+    old_text: &str,
-+    new_text: &str,
-+    all: bool,
-+) -> bool {
-+    let selected = old.lock().ok().and_then(|state| state.selection);
-+    let selected = if all {
-+        (!old_text.is_empty()).then(|| crate::input::Selection::new(0, old_text.len()))
-+    } else {
-+        selected
-+    };
-+    let Some(selected) = selected else {
-+        return true;
-+    };
-+    if old_text
-+        .get(..selected.end)
-+        .is_none_or(|prefix| Some(prefix) != new_text.get(..selected.end))
-+    {
-+        return false;
-+    }
-+    if let Ok(mut state) = new.lock() {
-+        state.text = new_text.to_string().into();
-+        state.selection = Some(selected);
-+    }
-+    true
-+}
-+impl Paragraph {
-+    /// Match the renderer's text runs: atomic objects flush the preceding
-+    /// text into their node state; the trailing run uses paragraph state.
-+    fn selection_runs(&self) -> Vec<(Arc<Mutex<InlineState>>, String)> {
-+        let mut runs = Vec::new();
-+        let mut text = String::new();
-+        for node in &self.children {
-+            if node.custom.is_none() {
-+                text.push_str(&node.text);
-+            }
-+            if node.custom.is_some() || node.image.is_some() {
-+                runs.push((node.state.clone(), std::mem::take(&mut text)));
-+            }
-+        }
-+        runs.push((self.state.clone(), text));
-+        runs
-+    }
-+    fn transfer_selection(&self, old: &Self, all: bool) -> bool {
-+        let new_runs = self.selection_runs();
-+        let mut valid = true;
-+        for (index, (state, text)) in old.selection_runs().iter().enumerate() {
-+            if let Some((new, new_text)) = new_runs.get(index) {
-+                valid &= transfer_inline_selection(state, new, text, new_text, all);
-+            } else if all && !text.is_empty()
-+                || state.lock().is_ok_and(|state| state.selection.is_some())
-+            {
-+                valid = false;
-+            }
-+        }
-+        for (index, old_node) in old
-+            .children
-+            .iter()
-+            .enumerate()
-+            .filter(|(_, node)| node.custom.is_some())
-+        {
-+            let selected = all || old_node.custom_selection.lock().is_ok_and(|value| *value);
-+            if selected {
-+                if let Some(new_node) = self
-+                    .children
-+                    .get(index)
-+                    .filter(|new| new.custom == old_node.custom)
-+                {
-+                    if let Ok(mut value) = new_node.custom_selection.lock() {
-+                        *value = true;
-+                    }
-+                } else {
-+                    valid = false;
-+                }
-+            }
-+        }
-+        valid
-+    }
-+}
-+
-+impl BlockNode {
-+    pub(super) fn transfer_selection(&self, old: &Self, all: bool) -> bool {
-+        match (self, old) {
-+            (Self::Paragraph(new), Self::Paragraph(old))
-+            | (Self::Heading { children: new, .. }, Self::Heading { children: old, .. }) => {
-+                new.transfer_selection(old, all)
-+            }
-+            (Self::Custom(new), Self::Custom(old)) => new.as_text().starts_with(old.as_text()),
-+            (Self::CodeBlock(new), Self::CodeBlock(old)) => {
-+                transfer_inline_selection(&old.state, &new.state, &old.code(), &new.code(), all)
-+            }
-+            (Self::Table(new), Self::Table(old)) => {
-+                old.children.iter().enumerate().all(|(r, old)| {
-+                    new.children.get(r).is_some_and(|new| {
-+                        old.children.iter().enumerate().all(|(c, old)| {
-+                            new.children.get(c).is_some_and(|new| {
-+                                new.children.transfer_selection(&old.children, all)
-+                            })
-+                        })
-+                    })
-+                })
-+            }
-+            (Self::Root { children: new, .. }, Self::Root { children: old, .. })
-+            | (Self::Blockquote { children: new, .. }, Self::Blockquote { children: old, .. })
-+            | (Self::List { children: new, .. }, Self::List { children: old, .. })
-+            | (Self::ListItem { children: new, .. }, Self::ListItem { children: old, .. }) => {
-+                old.iter().enumerate().all(|(i, old)| {
-+                    new.get(i)
-+                        .is_some_and(|new| new.transfer_selection(old, all))
-+                })
-+            }
-+            _ => self == old || (!all && !old.has_selection()),
-+        }
-+    }
-+}
---- a/src/text/state.rs
-+++ b/src/text/state.rs
-@@ -111,11 +111,16 @@
-     pub(super) preserve_inline_selection: bool,
-     multi_click_selection: Option<TextViewMultiClickSelection>,
-     selected_text_override: Option<String>,
-+    prepared_source_selection: Option<String>,
-     select_all: bool,
-     pub(super) auto_scroll: AutoScroll,
-     pub(super) selection_adapter: TextViewSelectionAdapter,
-
-     pub(super) parsed_content: ParsedContent,
-+    pub(super) link_navigation: super::link_navigation::Navigation,
-+    pub(super) link_reveal: Option<usize>,
-+    pub(super) link_reveal_claimed: bool,
-+    pub(super) link_active_owner: Option<gpui::GlobalElementId>,
-     /// Content format (markdown / html), used for bounded synchronous parsing
-     /// of small full-replace updates.
-     format: TextViewFormat,
-@@ -126,72 +131,142 @@
-     layout_text_style: Option<(gpui::TextStyle, Pixels)>,
-     parsed_error: Option<SharedString>,
-     tx: Sender<UpdateOptions>,
--    _parse_task: Task<()>,
--    _receive_task: Task<()>,
-+    _parse_task: Option<Task<()>>,
-+    _receive_task: Option<Task<()>>,
- }
-
- impl TextViewState {
-+    /// Install a single-use snapshot from an externally bounded worker. No
-+    /// parser work or source queue is started by this operation. The caller
-+    /// rejects stale document generations/revisions before calling it.
-+    /// Unchanged selected blocks can retain their logical inline ranges.
-+    pub fn set_prepared(
-+        &mut self,
-+        mut prepared: PreparedMarkdown,
-+        unchanged_prefix: Option<usize>,
-+        cx: &mut Context<Self>,
-+    ) {
-+        let all = self.select_all;
-+        let selected_plain = all.then(|| self.parsed_content.document.text());
-+        let selected_source = all.then(|| self.parsed_content.document.source.to_string());
-+        let mut preserve = unchanged_prefix.is_some();
-+        let append_only = prepared
-+            .content
-+            .document
-+            .source
-+            .starts_with(self.parsed_content.document.source.as_ref());
-+        let new_blocks = Arc::make_mut(&mut prepared.content.document.blocks);
-+        for (index, old) in self.parsed_content.document.blocks.iter().enumerate() {
-+            if !append_only && (all || old.has_selection()) {
-+                preserve &= old
-+                    .span()
-+                    .is_some_and(|span| unchanged_prefix.is_some_and(|prefix| span.end <= prefix));
-+            }
-+            if let Some(new) = new_blocks.get(index) {
-+                preserve &= new.transfer_selection(old, all);
-+            } else if all || old.has_selection() {
-+                preserve = false;
-+            }
-+        }
-+        if !preserve {
-+            self.reset_selection_and_adapter(cx);
-+            for block in new_blocks.iter() {
-+                block.clear_selection();
-+            }
-+        } else if all {
-+            self.select_all = false;
-+            self.selected_text_override = selected_plain;
-+            self.prepared_source_selection = selected_source;
-+        }
-+        self.revision = self
-+            .revision
-+            .checked_add(1)
-+            .expect("text view revision exhausted");
-+        if !preserve {
-+            self.selection_revision = self.selection_revision.wrapping_add(1);
-+        }
-+        self.text = prepared.content.document.source.to_string();
-+        self.markdown_extensions = prepared.content.node_cx.markdown_extensions.clone();
-+        self.parsed_content = prepared.content;
-+        self.refresh_links(unchanged_prefix);
-+        self.parsed_error = None;
-+        self.preserve_inline_selection = preserve;
-+        self.compatible_layout_update = preserve;
-+        self.invalidate_measured_heights();
-+        cx.notify();
-+    }
-+
-     /// Create a Markdown TextViewState.
-     pub fn markdown(text: &str, cx: &mut Context<Self>) -> Self {
--        Self::new(TextViewFormat::Markdown, text, cx)
-+        Self::new(TextViewFormat::Markdown, text, false, cx)
-     }
-
-     /// Create a HTML TextViewState.
-     pub fn html(text: &str, cx: &mut Context<Self>) -> Self {
--        Self::new(TextViewFormat::Html, text, cx)
-+        Self::new(TextViewFormat::Html, text, false, cx)
-     }
-
-     /// Create a new TextViewState.
--    fn new(format: TextViewFormat, text: &str, cx: &mut Context<Self>) -> Self {
-+    pub fn externally_prepared(cx: &mut Context<Self>) -> Self {
-+        Self::new(TextViewFormat::Markdown, "", true, cx)
-+    }
-+
-+    fn new(format: TextViewFormat, text: &str, external: bool, cx: &mut Context<Self>) -> Self {
-         let focus_handle = cx.focus_handle();
-         let selection_adapter = TextViewSelectionAdapter::new(cx.entity().downgrade(), cx);
-
-         let (tx, rx) = unbounded::<UpdateOptions>();
-         let (tx_result, rx_result) = unbounded::<ParsedUpdate>();
--        let _receive_task = cx.spawn({
--            async move |weak_self, cx| {
--                while let Ok(parsed_update) = rx_result.recv().await {
--                    _ = weak_self.update(cx, |state, cx| {
--                        if parsed_update.revision != state.revision {
--                            return;
--                        }
--                        if parsed_update.baseline_ack {
--                            debug_assert!(parsed_update.full_parse);
--                            return;
--                        }
--
--                        match parsed_update.result {
--                            Ok(content) => {
--                                state.parsed_content = content;
--                                state.parsed_error = None;
--                                state.compatible_layout_update = parsed_update.selection_compatible;
--                                if parsed_update.full_parse {
--                                    state.invalidate_measured_heights();
-+        let _receive_task = (!external).then(|| {
-+            cx.spawn({
-+                async move |weak_self, cx| {
-+                    while let Ok(parsed_update) = rx_result.recv().await {
-+                        _ = weak_self.update(cx, |state, cx| {
-+                            if parsed_update.revision != state.revision {
-+                                return;
-+                            }
-+                            if parsed_update.baseline_ack {
-+                                debug_assert!(parsed_update.full_parse);
-+                                return;
-+                            }
-+
-+                            match parsed_update.result {
-+                                Ok(content) => {
-+                                    state.parsed_content = content;
-+                                    state.refresh_links(None);
-+                                    state.parsed_error = None;
-+                                    state.compatible_layout_update =
-+                                        parsed_update.selection_compatible;
-+                                    if parsed_update.full_parse {
-+                                        state.invalidate_measured_heights();
-+                                    }
-+                                }
-+                                Err(err) => {
-+                                    state.parsed_error = Some(err);
-                                 }
-                             }
--                            Err(err) => {
--                                state.parsed_error = Some(err);
-+                            // Don't interrupt an active drag-selection; the stored
-+                            // positions remain valid for append-only updates and will
-+                            // self-correct on the next mouse-move event.
-+                            if !parsed_update.selection_compatible && !state.is_selecting {
-+                                state.reset_selection_and_adapter(cx);
-                             }
--                        }
--                        // Don't interrupt an active drag-selection; the stored
--                        // positions remain valid for append-only updates and will
--                        // self-correct on the next mouse-move event.
--                        if !parsed_update.selection_compatible && !state.is_selecting {
--                            state.reset_selection_and_adapter(cx);
--                        }
--                        cx.notify();
--                    });
-+                            cx.notify();
-+                        });
-+                    }
-                 }
--            }
--        });
--
--        let _parse_task = cx.background_spawn(UpdateFuture::new(format, rx, tx_result));
-+            })
-+        });
-+
-+        let _parse_task =
-+            (!external).then(|| cx.background_spawn(UpdateFuture::new(format, rx, tx_result)));
-
-         let mut this = Self {
-             focus_handle,
-             bounds: Bounds::default(),
-             multi_click_selection: None,
-             selected_text_override: None,
-+            prepared_source_selection: None,
-             select_all: false,
-             selectable: false,
-             selection_format: SelectionFormat::default(),
-@@ -215,6 +290,10 @@
-             auto_scroll: AutoScroll::default(),
-             selection_adapter,
-             parsed_content: Default::default(),
-+            link_navigation: Default::default(),
-+            link_reveal: None,
-+            link_reveal_claimed: false,
-+            link_active_owner: None,
-             format,
-             parsed_error: None,
-             text: text.to_string(),
-@@ -226,8 +305,61 @@
-             _parse_task,
-             _receive_task,
-         };
--        this.increment_update(&text, false, cx);
-+        if !external {
-+            this.increment_update(&text, false, cx);
-+        }
-         this
-+    }
-+
-+    fn refresh_links(&mut self, unchanged_prefix: Option<usize>) {
-+        self.link_navigation.refresh(
-+            &self.parsed_content.document,
-+            &self.parsed_content.node_cx,
-+            unchanged_prefix,
-+        );
-+        self.link_reveal = None;
-+    }
-+
-+    pub(super) fn on_link_key(
-+        &mut self,
-+        event: &gpui::KeyDownEvent,
-+        window: &mut Window,
-+        cx: &mut Context<Self>,
-+    ) {
-+        if !self.focus_handle.is_focused(window) {
-+            return;
-+        }
-+        let modifiers = event.keystroke.modifiers;
-+        if modifiers.control || modifiers.alt || modifiers.platform || modifiers.function {
-+            return;
-+        }
-+        if event.keystroke.key == "tab" {
-+            self.link_reveal = None;
-+            if let Some(link) = self.link_navigation.step(modifiers.shift) {
-+                self.link_reveal = Some(link.source_start);
-+                if self.scrollable {
-+                    self.list_state.scroll_to_reveal_item(link.block);
-+                }
-+                cx.stop_propagation();
-+            }
-+            cx.notify();
-+        } else if event.keystroke.key == "enter" && !modifiers.shift {
-+            if let Some(link) = self.link_navigation.selected() {
-+                super::text_view::handle_link_click(
-+                    &self.link_click_handler,
-+                    link.url.clone(),
-+                    gpui::ClickEvent::Keyboard(gpui::KeyboardClickEvent::default()),
-+                    window,
-+                    cx,
-+                );
-+                cx.stop_propagation();
-+            }
-+        } else if event.keystroke.key == "escape" && self.link_navigation.active.is_some() {
-+            self.link_navigation.active = None;
-+            self.link_reveal = None;
-+            cx.notify();
-+            cx.stop_propagation();
-+        }
-     }
-
-     /// Get the text content.
-@@ -325,6 +457,17 @@
-     }
-
-     /// Return the selected text, in the view's [`SelectionFormat`].
-+    pub fn has_local_selection(&self) -> bool {
-+        self.select_all
-+            || self.selected_text_override.is_some()
-+            || self
-+                .parsed_content
-+                .document
-+                .blocks
-+                .iter()
-+                .any(|block| block.has_selection())
-+    }
-+
-     pub fn selected_text(&self) -> String {
-         self.selected_text_in(None)
-     }
-@@ -353,6 +496,11 @@
-     /// [`ParsedDocument::selected_text`](crate::text::document::ParsedDocument).
-     pub(super) fn selected_text_in(&self, blocks: Option<RangeInclusive<usize>>) -> String {
-         let format = self.effective_format();
-+        if format == SelectionFormat::Source
-+            && let Some(source) = &self.prepared_source_selection
-+        {
-+            return source.clone();
-+        }
-
-         if self.select_all {
-             if format == SelectionFormat::Source {
-@@ -436,6 +584,7 @@
-             match parse_content(self.format, ParsedContent::default(), &update_options) {
-                 Ok(content) => {
-                     self.parsed_content = content;
-+                    self.refresh_links(None);
-                     self.parsed_error = None;
-                     self.invalidate_measured_heights();
-                     if !self.is_selecting {
-@@ -524,6 +673,7 @@
-         self.preserve_inline_selection = false;
-         self.multi_click_selection = None;
-         self.selected_text_override = None;
-+        self.prepared_source_selection = None;
-         self.select_all = false;
-         self.is_selecting = false;
-         self.auto_scroll.stop();
-@@ -556,6 +706,7 @@
-     pub fn select_all(&mut self, cx: &mut Context<Self>) {
-         self.multi_click_selection = None;
-         self.selected_text_override = None;
-+        self.prepared_source_selection = None;
-         self.select_all = true;
-         self.is_selecting = false;
-         self.auto_scroll.stop();
-@@ -579,6 +730,7 @@
-             line_bounds: None,
-         });
-         self.selected_text_override = Some(selected_text);
-+        self.prepared_source_selection = None;
-         self.select_all = false;
-         self.is_selecting = false;
-         self.auto_scroll.stop();
-@@ -593,6 +745,7 @@
-             cx,
-         );
-         self.selected_text_override = None;
-+        self.prepared_source_selection = None;
-         let offset = self.bounds.origin + self.scroll_offset();
-         if let Some(selection) = self.multi_click_selection.as_mut() {
-             selection.line_bounds = Some(Bounds::new(bounds.origin - offset, bounds.size));
-@@ -769,6 +922,57 @@
-     pub(crate) node_cx: node::NodeContext,
- }
-
-+/// A single-use full Markdown parse prepared outside the native UI thread.
-+/// This deliberately does not implement Clone: parsed inline nodes contain
-+/// mutable selection/layout state and must not be shared between mounted views.
-+pub struct PreparedMarkdown {
-+    content: ParsedContent,
-+}
-+
-+impl PreparedMarkdown {
-+    /// Admission bounds: 64 KiB source, 16 KiB per line, 4096 AST nodes, depth32
-+    /// and 256 top-level blocks. Call from a bounded background scheduler.
-+    /// Failure means the caller should offer its source/large-document view.
-+    pub fn parse(source: &str, extensions: MarkdownExtensions) -> Result<Self, SharedString> {
-+        let mut node_cx = NodeContext {
-+            markdown_extensions: Arc::new(extensions),
-+            ..NodeContext::default()
-+        };
-+        let document = format::markdown::parse_bounded(source, &mut node_cx)?;
-+        Ok(Self {
-+            content: ParsedContent { document, node_cx },
-+        })
-+    }
-+
-+    pub fn source(&self) -> SharedString {
-+        self.content.document.source.clone()
-+    }
-+    pub fn plain_text(&self) -> String {
-+        self.content.document.text()
-+    }
-+    pub fn block_count(&self) -> usize {
-+        self.content.document.blocks.len()
-+    }
-+
-+    /// Read code blocks during the same background job, before installing this
-+    /// single-use document. The clones are not independent mounted views.
-+    pub fn code_blocks(&self) -> Vec<node::CodeBlock> {
-+        let mut blocks = Vec::new();
-+        let mut pending: Vec<_> = self.content.document.blocks.iter().collect();
-+        while let Some(block) = pending.pop() {
-+            match block {
-+                node::BlockNode::CodeBlock(code) => blocks.push(code.clone()),
-+                node::BlockNode::Root { children, .. }
-+                | node::BlockNode::Blockquote { children, .. }
-+                | node::BlockNode::List { children, .. }
-+                | node::BlockNode::ListItem { children, .. } => pending.extend(children),
-+                _ => (),
-+            }
-+        }
-+        blocks
-+    }
-+}
-+
- struct UpdateFuture {
-     format: TextViewFormat,
-     content: ParsedContent,
 --- a/src/input/base/state.rs
 +++ b/src/input/base/state.rs
 @@ -3330,2 +3330,9 @@
@@ -1959,353 +1330,6 @@
 +                        }
 +                    }
 +                });
---- a/src/text/inline.rs
-+++ b/src/text/inline.rs
-@@ -1,4 +1,4 @@
--use gpui::Corners;
-+use gpui::{Corners, prelude::*};
- use std::{
-     ops::Range,
-     rc::Rc,
-@@ -176,6 +176,48 @@
-     state: Arc<Mutex<InlineState>>,
- }
-
-+pub(super) struct InlinePrepaint {
-+    hitbox: Hitbox,
-+    semantics: Vec<gpui::AnyElement>,
-+}
-+
-+/// Partition rendered text in reading order. Adjacent style runs of the same
-+/// link remain one accessible action; ordinary text is not duplicated beside it.
-+pub(super) fn accessible_runs(
-+    text: &str,
-+    links: &[(Range<usize>, LinkMark)],
-+) -> Vec<(Range<usize>, Option<LinkMark>)> {
-+    let mut links = links.to_vec();
-+    links.sort_by_key(|(range, _)| range.start);
-+    let mut runs: Vec<(Range<usize>, Option<LinkMark>)> = Vec::new();
-+    let mut cursor = 0;
-+    for (range, link) in links {
-+        if range.start < cursor
-+            || range.is_empty()
-+            || !text.is_char_boundary(range.start)
-+            || !text.is_char_boundary(range.end)
-+        {
-+            continue;
-+        }
-+        if range.start > cursor {
-+            runs.push((cursor..range.start, None));
-+        }
-+        cursor = range.end;
-+        if let Some((previous, Some(previous_link))) = runs.last_mut()
-+            && previous.end == range.start
-+            && *previous_link == link
-+        {
-+            previous.end = range.end;
-+        } else {
-+            runs.push((range, Some(link)));
-+        }
-+    }
-+    if cursor < text.len() {
-+        runs.push((cursor..text.len(), None));
-+    }
-+    runs
-+}
-+
- /// The inline text state, used RefCell to keep the selection state.
- #[derive(Debug, Default, PartialEq)]
- pub(crate) struct InlineState {
-@@ -244,6 +286,104 @@
-     ) -> Self {
-         self.selection_source = Some((state, range));
-         self
-+    }
-+
-+    fn semantic_elements(
-+        &self,
-+        owner: Option<&GlobalElementId>,
-+        bounds: Bounds<Pixels>,
-+        window: &mut Window,
-+        cx: &mut App,
-+    ) -> Vec<gpui::AnyElement> {
-+        if self.links.is_empty() || !window.is_a11y_active() {
-+            return Vec::new();
-+        }
-+        let layout = self.styled_text.layout();
-+        let height = layout.line_height();
-+        let view = GlobalState::global(cx).text_view_state().cloned();
-+        let mut elements = Vec::new();
-+        for (range, link) in accessible_runs(&self.text, &self.links) {
-+            let (Some(start), Some(end)) = (
-+                layout.position_for_index(range.start),
-+                layout.position_for_index(range.end),
-+            ) else {
-+                continue;
-+            };
-+            let area = if start.y == end.y {
-+                Bounds::from_corners(
-+                    point(start.x.min(end.x), start.y),
-+                    point(start.x.max(end.x), end.y + height),
-+                )
-+            } else {
-+                Bounds::from_corners(
-+                    point(bounds.left(), start.y),
-+                    point(bounds.right(), end.y + height),
-+                )
-+            };
-+            let id: SharedString = format!(
-+                "semantic-{}-{}-{}",
-+                range.start,
-+                range.end,
-+                link.as_ref().map_or("", |link| link.url.as_ref())
-+            )
-+            .into();
-+            let text = self.text[range].to_owned();
-+            let mut element = gpui::div().id(id).w(area.size.width).h(area.size.height);
-+            if let Some(link) = link {
-+                let active = view.as_ref().is_some_and(|view| {
-+                    view.update(cx, |state, _| {
-+                        if link.source_start.is_none()
-+                            || state.link_navigation.active != link.source_start
-+                        {
-+                            return false;
-+                        }
-+                        let Some(owner) = owner else {
-+                            return false;
-+                        };
-+                        if state.link_active_owner.is_none() {
-+                            state.link_active_owner = Some(owner.clone());
-+                        }
-+                        state.link_active_owner.as_ref() == Some(owner)
-+                    })
-+                });
-+                let url = link.url;
-+                let metadata_url = url.clone();
-+                let handler = self.link_click_handler.clone();
-+                element = element
-+                    .role(gpui::Role::Link)
-+                    .aria_label(text)
-+                    .when(active, |element| element.aria_active_descendant())
-+                    .a11y_synthetic_children(move |builder| {
-+                        builder.parent_node().set_url(metadata_url.to_string())
-+                    })
-+                    .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
-+                        handle_link_click(
-+                            &handler,
-+                            url.clone(),
-+                            ClickEvent::Keyboard(gpui::KeyboardClickEvent {
-+                                bounds: area,
-+                                ..Default::default()
-+                            }),
-+                            window,
-+                            cx,
-+                        );
-+                    });
-+            } else {
-+                element = element.role(gpui::Role::Label).aria_value(text);
-+            }
-+            let mut element = element.into_any_element();
-+            element.prepaint_as_root(
-+                area.origin,
-+                gpui::size(
-+                    gpui::AvailableSpace::Definite(area.size.width),
-+                    gpui::AvailableSpace::Definite(area.size.height),
-+                ),
-+                window,
-+                cx,
-+            );
-+            elements.push(element);
-+        }
-+        elements
-     }
-
-     /// Get link at given mouse position.
-@@ -547,7 +687,7 @@
-
- impl Element for Inline {
-     type RequestLayoutState = ();
--    type PrepaintState = Hitbox;
-+    type PrepaintState = InlinePrepaint;
-
-     fn id(&self) -> Option<ElementId> {
-         Some(self.id.clone())
-@@ -555,6 +695,22 @@
-
-     fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
-         None
-+    }
-+
-+    fn a11y_role(&self) -> Option<gpui::accesskit::Role> {
-+        Some(if self.links.is_empty() {
-+            gpui::accesskit::Role::Label
-+        } else {
-+            gpui::accesskit::Role::Group
-+        })
-+    }
-+
-+    fn write_a11y_info(&self, node: &mut gpui::accesskit::Node) {
-+        // StyledText is painted directly below, bypassing its Element wrapper.
-+        // Publish the same rendered text here; do not duplicate raw Markdown.
-+        if self.links.is_empty() {
-+            node.set_value(self.text.to_string());
-+        }
-     }
-
-     fn request_layout(
-@@ -593,8 +749,7 @@
-
-         // Report this element's laid-out extent so an ancestor TextView with
-         // `max_lines` can snap its clip to a whole-line boundary. The state
--        // stack only holds an entry during prepaint when that view set
--        // `max_lines`, so this is a no-op otherwise.
-+        // stack also supplies the one-shot keyboard link reveal request.
-         if let Some(text_view_state) = GlobalState::global(cx).text_view_state().cloned() {
-             let state = text_view_state.read(cx);
-             if state.max_lines.is_some()
-@@ -608,8 +763,34 @@
-             }
-         }
-
--        let hitbox = window.insert_hitbox(bounds, HitboxBehavior::Normal);
--        hitbox
-+        if let Some(view) = GlobalState::global(cx).text_view_state().cloned() {
-+            let target = {
-+                let state = view.read(cx);
-+                state.link_reveal.filter(|_| !state.link_reveal_claimed)
-+            };
-+            if let Some(target) = target {
-+                let layout = self.styled_text.layout();
-+                if let Some((range, _)) = self
-+                    .links
-+                    .iter()
-+                    .find(|(_, link)| link.source_start == Some(target))
-+                    && let Some(start) = layout.position_for_index(range.start)
-+                {
-+                    // Reveal the start of the logical link, including when its
-+                    // containing list/table block is taller than the viewport.
-+                    window.request_autoscroll(Bounds::from_corners(
-+                        start,
-+                        point(start.x + px(2.), start.y + layout.line_height()),
-+                    ));
-+                    view.update(cx, |state, _| state.link_reveal_claimed = true);
-+                }
-+            }
-+        }
-+
-+        InlinePrepaint {
-+            hitbox: window.insert_hitbox(bounds, HitboxBehavior::Normal),
-+            semantics: self.semantic_elements(id, bounds, window, cx),
-+        }
-     }
-
-     fn paint(
-@@ -624,10 +805,55 @@
-     ) {
-         let bounds = Bounds::new(self.paint_origin.unwrap_or(bounds.origin), bounds.size);
-         let current_view = window.current_view();
--        let hitbox = prepaint;
-+        for element in &mut prepaint.semantics {
-+            element.paint(window, cx);
-+        }
-+        let hitbox = &prepaint.hitbox;
-         let text_layout = self.styled_text.layout().clone();
-         self.styled_text
-             .paint(global_id, None, bounds, &mut (), &mut (), window, cx);
-+
-+        if let Some(view) = GlobalState::global(cx).text_view_state() {
-+            let view = view.read(cx);
-+            if view.focus_handle().is_focused(window)
-+                && let Some(active) = view.link_navigation.active
-+            {
-+                for (range, link) in accessible_runs(&self.text, &self.links) {
-+                    if link.as_ref().and_then(|link| link.source_start) != Some(active) {
-+                        continue;
-+                    }
-+                    if let (Some(start), Some(end)) = (
-+                        text_layout.position_for_index(range.start),
-+                        text_layout.position_for_index(range.end),
-+                    ) {
-+                        let focus_bounds = if start.y == end.y {
-+                            Bounds::from_corners(
-+                                point(start.x.min(end.x), start.y),
-+                                point(start.x.max(end.x), end.y + text_layout.line_height()),
-+                            )
-+                        } else {
-+                            Bounds::from_corners(
-+                                point(bounds.left(), start.y),
-+                                point(bounds.right(), end.y + text_layout.line_height()),
-+                            )
-+                        };
-+                        window.paint_quad(quad(
-+                            focus_bounds,
-+                            px(2.),
-+                            gpui::transparent_black(),
-+                            Edges {
-+                                top: px(1.5),
-+                                right: px(1.5),
-+                                bottom: px(1.5),
-+                                left: px(1.5),
-+                            },
-+                            view.text_view_style.link(),
-+                            BorderStyle::default(),
-+                        ));
-+                    }
-+                }
-+            }
-+        }
-
-         // layout selections
-         let (is_selectable, is_selection, selection) =
-@@ -1088,8 +1314,37 @@
-
- #[cfg(test)]
- mod tests {
--    use super::{InlineHighlight, combine_highlights, point_in_text_selection, text_runs};
-+    use super::{
-+        InlineHighlight, LinkMark, accessible_runs, combine_highlights, point_in_text_selection,
-+        text_runs,
-+    };
-     use gpui::{FontWeight, HighlightStyle, SharedString, TextStyle, point, px};
-+
-+    #[test]
-+    fn accessible_links_partition_unicode_text_without_duplicating_style_runs() {
-+        let text = "Before 世界 guide after";
-+        let link = LinkMark {
-+            url: "test:guide".into(),
-+            ..Default::default()
-+        };
-+        let links = vec![(14..19, link.clone()), (7..14, link.clone())];
-+        let runs = accessible_runs(text, &links);
-+        assert_eq!(
-+            runs,
-+            vec![(0..7, None), (7..19, Some(link.clone())), (19..25, None)]
-+        );
-+        assert_eq!(
-+            runs.iter()
-+                .map(|(range, _)| &text[range.clone()])
-+                .collect::<String>(),
-+            text
-+        );
-+        // Invalid boundaries cannot panic or hide the remainder of the text.
-+        assert_eq!(
-+            accessible_runs(text, &[(8..10, link.clone()), (50..80, link)]),
-+            vec![(0..text.len(), None)]
-+        );
-+    }
-
-     fn mono(style: HighlightStyle) -> InlineHighlight {
-         InlineHighlight {
---- a/src/text/mod.rs
-+++ b/src/text/mod.rs
-@@ -6,6 +6,7 @@
- mod inline_object;
- #[cfg(test)]
- mod inline_virtual_tests;
-+mod link_navigation;
- mod markdown_ext;
- mod node;
- pub(crate) mod selection;
 --- /dev/null
 +++ b/src/text/link_navigation.rs
 @@ -0,0 +1,230 @@
@@ -2851,3 +1875,1455 @@
  pub use base::{InputBase, InputContextMenuCapabilities, InputStyles};
  pub use cursor::Selection;
  pub use decorations::{TextDecoration, TextDecorationCollection};
+--- /dev/null
++++ b/src/text/backgrounds.rs
+@@ -0,0 +1,147 @@
++//! Prepared decoration data; no matching or application callbacks during paint.
++use std::{ops::Range, rc::Rc, sync::Arc};
++
++use gpui::{Bounds, TextAlign, TextLayout, Window, point, px, quad, size};
++
++use crate::input::{RangeBackground, RangeBackgroundError, RangeBackgrounds};
++
++use super::{DisplayedFragment, DisplayedText};
++
++/// A fixed array of paint layers for one immutable parsed text snapshot. The
++/// range providers retain their preparation leases through each painted frame.
++pub struct TextBackgrounds {
++    pub(super) source: Arc<DisplayedText>,
++    layers: Vec<Option<Rc<dyn RangeBackgrounds>>>,
++}
++impl TextBackgrounds {
++    pub fn new(
++        source: Arc<DisplayedText>,
++        layers: Vec<Option<Rc<dyn RangeBackgrounds>>>,
++    ) -> Result<Self, RangeBackgroundError> {
++        if layers.len() != source.fragments().len() {
++            return Err(RangeBackgroundError::InvalidRange);
++        }
++        let mut count = 0usize;
++        for (fragment, layer) in source.fragments().iter().zip(&layers) {
++            if let Some(layer) = layer {
++                count += layer.ranges().len();
++                if count > 32768 {
++                    return Err(RangeBackgroundError::Limit);
++                }
++                for wash in layer.ranges() {
++                    if wash.bytes.start >= wash.bytes.end
++                        || wash.bytes.end > fragment.text().len()
++                        || !fragment.text().is_char_boundary(wash.bytes.start)
++                        || !fragment.text().is_char_boundary(wash.bytes.end)
++                    {
++                        return Err(RangeBackgroundError::InvalidRange);
++                    }
++                    if !wash.radius.as_f32().is_finite()
++                        || wash.radius < px(0.)
++                        || wash.radius > px(64.)
++                    {
++                        return Err(RangeBackgroundError::InvalidRadius);
++                    }
++                }
++            }
++        }
++        Ok(Self { source, layers })
++    }
++
++    pub(super) fn layer(&self, fragment: &DisplayedFragment) -> Option<Rc<dyn RangeBackgrounds>> {
++        let current = self.source.fragments().get(fragment.id() as usize)?;
++        // Identical bytes in a different prepared AST are still a new source.
++        if !Arc::ptr_eq(current.text(), fragment.text()) {
++            return None;
++        }
++        self.layers.get(fragment.id() as usize)?.clone()
++    }
++}
++
++/// Source ranges are local to the unsplit prepared fragment. InlineFlow calls
++/// this with its actual shaped subrange, preserving Unicode byte boundaries.
++pub(super) fn paint(
++    ranges: &[RangeBackground],
++    source: Range<usize>,
++    layout: &TextLayout,
++    align: TextAlign,
++    window: &mut Window,
++) {
++    let bounds = layout.bounds();
++    let height = layout.line_height();
++    let mask = window.content_mask().bounds;
++    let lines = layout.line_layouts();
++    for wash in ranges {
++        let start = wash.bytes.start.max(source.start);
++        let end = wash.bytes.end.min(source.end);
++        if start >= end {
++            continue;
++        }
++        let start = start - source.start;
++        let end = end - source.start;
++        let mut offset = 0;
++        let mut row = 0;
++        for line in &lines {
++            let local_start = start.saturating_sub(offset);
++            let local_end = end.saturating_sub(offset).min(line.len());
++            if local_start < local_end {
++                let boundary = |row: usize| {
++                    if row == 0 {
++                        (0, px(0.))
++                    } else {
++                        line.wrap_boundaries.get(row - 1).map_or(
++                            (line.len(), line.unwrapped_layout.width),
++                            |b| {
++                                let glyph =
++                                    &line.unwrapped_layout.runs[b.run_ix].glyphs[b.glyph_ix];
++                                (glyph.index, glyph.position.x)
++                            },
++                        )
++                    }
++                };
++                for wrapped in 0..=line.wrap_boundaries.len() {
++                    let y = bounds.top() + height * (row + wrapped);
++                    if y >= mask.bottom() {
++                        break;
++                    }
++                    if y + height <= mask.top() {
++                        continue;
++                    }
++                    let (from, x_from) = boundary(wrapped);
++                    let (to, x_to) = boundary(wrapped + 1);
++                    let a = local_start.max(from);
++                    let b = local_end.min(to);
++                    if a >= b {
++                        continue;
++                    }
++                    let inset = match align {
++                        TextAlign::Left => px(0.),
++                        TextAlign::Center => (bounds.size.width - (x_to - x_from)) / 2.,
++                        TextAlign::Right => bounds.size.width - (x_to - x_from),
++                    };
++                    let a = line.unwrapped_layout.x_for_index(a) - x_from;
++                    let b = line.unwrapped_layout.x_for_index(b) - x_from;
++                    if a == b {
++                        continue;
++                    }
++                    window.paint_quad(quad(
++                        Bounds::new(
++                            point(bounds.left() + inset + a.min(b), y),
++                            size((b - a).abs(), height),
++                        ),
++                        wash.radius,
++                        wash.color,
++                        px(0.),
++                        gpui::transparent_black(),
++                        Default::default(),
++                    ));
++                }
++            }
++            row += line.wrap_boundaries.len() + 1;
++            offset += line.len() + 1;
++            if offset >= end {
++                break;
++            }
++        }
++    }
++}
+--- /dev/null
++++ b/src/text/displayed_text.rs
+@@ -0,0 +1,149 @@
++//! Immutable text runs prepared with the AST, before virtualization or paint.
++//! This is not the copy/Markdown/AX representation: separators, list markers,
++//! image descriptions and arbitrary custom renderers do not fabricate glyphs.
++use std::sync::{Arc, Mutex};
++
++use gpui::SharedString;
++
++use super::{
++    document::ParsedDocument,
++    inline::InlineState,
++    node::{BlockNode, Paragraph},
++};
++
++const MAX_FRAGMENTS: usize = 4096;
++const MAX_BYTES: usize = 65536;
++
++/// One contiguous rendered text run. Inline formatting does not split a run;
++/// an image/custom object does. IDs are consecutive in structural display order
++/// and are local to a single [`DisplayedText`] snapshot.
++#[derive(Clone, Debug, PartialEq, Eq)]
++pub struct DisplayedFragment {
++    id: u32,
++    text: Arc<str>,
++}
++impl DisplayedFragment {
++    pub fn id(&self) -> u32 {
++        self.id
++    }
++    pub fn text(&self) -> &Arc<str> {
++        &self.text
++    }
++}
++
++/// Bounded immutable source for native text decorations. Each fragment is a
++/// separate matching group: queries cannot cross cells, paragraphs or objects.
++/// Retaining this value retains its text, but no mutable selection/layout state.
++/// A nonzero opaque count means custom/image content needs a separate renderer
++/// contract; its copy or accessibility label is not searchable displayed text.
++#[derive(Debug, Default, PartialEq, Eq)]
++pub struct DisplayedText {
++    fragments: Vec<DisplayedFragment>,
++    bytes: usize,
++    opaque_nodes: usize,
++}
++impl DisplayedText {
++    pub fn fragments(&self) -> &[DisplayedFragment] {
++        &self.fragments
++    }
++    pub fn text_bytes(&self) -> usize {
++        self.bytes
++    }
++    pub fn opaque_nodes(&self) -> usize {
++        self.opaque_nodes
++    }
++
++    pub(super) fn prepare(document: &ParsedDocument) -> Result<Arc<Self>, SharedString> {
++        let mut result = Self::default();
++        // parse_bounded has already validated depth and total AST node count.
++        for block in document.blocks.iter() {
++            result.block(block)?;
++        }
++        Ok(Arc::new(result))
++    }
++
++    fn push(&mut self, state: &Arc<Mutex<InlineState>>, text: &str) -> Result<(), SharedString> {
++        if text.is_empty() {
++            return Ok(());
++        }
++        if self.fragments.len() >= MAX_FRAGMENTS || text.len() > MAX_BYTES - self.bytes {
++            return Err("displayed Markdown text exceeds preparation limits".into());
++        }
++        let fragment = DisplayedFragment {
++            id: self.fragments.len() as u32,
++            text: Arc::from(text),
++        };
++        state
++            .lock()
++            .map_err(|_| SharedString::from("invalid prepared inline state"))?
++            .displayed_fragment = Some(fragment.clone());
++        self.bytes += text.len();
++        self.fragments.push(fragment);
++        Ok(())
++    }
++
++    fn paragraph(&mut self, paragraph: &Paragraph) -> Result<(), SharedString> {
++        let mut text = String::new();
++        for child in &paragraph.children {
++            // This is the same ownership split as Paragraph::inline_flow_items:
++            // the object child's state owns the text preceding that object.
++            if child.custom.is_some() {
++                self.push(&child.state, &text)?;
++                text.clear();
++                self.opaque_nodes += 1;
++                continue;
++            }
++            if child.text.len() > MAX_BYTES - self.bytes - text.len() {
++                return Err("displayed Markdown text exceeds preparation limits".into());
++            }
++            text.push_str(&child.text);
++            if child.image.is_some() {
++                self.push(&child.state, &text)?;
++                text.clear();
++                self.opaque_nodes += 1;
++            }
++        }
++        self.push(&paragraph.state, &text)
++    }
++
++    fn block(&mut self, block: &BlockNode) -> Result<(), SharedString> {
++        match block {
++            BlockNode::Root { children, .. } | BlockNode::Blockquote { children, .. } => {
++                for child in children {
++                    self.block(child)?;
++                }
++            }
++            BlockNode::List { children, .. } => {
++                for child in children {
++                    if let BlockNode::ListItem { children, .. } = child {
++                        for child in children {
++                            self.block(child)?;
++                        }
++                    }
++                }
++            }
++            BlockNode::Paragraph(paragraph)
++            | BlockNode::Heading {
++                children: paragraph,
++                ..
++            } => {
++                self.paragraph(paragraph)?;
++            }
++            BlockNode::CodeBlock(code) => self.push(&code.state, &code.code())?,
++            BlockNode::Table(table) => {
++                for row in &table.children {
++                    for cell in &row.children {
++                        self.paragraph(&cell.children)?;
++                    }
++                }
++            }
++            BlockNode::Custom(_) => self.opaque_nodes += 1,
++            BlockNode::Break { .. }
++            | BlockNode::HorizontalRule { .. }
++            | BlockNode::Definition { .. }
++            | BlockNode::ListItem { .. }
++            | BlockNode::Unknown => (),
++        }
++        Ok(())
++    }
++}
+--- a/src/text/inline.rs
++++ b/src/text/inline.rs
+@@ -1,4 +1,4 @@
+-use gpui::Corners;
++use gpui::{Corners, prelude::*};
+ use std::{
+     ops::Range,
+     rc::Rc,
+@@ -171,9 +171,53 @@
+     paint_origin: Option<Point<Pixels>>,
+     selection_bounds: Option<Bounds<Pixels>>,
+     selection_source: Option<(Arc<Mutex<InlineState>>, Range<usize>)>,
++    range_backgrounds: Option<(Rc<dyn crate::input::RangeBackgrounds>, Range<usize>)>,
++    style_backgrounds: Vec<crate::input::RangeBackground>,
+     link_click_handler: Option<Arc<LinkClickHandlerFn>>,
+ 
+     state: Arc<Mutex<InlineState>>,
++}
++
++pub(super) struct InlinePrepaint {
++    hitbox: Hitbox,
++    semantics: Vec<gpui::AnyElement>,
++}
++
++/// Partition rendered text in reading order. Adjacent style runs of the same
++/// link remain one accessible action; ordinary text is not duplicated beside it.
++pub(super) fn accessible_runs(
++    text: &str,
++    links: &[(Range<usize>, LinkMark)],
++) -> Vec<(Range<usize>, Option<LinkMark>)> {
++    let mut links = links.to_vec();
++    links.sort_by_key(|(range, _)| range.start);
++    let mut runs: Vec<(Range<usize>, Option<LinkMark>)> = Vec::new();
++    let mut cursor = 0;
++    for (range, link) in links {
++        if range.start < cursor
++            || range.is_empty()
++            || !text.is_char_boundary(range.start)
++            || !text.is_char_boundary(range.end)
++        {
++            continue;
++        }
++        if range.start > cursor {
++            runs.push((cursor..range.start, None));
++        }
++        cursor = range.end;
++        if let Some((previous, Some(previous_link))) = runs.last_mut()
++            && previous.end == range.start
++            && *previous_link == link
++        {
++            previous.end = range.end;
++        } else {
++            runs.push((range, Some(link)));
++        }
++    }
++    if cursor < text.len() {
++        runs.push((cursor..text.len(), None));
++    }
++    runs
+ }
+ 
+ /// The inline text state, used RefCell to keep the selection state.
+@@ -183,6 +227,7 @@
+     /// The text that actually rendering, matched with selection.
+     pub(super) text: SharedString,
+     pub(super) selection: Option<Selection>,
++    pub(super) displayed_fragment: Option<super::DisplayedFragment>,
+ }
+ 
+ impl InlineState {
+@@ -215,6 +260,8 @@
+             paint_origin: None,
+             selection_bounds: None,
+             selection_source: None,
++            range_backgrounds: None,
++            style_backgrounds: Vec::new(),
+             link_click_handler,
+             state,
+         }
+@@ -244,6 +291,104 @@
+     ) -> Self {
+         self.selection_source = Some((state, range));
+         self
++    }
++
++    fn semantic_elements(
++        &self,
++        owner: Option<&GlobalElementId>,
++        bounds: Bounds<Pixels>,
++        window: &mut Window,
++        cx: &mut App,
++    ) -> Vec<gpui::AnyElement> {
++        if self.links.is_empty() || !window.is_a11y_active() {
++            return Vec::new();
++        }
++        let layout = self.styled_text.layout();
++        let height = layout.line_height();
++        let view = GlobalState::global(cx).text_view_state().cloned();
++        let mut elements = Vec::new();
++        for (range, link) in accessible_runs(&self.text, &self.links) {
++            let (Some(start), Some(end)) = (
++                layout.position_for_index(range.start),
++                layout.position_for_index(range.end),
++            ) else {
++                continue;
++            };
++            let area = if start.y == end.y {
++                Bounds::from_corners(
++                    point(start.x.min(end.x), start.y),
++                    point(start.x.max(end.x), end.y + height),
++                )
++            } else {
++                Bounds::from_corners(
++                    point(bounds.left(), start.y),
++                    point(bounds.right(), end.y + height),
++                )
++            };
++            let id: SharedString = format!(
++                "semantic-{}-{}-{}",
++                range.start,
++                range.end,
++                link.as_ref().map_or("", |link| link.url.as_ref())
++            )
++            .into();
++            let text = self.text[range].to_owned();
++            let mut element = gpui::div().id(id).w(area.size.width).h(area.size.height);
++            if let Some(link) = link {
++                let active = view.as_ref().is_some_and(|view| {
++                    view.update(cx, |state, _| {
++                        if link.source_start.is_none()
++                            || state.link_navigation.active != link.source_start
++                        {
++                            return false;
++                        }
++                        let Some(owner) = owner else {
++                            return false;
++                        };
++                        if state.link_active_owner.is_none() {
++                            state.link_active_owner = Some(owner.clone());
++                        }
++                        state.link_active_owner.as_ref() == Some(owner)
++                    })
++                });
++                let url = link.url;
++                let metadata_url = url.clone();
++                let handler = self.link_click_handler.clone();
++                element = element
++                    .role(gpui::Role::Link)
++                    .aria_label(text)
++                    .when(active, |element| element.aria_active_descendant())
++                    .a11y_synthetic_children(move |builder| {
++                        builder.parent_node().set_url(metadata_url.to_string())
++                    })
++                    .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
++                        handle_link_click(
++                            &handler,
++                            url.clone(),
++                            ClickEvent::Keyboard(gpui::KeyboardClickEvent {
++                                bounds: area,
++                                ..Default::default()
++                            }),
++                            window,
++                            cx,
++                        );
++                    });
++            } else {
++                element = element.role(gpui::Role::Label).aria_value(text);
++            }
++            let mut element = element.into_any_element();
++            element.prepaint_as_root(
++                area.origin,
++                gpui::size(
++                    gpui::AvailableSpace::Definite(area.size.width),
++                    gpui::AvailableSpace::Definite(area.size.height),
++                ),
++                window,
++                cx,
++            );
++            elements.push(element);
++        }
++        elements
+     }
+ 
+     /// Get link at given mouse position.
+@@ -547,7 +692,7 @@
+ 
+ impl Element for Inline {
+     type RequestLayoutState = ();
+-    type PrepaintState = Hitbox;
++    type PrepaintState = InlinePrepaint;
+ 
+     fn id(&self) -> Option<ElementId> {
+         Some(self.id.clone())
+@@ -555,6 +700,22 @@
+ 
+     fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+         None
++    }
++
++    fn a11y_role(&self) -> Option<gpui::accesskit::Role> {
++        Some(if self.links.is_empty() {
++            gpui::accesskit::Role::Label
++        } else {
++            gpui::accesskit::Role::Group
++        })
++    }
++
++    fn write_a11y_info(&self, node: &mut gpui::accesskit::Node) {
++        // StyledText is painted directly below, bypassing its Element wrapper.
++        // Publish the same rendered text here; do not duplicate raw Markdown.
++        if self.links.is_empty() {
++            node.set_value(self.text.to_string());
++        }
+     }
+ 
+     fn request_layout(
+@@ -568,7 +729,41 @@
+             .text_style
+             .clone()
+             .unwrap_or_else(|| window.text_style());
+-        let runs = text_runs(self.text.len(), &text_style, &self.highlights);
++        let (source_state, source_range) = self
++            .selection_source
++            .as_ref()
++            .map(|(state, range)| (state, range.clone()))
++            .unwrap_or((&self.state, 0..self.text.len()));
++        let fragment = source_state
++            .lock()
++            .ok()
++            .and_then(|state| state.displayed_fragment.clone());
++        self.range_backgrounds = fragment.and_then(|fragment| {
++            if fragment.text().get(source_range.clone()) != Some(self.text.as_ref()) {
++                return None;
++            }
++            let view = GlobalState::global(cx).text_view_state()?.read(cx);
++            let layer = view.text_backgrounds.as_ref()?.layer(&fragment)?;
++            Some((layer, source_range))
++        });
++        let mut runs = text_runs(self.text.len(), &text_style, &self.highlights);
++        self.style_backgrounds.clear();
++        if self.range_backgrounds.is_some() {
++            // StyledText normally paints backgrounds and glyphs together. Move
++            // only its backgrounds into our first pass so rounded prepared
++            // washes sit above syntax/mark colors and below the glyphs.
++            let mut offset = 0;
++            for run in &mut runs {
++                if let Some(color) = run.background_color.take() {
++                    self.style_backgrounds.push(crate::input::RangeBackground {
++                        bytes: offset..offset + run.len,
++                        color,
++                        radius: px(0.),
++                    });
++                }
++                offset += run.len;
++            }
++        }
+ 
+         self.styled_text = StyledText::new(self.text.clone()).with_runs(runs);
+         let (layout_id, _) =
+@@ -593,8 +788,7 @@
+ 
+         // Report this element's laid-out extent so an ancestor TextView with
+         // `max_lines` can snap its clip to a whole-line boundary. The state
+-        // stack only holds an entry during prepaint when that view set
+-        // `max_lines`, so this is a no-op otherwise.
++        // stack also supplies the one-shot keyboard link reveal request.
+         if let Some(text_view_state) = GlobalState::global(cx).text_view_state().cloned() {
+             let state = text_view_state.read(cx);
+             if state.max_lines.is_some()
+@@ -608,8 +802,34 @@
+             }
+         }
+ 
+-        let hitbox = window.insert_hitbox(bounds, HitboxBehavior::Normal);
+-        hitbox
++        if let Some(view) = GlobalState::global(cx).text_view_state().cloned() {
++            let target = {
++                let state = view.read(cx);
++                state.link_reveal.filter(|_| !state.link_reveal_claimed)
++            };
++            if let Some(target) = target {
++                let layout = self.styled_text.layout();
++                if let Some((range, _)) = self
++                    .links
++                    .iter()
++                    .find(|(_, link)| link.source_start == Some(target))
++                    && let Some(start) = layout.position_for_index(range.start)
++                {
++                    // Reveal the start of the logical link, including when its
++                    // containing list/table block is taller than the viewport.
++                    window.request_autoscroll(Bounds::from_corners(
++                        start,
++                        point(start.x + px(2.), start.y + layout.line_height()),
++                    ));
++                    view.update(cx, |state, _| state.link_reveal_claimed = true);
++                }
++            }
++        }
++
++        InlinePrepaint {
++            hitbox: window.insert_hitbox(bounds, HitboxBehavior::Normal),
++            semantics: self.semantic_elements(id, bounds, window, cx),
++        }
+     }
+ 
+     fn paint(
+@@ -624,10 +844,69 @@
+     ) {
+         let bounds = Bounds::new(self.paint_origin.unwrap_or(bounds.origin), bounds.size);
+         let current_view = window.current_view();
+-        let hitbox = prepaint;
++        for element in &mut prepaint.semantics {
++            element.paint(window, cx);
++        }
++        let hitbox = &prepaint.hitbox;
+         let text_layout = self.styled_text.layout().clone();
++        if let Some((layers, source)) = &self.range_backgrounds {
++            let align = self
++                .text_style
++                .as_ref()
++                .map_or_else(|| window.text_style().text_align, |style| style.text_align);
++            super::backgrounds::paint(
++                &self.style_backgrounds,
++                0..self.text.len(),
++                &text_layout,
++                align,
++                window,
++            );
++            super::backgrounds::paint(layers.ranges(), source.clone(), &text_layout, align, window);
++        }
+         self.styled_text
+             .paint(global_id, None, bounds, &mut (), &mut (), window, cx);
++
++        if let Some(view) = GlobalState::global(cx).text_view_state() {
++            let view = view.read(cx);
++            if view.focus_handle().is_focused(window)
++                && let Some(active) = view.link_navigation.active
++            {
++                for (range, link) in accessible_runs(&self.text, &self.links) {
++                    if link.as_ref().and_then(|link| link.source_start) != Some(active) {
++                        continue;
++                    }
++                    if let (Some(start), Some(end)) = (
++                        text_layout.position_for_index(range.start),
++                        text_layout.position_for_index(range.end),
++                    ) {
++                        let focus_bounds = if start.y == end.y {
++                            Bounds::from_corners(
++                                point(start.x.min(end.x), start.y),
++                                point(start.x.max(end.x), end.y + text_layout.line_height()),
++                            )
++                        } else {
++                            Bounds::from_corners(
++                                point(bounds.left(), start.y),
++                                point(bounds.right(), end.y + text_layout.line_height()),
++                            )
++                        };
++                        window.paint_quad(quad(
++                            focus_bounds,
++                            px(2.),
++                            gpui::transparent_black(),
++                            Edges {
++                                top: px(1.5),
++                                right: px(1.5),
++                                bottom: px(1.5),
++                                left: px(1.5),
++                            },
++                            view.text_view_style.link(),
++                            BorderStyle::default(),
++                        ));
++                    }
++                }
++            }
++        }
+ 
+         // layout selections
+         let (is_selectable, is_selection, selection) =
+@@ -1088,8 +1367,37 @@
+ 
+ #[cfg(test)]
+ mod tests {
+-    use super::{InlineHighlight, combine_highlights, point_in_text_selection, text_runs};
++    use super::{
++        InlineHighlight, LinkMark, accessible_runs, combine_highlights, point_in_text_selection,
++        text_runs,
++    };
+     use gpui::{FontWeight, HighlightStyle, SharedString, TextStyle, point, px};
++
++    #[test]
++    fn accessible_links_partition_unicode_text_without_duplicating_style_runs() {
++        let text = "Before 世界 guide after";
++        let link = LinkMark {
++            url: "test:guide".into(),
++            ..Default::default()
++        };
++        let links = vec![(14..19, link.clone()), (7..14, link.clone())];
++        let runs = accessible_runs(text, &links);
++        assert_eq!(
++            runs,
++            vec![(0..7, None), (7..19, Some(link.clone())), (19..25, None)]
++        );
++        assert_eq!(
++            runs.iter()
++                .map(|(range, _)| &text[range.clone()])
++                .collect::<String>(),
++            text
++        );
++        // Invalid boundaries cannot panic or hide the remainder of the text.
++        assert_eq!(
++            accessible_runs(text, &[(8..10, link.clone()), (50..80, link)]),
++            vec![(0..text.len(), None)]
++        );
++    }
+ 
+     fn mono(style: HighlightStyle) -> InlineHighlight {
+         InlineHighlight {
+--- a/src/text/mod.rs
++++ b/src/text/mod.rs
+@@ -1,3 +1,5 @@
++mod backgrounds;
++mod displayed_text;
+ mod document;
+ mod format;
+ mod inline;
+@@ -6,6 +8,7 @@
+ mod inline_object;
+ #[cfg(test)]
+ mod inline_virtual_tests;
++mod link_navigation;
+ mod markdown_ext;
+ mod node;
+ pub(crate) mod selection;
+@@ -15,6 +18,8 @@
+ mod text_view;
+ mod utils;
+ 
++pub use backgrounds::TextBackgrounds;
++pub use displayed_text::{DisplayedFragment, DisplayedText};
+ use gpui::{App, ElementId, IntoElement, RenderOnce, SharedString, Window};
+ pub use inline_element::*;
+ pub use markdown_ext::*;
+--- a/src/text/node.rs
++++ b/src/text/node.rs
+@@ -360,10 +360,25 @@
+ #[allow(unused)]
+ #[derive(Debug, Default, Clone, PartialEq)]
+ pub struct LinkMark {
++    /// Source identity shared by styled/line-wrapped pieces of one Markdown link.
++    pub source_start: Option<usize>,
+     pub url: SharedString,
+     /// Optional identifier for footnotes.
+     pub identifier: Option<SharedString>,
+     pub title: Option<SharedString>,
++}
++
++impl LinkMark {
++    pub(super) fn resolved(&self, references: &HashMap<SharedString, LinkMark>) -> Self {
++        let mut link = self
++            .identifier
++            .as_ref()
++            .and_then(|id| references.get(id))
++            .unwrap_or(self)
++            .clone();
++        link.source_start = self.source_start;
++        link
++    }
+ }
+ 
+ #[derive(Debug, Default, Clone, PartialEq)]
+@@ -486,7 +501,7 @@
+     /// The text styles, each tuple contains the range of the text and the style.
+     pub(crate) marks: Vec<(Range<usize>, TextMark)>,
+ 
+-    state: Arc<Mutex<InlineState>>,
++    pub(super) state: Arc<Mutex<InlineState>>,
+ }
+ 
+ impl PartialEq for InlineNode {
+@@ -1279,7 +1294,7 @@
+ #[derive(Debug, Clone)]
+ pub struct CodeBlock {
+     lang: Option<SharedString>,
+-    state: Arc<Mutex<InlineState>>,
++    pub(super) state: Arc<Mutex<InlineState>>,
+     highlight_cache: Arc<Mutex<Option<CachedCodeBlockHighlights>>>,
+     pub span: Option<Span>,
+ }
+@@ -1665,11 +1680,7 @@
+                         });
+ 
+                         // convert link references, replace link
+-                        if let Some(identifier) = link_mark.identifier.as_ref() {
+-                            if let Some(mark) = node_cx.link_refs.get(identifier) {
+-                                link_mark = mark.clone();
+-                            }
+-                        }
++                        link_mark = link_mark.resolved(&node_cx.link_refs);
+ 
+                         links.push((inner_range.clone(), link_mark));
+                     }
+@@ -1742,13 +1753,7 @@
+                 for (_, mark) in &inline_node.marks {
+                     object_style = object_style.highlight(mark_highlight(mark, node_cx, cx).style);
+                     if let Some(link) = &mark.link {
+-                        object_link = Some(
+-                            link.identifier
+-                                .as_ref()
+-                                .and_then(|id| node_cx.link_refs.get(id))
+-                                .unwrap_or(link)
+-                                .clone(),
+-                        );
++                        object_link = Some(link.resolved(&node_cx.link_refs));
+                         object_style.color = Some(node_cx.style.link());
+                         object_style.underline = Some(gpui::UnderlineStyle {
+                             thickness: px(1.),
+@@ -1813,11 +1818,7 @@
+                             ..Default::default()
+                         });
+ 
+-                        if let Some(identifier) = link_mark.identifier.as_ref()
+-                            && let Some(mark) = node_cx.link_refs.get(identifier)
+-                        {
+-                            link_mark = mark.clone();
+-                        }
++                        link_mark = link_mark.resolved(&node_cx.link_refs);
+ 
+                         links.push((inner_range.clone(), link_mark));
+                     }
+@@ -2179,6 +2180,7 @@
+                 ..
+             } => v_flex()
+                 .id(("li", options.ix))
++                .role(gpui::Role::ListItem)
+                 .w_full()
+                 .min_w_0()
+                 .when(*spread, |this| this.child(div()))
+@@ -2625,6 +2627,7 @@
+                 .into_any_element(),
+             BlockNode::Paragraph(paragraph) => div()
+                 .id(("p", ix))
++                .role(gpui::Role::Paragraph)
+                 .pb(mb)
+                 .child(paragraph.render(node_cx, window, cx))
+                 .into_any_element(),
+@@ -2648,6 +2651,8 @@
+ 
+                 div()
+                     .id(SharedString::from(format!("h{}-{}", level, ix)))
++                    .role(gpui::Role::Heading)
++                    .aria_level(*level as usize)
+                     .pb(rems(0.3))
+                     .whitespace_normal()
+                     .text_size(text_size)
+@@ -2679,6 +2684,7 @@
+                 children, ordered, ..
+             } => v_flex()
+                 .id((if *ordered { "ol" } else { "ul" }, ix))
++                .role(gpui::Role::List)
+                 .w_full()
+                 .min_w_0()
+                 .pb(mb)
+@@ -3656,3 +3662,123 @@
+         assert_ne!(first, second);
+     }
+ }
++
++// Transfer logical selection ranges into a fully reparsed immutable snapshot.
++// Rendering/layout state is never shared between different mounted views.
++fn transfer_inline_selection(
++    old: &Arc<Mutex<InlineState>>,
++    new: &Arc<Mutex<InlineState>>,
++    old_text: &str,
++    new_text: &str,
++    all: bool,
++) -> bool {
++    let selected = old.lock().ok().and_then(|state| state.selection);
++    let selected = if all {
++        (!old_text.is_empty()).then(|| crate::input::Selection::new(0, old_text.len()))
++    } else {
++        selected
++    };
++    let Some(selected) = selected else {
++        return true;
++    };
++    if old_text
++        .get(..selected.end)
++        .is_none_or(|prefix| Some(prefix) != new_text.get(..selected.end))
++    {
++        return false;
++    }
++    if let Ok(mut state) = new.lock() {
++        state.text = new_text.to_string().into();
++        state.selection = Some(selected);
++    }
++    true
++}
++impl Paragraph {
++    /// Match the renderer's text runs: atomic objects flush the preceding
++    /// text into their node state; the trailing run uses paragraph state.
++    fn selection_runs(&self) -> Vec<(Arc<Mutex<InlineState>>, String)> {
++        let mut runs = Vec::new();
++        let mut text = String::new();
++        for node in &self.children {
++            if node.custom.is_none() {
++                text.push_str(&node.text);
++            }
++            if node.custom.is_some() || node.image.is_some() {
++                runs.push((node.state.clone(), std::mem::take(&mut text)));
++            }
++        }
++        runs.push((self.state.clone(), text));
++        runs
++    }
++    fn transfer_selection(&self, old: &Self, all: bool) -> bool {
++        let new_runs = self.selection_runs();
++        let mut valid = true;
++        for (index, (state, text)) in old.selection_runs().iter().enumerate() {
++            if let Some((new, new_text)) = new_runs.get(index) {
++                valid &= transfer_inline_selection(state, new, text, new_text, all);
++            } else if all && !text.is_empty()
++                || state.lock().is_ok_and(|state| state.selection.is_some())
++            {
++                valid = false;
++            }
++        }
++        for (index, old_node) in old
++            .children
++            .iter()
++            .enumerate()
++            .filter(|(_, node)| node.custom.is_some())
++        {
++            let selected = all || old_node.custom_selection.lock().is_ok_and(|value| *value);
++            if selected {
++                if let Some(new_node) = self
++                    .children
++                    .get(index)
++                    .filter(|new| new.custom == old_node.custom)
++                {
++                    if let Ok(mut value) = new_node.custom_selection.lock() {
++                        *value = true;
++                    }
++                } else {
++                    valid = false;
++                }
++            }
++        }
++        valid
++    }
++}
++
++impl BlockNode {
++    pub(super) fn transfer_selection(&self, old: &Self, all: bool) -> bool {
++        match (self, old) {
++            (Self::Paragraph(new), Self::Paragraph(old))
++            | (Self::Heading { children: new, .. }, Self::Heading { children: old, .. }) => {
++                new.transfer_selection(old, all)
++            }
++            (Self::Custom(new), Self::Custom(old)) => new.as_text().starts_with(old.as_text()),
++            (Self::CodeBlock(new), Self::CodeBlock(old)) => {
++                transfer_inline_selection(&old.state, &new.state, &old.code(), &new.code(), all)
++            }
++            (Self::Table(new), Self::Table(old)) => {
++                old.children.iter().enumerate().all(|(r, old)| {
++                    new.children.get(r).is_some_and(|new| {
++                        old.children.iter().enumerate().all(|(c, old)| {
++                            new.children.get(c).is_some_and(|new| {
++                                new.children.transfer_selection(&old.children, all)
++                            })
++                        })
++                    })
++                })
++            }
++            (Self::Root { children: new, .. }, Self::Root { children: old, .. })
++            | (Self::Blockquote { children: new, .. }, Self::Blockquote { children: old, .. })
++            | (Self::List { children: new, .. }, Self::List { children: old, .. })
++            | (Self::ListItem { children: new, .. }, Self::ListItem { children: old, .. }) => {
++                old.iter().enumerate().all(|(i, old)| {
++                    new.get(i)
++                        .is_some_and(|new| new.transfer_selection(old, all))
++                })
++            }
++            _ => self == old || (!all && !old.has_selection()),
++        }
++    }
++}
+--- a/src/text/state.rs
++++ b/src/text/state.rs
+@@ -111,11 +111,17 @@
+     pub(super) preserve_inline_selection: bool,
+     multi_click_selection: Option<TextViewMultiClickSelection>,
+     selected_text_override: Option<String>,
++    prepared_source_selection: Option<String>,
+     select_all: bool,
+     pub(super) auto_scroll: AutoScroll,
+     pub(super) selection_adapter: TextViewSelectionAdapter,
+ 
+     pub(super) parsed_content: ParsedContent,
++    pub(super) text_backgrounds: Option<std::rc::Rc<super::TextBackgrounds>>,
++    pub(super) link_navigation: super::link_navigation::Navigation,
++    pub(super) link_reveal: Option<usize>,
++    pub(super) link_reveal_claimed: bool,
++    pub(super) link_active_owner: Option<gpui::GlobalElementId>,
+     /// Content format (markdown / html), used for bounded synchronous parsing
+     /// of small full-replace updates.
+     format: TextViewFormat,
+@@ -126,72 +132,176 @@
+     layout_text_style: Option<(gpui::TextStyle, Pixels)>,
+     parsed_error: Option<SharedString>,
+     tx: Sender<UpdateOptions>,
+-    _parse_task: Task<()>,
+-    _receive_task: Task<()>,
++    _parse_task: Option<Task<()>>,
++    _receive_task: Option<Task<()>>,
+ }
+ 
+ impl TextViewState {
++    /// Install immutable decoration layers for this exact prepared AST. A stale
++    /// source clears the old owner and returns false. This does not reparse or
++    /// invalidate list measurements, selection or scrolling.
++    pub fn set_text_backgrounds(
++        &mut self,
++        layers: Option<std::rc::Rc<super::TextBackgrounds>>,
++        cx: &mut Context<Self>,
++    ) -> bool {
++        let valid = layers.as_ref().is_none_or(|layers| {
++            self.parsed_content
++                .displayed_text
++                .as_ref()
++                .is_some_and(|source| Arc::ptr_eq(source, &layers.source))
++        });
++        let layers = valid.then_some(layers).flatten();
++        let same = match (&self.text_backgrounds, &layers) {
++            (Some(a), Some(b)) => std::rc::Rc::ptr_eq(a, b),
++            (None, None) => true,
++            _ => false,
++        };
++        if !same {
++            self.text_backgrounds = layers;
++            cx.notify();
++        }
++        valid
++    }
++    /// The immutable fragments of the installed bounded preparation. Ordinary
++    /// asynchronous Markdown/HTML updates do not advertise this contract.
++    pub fn displayed_text(&self) -> Option<Arc<super::DisplayedText>> {
++        self.parsed_content.displayed_text.clone()
++    }
++
++    /// Install a single-use snapshot from an externally bounded worker. No
++    /// parser work or source queue is started by this operation. The caller
++    /// rejects stale document generations/revisions before calling it.
++    /// Unchanged selected blocks can retain their logical inline ranges.
++    pub fn set_prepared(
++        &mut self,
++        mut prepared: PreparedMarkdown,
++        unchanged_prefix: Option<usize>,
++        cx: &mut Context<Self>,
++    ) {
++        let all = self.select_all;
++        let selected_plain = all.then(|| self.parsed_content.document.text());
++        let selected_source = all.then(|| self.parsed_content.document.source.to_string());
++        let mut preserve = unchanged_prefix.is_some();
++        let append_only = prepared
++            .content
++            .document
++            .source
++            .starts_with(self.parsed_content.document.source.as_ref());
++        let new_blocks = Arc::make_mut(&mut prepared.content.document.blocks);
++        for (index, old) in self.parsed_content.document.blocks.iter().enumerate() {
++            if !append_only && (all || old.has_selection()) {
++                preserve &= old
++                    .span()
++                    .is_some_and(|span| unchanged_prefix.is_some_and(|prefix| span.end <= prefix));
++            }
++            if let Some(new) = new_blocks.get(index) {
++                preserve &= new.transfer_selection(old, all);
++            } else if all || old.has_selection() {
++                preserve = false;
++            }
++        }
++        if !preserve {
++            self.reset_selection_and_adapter(cx);
++            for block in new_blocks.iter() {
++                block.clear_selection();
++            }
++        } else if all {
++            self.select_all = false;
++            self.selected_text_override = selected_plain;
++            self.prepared_source_selection = selected_source;
++        }
++        self.revision = self
++            .revision
++            .checked_add(1)
++            .expect("text view revision exhausted");
++        if !preserve {
++            self.selection_revision = self.selection_revision.wrapping_add(1);
++        }
++        self.text = prepared.content.document.source.to_string();
++        self.markdown_extensions = prepared.content.node_cx.markdown_extensions.clone();
++        self.parsed_content = prepared.content;
++        self.text_backgrounds = None;
++        self.refresh_links(unchanged_prefix);
++        self.parsed_error = None;
++        self.preserve_inline_selection = preserve;
++        self.compatible_layout_update = preserve;
++        self.invalidate_measured_heights();
++        cx.notify();
++    }
++
+     /// Create a Markdown TextViewState.
+     pub fn markdown(text: &str, cx: &mut Context<Self>) -> Self {
+-        Self::new(TextViewFormat::Markdown, text, cx)
++        Self::new(TextViewFormat::Markdown, text, false, cx)
+     }
+ 
+     /// Create a HTML TextViewState.
+     pub fn html(text: &str, cx: &mut Context<Self>) -> Self {
+-        Self::new(TextViewFormat::Html, text, cx)
++        Self::new(TextViewFormat::Html, text, false, cx)
+     }
+ 
+     /// Create a new TextViewState.
+-    fn new(format: TextViewFormat, text: &str, cx: &mut Context<Self>) -> Self {
++    pub fn externally_prepared(cx: &mut Context<Self>) -> Self {
++        Self::new(TextViewFormat::Markdown, "", true, cx)
++    }
++
++    fn new(format: TextViewFormat, text: &str, external: bool, cx: &mut Context<Self>) -> Self {
+         let focus_handle = cx.focus_handle();
+         let selection_adapter = TextViewSelectionAdapter::new(cx.entity().downgrade(), cx);
+ 
+         let (tx, rx) = unbounded::<UpdateOptions>();
+         let (tx_result, rx_result) = unbounded::<ParsedUpdate>();
+-        let _receive_task = cx.spawn({
+-            async move |weak_self, cx| {
+-                while let Ok(parsed_update) = rx_result.recv().await {
+-                    _ = weak_self.update(cx, |state, cx| {
+-                        if parsed_update.revision != state.revision {
+-                            return;
+-                        }
+-                        if parsed_update.baseline_ack {
+-                            debug_assert!(parsed_update.full_parse);
+-                            return;
+-                        }
+-
+-                        match parsed_update.result {
+-                            Ok(content) => {
+-                                state.parsed_content = content;
+-                                state.parsed_error = None;
+-                                state.compatible_layout_update = parsed_update.selection_compatible;
+-                                if parsed_update.full_parse {
+-                                    state.invalidate_measured_heights();
++        let _receive_task = (!external).then(|| {
++            cx.spawn({
++                async move |weak_self, cx| {
++                    while let Ok(parsed_update) = rx_result.recv().await {
++                        _ = weak_self.update(cx, |state, cx| {
++                            if parsed_update.revision != state.revision {
++                                return;
++                            }
++                            if parsed_update.baseline_ack {
++                                debug_assert!(parsed_update.full_parse);
++                                return;
++                            }
++
++                            match parsed_update.result {
++                                Ok(content) => {
++                                    state.parsed_content = content;
++                                    state.text_backgrounds = None;
++                                    state.refresh_links(None);
++                                    state.parsed_error = None;
++                                    state.compatible_layout_update =
++                                        parsed_update.selection_compatible;
++                                    if parsed_update.full_parse {
++                                        state.invalidate_measured_heights();
++                                    }
++                                }
++                                Err(err) => {
++                                    state.parsed_error = Some(err);
+                                 }
+                             }
+-                            Err(err) => {
+-                                state.parsed_error = Some(err);
++                            // Don't interrupt an active drag-selection; the stored
++                            // positions remain valid for append-only updates and will
++                            // self-correct on the next mouse-move event.
++                            if !parsed_update.selection_compatible && !state.is_selecting {
++                                state.reset_selection_and_adapter(cx);
+                             }
+-                        }
+-                        // Don't interrupt an active drag-selection; the stored
+-                        // positions remain valid for append-only updates and will
+-                        // self-correct on the next mouse-move event.
+-                        if !parsed_update.selection_compatible && !state.is_selecting {
+-                            state.reset_selection_and_adapter(cx);
+-                        }
+-                        cx.notify();
+-                    });
++                            cx.notify();
++                        });
++                    }
+                 }
+-            }
+-        });
+-
+-        let _parse_task = cx.background_spawn(UpdateFuture::new(format, rx, tx_result));
++            })
++        });
++
++        let _parse_task =
++            (!external).then(|| cx.background_spawn(UpdateFuture::new(format, rx, tx_result)));
+ 
+         let mut this = Self {
+             focus_handle,
+             bounds: Bounds::default(),
+             multi_click_selection: None,
+             selected_text_override: None,
++            prepared_source_selection: None,
+             select_all: false,
+             selectable: false,
+             selection_format: SelectionFormat::default(),
+@@ -215,6 +325,11 @@
+             auto_scroll: AutoScroll::default(),
+             selection_adapter,
+             parsed_content: Default::default(),
++            text_backgrounds: None,
++            link_navigation: Default::default(),
++            link_reveal: None,
++            link_reveal_claimed: false,
++            link_active_owner: None,
+             format,
+             parsed_error: None,
+             text: text.to_string(),
+@@ -226,8 +341,61 @@
+             _parse_task,
+             _receive_task,
+         };
+-        this.increment_update(&text, false, cx);
++        if !external {
++            this.increment_update(&text, false, cx);
++        }
+         this
++    }
++
++    fn refresh_links(&mut self, unchanged_prefix: Option<usize>) {
++        self.link_navigation.refresh(
++            &self.parsed_content.document,
++            &self.parsed_content.node_cx,
++            unchanged_prefix,
++        );
++        self.link_reveal = None;
++    }
++
++    pub(super) fn on_link_key(
++        &mut self,
++        event: &gpui::KeyDownEvent,
++        window: &mut Window,
++        cx: &mut Context<Self>,
++    ) {
++        if !self.focus_handle.is_focused(window) {
++            return;
++        }
++        let modifiers = event.keystroke.modifiers;
++        if modifiers.control || modifiers.alt || modifiers.platform || modifiers.function {
++            return;
++        }
++        if event.keystroke.key == "tab" {
++            self.link_reveal = None;
++            if let Some(link) = self.link_navigation.step(modifiers.shift) {
++                self.link_reveal = Some(link.source_start);
++                if self.scrollable {
++                    self.list_state.scroll_to_reveal_item(link.block);
++                }
++                cx.stop_propagation();
++            }
++            cx.notify();
++        } else if event.keystroke.key == "enter" && !modifiers.shift {
++            if let Some(link) = self.link_navigation.selected() {
++                super::text_view::handle_link_click(
++                    &self.link_click_handler,
++                    link.url.clone(),
++                    gpui::ClickEvent::Keyboard(gpui::KeyboardClickEvent::default()),
++                    window,
++                    cx,
++                );
++                cx.stop_propagation();
++            }
++        } else if event.keystroke.key == "escape" && self.link_navigation.active.is_some() {
++            self.link_navigation.active = None;
++            self.link_reveal = None;
++            cx.notify();
++            cx.stop_propagation();
++        }
+     }
+ 
+     /// Get the text content.
+@@ -325,6 +493,17 @@
+     }
+ 
+     /// Return the selected text, in the view's [`SelectionFormat`].
++    pub fn has_local_selection(&self) -> bool {
++        self.select_all
++            || self.selected_text_override.is_some()
++            || self
++                .parsed_content
++                .document
++                .blocks
++                .iter()
++                .any(|block| block.has_selection())
++    }
++
+     pub fn selected_text(&self) -> String {
+         self.selected_text_in(None)
+     }
+@@ -353,6 +532,11 @@
+     /// [`ParsedDocument::selected_text`](crate::text::document::ParsedDocument).
+     pub(super) fn selected_text_in(&self, blocks: Option<RangeInclusive<usize>>) -> String {
+         let format = self.effective_format();
++        if format == SelectionFormat::Source
++            && let Some(source) = &self.prepared_source_selection
++        {
++            return source.clone();
++        }
+ 
+         if self.select_all {
+             if format == SelectionFormat::Source {
+@@ -436,6 +620,8 @@
+             match parse_content(self.format, ParsedContent::default(), &update_options) {
+                 Ok(content) => {
+                     self.parsed_content = content;
++                    self.text_backgrounds = None;
++                    self.refresh_links(None);
+                     self.parsed_error = None;
+                     self.invalidate_measured_heights();
+                     if !self.is_selecting {
+@@ -524,6 +710,7 @@
+         self.preserve_inline_selection = false;
+         self.multi_click_selection = None;
+         self.selected_text_override = None;
++        self.prepared_source_selection = None;
+         self.select_all = false;
+         self.is_selecting = false;
+         self.auto_scroll.stop();
+@@ -556,6 +743,7 @@
+     pub fn select_all(&mut self, cx: &mut Context<Self>) {
+         self.multi_click_selection = None;
+         self.selected_text_override = None;
++        self.prepared_source_selection = None;
+         self.select_all = true;
+         self.is_selecting = false;
+         self.auto_scroll.stop();
+@@ -579,6 +767,7 @@
+             line_bounds: None,
+         });
+         self.selected_text_override = Some(selected_text);
++        self.prepared_source_selection = None;
+         self.select_all = false;
+         self.is_selecting = false;
+         self.auto_scroll.stop();
+@@ -593,6 +782,7 @@
+             cx,
+         );
+         self.selected_text_override = None;
++        self.prepared_source_selection = None;
+         let offset = self.bounds.origin + self.scroll_offset();
+         if let Some(selection) = self.multi_click_selection.as_mut() {
+             selection.line_bounds = Some(Bounds::new(bounds.origin - offset, bounds.size));
+@@ -767,6 +957,72 @@
+ pub(crate) struct ParsedContent {
+     pub(crate) document: ParsedDocument,
+     pub(crate) node_cx: node::NodeContext,
++    displayed_text: Option<Arc<super::DisplayedText>>,
++}
++
++/// A single-use full Markdown parse prepared outside the native UI thread.
++/// This deliberately does not implement Clone: parsed inline nodes contain
++/// mutable selection/layout state and must not be shared between mounted views.
++pub struct PreparedMarkdown {
++    content: ParsedContent,
++}
++
++impl PreparedMarkdown {
++    /// Admission bounds: 64 KiB source, 16 KiB per line, 4096 AST nodes, depth32
++    /// and 256 top-level blocks. Call from a bounded background scheduler.
++    /// Failure means the caller should offer its source/large-document view.
++    pub fn parse(source: &str, extensions: MarkdownExtensions) -> Result<Self, SharedString> {
++        let mut node_cx = NodeContext {
++            markdown_extensions: Arc::new(extensions),
++            ..NodeContext::default()
++        };
++        let document = format::markdown::parse_bounded(source, &mut node_cx)?;
++        let displayed_text = Some(super::DisplayedText::prepare(&document)?);
++        Ok(Self {
++            content: ParsedContent {
++                document,
++                node_cx,
++                displayed_text,
++            },
++        })
++    }
++
++    /// Available before any layout/paint, including all virtualized blocks.
++    pub fn displayed_text(&self) -> Arc<super::DisplayedText> {
++        self.content
++            .displayed_text
++            .as_ref()
++            .expect("bounded preparation")
++            .clone()
++    }
++
++    pub fn source(&self) -> SharedString {
++        self.content.document.source.clone()
++    }
++    pub fn plain_text(&self) -> String {
++        self.content.document.text()
++    }
++    pub fn block_count(&self) -> usize {
++        self.content.document.blocks.len()
++    }
++
++    /// Read code blocks during the same background job, before installing this
++    /// single-use document. The clones are not independent mounted views.
++    pub fn code_blocks(&self) -> Vec<node::CodeBlock> {
++        let mut blocks = Vec::new();
++        let mut pending: Vec<_> = self.content.document.blocks.iter().collect();
++        while let Some(block) = pending.pop() {
++            match block {
++                node::BlockNode::CodeBlock(code) => blocks.push(code.clone()),
++                node::BlockNode::Root { children, .. }
++                | node::BlockNode::Blockquote { children, .. }
++                | node::BlockNode::List { children, .. }
++                | node::BlockNode::ListItem { children, .. } => pending.extend(children),
++                _ => (),
++            }
++        }
++        blocks
++    }
+ }
+ 
+ struct UpdateFuture {
+@@ -884,6 +1140,9 @@
+     mut content: ParsedContent,
+     options: &UpdateOptions,
+ ) -> Result<ParsedContent, SharedString> {
++    // A later ordinary parse cannot reuse identities from an installed bounded
++    // snapshot. It has no admission contract for this extra representation.
++    content.displayed_text = None;
+     let mut node_cx = NodeContext {
+         markdown_extensions: options.markdown_extensions.clone(),
+         ..NodeContext::default()

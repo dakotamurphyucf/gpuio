@@ -34,16 +34,20 @@ pub(super) struct DocumentBinding {
     key: RunKey,
 }
 impl DocumentBinding {
-    pub(super) fn paint(&self, source: &projection::Source) -> Option<paint::Paint> {
+    pub(super) fn paint(&self, fragment: u32, source: &projection::Source) -> Option<paint::Paint> {
         let scope = self.scope.upgrade()?;
         let mut state = scope.borrow_mut();
         let jobs::Status::Ready(ready) = state.job.as_ref()?.status() else {
             return None;
         };
-        if !ready.source().has_source(self.key, source) {
+        let key = RunKey {
+            fragment,
+            ..self.key
+        };
+        if !ready.source().has_source(key, source) {
             return None;
         }
-        state.paint(self.key).map(|(paint, _)| paint)
+        state.paint(key).map(|(paint, _)| paint)
     }
 }
 struct CachedPaint {

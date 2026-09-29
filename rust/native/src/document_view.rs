@@ -67,6 +67,7 @@ pub(super) struct Presentation {
         crate::highlight_paint::Paint,
         Rc<dyn gpui_base::input::RangeBackgrounds>,
     )>,
+    markdown_highlight: Option<MarkdownHighlight>,
     buttons: BTreeMap<&'static str, gpui::FocusHandle>,
     root: WeakEntity<View>,
     node: NodeId,
@@ -94,7 +95,47 @@ pub(super) struct Presentation {
     installed: Option<Arc<Snapshot>>,
     images: document_markdown::Images,
 }
+struct MarkdownHighlight {
+    source: Arc<gpui_base::text::DisplayedText>,
+    paints: Vec<Option<crate::highlight_paint::Paint>>,
+    backgrounds: Rc<gpui_base::text::TextBackgrounds>,
+}
 impl Presentation {
+    fn markdown_highlight_source(&self, cx: &App) -> Option<Arc<gpui_base::text::DisplayedText>> {
+        if self.collapsed || self.source_mode || self.installed.is_none() {
+            return None;
+        }
+        self.markdown.as_ref()?.read(cx).displayed_text()
+    }
+
+    fn highlight_groups(
+        &self,
+        cx: &App,
+    ) -> Result<crate::highlight_collect::DocumentGroups, crate::highlight_collect::DocumentError>
+    {
+        if let Some(source) = self.markdown_highlight_source(cx) {
+            // Arbitrary native objects need their own declared glyph projection.
+            // Do not report a partially counted result as a complete document.
+            if source.opaque_nodes() != 0 {
+                return Err(crate::highlight_collect::DocumentError::Unavailable);
+            }
+            let installed = self.installed.as_ref().unwrap();
+            return Ok(source
+                .fragments()
+                .iter()
+                .map(|fragment| {
+                    vec![crate::highlight_projection::Source::document_text(
+                        installed.clone(),
+                        fragment.text().clone(),
+                    )]
+                })
+                .collect());
+        }
+        Ok(self
+            .highlight_source()?
+            .map(|source| vec![vec![source]])
+            .unwrap_or_default())
+    }
     fn highlight_source(
         &self,
     ) -> Result<Option<crate::highlight_projection::Source>, crate::highlight_collect::DocumentError>
@@ -119,7 +160,7 @@ impl Presentation {
             .highlight_source()
             .ok()
             .flatten()
-            .and_then(|source| self.highlight.as_ref()?.paint(&source));
+            .and_then(|source| self.highlight.as_ref()?.paint(0, &source));
         let same = match (&self.highlight_paint, &paint) {
             (Some((old, _)), Some(new)) => old.same_paint(new),
             (None, None) => true,
@@ -140,6 +181,63 @@ impl Presentation {
             // malformed metadata clears old washes rather than decorating stale text.
             let _ = editor.set_range_backgrounds(backgrounds, cx);
         });
+        let source = self
+            .markdown_highlight_source(cx)
+            .filter(|source| source.opaque_nodes() == 0);
+        if let Some(source) = source {
+            let installed = self.installed.as_ref().unwrap();
+            let paints: Vec<_> = source
+                .fragments()
+                .iter()
+                .map(|fragment| {
+                    self.highlight.as_ref()?.paint(
+                        fragment.id(),
+                        &crate::highlight_projection::Source::document_text(
+                            installed.clone(),
+                            fragment.text().clone(),
+                        ),
+                    )
+                })
+                .collect();
+            let same = self.markdown_highlight.as_ref().is_some_and(|old| {
+                Arc::ptr_eq(&old.source, &source)
+                    && old.paints.len() == paints.len()
+                    && old
+                        .paints
+                        .iter()
+                        .zip(&paints)
+                        .all(|(old, new)| match (old, new) {
+                            (Some(a), Some(b)) => a.same_paint(b),
+                            (None, None) => true,
+                            _ => false,
+                        })
+            });
+            if !same {
+                let layers = paints
+                    .iter()
+                    .map(|paint| paint.as_ref().map(|paint| paint.editor_backgrounds()))
+                    .collect();
+                self.markdown_highlight =
+                    gpui_base::text::TextBackgrounds::new(source.clone(), layers)
+                        .ok()
+                        .map(|backgrounds| MarkdownHighlight {
+                            source,
+                            paints,
+                            backgrounds: Rc::new(backgrounds),
+                        });
+            }
+        } else {
+            self.markdown_highlight = None;
+        }
+        if let Some(markdown) = &self.markdown {
+            let backgrounds = self
+                .markdown_highlight
+                .as_ref()
+                .map(|highlight| highlight.backgrounds.clone());
+            markdown.update(cx, |state, cx| {
+                state.set_text_backgrounds(backgrounds, cx);
+            });
+        }
     }
     fn new(
         root: WeakEntity<View>,
@@ -175,6 +273,7 @@ impl Presentation {
             highlight_identity,
             highlight: None,
             highlight_paint: None,
+            markdown_highlight: None,
             buttons: BTreeMap::new(),
             root,
             node,
@@ -961,11 +1060,7 @@ impl State {
             .presentation
             .as_ref()
             .ok_or(crate::highlight_collect::DocumentError::Pending)?;
-        Ok(presentation
-            .read(cx)
-            .highlight_source()?
-            .map(|source| vec![vec![source]])
-            .unwrap_or_default())
+        presentation.read(cx).highlight_groups(cx)
     }
     pub(super) fn retained(&self, window: &Window, cx: &App) -> bool {
         self.presentation
