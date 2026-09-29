@@ -66,27 +66,81 @@ it; neither example displays diff documents. No wildcard or warning suppression
 was added. No new Rust/protocol/fork code is part of this status-bar change.
 Fresh installed-consumer, hosted macOS/Linux and release gates remain outstanding.
 
-## Badge: functional gap remains
+## Badge: functional equivalent
 
-Source: [component/badge](sources/component-badge.rs.txt). The public surface
-includes `new`, `dot`, `count`, `icon`, `max`, `color`, child composition and size.
-The renderer wraps ordinary content and overlays a dot, count, or icon. Numeric
-zero hides the overlay; values above the configurable maximum render `max+`.
-Dots sit at the top/end, icon badges at the bottom/end. It registers no action.
+Source: [component/badge](sources/component-badge.rs.txt), including `new`, `dot`,
+`count`, `icon`, `max`, `color`, child composition, size and actual anchoring/zero
+behavior. GPUIO's preexisting `Presentation.badge` remains the text chip.
+`Presentation.Overlay_badge` and `Presentation.overlay_badge` now provide the
+separate overlay composition through ordinary public views.
 
-GPUIO's `Presentation.badge` is currently a rounded text chip with optional
-leading content, tone, variant, size and ordinary root style. It is useful and
-tested, but **it is not this overlay badge**. `Presentation.marker` is not a
-replacement either. Existing absolute positioning can express an overlay, but
-there is no reviewed public composition/example proving count caps, zero hiding,
-anchoring, contained control focus and readable non-color status semantics.
+| Upstream behavior | GPUIO contract |
+| --- | --- |
+| Count, maximum (default 99), hide zero | `Overlay_badge.count ?max ~label value` validates nonnegative integers; zero omits the overlay; values above max display `max+`. Zero maximum and `Int.max_value` are safe, with no arithmetic increment. |
+| Dot | `Overlay_badge.dot ~label` creates a labeled circle; it has no timer or completion state. |
+| Icon | `Overlay_badge.icon` borrows an existing SVG `Icon.Config`; meaningful/decorative descriptions and asset ownership remain explicit. No decoding or I/O occurs during view construction. |
+| Wrapped child and anchoring | `overlay_badge appearance ~badge content` keeps content under a stable keyed wrapper. Count/dot attach top-right, icon bottom-right. Badge changes/removal do not remount the underlying control. |
+| Size/color/style | Three typed presentation sizes, tone and explicit appearance palette. Root `~style` and `~badge_style` provide ordinary style refinement. Defaults use GPUIO's geometry/colors rather than copying upstream's negative count offsets and theme tokens; ordinary ancestor clipping still applies. |
+| Events/commands | No badge-owned callbacks, focus stops, timers or controllers. Underlying controls retain their normal native actions and asynchronous delivery. Pointer eligibility/occlusion and selection policy on the decoration stay passive. |
+| Accessibility | Counts/dots require a nonblank UTF-8 label without NUL, at most 4096 bytes. Count labels describe the uncapped value in application language. Each is one image semantic node; the displayed cap does not become a second AX string. Icons preserve their existing meaningful/decorative contract. Zero and decorative icons expose no badge node. No automatic live announcements. |
+| Ownership and retirement | Count/dot need no resources. Icons use application registrations and normal mounted leases. Changes preserve body identity, use the latest accepted callback and fence delivery on full unmount. |
 
-Required follow-up within OCH-41/OCH-33's accepted family: provide a coherent
-overlay composition/API without breaking the existing text chip, validated
-count/max semantics, and a public example with native geometry, accessibility,
-actions and update/teardown evidence. Do not mark this module equivalent merely
-because both libraries have a function named `badge`. No post-v1 deferral has
-been accepted for this gap.
+Public example:
+
+```ocaml
+let badge =
+  Presentation.Overlay_badge.count ~label:"150 unread messages" 150
+  |> Or_error.ok_exn
+in
+Presentation.overlay_badge Presentation.Appearance.dark ~badge
+  (View.button "Inbox" ~on_click:(fun () -> `Open_inbox))
+```
+
+The **Presentation** gallery includes zero, 7, 150 with caps 99/9, activity dot,
+verified and decorative SVG modes, all three badge sizes and both appearances.
+Its icon registration is acquired in a fresh page scope and released on departure.
+Meaningful badge semantics supplement the child's existing label; applications
+should use the child's own accessible name when status needs to be announced as
+part of a single control name.
+
+Reproduction after the ordinary gallery build:
+
+```sh
+python3 scripts/test_gallery.py --section badges --images scratch/badges
+```
+
+Local macOS arm64 native evidence (2026-09-29): **36 kind/size/theme cases** pass
+actual AX anchors and unchanged 170×48 content bounds, body identity (`CFEqual`),
+exact uncapped labels, absent zero/decorative nodes and no duplicate cap string.
+**72 real pointer/Return activations** pass; count/dot/meaningful-icon pointer
+coordinates lie inside the badge's measured bounds, proving input reaches the
+underlying button. Tab moves straight from the content to the next ordinary
+control. Both cap settings preserve the full count description. Leaving the
+page returns image/chart/canvas counts and registered source bytes to zero;
+revisiting reacquires the icon. Marker: `GALLERY_OVERLAY_BADGE_OK`, followed by
+`GPUIO_GALLERY_AX_OK: section=badges`. Count/icon screenshots were inspected.
+Pure tests cover malformed labels, negative values, zero/max-zero/max-int,
+localized labels, all kind/size/appearance updates, stable body identity/latest
+actions, idle repeat commits and full unmount fencing.
+
+Full local `dune build -j2 @all @runtest @fmt` passes, including the public gallery
+and existing consumers built within the repository. The expanded `--section core`
+walkthrough also passes both the 48 status-region and 36 badge cases, followed by
+the existing editing/validation/submit, themes/sizes, independent second window
+and repeated page teardown checks. Final badge screenshots use success tone for
+verification icons and were inspected. Structural catalog hashes, Python
+compilation and diff checks pass. These are not fresh installed-consumer or hosted
+CI results; those release gates remain outstanding.
+
+The first native run deliberately checked pointer input over the count and found
+that the initial inert visual-text child blocked it: the existing inert wrapper
+inserts a pointer shield. The final count is a single styled text root with the
+uncapped image label, eliminating both that shield and duplicate AX text. Native
+inert behavior was not changed. No Rust/protocol/fork additions were needed.
+
+These are local API/geometry/input/resource checks, not a full VoiceOver journey,
+physical display transition, arbitrary custom overflow/layout, performance budget
+or Linux desktop acceptance. The other catalog and release gates remain open.
 
 ## Label: configuration review remains incomplete
 

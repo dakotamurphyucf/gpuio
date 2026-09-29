@@ -74,6 +74,41 @@ val badge
   -> string
   -> 'action View.t
 
+module Overlay_badge : sig
+  type t
+
+  (** Nonnegative [count] and [max] (default 99). Zero hides the overlay; counts
+      above [max] display [max+]. [label] is a meaningful, localized description
+      of the uncapped count, not just the displayed cap. Labels are nonblank UTF-8
+      without NUL, at most 4096 bytes. *)
+  val count : ?max:int -> label:string -> int -> t Or_error.t
+
+  (** A colored dot with an explicit meaning, so color is not the only signal. *)
+  val dot : label:string -> t Or_error.t
+
+  (** Reuses the icon's explicit meaningful/decorative description and borrowed
+      asset handle. Registration and lifetime remain application-owned. *)
+  val icon : Icon.Config.t -> t
+end
+
+(** Overlay on ordinary content, distinct from the text-chip [badge]. Count/dot
+    attach to the top-right corner, icons to the bottom-right. [size] affects the
+    badge only; [style] refines the wrapper and [badge_style] refines the overlay.
+    Use these styles for alternative offsets/colors. Badges stay pointer-passive
+    and nonselectable; they add no action or focus stop. The wrapped content keeps
+    its identity when the badge changes or disappears. Ancestor overflow clipping
+    still applies. Accessible labels do not automatically announce each update. *)
+val overlay_badge
+  :  Appearance.t
+  -> ?key:Key.t
+  -> ?style:Style.t
+  -> ?badge_style:Style.t
+  -> ?size:Size.t
+  -> ?tone:Tone.t
+  -> badge:Overlay_badge.t
+  -> 'action View.t
+  -> 'action View.t
+
 (** The optional trailing slot can hold a separately labelled remove button.
     The tag itself is not an action or an additional focus stop. *)
 val tag

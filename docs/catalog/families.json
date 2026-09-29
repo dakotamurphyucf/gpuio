@@ -6,7 +6,7 @@
       "id": "presentation",
       "owner": "OCH-33",
       "scope": "v1",
-      "audit_status": "partial behavioral review: status bar functional equivalent; badge and label gaps recorded; remaining modules pending",
+      "audit_status": "partial behavioral review: status bar and overlay badge functional equivalents; label configuration gap and remaining modules pending",
       "public_interface": "lib/core/presentation.mli",
       "example": "examples/presentation",
       "evidence": [

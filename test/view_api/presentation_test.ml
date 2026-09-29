@@ -235,6 +235,100 @@ let%expect_test
   |}]
 ;;
 
+let%expect_test "overlay badge counts and labels are validated before rendering" =
+  List.iter
+    [ -1, 99; 1, -1 ]
+    ~f:(fun (count, max) ->
+      assert (Or_error.is_error (P.Overlay_badge.count ~max ~label:"Unread" count)));
+  List.iter
+    [ ""; " \t"; "bad\000label"; "\255"; String.make 4097 'x' ]
+    ~f:(fun label ->
+      assert (Or_error.is_error (P.Overlay_badge.count ~label 1));
+      assert (Or_error.is_error (P.Overlay_badge.dot ~label)));
+  List.iter
+    [ 0, 99, ""; 7, 99, "7"; 150, 99, "99+"; 1, 0, "0+"; Int.max_value, 99, "99+" ]
+    ~f:(fun (count, max, visible) ->
+      let label = sprintf "%d unread messages 世界" count in
+      let badge = P.Overlay_badge.count ~max ~label count |> ok in
+      let ds =
+        descriptions (P.overlay_badge P.Appearance.dark ~badge (View.text "Body"))
+      in
+      let text =
+        List.filter_map ds ~f:(fun d ->
+          if View.Expert.Kind.equal d.kind Text && not (String.equal d.text "Body")
+          then Some d.text
+          else None)
+      in
+      assert (List.equal String.equal text (if count = 0 then [] else [ visible ]));
+      let labels =
+        List.filter_map ds ~f:(fun d ->
+          Option.bind d.accessibility ~f:(fun a -> (Accessibility.Expert.to_wire a).label))
+      in
+      assert (List.equal String.equal labels (if count = 0 then [] else [ label ])));
+  print_endline
+    "negative values and malformed labels rejected; zero omitted; capped visual with \
+     uncapped Unicode label; max_int safe";
+  [%expect
+    {| negative values and malformed labels rejected; zero omitted; capped visual with uncapped Unicode label; max_int safe |}]
+;;
+
+let%expect_test "overlay changes keep the underlying control and dispose only decorations"
+  =
+  let owner = Asset.Expert.Owner.create () in
+  let id = Gpuio_protocol.Resource_id.create ~slot:0L ~generation:1L |> ok in
+  let asset = Asset.Expert.handle ~owner ~id ~format:Svg in
+  let icon =
+    Icon.Config.create ~asset ~description:Image.Description.decorative () |> ok
+  in
+  let t = Reconciler.create ~asset_owner:owner window in
+  let count value =
+    P.Overlay_badge.count ~label:(sprintf "%d unread" value) value |> ok
+  in
+  let view appearance size badge action =
+    P.overlay_badge
+      appearance
+      ~size
+      ~badge
+      (View.button "Inbox" ~on_click:(fun () -> action))
+  in
+  let initial = commit t (view P.Appearance.light Medium (count 7) `First) in
+  let node, handler =
+    List.find_map_exn initial ~f:(function
+      | W.Op.Create (node, Button, _, Some handler) -> Some (node, handler)
+      | _ -> None)
+  in
+  List.iter [ P.Appearance.light; P.Appearance.dark ] ~f:(fun appearance ->
+    List.iter [ P.Size.Small; Medium; Large ] ~f:(fun size ->
+      List.iter
+        [ count 150
+        ; P.Overlay_badge.dot ~label:"New activity" |> ok
+        ; P.Overlay_badge.icon icon
+        ; count 0
+        ; count 7
+        ]
+        ~f:(fun badge ->
+          let current = view appearance size badge `Latest in
+          let operations = commit t current in
+          List.iter operations ~f:(function
+            | W.Op.Remove removed ->
+              assert (not (Gpuio_protocol.Node_id.equal node removed))
+            | Create (_, Button, _, _) -> failwith "badged control was replaced"
+            | _ -> ());
+          (match Reconciler.dispatch t (W.Event.Press (window, node, handler, 1L)) with
+           | Some `Latest -> ()
+           | Some `First | None -> assert false);
+          assert (List.is_empty (commit t current)))));
+  let removal = Reconciler.prepare t ~theme:Theme.default None |> ok in
+  Reconciler.accept t removal |> ok;
+  assert (
+    Option.is_none (Reconciler.dispatch t (W.Event.Press (window, node, handler, 1L))));
+  print_endline
+    "count/dot/icon/zero, both appearances and all sizes retain body identity and latest \
+     action; unmount fences delivery";
+  [%expect
+    {| count/dot/icon/zero, both appearances and all sizes retain body identity and latest action; unmount fences delivery |}]
+;;
+
 let%expect_test "presentation capability includes the accepted native family" =
   assert (Int64.equal (Int64.bit_and W.capabilities 17179869184L) 17179869184L);
   let bytes = W.Message.encode (Hello (W.version, W.capabilities)) |> ok in

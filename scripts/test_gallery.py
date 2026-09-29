@@ -31,6 +31,7 @@ def expect_field(mac, title, label, expected, role="AXTextField"):
 def exercise(mac, images):
     mac.wait_text(TITLE, 'A little context goes a long way')
     exercise_status_regions(mac, images)
+    exercise_badges(mac, images)
     if images:
         screenshot(mac, images / 'gallery-presentation-dark.png', title=TITLE)
     mac.release(mac.wait_find(TITLE, 'Aster avatar', 'AXImage'))
@@ -90,6 +91,143 @@ def exercise(mac, images):
             raise RuntimeError('Unmounted editor remains accessible')
         mac.press(TITLE, 'Text editing')
         expect_field(mac, TITLE, 'Document title', 'A place for good ideas')
+
+
+def exercise_badges(mac, images):
+    """Badges preserve their content's native input owner and borrow icon assets."""
+    mac.release(mac.wait_find(TITLE, 'Open inbox', 'AXButton'))
+    raise_gallery(mac)
+    mouse = GalleryMouse(mac)
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    body = mac.wait_find(TITLE, 'Open inbox', 'AXButton')
+    clicks = 0
+
+    def rect(label, role):
+        node = mac.wait_find(TITLE, label, role)
+        try:
+            return element_rect(mac, node)
+        finally:
+            mac.release(node)
+
+    def image_labels():
+        result = []
+        def visit(node):
+            values, children = mac.node_values(node)
+            try:
+                if values[0] == 'AXImage':
+                    result.append(values[1] or values[2] or values[3])
+                assert '99+' not in values[1:] and '9+' not in values[1:], values
+                for child in children:
+                    visit(child)
+            finally:
+                for child in children:
+                    mac.release(child)
+        group = mac.wait_find(TITLE, 'Badged inbox', 'AXGroup')
+        try:
+            visit(group)
+        finally:
+            mac.release(group)
+        return result
+
+    def reveal():
+        window = mac.window(TITLE)
+        try:
+            wx, wy, ww, wh = element_rect(mac, window)
+        finally:
+            mac.release(window)
+        point = (wx + ww * .75, wy + wh * .65)
+        create = mac.cg.CGEventCreateScrollWheelEvent
+        create.restype, create.argtypes = C.c_void_p, [C.c_void_p, C.c_uint, C.c_uint, C.c_int]
+        locate = mac.cg.CGEventSetLocation
+        locate.restype, locate.argtypes = None, [C.c_void_p, GalleryMouse.Point]
+        for _ in range(12):
+            _, y, _, h = rect('Open inbox', 'AXButton')
+            if y >= wy + 150 and y + h <= wy + wh - 24:
+                return
+            mouse.send(5, point)
+            mouse.check_owner(point)
+            event = create(None, 0, 1, C.c_int(-90 if y + h > wy + wh - 24 else 90))
+            assert event
+            try:
+                locate(event, GalleryMouse.Point(*point))
+                mouse.post(0, event)
+            finally:
+                mac.release(event)
+            time.sleep(.1)
+        raise RuntimeError('Badge content did not become visible')
+
+    theme = mac.find(TITLE, 'Dark', 'AXButton')
+    current, alternate = ('Dark', 'Light') if theme else ('Light', 'Dark')
+    if theme:
+        mac.release(theme)
+    try:
+        for appearance in (current, alternate):
+            for size, next_size in [('medium', 'large'), ('large', 'small'), ('small', 'medium')]:
+                for mode, label in [('Unread: 0', None), ('Unread: 7', '7 unread messages'),
+                                    ('Unread: 150', '150 unread messages'),
+                                    ('Activity dot', 'Inbox has new activity'),
+                                    ('Verified icon', 'Verified inbox'), ('Decorative icon', None)]:
+                    mac.press(TITLE, mode)
+                    expected = [label] if label else []
+                    deadline = time.monotonic() + 10
+                    while image_labels() != expected:
+                        assert time.monotonic() < deadline, (mode, image_labels())
+                        time.sleep(.025)
+                    reveal()
+                    other = mac.wait_find(TITLE, 'Open inbox', 'AXButton')
+                    try:
+                        assert equal(body, other), 'Badge changes replaced the native content'
+                        x, y, w, h = element_rect(mac, other)
+                    finally:
+                        mac.release(other)
+                    assert abs(w - 170) <= 1 and abs(h - 48) <= 1, (mode, x, y, w, h)
+                    if label:
+                        bx, by, bw, bh = rect(label, 'AXImage')
+                        if mode == 'Verified icon':
+                            assert abs(bx + bw - (x + w - 3)) <= 1, (bx, bw, x, w)
+                            assert abs(by + bh - (y + h - 3)) <= 1, (by, bh, y, h)
+                        else:
+                            assert abs(bx + bw - (x + w)) <= 1 and abs(by - y) <= 1, (bx, by, bw, x, y, w)
+                        point = (bx + bw / 2, by + bh / 2)
+                    else:
+                        point = (x + w / 2, y + h / 2)
+                    # Real pointer input lands on the painted badge itself.
+                    mouse.check_owner(point)
+                    mouse.send(5, point)
+                    mouse.send(1, point)
+                    mouse.send(2, point)
+                    clicks += 1
+                    mac.wait_text(TITLE, f'Inbox opens: {clicks}')
+                    focus_gallery_control(mac, 'Open inbox', 'AXButton')
+                    mac.key(36)
+                    clicks += 1
+                    mac.wait_text(TITLE, f'Inbox opens: {clicks}')
+                    mac.key(48)
+                    expect_focus(mac, f'Badge size: {size}')
+                    if mode == 'Unread: 150':
+                        mac.press(TITLE, 'Badge cap: 99')
+                        mac.release(mac.wait_find(TITLE, 'Badge cap: 9', 'AXButton'))
+                        assert image_labels() == expected
+                        mac.press(TITLE, 'Badge cap: 9')
+                        mac.release(mac.wait_find(TITLE, 'Badge cap: 99', 'AXButton'))
+                    if images and size == 'medium' and mode in ('Unread: 150', 'Verified icon'):
+                        screenshot(mac, images / f'gallery-badge-{appearance.lower()}-{mode.split()[0].rstrip(":").lower()}.png', title=TITLE)
+                mac.press(TITLE, f'Badge size: {size}')
+                mac.release(mac.wait_find(TITLE, f'Badge size: {next_size}', 'AXButton'))
+            mac.press(TITLE, appearance)
+            mac.release(mac.wait_find(TITLE, alternate if appearance == current else current, 'AXButton'))
+    finally:
+        mac.release(body)
+    mac.press(TITLE, 'Runtime & windows')
+    mac.press(TITLE, 'Refresh resource counts')
+    mac.wait_text(TITLE, 'Images: 0 · Charts: 0 · Canvases: 0')
+    mac.wait_text(TITLE, 'Registered source bytes: 0')
+    mac.press(TITLE, 'Presentation')
+    mac.release(mac.wait_find(TITLE, 'Open inbox', 'AXButton'))
+    print('GALLERY_OVERLAY_BADGE_OK: 36 kind/size/theme cases, uncapped labels and zero/decorative '
+          'omission, anchors, 72 real pointer/Return activations, one content focus stop, '
+          'native identity and scoped asset cleanup/remount', flush=True)
 
 
 def exercise_status_regions(mac, images):
@@ -2280,7 +2418,7 @@ def main():
                         help='Run an independently built gallery instead of the repository executable')
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -2301,6 +2439,8 @@ def main():
             mac = Mac(child.pid, child)
             if args.section in ('all', 'core'):
                 exercise(mac, args.images)
+            if args.section == 'badges':
+                exercise_badges(mac, args.images)
             if args.section == 'status-regions':
                 exercise_status_regions(mac, args.images)
             if args.section in ('all', 'styles'):

@@ -208,6 +208,123 @@ let badge
     text
 ;;
 
+module Overlay_badge = struct
+  type t =
+    | Count of
+        { value : int
+        ; max : int
+        ; accessibility : Accessibility.t
+        }
+    | Dot of Accessibility.t
+    | Icon of Icon.Config.t
+
+  let accessibility label =
+    if String.is_empty (String.strip label)
+    then Or_error.error_string "overlay badge label must not be blank"
+    else Accessibility.create ~role:Image ~label ()
+  ;;
+
+  let count ?(max = 99) ~label value =
+    if value < 0 || max < 0
+    then Or_error.error_string "overlay badge count and maximum must be nonnegative"
+    else
+      let open Or_error.Let_syntax in
+      let%map accessibility = accessibility label in
+      Count { value; max; accessibility }
+  ;;
+
+  let dot ~label = Or_error.map (accessibility label) ~f:(fun metadata -> Dot metadata)
+  let icon config = Icon config
+end
+
+let overlay_badge
+      (p : Appearance.t)
+      ?key
+      ?style:(custom = Style.empty)
+      ?(badge_style = Style.empty)
+      ?(size = Size.Medium)
+      ?(tone = Tone.Danger)
+      ~badge
+      content
+  =
+  let diameter, font, dot_size =
+    match size with
+    | Small -> 16., 10., 6.
+    | Medium -> 20., 11., 8.
+    | Large -> 24., 12., 10.
+  in
+  let visual =
+    match badge with
+    | Overlay_badge.Count { value = 0; _ } -> None
+    | Count { value; max; accessibility } ->
+      let text = if value > max then sprintf "%d+" max else Int.to_string value in
+      Some
+        ( [ Top (px 0.)
+          ; Min_width (px diameter)
+          ; Height (px diameter)
+          ; Padding_left (px 4.)
+          ; Padding_right (px 4.)
+          ]
+        , Some accessibility
+        , Some text
+        , [] )
+    | Dot accessibility ->
+      Some
+        ( [ Top (px 0.); Width (px dot_size); Height (px dot_size) ]
+        , Some accessibility
+        , None
+        , [] )
+    | Icon config ->
+      Some
+        ( [ Bottom (px 0.)
+          ; Width (px diameter)
+          ; Height (px diameter)
+          ; Border_width 1.
+          ; Border_color p.surface
+          ; Padding (px 2.)
+          ]
+        , None
+        , None
+        , [ View.icon ~style:(style [ Width full; Height full ]) config ] )
+  in
+  let overlay =
+    Option.map visual ~f:(fun (geometry, metadata, text, children) ->
+      let overlay_style =
+        Style.merge
+          [ style
+              ([ Display Flex
+               ; Position Absolute
+               ; Right (px 0.)
+               ; Radius 999.
+               ; Align_items Center
+               ; Justify_content Center
+               ; Background (solid (color p tone))
+               ; Foreground p.on_solid
+               ; Font_size font
+               ; Font_weight 600
+               ; White_space No_wrap
+               ]
+               @ geometry)
+          ; badge_style
+          ; style [ Pointer_events false; Pointer_occlusion None; User_select false ]
+          ]
+      in
+      let key = internal_key "badge" in
+      let view =
+        match text with
+        | Some text -> View.text ~key ~style:overlay_style text
+        | None -> View.row ~key ~style:overlay_style children
+      in
+      match metadata with
+      | None -> view
+      | Some metadata -> View.with_accessibility view metadata |> Or_error.ok_exn)
+  in
+  View.column
+    ?key
+    ~style:(Style.merge [ style [ Position Relative; Min_width (px 0.) ]; custom ])
+    (slot "content" content :: Option.to_list overlay)
+;;
+
 let marker
       (p : Appearance.t)
       ?key

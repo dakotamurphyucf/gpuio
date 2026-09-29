@@ -62,7 +62,8 @@ let status_regions palette graph =
     ]
 ;;
 
-let presentation palette graph =
+let presentation app window palette graph =
+  let badge_preview = Badge_preview.component app window palette graph in
   let status_regions = status_regions palette graph in
   let notice, set_notice = B.state "Ready when you are" graph in
   let animate_loading, toggle_loading = B.toggle ~default_model:false graph in
@@ -72,6 +73,7 @@ let presentation palette graph =
   and animate_loading = animate_loading
   and toggle_loading = toggle_loading
   and status_regions = status_regions
+  and badge_preview = badge_preview
   and set_notice = set_notice in
   let a = Palette.appearance p in
   group
@@ -98,6 +100,7 @@ let presentation palette graph =
                 ~definition:(Palette.text p "Your colors, your components")
             ]
         ; status_regions
+        ; badge_preview
         ]
     ; Palette.card
         p
@@ -357,7 +360,7 @@ let editors window palette graph =
 let component ~app ~desktop ~motion window ~page ~palette graph =
   let open B.Let_syntax in
   match%sub page with
-  | Page.Presentation -> presentation palette graph
+  | Page.Presentation -> presentation app window palette graph
   | Styles -> Styles_page.component palette graph
   | Controls -> controls window palette graph
   | Text_inputs -> editors window palette graph

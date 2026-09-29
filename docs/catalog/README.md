@@ -55,8 +55,9 @@ that every source entry is implemented or validated.
 
 - [Presentation behavior review](presentation-review.md): exact status-bar,
   badge and label source snapshots. Three-region status composition now has
-  public native geometry/keyboard/identity evidence; overlay badge and label
-  configuration gaps remain explicit. This begins detailed review without
+  public native geometry/keyboard/identity evidence; overlay badges now add
+  count/dot/icon anchoring, uncapped labels and native input/cleanup checks.
+  Label configuration gaps remain explicit. This begins detailed review without
   converting the entire family into an acceptance claim.
 
 - `expanded-v1.json`: canvas, native extensions, container rules, desktop

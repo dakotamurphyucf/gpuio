@@ -28,8 +28,11 @@ Milestone 07 is in progress. OCH-41's public
 catalog now has an initial [presentation behavior review](catalog/presentation-review.md).
 The missing status-bar center region is implemented and passes 48 actual macOS
 gallery theme/size/slot combinations with geometry, keyboard and identity checks.
-Upstream overlay badges and label secondary/masking/highlight configurations
-remain explicit gaps; the presentation family is not yet fully reviewed.
+Overlay badges now provide capped counts, zero hiding, dots and SVG icons while
+preserving the existing text-chip helper. Local native checks pass 36 kind/size/
+theme cases and 72 pointer/Return activations, uncapped AX labels, underlying
+control identity and scoped asset cleanup. Label secondary/masking/highlight
+configurations remain an explicit gap; the presentation family is not fully reviewed.
 OCH-41's public
 [Component Studio](../examples/gallery/README.md) now has twenty-three preview sections,
 including canvas, images/icons, charts, native motion, responsive layouts, native extensions, input/transfers, input observations, desktop services and styling details. The [gallery evidence](evidence/gallery-och41.md) records
