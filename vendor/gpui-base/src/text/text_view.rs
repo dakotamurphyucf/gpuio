@@ -529,16 +529,20 @@ impl Element for TextView {
         } else {
             let default_format = self.format.unwrap_or(TextViewFormat::Markdown);
             let default_text = self.text.clone().unwrap_or_default();
+            let default_selectable = self.selectable;
 
             let state = window.use_keyed_state(
                 SharedString::from(format!("{}/state", self.id)),
                 cx,
                 move |_, cx| {
-                    if default_format == TextViewFormat::Markdown {
+                    let state = if default_format == TextViewFormat::Markdown {
                         TextViewState::markdown(default_text.as_str(), cx)
                     } else {
                         TextViewState::html(default_text.as_str(), cx)
-                    }
+                    };
+                    // This keyed state is new: apply its initial configuration
+                    // without scheduling a redundant selection-change redraw.
+                    state.selectable(default_selectable)
                 },
             );
             self.state = Some(state.clone());

@@ -103,9 +103,10 @@ Markdown and 100k logical-row managed-table regressions pass, including far-row
 navigation and hidden-header retirement. Rich text/code and safe image-placeholder
 links now have one accessible name/action, ordered text, keyboard focus and queued navigation in the public
 fixture. Decoded-image/custom-control accessibility, selection/ranges, complete
-table and screen-reader behavior remain open. The broader Base text suite also
-reproduces a pre-existing initial-render count failure on unchanged `dc25013`;
-the idle/performance audit must resolve it before release. The post-reset collapse race now has a deterministic
+table and screen-reader behavior remain open. The Base initial-render failure
+reproduced on unchanged `dc25013` is now fixed by applying the initial selection
+setting at keyed-state construction. Its unchanged threshold and all 224 text/
+selection tests pass; application idle/performance budgets remain separate. The post-reset collapse race now has a deterministic
 native regression and a generation-aware interaction repair. The full document
 walkthrough passes again; earlier fence-reveal timeouts remain recorded without
 an independently established cause. No full document

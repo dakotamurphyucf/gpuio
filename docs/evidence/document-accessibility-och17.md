@@ -4,6 +4,37 @@ Partial release finding repair, 2026-09-28, macOS 14.5 (23F79), arm64.
 The [contract](../design/document-accessibility.md) describes the full intended
 behavior. This checkpoint does not complete document accessibility or OCH-17.
 
+## Initial stateless-text rendering — 2026-09-29
+
+The earlier Base initial-render failure is repaired without relaxing its existing
+`<= 2` assertion. A new keyed stateless TextView state was created with selection
+disabled, while its view defaulted to enabled. Applying that initial value through
+`set_selectable` during first layout emitted a redundant notification before the
+asynchronous parse completed. The constructor now initializes the state with the
+view's selection setting. Subsequent configuration changes still use the existing
+setter and its selection-clearing/notification behavior.
+
+The unchanged focused settling test passes. The broader Base `--lib text` run
+passes **224 tests**, including rich-text layout, shared selection, virtualization,
+copy, link navigation and idle-after-settling checks. The previous failure and
+unchanged-baseline reproduction remain below as history. This is a virtual GPUI
+render-count regression, not macOS application CPU/FPS or full idle-budget
+acceptance. The new eight-line adaptation and cumulative Base patch reconstruct
+all 233 files exactly, excluding the ignored standalone Cargo.lock.
+
+The standalone Base test command uses the repository's existing local GPUI/Taffy
+patches and test profile:
+
+```sh
+./scripts/gpuio exec cargo test --manifest-path vendor/gpui-base/Cargo.toml --lib text --offline -j2 \
+  --config 'patch."https://github.com/zed-industries/zed.git".gpui.path="/Users/dakotamurphy/gpuio/vendor/gpui"' \
+  --config 'patch.crates-io.accesskit_macos.path="/Users/dakotamurphy/gpuio/vendor/accesskit-macos"' \
+  --config 'patch.crates-io.taffy.path="/Users/dakotamurphy/gpuio/vendor/taffy"' \
+  --config 'profile.dev.debug=0' --config 'profile.dev.package."*".opt-level=1'
+```
+
+Use absolute paths for the current checkout when reproducing this local command.
+
 ## Reset preparation and newer collapse input — 2026-09-29
 
 The post-reset collapse failure recorded below now has a deterministic native
@@ -80,8 +111,8 @@ reading-order barriers, wrapped union bounds and first-fragment geometry. The
 full Base text run had **148 passes and one failure**: the existing stateless
 Markdown initial-render assertion observed three renders against a limit of two.
 An isolated run and a fresh archive of unchanged `dc25013` reproduce the same
-failure. The threshold is unchanged; its cause remains part of the idle/performance
-release audit. This is not a passing full Base suite. A baseline build shared the
+failure. The threshold was left unchanged. The initialization repair above now resolves
+this failure; this historical run was not a passing full Base suite. A baseline build shared the
 same Cargo artifact filename, so the final current-source focused run explicitly
 recompiled and verified that all three new tests executed.
 
