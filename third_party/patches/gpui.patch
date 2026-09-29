@@ -1,6 +1,13 @@
 --- a/src/elements/div.rs
 +++ b/src/elements/div.rs
-@@ -2478,5 +2478,40 @@
+@@ -2357,4 +2357,6 @@
+             || self.scroll_offset.is_some()
+             || self.tracked_focus_handle.is_some()
++            || self.active_style.is_some()
++            || self.group_active_style.is_some()
+             || self.hover_style.is_some()
+             || self.group_hover_style.is_some()
+@@ -2478,5 +2480,40 @@
                  self.paint_hover_group_handler(window, cx);
  
 -                if style.visibility == Visibility::Hidden {

@@ -1188,16 +1188,39 @@ impl View {
         self.visited.insert(node.id);
         let identity = (node.id.generation() as u64) << 32 | node.id.slot() as u64;
         let root = div().id(("gpuio-document", identity)).w_full();
-        let (root, _) = apply_styles(root, &node.style, interaction, false);
+        let (mut root, states) = apply_styles(root, &node.style, interaction, false);
+        let [focused, hover, pressed, _, _, _, _] = states;
+        if let Some(style) = focused
+            && self
+                .documents
+                .get(&node.id)
+                .is_some_and(|state| state.focused(window, cx))
+        {
+            gpui::Refineable::refine(root.style(), &style);
+        }
+        if let Some(style) = hover {
+            root = root.hover(move |_| style);
+        }
+        if let Some(style) = pressed {
+            root = root.active(move |_| style);
+        }
         let highlight = self.document_highlight(tree, node.id);
         let highlight_identity = self.highlight_documents.clone();
         let Some(state) = self.documents.get_mut(&node.id) else {
-            return root.child("Document unavailable").into_any_element();
+            return super::highlight_style::Frame::new(
+                root.child("Document unavailable"),
+                node,
+                &self.focus,
+            )
+            .into_any_element();
         };
         let Some(lease) = &state.lease else {
-            return root
-                .child("Document released or from another application")
-                .into_any_element();
+            return super::highlight_style::Frame::new(
+                root.child("Document released or from another application"),
+                node,
+                &self.focus,
+            )
+            .into_any_element();
         };
         let config = node.document.clone().unwrap();
         let presentation = state.presentation.get_or_insert_with(|| {
@@ -1258,29 +1281,27 @@ impl View {
         let weak = presentation.downgrade();
         let manager = self.focus.clone();
         let id = node.id;
-        root.relative()
-            .child(presentation)
-            .child(
-                gpui::canvas(
-                    |_, _, _| (),
-                    move |bounds, _, window, cx| {
-                        if bounds.size.width > px(0.)
-                            && bounds.size.height > px(0.)
-                            && bounds.intersects(&window.content_mask().bounds)
-                            && let Some(p) = weak.upgrade()
-                        {
-                            let handle = p.read(cx).primary_focus(cx);
-                            let focused = handle.is_focused(window);
-                            manager.borrow_mut().record(id, handle, true, focused);
-                        }
-                    },
-                )
-                .absolute()
-                .top_0()
-                .left_0()
-                .size_full(),
+        let root = root.relative().child(presentation).child(
+            gpui::canvas(
+                |_, _, _| (),
+                move |bounds, _, window, cx| {
+                    if bounds.size.width > px(0.)
+                        && bounds.size.height > px(0.)
+                        && bounds.intersects(&window.content_mask().bounds)
+                        && let Some(p) = weak.upgrade()
+                    {
+                        let handle = p.read(cx).primary_focus(cx);
+                        let focused = handle.is_focused(window);
+                        manager.borrow_mut().record(id, handle, true, focused);
+                    }
+                },
             )
-            .into_any_element()
+            .absolute()
+            .top_0()
+            .left_0()
+            .size_full(),
+        );
+        super::highlight_style::Frame::new(root, node, &self.focus).into_any_element()
     }
 }
 

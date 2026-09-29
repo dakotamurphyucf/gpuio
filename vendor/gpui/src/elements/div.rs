@@ -2356,6 +2356,8 @@ impl Interactivity {
             || self.group.is_some()
             || self.scroll_offset.is_some()
             || self.tracked_focus_handle.is_some()
+            || self.active_style.is_some()
+            || self.group_active_style.is_some()
             || self.hover_style.is_some()
             || self.group_hover_style.is_some()
             || self.hover_listener.is_some()

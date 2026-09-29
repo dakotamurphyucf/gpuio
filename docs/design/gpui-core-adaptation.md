@@ -35,8 +35,20 @@ Visibility/Display recovery, cancellation of stale activation and a fresh visibl
 click. This is not a claim that every ancestor-removal or platform input case has
 been exhaustively validated.
 
+## Active-only hitboxes
+
+Pinned GPUI's `should_insert_hitbox` considered hover, focus tracking and input
+listeners but omitted `active_style` and `group_active_style`. A passive document
+wrapper with only a pressed style therefore had no hitbox, so the standard active
+state handlers could not observe its press. The adaptation includes both active
+style declarations in that admission test. It preserves ordinary hit testing and
+event propagation, without adding a synthetic click listener or focus handle.
+The document visibility suite exercises a pressed-only wrapper, its hidden state,
+and release outside the wrapper in source and Markdown presentations.
+
 Before rebasing/removing the patch, rerun `native_highlight_view` with
-`native-image-tests`, document and controls regressions, library tests, and default
+`native-image-tests`, `native_highlight_document`, document and controls regressions,
+library tests, and default
 and independent generated-backend builds. Require visible restoration and queued
 event evidence; successful compilation alone is insufficient. Reconstruct and
 compare the vendored tree, review lockfile changes, and preserve the required

@@ -8,9 +8,10 @@ with real GPU painting, cached sources and queued observations. Installed native
 code/diff/source-mode pages now have rounded background painting and revision/page
 fences. Prepared Markdown text fragments now have focused native GPU evidence.
 Declared custom text and dynamic image placeholders are also implemented.
-Virtual-list and multiwindow highlighting acceptance,
-application performance and the public gallery remain pending. No highlighting capability is
-advertised.
+Focused virtual-list, multiwindow, deferred-surface and document state-visibility
+checks now pass, and the public gallery has a find/highlight page. Native diff
+hunk-fold mapping, broader input and application performance, combined gallery
+and release acceptance remain pending. No highlighting capability is advertised.
 OCH-41 remains In Progress. The sections below distinguish each implementation
 checkpoint; constructed projections and injected observations do not establish
 mounted rendering behavior.
@@ -809,3 +810,45 @@ all-target Clippy with `native-image-tests` and `-D warnings`, Rust formatting a
 diff whitespace checks pass. Document-root state styling,
 native diff hunk-fold mapping, broader input/resource/performance acceptance,
 combined gallery/consumer/hosted checks and the remaining release gates stay open.
+
+
+## Document wrapper states and active-only hitboxes
+
+The document wrapper now applies hover/pressed refinements and follows focus in
+its existing editor, Markdown presenter or toolbar. It adds no separate focus
+handle or Tab stop. All return paths use the same resolved-visibility observer.
+The pinned GPUI adaptation now admits hitboxes for active-only styles, fixing a
+passive wrapper that previously could not observe its press. The [core patch
+contract](../design/gpui-core-adaptation.md#active-only-hitboxes) records the cause,
+minimal source change and reconstruction/upgrade obligations.
+
+On macOS 14.5 arm64, `native_highlight_document` passes additional source and
+Markdown checks: wrapper-padding hover hides both matches and all red GPU pixels;
+hover exit restores them; a pressed-only hidden style recovers after release
+outside the wrapper; editor/Markdown and toolbar focus drive hidden Visibility
+and Display states. Hidden steady frames emit no additional observation. Installed
+snapshot and presenter identity survive these transitions. These are native
+GPUI dispatch/focus checks, not physical keyboard/IME validation.
+
+The existing `native_document`, `native_highlight_view` (including deferred
+surfaces) and `native_controls` suites also pass. Four native processes ran
+sequentially with 90-second watchdogs and were reaped. The document benchmark's
+incidental timing is not acceptance of the milestone's named-hardware budgets.
+Workspace library tests with `gpuio-native/native-image-tests --locked -j2`
+pass (441 tests; two private-bus cases excluded by this command). The new core
+patch reconstructs exactly from the unchanged pinned archive. No protocol or
+OCaml API, dependency version or global toolchain change.
+
+Broader pointer-event/selection/style parity, native diff hunk folding, application
+performance/resources, combined gallery, full consumer/distribution and hosted
+macOS/Linux acceptance remain pending. The highlight capability is still withheld.
+
+Final validation for the document-state checkpoint also passes strict native/protocol
+all-target Clippy with `native-image-tests` and `-D warnings`, first-party/changed
+vendor formatting, and diff whitespace checks. Fresh local prefixes for
+`test_extension_consumer.py --run --example extension_consumer` and
+`--example signal_studio` both build their generated backends and run successfully
+with the same patched GPUI crate. Signal Studio reports its documented unavailable
+notification-service fallback; that run does not qualify the notification service.
+These independent builds verify integration and reconstruction, not the full
+clean-machine distribution or workload matrix.

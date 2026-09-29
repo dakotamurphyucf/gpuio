@@ -300,7 +300,12 @@ still applies independently. Native hover/open/close checks verify counts, paint
 quiet stable frames and nested scope disposal for these paths. Notification stack
 focus/hover/pressed refinements now apply like the individual notification panel;
 hover follows GPUI hit testing, including occlusion by a child notification.
-Other specialized paths, including document-root state styling, remain under audit.
+The document wrapper likewise observes its resolved style and applies hover/pressed
+refinements. Its focused style follows the existing source editor, Markdown view
+or toolbar focus; the wrapper adds no native focus handle or Tab stop. Focus and
+hover tests retain the installed snapshot/presenter through hide/reveal. Native
+hover follows hit testing, so a child editor can occlude its parent's padding/root.
+The broader pointer-event, selection and specialized-style audit remains open.
 Actual virtual-list recycling, installed native pages, controlled
 tabs/disclosures and native responsive branch changes also have focused evidence.
 
