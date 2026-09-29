@@ -1,4 +1,5 @@
 open Core
+module Diff = Document_diff
 
 module Language = struct
   type t = string [@@deriving equal, sexp_of]

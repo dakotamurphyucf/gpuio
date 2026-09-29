@@ -1,8 +1,9 @@
 # Diff controls and source ownership
 
-Status: OCH-41 implementation design. The bounded file parser and visible-source
-projection exist; the public controls, protocol routing and mounted presentation
-described below are still pending. This document does not advertise a capability.
+Status: OCH-41 implementation design. The bounded parser, visible-source
+projection, Core configuration/event types, paired standalone codecs and native
+control state exist. View configuration/event routing and mounted presentation
+remain pending. This document does not advertise a capability.
 
 The reference is GPUIX at
 [`18e695ed0ee8121a7793413ca795e08eda2a13df`](https://github.com/remorses/gpuix/tree/18e695ed0ee8121a7793413ca795e08eda2a13df):
@@ -18,7 +19,8 @@ Add `Document.Diff` domain modules and an optional `diff` argument on
 add a separate optional `on_diff` callback to Core and Bonsai `View.document`.
 Both callbacks share the document node's handler router.
 
-The intended shapes below are a design sketch, not currently callable signatures:
+The following constructors now exist under `Document.Diff`. Attaching them to
+`Document.Config` and routing `View.document ~on_diff` are still pending:
 
 ```ocaml
 module File_key : sig
@@ -73,6 +75,10 @@ by currently parsed file keys; removed keys are discarded when a new snapshot
 installs. Seed keys remain bounded configuration and supply the initial value for
 newly appearing files. Source replacement, reset, unmount and window close release
 overrides and projection state. A whole-document collapse retains these values.
+The native controller rejects decreasing generations within its source lifetime;
+switching registered sources creates a new controller rather than reusing that
+generation sequence. Controlled membership uses an indexed key set rather than
+scanning every configured key for every file.
 
 ## Visible rows and source mapping
 
@@ -139,6 +145,23 @@ generation/revision and configuration epoch. Domain payloads distinguish:
   additions/removals have one; annotations have neither. The event describes the
   installed snapshot even while a newer same-generation parse is pending.
 
+The standalone schemas are `Document_diff_wire` and Rust `document_diff`.
+`Event` contains positive `config_epoch`, `source_revision`, `source_generation`
+and the observation; the eventual transport envelope supplies the window/node/
+handler/resource/tree identity. Line payloads are at most16KiB, valid UTF-8 without
+LF, and exactly match the length of their bounded canonical byte interval. Empty
+payloads, embedded NUL and a standalone CR remain valid source text. Paths have
+the stricter NUL-free, nonempty label contract. File keys must agree with the
+after-path (or before-path for deletions); unnamed files have neither path.
+
+Bounded readers reject oversized strings/lists before allocating their contents.
+Both standalone decoders reject truncation, trailing bytes and malformed values.
+Configuration-aware validation additionally rejects controlled toggles that do
+not invert the configured state, an applied mutation in controlled mode, a
+show-more request for the wrong current limit, and managed increments that do
+not match the configured step. This validation does not replace mounted epoch,
+handler and source-registration fences.
+
 Native handlers check the current presenter/config/source identities before queuing.
 The OCaml registry rejects reset/released/wrong-generation resources; reconciliation
 rejects obsolete handler/config epochs. Source revision provenance is independent
@@ -153,9 +176,11 @@ allowed from native rendering. File labels are display/navigation metadata only.
 ## Acceptance still required
 
 The projection unit tests cover bytes, hidden gaps, selection transfer, syntax and
-hunk mapping, streaming prefixes and exact limits. They do not prove mounted UI.
-Completion requires paired OCaml/Rust config/event fixtures and validation; Core/
-Bonsai reconciliation and resource-generation tests; native per-file/show-more
+hunk mapping, streaming prefixes and exact limits. Paired config/event fixtures,
+validation and native state-transition tests now also pass, including controlled
+nonmutation, managed seed retention/reset and pruning of removed-file overrides.
+These do not prove mounted UI. Completion still requires Core/Bonsai
+reconciliation and resource-generation tests; native per-file/show-more
 keyboard, AX and pointer controls; source/page/search/copy behavior; selection and
 GPU highlight mapping under streaming; bounded lifetime/resource tests; the public
 gallery and independent consumer; and the required release gates. Audit word-diff

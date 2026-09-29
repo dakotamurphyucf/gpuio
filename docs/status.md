@@ -68,6 +68,10 @@ paired old/new line coordinates and exact payload byte ranges. File boundaries
 close the preceding hunk; a native two-file test verifies that folding preserves
 the next header and its highlights. This is a foundation for the pending per-file
 collapse, line-limit/show-more and richer callback APIs, not completion of them.
+`Document.Diff` now has validated configuration/event domain values, paired
+standalone OCaml/Rust codecs and tested native managed/controlled state. Live
+transport routing and mounted controls remain pending; see the
+[diff controls evidence](evidence/diff-controls-och41.md).
 
 The macOS-first/Linux-deferral policy [PR #15](https://github.com/dakotamurphyucf/gpuio/pull/15)
 merged at `af7f6f0c0f9db1c64a8591d9e9a078aa73eacdec` after both required jobs in

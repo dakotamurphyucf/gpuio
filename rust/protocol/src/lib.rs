@@ -27,6 +27,7 @@ pub mod container_query;
 mod decode;
 pub mod desktop;
 pub mod document;
+pub mod document_diff;
 pub mod drag_drop;
 pub mod extension;
 pub mod file_dialog;
@@ -84,5 +85,6 @@ pub mod numeric;
 
 pub mod slider;
 
+pub use decode::{decode_document_diff_config, decode_document_diff_event};
 pub use decode::{decode_highlight_config, decode_highlight_observation};
 pub use decode::{decode_input_config, decode_input_event};

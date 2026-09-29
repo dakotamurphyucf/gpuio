@@ -1,4 +1,5 @@
 open Core
+module Diff = Document_diff
 
 module Language : sig
   (** A syntax token/extension, not an executable grammar or file path.
