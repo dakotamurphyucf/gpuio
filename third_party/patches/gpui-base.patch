@@ -3917,3 +3917,233 @@
 +            };
              if let Some(pos) = line.position_for_index(local_offset, last_layout, false) {
                  let sub_line_index = (pos.y / line_height) as usize;
+--- a/src/input/base/state.rs
++++ b/src/input/base/state.rs
+@@ -135,6 +135,24 @@
+     pub selection: (usize, usize),
+     pub focused: bool,
+ }
++
++/// A native element occupying a fixed row-local slot. Called during prepaint;
++/// renderers must not mutate the input or perform I/O.
++pub type RowAdornmentRenderer =
++    Rc<dyn Fn(gpui::Size<Pixels>, &mut Window, &mut App) -> gpui::AnyElement>;
++
++/// Decorations beside original read-only code text, never replacing its bytes.
++/// The gutter shares (or reserves) the fold slot; the suffix follows the shaped text
++/// and contributes to horizontal scroll extent. Neither changes row height.
++#[derive(Clone)]
++pub struct RowAdornment {
++    pub gutter: Option<RowAdornmentRenderer>,
++    pub suffix: Option<RowAdornmentRenderer>,
++    pub suffix_width: Pixels,
++}
++
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub struct InvalidRowAdornments;
+ 
+ /// Native adapter hook on the actual focus-owning editor element. This avoids
+ /// registering the same focus handle again on an outer semantic wrapper.
+@@ -365,6 +383,8 @@
+     bridge_revision: i64,
+     bridge_max_bytes: Option<usize>,
+     bridge_decorator: Option<BridgeDecorator<M>>,
++    pub(super) row_adornments: Option<Rc<std::collections::BTreeMap<usize, RowAdornment>>>,
++    pub(super) row_adornment_begin: Option<Rc<dyn Fn()>>,
+     pub(super) display_map: DisplayMap,
+     pub(super) undo_manager: UndoManager,
+     pub(super) search_session: super::SearchSession,
+@@ -709,6 +729,8 @@
+             bridge_revision: 0,
+             bridge_max_bytes: None,
+             bridge_decorator: None,
++            row_adornments: None,
++            row_adornment_begin: None,
+             display_map: DisplayMap::new(text_style.font(), window.rem_size(), None),
+             search_session: super::SearchSession::default(),
+             search_activation_revision: 0,
+@@ -840,6 +862,40 @@
+     /// Install a default adapter without replacing an application-provided one.
+     pub fn ensure_highlighter_factory(&mut self, factory: InputHighlighterFactory) {
+         self.mode.ensure_highlighter_factory(factory);
++    }
++
++    /// Replace bounded row adornments on a read-only, nonwrapping code editor.
++    /// Row keys are zero-based buffer rows in the current input value. A map is
++    /// limited to 1024 rows and each suffix to 0..1024 finite logical pixels.
++    /// Call after replacing text; clear before reusing the editor for other text.
++    /// Scrolling and folding position the native elements in the current frame.
++    /// `begin_frame` runs once before visible row renderers; it can clear a
++    /// caller-owned geometry registry, but must not mutate this input or do I/O.
++    pub fn set_row_adornments(
++        &mut self,
++        adornments: Option<Rc<std::collections::BTreeMap<usize, RowAdornment>>>,
++        begin_frame: Option<Rc<dyn Fn()>>,
++        cx: &mut Context<Self>,
++    ) -> Result<(), InvalidRowAdornments> {
++        if let Some(entries) = &adornments {
++            if !M::CODE_EDITOR
++                || !self.readonly
++                || self.soft_wrap
++                || entries.len() > 1024
++                || entries.iter().any(|(row, item)| {
++                    *row >= self.text.lines_len()
++                        || !f32::from(item.suffix_width).is_finite()
++                        || item.suffix_width < px(0.)
++                        || item.suffix_width > px(1024.)
++                })
++            {
++                return Err(InvalidRowAdornments);
++            }
++        }
++        self.row_adornments = adornments;
++        self.row_adornment_begin = begin_frame;
++        cx.notify();
++        Ok(())
+     }
+ 
+     /// Install native semantics on the element that owns keyboard focus.
+--- a/src/input/base/element.rs
++++ b/src/input/base/element.rs
+@@ -1014,8 +1014,15 @@
+             px(0.)
+         };
+ 
+-        if state.mode.is_folding() {
+-            // Add extra space for fold icons
++        if state.mode.is_folding()
++            || (state.readonly
++                && !state.soft_wrap
++                && state
++                    .row_adornments
++                    .as_ref()
++                    .is_some_and(|entries| entries.values().any(|entry| entry.gutter.is_some())))
++        {
++            // Row controls share the fold slot, including when no hunks exist.
+             line_number_width += FOLD_ICON_HITBOX_WIDTH
+         }
+ 
+@@ -1617,6 +1624,7 @@
+ }
+ 
+ pub(super) struct PrepaintState {
++    row_adornments: Vec<(Bounds<Pixels>, AnyElement)>,
+     range_backgrounds: Option<Rc<dyn crate::input::RangeBackgrounds>>,
+     /// The lines of entire lines.
+     last_layout: LastLayout,
+@@ -1979,6 +1987,18 @@
+                 )
+                 .width;
+         }
++        // Conservative extent: the longest source line plus the widest suffix.
++        // The original text layout and selection coordinates remain unchanged.
++        let row_adornments = (state.readonly && state.is_code_editor() && !state.soft_wrap)
++            .then(|| state.row_adornments.clone())
++            .flatten();
++        if let Some(entries) = &row_adornments {
++            longest_line_width += entries
++                .values()
++                .map(|entry| entry.suffix_width)
++                .max()
++                .unwrap_or(px(0.));
++        }
+         last_layout.lines = Rc::new(lines);
+ 
+         let (ghost_first_line, ghost_lines) = Self::layout_inline_completion(
+@@ -2144,7 +2164,83 @@
+         let fold_icon_layout =
+             self.layout_fold_icons(original_x, &bounds, &last_layout, window, cx);
+ 
++        let mut adornment_elements = Vec::new();
++        let begin_adornments = self.state.read(cx).row_adornment_begin.clone();
++        if let Some(begin) = begin_adornments {
++            begin();
++        }
++        if let Some(entries) = row_adornments {
++            let text_left = original_x + last_layout.line_number_width;
++            let text_mask = input_bounds.intersect(&Bounds::new(
++                point(text_left, input_bounds.top()),
++                size(
++                    (input_bounds.right() - text_left).max(px(0.)),
++                    input_bounds.size.height,
++                ),
++            ));
++            let mut y = bounds.origin.y + last_layout.visible_top;
++            let align_scroll = match last_layout.text_align {
++                TextAlign::Right => (scroll_size.width - bounds.size.width).max(px(0.)),
++                TextAlign::Center => (scroll_size.width - bounds.size.width).half().max(px(0.)),
++                TextAlign::Left => px(0.),
++            };
++            for (line, row) in last_layout
++                .lines
++                .iter()
++                .zip(&last_layout.visible_buffer_lines)
++            {
++                if let Some(adornment) = entries.get(row) {
++                    let gutter = Bounds::new(
++                        point(
++                            original_x + last_layout.line_number_width
++                                - LINE_NUMBER_RIGHT_MARGIN
++                                - FOLD_ICON_HITBOX_WIDTH,
++                            y,
++                        ),
++                        size(FOLD_ICON_HITBOX_WIDTH, line_height),
++                    );
++                    let width = line.size(line_height).width;
++                    let suffix = Bounds::new(
++                        point(
++                            bounds.origin.x
++                                + last_layout.line_number_width
++                                + align_scroll
++                                + last_layout.alignment_offset(width)
++                                + width,
++                            y,
++                        ),
++                        size(adornment.suffix_width, line_height),
++                    );
++                    for (renderer, slot, mask) in [
++                        (&adornment.gutter, gutter, input_bounds),
++                        (&adornment.suffix, suffix, text_mask),
++                    ] {
++                        if let Some(renderer) = renderer
++                            && slot.size.width > px(0.)
++                            && slot.intersects(&mask)
++                        {
++                            let mut element = renderer(slot.size, window, cx);
++                            window.with_content_mask(
++                                Some(gpui::ContentMask { bounds: mask }),
++                                |window| {
++                                    element.prepaint_as_root(
++                                        slot.origin,
++                                        slot.size.into(),
++                                        window,
++                                        cx,
++                                    );
++                                },
++                            );
++                            adornment_elements.push((mask, element));
++                        }
++                    }
++                }
++                y += line.size(line_height).height;
++            }
++        }
++
+         PrepaintState {
++            row_adornments: adornment_elements,
+             range_backgrounds,
+             bounds,
+             last_layout,
+@@ -2490,6 +2586,12 @@
+             cx,
+         );
+ 
++        for (mask, element) in &mut prepaint.row_adornments {
++            window.with_content_mask(Some(gpui::ContentMask { bounds: *mask }), |window| {
++                element.paint(window, cx);
++            });
++        }
++
+         self.state.update(cx, |state, cx| {
+             let geometry_changed = state.last_bounds != Some(bounds)
+                 || state.input_bounds != input_bounds

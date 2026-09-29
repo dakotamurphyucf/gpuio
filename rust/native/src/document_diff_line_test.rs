@@ -103,10 +103,9 @@ pub(super) async fn exercise(
         editor.range_to_bounds(&(start..start + 2)).unwrap()
     });
     let gutter = gpui::point(header.left() - px(19.), header.center().y);
-    p.read_with(cx, |p, _| p.editor.clone())
-        .update(cx, |editor, cx| {
-            editor.bridge_select(0, 0, cx);
-        });
+    // Keep the icon painted independently of the physical mouse's hover state.
+    // The caret must remain on the hunk header, outside its folded body.
+    select(cx, window, &p, "@@", false);
     crate::host::native_test::move_mouse(cx, window, gutter, false);
     draw(cx, window);
     cx.background_executor()

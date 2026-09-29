@@ -136,6 +136,24 @@ pub struct BridgeSubmission {
     pub focused: bool,
 }
 
+/// A native element occupying a fixed row-local slot. Called during prepaint;
+/// renderers must not mutate the input or perform I/O.
+pub type RowAdornmentRenderer =
+    Rc<dyn Fn(gpui::Size<Pixels>, &mut Window, &mut App) -> gpui::AnyElement>;
+
+/// Decorations beside original read-only code text, never replacing its bytes.
+/// The gutter shares (or reserves) the fold slot; the suffix follows the shaped text
+/// and contributes to horizontal scroll extent. Neither changes row height.
+#[derive(Clone)]
+pub struct RowAdornment {
+    pub gutter: Option<RowAdornmentRenderer>,
+    pub suffix: Option<RowAdornmentRenderer>,
+    pub suffix_width: Pixels,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct InvalidRowAdornments;
+
 /// Native adapter hook on the actual focus-owning editor element. This avoids
 /// registering the same focus handle again on an outer semantic wrapper.
 pub type BridgeDecorator<M> = Rc<
@@ -365,6 +383,8 @@ pub struct InputBaseState<M: InputModeKind> {
     bridge_revision: i64,
     bridge_max_bytes: Option<usize>,
     bridge_decorator: Option<BridgeDecorator<M>>,
+    pub(super) row_adornments: Option<Rc<std::collections::BTreeMap<usize, RowAdornment>>>,
+    pub(super) row_adornment_begin: Option<Rc<dyn Fn()>>,
     pub(super) display_map: DisplayMap,
     pub(super) undo_manager: UndoManager,
     pub(super) search_session: super::SearchSession,
@@ -709,6 +729,8 @@ impl<M: InputModeKind> InputBaseState<M> {
             bridge_revision: 0,
             bridge_max_bytes: None,
             bridge_decorator: None,
+            row_adornments: None,
+            row_adornment_begin: None,
             display_map: DisplayMap::new(text_style.font(), window.rem_size(), None),
             search_session: super::SearchSession::default(),
             search_activation_revision: 0,
@@ -840,6 +862,40 @@ impl<M: InputModeKind> InputBaseState<M> {
     /// Install a default adapter without replacing an application-provided one.
     pub fn ensure_highlighter_factory(&mut self, factory: InputHighlighterFactory) {
         self.mode.ensure_highlighter_factory(factory);
+    }
+
+    /// Replace bounded row adornments on a read-only, nonwrapping code editor.
+    /// Row keys are zero-based buffer rows in the current input value. A map is
+    /// limited to 1024 rows and each suffix to 0..1024 finite logical pixels.
+    /// Call after replacing text; clear before reusing the editor for other text.
+    /// Scrolling and folding position the native elements in the current frame.
+    /// `begin_frame` runs once before visible row renderers; it can clear a
+    /// caller-owned geometry registry, but must not mutate this input or do I/O.
+    pub fn set_row_adornments(
+        &mut self,
+        adornments: Option<Rc<std::collections::BTreeMap<usize, RowAdornment>>>,
+        begin_frame: Option<Rc<dyn Fn()>>,
+        cx: &mut Context<Self>,
+    ) -> Result<(), InvalidRowAdornments> {
+        if let Some(entries) = &adornments {
+            if !M::CODE_EDITOR
+                || !self.readonly
+                || self.soft_wrap
+                || entries.len() > 1024
+                || entries.iter().any(|(row, item)| {
+                    *row >= self.text.lines_len()
+                        || !f32::from(item.suffix_width).is_finite()
+                        || item.suffix_width < px(0.)
+                        || item.suffix_width > px(1024.)
+                })
+            {
+                return Err(InvalidRowAdornments);
+            }
+        }
+        self.row_adornments = adornments;
+        self.row_adornment_begin = begin_frame;
+        cx.notify();
+        Ok(())
     }
 
     /// Install native semantics on the element that owns keyboard focus.

@@ -93,6 +93,8 @@ pub(super) struct Presentation {
     #[cfg(feature = "native-tests")]
     diff_more_bounds: Rc<RefCell<Option<gpui::Bounds<gpui::Pixels>>>>,
     diff_controls: Option<Controls>,
+    file_buttons: BTreeMap<usize, (Option<Arc<str>>, gpui::FocusHandle)>,
+    file_visible: Rc<RefCell<BTreeMap<usize, gpui::Bounds<gpui::Pixels>>>>,
     projection: Option<Projection>,
     projection_charge: Option<document_jobs::Charge>,
     projection_error: Option<String>,
@@ -330,6 +332,8 @@ impl Presentation {
             #[cfg(feature = "native-tests")]
             diff_more_bounds: Rc::default(),
             diff_controls: None,
+            file_buttons: BTreeMap::new(),
+            file_visible: Rc::default(),
             projection: None,
             projection_charge: None,
             projection_error: None,
@@ -436,6 +440,10 @@ impl Presentation {
     }
     fn focused(&self, window: &Window, cx: &App) -> bool {
         self.buttons.values().any(|focus| focus.is_focused(window))
+            || self
+                .file_buttons
+                .values()
+                .any(|(_, focus)| focus.is_focused(window))
             || self.editor.read(cx).focus_handle(cx).is_focused(window)
             || self
                 .markdown
@@ -493,8 +501,12 @@ impl Presentation {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let handler_changed = self.diff_handler != handler;
         self.diff_handler = handler;
         if self.diff_epoch == epoch {
+            if handler_changed && self.installed.is_some() {
+                self.install_file_headers(true, window, cx);
+            }
             return;
         }
         self.diff_config = config;
@@ -781,7 +793,12 @@ impl Presentation {
         });
         self.source_mode = true;
         self.installed_page_start = self.page_start;
+        let same_generation = self
+            .installed
+            .as_ref()
+            .is_some_and(|old| old.generation == snapshot.generation);
         self.installed = Some(snapshot);
+        self.install_file_headers(same_generation, window, cx);
         self.invalidate_row(cx);
     }
     fn accept_ready(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -864,7 +881,10 @@ impl Presentation {
                             self.show_page_for(self.snapshot.clone(), None, false, window, cx);
                         } else {
                             self.source_mode = false;
+                            self.file_buttons.clear();
+                            self.file_visible.borrow_mut().clear();
                             self.editor.update(cx, |state, cx| {
+                                let _ = state.set_row_adornments(None, None, cx);
                                 state.bridge_replace_all("".into(), (0, 0), false, window, cx)
                             });
                             self.installed = Some(self.snapshot.clone());
@@ -1441,6 +1461,16 @@ impl Render for Presentation {
         if navigation.is_some() || self.diff_action().is_some() {
             order.push(self.buttons["document-location"].clone());
         }
+        let header_slot = order.len();
+        let header_handles: Vec<_> = if self.collapsed || self.active_projection().is_none() {
+            Vec::new()
+        } else {
+            self.file_buttons
+                .iter()
+                .map(|(index, (_, focus))| (*index, focus.clone()))
+                .collect()
+        };
+        let header_visible = self.file_visible.clone();
         if !self.collapsed && self.installed.is_some() {
             order.push(self.primary_focus(cx));
         }
@@ -1463,6 +1493,14 @@ impl Render for Presentation {
                     return;
                 }
                 let backward = event.keystroke.modifiers.shift;
+                let mut order = order.clone();
+                order.splice(
+                    header_slot..header_slot,
+                    header_handles
+                        .iter()
+                        .filter(|(index, _)| header_visible.borrow().contains_key(index))
+                        .map(|(_, focus)| focus.clone()),
+                );
                 let index = order.iter().position(|focus| focus.is_focused(window));
                 let next = index.and_then(|i| {
                     if backward {
@@ -1927,3 +1965,6 @@ fn editor_style(dark: bool) -> gpui_base::input::InputEditorStyle {
         ..Default::default()
     }
 }
+
+#[path = "document_file_headers.rs"]
+mod file_headers;

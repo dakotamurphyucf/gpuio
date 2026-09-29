@@ -4,6 +4,8 @@ use gpuio_protocol::{
     HandlerId,
     document_diff::{Config as DiffConfig, LineLimit, Observation},
 };
+#[path = "document_diff_headers_test.rs"]
+mod headers;
 #[path = "document_diff_line_test.rs"]
 mod lines;
 
@@ -285,6 +287,7 @@ pub(super) async fn exercise(
         ],
     );
     lines::exercise(cx, window, session).await;
+    headers::exercise(cx, window, session).await;
     eprintln!(
         "GPUIO_NATIVE_DIFF_MORE_OK: pointer, Enter/Space, macOS AX press, managed local state and controlled queued intent, focus handoff, retired page/config/handler/reset/release rejection"
     );

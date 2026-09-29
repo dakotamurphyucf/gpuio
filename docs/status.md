@@ -79,7 +79,10 @@ Show more now passes native pointer/keyboard/macOS accessibility activation,
 managed/controlled observations, focus repair and retired-action rejection.
 Rich line observations now pass native pointer/Enter/toolbar-AX checks for exact
 Unicode/CRLF payloads, old/new coordinates, drag/gutter exclusion and installed
-revision provenance. Interactive per-file headers remain pending; see the
+revision provenance. Per-file gutter controls and metadata now pass native
+pointer, Tab/Space/Enter, macOS AX, managed/controlled state, callback replacement,
+scrolling alignment and focus cleanup checks. Source text remains selectable in
+the same editor. Gallery/consumer, syntax parity and release gates remain; see the
 [diff controls evidence](evidence/diff-controls-och41.md).
 
 The macOS-first/Linux-deferral policy [PR #15](https://github.com/dakotamurphyucf/gpuio/pull/15)

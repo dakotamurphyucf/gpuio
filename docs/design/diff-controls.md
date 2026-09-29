@@ -6,8 +6,9 @@ control state exist. View configuration, live transport and stale-event routing
 also exist. Mounted configuration now drives one projected native editor, with
 selection/page/search and GPU highlight evidence. Show more also has native
 pointer/keyboard/macOS accessibility and queued-event evidence. Rich line
-activation now also has mounted pointer/Enter/AX evidence. Per-file/header actions
-and gallery/consumer acceptance remain pending.
+activation now also has mounted pointer/Enter/AX evidence. Per-file headers have
+native collapse controls, metadata and pointer/keyboard/AX checks.
+Gallery/consumer and broader release acceptance remain pending.
 This document does not advertise a capability.
 
 The reference is GPUIX at
@@ -214,6 +215,33 @@ Pointer and keyboard/accessibility activation share the same native operation. N
 synchronous callback, filesystem read, syntax acquisition or network access is
 allowed from native rendering. File labels are display/navigation metadata only.
 
+## Native file headers
+
+Each fully installed first file row keeps its original selectable source text.
+A native gutter button toggles that file; a suffix reports Added, Deleted, Changed
+or Binary status and added/removed counts, plus the destination on a rename.
+The label and expanded accessibility state belong to the button. Metadata is
+decorative and never enters source selections, highlights or line payloads.
+
+The pinned Base adapter supplies a bounded read-only, nonwrapping editor row hook.
+It places gutter and suffix elements during the same prepaint as the shaped source,
+using visible buffer-row mappings after folds and scrolling. The gutter shares
+the fold slot, and suffix width contributes to horizontal scroll extent. Suffix
+painting is clipped outside the gutter. Neither changes row height or creates a
+separate editor for each file. No geometry from the preceding frame positions
+the controls. The map admits at most1024 current-page rows and finite suffix widths
+from0 to1024 logical pixels; GPUIO uses a240-pixel ellipsized metadata suffix.
+Source limits and shared projection admission continue to bound retained data.
+
+Header activation uses the same captured snapshot/page/epoch/handler checks as
+Show more, plus membership in the current editor viewport's header map. Managed
+collapse rebuilds locally; controlled collapse queues intent. Replacing the callback
+binding refreshes retained header actions even when configuration is unchanged.
+Same-generation files with the same index/path keep their focus handles across
+projection updates. Tab traverses viewport headers before the source editor;
+removing a focused header returns focus to the primary document control. Raw
+source and non-diff modes clear the adornments.
+
 ## Acceptance still required
 
 The projection unit tests cover bytes, hidden gaps, selection transfer, syntax and
@@ -224,8 +252,9 @@ Core/Bonsai routing, live-envelope fixtures, tree/queue validation and source
 registry tests also pass. Mounted config updates now pass retained-editor,
 selection/direction, canonical navigation/search, bounded-page and source-revision
 checks. Native GPU checks cover projected matches, selection precedence, hunk
-folding and retired painter disposal. Completion still requires native
-per-file keyboard, AX and pointer controls; source/page/search/copy
+folding and retired painter disposal. Per-file pointer, Tab/Space/Enter and macOS
+AX actions now pass, including managed/controlled ownership, handler refresh,
+scrolling and focus cleanup. Completion still requires broader source/page/search/copy
 behavior; selection and GPU highlight mapping under streaming; bounded lifetime/resource tests; the public
 gallery and independent consumer; and the required release gates. Audit word-diff
 options and path-based syntax behavior separately before claiming GPUIX parity.

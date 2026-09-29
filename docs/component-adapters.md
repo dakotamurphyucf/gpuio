@@ -110,6 +110,14 @@ macros and sum-tree with the recorded Zed revision. `--archive PATH` accepts a
 local archive with the same hash validation. A nonempty diff needs investigation.
 Use a fresh output path when repeating the check.
 
+The read-only diff adapter also carries a bounded Base row-adornment hook. Its
+gutter controls and metadata suffixes are laid out with current shaped source
+rows, while source bytes, selection and highlights remain owned by one editor.
+When upgrading Base, retain its row/fold/scroll mapping, clipping, slot width and
+prepaint/paint ordering checks; see the [diff contract](design/diff-controls.md#native-file-headers)
+and [native evidence](evidence/diff-controls-och41.md). Update the patch and its
+recorded hash together, then reconstruct into a fresh directory.
+
 The Bonsai reconstruction script writes a whole `vendor/` directory and has no
 output option. Run it in a disposable staging tree containing copies of
 `scripts/vendor_bonsai.py`, `third_party/sources.json` and

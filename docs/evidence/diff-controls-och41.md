@@ -1,7 +1,8 @@
 # OCH-41 diff controls foundation
 
-Status: parser, projection, typed API and live event routing validated locally;
-mounted controls remain pending. See the [implementation design](../design/diff-controls.md).
+Status: parser, projection, typed API, live event routing and mounted diff controls
+have local evidence below. Gallery/consumer and broader release gates remain.
+See the [implementation design](../design/diff-controls.md).
 
 The parser checkpoint `ed2a368` has native two-file gutter/GPU evidence in the
 [highlighting ledger](subtree-highlighting-och41.md#file-boundaries-in-native-diff-folding).
@@ -258,3 +259,55 @@ source/Markdown/images, style visibility and painter disposal. Formatting and
 whitespace checks pass. Physical keyboard/IME, VoiceOver, Linux GUI, gallery/
 consumer and release acceptance remain separate. Per-file interactive headers,
 path-based syntax parity and the full milestone07 gates are still open.
+
+## Native per-file headers
+
+The retained diff editor now displays a gutter collapse button for each fully
+installed file header and an adjacent status/change-count suffix. Original header
+bytes remain selectable and available to source highlighting. The Base fork adds
+a bounded read-only, nonwrapping row-adornment hook: current prepaint maps visible
+buffer rows to shaped line positions, reserves/shares the fold slot, includes
+suffix width in horizontal scroll extent and clips suffixes outside the gutter.
+There is one editor, with no preceding-frame overlay positioning.
+
+`document_diff_headers_test.rs`, exercised by `native_document`, passes:
+
+- Actual GPUI pointer activation, Tab traversal, Space/Enter and macOS AX press.
+- Native-managed collapse/expand, controlled intent without mutation, exact
+  file identity and callback-free native operation.
+- Retained focus after controlled acceptance, callback-only binding refresh,
+  stale-page/offscreen-action rejection and focus repair when controls disappear.
+- Current-frame vertical alignment after scrolling, offscreen header removal,
+  unchanged source bytes and retained editor identity.
+- Row-hook rejection of editable/wrapped inputs, invalid source rows, nonfinite
+  or out-of-range widths and oversized maps; unconditional clearing.
+
+The initial new test failed because a helper leased the root view while invoking
+an action that reads that view. The backtrace identified test reentrancy; using
+the unleased window update path corrected it. A separate regression exposed a
+hover-sensitive hunk-fold test. That test now places its caret on the hunk header
+before clicking, keeping the icon painted independently of physical mouse hover
+and outside the folded body. The final document and GPU highlight suites pass.
+
+Local macOS14.5 arm64 validation:
+
+```sh
+./scripts/gpuio exec cargo test -p gpuio-native --test native_document --test native_highlight_document --features native-image-tests --locked -j2
+./scripts/gpuio exec cargo clippy -p gpuio-native -p gpuio-protocol --all-targets --features native-image-tests --locked -j2 -- -D warnings
+./scripts/gpuio exec cargo check -p gpuio-native --features native-tests --locked -j2
+./scripts/gpuio exec cargo fmt --all -- --check
+git diff --check
+```
+
+The final native document run reports process peak RSS76,021,760 bytes; this is
+diagnostic evidence, not an application performance budget. The existing GPU
+regression also passes projected highlights, selection, hunk folding, horizontal
+source clipping, source/Markdown/images and painter cleanup. Base reconstruction
+from the pinned verified archive exactly matches the committed vendor tree
+(excluding the local Cargo.lock); its patch SHA is
+`ea471efb4b28b333125a72aeb531b1d1ff95100ed4c2468f1ad7b4b8069e51b2`.
+
+This is native synthetic input and AX-action evidence, not physical keyboard/IME
+or VoiceOver qualification. Broader header horizontal-clipping/streaming acceptance,
+path-based syntax parity, gallery/independent consumer and all remaining milestone07
+release gates stay open. No new capability is advertised at this checkpoint.
