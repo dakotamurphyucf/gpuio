@@ -40,6 +40,11 @@ the original card default. Local native checks pass 64 layout/theme/style/slot
 cases with checked-state/identity retention, 128 pointer/Return actions and page
 teardown/remount; the combined core gallery and full Dune checks pass. The
 presentation family remains only partially reviewed.
+The [composed-link review](design/composed-links.md) identifies remaining rich
+content and Tab-policy gaps. A validated `Link.Config` and matching bounded
+OCaml/Rust data codecs are implemented, with three expect tests and independent
+wire fixtures. No new native link capability is advertised yet; native admission,
+rendering/focus integration and gallery acceptance remain required.
 The [ordinary text-span API](design/text-content.md) now supplies bounded
 foreground runs through atomic bridge updates and View/Bonsai reconciliation.
 Local checks cover native GPU paint, wrapping, selection/copy and source AX labels.

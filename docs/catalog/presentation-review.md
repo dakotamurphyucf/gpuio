@@ -233,9 +233,26 @@ identity, and drive real keyboard/pointer actions. These scoped checks do not
 constitute a full VoiceOver journey, physical display-scale transition, arbitrary
 application layout, Linux desktop or release performance acceptance.
 
+## Links: configuration foundation, native composition still pending
+
+Both [base/link](sources/base-link.rs.txt) and
+[component/link](sources/component-link.rs.txt) have been reviewed in detail.
+They are **not yet functional-equivalent acceptance rows**. Existing
+`Presentation.link` covers text, styles, asynchronous actions and disabled fencing;
+composed content and explicit Tab participation/order remain gaps. The legacy
+styled component's ineffective disabled flag and pointer-only behavior are not
+contracts to reproduce. The base link's injected navigation agrees with GPUIO's
+application-owned opening policy.
+
+The [composed-link design](../design/composed-links.md) records every builder
+mapping, validated configuration, transport fixture, native focus-order hazard
+and required implementation/validation phases. `Link.Config` plus bounded OCaml/
+Rust data codecs are implemented foundations only: no new mounted capability is
+advertised. Both link rows remain pending native/gallery closure.
+
 ## Remaining presentation modules
 
-`base/link`, and component `alert`, `attachment`, `bubble`, `description_list`,
+The link rows above remain incomplete. Component `alert`, `attachment`, `bubble`, `description_list`,
 `empty`, `kbd`, `link`, `marker`, `message`, `separator`, `setting`,
 and `tag` retain pending detailed reviews. Prior OCH-33 implementation evidence
 still applies to the GPUIO APIs it actually tests. Nested types/builders, settings

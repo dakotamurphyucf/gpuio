@@ -71,8 +71,10 @@ pub use id::{HandlerId, NodeId, ResourceId, WindowId};
 
 pub mod progress;
 
+pub mod link;
 pub mod table;
 pub mod text_content;
+pub use decode::decode_link_config;
 pub mod toast;
 pub use decode::decode_text_content;
 pub mod tree_input;

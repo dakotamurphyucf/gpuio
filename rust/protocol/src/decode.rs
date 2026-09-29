@@ -3,8 +3,10 @@ use binprot::BinProtRead;
 use std::io::{Cursor, Read};
 
 mod input;
+mod link;
 mod text_content;
 pub use input::{decode_input_config, decode_input_event};
+pub use link::decode_link_config;
 pub use text_content::decode_text_content;
 mod highlight;
 pub use highlight::{decode_highlight_config, decode_highlight_observation};
