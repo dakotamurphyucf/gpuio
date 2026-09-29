@@ -3,10 +3,11 @@
 The current checkpoint implements validated configuration, a windowless native
 query kernel, range/run projections, an owned worker pool, retained scope
 declarations and observation routing, bounded retained-tree collection and a GPUI
-worker service, and a shaped-text paint adapter tested with native GPU pixels.
-It does **not** yet connect the mounted visibility/document adapters, source
-cache, actual observation production, ordinary/document view painting or gallery
-acceptance. No highlighting capability is advertised.
+worker service, a shaped-text paint adapter, and mounted ordinary/selectable text
+with real GPU painting, cached sources and queued observations. Native document
+providers/painting, virtual-list and multiwindow highlighting acceptance, application
+performance and the public gallery remain pending. No highlighting capability is
+advertised.
 OCH-41 remains In Progress. The sections below distinguish each implementation
 checkpoint; constructed projections and injected observations do not establish
 mounted rendering behavior.
@@ -236,3 +237,48 @@ view wiring, stress workloads and the public gallery are still required. No
 highlight capability, full script/bidi coverage, hosted pass or Linux desktop
 qualification is claimed. Prior full Dune/bridge results remain tied to their
 stated checkpoints; no OCaml API or protocol representation changed here.
+
+
+## Mounted ordinary/selectable text
+
+The production View now owns native scope state and connects retained-tree
+collection, worker wakeups, source/config invalidation, shaped paints and queued
+HighlightObserved events. Empty nested configurations block outer highlights.
+Base/structural visibility is independent of input inertness or modal input gates;
+actual visibility changes invalidate collection without needing an OCaml tree
+transaction. Cleanup runs after the complete paint cycle rather than immediately
+after root render, allowing children created lazily during layout to participate.
+
+Local macOS 14.5 arm64, repository-isolated toolchain:
+
+- `./scripts/gpuio exec cargo test -p gpuio-native --lib --test highlight_collect --test highlight_projection --test highlight_jobs --test highlight_scope --locked -j2`:
+  **387 tests pass** (357 library, six collector, eight projection, 13 jobs,
+  three scope/observation). Two existing private-bus notification tests are
+  excluded from this command. New pure tests verify last-field visibility
+  overrides, inert text eligibility and stable structural visibility identities.
+- Built `native_highlight_view` using `cargo test -p gpuio-native --features native-image-tests --test native_highlight_view --no-run --locked -j2`
+  through the wrapper, then executed Cargo's reported binary with a 35-second
+  subprocess timeout. `GPUIO_NATIVE_HIGHLIGHT_VIEW_OK` passes through the real
+  production Session/View/Transport path: ordinary/selectable GPU washes, selection
+  on top, empty nested barrier, queued exact counts, cosmetic result/epoch reuse,
+  no callback on unrelated layout updates, immediate retirement on source change,
+  latest rapid update, base and native structural visibility changes, typed invalid
+  UTF-8 range failure/recovery, retired result disposal and unmount cleanup.
+- Strict native/protocol all-target Clippy with `native-image-tests` passes. The
+  test requests no focus, closes its own window on success or assertion failure,
+  and drains the highlight service before shutdown. Required macOS CI compiles/
+  invokes it; Linux graphical invocation remains informational. Hosted execution
+  is still deferred to the consolidated milestone run.
+
+One test teardown initially removed the root without removing its retained child
+nodes. The transaction correctly failed validation; explicitly removing those
+nodes fixes the fixture and the rerun passes. User keyboard/mouse activity was
+not involved. This test uses internal selection state and GPU readback, not
+physical keyboard, clipboard or IME validation.
+
+Native documents currently report SourceUnavailable for query collection instead
+of publishing counts over raw Markdown. Exact installed fragment providers and
+painting, dynamic style visibility, virtual-list/independent-window acceptance,
+large workloads and the public gallery remain required before capability
+advertisement. No OCaml/protocol representations changed in this checkpoint;
+prior Dune/bridge evidence remains tied to its recorded revisions.

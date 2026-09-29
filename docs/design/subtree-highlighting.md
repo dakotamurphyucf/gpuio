@@ -20,9 +20,9 @@ second unrelated callback to every widget. Nested declarations replace the entir
 inherited config, including empty declarations. Updating appearance or the active
 cursor must reuse match results; removing a scope cancels its work and subscriptions.
 Its Core/Bonsai declarations, reconciliation and native tree storage are wired.
-The retained-tree collector and GPUI executor service exist independently; their
-mounted visibility/document adapters, painting and observation production remain
-in development.
+The retained-tree collector and GPUI executor service now connect to mounted
+ordinary/selectable views, source caching, base/structural visibility and queued
+observations. Native document fragments and the public gallery remain in development.
 
 Queries default to case-insensitive matching. Matching uses Unicode scalar
 lowercasing on both source and query, without normalization or full case folding.
@@ -163,8 +163,9 @@ identities independently of presentation. Equal immutable strings may reuse the
 old projection; document snapshots require the same Arc, preserving installed
 revision fences. A mounted cache must invalidate on visibility, page, tree/source
 and installed-document changes and may keep its existing Arc when comparison
-succeeds. These comparison/collection helpers are implemented; the actual mounted
-cache and document provider remain pending.
+succeeds. The mounted ordinary-text cache is implemented. Its document provider
+still returns SourceUnavailable for nonempty native documents rather than treating
+raw Markdown syntax as displayed source.
 
 An application-wide native pool owns at most 128 mounted scope entries and two running jobs, with
 64 MiB of conservative admission units for queued/running/ready/retired data.
@@ -225,10 +226,42 @@ ellipsis. A clipping mask skips off-screen rows; GPUI clips the painted pixels.
 Native selection backgrounds paint afterward. Active-index comparison subtracts
 the virtualized offset after checking its lower bound, avoiding signed overflow.
 
-The helper passes native GPU tests independently. Binding it to ordinary/selectable
-retained views and Markdown/code/diff fragments remains required. Its geometry
-test fixtures are not broad script/bidirectional-text acceptance, and it has not
-yet passed the milestone's application-scale performance budget.
+The helper and mounted ordinary/selectable views pass native GPU tests. Binding
+Markdown/code/diff fragments remains required. The geometry fixtures are not broad
+script/bidirectional-text acceptance, and highlighting has not yet passed the
+milestone's application-scale performance budget.
+
+## Mounted ordinary-text integration
+
+Each native View owns scope states keyed by generational NodeId. A state keeps its
+worker handle, current configuration, a weak source reference and bounded per-run
+paint caches. Rejected/retired sources are not retained by an uncharged strong
+cache reference. Tree revision or structural visibility identity invalidates
+collection; equivalent projections reuse the original worker source. Cosmetic
+changes preserve result and epoch. Source/matcher changes clear old paints before
+new work can publish; empty configurations complete immediately without a job.
+The mounted observation epoch is independent of a recreated worker handle.
+
+Search visibility currently follows explicit/query hidden branches, navigation
+selection and base Display/Visibility fields (last declaration wins). Inertness,
+disabled input and modal input gates do not remove visually present text. Dynamic
+state-style visibility, actual virtual-list recycling and installed native document
+pages still require their dedicated integration/acceptance checks.
+
+A scope marks itself during paint. The window sweeps unused scopes only after the
+complete paint effect cycle, including lazy children and deferred surfaces; render
+return is too early for that cleanup. After sweeping, observations require the
+current tree revision, current visibility identity and valid handler/configuration.
+Changed observations enter the existing ordered input mailbox, never a synchronous
+OCaml call from layout or worker code. A new observer receives the current sample;
+unrelated layout changes do not duplicate it. Actual scope reclamation invalidates
+admission-failed scopes once for retry without introducing idle polling.
+
+Ordinary StyledText and selectable text share the same search underlay. The
+selectable widget retains its existing selection, native focus and input handling;
+selection backgrounds paint above the search wash. Scope removal releases caches
+and cancels matching; retired frame readers continue to carry their reservation
+until dropped.
 
 ## Pinned comparison and acceptance
 

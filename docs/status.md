@@ -17,9 +17,11 @@ highlighting and diff-control gaps. The [highlighting foundation](evidence/subtr
 now has paired validated configuration, bounded text/range projections, an
 owned background-work pool, retained scope declarations, validated observation
 routing, bounded retained-tree collection, a GPUI executor service and an
-independently verified shaped-text highlight painter. Connecting the mounted
-visibility/document adapters, source cache, observation production and ordinary/
-document view painting remains pending. The gallery page count does
+independently verified shaped-text highlight painter. Mounted ordinary/selectable
+text now passes GPU painting, queued observations, cosmetic reuse, source and
+visibility updates, and unmount cleanup. Installed native-document adapters,
+virtual-list/multiwindow acceptance and the public highlighting gallery remain
+pending. The gallery page count does
 not imply parity. General input regions now have mounted Core/Bonsai/native
 integration, native edge-case and public gallery evidence; remaining consumer/
 release acceptance stays open in the [input ledger](evidence/input-observations-och41.md). Start ellipsis and the complete cursor vocabulary now have

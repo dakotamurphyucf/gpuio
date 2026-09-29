@@ -73,6 +73,8 @@ mod editor;
 pub(super) mod editor_test;
 #[path = "focus.rs"]
 mod focus;
+#[path = "highlight_view.rs"]
+pub(crate) mod highlight;
 #[path = "image_corners.rs"]
 mod image_corners;
 #[path = "image_view.rs"]
@@ -173,6 +175,7 @@ struct View {
     split_activation: Option<gpui::Subscription>,
     buttons: BTreeMap<NodeId, Rc<ButtonState>>,
     input_regions: BTreeMap<NodeId, input_region::Shared>,
+    highlights: BTreeMap<NodeId, highlight::Shared>,
     input_pointer_inside: Rc<std::cell::Cell<bool>>,
     selections: BTreeMap<NodeId, Rc<RefCell<crate::selection::State>>>,
     editors: BTreeMap<NodeId, editor::Instance>,
@@ -409,6 +412,7 @@ impl View {
             split_activation: None,
             buttons: BTreeMap::new(),
             input_regions: BTreeMap::new(),
+            highlights: BTreeMap::new(),
             input_pointer_inside: Rc::new(std::cell::Cell::new(true)),
             selections: BTreeMap::new(),
             editors: BTreeMap::new(),
@@ -549,6 +553,10 @@ impl View {
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let node = tree.get(id).expect("validated retained node");
+        let highlight_scope = node
+            .highlight_scope
+            .as_ref()
+            .map(|_| self.prepare_highlight(tree, node, window, cx));
         if node.kind == Kind::ChartView {
             return self.chart_element(node, interaction);
         }
@@ -610,6 +618,9 @@ impl View {
             }
         }
         let mut element = div().id(("gpuio-node", identity));
+        if let Some(scope) = highlight_scope {
+            element = element.child(highlight::marker(scope));
+        }
         // Native controls inside a tree/table row own pointer input. The input widget
         // may focus on mouse-down without consuming mouse-up; block the row's
         // ancestor click hitbox while preserving wheel propagation to the list.
@@ -1259,11 +1270,13 @@ impl View {
                 })
                 .clone();
             selection.borrow_mut().update(node.text.clone());
+            let highlight = self.highlight_for(tree, id);
             element = element.child(crate::selection::element(
                 selection,
                 interaction.selection_color,
                 interaction.pointer,
                 cx.entity_id(),
+                highlight,
             ));
         } else if matches!(node.kind, Kind::Checkbox | Kind::Switch) {
             element = element.child(control_indicator(node.kind, checked, indeterminate));
@@ -1297,7 +1310,17 @@ impl View {
                 Kind::TabPanel | Kind::Panel | Kind::NavigationStack | Kind::Carousel
             )
         {
-            element = element.child(gpui::SharedString::from(label));
+            if let Some((paint, cache)) = self.highlight_for(tree, id) {
+                let text = gpui::StyledText::new(gpui::SharedString::from(label.clone()));
+                let layout = text.layout().clone();
+                element = element
+                    .child(crate::highlight_paint::underlay(
+                        label, layout, paint, cache,
+                    ))
+                    .child(text);
+            } else {
+                element = element.child(gpui::SharedString::from(label));
+            }
         }
         for child in node.children.iter() {
             if tree
@@ -1727,6 +1750,7 @@ impl Render for View {
                             view.begin_carousel_paint();
                             view.begin_program_paint();
                             view.begin_query_paint();
+                            view.begin_highlight_paint();
                         });
                         *canvas_budget.borrow_mut() = Default::default();
                         *chart_budget.borrow_mut() = Default::default();
@@ -1909,6 +1933,7 @@ impl Render for View {
                             !view.animation_programs.is_empty()
                                 || !view.container_queries.is_empty()
                                 || !view.carousels.is_empty()
+                                || !view.highlights.is_empty()
                         })
                         .unwrap_or(false)
                     {
@@ -1917,6 +1942,7 @@ impl Render for View {
                                 view.finish_query_paint(window, cx);
                                 view.finish_program_paint();
                                 view.schedule_carousels(window, cx);
+                                view.finish_highlight_paint(cx);
                             });
                         });
                     }

@@ -93,8 +93,12 @@ pub fn element(
     color: gpui::Hsla,
     pointer: bool,
     owner: EntityId,
+    highlight: Option<(
+        crate::highlight_paint::Paint,
+        crate::highlight_paint::SharedCache,
+    )>,
 ) -> gpui::AnyElement {
-    let (text, range, focus) = {
+    let (source, range, focus) = {
         let state = state.borrow();
         (
             state.text.clone(),
@@ -113,7 +117,7 @@ pub fn element(
             },
         )]
     };
-    let label = SharedString::from(text);
+    let label = SharedString::from(source.clone());
     let text = StyledText::new(label.clone()).with_highlights(highlights);
     let layout = text.layout().clone();
     let mut element = div()
@@ -121,8 +125,16 @@ pub fn element(
         .track_focus(&focus)
         .tab_index(0)
         .role(gpui::Role::Label)
-        .aria_label(label)
-        .child(text);
+        .aria_label(label);
+    if let Some((paint, cache)) = highlight {
+        element = element.child(crate::highlight_paint::underlay(
+            source,
+            layout.clone(),
+            paint,
+            cache,
+        ));
+    }
+    element = element.child(text);
     if pointer {
         element = element.cursor_text();
         let down_state = state.clone();

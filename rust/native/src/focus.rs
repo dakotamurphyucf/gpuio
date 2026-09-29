@@ -18,6 +18,71 @@ fn style_hidden(node: &crate::tree::Node) -> bool {
         })
 }
 
+// Resolve base fields in declaration order, as native styling does. Inertness
+// controls input rather than whether text exists in a search projection.
+fn search_style_hidden(styles: &[Style]) -> bool {
+    let (mut display_none, mut visibility_hidden) = (false, false);
+    for style in styles {
+        if let Style::Fields(fields) = style {
+            for field in fields {
+                match field {
+                    Field::Display(value) => display_none = *value == 3,
+                    Field::Visibility(value) => visibility_hidden = *value == 1,
+                    _ => (),
+                }
+            }
+        }
+    }
+    display_none || visibility_hidden
+}
+
+#[cfg(test)]
+mod search_visibility_tests {
+    use super::*;
+
+    #[test]
+    fn base_visibility_resolves_overrides_and_keeps_inert_text() {
+        let styles = [
+            Style::Fields(vec![Field::Display(3), Field::Visibility(1)]),
+            Style::Fields(vec![
+                Field::Display(1),
+                Field::Visibility(0),
+                Field::Inert(true),
+            ]),
+        ];
+        assert!(!search_style_hidden(&styles));
+        assert!(search_style_hidden(&styles[..1]));
+        assert!(search_style_hidden(&[Style::Fields(vec![Field::Display(
+            3
+        )])]));
+        assert!(search_style_hidden(&[Style::Fields(vec![
+            Field::Visibility(1)
+        ])]));
+    }
+
+    #[test]
+    fn visibility_identity_changes_only_with_actual_branch_selection() {
+        let session = Rc::new(RefCell::new(crate::session::Session::default()));
+        let manager = Manager::new(WindowId::from_parts(0, 1).unwrap(), session);
+        let mut manager = manager.borrow_mut();
+        let children = [
+            NodeId::from_parts(0, 1).unwrap(),
+            NodeId::from_parts(1, 1).unwrap(),
+        ];
+        let initial = manager.visibility_identity();
+        manager.set_hidden(BTreeSet::new());
+        manager.set_query_hidden(BTreeSet::new());
+        assert!(Rc::ptr_eq(&initial, &manager.visibility_identity()));
+        manager.select_query(&children, Some(children[0]));
+        let selected = manager.visibility_identity();
+        assert!(!Rc::ptr_eq(&initial, &selected));
+        manager.select_query(&children, Some(children[0]));
+        assert!(Rc::ptr_eq(&selected, &manager.visibility_identity()));
+        manager.select_query(&children, Some(children[1]));
+        assert!(!Rc::ptr_eq(&selected, &manager.visibility_identity()));
+    }
+}
+
 fn navigation_hidden(tree: &crate::tree::Tree, node: &crate::tree::Node) -> bool {
     node.parent
         .and_then(|id| tree.get(id))
@@ -63,6 +128,7 @@ pub(super) struct Manager {
     active: Option<NodeId>,
     hidden: BTreeSet<NodeId>,
     query_hidden: BTreeSet<NodeId>,
+    visibility_identity: Rc<()>,
     last_command_target: Option<NodeId>,
     order: u64,
     enter: Option<NodeId>,
@@ -82,6 +148,7 @@ impl Manager {
             active: None,
             hidden: BTreeSet::new(),
             query_hidden: BTreeSet::new(),
+            visibility_identity: Rc::new(()),
             last_command_target: None,
             order: 0,
             enter: None,
@@ -121,27 +188,56 @@ impl Manager {
     pub(super) fn set_query_hidden(&mut self, hidden: BTreeSet<NodeId>) {
         if self.query_hidden != hidden {
             self.query_hidden = hidden;
+            self.visibility_identity = Rc::new(());
             self.pending = true;
         }
     }
     pub(super) fn select_query(&mut self, children: &[NodeId], selected: Option<NodeId>) {
+        let mut changed = false;
         for child in children {
             if Some(*child) == selected {
-                self.query_hidden.remove(child);
+                changed |= self.query_hidden.remove(child);
             } else {
-                self.query_hidden.insert(*child);
+                changed |= self.query_hidden.insert(*child);
             }
+        }
+        if changed {
+            self.visibility_identity = Rc::new(());
         }
         self.pending = true;
     }
     pub(super) fn set_hidden(&mut self, hidden: BTreeSet<NodeId>) {
         if self.hidden != hidden {
             self.hidden = hidden;
+            self.visibility_identity = Rc::new(());
             self.pending = true;
         }
     }
     pub(super) fn allows(&self, node: NodeId) -> bool {
         self.visible(node) && self.active.is_none_or(|scope| self.within(node, scope))
+    }
+    pub(super) fn visibility_identity(&self) -> Rc<()> {
+        self.visibility_identity.clone()
+    }
+    /// Visual search eligibility is independent of focus, disabled controls and
+    /// modal interaction gates. Hidden popup/query/navigation branches still
+    /// contribute no displayed source.
+    pub(super) fn highlight_visible(&self, tree: &crate::tree::Tree, node: NodeId) -> bool {
+        let mut cursor = Some(node);
+        while let Some(id) = cursor {
+            let Some(item) = tree.get(id) else {
+                return false;
+            };
+            if self.hidden.contains(&id)
+                || self.query_hidden.contains(&id)
+                || navigation_hidden(tree, item)
+                || search_style_hidden(&item.style)
+            {
+                return false;
+            }
+            cursor = item.parent;
+        }
+        true
     }
     pub(super) fn allows_without(&self, excluded: NodeId, node: NodeId) -> bool {
         self.visible(node)

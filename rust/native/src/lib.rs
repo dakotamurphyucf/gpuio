@@ -311,3 +311,8 @@ pub fn run_native_highlight_host_test() {
 pub fn run_native_highlight_paint_test() {
     highlight_paint::native_test::run();
 }
+
+#[cfg(feature = "native-image-tests")]
+pub fn run_native_highlight_view_test() {
+    host::highlight::test::run();
+}
