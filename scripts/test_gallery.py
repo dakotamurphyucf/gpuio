@@ -653,19 +653,27 @@ def reveal_document_code(mac):
     # viewport to mount the appended fence before looking for its Copy action.
     raise_gallery(mac)
     mouse = GalleryMouse(mac)
-    x, y, width, height = mouse.bounds('Markdown preview')
-    point = (x + width / 2, y + height / 2)
-    mouse.send(5, point)
-    time.sleep(.1)
     create = mac.cg.CGEventCreateScrollWheelEvent
     create.restype, create.argtypes = C.c_void_p, [C.c_void_p, C.c_uint, C.c_uint, C.c_int]
     locate = mac.cg.CGEventSetLocation
     locate.restype, locate.argtypes = None, [C.c_void_p, GalleryMouse.Point]
+    previous = None
     for _ in range(20):
         control = mac.find(TITLE, 'Copy code', 'AXButton')
         if control:
             mac.release(control)
             return
+        # A newly selected preview can expose its toolbar before preparation
+        # installs the body. Target the actual body, and follow any reflow.
+        current = mouse.bounds('Document content')
+        x, y, width, height = current
+        assert width > 0 and height > 0, current
+        point = (x + width / 2, y + height / 2)
+        if current != previous:
+            print('DOCUMENT_SCROLL_TARGET', current, 'point', point, flush=True)
+            mouse.send(5, point)
+            time.sleep(.1)
+            previous = current
         mouse.check_owner(point)
         event = create(None, 0, 1, C.c_int(-80))
         assert event
@@ -675,16 +683,16 @@ def reveal_document_code(mac):
         finally:
             mac.release(event)
         time.sleep(.1)
+    print('DOCUMENT_SCROLL_FINAL_BODY', mouse.bounds('Document content'), flush=True)
     raise RuntimeError('Appended code did not become accessible after native document scrolling')
 
 
-def document_link_reading_order(mac):
-    """A mixed-font link and image alternative each occupy one source position."""
+def document_reading_order(mac):
     observed = []
     def visit(node):
         values, children = mac.node_values(node)
         try:
-            if values[0] in ('AXStaticText', 'AXLink'):
+            if values[0] in ('AXStaticText', 'AXLink', 'AXImage'):
                 observed.append((values[0], next((v for v in values[1:] if v), '')))
             for child in children:
                 visit(child)
@@ -696,6 +704,12 @@ def document_link_reading_order(mac):
         visit(root)
     finally:
         mac.release(root)
+    return observed
+
+
+def document_link_reading_order(mac):
+    """A mixed-font link and image alternative each occupy one source position."""
+    observed = document_reading_order(mac)
     start = observed.index(('AXStaticText', 'Before '))
     assert observed[start:start + 5] == [
         ('AXStaticText', 'Before '), ('AXLink', 'Read the design notes'),
@@ -841,7 +855,53 @@ def exercise_document_links(mac, images):
           'Tab/Enter/reverse/Escape, retained collapse guard and far reveal', flush=True)
 
 
+def exercise_document_images(mac, images):
+    mac.press(TITLE, 'Markdown & code')
+    mac.press(TITLE, 'Image alternatives')
+    mac.wait_text(TITLE, 'Image alternatives preview')
+    for name in ['Prism 世界', 'Reference 世界']:
+        mac.release(mac.wait_find(TITLE, name, 'AXImage'))
+    observed = document_reading_order(mac)
+    assert observed == [
+        ('AXStaticText', 'Before '), ('AXImage', 'Prism 世界'),
+        ('AXStaticText', ' after.'),
+        ('AXStaticText', 'Before '), ('AXLink', 'Linked 世界'),
+        ('AXStaticText', ' after.'),
+        ('AXStaticText', 'Decoration '), ('AXStaticText', ' stays quiet.'),
+        ('AXStaticText', 'Unnamed '), ('AXLink', 'gpuio-preview:unnamed'),
+        ('AXStaticText', ' link.'),
+        ('AXStaticText', 'Missing '), ('AXStaticText', '[Image: Unavailable 世界]'),
+        ('AXStaticText', ' stays readable.'), ('AXImage', 'Reference 世界'),
+    ], observed
+    for label, destination in [('Linked 世界', 'prism'), ('gpuio-preview:unnamed', 'unnamed')]:
+        link = mac.wait_find(TITLE, label, 'AXLink')
+        try:
+            mac.set(link, 'AXFocused', mac.true)
+            expect_focus(mac, label, 'AXLink')
+            mac.perform(link, 'AXPress')
+            mac.wait_text(TITLE, 'Link requested: gpuio-preview:' + destination)
+        finally:
+            mac.release(link)
+    if images:
+        screenshot(mac, images / 'gallery-document-images.png', title=TITLE)
+    mac.press(TITLE, 'Collapse')
+    wait_absent(mac, 'Prism 世界', 'AXImage')
+    wait_absent(mac, 'Linked 世界', 'AXLink')
+    mac.press(TITLE, 'Expand')
+    mac.release(mac.wait_find(TITLE, 'Prism 世界', 'AXImage'))
+    mac.press(TITLE, 'Presentation')
+    wait_absent(mac, 'Prism 世界', 'AXImage')
+    mac.press(TITLE, 'Markdown & code')
+    mac.press(TITLE, 'Image alternatives')
+    mac.release(mac.wait_find(TITLE, 'Reference 世界', 'AXImage'))
+    mac.press(TITLE, 'Markdown')
+    mac.wait_text(TITLE, 'Markdown preview')
+    print('GALLERY_DOCUMENT_IMAGES_OK: decoded/reference images, single linked alternatives, '
+          'decorative omission, safe placeholder, AX focus/activation, collapse and remount', flush=True)
+
+
 def exercise_documents(mac, images):
+    exercise_document_images(mac, images)
     exercise_document_links(mac, images)
     mac.press(TITLE, 'Code')
     mac.wait_text(TITLE, 'Code preview')
@@ -2119,7 +2179,7 @@ def main():
                         help='Run an independently built gallery instead of the repository executable')
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -2156,6 +2216,8 @@ def main():
                 exercise_collections(mac, args.images)
             if args.section == 'document-links':
                 exercise_document_links(mac, args.images)
+            if args.section == 'document-images':
+                exercise_document_images(mac, args.images)
             if args.section in ('all', 'documents'):
                 exercise_documents(mac, args.images)
             if args.section in ('all', 'highlighting'):

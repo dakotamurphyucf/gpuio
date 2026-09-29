@@ -1528,7 +1528,7 @@
 +                });
 --- /dev/null
 +++ b/src/text/link_navigation.rs
-@@ -0,0 +1,230 @@
+@@ -0,0 +1,247 @@
 +//! Logical Markdown links, independent of virtualized rows and shaped fragments.
 +use std::collections::BTreeMap;
 +
@@ -1570,6 +1570,11 @@
 +            collect(block, index, context, &mut links);
 +        }
 +        self.links = links.into_values().collect();
++        for link in &mut self.links {
++            if link.label.trim().is_empty() {
++                link.label = link.url.to_string();
++            }
++        }
 +        self.active = old
 +            .filter(|old| {
 +                unchanged_prefix.is_some_and(|prefix| old.source_start < prefix)
@@ -1702,6 +1707,18 @@
 +        let mut context = NodeContext::default();
 +        let document = super::super::format::markdown::parse_bounded(source, &mut context).unwrap();
 +        navigation.refresh(&document, &context, prefix);
++    }
++
++    #[test]
++    fn unnamed_image_links_fall_back_to_the_destination() {
++        let mut navigation = Navigation::default();
++        refresh(
++            &mut navigation,
++            "[![](asset://image)](test:unnamed) [![named](asset://image)](test:named)",
++            None,
++        );
++        assert_eq!(navigation.links[0].label, "test:unnamed");
++        assert_eq!(navigation.links[1].label, "named");
 +    }
 +
 +    #[test]
@@ -2384,7 +2401,7 @@
          self
      }
  
-@@ -244,6 +330,128 @@
+@@ -244,6 +330,133 @@
      ) -> Self {
          self.selection_source = Some((state, range));
          self
@@ -2443,6 +2460,11 @@
 +            let text = self.text[range].to_owned();
 +            let mut element = gpui::div().id(id).w(area.size.width).h(area.size.height);
 +            if let Some(link) = link {
++                let text = if text.trim().is_empty() {
++                    link.url.to_string()
++                } else {
++                    text
++                };
 +                let active = view.as_ref().is_some_and(|view| {
 +                    view.update(cx, |state, _| {
 +                        if link.source_start.is_none()
@@ -2513,7 +2535,7 @@
      }
  
      /// Get link at given mouse position.
-@@ -547,7 +755,7 @@
+@@ -547,7 +760,7 @@
  
  impl Element for Inline {
      type RequestLayoutState = ();
@@ -2522,7 +2544,7 @@
  
      fn id(&self) -> Option<ElementId> {
          Some(self.id.clone())
-@@ -555,6 +763,25 @@
+@@ -555,6 +768,25 @@
  
      fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
          None
@@ -2548,7 +2570,7 @@
      }
  
      fn request_layout(
-@@ -568,7 +795,41 @@
+@@ -568,7 +800,41 @@
              .text_style
              .clone()
              .unwrap_or_else(|| window.text_style());
@@ -2591,7 +2613,7 @@
  
          self.styled_text = StyledText::new(self.text.clone()).with_runs(runs);
          let (layout_id, _) =
-@@ -593,11 +854,11 @@
+@@ -593,11 +859,11 @@
  
          // Report this element's laid-out extent so an ancestor TextView with
          // `max_lines` can snap its clip to a whole-line boundary. The state
@@ -2606,7 +2628,7 @@
                  && let Ok(mut line_spans) = state.line_spans.lock()
              {
                  line_spans.push(LineSpan {
-@@ -608,8 +869,36 @@
+@@ -608,8 +874,36 @@
              }
          }
  
@@ -2645,7 +2667,7 @@
      }
  
      fn paint(
-@@ -624,10 +913,90 @@
+@@ -624,10 +918,90 @@
      ) {
          let bounds = Bounds::new(self.paint_origin.unwrap_or(bounds.origin), bounds.size);
          let current_view = window.current_view();
@@ -2737,7 +2759,7 @@
  
          // layout selections
          let (is_selectable, is_selection, selection) =
-@@ -1088,8 +1457,37 @@
+@@ -1088,8 +1462,37 @@
  
  #[cfg(test)]
  mod tests {
@@ -2987,19 +3009,45 @@
                  style: *style,
 --- a/src/text/inline_object.rs
 +++ b/src/text/inline_object.rs
-@@ -225,6 +225,11 @@
+@@ -45,6 +45,7 @@
+     text: SharedString,
+     font_size: Pixels,
+     text_style: TextStyle,
++    hide_accessibility_when_linked: bool,
+ }
+ 
+ impl MeasuredInlineObject {
+@@ -78,6 +79,7 @@
+             text,
+             font_size,
+             text_style: style.clone(),
++            hide_accessibility_when_linked: false,
+         };
+         if let Some(presentation) = presentation {
+             // The wrapper carries inherited marks into both layout and painting.
+@@ -98,6 +100,7 @@
+             };
+             if metrics.is_valid() {
+                 result.metrics = metrics;
++                result.hide_accessibility_when_linked = presentation.hide_accessibility_when_linked;
+                 result.content = Some(Rc::new(RefCell::new(Some(element))));
+             }
+         }
+@@ -225,6 +228,13 @@
          node.set_role(Role::GenericContainer);
          node.set_label(self.accessibility_label.as_ref());
          node.set_read_only();
-+        // Only the built-in plain fallback is redundant with the logical link.
-+        // Real custom children may be interactive and keep their semantics.
-+        if self.link.is_some() && !self.content_measured {
++        // Plain fallbacks and explicitly passive alternatives are represented by
++        // the logical link. Custom interactive children retain their semantics.
++        if self.link.is_some()
++            && (!self.content_measured || self.object.hide_accessibility_when_linked)
++        {
 +            node.set_hidden();
 +        }
      }
  
      fn request_layout(
-@@ -326,10 +331,8 @@
+@@ -326,10 +336,8 @@
          if let Ok(mut value) = self.selected.lock() {
              *value = selected;
          }
@@ -3012,7 +3060,7 @@
          if let Some(link) = self.link.clone() {
              window.set_cursor_style(CursorStyle::PointingHand, hitbox);
              let link_hitbox = hitbox.clone();
-@@ -404,6 +407,11 @@
+@@ -404,6 +412,11 @@
              });
          }
          self.content.paint(window, cx);
@@ -3052,23 +3100,51 @@
      /// Whether this plugin produces block-level nodes.
      ///
      /// Plugins are inline by default. Block plugins should return `true`.
-@@ -106,6 +123,7 @@
+@@ -106,8 +123,10 @@
  /// A custom Markdown node produced by [`MarkdownExtensions`].
  #[derive(Clone)]
  pub struct MarkdownNode {
 +    pub(crate) projection_key: Arc<()>,
      name: SharedString,
      text: SharedString,
++    explicit_text: bool,
      markdown: SharedString,
-@@ -121,6 +139,7 @@
+     accessibility_label: Option<SharedString>,
+     data: Arc<dyn Any + Send + Sync>,
+@@ -121,8 +140,10 @@
          T: Any + Send + Sync + 'static,
      {
          Self {
 +            projection_key: Arc::new(()),
              name: name.into(),
              text: SharedString::default(),
++            explicit_text: false,
              markdown: SharedString::default(),
-@@ -208,6 +227,9 @@
+             accessibility_label: None,
+             data: Arc::new(data),
+@@ -178,7 +199,7 @@
+     }
+ 
+     pub(crate) fn with_inline_source(mut self, source: &str) -> Self {
+-        if self.text.is_empty() {
++        if !self.explicit_text {
+             self.text = source.to_string().into();
+         }
+         if self.markdown.is_empty() {
+@@ -187,9 +208,11 @@
+         self
+     }
+ 
+-    /// Set the text representation of this custom node.
++    /// Set the text representation of this custom node. Explicit empty text is
++    /// preserved; only an unspecified representation defaults to source syntax.
+     pub fn text(mut self, text: impl Into<SharedString>) -> Self {
+         self.text = text.into();
++        self.explicit_text = true;
+         self
+     }
+ 
+@@ -208,6 +231,9 @@
      }
  
      pub(crate) fn set_span(&mut self, span: Option<Span>) {
@@ -3078,7 +3154,15 @@
          self.span = span;
      }
  
-@@ -244,6 +266,7 @@
+@@ -235,6 +261,7 @@
+     fn eq(&self, other: &Self) -> bool {
+         self.name == other.name
+             && self.text == other.text
++            && self.explicit_text == other.explicit_text
+             && self.markdown == other.markdown
+             && self.accessibility_label == other.accessibility_label
+             && self.span == other.span
+@@ -244,6 +271,7 @@
  /// Registry for custom Markdown parsing and rendering.
  #[derive(Clone, Default)]
  pub struct MarkdownExtensions {
@@ -3086,7 +3170,7 @@
      enable_mdx: bool,
      enable_frontmatter: bool,
      block_parsers: Vec<Arc<MarkdownBlockParserFn>>,
-@@ -308,12 +331,17 @@
+@@ -308,12 +336,17 @@
      }
  
      /// Apply a reusable Markdown plugin.
@@ -3105,7 +3189,7 @@
          let parser = plugin.clone();
          let renderer = plugin;
  
-@@ -341,6 +369,12 @@
+@@ -341,6 +374,12 @@
  
      pub(crate) fn revision(&self) -> u64 {
          self.revision
@@ -5990,3 +6074,37 @@
 +        );
 +    }
 +}
+--- a/src/text/inline_element.rs
++++ b/src/text/inline_element.rs
+@@ -8,6 +8,7 @@
+ pub struct InlineElement {
+     pub(crate) element: AnyElement,
+     pub(crate) baseline: Option<Pixels>,
++    pub(crate) hide_accessibility_when_linked: bool,
+ }
+ 
+ impl InlineElement {
+@@ -15,6 +16,7 @@
+         Self {
+             element: element.into_any_element(),
+             baseline: None,
++            hide_accessibility_when_linked: false,
+         }
+     }
+ 
+@@ -22,6 +24,15 @@
+     /// By default the box aligns its bottom with the surrounding text's descent.
+     pub fn with_baseline(mut self, baseline: Pixels) -> Self {
+         self.baseline = Some(baseline);
++        self
++    }
++
++    /// Represent this passive element through its enclosing logical link's
++    /// alternative instead of exposing a duplicate accessible subtree. Use for
++    /// images or decorations only, never elements with interactive descendants.
++    /// Unlinked elements retain their own semantics. Default: false.
++    pub fn hide_accessibility_when_linked(mut self) -> Self {
++        self.hide_accessibility_when_linked = true;
+         self
+     }
+ }

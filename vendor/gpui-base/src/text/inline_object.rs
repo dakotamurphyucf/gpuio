@@ -45,6 +45,7 @@ pub(super) struct MeasuredInlineObject {
     text: SharedString,
     font_size: Pixels,
     text_style: TextStyle,
+    hide_accessibility_when_linked: bool,
 }
 
 impl MeasuredInlineObject {
@@ -78,6 +79,7 @@ impl MeasuredInlineObject {
             text,
             font_size,
             text_style: style.clone(),
+            hide_accessibility_when_linked: false,
         };
         if let Some(presentation) = presentation {
             // The wrapper carries inherited marks into both layout and painting.
@@ -98,6 +100,7 @@ impl MeasuredInlineObject {
             };
             if metrics.is_valid() {
                 result.metrics = metrics;
+                result.hide_accessibility_when_linked = presentation.hide_accessibility_when_linked;
                 result.content = Some(Rc::new(RefCell::new(Some(element))));
             }
         }
@@ -225,9 +228,11 @@ impl Element for InlineObject {
         node.set_role(Role::GenericContainer);
         node.set_label(self.accessibility_label.as_ref());
         node.set_read_only();
-        // Only the built-in plain fallback is redundant with the logical link.
-        // Real custom children may be interactive and keep their semantics.
-        if self.link.is_some() && !self.content_measured {
+        // Plain fallbacks and explicitly passive alternatives are represented by
+        // the logical link. Custom interactive children retain their semantics.
+        if self.link.is_some()
+            && (!self.content_measured || self.object.hide_accessibility_when_linked)
+        {
             node.set_hidden();
         }
     }

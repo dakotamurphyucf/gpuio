@@ -106,7 +106,11 @@ fixture. Direct macOS AX focus now selects and reveals rich and ordinary links
 without activation, using the document's native focus owner and guarded current
 presentation. The full document walkthrough, focused retained-collapse check,
 native ownership/reset regressions and 225 Base text tests pass locally.
-Decoded-image/custom-control accessibility, selection/ranges, complete
+Decoded image alternatives now have named Image nodes, single linked targets and
+silent decorative semantics in a public gallery preview. The explicit-empty-text
+parser defect is fixed; exact native reading order, focus/activation, collapse and
+remount pass with 226 Base text tests and seven native parser tests. Custom-control
+accessibility, selection/ranges, complete
 table and screen-reader behavior remain open. The Base initial-render failure
 reproduced on unchanged `dc25013` is now fixed by applying the initial selection
 setting at keyed-state construction. Its unchanged threshold and all 224 text/

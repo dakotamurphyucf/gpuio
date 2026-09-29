@@ -126,6 +126,7 @@ pub struct MarkdownNode {
     pub(crate) projection_key: Arc<()>,
     name: SharedString,
     text: SharedString,
+    explicit_text: bool,
     markdown: SharedString,
     accessibility_label: Option<SharedString>,
     data: Arc<dyn Any + Send + Sync>,
@@ -142,6 +143,7 @@ impl MarkdownNode {
             projection_key: Arc::new(()),
             name: name.into(),
             text: SharedString::default(),
+            explicit_text: false,
             markdown: SharedString::default(),
             accessibility_label: None,
             data: Arc::new(data),
@@ -197,7 +199,7 @@ impl MarkdownNode {
     }
 
     pub(crate) fn with_inline_source(mut self, source: &str) -> Self {
-        if self.text.is_empty() {
+        if !self.explicit_text {
             self.text = source.to_string().into();
         }
         if self.markdown.is_empty() {
@@ -206,9 +208,11 @@ impl MarkdownNode {
         self
     }
 
-    /// Set the text representation of this custom node.
+    /// Set the text representation of this custom node. Explicit empty text is
+    /// preserved; only an unspecified representation defaults to source syntax.
     pub fn text(mut self, text: impl Into<SharedString>) -> Self {
         self.text = text.into();
+        self.explicit_text = true;
         self
     }
 
@@ -257,6 +261,7 @@ impl PartialEq for MarkdownNode {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name
             && self.text == other.text
+            && self.explicit_text == other.explicit_text
             && self.markdown == other.markdown
             && self.accessibility_label == other.accessibility_label
             && self.span == other.span

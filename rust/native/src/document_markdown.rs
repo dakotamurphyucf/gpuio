@@ -1,9 +1,9 @@
 //! Markdown images cannot trigger ambient network or filesystem access. A safe
 //! parser always intercepts them; renderers receive already-decoded assets only.
-use gpui::{IntoElement, ParentElement, Styled, StyledImage, div, img, px};
+use gpui::{IntoElement, ParentElement, Styled, StyledImage, div, img, prelude::*, px};
 use gpui_base::text::{
-    MarkdownExtensions, MarkdownNode, MarkdownParseContext, MarkdownPlugin, MarkdownPresentation,
-    markdown_ast,
+    InlineElement, InlineRenderContext, MarkdownExtensions, MarkdownNode, MarkdownParseContext,
+    MarkdownPlugin, MarkdownPresentation, markdown_ast,
 };
 use std::{collections::BTreeMap, sync::Arc};
 #[derive(Default)]
@@ -15,6 +15,8 @@ impl MarkdownPlugin for Images {
             .is_some_and(|url| self.0.contains_key(url))
         {
             MarkdownPresentation::NonText
+        } else if node.as_text().trim().is_empty() {
+            MarkdownPresentation::Text("".into())
         } else {
             MarkdownPresentation::Text(format!("[Image: {}]", node.as_text()).into())
         }
@@ -32,6 +34,11 @@ impl MarkdownPlugin for Images {
             markdown_ast::Node::ImageReference(image) => (String::new(), image.alt.clone()),
             _ => return None,
         };
+        let alt = if alt.trim().is_empty() {
+            String::new()
+        } else {
+            alt
+        };
         Some(
             MarkdownNode::new("gpuio-image", url)
                 .text(alt.clone())
@@ -47,6 +54,12 @@ impl MarkdownPlugin for Images {
     ) -> impl IntoElement {
         if let Some(image) = node.data::<String>().and_then(|url| self.0.get(url)) {
             div()
+                .id("document-image")
+                .when(!node.as_text().trim().is_empty(), |element| {
+                    element
+                        .role(gpui::Role::Image)
+                        .aria_label(node.as_text().to_owned())
+                })
                 .max_w(px(640.))
                 .overflow_hidden()
                 .child(
@@ -61,6 +74,16 @@ impl MarkdownPlugin for Images {
                 .child(format!("[Image: {}]", node.as_text()))
                 .into_any_element()
         }
+    }
+
+    fn render_inline(
+        &self,
+        node: &MarkdownNode,
+        _: &InlineRenderContext,
+        window: &mut gpui::Window,
+        cx: &mut gpui::App,
+    ) -> Option<InlineElement> {
+        Some(InlineElement::new(self.render(node, window, cx)).hide_accessibility_when_linked())
     }
 }
 pub fn extensions(images: Images) -> MarkdownExtensions {
@@ -125,6 +148,20 @@ mod tests {
             .iter()
             .map(|f| f.text().to_string())
             .collect()
+    }
+
+    #[test]
+    fn decorative_image_alternatives_do_not_become_raw_source_or_placeholder_text() {
+        for image in ["![](asset://missing)", "![   ](asset://missing)"] {
+            let prepared = PreparedMarkdown::parse(
+                &format!("before {image} after"),
+                extensions(Images::default()),
+            )
+            .unwrap();
+            assert_eq!(fragments(&prepared).join(""), "before  after");
+            assert!(!prepared.plain_text().contains("asset://missing"));
+            assert!(!prepared.plain_text().contains("[Image:"));
+        }
     }
 
     #[test]

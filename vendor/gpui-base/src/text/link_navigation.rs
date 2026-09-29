@@ -39,6 +39,11 @@ impl Navigation {
             collect(block, index, context, &mut links);
         }
         self.links = links.into_values().collect();
+        for link in &mut self.links {
+            if link.label.trim().is_empty() {
+                link.label = link.url.to_string();
+            }
+        }
         self.active = old
             .filter(|old| {
                 unchanged_prefix.is_some_and(|prefix| old.source_start < prefix)
@@ -171,6 +176,18 @@ mod tests {
         let mut context = NodeContext::default();
         let document = super::super::format::markdown::parse_bounded(source, &mut context).unwrap();
         navigation.refresh(&document, &context, prefix);
+    }
+
+    #[test]
+    fn unnamed_image_links_fall_back_to_the_destination() {
+        let mut navigation = Navigation::default();
+        refresh(
+            &mut navigation,
+            "[![](asset://image)](test:unnamed) [![named](asset://image)](test:named)",
+            None,
+        );
+        assert_eq!(navigation.links[0].label, "test:unnamed");
+        assert_eq!(navigation.links[1].label, "named");
     }
 
     #[test]

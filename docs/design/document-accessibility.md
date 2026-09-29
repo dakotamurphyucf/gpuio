@@ -80,3 +80,20 @@ plain-text object fallbacks use their alternative name through the link instead
 of duplicating that text as a sibling. Custom native controls keep their own
 semantics and interaction; linking an atomic object does not hide its interactive
 descendants. This grouping changes neither selection projections nor asset I/O.
+
+The native safe-image plugin gives a decoded, unlinked image the Image role and
+its Markdown alternative text. Empty or whitespace-only alternatives are
+decorative: the image may paint but has no separate accessible target. A linked
+passive image contributes its alternative to the enclosing logical link exactly
+once. If that link has no alternative text, its destination supplies the name.
+Missing named images retain the safe visible `[Image: alternative]` placeholder;
+missing decorative images remain silent. Reference-style images use the same
+explicit registered-asset mapping as inline destinations. Neither form loads a
+URL or file implicitly.
+
+Inline renderers opt in to hiding a passive accessible subtree when linked.
+Custom interactive children remain exposed by default; the image policy must
+not hide their controls. An explicitly empty custom text representation stays
+empty when the parser attaches source metadata; only an unspecified text value
+defaults to source syntax. This preserves intentional decoration without
+announcing raw Markdown as an alternative.

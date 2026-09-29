@@ -39,7 +39,7 @@ python3 scripts/test_gallery.py --images scratch/gallery-images
 ```
 
 Use `--section core`, `styles`, `pickers`, `overlays`, `navigation`, `feedback`, `journeys`,
-`collections`, `documents`, `highlighting`, `canvas`, `assets`, `charts`, `motion`, `responsive`, `extensions`, `input`, `observations`, `desktop` or `runtime` for focused iteration;
+`collections`, `documents`, `document-links`, `document-images`, `highlighting`, `canvas`, `assets`, `charts`, `motion`, `responsive`, `extensions`, `input`, `observations`, `desktop` or `runtime` for focused iteration;
 the default `all` exercises all currently integrated acceptance stages in one
 application lifetime. Pickers verify draft cancel/apply and focus restoration;
 overlays exercise dialog/drawer/confirmation/popover dismissal and focus; workspace
@@ -57,7 +57,11 @@ physical OS cursor artwork, which may share glyphs between related choices.
 Collections use 1,000 loaded records with bounded active rows/cells. Their internal
 preview panels retain native state; leaving the whole page unmounts them.
 Documents acquire a fresh child scope per page visit and release registrations on
-departure. The runtime page samples public registration counts on demand and can
+departure. Its Image alternatives mode shows explicit registered raster images,
+linked alternatives, decorative images, reference-style Markdown and a safe
+missing-image placeholder. Images do not fetch URLs implicitly. The document
+checks query actual macOS reading order and named image/link targets, then exercise
+focus, activation, collapse and remount. The runtime page samples public registration counts on demand and can
 open a native file picker without reading the selected file.
 
 Find & highlight uses `View.highlight_scope` over ordinary/selectable text and a

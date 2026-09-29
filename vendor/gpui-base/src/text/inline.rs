@@ -385,6 +385,11 @@ impl Inline {
             let text = self.text[range].to_owned();
             let mut element = gpui::div().id(id).w(area.size.width).h(area.size.height);
             if let Some(link) = link {
+                let text = if text.trim().is_empty() {
+                    link.url.to_string()
+                } else {
+                    text
+                };
                 let active = view.as_ref().is_some_and(|view| {
                     view.update(cx, |state, _| {
                         if link.source_start.is_none()

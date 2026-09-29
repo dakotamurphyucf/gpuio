@@ -4,6 +4,7 @@ module B = Bonsai.Cont
 module E = Bonsai.Effect
 module V = Gpuio_bonsai.View
 module D = Gpuio_eio.Document
+module Registered = Gpuio_eio.Asset
 module Diff_state = Gpuio_gallery_model.Diff_state
 
 let ok = Or_error.ok_exn
@@ -15,6 +16,8 @@ module Resources = struct
     { markdown : D.t
     ; code : D.t
     ; diff : D.t
+    ; images : D.t
+    ; image : Asset.Handle.t
     ; mutable fragments : int
     ; mutable diff_fragments : int
     }
@@ -31,6 +34,16 @@ module Resources = struct
      | --- | --- |\n\
      | Native text | Keep 世界 readable |\n\
      | Small details | Review together |\n\n"
+  ;;
+
+  let image_examples =
+    "Before ![Prism 世界](asset://prism) after.\n\n\
+     Before [![Linked 世界](asset://prism)](gpuio-preview:prism) after.\n\n\
+     Decoration ![](asset://prism) stays quiet.\n\n\
+     Unnamed [![](asset://prism)](gpuio-preview:unnamed) link.\n\n\
+     Missing ![Unavailable 世界](asset://missing) stays readable.\n\n\
+     ![Reference 世界][prism]\n\n\
+     [prism]: asset://prism\n"
   ;;
 
   let code =
@@ -58,26 +71,49 @@ module Resources = struct
   ;;
 
   let create app scope =
+    let bind computation ~f =
+      E.bind computation ~f:(function
+        | Error error -> E.return (Error error)
+        | Ok value -> f value)
+    in
     let create source =
       E.map
         (D.create app ~scope source)
         ~f:(Result.map_error ~f:(fun error -> Error.create_s [%sexp (error : D.Error.t)]))
     in
-    E.bind
-      (create (Text_source.of_string ~status:Streaming intro |> ok))
-      ~f:(function
-        | Error error -> E.return (Error error)
-        | Ok markdown ->
-          E.bind
-            (create (Text_source.of_string code |> ok))
-            ~f:(function
-              | Error error -> E.return (Error error)
-              | Ok code ->
-                E.map
-                  (create (Text_source.of_string ~status:Streaming diff |> ok))
-                  ~f:
-                    (Result.map ~f:(fun diff ->
-                       { markdown; code; diff; fragments = 0; diff_fragments = 0 }))))
+    let image =
+      E.map
+        (Registered.register
+           app
+           ~scope
+           (Asset.Source.of_bytes ~format:Pnm Image_samples.gradient_pnm |> ok))
+        ~f:(fun result ->
+          Result.map result ~f:Registered.handle
+          |> Result.map_error ~f:(fun error ->
+            Error.create_s [%sexp (error : Registered.Error.t)]))
+    in
+    bind image ~f:(fun image ->
+      bind
+        (create (Text_source.of_string image_examples |> ok))
+        ~f:(fun images ->
+          bind
+            (create (Text_source.of_string ~status:Streaming intro |> ok))
+            ~f:(fun markdown ->
+              bind
+                (create (Text_source.of_string code |> ok))
+                ~f:(fun code ->
+                  E.map
+                    (create (Text_source.of_string ~status:Streaming diff |> ok))
+                    ~f:
+                      (Result.map ~f:(fun diff ->
+                         { markdown
+                         ; code
+                         ; diff
+                         ; images
+                         ; image
+                         ; fragments = 0
+                         ; diff_fragments = 0
+                         }))))))
   ;;
 
   let append t =
@@ -133,14 +169,16 @@ module Mode = struct
     | Markdown
     | Code
     | Diff
+    | Images
   [@@deriving equal]
 
-  let all = [ Markdown; Code; Diff ]
+  let all = [ Markdown; Code; Diff; Images ]
 
   let label = function
     | Markdown -> "Markdown"
     | Code -> "Code"
     | Diff -> "Diff"
+    | Images -> "Image alternatives"
   ;;
 end
 
@@ -193,6 +231,7 @@ let component app window palette graph =
       | Markdown -> resources.markdown, Document.Mode.Markdown, "Markdown preview"
       | Code -> resources.code, Code Document.Language.ocaml, "Code preview"
       | Diff -> resources.diff, Diff, "Diff preview"
+      | Images -> resources.images, Markdown, "Image alternatives preview"
     in
     let appearance = Palette.document_appearance p in
     let config =
@@ -201,16 +240,18 @@ let component app window palette graph =
         ~mode:document_mode
         ~label
         ~appearance
-        ~layout:(Viewport 350.)
+        ~layout:(Viewport (if Mode.equal mode Images then 450. else 350.))
+        ~images:
+          (if Mode.equal mode Images then [ "asset://prism", resources.image ] else [])
         ~search:(if highlight then "let" else "")
         ?path:
           (match mode with
-           | Markdown | Diff -> None
+           | Markdown | Diff | Images -> None
            | Code -> Some "greeting.ml")
         ?diff:
           (match mode with
            | Diff -> Some (Diff_state.config diff_state)
-           | Markdown | Code -> None)
+           | Markdown | Code | Images -> None)
         ()
       |> ok
     in
@@ -258,6 +299,11 @@ let component app window palette graph =
                               ; set_notice "Diff reset"
                               ]))
                  ]
+             | Images ->
+               Palette.text
+                 p
+                 ~muted:true
+                 "Registered images, useful alternatives, and quiet decorations."
              | Markdown | Code ->
                V.row
                  ~style:(style [ Gap (px 10.); Wrap Wrap ])
@@ -299,14 +345,14 @@ let component app window palette graph =
                 (match mode with
                  | Diff ->
                    Some (fun event -> inject_diff (Diff_state.Action.Observe event))
-                 | Markdown | Code -> None)
+                 | Markdown | Code | Images -> None)
               config
           ; Palette.text
               p
               ~muted:true
               (match mode with
                | Diff -> Diff_state.notice diff_state ^ "\n" ^ notice
-               | Markdown | Code -> notice)
+               | Markdown | Code | Images -> notice)
           ; Palette.text
               p
               ~muted:true

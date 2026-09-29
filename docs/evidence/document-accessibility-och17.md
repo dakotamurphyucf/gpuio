@@ -4,6 +4,56 @@ Partial release finding repair, 2026-09-28, macOS 14.5 (23F79), arm64.
 The [contract](../design/document-accessibility.md) describes the full intended
 behavior. This checkpoint does not complete document accessibility or OCH-17.
 
+## Decoded image alternatives — 2026-09-29
+
+The safe Markdown image renderer now exposes named decoded images as Image nodes
+at their painted source positions. Linked passive images use one logical link
+alternative without a duplicate image target; custom native children keep their
+semantics unless their renderer explicitly opts into passive link representation.
+Empty/whitespace alternatives are decorative, and unnamed image links use their
+destination as the link name. Named missing assets remain safe visible text
+placeholders. Reference-style images resolve through the same explicit asset map.
+
+The public gallery's new Image alternatives mode registers its raster asset in
+the page's child scope. It demonstrates named, linked, decorative, missing and
+reference-style images. The external macOS AX regression checks the exact ordered
+sequence of text/image/link nodes, separate named images at distinct positions,
+direct link focus/activation, collapse/expand and teardown/remount. The screenshot
+was inspected: decorative images still paint, and the active image link has a
+visible focus outline. No implicit network or filesystem loading is introduced.
+
+The first external run exposed a parser defect: explicit empty custom text was
+replaced by source syntax, causing decorative images and links to announce
+`![](asset://prism)`. MarkdownNode now distinguishes an omitted text value from
+an explicitly empty one. The native parser regression checks both empty and
+whitespace-only decorative alternatives and ensures neither raw source nor a
+placeholder leaks into the rendered/copy text.
+
+Local macOS 14.5 arm64 evidence:
+
+- Gallery executable, `@fmt` and gallery expect tests pass.
+- The complete `--section documents` walkthrough passes, including the new
+  image stage and existing rich/plain link, keyboard, copy, diff, streaming,
+  reset and remount stages.
+- Base `--lib text`: **226 passed**. Native `--lib document_markdown`: **7 passed**.
+- The real native document suite and strict native/protocol Clippy pass.
+- The cumulative Base patch reconstructs all 233 files exactly (only additional
+  local file is the ignored standalone Cargo.lock); SHA-256
+  `a43c892699095cb781bf48a11f382b750d4a54c366da3b2e5e4e59093d1bb5e5`.
+
+An intermediate full walkthrough passed the image stage but hit the previously
+intermittent fence-reveal timeout after switching Diff back to Markdown. A
+diagnostic rerun passed without reproducing its cause. The wheel helper now waits
+for the actual document body and refreshes its coordinates after reflow instead
+of using the outer preview/toolbar's initial center. The final full run passes
+and records a body-position change; this does not establish the earlier timeout's
+cause. The strict native scrolling/copy assertions remain in place.
+
+Actual VoiceOver, custom native-control reading order, selected-text/range APIs,
+complete modal assistive navigation and release performance/resource acceptance
+remain open. Screenshot review also found low-contrast Markdown table body cells
+in dark mode; that appearance finding remains to be repaired and validated.
+
 ## Direct link focus — 2026-09-29
 
 The external macOS gallery test reproduced a missing action: setting AXFocused

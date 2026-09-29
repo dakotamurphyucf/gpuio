@@ -17,19 +17,6 @@ module Sources = struct
   let check =
     {|<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M5 12l4 4L19 6" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>|}
   ;;
-
-  let raster =
-    let bytes = Buffer.create ((96 * 48 * 3) + 32) in
-    Buffer.add_string bytes "P6\n96 48\n255\n";
-    for y = 0 to 47 do
-      for x = 0 to 95 do
-        List.iter
-          [ 80 + (x * 150 / 95); 120 + (y * 100 / 47); 210 - (x * 90 / 95) ]
-          ~f:(fun value -> Buffer.add_char bytes (Char.of_int_exn value))
-      done
-    done;
-    Buffer.contents bytes
-  ;;
 end
 
 module Assets = struct
@@ -52,7 +39,7 @@ module Assets = struct
     E.bind (register Svg Sources.landscape) ~f:(function
       | Error e -> E.return (Error e)
       | Ok landscape ->
-        E.bind (register Pnm Sources.raster) ~f:(function
+        E.bind (register Pnm Image_samples.gradient_pnm) ~f:(function
           | Error e -> E.return (Error e)
           | Ok raster ->
             E.bind (register Pnm "Intentionally malformed gallery image") ~f:(function
