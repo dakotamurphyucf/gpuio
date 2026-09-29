@@ -154,6 +154,17 @@ val link
   -> string
   -> 'action View.t
 
+(** Styled single-target link with composed passive content. See [View.link] for
+    content validation and [Link.Config] for accessibility and Tab policy. *)
+val composed_link
+  :  Appearance.t
+  -> ?key:Key.t
+  -> ?style:Style.t
+  -> Link.Config.t
+  -> on_click:(unit -> 'action)
+  -> 'action View.t list
+  -> 'action View.t Or_error.t
+
 val separator
   :  Appearance.t
   -> ?key:Key.t

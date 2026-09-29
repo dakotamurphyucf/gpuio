@@ -1,8 +1,142 @@
 open Core
 open Gpuio
 module W = Gpuio_protocol.Link_wire
+module Wire = Gpuio_protocol.Wire
 
 let ok = Or_error.ok_exn
+let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok
+
+let commit t view =
+  let update = Reconciler.prepare t ~theme:Theme.default view |> ok in
+  Reconciler.accept t update |> ok;
+  match Reconciler.message update with
+  | Some (Apply { operations; _ }) -> operations
+  | None -> []
+  | Some _ -> assert false
+;;
+
+let%expect_test "link operation and kind match independent Rust bytes" =
+  let config =
+    Link.Config.create ~label:"Guide 世界" ~tab_stop:false ~tab_index:(-2) () |> ok
+  in
+  let node = Gpuio_protocol.Node_id.create ~slot:0L ~generation:1L |> ok in
+  let print operations =
+    let message = Wire.Message.Apply { window; base = 0L; revision = 1L; operations } in
+    let bytes = Bin_prot.Utils.bin_dump Wire.Message.bin_writer_t message in
+    Bigstring.to_string bytes
+    |> String.iter ~f:(fun byte -> printf "%02x" (Char.to_int byte));
+    print_endline ""
+  in
+  print [ Set_link (node, Link.Expert.to_wire config) ];
+  print [ Create (node, Link, "", None) ];
+  [%expect
+    {|
+    0300010001013c00010c477569646520e4b896e7958c0000fffe
+    030001000101000001330000
+    |}]
+;;
+
+let%expect_test "composed link updates retain identity and use current actions" =
+  let t = Reconciler.create window in
+  let view ?(disabled = false) ?(tab_stop = true) ?(tab_index = 0) text action =
+    let config =
+      Link.Config.create ~label:"Read guide" ~disabled ~tab_stop ~tab_index () |> ok
+    in
+    View.link
+      ~key:(Key.of_string "guide" |> ok)
+      config
+      ~on_click:(fun () -> action)
+      [ View.column [ View.text text; View.text "Secondary detail" ] ]
+    |> ok
+  in
+  let initial = commit t (Some (view "Original" "first")) in
+  let node, handler =
+    List.find_map_exn initial ~f:(function
+      | Wire.Op.Create (node, Link, _, Some handler) -> Some (node, handler)
+      | _ -> None)
+  in
+  let event = Wire.Event.Press (window, node, handler, 1L) in
+  assert (Option.equal String.equal (Reconciler.dispatch t event) (Some "first"));
+  let changed = view ~tab_stop:false ~tab_index:(-3) "Changed 世界" "latest" in
+  let operations = commit t (Some changed) in
+  List.iter operations ~f:(function
+    | Wire.Op.Create _ | Remove _ -> failwith "content/config update replaced nodes"
+    | _ -> ());
+  assert (
+    List.exists operations ~f:(function
+      | Wire.Op.Set_link _ -> true
+      | _ -> false));
+  assert (Option.equal String.equal (Reconciler.dispatch t event) (Some "latest"));
+  assert (List.is_empty (commit t (Some changed)));
+  ignore (commit t (Some (view ~disabled:true "Disabled" "disabled")) : Wire.Op.t list);
+  assert (Option.is_none (Reconciler.dispatch t event));
+  let operations = commit t (Some (view "Enabled" "re-enabled")) in
+  let next_handler =
+    List.find_map_exn operations ~f:(function
+      | Wire.Op.Bind (_, Some handler) -> Some handler
+      | _ -> None)
+  in
+  assert (Option.is_none (Reconciler.dispatch t event));
+  let event = Wire.Event.Press (window, node, next_handler, 4L) in
+  assert (Option.equal String.equal (Reconciler.dispatch t event) (Some "re-enabled"));
+  ignore (commit t None : Wire.Op.t list);
+  assert (Option.is_none (Reconciler.dispatch t event));
+  print_endline
+    "retained root; current callback; idle repeats; disabled and retired actions fenced";
+  [%expect
+    {| retained root; current callback; idle repeats; disabled and retired actions fenced |}]
+;;
+
+let%expect_test
+    "composed content admits passive layout but rejects nested input and shields"
+  =
+  let config = Link.Config.create ~label:"Guide" () |> ok in
+  let link children = View.link config ~on_click:(fun () -> ()) children in
+  let text style = View.text ~style "content" in
+  let forbidden =
+    [ Style.Property.User_select true
+    ; Inert true
+    ; Overflow_x Scroll
+    ; Overflow_y Scroll
+    ; Pointer_occlusion Pointer
+    ; Pointer_occlusion Pointer_and_scroll
+    ]
+  in
+  List.iter forbidden ~f:(fun property ->
+    let style = Style.create_exn [ property ] in
+    assert (Or_error.is_error (link [ View.column [ text style ] ])));
+  List.iter [ Style.Property.Overflow_x Scroll; Overflow_y Scroll ] ~f:(fun property ->
+    let style = Style.with_state_exn Style.empty Hovered [ property ] in
+    assert (Or_error.is_error (link [ View.column [ text style ] ])));
+  assert (Or_error.is_error (link [ View.button "Nested" ~on_click:(fun () -> ()) ]));
+  assert (Or_error.is_error (link [ link [] |> ok ]));
+  ignore
+    (link
+       [ View.row
+           [ text
+               (Style.create_exn
+                  [ User_select false; Overflow_x Hidden; Overflow_y Clip ])
+           ]
+       ]
+     |> ok
+     : unit View.t);
+  let wide count = List.init count ~f:(fun _ -> View.text "item") in
+  ignore (link (wide 4096) |> ok : unit View.t);
+  assert (Or_error.is_error (link (wide 4097)));
+  let deep depth =
+    List.fold
+      (List.init (depth - 1) ~f:Fn.id)
+      ~init:(View.text "leaf")
+      ~f:(fun child _ -> View.column [ child ])
+  in
+  ignore (link [ deep 128 ] |> ok : unit View.t);
+  assert (Or_error.is_error (link [ deep 129 ]));
+  print_endline
+    "nested controls, links, selectable/scrolling/shielded descendants rejected; exact \
+     depth/node bounds";
+  [%expect
+    {| nested controls, links, selectable/scrolling/shielded descendants rejected; exact depth/node bounds |}]
+;;
 
 let%expect_test "link fixture agrees with independent Rust bytes" =
   let config =

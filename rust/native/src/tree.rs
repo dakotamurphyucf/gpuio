@@ -22,6 +22,7 @@ fn allows_children(kind: Kind) -> bool {
             | Kind::AnimationProgram
             | Kind::ContainerQuery
             | Kind::Button
+            | Kind::Link
             | Kind::CommandButton
             | Kind::FocusScope
             | Kind::Tooltip
@@ -77,6 +78,7 @@ pub struct Node {
     pub text_spans: Arc<[gpuio_protocol::text_content::Span]>,
     pub editor: Option<Arc<EditorConfig>>,
     pub control: Option<Control>,
+    pub link: Option<Arc<gpuio_protocol::link::Config>>,
     pub choice: Option<Arc<ChoiceConfig>>,
     pub focus_scope: Option<FocusScopeConfig>,
     pub overlay: Option<Arc<OverlayConfig>>,
@@ -316,6 +318,9 @@ impl Node {
                 0
             }
             + std::mem::size_of_val(self.text_spans.as_ref())
+            + self.link.as_ref().map_or(0, |config| {
+                config.label.len() + std::mem::size_of::<gpuio_protocol::link::Config>()
+            })
             + std::mem::size_of_val(self.style.as_ref())
             + self
                 .style
@@ -633,6 +638,15 @@ impl Tree {
                         || node.document.as_ref().is_none_or(|config| {
                             config.mode != gpuio_protocol::document::Mode::Diff
                         }))
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::Link) != node.link.is_some()
+                    || node.link.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || !node.text.is_empty()
+                            || (!config.disabled && node.handler.is_none())
+                    })
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
@@ -1084,6 +1098,7 @@ impl Tree {
                     | Kind::ContainerQuery
                     | Kind::VirtualList
                     | Kind::Text
+                    | Kind::Link
                     | Kind::Button => {
                         if node.editor.is_some() {
                             return Err(ErrorCode::InvalidTree.into());
@@ -1127,6 +1142,7 @@ impl Tree {
         }
         for id in &dirty {
             plan.validate_button_icons(*id)?;
+            plan.validate_link_content(*id)?;
             plan.validate_table(plan.node(*id)?)?;
         }
         if let Some(root) = plan.root {
@@ -1361,6 +1377,57 @@ impl Plan<'_> {
         Ok(())
     }
 
+    // The link root is the only activation/focus owner in composed content.
+    // Run for dirty ancestors too: Bind/SetStyle can invalidate a descendant
+    // without changing the structural edges.
+    fn validate_link_content(&self, id: NodeId) -> Result<(), ErrorCode> {
+        let root = self.node(id)?;
+        if root.kind != Kind::Link {
+            return Ok(());
+        }
+        let mut pending: Vec<_> = root.children.iter().map(|id| (*id, 1)).collect();
+        let mut count = 0;
+        while let Some((id, depth)) = pending.pop() {
+            count += 1;
+            if count > 4096 || depth > 128 {
+                return Err(ErrorCode::LimitExceeded);
+            }
+            let node = self.node(id)?;
+            if !matches!(
+                node.kind,
+                Kind::Container
+                    | Kind::Text
+                    | Kind::Image
+                    | Kind::Icon
+                    | Kind::Avatar
+                    | Kind::Loading
+                    | Kind::Animated
+                    | Kind::AnimationProgram
+            ) || node.handler.is_some()
+                || node.style.iter().any(|style| {
+                    let fields: &[Field] = match style {
+                        Style::Fields(fields) | Style::State(_, fields) => fields,
+                        _ => &[],
+                    };
+                    fields.iter().any(|field| {
+                        matches!(
+                            field,
+                            Field::UserSelect(true)
+                                | Field::Inert(true)
+                                | Field::OverflowX(3)
+                                | Field::OverflowY(3)
+                                | Field::PointerOcclusion(1 | 2)
+                        )
+                    })
+                })
+            {
+                return Err(ErrorCode::InvalidTree);
+            }
+            pending.extend(node.children.iter().map(|id| (*id, depth + 1)));
+        }
+        Ok(())
+    }
+
     // Buttons retain one action/focus target. Their optional children represent
     // two fixed decorative icon slots, never nested controls or callbacks.
     // Run for dirty ancestors too: Bind/SetImage can invalidate a slot without
@@ -1431,6 +1498,7 @@ impl Plan<'_> {
             | Op::Remove(id)
             | Op::SetText(id, ..)
             | Op::SetStyledText(id, ..)
+            | Op::SetLink(id, ..)
             | Op::SetStyle(id, ..)
             | Op::SetEditor(id, ..)
             | Op::SetControl(id, ..)
@@ -1557,6 +1625,7 @@ impl Plan<'_> {
                             text_spans: Arc::from([]),
                             editor: None,
                             control: None,
+                            link: None,
                             choice: None,
                             choice_appearance: None,
                             combobox_filter: None,
@@ -1657,6 +1726,12 @@ impl Plan<'_> {
                 let node = self.node_mut(*id)?;
                 node.text = Arc::from(content.text.as_str());
                 node.text_spans = Arc::from(content.spans.as_slice());
+            }
+            Op::SetLink(id, config) => {
+                if self.node(*id)?.kind != Kind::Link || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.link = Some(Arc::new(config.clone()));
             }
             Op::SetEditor(id, config) => {
                 if !matches!(

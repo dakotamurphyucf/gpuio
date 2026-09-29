@@ -643,6 +643,7 @@ impl Session {
                     && node.calendar.is_none()
                     && node.color_input.is_none()
                     && !node.control.is_some_and(Control::disabled)
+                    && !node.link.as_ref().is_some_and(|config| config.disabled)
             })
             && window.tree.accepts_handler(node, handler))
         .then_some(Event::Press(id, node, handler, revision))

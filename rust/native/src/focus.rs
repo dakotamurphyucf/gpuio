@@ -316,6 +316,7 @@ struct Entry {
     node: NodeId,
     handle: FocusHandle,
     tab_stop: bool,
+    tab_index: i64,
     disclosure_path: Vec<(NodeId, NodeId)>,
     navigation_path: Vec<(NodeId, NodeId)>,
 }
@@ -561,7 +562,7 @@ impl Manager {
                 .active
                 .is_some_and(|scope| !self.within(node, scope) && !self.within(scope, node))
     }
-    fn eligible(&self, node: NodeId) -> bool {
+    pub(super) fn eligible(&self, node: NodeId) -> bool {
         if !self.allows(node) {
             return false;
         }
@@ -583,6 +584,7 @@ impl Manager {
                 .as_ref()
                 .is_some_and(|config| config.disabled)
             || item.control.is_some_and(Control::disabled)
+            || item.link.as_ref().is_some_and(|config| config.disabled)
             || item.editor.as_ref().is_some_and(|config| config.disabled)
             || item
                 .number_input
@@ -1030,10 +1032,18 @@ impl Manager {
                 }
                 (path, navigation_path)
             };
+            let tab_index = self
+                .session
+                .borrow()
+                .tree(self.window)
+                .and_then(|tree| tree.get(node))
+                .and_then(|node| node.link.as_ref())
+                .map_or(0, |config| config.tab_index);
             self.entries.push(Entry {
                 node,
                 handle,
                 tab_stop,
+                tab_index,
                 disclosure_path,
                 navigation_path,
             });
@@ -1102,6 +1112,11 @@ impl Manager {
         window: &mut Window,
         cx: &mut App,
     ) {
+        // One stable sort after paint keeps ties in recorded order, including
+        // parts of native compound controls. Never probe focus to discover order.
+        if self.entries.iter().any(|entry| entry.tab_index != 0) {
+            self.entries.sort_by_key(|entry| entry.tab_index);
+        }
         if let Some(scope) = self
             .enter
             .take()
@@ -1213,7 +1228,12 @@ impl Manager {
     pub(super) fn traverse(&self, reverse: bool, window: &mut Window, cx: &mut App) {
         // Inert exits still paint native focus handles. Preserve native traversal
         // for ordinary frames, but never let those ineligible handles become stops.
-        if self.active.is_none() && self.entries.iter().all(|entry| self.eligible(entry.node)) {
+        if self.active.is_none()
+            && self
+                .entries
+                .iter()
+                .all(|entry| entry.tab_index == 0 && self.eligible(entry.node))
+        {
             if reverse {
                 window.focus_prev(cx);
             } else {
@@ -1221,11 +1241,17 @@ impl Manager {
             }
             return;
         }
-        let entries = self
+        let mut entries = self
             .entries
             .iter()
             .filter(|entry| entry.tab_stop && self.eligible(entry.node))
             .collect::<Vec<_>>();
+        // Paint rebuilds entries even when no tree update schedules finish_frame.
+        // Order the current frame here too; otherwise a cosmetic redraw silently
+        // restores paint order for the next Tab key.
+        if entries.iter().any(|entry| entry.tab_index != 0) {
+            entries.sort_by_key(|entry| entry.tab_index);
+        }
         if entries.is_empty() {
             if let Some(scope) = self.active {
                 window.focus(&self.scopes[&scope].handle, cx);

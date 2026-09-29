@@ -96,7 +96,10 @@ impl Config {
     pub fn supports(&self, kind: crate::v1::Kind) -> bool {
         use crate::v1::Kind;
         if self.current.is_some()
-            && !matches!(kind, Kind::Text | Kind::Button | Kind::CommandButton)
+            && !matches!(
+                kind,
+                Kind::Text | Kind::Button | Kind::CommandButton | Kind::Link
+            )
         {
             return false;
         }
@@ -123,7 +126,7 @@ impl Config {
             Some(Role::Tree(_)) => kind == Kind::VirtualList,
             Some(Role::TreeItem(_)) => kind == Kind::Container,
             Some(Role::Navigation) => kind == Kind::Container,
-            Some(Role::Link) => matches!(kind, Kind::Button | Kind::CommandButton),
+            Some(Role::Link) => matches!(kind, Kind::Button | Kind::CommandButton | Kind::Link),
             Some(
                 Role::Group
                 | Role::Label
@@ -142,6 +145,7 @@ impl Config {
                     | Kind::VirtualList
                     | Kind::Text
                     | Kind::Button
+                    | Kind::Link
                     | Kind::CommandButton
                     | Kind::Input
                     | Kind::Textarea

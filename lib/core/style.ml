@@ -674,6 +674,25 @@ let unset t ?(state = State.Base) name =
 ;;
 
 module Expert = struct
+  let validate_link_content t =
+    let invalid =
+      Map.exists t ~f:(fun fields ->
+        Map.exists fields ~f:(function
+          | Some
+              ( Property.User_select true
+              | Inert true
+              | Overflow_x Scroll
+              | Overflow_y Scroll
+              | Pointer_occlusion (Pointer | Pointer_and_scroll) ) -> true
+          | Some _ | None -> false))
+    in
+    if invalid
+    then
+      Or_error.error_string
+        "link content cannot select text, scroll or shield pointer input"
+    else Ok ()
+  ;;
+
   let declaration_count t =
     Map.fold t ~init:0 ~f:(fun ~key:_ ~data count -> count + Map.length data)
   ;;

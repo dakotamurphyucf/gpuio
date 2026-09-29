@@ -1,8 +1,8 @@
 # Composed links and native focus policy
 
 OCH-41/OCH-17; pinned-source review at GPUIO `1785139`.
-Status: **configuration foundation implemented; mounting, native validation and
-public gallery still required**. This document does not claim link-family parity.
+Status: **native mounting and focused macOS gallery checks implemented; broader
+focus/content validation remains open**. This document does not claim link-family parity.
 Existing `Presentation.link` continues to provide a text-only Link-semantic button.
 
 ## Why a native contract is needed
@@ -57,8 +57,10 @@ Independent fixture: label `Guide 世界`, disabled false, tab-stop false, index
 0c477569646520e4b896e7958c0000fffe
 ```
 
-No native opcode, node kind or capability is added by this configuration phase.
-The wire definition is a development foundation on the shared release branch,
+The original configuration-only checkpoint added no opcode, node kind or
+capability. The subsequent development implementation appends Link kind 51 and
+Set_link operation 60, while leaving the advertised capability mask unchanged
+until the remaining native contract is validated. This development checkpoint is
 not a promise of mixed-version bridge compatibility.
 
 ## Configuration validation checkpoint — 2026-09-29
@@ -73,7 +75,69 @@ Source manifest/hash auditing and the full local isolated Dune
 also passes. These data/build tests are not native link, Tab or AX
 acceptance. No GUI window was opened for this configuration-only checkpoint.
 
-## Remaining implementation contract
+## Mounted development checkpoint — 2026-09-29
+
+`View.link` and `Gpuio_bonsai.View.link` now accept validated configuration,
+passive children and one asynchronous activation. `Presentation.composed_link`
+adds ordinary theme/style defaults; the original text helper stays compatible.
+The native root retains its focus handle across content, config and theme changes.
+Its config label supplies the accessible name; ordinary explicit accessibility
+metadata can refine that name. Routing/URL opening stays in the application effect.
+
+Descendants currently admit layout, text/styled text, image/icon, avatar, loading
+and animation nodes, without callbacks. Nested links/controls, selectable text,
+scrolling, inert branches and pointer shields are rejected. Selection inherited
+from outside the root is suppressed for its content. Content is bounded to 4096
+nodes/128 levels, additionally subject to global tree depth, transaction and
+retained-memory limits. Resources use the existing scoped registration/lease
+ownership. The final native tree revalidates dirty ancestors, including mutations
+to child handlers/styles, and rejects invalid batches atomically.
+
+Implemented checks:
+
+* Six OCaml expect tests: independent config/operation/kind bytes, validated
+  labels/focus intent, passive-content boundaries, current callback delivery,
+  retained root identity, disabled/unmounted stale actions and idle reconciliation.
+* Four Rust admission/session tests plus one operation fixture: final-tree
+  rollback, forbidden deep mutations, exact width/depth limits, retained payload
+  budgets, disabled delivery with a retained handler and stale generations.
+* `native_link`: a real macOS window with GPUI-dispatched pointer/Return/Space,
+  stable signed Tab order and ties, reverse/dynamic order, Tab opt-out, inherited
+  selection suppression, focus-trap entry/restoration, hidden/inert exclusion,
+  native identity and disposal. Direct AppKit AX checks verify Link labels,
+  explicit focus without activation, one press and disabled focus/action rejection.
+* Public `--section links` gallery: **eight theme/description/icon combinations**,
+  **34 real pointer/Return/Space/AX activations**, native identity (`CFEqual`),
+  forward/reverse order, disabled recovery and zero image/source registrations
+  after page departure. The optional SVG and localized descriptions use public
+  APIs. Both theme screenshots were produced and inspected.
+* Full Dune `@all @runtest @fmt` passed before the subsequent gallery addition;
+  the final gallery/link/format build and strict native/protocol all-target Clippy
+  pass separately. The existing full native controls suite and slider suite also
+  pass, including the latter's 1024-owner/2048-thumb disposal checks. Those slider
+  checks do not yet establish mixed slider/link custom ordering; their timings
+  are regression diagnostics, not the release performance acceptance workload.
+
+The native regression exposed and fixed a redraw issue: focus records are rebuilt
+every paint, but post-update focus finalization is not run every paint. Traversal
+now orders its current eligible records on each Tab key, preserving paint order
+for equal indices. It never temporarily focuses an ineligible control to inspect it.
+
+### Open focus behavior: clipped controls
+
+The first public gallery ordering run failed when only the first link was visible.
+GPUIO's fallback traversal records controls intersecting the paint mask; the later
+links were outside the scrolled viewport. The eight-case run above explicitly
+keeps all three links visible. It establishes ordering among those painted controls,
+**not offscreen traversal or automatic reveal**. Assess this against ordinary GPUI
+Tab traversal and define/test a consistent scrolled-content contract before closing
+the link rows. Do not silently treat a viewport workaround as feature acceptance.
+
+Mixed native compound-control ordering, full passive animation/avatar/content
+coverage, style/AX metadata refinements, pending-action races and fresh consumer/
+release checks also remain. No Link capability bit is advertised yet.
+
+## Full implementation and acceptance contract
 
 1. **Public view and styled helper.** Draft the composed `View.link` and
    `Presentation` interface around `Link.Config` and ordinary view children.

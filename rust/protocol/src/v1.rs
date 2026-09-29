@@ -173,6 +173,7 @@ pub enum Kind {
     ChartView,
     InputRegion,
     HighlightScope,
+    Link,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -700,6 +701,7 @@ pub enum Op {
     SetHighlightScope(NodeId, crate::highlight::Config),
     SetDocumentDiff(NodeId, i64, Option<crate::document_diff::Config>),
     SetStyledText(NodeId, crate::text_content::Content),
+    SetLink(NodeId, crate::link::Config),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]

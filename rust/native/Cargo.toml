@@ -308,3 +308,8 @@ required-features = ["native-image-tests"]
 name = "native_styled_text"
 harness = false
 required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_link"
+harness = false
+required-features = ["native-image-tests"]

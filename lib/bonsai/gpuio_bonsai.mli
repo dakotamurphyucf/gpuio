@@ -13,6 +13,14 @@ module View : sig
 
   val with_accessibility : t -> Gpuio.Accessibility.t -> t Or_error.t
 
+  val link
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> Gpuio.Link.Config.t
+    -> on_click:unit Bonsai.Effect.t
+    -> t list
+    -> t Or_error.t
+
   val container_query
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

@@ -66,6 +66,7 @@ let presentation app window palette graph =
   let badge_preview = Badge_preview.component app window palette graph in
   let label_preview = Label_preview.component palette graph in
   let group_preview = Group_preview.component palette graph in
+  let link_preview = Link_preview.component app window palette graph in
   let status_regions = status_regions palette graph in
   let notice, set_notice = B.state "Ready when you are" graph in
   let animate_loading, toggle_loading = B.toggle ~default_model:false graph in
@@ -78,6 +79,7 @@ let presentation app window palette graph =
   and badge_preview = badge_preview
   and label_preview = label_preview
   and group_preview = group_preview
+  and link_preview = link_preview
   and set_notice = set_notice in
   let a = Palette.appearance p in
   group
@@ -108,6 +110,7 @@ let presentation app window palette graph =
         ]
     ; Palette.card p ~title:"Text with context" [ label_preview ]
     ; Palette.card p ~title:"Structure with flexibility" [ group_preview ]
+    ; Palette.card p ~title:"Follow your curiosity" [ link_preview ]
     ; Palette.card
         p
         ~title:"Feedback with a purpose"

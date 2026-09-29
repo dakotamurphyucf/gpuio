@@ -34,6 +34,7 @@ def exercise(mac, images):
     exercise_badges(mac, images)
     exercise_labels(mac, images)
     exercise_groups(mac, images)
+    exercise_links(mac, images)
     if images:
         screenshot(mac, images / 'gallery-presentation-dark.png', title=TITLE)
     mac.release(mac.wait_find(TITLE, 'Aster avatar', 'AXImage'))
@@ -126,6 +127,112 @@ def reveal_gallery_control(mac, label, role):
             mac.release(event)
         time.sleep(.08)
     raise RuntimeError(f'{label} did not become visible')
+
+
+def exercise_links(mac, images):
+    """Public composed links use real AppKit input and scoped SVG registrations."""
+    mac.wait_text(TITLE, 'One destination. A richer invitation.')
+    raise_gallery(mac)
+    mouse = GalleryMouse(mac)
+    labels = ['Open Design guide', 'Open Release notes', 'Open API reference']
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    original = mac.wait_find(TITLE, labels[0], 'AXLink')
+    clicks = 0
+
+    def toggle(label):
+        activate(mac, mac.wait_find(TITLE, label, 'AXCheckBox'))
+        time.sleep(.08)
+
+    def activated():
+        nonlocal clicks
+        clicks += 1
+        mac.wait_text(TITLE, f'Link opens: {clicks}')
+
+    theme = mac.find(TITLE, 'Dark', 'AXButton')
+    current, alternate = ('Dark', 'Light') if theme else ('Light', 'Dark')
+    if theme:
+        mac.release(theme)
+    try:
+        for appearance in (current, alternate):
+            for detail in (True, False):
+                for icons in (True, False):
+                    other = mac.wait_find(TITLE, labels[0], 'AXLink')
+                    try:
+                        assert equal(original, other), 'Composed content replaced link identity'
+                    finally:
+                        mac.release(other)
+                    # Keep all three targets painted for the explicit ordering check.
+                    reveal_gallery_control(mac, labels[1], 'AXLink')
+                    x, y, w, h = reveal_gallery_control(mac, labels[0], 'AXLink')
+                    point = (x + 28, y + h / 2)
+                    mouse.check_owner(point)
+                    mouse.send(5, point)
+                    mouse.send(1, point)
+                    mouse.send(2, point)
+                    activated()
+                    focus_gallery_control(mac, labels[0], 'AXLink')
+                    for code in (36, 49):
+                        mac.key(code)
+                        activated()
+                    node = mac.wait_find(TITLE, labels[0], 'AXLink')
+                    try:
+                        mac.perform(node, 'AXPress')
+                    finally:
+                        mac.release(node)
+                    activated()
+                    focus_gallery_control(mac, labels[0], 'AXLink')
+                    mac.key(48)
+                    expect_focus(mac, labels[1], 'AXLink')
+                    mac.key(48)
+                    expect_focus(mac, labels[2], 'AXLink')
+                    mac.key(48, 1 << 17)
+                    expect_focus(mac, labels[1], 'AXLink')
+                    if images and detail and icons:
+                        screenshot(mac, images / f'gallery-links-{appearance.lower()}.png', title=TITLE)
+                    toggle('Link icons')
+                toggle('Link descriptions')
+            mac.press(TITLE, appearance)
+            mac.release(mac.wait_find(TITLE, alternate if appearance == current else current, 'AXButton'))
+        toggle('Reverse link order')
+        mac.wait_text(TITLE, 'Link order: API · Release · Design')
+        focus_gallery_control(mac, labels[2], 'AXLink')
+        mac.key(48)
+        expect_focus(mac, labels[1], 'AXLink')
+        mac.key(48)
+        expect_focus(mac, labels[0], 'AXLink')
+        toggle('Links in Tab order')
+        focus_gallery_control(mac, labels[0], 'AXLink')
+        mac.key(36)
+        activated()
+        toggle('Disable composed links')
+        for label in labels:
+            expect_enabled(mac, label, False, 'AXLink')
+        x, y, w, h = reveal_gallery_control(mac, labels[0], 'AXLink')
+        point = (x + 28, y + h / 2)
+        mouse.check_owner(point)
+        mouse.send(5, point)
+        mouse.send(1, point)
+        mouse.send(2, point)
+        time.sleep(.12)
+        mac.wait_text(TITLE, f'Link opens: {clicks}')
+        toggle('Disable composed links')
+        expect_enabled(mac, labels[0], True, 'AXLink')
+        focus_gallery_control(mac, labels[0], 'AXLink')
+        mac.key(36)
+        activated()
+        toggle('Links in Tab order')
+        toggle('Reverse link order')
+    finally:
+        mac.release(original)
+    mac.press(TITLE, 'Runtime & windows')
+    mac.press(TITLE, 'Refresh resource counts')
+    mac.wait_text(TITLE, 'Registered source bytes: 0')
+    mac.wait_text(TITLE, 'Images: 0 · Charts: 0 · Canvases: 0')
+    mac.press(TITLE, 'Presentation')
+    mac.release(mac.wait_find(TITLE, labels[0], 'AXLink'))
+    print('GALLERY_COMPOSED_LINK_OK: 8 theme/content/icon cases, 34 pointer/Return/Space/AX '
+          'actions, stable identity, signed Tab/reverse order, disabled recovery and scoped SVG cleanup', flush=True)
 
 
 def exercise_groups(mac, images):
@@ -2667,7 +2774,7 @@ def main():
                         help='Run an independently built gallery instead of the repository executable')
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'groups', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'groups', 'links', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -2688,6 +2795,8 @@ def main():
             mac = Mac(child.pid, child)
             if args.section in ('all', 'core'):
                 exercise(mac, args.images)
+            if args.section == 'links':
+                exercise_links(mac, args.images)
             if args.section == 'groups':
                 exercise_groups(mac, args.images)
             if args.section == 'labels':

@@ -1,5 +1,5 @@
 //! Bounded configuration foundation for composed native links.
-//! Not yet admitted by a tree operation or advertised as a mounted capability.
+//! Admitted by SetLink; capability advertisement awaits remaining native validation.
 use binprot::macros::BinProtWrite;
 
 pub const MAX_LABEL_BYTES: usize = 4096;

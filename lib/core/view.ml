@@ -54,6 +54,7 @@ module Kind = struct
     | Chart_view
     | Input_region
     | Highlight_scope
+    | Link
   [@@deriving equal, sexp_of]
 end
 
@@ -270,6 +271,7 @@ type 'action t =
   ; kind : Kind.t
   ; text : string
   ; text_content : Text_content.t option
+  ; link : Link.Config.t option
   ; style : Style.t
   ; on_click : (unit -> 'action) option
   ; editor : 'action editor option
@@ -324,6 +326,7 @@ let text ?key ?(style = Style.empty) text =
   ; kind = Text
   ; text
   ; text_content = None
+  ; link = None
   ; style
   ; on_click = None
   ; editor = None
@@ -402,7 +405,7 @@ let with_accessibility t accessibility =
         | Otp_input
         | Calendar
         | Color_input ) ) -> true
-    | None, Some Link, (Button | Command_button) -> true
+    | None, Some Link, (Button | Command_button | Link) -> true
     | None, Some Navigation, Container -> true
     | None, Some (Tree _), Virtual_list -> true
     | None, Some (Tree_item _), Container -> true
@@ -425,6 +428,7 @@ let with_accessibility t accessibility =
         | Virtual_list
         | Text
         | Button
+        | Link
         | Command_button
         | Input
         | Textarea
@@ -445,7 +449,7 @@ let with_accessibility t accessibility =
     Option.is_none metadata.current
     ||
     match t.kind with
-    | Text | Button | Command_button -> true
+    | Text | Button | Command_button | Link -> true
     | _ -> false
   in
   if supported && current_supported
@@ -489,6 +493,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; kind = Container
   ; text = ""
   ; text_content = None
+  ; link = None
   ; style = Style.merge [ Style.create_exn defaults; style ]
   ; on_click = None
   ; editor = None
@@ -601,6 +606,7 @@ let button
   ; kind = Button
   ; text
   ; text_content = None
+  ; link = None
   ; style = button_style style
   ; on_click = (if disabled then None else Some on_click)
   ; editor = None
@@ -685,6 +691,7 @@ let toggle
   ; kind
   ; text
   ; text_content = None
+  ; link = None
   ; style = Style.merge [ defaults; style ]
   ; on_click = (if disabled then None else Some on_toggle)
   ; editor = None
@@ -1005,6 +1012,55 @@ let container_query ?key ?(style = Style.empty) ?on_select config presentations 
 
 let row ?key ?style children =
   container ?key ?style [ Display Flex; Direction Row ] children
+;;
+
+let link ?key ?style config ~on_click children =
+  let rec validate count = function
+    | [] -> Ok ()
+    | (child, depth) :: rest ->
+      let open Or_error.Let_syntax in
+      if count >= 4096 || depth > 128
+      then Or_error.error_string "link content exceeds 4096 nodes or 128 levels"
+      else if
+        (not
+           (List.mem
+              [ Kind.Container
+              ; Text
+              ; Image
+              ; Icon
+              ; Avatar
+              ; Loading
+              ; Animated
+              ; Animation_program
+              ]
+              child.kind
+              ~equal:Kind.equal))
+        || Option.is_some child.on_click
+        || Option.exists child.image ~f:(fun image -> Option.is_some image.on_change)
+        || Option.exists child.animation ~f:(fun animation ->
+          Option.is_some animation.on_event)
+        || Option.exists child.animation_program ~f:(fun animation ->
+          Option.is_some animation.on_event)
+      then Or_error.error_string "link content must be passive and have no callbacks"
+      else (
+        let%bind () = Style.Expert.validate_link_content child.style in
+        validate
+          (count + 1)
+          (List.rev_append
+             (List.map child.children ~f:(fun child -> child, depth + 1))
+             rest))
+  in
+  let%map.Or_error () = validate 0 (List.map children ~f:(fun child -> child, 1)) in
+  { (container
+       ?key
+       ?style
+       [ Display Flex; Direction Row; Align_items Center; Gap (Length.px_exn 8.) ]
+       children)
+    with
+    kind = Link
+  ; link = Some config
+  ; on_click = (if Link.Config.is_disabled config then None else Some on_click)
+  }
 ;;
 
 let column ?key ?style children =
@@ -1450,6 +1506,7 @@ let text_input
   ; kind
   ; text = initial_text
   ; text_content = None
+  ; link = None
   ; style
   ; on_click = None
   ; editor = Some { controller; config; on_event }
@@ -1502,6 +1559,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; kind = Radio_group
   ; text = ""
   ; text_content = None
+  ; link = None
   ; style
   ; on_click = None
   ; editor = None
@@ -1581,6 +1639,7 @@ let combobox
   ; kind = Combobox
   ; text = initial_text
   ; text_content = None
+  ; link = None
   ; style
   ; on_click = None
   ; editor = None
@@ -2058,6 +2117,7 @@ module Expert = struct
     ; kind : Kind.t
     ; text : string
     ; text_content : Text_content.t option
+    ; link : Link.Config.t option
     ; style : Style.t
     ; on_click : (unit -> 'action) option
     ; editor : 'action editor option

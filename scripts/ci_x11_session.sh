@@ -32,6 +32,7 @@ timeout 90 _build/default/examples/bridge/main.exe
     timeout 90 ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_highlight_host
     timeout 90 ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_highlight_view
     timeout 90 ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_styled_text
+    timeout 90 ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_link
     timeout 90 ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_highlight_document
     timeout 90 ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_highlight_paint
     timeout 90 ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_scroll

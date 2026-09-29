@@ -332,3 +332,8 @@ pub fn run_native_highlight_document_test() {
 pub fn run_native_styled_text_test() {
     host::styled_text_test::run();
 }
+
+#[cfg(feature = "native-image-tests")]
+pub fn run_native_link_test() {
+    host::link_test::run();
+}

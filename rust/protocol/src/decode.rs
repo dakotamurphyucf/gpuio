@@ -933,6 +933,7 @@ impl Decoder<'_> {
                     48 => Kind::ChartView,
                     49 => Kind::InputRegion,
                     50 => Kind::HighlightScope,
+                    51 => Kind::Link,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -1031,6 +1032,7 @@ impl Decoder<'_> {
             56 => Op::SetInputRegion(self.node()?, self.input_config()?),
             57 => Op::SetHighlightScope(self.node()?, self.highlight_config()?),
             59 => Op::SetStyledText(self.node()?, self.text_content()?),
+            60 => Op::SetLink(self.node()?, self.link_config()?),
             58 => {
                 let node = self.node()?;
                 let epoch = self.int()?;

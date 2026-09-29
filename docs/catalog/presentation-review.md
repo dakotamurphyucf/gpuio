@@ -233,22 +233,26 @@ identity, and drive real keyboard/pointer actions. These scoped checks do not
 constitute a full VoiceOver journey, physical display-scale transition, arbitrary
 application layout, Linux desktop or release performance acceptance.
 
-## Links: configuration foundation, native composition still pending
+## Links: native composition implemented, full acceptance pending
 
 Both [base/link](sources/base-link.rs.txt) and
 [component/link](sources/component-link.rs.txt) have been reviewed in detail.
 They are **not yet functional-equivalent acceptance rows**. Existing
 `Presentation.link` covers text, styles, asynchronous actions and disabled fencing;
-composed content and explicit Tab participation/order remain gaps. The legacy
+the development composed view now adds rich content and explicit Tab policy. The legacy
 styled component's ineffective disabled flag and pointer-only behavior are not
 contracts to reproduce. The base link's injected navigation agrees with GPUIO's
 application-owned opening policy.
 
 The [composed-link design](../design/composed-links.md) records every builder
 mapping, validated configuration, transport fixture, native focus-order hazard
-and required implementation/validation phases. `Link.Config` plus bounded OCaml/
-Rust data codecs are implemented foundations only: no new mounted capability is
-advertised. Both link rows remain pending native/gallery closure.
+and required implementation/validation phases. Native admission, view/reconciliation
+and focused macOS checks now pass. The public gallery covers eight theme/content/icon
+cases and 34 native activations, identity, Tab policy and scoped SVG disposal.
+The first ordering run also exposed the paint-clipped traversal limitation recorded
+in the design: the passing ordering cases keep all targets visible. Offscreen
+behavior and mixed compound controls remain open, along with broader content/style
+coverage. No Link capability is advertised; both rows remain incomplete.
 
 ## Remaining presentation modules
 

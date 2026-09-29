@@ -388,6 +388,21 @@ let link (p : Appearance.t) ?key ?style:(custom = Style.empty) ?disabled ~on_cli
   |> semantic Link
 ;;
 
+let composed_link
+      (p : Appearance.t)
+      ?key
+      ?style:(custom = Style.empty)
+      config
+      ~on_click
+      children
+  =
+  let base =
+    style [ Foreground p.accent; Text_decoration Underline; Cursor Pointer ]
+    |> fun s -> Style.with_state_exn s Disabled [ Foreground p.muted; Cursor Not_allowed ]
+  in
+  View.link ?key ~style:(Style.merge [ base; custom ]) config ~on_click children
+;;
+
 let separator
       (p : Appearance.t)
       ?key

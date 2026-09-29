@@ -64,6 +64,20 @@ val button
   -> string
   -> 'action t
 
+(** A single native link target around composed passive content. The accessible
+    name and Tab policy come from [config]; navigation is the supplied asynchronous
+    action. Allowed descendants are containers, text/styled text, images/icons,
+    avatars, loading indicators and animations without callbacks. Nested controls,
+    selectable text, scrolling and pointer shields are rejected. At most 4096
+    descendants and 128 content levels. Resource registrations stay caller-owned. *)
+val link
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> Link.Config.t
+  -> on_click:(unit -> 'action)
+  -> 'action t list
+  -> 'action t Core.Or_error.t
+
 (** Icon-only button with a required accessible label. The icon has no separate
     focus/action target. [style] customizes the button; the decoration styles its icon. *)
 val icon_button
@@ -992,6 +1006,7 @@ module Expert : sig
       | Chart_view
       | Input_region
       | Highlight_scope
+      | Link
     [@@deriving equal, sexp_of]
   end
 
@@ -1058,6 +1073,7 @@ module Expert : sig
     ; kind : Kind.t
     ; text : string
     ; text_content : Text_content.t option
+    ; link : Link.Config.t option
     ; style : Style.t
     ; on_click : (unit -> 'action) option
     ; editor : 'action editor option

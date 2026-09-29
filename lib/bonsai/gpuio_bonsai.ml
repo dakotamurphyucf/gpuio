@@ -27,6 +27,10 @@ module View = struct
   let text = Gpuio.View.text
   let styled_text = Gpuio.View.styled_text
 
+  let link ?key ?style config ~on_click children =
+    Gpuio.View.link ?key ?style config ~on_click:(fun () -> on_click) children
+  ;;
+
   let button
         ?key
         ?style

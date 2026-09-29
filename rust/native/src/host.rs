@@ -621,6 +621,9 @@ impl View {
                 }
             }
         }
+        if let Some(config) = &node.link {
+            accessible_name = config.label.clone().into();
+        }
         let mut element = div().id(("gpuio-node", identity));
         if let Some(scope) = highlight_scope {
             element = element.child(highlight::marker(scope));
@@ -630,6 +633,7 @@ impl View {
         // ancestor click hitbox while preserving wheel propagation to the list.
         if (node.editor.is_some()
             || node.control.is_some()
+            || node.link.is_some()
             || node.choice.is_some()
             || node.rating.is_some()
             || node.slider.is_some()
@@ -874,6 +878,7 @@ impl View {
                 .as_ref()
                 .is_some_and(|slider| slider.config.disabled)
             || node.control.is_some_and(Control::disabled)
+            || node.link.as_ref().is_some_and(|config| config.disabled)
             || node.editor.as_ref().is_some_and(|config| config.disabled);
         let disabled = disabled
             || node
@@ -905,6 +910,7 @@ impl View {
         if matches!(
             node.kind,
             Kind::Button
+                | Kind::Link
                 | Kind::CommandButton
                 | Kind::Checkbox
                 | Kind::Switch
@@ -923,6 +929,11 @@ impl View {
                     })
                 })
                 .clone();
+            let tab_stop = node.link.as_ref().is_none_or(|config| config.tab_stop);
+            let tab_index = node
+                .link
+                .as_ref()
+                .map_or(0, |config| config.tab_index as isize);
             if disabled {
                 state.focus.clone().tab_stop(false);
                 if state.focus.is_focused(window) {
@@ -930,19 +941,20 @@ impl View {
                 }
             } else {
                 element = element
-                    .track_focus(&state.focus.clone().tab_stop(true))
-                    .tab_index(0);
+                    .track_focus(&state.focus.clone().tab_stop(tab_stop).tab_index(tab_index))
+                    .tab_index(tab_index);
                 let focus = state.focus.clone();
                 let gate = self.focus.clone();
                 element =
                     element.on_a11y_action(gpui::AccessibleAction::Focus, move |_, window, cx| {
-                        if gate.borrow().allows(id) {
+                        if gate.borrow().eligible(id) {
                             window.focus(&focus, cx);
                         }
                     });
             }
             element = element
                 .role(match node.kind {
+                    Kind::Link => gpui::Role::Link,
                     Kind::Checkbox => gpui::Role::CheckBox,
                     Kind::Switch => gpui::Role::Switch,
                     Kind::RadioGroup => gpui::Role::RadioGroup,
@@ -971,6 +983,9 @@ impl View {
             {
                 element = element.cursor_pointer();
             }
+        }
+        if node.kind == Kind::Link && disabled {
+            element = element.block_mouse_except_scroll();
         }
         if node.kind == Kind::TabBar {
             element = element.flex_row();
@@ -1374,11 +1389,19 @@ impl View {
         } else if node.split.is_some() {
             element = element.child(self.split_element(tree, node, interaction, window, cx));
         } else {
+            let child_interaction = if node.kind == Kind::Link {
+                Interaction {
+                    selectable: Some(false),
+                    ..interaction
+                }
+            } else {
+                interaction
+            };
             element = element.children(
                 node.children
                     .iter()
                     .filter(|_| !matches!(node.kind, Kind::Button | Kind::CommandButton))
-                    .map(|id| self.element(tree, *id, interaction, window, cx))
+                    .map(|id| self.element(tree, *id, child_interaction, window, cx))
                     .collect::<Vec<_>>(),
             );
         }
@@ -1499,6 +1522,7 @@ impl View {
             .or_else(|| self.focus.borrow().handle(id));
         if let Some(handle) = handle.filter(|_| !disabled && node.input_region.is_none()) {
             let tab_stop = node.kind != Kind::FocusScope
+                && node.link.as_ref().is_none_or(|config| config.tab_stop)
                 && node
                     .input_region
                     .as_ref()
@@ -2459,3 +2483,7 @@ pub(crate) fn chart_source_changed(source: Option<gpuio_protocol::ResourceId>, c
 #[cfg(feature = "native-image-tests")]
 #[path = "styled_text_test.rs"]
 pub(crate) mod styled_text_test;
+
+#[cfg(feature = "native-image-tests")]
+#[path = "link_test.rs"]
+pub(crate) mod link_test;

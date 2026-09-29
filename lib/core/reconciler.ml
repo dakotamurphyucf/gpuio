@@ -263,6 +263,7 @@ let kind = function
   | Pointer_area -> Pointer_area
   | Input_region -> Input_region
   | Highlight_scope -> Highlight_scope
+  | Link -> Link
   | Drag_source -> Drag_source
   | Drop_target -> Drop_target
   | Image -> Image
@@ -905,6 +906,12 @@ let rec mount builder ~depth previous view =
     then
       Option.iter text_content ~f:(fun content ->
         emit builder (Set_styled_text (id, content)));
+    Option.iter description.link ~f:(fun config ->
+      let previous_config =
+        Option.bind previous ~f:(fun mounted -> (View.Expert.describe mounted.view).link)
+      in
+      if not (Option.equal Link.Config.equal previous_config (Some config))
+      then emit builder (Set_link (id, Link.Expert.to_wire config)));
     if
       Option.is_some description.commands
       && not (List.equal Wire.Command.equal old_commands commands)

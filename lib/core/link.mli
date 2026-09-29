@@ -1,7 +1,8 @@
 open Core
 
-(** Configuration foundation for native composed links. Mounting support is still
-    under implementation; [Presentation.link] is the existing text-only helper. *)
+(** Configuration for composed links through [View.link]. Catalog acceptance is
+    still in progress; see [docs/design/composed-links.md]. [Presentation.link]
+    remains the existing text-only helper. *)
 module Config : sig
   type t [@@deriving equal, sexp_of]
 

@@ -91,6 +91,7 @@ module type S = sig
       | Chart_view
       | Input_region
       | Highlight_scope
+      | Link
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -774,6 +775,7 @@ module type S = sig
       | Set_highlight_scope of Node_id.t * Highlight.Config.t
       | Set_document_diff of Node_id.t * int64 * Document_diff.Config.t option
       | Set_styled_text of Node_id.t * Text_content_wire.t
+      | Set_link of Node_id.t * Link_wire.t
     [@@deriving bin_io, equal, sexp_of]
   end
 
