@@ -71,7 +71,13 @@ type 'a callback =
   | Split_pane of Split_pane.Config.t * (Split_pane.Snapshot.t -> 'a)
   | Canvas of Wire.Canvas_view.Config.t * (Canvas.Event.t -> 'a)
   | Chart of Wire.Chart_view.Config.t * (Chart.Event.t -> 'a)
-  | Document of Text_source.Handle.t * (Document.Navigation.t -> 'a)
+  | Document of
+      { source : Text_source.Handle.t
+      ; diff_config : Document.Diff.Config.t option
+      ; diff_epoch : int64
+      ; on_navigate : (Document.Navigation.t -> 'a) option
+      ; on_diff : (Document.Diff.Event.t -> 'a) option
+      }
   | Virtual_list of List_identity.t * 'a View.Expert.virtual_list * TW.Config.t option
   | Animation_program of int64 * (int64 * int64) ref * (Animation.Program.Event.t -> 'a)
   | Animation of int64 * int64 ref * (Animation.Event.t -> 'a)
@@ -116,6 +122,7 @@ type 'a mounted =
   ; program_seen : (int64 * int64) ref
   ; container_query : Wire.Container_query.Config.t option
   ; query_seen : int64 ref
+  ; document_diff_epoch : int64
   ; slider_seen : int64 ref
   ; number_input_seen : int64 ref
   ; otp_input_seen : int64 ref
@@ -647,11 +654,41 @@ let rec mount builder ~depth previous view =
       | None, callback -> callback
       | Some _, Some _ -> fail "chart cannot combine another handler"
     in
+    let old_diff =
+      Option.bind previous ~f:(fun mounted ->
+        Option.bind (View.Expert.describe mounted.view).document ~f:(fun item ->
+          Document.Config.diff item.config))
+    in
+    let next_diff =
+      Option.bind description.document ~f:(fun item -> Document.Config.diff item.config)
+    in
+    let old_diff_epoch =
+      Option.value_map previous ~default:0L ~f:(fun old -> old.document_diff_epoch)
+    in
+    let document_diff_epoch =
+      if Option.equal Document.Diff.Config.equal old_diff next_diff
+      then old_diff_epoch
+      else (
+        if Int64.equal old_diff_epoch Int64.max_value
+        then fail "document diff configuration epoch exhausted";
+        Int64.succ old_diff_epoch)
+    in
     let callback =
       match description.document, callback with
       | Some item, None ->
-        Option.map item.on_navigate ~f:(fun callback ->
-          Document (Document.Config.source item.config, callback))
+        if Option.is_some item.on_diff && Option.is_none next_diff
+        then fail "document diff callback requires explicit diff configuration";
+        if Option.is_none item.on_navigate && Option.is_none item.on_diff
+        then None
+        else
+          Some
+            (Document
+               { source = Document.Config.source item.config
+               ; diff_config = next_diff
+               ; diff_epoch = document_diff_epoch
+               ; on_navigate = item.on_navigate
+               ; on_diff = item.on_diff
+               })
       | None, callback -> callback
       | Some _, Some _ -> fail "document cannot combine another handler"
     in
@@ -1103,6 +1140,12 @@ let rec mount builder ~depth previous view =
                  document.config
                  ~owner:builder.document_owner
                  ~asset_owner:builder.asset_owner )));
+    if not (Int64.equal old_diff_epoch document_diff_epoch)
+    then
+      emit
+        builder
+        (Set_document_diff
+           (id, document_diff_epoch, Option.map next_diff ~f:Document.Diff.Expert.to_wire));
     if Option.is_none description.avatar
     then
       Option.iter description.image ~f:(fun image ->
@@ -1584,6 +1627,7 @@ let rec mount builder ~depth previous view =
     ; program_seen
     ; container_query
     ; query_seen
+    ; document_diff_epoch
     ; slider_seen
     ; number_input_seen
     ; otp_input_seen
@@ -1814,6 +1858,33 @@ let dispatch t = function
        |> Result.ok
        |> Option.map ~f:callback
      | Some _ | None -> None)
+  | Wire.Event.Document_diff_event (window, node, handler, revision, source, event)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback =
+             Document
+               { source = expected_source
+               ; diff_config = Some config
+               ; diff_epoch
+               ; on_diff = Some callback
+               ; on_navigate = _
+               }
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Gpuio_protocol.Resource_id.equal
+                 source
+                 (Text_source.Expert.native_id expected_source)
+            && Int64.equal event.config_epoch diff_epoch ->
+       Document.Diff.Expert.event_of_wire ~config event
+       |> Result.ok
+       |> Option.map ~f:callback
+     | Some _ | None -> None)
   | Wire.Event.Document_navigation (window, node, handler, revision, source, _, navigation)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -1822,7 +1893,14 @@ let dispatch t = function
      | Some
          { node = expected
          ; handler = expected_handler
-         ; callback = Document (expected_source, callback)
+         ; callback =
+             Document
+               { source = expected_source
+               ; on_navigate = Some callback
+               ; diff_config = _
+               ; diff_epoch = _
+               ; on_diff = _
+               }
          }
        when Node_id.equal node expected
             && Handler_id.equal handler expected_handler
@@ -2441,6 +2519,7 @@ let dispatch t = function
   | Canvas_response _
   | Document_response _
   | Document_navigation _
+  | Document_diff_event _
   | Editor_result _
   | Failed _
   | Stopped

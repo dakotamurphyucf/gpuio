@@ -81,6 +81,7 @@ module Config = struct
     ; initially_collapsed : bool
     ; search : string
     ; images : (string * Asset.Handle.t) list
+    ; diff : Diff.Config.t option
     }
   [@@deriving equal, sexp_of]
 
@@ -101,6 +102,7 @@ module Config = struct
         ?(initially_collapsed = false)
         ?(search = "")
         ?(images = [])
+        ?diff
         ()
     =
     let valid_layout =
@@ -109,7 +111,9 @@ module Config = struct
       | Viewport height ->
         Float.is_finite height && Float.(height >= 1. && height <= 16384.)
     in
-    if not valid_layout
+    if Option.is_some diff && not (Mode.equal mode Mode.Diff)
+    then Or_error.error_string "diff controls require Document.Mode.Diff"
+    else if not valid_layout
     then Or_error.error_string "document viewport height must be finite and in 1..16384"
     else if
       String.is_empty label
@@ -137,6 +141,7 @@ module Config = struct
         ; initially_collapsed
         ; search
         ; images
+        ; diff
         }
   ;;
 
@@ -150,6 +155,7 @@ module Config = struct
   let initially_collapsed t = t.initially_collapsed
   let search t = t.search
   let images t = t.images
+  let diff t = t.diff
 end
 
 module Expert = struct

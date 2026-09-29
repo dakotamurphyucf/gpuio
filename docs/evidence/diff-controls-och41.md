@@ -1,7 +1,7 @@
 # OCH-41 diff controls foundation
 
-Status: parser and projection foundation validated locally; public controls and
-mounted integration remain pending. See the [implementation design](../design/diff-controls.md).
+Status: parser, projection, typed API and live event routing validated locally;
+mounted controls remain pending. See the [implementation design](../design/diff-controls.md).
 
 The parser checkpoint `ed2a368` has native two-file gutter/GPU evidence in the
 [highlighting ledger](subtree-highlighting-och41.md#file-boundaries-in-native-diff-folding).
@@ -88,3 +88,41 @@ after correcting two style diagnostics in the new encoded-size accounting.
 The four protocol cases pass again after that correction. Jane Street OCaml
 formatting, Rust formatting and whitespace checks pass. No GUI test was run for
 this contract/state-only change.
+
+## Live transport and lifecycle routing
+
+The append-only live protocol now carries `SetDocumentDiff` (operation58) and
+`DocumentDiffEvent` (event65). Core/Bonsai expose `Document.Config.create ~diff`
+and `View.document ~on_diff`; navigation and diff observations share one native
+handler. Diff settings retain a monotonic per-mount epoch across replacement,
+clearing and restoration; cosmetic and callback-only changes preserve it.
+
+Two new OCaml expect cases verify independent envelope bytes, truncation/trailing
+rejection, shared callbacks, current closure dispatch, config/source/handler
+replacement, unaccepted transactions and teardown. A runtime expect case exercises
+source publication races: begin/chunk/unsent publish cannot authorize an event;
+the exact pending publish can. Reset retires older generations immediately, and
+accepted generation boundaries reject invented revisions from before the reset.
+Release, closure and reused resource IDs reject stale events.
+
+One Rust protocol integration case independently verifies those envelopes and
+rejects nonpositive epochs. Three headless native integration cases verify atomic
+tree/config admission and retained charging; handler/source/epoch/revision fences;
+and a128-event queue of maximum-size line payloads. All three path copies and line
+text count toward queue bytes; event129 is rejected, order survives bounded1MiB
+encoded drain batches, and window-output retention clears only after the drain.
+
+Local macOS14.5 arm64 commands:
+
+```sh
+./scripts/gpuio exec dune runtest test/document_diff test/runtime test/protocol test/text_source test/highlight
+./scripts/gpuio exec cargo test -p gpuio-protocol -p gpuio-native --test document_diff --features native-image-tests --locked -j2
+./scripts/gpuio exec cargo test --workspace --lib --features native-image-tests --locked -j2
+./scripts/gpuio exec cargo clippy -p gpuio-native -p gpuio-protocol --all-targets --features native-image-tests --locked -j2 -- -D warnings
+```
+
+All pass: four Rust integration cases and461 workspace library tests (two
+private-bus cases excluded by this command), plus the scoped OCaml suites and
+strict Clippy. These checks opened no windows. No capability is newly advertised;
+per-file native controls, projected editor integration, input/accessibility,
+gallery, installed-consumer and release acceptance remain open.

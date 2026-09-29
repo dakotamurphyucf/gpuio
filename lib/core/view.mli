@@ -31,11 +31,16 @@ val canvas
   -> 'action t
 
 (** Native Markdown/code/unified-diff display, backed by a scoped document
-    resource. Parsing, selection and copy are native; navigation is asynchronous. *)
+    resource. Parsing, selection and copy are native; navigation is asynchronous.
+
+    [on_diff] requires an explicit [Document.Config.diff] value. Navigation and
+    diff observations share the node's asynchronous handler. Mounted extended
+    diff controls are still under implementation. *)
 val document
   :  ?key:Key.t
   -> ?style:Style.t
   -> ?on_navigate:(Document.Navigation.t -> 'action)
+  -> ?on_diff:(Document.Diff.Event.t -> 'action)
   -> Document.Config.t
   -> 'action t
 
@@ -848,6 +853,7 @@ module Expert : sig
   type 'action document =
     { config : Document.Config.t
     ; on_navigate : (Document.Navigation.t -> 'action) option
+    ; on_diff : (Document.Diff.Event.t -> 'action) option
     }
 
   type 'action slider =

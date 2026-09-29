@@ -58,6 +58,7 @@ module View : sig
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
     -> ?on_navigate:(Gpuio.Document.Navigation.t -> unit Bonsai.Effect.t)
+    -> ?on_diff:(Gpuio.Document.Diff.Event.t -> unit Bonsai.Effect.t)
     -> Gpuio.Document.Config.t
     -> t
 

@@ -235,6 +235,7 @@ type 'action chart =
 type 'action document =
   { config : Document.Config.t
   ; on_navigate : (Document.Navigation.t -> 'action) option
+  ; on_diff : (Document.Diff.Event.t -> 'action) option
   }
 
 type 'action image =
@@ -466,10 +467,10 @@ let canvas ?key ?(style = Style.empty) ?on_event config =
   { (text ?key ~style "") with kind = Canvas_view; canvas = Some { config; on_event } }
 ;;
 
-let document ?key ?(style = Style.empty) ?on_navigate config =
+let document ?key ?(style = Style.empty) ?on_navigate ?on_diff config =
   { (text ?key ~style "") with
     kind = Document_view
-  ; document = Some { config; on_navigate }
+  ; document = Some { config; on_navigate; on_diff }
   }
 ;;
 
@@ -1916,6 +1917,7 @@ module Expert = struct
   type nonrec 'action document = 'action document =
     { config : Document.Config.t
     ; on_navigate : (Document.Navigation.t -> 'action) option
+    ; on_diff : (Document.Diff.Event.t -> 'action) option
     }
 
   type nonrec 'action slider = 'action slider =

@@ -2,8 +2,9 @@
 
 Status: OCH-41 implementation design. The bounded parser, visible-source
 projection, Core configuration/event types, paired standalone codecs and native
-control state exist. View configuration/event routing and mounted presentation
-remain pending. This document does not advertise a capability.
+control state exist. View configuration, live transport and stale-event routing
+also exist; mounted native presentation remains pending. This document does not
+advertise a capability.
 
 The reference is GPUIX at
 [`18e695ed0ee8121a7793413ca795e08eda2a13df`](https://github.com/remorses/gpuix/tree/18e695ed0ee8121a7793413ca795e08eda2a13df):
@@ -14,13 +15,14 @@ native-managed defaults. Hot reload is unrelated to this scope.
 
 ## OCaml interface direction
 
-Add `Document.Diff` domain modules and an optional `diff` argument on
-`Document.Config.create`, valid only with `Mode.Diff`. Keep navigation unchanged;
-add a separate optional `on_diff` callback to Core and Bonsai `View.document`.
-Both callbacks share the document node's handler router.
+`Document.Diff` supplies domain modules. `Document.Config.create ?diff` is valid
+only with `Mode.Diff`; omission preserves the existing raw presentation. Core and
+Bonsai `View.document ?on_diff` now share the document node's handler router with
+unchanged navigation. Supplying `on_diff` without explicit diff configuration is
+a reconciliation error. Native mounting remains unfinished, so these APIs do not
+yet produce the extended controls on screen.
 
-The following constructors now exist under `Document.Diff`. Attaching them to
-`Document.Config` and routing `View.document ~on_diff` are still pending:
+The following constructors exist under `Document.Diff`:
 
 ```ocaml
 module File_key : sig
@@ -126,12 +128,14 @@ also charge retained projection text, row maps and editor page buffers before mo
 
 ## Event and bridge contract
 
-Introduce an additive document-diff configuration operation and typed event; do not
-change the existing document configuration packet or navigation event layout.
-Negotiate/advertise the new capability only after mounted acceptance. Generate a
-monotonic configuration epoch in reconciliation, internal to the API. Restyles that
-leave diff configuration unchanged preserve it. A changed configuration invalidates
-older queued diff intents, independently of the source generation and tree revision.
+The additive operation is `SetDocumentDiff` (tag58: node, positive epoch, optional
+config), and the event is `DocumentDiffEvent` (tag65). Existing document config and
+navigation packets retain their layout. Capability advertisement remains withheld
+until mounted acceptance. Reconciliation generates a monotonic per-node epoch;
+cosmetic updates and closure refreshes preserve it. Changing, clearing or restoring
+diff configuration advances it, so earlier queued intents cannot become current
+again. Native tree changes validate the epoch/mode atomically and charge retained
+configuration bytes.
 
 Events carry window/node/handler/tree identity, source resource, installed source
 generation/revision and configuration epoch. Domain payloads distinguish:
@@ -147,7 +151,7 @@ generation/revision and configuration epoch. Domain payloads distinguish:
 
 The standalone schemas are `Document_diff_wire` and Rust `document_diff`.
 `Event` contains positive `config_epoch`, `source_revision`, `source_generation`
-and the observation; the eventual transport envelope supplies the window/node/
+and the observation; the transport envelope supplies the window/node/
 handler/resource/tree identity. Line payloads are at most16KiB, valid UTF-8 without
 LF, and exactly match the length of their bounded canonical byte interval. Empty
 payloads, embedded NUL and a standalone CR remain valid source text. Paths have
@@ -164,7 +168,13 @@ handler and source-registration fences.
 
 Native handlers check the current presenter/config/source identities before queuing.
 The OCaml registry rejects reset/released/wrong-generation resources; reconciliation
-rejects obsolete handler/config epochs. Source revision provenance is independent
+rejects obsolete handler/config epochs. Both source stores retain the first
+published revision of a generation, bounding accepted old-picture revisions.
+OCaml additionally accepts the exact pending Publish before its acknowledgement,
+but never Begin/Chunk stages or future revisions. A desired reset retires old
+events immediately, before its upload completes. Queue accounting includes every
+path copy and line payload, preserves event order, and fits drains to the existing
+packet limit. Source revision provenance is independent
 of the tree revision. Payload limits match the parser and are validated before an
 event reaches an application. Do not interpret snapshot-local byte ranges or file
 indices against a newer source without checking/rebasing them.
@@ -179,8 +189,9 @@ The projection unit tests cover bytes, hidden gaps, selection transfer, syntax a
 hunk mapping, streaming prefixes and exact limits. Paired config/event fixtures,
 validation and native state-transition tests now also pass, including controlled
 nonmutation, managed seed retention/reset and pruning of removed-file overrides.
-These do not prove mounted UI. Completion still requires Core/Bonsai
-reconciliation and resource-generation tests; native per-file/show-more
+Core/Bonsai routing, live-envelope fixtures, tree/queue validation and source
+registry tests also pass. These do not prove mounted UI. Completion still requires
+native per-file/show-more
 keyboard, AX and pointer controls; source/page/search/copy behavior; selection and
 GPU highlight mapping under streaming; bounded lifetime/resource tests; the public
 gallery and independent consumer; and the required release gates. Audit word-diff

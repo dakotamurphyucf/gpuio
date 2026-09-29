@@ -1018,6 +1018,14 @@ impl Decoder<'_> {
             55 => Op::SetChart(self.node()?, self.chart_view_config()?),
             56 => Op::SetInputRegion(self.node()?, self.input_config()?),
             57 => Op::SetHighlightScope(self.node()?, self.highlight_config()?),
+            58 => {
+                let node = self.node()?;
+                let epoch = self.int()?;
+                if epoch <= 0 {
+                    return Err(DecodeError::Malformed);
+                }
+                Op::SetDocumentDiff(node, epoch, self.option(Self::document_diff_config)?)
+            }
             47 => Op::SetColorInput(
                 self.node()?,
                 Box::new(self.color_config()?),

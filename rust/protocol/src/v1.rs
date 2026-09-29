@@ -693,6 +693,7 @@ pub enum Op {
     SetChart(NodeId, crate::chart_view::Config),
     SetInputRegion(NodeId, crate::input::Config),
     SetHighlightScope(NodeId, crate::highlight::Config),
+    SetDocumentDiff(NodeId, i64, Option<crate::document_diff::Config>),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -894,5 +895,13 @@ pub enum Event {
         HandlerId,
         i64,
         crate::highlight::Observation,
+    ),
+    DocumentDiffEvent(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::ResourceId,
+        crate::document_diff::Event,
     ),
 }

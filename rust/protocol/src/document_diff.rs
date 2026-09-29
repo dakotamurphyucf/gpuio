@@ -241,6 +241,22 @@ pub struct Event {
     pub observation: Observation,
 }
 impl Event {
+    /// Variable payload bytes, excluding the envelope's separately charged
+    /// fixed fields. Every repeated path label is charged independently.
+    pub fn payload_bytes(&self) -> usize {
+        let file = |file: &File| {
+            (match &file.key {
+                FileKey::Path(path) => path.len(),
+                FileKey::Unnamed => 0,
+            }) + file.before_path.as_ref().map_or(0, String::len)
+                + file.after_path.as_ref().map_or(0, String::len)
+        };
+        match &self.observation {
+            Observation::ToggleFile { file: value, .. } => file(value),
+            Observation::ShowMore { .. } => 0,
+            Observation::Line(line) => file(&line.file) + line.text.len(),
+        }
+    }
     pub fn is_valid(&self) -> bool {
         self.config_epoch > 0
             && self.source_revision > 0

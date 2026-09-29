@@ -47,3 +47,13 @@ end
 (** Suppress queued native navigation as soon as the owning scope is released
     or OCaml resets the source, including while that reset awaits upload. *)
 val accepts_navigation : t -> Gpuio_protocol.Resource_id.t -> generation:int64 -> bool
+
+(** Diff observations may name an older installed revision of the current
+    generation, or the exact publication awaiting acknowledgement. Staged but
+    unpublished, reset, released and future revisions are rejected. *)
+val accepts_event
+  :  t
+  -> Gpuio_protocol.Resource_id.t
+  -> generation:int64
+  -> revision:int64
+  -> bool

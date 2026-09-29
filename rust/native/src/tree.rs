@@ -98,6 +98,8 @@ pub struct Node {
     pub extension_command: Option<Arc<gpuio_protocol::extension::Command>>,
     pub split: Option<Arc<gpuio_protocol::split::Config>>,
     pub document: Option<Arc<gpuio_protocol::document::Config>>,
+    pub document_diff: Option<Arc<gpuio_protocol::document_diff::Config>>,
+    pub document_diff_epoch: i64,
     pub canvas: Option<Arc<gpuio_protocol::canvas_view::Config>>,
     pub chart: Option<Arc<gpuio_protocol::chart_view::Config>>,
     pub animation: Option<Arc<gpuio_protocol::animation::Config>>,
@@ -232,6 +234,10 @@ impl Node {
                 .map_or(0, |config| config.retained_bytes())
             + self
                 .input_region
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
+            + self
+                .document_diff
                 .as_ref()
                 .map_or(0, |config| config.retained_bytes())
             + self
@@ -617,6 +623,14 @@ impl Tree {
                             || !node.text.is_empty()
                             || node.control.is_some()
                             || node.choice.is_some()))
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if node.document_diff.is_some()
+                    && (node.document_diff_epoch <= 0
+                        || node.document.as_ref().is_none_or(|config| {
+                            config.mode != gpuio_protocol::document::Mode::Diff
+                        }))
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
@@ -1454,6 +1468,7 @@ impl Plan<'_> {
             | Op::SetCanvas(id, ..)
             | Op::SetChart(id, ..)
             | Op::SetDocument(id, ..)
+            | Op::SetDocumentDiff(id, ..)
             | Op::SetExtension(id, ..)
             | Op::SetSplit(id, ..)
             | Op::SetProgress(id, ..)
@@ -1562,6 +1577,8 @@ impl Plan<'_> {
                             extension_command: None,
                             split: None,
                             document: None,
+                            document_diff: None,
+                            document_diff_epoch: 0,
                             canvas: None,
                             chart: None,
                             animation: None,
@@ -2009,6 +2026,19 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.chart = Some(Arc::new(config.clone()));
+            }
+            Op::SetDocumentDiff(id, epoch, config) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::DocumentView
+                    || *epoch <= node.document_diff_epoch
+                    || *epoch <= 0
+                    || config.as_ref().is_some_and(|config| !config.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let node = self.node_mut(*id)?;
+                node.document_diff = config.clone().map(Arc::new);
+                node.document_diff_epoch = *epoch;
             }
             Op::SetDocument(id, config) => {
                 if self.node(*id)?.kind != Kind::DocumentView || !config.is_valid() {

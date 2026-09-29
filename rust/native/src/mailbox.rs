@@ -36,6 +36,7 @@ fn event_bytes(event: &Event) -> usize {
         }
         Event::InputObserved(_, _, _, _, input) => input.payload_bytes(),
         Event::HighlightObserved(_, _, _, _, observation) => observation.payload_bytes(),
+        Event::DocumentDiffEvent(_, _, _, _, _, event) => event.payload_bytes(),
         Event::TableInput(_, _, _, _, input) => input.request.payload_bytes(),
         Event::TreeInput(
             _,
@@ -705,6 +706,7 @@ impl Mailbox {
             | Event::CanvasEvent(id, ..)
             | Event::ChartEvent(id, ..)
             | Event::DocumentNavigation(id, ..)
+            | Event::DocumentDiffEvent(id, ..)
             | Event::ExtensionEvent(id, ..)
             | Event::SplitResized(id, ..)
             | Event::AnimationEndpoint(id, ..)

@@ -867,6 +867,40 @@ impl Session {
         ))
     }
 
+    /// The presenter supplies provenance from its exact installed snapshot.
+    /// Keep old same-generation pictures interactive while preparation runs,
+    /// but retire source/config/handler identities immediately when replaced.
+    pub fn document_diff_event(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        source: gpuio_protocol::ResourceId,
+        event: gpuio_protocol::document_diff::Event,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let target = state.tree.get(node)?;
+        let config = target.document_diff.as_ref()?;
+        let snapshot = self.documents.acquire(source).ok()?.snapshot();
+        (!state.overloaded
+            && event.is_valid()
+            && event.observation.valid_for(config)
+            && target.document_diff_epoch == event.config_epoch
+            && target.document.as_ref()?.source == Some(source)
+            && snapshot.generation == event.source_generation
+            && event.source_revision >= snapshot.generation_first_revision
+            && event.source_revision <= snapshot.revision
+            && state.tree.accepts_handler(node, handler))
+        .then_some(Event::DocumentDiffEvent(
+            window,
+            node,
+            handler,
+            state.tree.revision(),
+            source,
+            event,
+        ))
+    }
+
     pub fn highlight_observed(
         &self,
         window: WindowId,

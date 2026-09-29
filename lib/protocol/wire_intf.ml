@@ -20,6 +20,7 @@ module type S = sig
   module Container_query = Container_query_wire
   module Animation_program = Animation_program_wire
   module Document = Document_wire
+  module Document_diff = Document_diff_wire
   module Chart = Chart_resource_wire
   module Canvas = Canvas_resource_wire
   module Canvas_view = Canvas_view_wire
@@ -770,6 +771,7 @@ module type S = sig
       | Set_chart of Node_id.t * Chart_view.Config.t
       | Set_input_region of Node_id.t * Input_region.Config.t
       | Set_highlight_scope of Node_id.t * Highlight.Config.t
+      | Set_document_diff of Node_id.t * int64 * Document_diff.Config.t option
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -1032,6 +1034,13 @@ module type S = sig
           Window_id.t * Node_id.t * Handler_id.t * int64 * Input_region.Event.t
       | Highlight_observed of
           Window_id.t * Node_id.t * Handler_id.t * int64 * Highlight.Observation.t
+      | Document_diff_event of
+          Window_id.t
+          * Node_id.t
+          * Handler_id.t
+          * int64
+          * Resource_id.t
+          * Document_diff.Event.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

@@ -1220,6 +1220,17 @@ let process t = function
       Option.iter (find_window t id) ~f:(fun window ->
         if not (Window.is_closed window)
         then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))
+  | Document_diff_event (id, _, _, _, source, observation) as event ->
+    if
+      Document_registry.accepts_event
+        t.document_registry
+        source
+        ~generation:observation.source_generation
+        ~revision:observation.source_revision
+    then
+      Option.iter (find_window t id) ~f:(fun window ->
+        if not (Window.is_closed window)
+        then Option.iter window.driver ~f:(fun driver -> Driver.dispatch driver event))
   | Document_navigation (id, _, _, _, source, generation, _) as event ->
     if Document_registry.accepts_navigation t.document_registry source ~generation
     then

@@ -168,3 +168,53 @@ let%expect_test "navigation is rejected immediately on reset and scope release" 
     assert (not (Registry.accepts_navigation registry id ~generation:2L)));
   [%expect {| |}]
 ;;
+
+let%expect_test "diff events fence unpublished revisions and reset generations" =
+  with_registry (fun scope registry ->
+    let initial = Source.empty_stream () in
+    let registration = ref None in
+    Registry.register registry ~scope initial ~on_result:(function
+      | Ok value -> registration := Some value
+      | Error _ -> failwith "registration failed");
+    drain registry ~f:(fun _ -> ());
+    let registration = Option.value_exn !registration in
+    let accepts generation revision =
+      Registry.accepts_event registry id ~generation ~revision
+    in
+    assert (accepts 1L 1L);
+    assert (not (accepts 1L 0L));
+    assert (not (accepts 1L 2L));
+    let appended = Source.append initial "a" |> Or_error.ok_exn in
+    set registration appended;
+    let begin_request = Registry.next_request registry |> Option.value_exn in
+    assert (not (accepts 1L 2L));
+    Registry.complete registry (response begin_request);
+    let chunk = Registry.next_request registry |> Option.value_exn in
+    assert (not (accepts 1L 2L));
+    Registry.complete registry (response chunk);
+    assert (not (accepts 1L 2L));
+    let publish = Registry.next_request registry |> Option.value_exn in
+    assert (accepts 1L 1L && accepts 1L 2L);
+    Registry.complete registry (response publish);
+    assert (accepts 1L 1L && accepts 1L 2L);
+    let reset = Source.reset appended "new" |> Or_error.ok_exn in
+    set registration reset;
+    assert (not (accepts 1L 1L || accepts 1L 2L || accepts 2L 3L));
+    drain registry ~f:(function
+      | Publish (_, revision) -> assert (Int64.equal revision 3L && accepts 2L 3L)
+      | Create | Begin _ | Chunk _ | Abort _ | Release _ -> assert (not (accepts 2L 3L)));
+    assert (accepts 2L 3L);
+    assert (not (accepts 2L 1L || accepts 2L 2L || accepts 2L 4L || accepts 1L 3L));
+    let wrong = Id.create ~slot:0L ~generation:2L |> Or_error.ok_exn in
+    assert (not (Registry.accepts_event registry wrong ~generation:2L ~revision:3L));
+    Registry.Registration.release registration;
+    assert (not (accepts 2L 3L));
+    drain registry ~f:(fun _ -> ());
+    Registry.close registry;
+    assert (not (accepts 2L 3L)));
+  print_endline
+    "accepted old picture, exact pending Publish, reset lower bound, release and \
+     resource generation";
+  [%expect
+    {| accepted old picture, exact pending Publish, reset lower bound, release and resource generation |}]
+;;

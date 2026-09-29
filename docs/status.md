@@ -69,8 +69,9 @@ close the preceding hunk; a native two-file test verifies that folding preserves
 the next header and its highlights. This is a foundation for the pending per-file
 collapse, line-limit/show-more and richer callback APIs, not completion of them.
 `Document.Diff` now has validated configuration/event domain values, paired
-standalone OCaml/Rust codecs and tested native managed/controlled state. Live
-transport routing and mounted controls remain pending; see the
+standalone OCaml/Rust codecs and tested native managed/controlled state. Additive
+live transport, Core/Bonsai callbacks, configuration epochs and source-revision
+checks now have integration tests. Mounted native controls remain pending; see the
 [diff controls evidence](evidence/diff-controls-och41.md).
 
 The macOS-first/Linux-deferral policy [PR #15](https://github.com/dakotamurphyucf/gpuio/pull/15)
