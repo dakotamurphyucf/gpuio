@@ -33,6 +33,7 @@ def exercise(mac, images):
     exercise_status_regions(mac, images)
     exercise_badges(mac, images)
     exercise_labels(mac, images)
+    exercise_groups(mac, images)
     if images:
         screenshot(mac, images / 'gallery-presentation-dark.png', title=TITLE)
     mac.release(mac.wait_find(TITLE, 'Aster avatar', 'AXImage'))
@@ -94,13 +95,168 @@ def exercise(mac, images):
         expect_field(mac, TITLE, 'Document title', 'A place for good ideas')
 
 
+def reveal_gallery_control(mac, label, role):
+    mouse = GalleryMouse(mac)
+    window = mac.window(TITLE)
+    try:
+        wx, wy, ww, wh = element_rect(mac, window)
+    finally:
+        mac.release(window)
+    point = (wx + ww * .78, wy + wh * .67)
+    create = mac.cg.CGEventCreateScrollWheelEvent
+    create.restype, create.argtypes = C.c_void_p, [C.c_void_p, C.c_uint, C.c_uint, C.c_int]
+    locate = mac.cg.CGEventSetLocation
+    locate.restype, locate.argtypes = None, [C.c_void_p, GalleryMouse.Point]
+    for _ in range(24):
+        node = mac.wait_find(TITLE, label, role)
+        try:
+            x, y, w, h = element_rect(mac, node)
+        finally:
+            mac.release(node)
+        if y >= wy + 170 and y + h <= wy + wh - 30:
+            return x, y, w, h
+        mouse.send(5, point)
+        mouse.check_owner(point)
+        event = create(None, 0, 1, C.c_int(-75 if y + h > wy + wh - 30 else 75))
+        assert event
+        try:
+            locate(event, GalleryMouse.Point(*point))
+            mouse.post(0, event)
+        finally:
+            mac.release(event)
+        time.sleep(.08)
+    raise RuntimeError(f'{label} did not become visible')
+
+
+def exercise_groups(mac, images):
+    """Panel geometry and independently styled slots retain native controls."""
+    mac.wait_text(TITLE, 'Change the frame. Keep your place.')
+    raise_gallery(mac)
+    mouse = GalleryMouse(mac)
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    original = mac.wait_find(TITLE, 'Keep group updates', 'AXCheckBox')
+    get_bool = mac.cf.CFBooleanGetValue
+    get_bool.restype, get_bool.argtypes = C.c_bool, [C.c_void_p]
+    bool_type = mac.cf.CFBooleanGetTypeID
+    bool_type.restype, bool_type.argtypes = C.c_ulong, []
+
+    def checked(node=original):
+        value = mac.attr(node, 'AXValue')
+        try:
+            assert value and mac.type_id(value) == bool_type()
+            return bool(get_bool(value))
+        finally:
+            if value:
+                mac.release(value)
+
+    def rect(label, role):
+        node = mac.wait_find(TITLE, label, role)
+        try:
+            return element_rect(mac, node)
+        finally:
+            mac.release(node)
+
+    theme = mac.find(TITLE, 'Dark', 'AXButton')
+    current, alternate = ('Dark', 'Light') if theme else ('Light', 'Dark')
+    if theme:
+        mac.release(theme)
+    header = footer = True
+    clicks = cases = 0
+    try:
+        assert not checked()
+        focus_gallery_control(mac, 'Keep group updates', 'AXCheckBox')
+        mac.key(49)  # Real Space input changes the retained body checkbox.
+        deadline = time.monotonic() + 5
+        while not checked():
+            assert time.monotonic() < deadline, 'Group checkbox did not receive Space'
+            time.sleep(.025)
+        for appearance in (current, alternate):
+            for variant in ('Card', 'Plain', 'Filled', 'Outline'):
+                mac.press(TITLE, 'Group: ' + variant)
+                for refined in (False, True):
+                    if refined:
+                        activate(mac, mac.wait_find(TITLE, 'Refine group slots', 'AXCheckBox'))
+                    for wanted_header, wanted_footer in ((True, True), (False, True),
+                                                          (True, False), (False, False)):
+                        if header != wanted_header:
+                            activate(mac, mac.wait_find(TITLE, 'Group header', 'AXCheckBox'))
+                        if footer != wanted_footer:
+                            activate(mac, mac.wait_find(TITLE, 'Group footer', 'AXCheckBox'))
+                        header, footer = wanted_header, wanted_footer
+                        mac.wait_text(TITLE, f'Group layout: {variant} · '
+                                      f'{"refined" if refined else "default"} · '
+                                      f'{"header" if header else "no header"} · '
+                                      f'{"footer" if footer else "no footer"}')
+                        node = mac.wait_find(TITLE, 'Keep group updates', 'AXCheckBox')
+                        try:
+                            assert equal(original, node), 'Group variant replaced its body control'
+                            assert checked(), 'Group variant reset checked state'
+                        finally:
+                            mac.release(node)
+                        reveal_gallery_control(mac, 'Configurable group', 'AXGroup')
+                        gx, gy, gw, gh = rect('Configurable group', 'AXGroup')
+                        bx, by, bw, bh = rect('Group content', 'AXGroup')
+                        outer = 17 if variant == 'Card' else 0
+                        padding = 24 if refined else 16 if variant in ('Filled', 'Outline') else 0
+                        expected = outer + padding + (1 if variant == 'Outline' else 0)
+                        assert abs(bx - gx - expected) < 2, (variant, refined, bx - gx, expected)
+                        assert bw > 200 and bh > 40 and abs(gw - 440) < 2
+                        for present, label, inset in ((header, 'Group heading action', 10),
+                                                       (footer, 'Group footer action', 20)):
+                            if present:
+                                x, y, w, h = rect(label, 'AXButton')
+                                assert abs(x - gx - outer - (inset if refined else 0)) < 2
+                                assert (y + h <= by if label == 'Group heading action'
+                                        else y >= by + bh)
+                                point = (x + w / 2, y + h / 2)
+                                mouse.check_owner(point)
+                                mouse.send(5, point)
+                                mouse.send(1, point)
+                                mouse.send(2, point)
+                                clicks += 1
+                                mac.wait_text(TITLE, f'Group actions: {clicks}')
+                            else:
+                                wait_absent(mac, label, 'AXButton')
+                        focus_gallery_control(mac, 'Run group action', 'AXButton')
+                        mac.key(36)
+                        clicks += 1
+                        mac.wait_text(TITLE, f'Group actions: {clicks}')
+                        expect_focus(mac, 'Run group action')
+                        if images and header and footer and not refined:
+                            screenshot(mac, images / f'gallery-group-{appearance.lower()}-{variant.lower()}.png', title=TITLE)
+                        cases += 1
+                    if refined:
+                        activate(mac, mac.wait_find(TITLE, 'Refine group slots', 'AXCheckBox'))
+            mac.press(TITLE, appearance)
+            mac.release(mac.wait_find(TITLE, alternate if appearance == current else current, 'AXButton'))
+    finally:
+        mac.release(original)
+    mac.press(TITLE, 'Runtime & windows')
+    wait_absent(mac, 'Keep group updates', 'AXCheckBox')
+    mac.press(TITLE, 'Refresh resource counts')
+    mac.wait_text(TITLE, 'Images: 0 · Charts: 0 · Canvases: 0')
+    mac.wait_text(TITLE, 'Registered source bytes: 0')
+    mac.press(TITLE, 'Presentation')
+    # Bonsai retains this page's scalar model while its native subtree is absent.
+    mac.wait_text(TITLE, f'Group actions: {clicks}')
+    mac.wait_text(TITLE, 'Group layout: Outline · default · no header · no footer')
+    restored = mac.wait_find(TITLE, 'Keep group updates', 'AXCheckBox')
+    try:
+        assert checked(restored), 'Page remount discarded its caller-owned model'
+    finally:
+        mac.release(restored)
+    print(f'GALLERY_GROUP_OK: {cases} theme/variant/style/slot cases; geometry, retained '
+          f'checked state and native identity, {clicks} pointer/Return actions, '
+          'real Space input, focus and teardown', flush=True)
+
+
 def exercise_labels(mac, images):
     """Public label data -> Bonsai diff -> native foreground/selection/AX."""
     primary = 'İstanbul · Élan · agent'
     secondary = 'agent notes · 世界'
     mac.wait_text(TITLE, 'Labels that read naturally')
     raise_gallery(mac)
-    mouse = GalleryMouse(mac)
     equal = mac.cf.CFEqual
     equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
     original = mac.wait_find(TITLE, primary + ' ' + secondary, 'AXStaticText')
@@ -112,35 +268,7 @@ def exercise_labels(mac, images):
         mac.release(dark_button)
 
     def reveal(label):
-        window = mac.window(TITLE)
-        try:
-            wx, wy, ww, wh = element_rect(mac, window)
-        finally:
-            mac.release(window)
-        point = (wx + ww * .78, wy + wh * .67)
-        create = mac.cg.CGEventCreateScrollWheelEvent
-        create.restype, create.argtypes = C.c_void_p, [C.c_void_p, C.c_uint, C.c_uint, C.c_int]
-        locate = mac.cg.CGEventSetLocation
-        locate.restype, locate.argtypes = None, [C.c_void_p, GalleryMouse.Point]
-        for _ in range(24):
-            node = mac.wait_find(TITLE, label, 'AXStaticText')
-            try:
-                x, y, w, h = element_rect(mac, node)
-            finally:
-                mac.release(node)
-            if y >= wy + 170 and y + h <= wy + wh - 30:
-                return x, y, w, h
-            mouse.send(5, point)
-            mouse.check_owner(point)
-            event = create(None, 0, 1, C.c_int(-75 if y + h > wy + wh - 30 else 75))
-            assert event
-            try:
-                locate(event, GalleryMouse.Point(*point))
-                mouse.post(0, event)
-            finally:
-                mac.release(event)
-            time.sleep(.08)
-        raise RuntimeError('Label did not become visible')
+        return reveal_gallery_control(mac, label, 'AXStaticText')
 
     def copy(label):
         focus_gallery_control(mac, label, 'AXStaticText')
@@ -2539,7 +2667,7 @@ def main():
                         help='Run an independently built gallery instead of the repository executable')
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'groups', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -2560,6 +2688,8 @@ def main():
             mac = Mac(child.pid, child)
             if args.section in ('all', 'core'):
                 exercise(mac, args.images)
+            if args.section == 'groups':
+                exercise_groups(mac, args.images)
             if args.section == 'labels':
                 exercise_labels(mac, args.images)
             if args.section == 'badges':

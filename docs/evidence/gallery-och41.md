@@ -18,6 +18,45 @@ adds public inline-code/bold and safe image-placeholder links, with exact AX
 reading-order/action checks and retained keyboard navigation. Its focused result
 is separate from the combined/installed-consumer checkpoints below.
 
+## Group boxes — focused checkpoint, 2026-09-29
+
+`Presentation.group_box` now supplies `Group_variant.Card/Plain/Filled/Outline`
+and independent header/body/footer wrapper styles. Card preserves the existing
+outer-panel default; the other variants place the title/footer outside the body
+panel. No new native controller, protocol, dependency or fork patch is required.
+The **Structure with flexibility** gallery card uses only public Core/Bonsai APIs.
+
+The combined native `--section core` run passes **64 group configurations**
+(two palettes × four variants × two style settings × four header/footer states).
+Actual AX bounds verify body padding, outside header/footer placement and separate
+slot refinements. A real Space key checks the body checkbox; its checked value and
+native identity survive every configuration. **128 real pointer/Return actions**
+activate header/footer and body controls with focus checks. Page departure removes
+the native subtree and returns image/chart/canvas/source-byte counters to zero;
+remount restores the retained caller-owned Bonsai model. The test closes/reaps its
+window. Marker: `GALLERY_GROUP_OK`, followed by `GPUIO_GALLERY_AX_OK: section=core`.
+Dark-outline and light-filled screenshots were visually inspected.
+
+This combined run also passes the existing 48 status-region, 36 badge/72-input and
+48 label configurations, ordinary editing/validation/submission, size/theme
+changes, second-window isolation and repeated page transitions. The complete
+isolated `dune build -j2 @all @runtest @fmt` passes, including a new group expect
+regression covering stable control identity/current callbacks, retired slot
+actions, default Card compatibility, idle repeat commits and full unmount fencing.
+
+Two harness assumptions were corrected: checkbox AXValue is a Boolean rather
+than a CFNumber; scalar Bonsai page models persist across inactive branches, so
+remount must retain their values rather than reset them. Neither is a product
+regression. The first expect-test draft also incorrectly rejected newly created
+header/footer button configuration as a body-control reset; the final assertion
+checks the retained body ID specifically.
+
+The [pinned group-box review](../catalog/presentation-review.md#group-box-functional-equivalent)
+records builder/style/ownership mappings and intentional defaults. Thirteen other
+presentation modules still need detailed review. Full 23-section reruns, fresh
+installed consumers, hosted required checks, Linux desktop, VoiceOver/IME,
+performance and clean-machine release acceptance are not established here.
+
 ## Enhanced labels — focused checkpoint, 2026-09-29
 
 The public Presentation card now exercises `Label.create` and

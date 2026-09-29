@@ -34,8 +34,12 @@ theme cases and 72 pointer/Return activations, uncapped AX labels, underlying
 control identity and scoped asset cleanup. Enhanced labels now supply inline
 secondary text, Unicode-aware prefix/all-match coloring and display masking.
 Local gallery checks pass 48 theme/width/configuration cases with real keyboard
-copy, native identity, masked AX source and cleanup. The presentation family
-remains only partially reviewed.
+copy, native identity, masked AX source and cleanup. Group boxes now expose plain,
+filled and outline body panels plus independent header/body/footer styles, retaining
+the original card default. Local native checks pass 64 layout/theme/style/slot
+cases with checked-state/identity retention, 128 pointer/Return actions and page
+teardown/remount; the combined core gallery and full Dune checks pass. The
+presentation family remains only partially reviewed.
 The [ordinary text-span API](design/text-content.md) now supplies bounded
 foreground runs through atomic bridge updates and View/Bonsai reconciliation.
 Local checks cover native GPU paint, wrapping, selection/copy and source AX labels.

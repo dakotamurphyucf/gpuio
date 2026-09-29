@@ -120,5 +120,13 @@
     "source": "crates/component/src/label.rs",
     "snapshot": "component-label.rs.txt",
     "sha256": "06d28dfcec538d209d2d0ea03c4c4ef0192ee9dd0b8fbb2b2b4616f7c2cdfed7"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/group_box.rs",
+    "snapshot": "component-group-box.rs.txt",
+    "sha256": "acac45f32729dae656b39429aed46edc9a45e40cc0c6df04e2e2cb8a7f0216c7"
   }
 ]

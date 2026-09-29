@@ -98,6 +98,73 @@ let%expect_test "optional card slots and appearance updates preserve body contro
   [%expect {| body identity and handler survive header/footer and theme changes |}]
 ;;
 
+let%expect_test "group panel changes preserve controls and independently refine slots" =
+  let t = Reconciler.create window in
+  let group p ?variant ?header ?footer revision =
+    let refine = Style.create_exn [ Padding_left (Length.px_exn 23.) ] in
+    P.group_box
+      p
+      ?variant
+      ~header_style:refine
+      ~body_style:refine
+      ~footer_style:refine
+      ?header
+      ?footer
+      [ View.checkbox ~state:Checked ~on_toggle:(fun () -> revision) "Persistent choice" ]
+  in
+  let first = group P.Appearance.light "original" in
+  let initial = commit t first in
+  let node, handler =
+    List.find_map_exn initial ~f:(function
+      | W.Op.Create (node, Checkbox, _, Some handler) -> Some (node, handler)
+      | _ -> None)
+  in
+  let body_event = W.Event.Press (window, node, handler, 1L) in
+  assert (List.is_empty (commit t (group P.Appearance.light ~variant:Card "original")));
+  let stale_actions = ref [] in
+  List.iter [ P.Appearance.light; P.Appearance.dark ] ~f:(fun p ->
+    List.iter [ P.Group_variant.Card; Plain; Filled; Outline ] ~f:(fun variant ->
+      List.iter
+        [ true, true; false, true; true, false; false, false ]
+        ~f:(fun (h, f) ->
+          let control name = View.button name ~on_click:(fun () -> name) in
+          let view =
+            group
+              p
+              ~variant
+              ?header:(Option.some_if h (control "header"))
+              ?footer:(Option.some_if f (control "footer"))
+              "latest"
+          in
+          let operations = commit t view in
+          List.iter operations ~f:(function
+            | W.Op.Remove removed ->
+              assert (not (Gpuio_protocol.Node_id.equal node removed))
+            | Create (_, Checkbox, _, _) -> failwith "group control replaced"
+            | Set_control (changed, _) ->
+              assert (not (Gpuio_protocol.Node_id.equal node changed))
+            | Create (node, Button, _, Some handler) ->
+              stale_actions := W.Event.Press (window, node, handler, 1L) :: !stale_actions
+            | _ -> ());
+          assert (
+            Option.equal String.equal (Reconciler.dispatch t body_event) (Some "latest"));
+          List.iter !stale_actions ~f:(fun event ->
+            Option.iter (Reconciler.dispatch t event) ~f:(function
+              | "header" -> assert h
+              | "footer" -> assert f
+              | _ -> assert false));
+          assert (List.is_empty (commit t view)))));
+  let update = Reconciler.prepare t ~theme:Theme.default None |> ok in
+  Reconciler.accept t update |> ok;
+  List.iter (body_event :: !stale_actions) ~f:(fun event ->
+    assert (Option.is_none (Reconciler.dispatch t event)));
+  print_endline
+    "default Card unchanged; all variants/themes/slots keep checked body and latest \
+     action; removed slots and full unmount fence actions; repeats are idle";
+  [%expect
+    {| default Card unchanged; all variants/themes/slots keep checked body and latest action; removed slots and full unmount fence actions; repeats are idle |}]
+;;
+
 let%expect_test "status regions preserve surviving actions across slot changes" =
   let t = Reconciler.create window in
   let bar p leading center trailing =

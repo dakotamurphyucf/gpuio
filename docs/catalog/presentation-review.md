@@ -182,10 +182,61 @@ including explicit compact-versus-wide wrapping checks. It does not establish
 IME or VoiceOver navigation acceptance. Broader gallery and release evidence
 is recorded separately in [the gallery report](../evidence/gallery-och41.md).
 
+## Group box: functional equivalent
+
+Source: [component/group_box](sources/component-group-box.rs.txt), including
+`GroupBox`, `GroupBoxVariant`, `GroupBoxVariants`, `Styled`, `ParentElement`, and
+the renderer. Public equivalent: `Presentation.group_box` and `Group_variant`.
+The pinned source is preserved verbatim and checksummed in the source manifest.
+
+| Surface | GPUIO contract |
+| --- | --- |
+| Normal, Fill, Outline | `Group_variant.Plain`, `Filled`, `Outline`. The header sits outside the body panel; Filled decorates the body with the appearance's raised surface, Outline adds its border, and both pad the body. Plain adds neither panel nor padding. |
+| Existing card | `Card` remains the default, preserving the original outer border/surface/padding around all slots. It is an additional GPUIO appearance, not an upstream variant. |
+| Title and arbitrary children | Optional `~header` and ordinary body view list. Optional `~footer` is an additional GPUIO slot. All accept controls and independently styled rich views; no string-only restriction. |
+| Title/content/root styles | `~header_style`, `~body_style`, `~footer_style` refine the stable wrappers; root `~style` refines the outer layout. GPUIO uses its own palette, spacing and radii; no pixel-identical upstream theme promise. |
+| Identity/state | `~key` uses ordinary scoped reconciliation identity. Stable internal header/body/footer keys preserve body controls when slots, appearance, variant or styles change. This helper owns no controller/model/task/registration. Model retention is the caller's policy; it does not reset caller state on variant changes. |
+| Events/commands | None owned by the group. Children retain asynchronous input delivery and current callbacks. Removed slot actions and complete unmount are fenced by ordinary reconciliation. |
+| Accessibility/focus | Structural Group semantics, no added focus stop or automatic live announcement. Applications supply an accessible group name with `View.with_accessibility`; children retain their normal roles/actions. This helper does not automatically turn a header into a heading. |
+| Builder utilities | Typed OCaml variants replace Rust convenience builders and string conversion helpers. No implicit string parser with unknown-value fallback is introduced. |
+
+Example:
+
+```ocaml
+Presentation.group_box appearance
+  ~variant:Outline
+  ~header:(View.text "Workspace")
+  ~body_style:(Style.create_exn [ Gap (Length.px_exn 16.) ])
+  [ View.checkbox ~state:Checked ~on_toggle "Synchronize changes" ]
+```
+
+The gallery's **Structure with flexibility** card exposes all four appearances,
+header/footer visibility and independent wrapper refinements around a persistent
+checkbox and action. Its scalar Bonsai model persists while the page is inactive;
+the native subtree unmounts, becomes inaccessible, and remounts from that model.
+This differs from scoped native resources, which are released on page departure.
+
+Reproduction:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 \
+  @test/view_api/runtest examples/gallery/main.exe
+python3 scripts/test_gallery.py --section groups --images scratch/group-gallery
+```
+
+Validation evidence is recorded in [the gallery report](../evidence/gallery-och41.md).
+The expect regression checks default compatibility, both palettes and all
+variant/slot combinations, retained checked controls/latest callbacks, retired
+slot actions, idle repeat commits and full-unmount fencing. Native checks measure
+actual header/body/footer positions and style overrides, query checkbox state and
+identity, and drive real keyboard/pointer actions. These scoped checks do not
+constitute a full VoiceOver journey, physical display-scale transition, arbitrary
+application layout, Linux desktop or release performance acceptance.
+
 ## Remaining presentation modules
 
 `base/link`, and component `alert`, `attachment`, `bubble`, `description_list`,
-`empty`, `group_box`, `kbd`, `link`, `marker`, `message`, `separator`, `setting`,
+`empty`, `kbd`, `link`, `marker`, `message`, `separator`, `setting`,
 and `tag` retain pending detailed reviews. Prior OCH-33 implementation evidence
 still applies to the GPUIO APIs it actually tests. Nested types/builders, settings
 field behaviors, style/semantics and commands must be checked before broader

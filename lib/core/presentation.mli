@@ -162,11 +162,29 @@ val separator
   -> unit
   -> 'action View.t
 
-(** Stable header/body/footer wrappers preserve body identity as slots change. *)
+module Group_variant : sig
+  type t =
+    | Card
+    | Plain
+    | Filled
+    | Outline
+  [@@deriving equal, sexp_of]
+end
+
+(** Stable header/body/footer wrappers preserve body identity as slots and styles
+    change. [Card] (the default) places padding, background and border around the
+    whole group, preserving the original appearance. [Plain] adds no panel;
+    [Filled] and [Outline] decorate and pad only the body, leaving header/footer
+    outside it. Root [style] and each slot style refine their respective defaults.
+    The group adds no focus stop; children keep their normal native behavior. *)
 val group_box
   :  Appearance.t
   -> ?key:Key.t
   -> ?style:Style.t
+  -> ?variant:Group_variant.t
+  -> ?header_style:Style.t
+  -> ?body_style:Style.t
+  -> ?footer_style:Style.t
   -> ?header:'action View.t
   -> ?footer:'action View.t
   -> 'action View.t list

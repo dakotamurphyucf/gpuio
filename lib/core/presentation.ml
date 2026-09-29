@@ -411,38 +411,66 @@ let separator
   |> semantic Separator
 ;;
 
+module Group_variant = struct
+  type t =
+    | Card
+    | Plain
+    | Filled
+    | Outline
+  [@@deriving equal, sexp_of]
+end
+
 let group_box
       (p : Appearance.t)
       ?key
       ?style:(custom = Style.empty)
+      ?(variant = Group_variant.Card)
+      ?(header_style = Style.empty)
+      ?(body_style = Style.empty)
+      ?(footer_style = Style.empty)
       ?header
       ?footer
       children
   =
+  let root, body =
+    match variant with
+    | Group_variant.Card ->
+      ( [ Padding (px 16.)
+        ; Radius 12.
+        ; Border_width 1.
+        ; Border_color p.Appearance.border
+        ; Background (solid p.surface)
+        ]
+      , [] )
+    | Plain -> [], []
+    | Filled -> [], [ Padding (px 16.); Radius 12.; Background (solid p.raised) ]
+    | Outline ->
+      [], [ Padding (px 16.); Radius 12.; Border_width 1.; Border_color p.border ]
+  in
+  let styled_slot name custom =
+    Option.map ~f:(fun child ->
+      View.column
+        ~key:(internal_key name)
+        ~style:(Style.merge [ style [ Min_width (px 0.); Shrink 0. ]; custom ])
+        [ child ])
+  in
   View.column
     ?key
     ~style:
       (Style.merge
-         [ style
-             [ Min_width (px 0.)
-             ; Gap (px 12.)
-             ; Padding (px 16.)
-             ; Radius 12.
-             ; Border_width 1.
-             ; Border_color p.Appearance.border
-             ; Background (solid p.surface)
-             ; Foreground p.foreground
-             ]
+         [ style ([ Min_width (px 0.); Gap (px 12.); Foreground p.foreground ] @ root)
          ; custom
          ])
     (List.filter_opt
-       [ optional_slot "header" header
+       [ styled_slot "header" header_style header
        ; Some
            (View.column
               ~key:(internal_key "body")
-              ~style:(style [ Min_width (px 0.); Gap (px 12.) ])
+              ~style:
+                (Style.merge
+                   [ style ([ Min_width (px 0.); Gap (px 12.) ] @ body); body_style ])
               children)
-       ; optional_slot "footer" footer
+       ; styled_slot "footer" footer_style footer
        ])
   |> semantic Group
 ;;
