@@ -156,6 +156,15 @@ gesture. The native `list_selection_test.rs` fixture checks admission pins,
 clipboard results and weak-owner release for this transition. This is not a
 promise to copy text from rows that have never been materialized.
 
+An unfocused interior participant can be evicted without discarding surviving
+geometric endpoints. Copy then includes currently materialized eligible text and
+releases the evicted payload. A new node generation for that interior row joins
+the live range with its current text; it cannot restore old bytes. In contrast,
+an endpoint's retirement destroys the range itself. Updating a selected interior
+source retires shared geometry and requires a fresh gesture. The native
+`list_selection_interior_test.rs` checks these transitions through guarded
+admission with unchanged logical order and weak-owner release.
+
 Tests cover atomic rollback, explicit deletion, response-reservation release,
 source-generation validation, independent OCaml/Rust bin_prot fixtures, and an
 actual Bonsai row model that survives a retry without activation/deactivation or

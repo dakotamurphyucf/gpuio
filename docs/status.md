@@ -54,6 +54,8 @@ Shift-click, reorder and hidden endpoint retirement. A mixed ordinary/Markdown
 fixture also checks focus-independent Copy, local Select All, source replacement
 and endpoint removal. Ordinary selection also passes independent-window Copy,
 close/reopen release and managed endpoint eviction/rematerialization checks.
+Guarded interior-row eviction now also verifies surviving endpoints, released
+payloads, current-generation rejoining and selected-source retirement.
 Ordinary pointer projection now preserves extended graphemes and uses shaped
 visual cells, with focused left/center/right, Hebrew/Arabic, soft-wrap and LF/CRLF
 Copy evidence. Native word/caret hits and keyboard-to-Shift-click anchors now use

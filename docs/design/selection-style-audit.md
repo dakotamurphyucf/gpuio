@@ -331,8 +331,8 @@ logical row under a new node generation does not restore the old range; a fresh
 gesture copies the new payload. The surrounding native suite continues to cover
 held-drag retention, source deletion, disposal and bounded 100k-row traversal.
 
-These cases do not promise Copy over arbitrary unloaded history or all interior-
-row eviction combinations. An application's loaded logical data and bounded native
+These cases do not promise Copy over arbitrary unloaded history. The focused
+interior-row case below complements endpoint eviction; broader combinations remain. An application's loaded logical data and bounded native
 row materialization remain separate owners; see [managed lists](managed-lists.md).
 They also do not establish mixed-document selection across independent windows.
 
@@ -343,6 +343,32 @@ released evicted owners and completed its demand-convergence checks. Strict
 all-target native/protocol Clippy with `native-image-tests`, formatting, diff and
 structural catalog checks passed. This checkpoint adds tests and documentation;
 it does not change production code, wire/API contracts or the pinned fork.
+
+### Evicting an interior row
+
+`list_selection_interior_test.rs` selects across three materialized rows, then
+removes only the unfocused middle row through native guarded admission. The list's
+logical order remains the same object: this is materialization eviction, not
+source deletion. Its native selection owner is released. The two endpoint rows
+remain selected and Copy includes their current text, without retaining the evicted
+middle payload.
+
+Rematerializing that logical middle row under a fresh node generation lets its new
+payload join the still-live geometric range. This differs from rematerializing an
+endpoint: an evicted endpoint retires the gesture, so there is no live range for it
+to rejoin. Changing the selected interior row's source text retires shared geometry;
+a fresh gesture then copies the current three-row text. These checks enforce
+bounded native ownership rather than pinning every historically selected row or
+copying arbitrary unloaded application data.
+
+On this fixture revision, `native_list` exited 0 under a 300-second process-group
+watchdog. It completed both 100,000-row traversals with at most 256 active native
+views/selection caches, released evicted resources and passed demand convergence.
+Strict native/protocol all-target Clippy with `native-image-tests`, formatting,
+diff and structural catalog checks passed. This checkpoint adds tests and
+clarifies the existing bounded selection contract; it makes no production,
+protocol, dependency or fork changes. The traversal is not a full application
+performance budget or physical-input/accessibility qualification.
 
 ## Ordinary pointer typography
 
@@ -473,9 +499,9 @@ application performance/resource budgets and release acceptance remain open.
   native evidence above. These focused checks are not the whole OCH-17 input/AX
   matrix.
 - Complete broader mixed-document/source-editor and independent-window combinations,
-  virtualized/interior-row lifecycle cases, mixed-direction wrapping and caret/word
+  broader virtualized lifecycle cases, mixed-direction wrapping and caret/word
   combinations, and multi-click cross-node semantics. Two rendered Markdown
-  documents, ordinary two-window isolation, managed endpoint eviction/reuse and
+  documents, ordinary two-window isolation, managed endpoint/interior eviction/reuse and
   measured macOS pointer Copy controls are covered above.
   The focused ordinary-node regression does not prove those combinations.
 - Measure projection and copy cost for large selected text and bounded retention

@@ -1,5 +1,7 @@
 //! Cross-row Copy and legal endpoint eviction through managed-list admission.
 use super::*;
+#[path = "list_selection_interior_test.rs"]
+mod interior;
 use crate::host::{
     editor_test::key,
     native_test::{mouse, move_mouse},
@@ -159,6 +161,7 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, window: WindowHandle<View>
         "Row 3\nnew Row 4 β",
         "fresh gesture uses the new node generation"
     );
+    let recycled = interior::exercise(cx, window, recycled).await;
     window
         .update(cx, |_, w, cx| gpui_base::TextSelection::clear(w, cx))
         .unwrap();
