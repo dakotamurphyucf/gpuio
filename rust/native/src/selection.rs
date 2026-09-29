@@ -1,10 +1,7 @@
 //! Read-only text selection. Offsets are UTF-8 byte boundaries; arrow movement
 //! uses extended graphemes. This owns no OCaml callbacks or mutable documents.
 use crate::text_projection::{self, Mapping};
-use gpui::{
-    App, ClipboardItem, EntityId, FocusHandle, MouseButton, SharedString, StyledText, div,
-    prelude::*,
-};
+use gpui::{App, ClipboardItem, EntityId, FocusHandle, MouseButton, SharedString, div, prelude::*};
 use std::{cell::RefCell, ops::Range, rc::Rc, sync::Arc};
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -220,6 +217,7 @@ impl State {
 }
 
 pub fn element(
+    spans: &[gpuio_protocol::text_content::Span],
     state: Rc<RefCell<State>>,
     color: gpui::Hsla,
     pointer: bool,
@@ -235,7 +233,7 @@ pub fn element(
         (s.text.clone(), s.focus.clone())
     };
     let label = SharedString::from(source.clone());
-    let text = StyledText::new(label.clone());
+    let text = crate::styled_text::element(label.clone(), spans);
     let layout = text.layout().clone();
     let mut element = div()
         .id("selectable-text")

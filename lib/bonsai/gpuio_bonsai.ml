@@ -25,6 +25,7 @@ module View = struct
   let document = Gpuio.View.document
   let image = Gpuio.View.image
   let text = Gpuio.View.text
+  let styled_text = Gpuio.View.styled_text
 
   let button
         ?key

@@ -183,7 +183,23 @@ pub(crate) fn run() {
                 ]);
                 let initial=observed(cx,handle,&transport,handler(1),ready(2)).await;
                 assert_eq!(initial.epoch,1);
+                let foreground = gpuio_protocol::text_content::Content {
+                    text: "aaa".into(),
+                    spans: vec![gpuio_protocol::text_content::Span { start_byte: 0, end_byte: 3, foreground: 0x800080ff }],
+                };
+                apply(cx,handle,vec![Op::SetStyledText(id(2),foreground.clone()),Op::SetStyledText(id(3),foreground)]);
                 draw(cx,handle);
+                handle.update(cx,|_,window,_| {
+                    let image=window.render_to_image().unwrap();
+                    let scale=window.scale_factor();
+                    for top in [20.,60.] {
+                        let purple=image.enumerate_pixels().filter(|(_,y,pixel)| {
+                            *y >= (top*scale) as u32 && *y < ((top+30.)*scale) as u32
+                            && pixel[0]>90 && pixel[0]<170 && pixel[1]<40 && pixel[2]>90 && pixel[2]<170
+                        }).count();
+                        assert!(purple>10,"foreground runs compose with search underlay: {purple}");
+                    }
+                }).unwrap();
                 assert_eq!(pixel(cx,handle,24.,22.),[255,0,0,255],"ordinary text wash");
                 assert_eq!(pixel(cx,handle,24.,62.),[255,0,0,255],"selectable text wash");
                 assert_eq!(pixel(cx,handle,24.,102.),[255,255,255,255],"empty nested scope blocks inherited wash");

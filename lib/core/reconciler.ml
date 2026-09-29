@@ -116,6 +116,7 @@ type 'a mounted =
   ; id : Node_id.t
   ; handler : Handler_id.t option
   ; style : Wire.Style.t list
+  ; text_content : Gpuio_protocol.Text_content_wire.t option
   ; animation : Wire.Animation.Config.t option
   ; animation_seen : int64 ref
   ; animation_program : Wire.Animation_program.Config.t option
@@ -875,17 +876,35 @@ let rec mount builder ~depth previous view =
             ~data:{ node = id; handler; callback }
      | None, None -> builder.bindings <- Map.remove builder.bindings (node_slot id)
      | Some _, None | None, Some _ -> assert false);
+    let text_content =
+      Option.map description.text_content ~f:(fun content ->
+        Text_content.Expert.to_wire content ~theme:builder.theme |> value)
+    in
     (match previous with
      | None ->
-       emit builder (Create (id, kind description.kind, description.text, handler))
+       let text = if Option.is_some text_content then "" else description.text in
+       emit builder (Create (id, kind description.kind, text, handler))
      | Some mounted ->
        if
          Option.is_none description.editor
          && Option.is_none description.combobox
-         && not (String.equal (View.Expert.describe mounted.view).text description.text)
+         && Option.is_none text_content
+         && (Option.is_some mounted.text_content
+             || not
+                  (String.equal (View.Expert.describe mounted.view).text description.text)
+            )
        then emit builder (Set_text (id, description.text));
        if not (Option.equal Handler_id.equal old_handler handler)
        then emit builder (Bind (id, handler)));
+    if
+      not
+        (Option.equal
+           Gpuio_protocol.Text_content_wire.equal
+           text_content
+           (Option.bind previous ~f:(fun mounted -> mounted.text_content)))
+    then
+      Option.iter text_content ~f:(fun content ->
+        emit builder (Set_styled_text (id, content)));
     if
       Option.is_some description.commands
       && not (List.equal Wire.Command.equal old_commands commands)
@@ -1621,6 +1640,7 @@ let rec mount builder ~depth previous view =
     ; id
     ; handler
     ; style
+    ; text_content
     ; animation
     ; animation_seen
     ; animation_program

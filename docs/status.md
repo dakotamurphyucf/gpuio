@@ -33,9 +33,10 @@ preserving the existing text-chip helper. Local native checks pass 36 kind/size/
 theme cases and 72 pointer/Return activations, uncapped AX labels, underlying
 control identity and scoped asset cleanup. Label secondary/masking/highlight
 configurations remain an explicit gap; the presentation family is not fully reviewed.
-An [ordinary text-span foundation](design/text-content.md) now validates bounded
-foreground ranges and independently checks OCaml/Rust bytes. Native mounting,
-rendering and the enhanced label helper are still pending.
+The [ordinary text-span API](design/text-content.md) now supplies bounded
+foreground runs through atomic bridge updates and View/Bonsai reconciliation.
+Local checks cover native GPU paint, wrapping, selection/copy and source AX labels;
+the enhanced label helper and its public gallery example remain pending.
 OCH-41's public
 [Component Studio](../examples/gallery/README.md) now has twenty-three preview sections,
 including canvas, images/icons, charts, native motion, responsive layouts, native extensions, input/transfers, input observations, desktop services and styling details. The [gallery evidence](evidence/gallery-och41.md) records

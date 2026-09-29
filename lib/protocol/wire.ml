@@ -30,7 +30,7 @@ module Desktop = Desktop_wire
 module Notification = Notification_wire
 
 let version = 1L
-let capabilities = 140737488355327L
+let capabilities = 281474976710655L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -702,6 +702,7 @@ module Op = struct
     | Set_input_region of Node_id.t * Input_region.Config.t
     | Set_highlight_scope of Node_id.t * Highlight.Config.t
     | Set_document_diff of Node_id.t * int64 * Document_diff.Config.t option
+    | Set_styled_text of Node_id.t * Text_content_wire.t
   [@@deriving bin_io, equal, sexp_of]
 end
 

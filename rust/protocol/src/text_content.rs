@@ -1,5 +1,5 @@
 //! Bounded foreground runs over one logical ordinary-text source.
-//! Data/codec foundation only; mounted view integration is not yet available.
+//! Used by the atomic SetStyledText operation for ordinary Text nodes.
 use binprot::macros::BinProtWrite;
 
 pub const MAX_TEXT_BYTES: usize = 262144;

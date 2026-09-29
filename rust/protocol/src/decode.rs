@@ -1028,6 +1028,7 @@ impl Decoder<'_> {
             55 => Op::SetChart(self.node()?, self.chart_view_config()?),
             56 => Op::SetInputRegion(self.node()?, self.input_config()?),
             57 => Op::SetHighlightScope(self.node()?, self.highlight_config()?),
+            59 => Op::SetStyledText(self.node()?, self.text_content()?),
             58 => {
                 let node = self.node()?;
                 let epoch = self.int()?;

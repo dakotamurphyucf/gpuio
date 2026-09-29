@@ -540,6 +540,6 @@ fn calendar_capability_uses_the_shared_64_bit_handshake() {
     let mut bytes = Vec::new();
     hello.binprot_write(&mut bytes).unwrap();
     let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
-    assert_eq!(hex, "0001fcffffffffff7f0000");
+    assert_eq!(hex, "0001fcffffffffffff0000");
     assert_eq!(decode(&bytes), Ok(hello));
 }

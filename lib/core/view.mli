@@ -12,6 +12,13 @@ val with_accessibility : 'action t -> Accessibility.t -> 'action t Core.Or_error
 
 val text : ?key:Key.t -> ?style:Style.t -> string -> 'action t
 
+(** One logical text flow with foreground runs. Uncovered ranges inherit [style].
+    Colors resolve against the current theme during reconciliation; missing tokens
+    return a preparation error. Color-only updates retain native selection; source
+    changes follow ordinary text selection behavior. Copy and default accessibility
+    expose the complete source string. This is ordinary text, not a native editor. *)
+val styled_text : ?key:Key.t -> ?style:Style.t -> Text_content.t -> 'action t
+
 (** Native chart backed by a scoped data registration. Style determines its size. *)
 val chart
   :  ?key:Key.t
@@ -1050,6 +1057,7 @@ module Expert : sig
     { key : Key.t option
     ; kind : Kind.t
     ; text : string
+    ; text_content : Text_content.t option
     ; style : Style.t
     ; on_click : (unit -> 'action) option
     ; editor : 'action editor option

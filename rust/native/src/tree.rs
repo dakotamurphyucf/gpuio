@@ -74,6 +74,7 @@ pub struct Node {
     pub id: NodeId,
     pub kind: Kind,
     pub text: Arc<str>,
+    pub text_spans: Arc<[gpuio_protocol::text_content::Span]>,
     pub editor: Option<Arc<EditorConfig>>,
     pub control: Option<Control>,
     pub choice: Option<Arc<ChoiceConfig>>,
@@ -314,6 +315,7 @@ impl Node {
             } else {
                 0
             }
+            + std::mem::size_of_val(self.text_spans.as_ref())
             + std::mem::size_of_val(self.style.as_ref())
             + self
                 .style
@@ -1428,6 +1430,7 @@ impl Plan<'_> {
             Op::Create(id, ..)
             | Op::Remove(id)
             | Op::SetText(id, ..)
+            | Op::SetStyledText(id, ..)
             | Op::SetStyle(id, ..)
             | Op::SetEditor(id, ..)
             | Op::SetControl(id, ..)
@@ -1551,6 +1554,7 @@ impl Plan<'_> {
                             id: *id,
                             kind: *kind,
                             text: Arc::from(text.as_str()),
+                            text_spans: Arc::from([]),
                             editor: None,
                             control: None,
                             choice: None,
@@ -1642,7 +1646,17 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 validate_text(text)?;
-                self.node_mut(*id)?.text = Arc::from(text.as_str());
+                let node = self.node_mut(*id)?;
+                node.text = Arc::from(text.as_str());
+                node.text_spans = Arc::from([]);
+            }
+            Op::SetStyledText(id, content) => {
+                if self.node(*id)?.kind != Kind::Text || !content.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let node = self.node_mut(*id)?;
+                node.text = Arc::from(content.text.as_str());
+                node.text_spans = Arc::from(content.spans.as_slice());
             }
             Op::SetEditor(id, config) => {
                 if !matches!(

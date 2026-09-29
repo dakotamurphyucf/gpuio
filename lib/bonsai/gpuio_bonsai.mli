@@ -134,6 +134,9 @@ module View : sig
 
   val text : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> string -> t
 
+  (** See [Gpuio.View.styled_text] for foreground, selection and theme semantics. *)
+  val styled_text : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> Gpuio.Text_content.t -> t
+
   val button
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

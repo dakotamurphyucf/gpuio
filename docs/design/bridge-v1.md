@@ -30,7 +30,9 @@ use bits 41–43. Extended cursor values and start ellipsis require bit 44
 (`CAP_STYLE_VALUES`); general input regions require bit 45 (`CAP_INPUT_REGIONS`).
 Explicit pointer/wheel occlusion requires bit 46 (`CAP_POINTER_OCCLUSION`) and
 appends style field 66 with native-default/pointer/pointer-and-scroll values 0–2.
-Both language halves require the current shared mask `140737488355327`; an older host fails capability negotiation instead of accepting
+Atomic ordinary text foreground spans require bit 47 (`CAP_STYLED_TEXT`) and
+append Op59 `Set_styled_text`. Both language halves require the current shared
+mask `281474976710655`; an older host fails capability negotiation instead of accepting
 unsupported input, commands or style values. Existing style field tags and value
 IDs are unchanged: cursor additions occupy 10–21 and start ellipsis occupies 2.
 Correlated open/close/frame requests are distinct from per-window transactions.

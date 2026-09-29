@@ -269,6 +269,7 @@ type 'action t =
   { key : Key.t option
   ; kind : Kind.t
   ; text : string
+  ; text_content : Text_content.t option
   ; style : Style.t
   ; on_click : (unit -> 'action) option
   ; editor : 'action editor option
@@ -322,6 +323,7 @@ let text ?key ?(style = Style.empty) text =
   { key
   ; kind = Text
   ; text
+  ; text_content = None
   ; style
   ; on_click = None
   ; editor = None
@@ -367,6 +369,10 @@ let text ?key ?(style = Style.empty) text =
   ; control = None
   ; children = []
   }
+;;
+
+let styled_text ?key ?style content =
+  { (text ?key ?style (Text_content.text content)) with text_content = Some content }
 ;;
 
 let animate_program ?key ?(style = Style.empty) ?on_event config children =
@@ -482,6 +488,7 @@ let container ?key ?(style = Style.empty) defaults children =
   { key
   ; kind = Container
   ; text = ""
+  ; text_content = None
   ; style = Style.merge [ Style.create_exn defaults; style ]
   ; on_click = None
   ; editor = None
@@ -593,6 +600,7 @@ let button
   { key
   ; kind = Button
   ; text
+  ; text_content = None
   ; style = button_style style
   ; on_click = (if disabled then None else Some on_click)
   ; editor = None
@@ -676,6 +684,7 @@ let toggle
   { key
   ; kind
   ; text
+  ; text_content = None
   ; style = Style.merge [ defaults; style ]
   ; on_click = (if disabled then None else Some on_toggle)
   ; editor = None
@@ -1440,6 +1449,7 @@ let text_input
   { key = Some controller
   ; kind
   ; text = initial_text
+  ; text_content = None
   ; style
   ; on_click = None
   ; editor = Some { controller; config; on_event }
@@ -1491,6 +1501,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   { key
   ; kind = Radio_group
   ; text = ""
+  ; text_content = None
   ; style
   ; on_click = None
   ; editor = None
@@ -1569,6 +1580,7 @@ let combobox
   { key = Some controller
   ; kind = Combobox
   ; text = initial_text
+  ; text_content = None
   ; style
   ; on_click = None
   ; editor = None
@@ -2045,6 +2057,7 @@ module Expert = struct
     { key : Key.t option
     ; kind : Kind.t
     ; text : string
+    ; text_content : Text_content.t option
     ; style : Style.t
     ; on_click : (unit -> 'action) option
     ; editor : 'action editor option

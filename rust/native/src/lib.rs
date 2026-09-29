@@ -85,6 +85,7 @@ mod selection;
 mod semantics;
 pub mod session;
 mod style;
+mod styled_text;
 mod text_projection;
 mod transport;
 pub mod tree;
@@ -325,4 +326,9 @@ pub fn run_native_highlight_view_test() {
 #[cfg(feature = "native-image-tests")]
 pub fn run_native_highlight_document_test() {
     host::document_view::highlight_test::run();
+}
+
+#[cfg(feature = "native-image-tests")]
+pub fn run_native_styled_text_test() {
+    host::styled_text_test::run();
 }

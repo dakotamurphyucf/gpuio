@@ -1289,6 +1289,7 @@ impl View {
             selection.borrow_mut().update(node.text.clone());
             let highlight = self.highlight_for(tree, id);
             element = element.child(crate::selection::element(
+                &node.text_spans,
                 selection,
                 interaction
                     .selection_color
@@ -1331,13 +1332,21 @@ impl View {
             )
         {
             if let Some((paint, cache)) = self.highlight_for(tree, id) {
-                let text = gpui::StyledText::new(gpui::SharedString::from(label.clone()));
+                let text = crate::styled_text::element(
+                    gpui::SharedString::from(label.clone()),
+                    &node.text_spans,
+                );
                 let layout = text.layout().clone();
                 element = element
                     .child(crate::highlight_paint::underlay(
                         label, layout, paint, cache,
                     ))
                     .child(text);
+            } else if !node.text_spans.is_empty() {
+                element = element.child(crate::styled_text::element(
+                    gpui::SharedString::from(label),
+                    &node.text_spans,
+                ));
             } else {
                 element = element.child(gpui::SharedString::from(label));
             }
@@ -2446,3 +2455,7 @@ pub(crate) fn chart_source_changed(source: Option<gpuio_protocol::ResourceId>, c
         });
     }
 }
+
+#[cfg(feature = "native-image-tests")]
+#[path = "styled_text_test.rs"]
+pub(crate) mod styled_text_test;

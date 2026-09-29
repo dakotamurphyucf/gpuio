@@ -58,7 +58,10 @@ pub const CAP_CHARTS: i64 = 1_i64 << 43;
 pub const CAP_STYLE_VALUES: i64 = 1_i64 << 44;
 pub const CAP_INPUT_REGIONS: i64 = 1_i64 << 45;
 pub const CAP_POINTER_OCCLUSION: i64 = 1_i64 << 46;
-pub const CAPABILITIES: i64 = CAP_POINTER_OCCLUSION
+/// Atomic foreground runs on ordinary text, including selectable text.
+pub const CAP_STYLED_TEXT: i64 = 1_i64 << 47;
+pub const CAPABILITIES: i64 = CAP_STYLED_TEXT
+    | CAP_POINTER_OCCLUSION
     | CAP_INPUT_REGIONS
     | CAP_STYLE_VALUES
     | CAP_CHARTS
@@ -696,6 +699,7 @@ pub enum Op {
     SetInputRegion(NodeId, crate::input::Config),
     SetHighlightScope(NodeId, crate::highlight::Config),
     SetDocumentDiff(NodeId, i64, Option<crate::document_diff::Config>),
+    SetStyledText(NodeId, crate::text_content::Content),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]

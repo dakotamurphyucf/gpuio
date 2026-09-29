@@ -1,8 +1,7 @@
 open Core
 
-(** Validated ordinary text with foreground runs. This is the data foundation;
-    mounted view/bridge integration is not yet available. It is not a rich-text
-    editor or a document registration and owns no native resources. *)
+(** Validated ordinary text with foreground runs for [View.styled_text]. It is not
+    a rich-text editor or a document registration and owns no native resources. *)
 module Span : sig
   type t [@@deriving equal, sexp_of]
 
