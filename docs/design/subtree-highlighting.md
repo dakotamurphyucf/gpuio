@@ -354,7 +354,13 @@ using actual soft wraps and alignment rather than treating displayed/folded rows
 as a contiguous byte string. Native checks now cover vertical/horizontal source
 viewport clipping, tab/Unicode prefixes and retained background ownership during
 scrolling. Scrolling does not change the installed source page or its count.
-Native hunk-fold mapping and application load tests remain required.
+Native hunk-fold tests now click the actual gutter in a Unicode-containing diff:
+hidden body rows paint no wash, later matches move with their original source
+bytes, unfolding restores geometry, and selection retains precedence. Folding
+reuses the installed-page match result and count, like scrolling; it does not
+change the source page. The native byte-range geometry lookup returns no bounds
+for folded or earlier scrolled-out bytes instead of clamping them to the next
+visible line. Application load and resource acceptance remain required.
 
 The enclosing scope's source/observation stamp includes a shared document identity.
 Native document invalidations replace that identity and defer a root wakeup, avoiding

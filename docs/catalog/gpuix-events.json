@@ -337,7 +337,7 @@
         "examples/gallery/highlight_page.mli"
       ],
       "contract": "Paired subtree query/range configuration and asynchronous epoch/count observations; nearest-scope override, active match offsets, ordinary/selectable and prepared native-document painting. Public Find & highlight gallery exercises live query, selected match and growing/collapsed Markdown.",
-      "remaining": "Broad scroll/tab/fold/bidi, application performance/resource and consolidated consumer/release acceptance remain open; no highlighting capability is advertised yet. Syntax highlighting remains a separate feature.",
+      "remaining": "Focused scroll/tab/fold/bidi, deferred surface and native state-visibility checks pass. Application performance/resource, broader input/accessibility and consolidated consumer/release acceptance remain open; no highlighting capability is advertised yet. Syntax highlighting remains a separate feature.",
       "evidence": "docs/evidence/subtree-highlighting-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",

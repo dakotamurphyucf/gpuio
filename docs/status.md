@@ -58,7 +58,10 @@ state styles now apply consistently with individual notifications. The full
 native controls regression passes. See the [deferred visibility evidence](evidence/subtree-highlighting-och41.md#deferred-surface-visibility);
 document wrapper hover/press/focus visibility also passes source/Markdown GPU and
 retention checks, with an active-only hitbox correction in the pinned GPUI patch.
-Remaining style parity, catalog and release gates are still open.
+Native diff gutter folding also passes source-byte geometry, hidden-row painting,
+selection precedence and result-reuse checks; folded/scrolled-out byte-range lookup
+now rejects positions that have no laid-out text. Remaining style/diff API parity,
+catalog and release gates are still open.
 
 The macOS-first/Linux-deferral policy [PR #15](https://github.com/dakotamurphyucf/gpuio/pull/15)
 merged at `af7f6f0c0f9db1c64a8591d9e9a078aa73eacdec` after both required jobs in

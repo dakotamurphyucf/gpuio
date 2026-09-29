@@ -10,7 +10,7 @@ fences. Prepared Markdown text fragments now have focused native GPU evidence.
 Declared custom text and dynamic image placeholders are also implemented.
 Focused virtual-list, multiwindow, deferred-surface and document state-visibility
 checks now pass, and the public gallery has a find/highlight page. Native diff
-hunk-fold mapping, broader input and application performance, combined gallery
+hunk-fold checks now pass; broader input and application performance, combined gallery
 and release acceptance remain pending. No highlighting capability is advertised.
 OCH-41 remains In Progress. The sections below distinguish each implementation
 checkpoint; constructed projections and injected observations do not establish
@@ -852,3 +852,41 @@ with the same patched GPUI crate. Signal Studio reports its documented unavailab
 notification-service fallback; that run does not qualify the notification service.
 These independent builds verify integration and reconstruction, not the full
 clean-machine distribution or workload matrix.
+
+
+## Native diff hunk folding and source geometry
+
+`native_highlight_document` now clicks the actual native gutter in a two-hunk
+unified diff containing Unicode paths and context. The larger fixture viewport
+keeps both hunks visible before folding so these checks isolate folding from
+ordinary scroll clipping. On macOS 14.5 arm64:
+
+- Folding the first hunk removes its two painted matches and moves the later
+  match upward with its source text. Its original UTF-8 byte range still resolves
+  to the new painted position.
+- Folding both hunks leaves zero body highlight pixels. Unfolding restores the
+  original geometry and pixel count; native selection still paints above a wash.
+- The installed source page, prepared background owner and three logical matches
+  remain unchanged. No extra highlight observation is emitted for folding alone.
+- Folded byte ranges and bytes above the laid-out source viewport return no bounds.
+  The test reproduced an upstream geometry lookup clamping an earlier offset to
+  the next visible line. The pinned Base adaptation uses checked subtraction to
+  preserve that gap; no source or selection offsets change.
+
+The document, expanded highlighting and full native-controls regressions pass
+sequentially under 90-second watchdogs, with each process reaped. The Base patch
+reconstructs exactly from its unchanged pinned archive (excluding the local ignored
+Cargo.lock). The initial fixture's out-of-viewport match was corrected by giving
+both hunks sufficient layout space; the subsequent folded-range failure reproduced
+the geometry defect before the source fix.
+
+This is synthetic native input/GPU evidence, not physical IME, full screen-reader
+or Linux desktop qualification. Per-file collapse and show-more APIs, richer diff
+callbacks, remaining style/catalog work, application performance/resource budgets,
+combined gallery/consumer/distribution and required hosted gates remain open.
+
+Final local validation for this geometry correction: 441 workspace library tests
+pass with `gpuio-native/native-image-tests --locked -j2` (two private-bus cases
+excluded by this command); strict native/protocol all-target Clippy with the same
+feature and `-D warnings`, first-party/changed-vendor formatting, and diff whitespace
+checks pass. No dependency revision, public protocol or OCaml API changes.

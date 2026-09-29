@@ -12,6 +12,8 @@ use std::{
     os::fd::{AsRawFd, FromRawFd, OwnedFd},
     time::Duration,
 };
+#[path = "highlight_diff_fold_test.rs"]
+mod diff_fold;
 #[path = "highlight_document_style_test.rs"]
 mod state_style;
 
@@ -623,6 +625,12 @@ async fn source_scroll_checks(
                 "offscreen source match cannot leak through clipping"
             );
         }
+        if y < -line_height * 20. {
+            assert!(
+                editor.read_with(cx, |editor, _| editor.range_to_bounds(&(0..1)).is_none()),
+                "source bytes above the laid-out viewport do not map to its first row"
+            );
+        }
         if x < px(0.) {
             assert!(
                 editor.read_with(cx, |editor, _| editor.scroll_offset().x) < px(0.),
@@ -714,6 +722,7 @@ pub(crate) fn run() {
                 assert!(directional_owner.upgrade().is_none(),"source mode replaces directional Markdown owner");
                 let scroll_owner=p.read_with(cx,|p,_|Rc::downgrade(&p.highlight_paint.as_ref().unwrap().1));
                 state_style::exercise(cx,handle,&session,&transport,source,&p).await;
+                diff_fold::exercise(cx,handle,&session,&transport,source,&p).await;
                 apply(cx,handle,vec![Op::SetRoot(None),Op::Remove(node(1)),Op::Remove(node(0))]);
                 draw(cx,handle);pause(cx).await;drop(p);drop(retired);draw(cx,handle);
                 assert!(background_owner.upgrade().is_none(),"retired editor frame releases prepared owner");
