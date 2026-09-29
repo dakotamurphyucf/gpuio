@@ -30,6 +30,7 @@ def expect_field(mac, title, label, expected, role="AXTextField"):
 
 def exercise(mac, images):
     mac.wait_text(TITLE, 'A little context goes a long way')
+    exercise_status_regions(mac, images)
     if images:
         screenshot(mac, images / 'gallery-presentation-dark.png', title=TITLE)
     mac.release(mac.wait_find(TITLE, 'Aster avatar', 'AXImage'))
@@ -49,14 +50,9 @@ def exercise(mac, images):
     mac.wait_text(TITLE, 'Level: 36')
     mac.wait_text(TITLE, 'Committed quantity: 12')
     mac.press(TITLE, 'Text editing')
-    field = mac.wait_find(TITLE, 'Document title', 'AXTextField')
-    try:
-        mac.set(mac.app, 'AXFrontmost', mac.true)
-        mac.set(field, 'AXFocused', mac.true)
-        mac.key(0, flags=1 << 20)  # Command+A
-        mac.key(0)  # a
-    finally:
-        mac.release(field)
+    focus_gallery_control(mac, 'Document title', 'AXTextField')
+    mac.key(0, flags=1 << 20)  # Command+A
+    mac.key(0)  # a
     expect_field(mac, TITLE, 'Document title', 'a')
     activate(mac, mac.wait_find(TITLE, 'Show validation error', 'AXCheckBox'))
     mac.wait_text(TITLE, 'Choose a different title for this example.')
@@ -94,6 +90,97 @@ def exercise(mac, images):
             raise RuntimeError('Unmounted editor remains accessible')
         mac.press(TITLE, 'Text editing')
         expect_field(mac, TITLE, 'Document title', 'A place for good ideas')
+
+
+def exercise_status_regions(mac, images):
+    """Verify native geometry and actions of the public three-region composition."""
+    mac.wait_text(TITLE, 'A little context goes a long way')
+    present = [True, True, True]
+    labels = ['Leading status', 'Center action', 'Trailing status']
+    theme = mac.find(TITLE, 'Dark', 'AXButton')
+    current, alternate = ('Dark', 'Light') if theme else ('Light', 'Dark')
+    if theme:
+        mac.release(theme)
+    clicks = 0
+    retained = None
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+
+    def rect(label, role):
+        node = mac.wait_find(TITLE, label, role)
+        try:
+            return element_rect(mac, node)
+        finally:
+            mac.release(node)
+
+    try:
+        for appearance in (current, alternate):
+            for size, next_size in [('Comfortable', 'Large'), ('Large', 'Compact'),
+                                    ('Compact', 'Comfortable')]:
+                for wanted in [(True, True, True), (False, True, True),
+                               (False, True, False), (True, True, False),
+                               (True, False, False), (True, False, True),
+                               (False, False, True), (False, False, False)]:
+                    for i, enabled in enumerate(wanted):
+                        if present[i] != enabled:
+                            activate(mac, mac.wait_find(TITLE, labels[i], 'AXCheckBox'))
+                    present = list(wanted)
+                    leading, center, trailing = wanted
+                    for enabled, label in [(leading, 'Workspace ready'), (trailing, 'UTF-8')]:
+                        if enabled:
+                            mac.wait_text(TITLE, label)
+                        else:
+                            wait_absent(mac, label, 'AXStaticText')
+                    if not center:
+                        wait_absent(mac, 'Sync workspace', 'AXButton')
+                        if retained:
+                            mac.release(retained)
+                            retained = None
+                        continue
+                    button = mac.wait_find(TITLE, 'Sync workspace', 'AXButton')
+                    if retained:
+                        assert equal(retained, button), 'Changing ends replaced the center control'
+                    else:
+                        retained = mac.retain(button)
+                    mac.release(button)
+                    deadline = time.monotonic() + 10
+                    while True:
+                        bx, by, bw, bh = rect('Workspace status bar', 'AXGroup')
+                        x, y, w, h = rect('Sync workspace', 'AXButton')
+                        start, end = bx + 8, bx + bw - 8
+                        if leading:
+                            lx, _, lw, _ = rect('Workspace ready', 'AXStaticText')
+                            start = lx + lw + 12
+                        if trailing:
+                            rx, _, _, _ = rect('UTF-8', 'AXStaticText')
+                            end = rx - 12
+                        expected = ((start + end - w) / 2 if leading and trailing
+                                    else end - w if leading else start)
+                        if (abs(x - expected) <= 2 and w > 20 and h > 20
+                                and y >= by and y + h <= by + bh + 1):
+                            break
+                        assert time.monotonic() < deadline, (wanted, (bx, by, bw, bh),
+                                                             (x, y, w, h), expected)
+                        time.sleep(.025)
+                    focus_gallery_control(mac, 'Sync workspace', 'AXButton')
+                    mac.key(36)
+                    clicks += 1
+                    mac.wait_text(TITLE, f'Status actions: {clicks}')
+                    expect_focus(mac, 'Sync workspace')
+                    if images and size == 'Comfortable' and leading and trailing:
+                        screenshot(mac, images / f'gallery-status-{appearance.lower()}.png', title=TITLE)
+                mac.press(TITLE, size)
+                mac.release(mac.wait_find(TITLE, next_size, 'AXButton'))
+            mac.press(TITLE, appearance)
+            mac.release(mac.wait_find(TITLE, alternate if appearance == current else current, 'AXButton'))
+        for label in labels:
+            activate(mac, mac.wait_find(TITLE, label, 'AXCheckBox'))
+        mac.release(mac.wait_find(TITLE, 'Sync workspace', 'AXButton'))
+    finally:
+        if retained:
+            mac.release(retained)
+    print('GALLERY_STATUS_REGIONS_OK: 48 theme/size/slot combinations; remaining-space '
+          'alignment, native control identity, real Return activation, focus and absent semantics', flush=True)
 
 
 def within(mac, group, label, role):
@@ -2193,7 +2280,7 @@ def main():
                         help='Run an independently built gallery instead of the repository executable')
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -2214,6 +2301,8 @@ def main():
             mac = Mac(child.pid, child)
             if args.section in ('all', 'core'):
                 exercise(mac, args.images)
+            if args.section == 'status-regions':
+                exercise_status_regions(mac, args.images)
             if args.section in ('all', 'styles'):
                 exercise_styles(mac, args.images)
             if args.section in ('all', 'pickers'):

@@ -96,5 +96,29 @@
       "revision": "18e695ed0ee8121a7793413ca795e08eda2a13df",
       "path": "zed"
     }
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/status_bar.rs",
+    "snapshot": "component-status-bar.rs.txt",
+    "sha256": "8b1d329dbc89701aa4c69a0bd9e032d9218d44542f13178624e8fc3698d47c0e"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/badge.rs",
+    "snapshot": "component-badge.rs.txt",
+    "sha256": "f4debc66e913a6fb4450beeebc3acd19d2b882b891a6e9fbe65ca4421497a691"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/label.rs",
+    "snapshot": "component-label.rs.txt",
+    "sha256": "06d28dfcec538d209d2d0ea03c4c4ef0192ee9dd0b8fbb2b2b4616f7c2cdfed7"
   }
 ]

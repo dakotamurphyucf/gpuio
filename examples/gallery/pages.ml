@@ -12,7 +12,58 @@ let px = Length.px_exn
 let style = Style.create_exn
 let group children = V.column ~style:(style [ Gap (px 20.) ]) children
 
+let status_regions palette graph =
+  let leading, toggle_leading = B.toggle ~default_model:true graph in
+  let trailing, toggle_trailing = B.toggle ~default_model:true graph in
+  let center, toggle_center = B.toggle ~default_model:true graph in
+  let clicks, click =
+    B.state_machine0 ~default_model:0 ~apply_action:(fun _ count () -> count + 1) graph
+  in
+  let open B.Let_syntax in
+  let%arr p = palette
+  and leading = leading
+  and toggle_leading = toggle_leading
+  and trailing = trailing
+  and toggle_trailing = toggle_trailing
+  and center = center
+  and toggle_center = toggle_center
+  and clicks = clicks
+  and click = click in
+  V.column
+    ~style:(style [ Gap (px 8.) ])
+    [ V.row
+        ~style:(style [ Gap (px 16.); Wrap Wrap ])
+        [ V.checkbox
+            ~state:(if leading then Checked else Unchecked)
+            ~on_toggle:toggle_leading
+            "Leading status"
+        ; V.checkbox
+            ~state:(if center then Checked else Unchecked)
+            ~on_toggle:toggle_center
+            "Center action"
+        ; V.checkbox
+            ~state:(if trailing then Checked else Unchecked)
+            ~on_toggle:toggle_trailing
+            "Trailing status"
+        ]
+    ; (P.status_bar
+         (Palette.appearance p)
+         ~style:(style [ Height (px 56.) ])
+         ?leading:(Option.some_if leading (Palette.text p "Workspace ready"))
+         ?center:(Option.some_if center (Palette.button p "Sync workspace" (click ())))
+         ?trailing:(Option.some_if trailing (Palette.text p "UTF-8"))
+         ()
+       |> fun view ->
+       V.with_accessibility
+         view
+         (Accessibility.create ~role:Group ~label:"Workspace status bar" () |> ok)
+       |> ok)
+    ; Palette.text p ~muted:true (sprintf "Status actions: %d" clicks)
+    ]
+;;
+
 let presentation palette graph =
+  let status_regions = status_regions palette graph in
   let notice, set_notice = B.state "Ready when you are" graph in
   let animate_loading, toggle_loading = B.toggle ~default_model:false graph in
   let open B.Let_syntax in
@@ -20,6 +71,7 @@ let presentation palette graph =
   and notice = notice
   and animate_loading = animate_loading
   and toggle_loading = toggle_loading
+  and status_regions = status_regions
   and set_notice = set_notice in
   let a = Palette.appearance p in
   group
@@ -45,6 +97,7 @@ let presentation palette graph =
                 ~term:"Appearance"
                 ~definition:(Palette.text p "Your colors, your components")
             ]
+        ; status_regions
         ]
     ; Palette.card
         p

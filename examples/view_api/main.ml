@@ -141,6 +141,7 @@ let worker native notification_read ~self_test =
       | Animation_endpoint _
       | Input_observed _
       | Highlight_observed _
+      | Document_diff_event _
       | File_dialog_result _ -> ()
     in
     send (Hello (Wire.version, Wire.capabilities));

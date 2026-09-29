@@ -38,7 +38,7 @@ its child, including on failure:
 python3 scripts/test_gallery.py --images scratch/gallery-images
 ```
 
-Use `--section core`, `styles`, `pickers`, `overlays`, `navigation`, `feedback`, `journeys`,
+Use `--section core`, `status-regions`, `styles`, `pickers`, `overlays`, `navigation`, `feedback`, `journeys`,
 `collections`, `documents`, `document-links`, `document-images`, `highlighting`, `canvas`, `assets`, `charts`, `motion`, `responsive`, `extensions`, `input`, `observations`, `desktop` or `runtime` for focused iteration;
 the default `all` exercises all currently integrated acceptance stages in one
 application lifetime. Pickers verify draft cancel/apply and focus restoration;
@@ -48,6 +48,10 @@ The journeys page covers carousel, sidebar and navigation history separately.
 Feedback checks shared command buttons/menus/shortcuts, chooser selection, native
 toast expiry, close and departure cleanup. Core checks include form error updates
 that preserve typed input, avatar semantics and loading-preview controls.
+Presentation includes a status bar with individually toggled leading, center and
+trailing regions. The focused `status-regions` check (also in `core`/`all`) measures
+adaptive center alignment and retained native button identity, and exercises
+keyboard actions across all eight slot combinations, both themes and three sizes.
 Styling details demonstrates clip/end/start text truncation at two widths and all
 22 typed cursor choices, plus a live sRGB/Oklab gradient interpolation swatch.
 Full text remains available to accessibility. Preview

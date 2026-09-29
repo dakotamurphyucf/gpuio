@@ -98,6 +98,71 @@ let%expect_test "optional card slots and appearance updates preserve body contro
   [%expect {| body identity and handler survive header/footer and theme changes |}]
 ;;
 
+let%expect_test "status regions preserve surviving actions across slot changes" =
+  let t = Reconciler.create window in
+  let bar p leading center trailing =
+    let control name = View.button name ~on_click:(fun () -> name) in
+    P.status_bar
+      p
+      ?leading:(Option.some_if leading (control "leading"))
+      ?center:(Option.some_if center (control "center"))
+      ?trailing:(Option.some_if trailing (control "trailing"))
+      ()
+  in
+  let previous = ref [] in
+  List.iter [ P.Appearance.light; P.Appearance.dark ] ~f:(fun p ->
+    List.iter
+      [ true, true, true
+      ; false, true, true
+      ; false, true, false
+      ; true, true, false
+      ; true, false, false
+      ; true, false, true
+      ; false, false, true
+      ; false, false, false
+      ; true, true, true
+      ]
+      ~f:(fun (leading, center, trailing) ->
+        let view = bar p leading center trailing in
+        let operations = commit t view in
+        let survivors =
+          List.filter !previous ~f:(fun (_, _, name) ->
+            match name with
+            | "leading" -> leading
+            | "center" -> center
+            | "trailing" -> trailing
+            | _ -> assert false)
+        in
+        List.iter !previous ~f:(fun (node, handler, name) ->
+          let survives =
+            List.exists survivors ~f:(fun (_, _, other) -> String.equal name other)
+          in
+          let action =
+            Reconciler.dispatch t (W.Event.Press (window, node, handler, 1L))
+          in
+          assert (Option.equal String.equal action (Option.some_if survives name)));
+        let added =
+          List.filter_map operations ~f:(function
+            | W.Op.Create (node, Button, _, Some handler) ->
+              let name =
+                Reconciler.dispatch t (W.Event.Press (window, node, handler, 1L))
+                |> Option.value_exn
+              in
+              Some (node, handler, name)
+            | _ -> None)
+        in
+        previous := survivors @ added;
+        assert (
+          List.length !previous
+          = Bool.to_int leading + Bool.to_int center + Bool.to_int trailing);
+        assert (List.is_empty (commit t view))));
+  print_endline
+    "all eight slot combinations in both themes; retained actions, retired fences, idle \
+     repeats";
+  [%expect
+    {| all eight slot combinations in both themes; retained actions, retired fences, idle repeats |}]
+;;
+
 let%expect_test "links retain actions and disabled fencing; shortcuts never bind actions" =
   let t = Reconciler.create window in
   let link ?(disabled = false) action =

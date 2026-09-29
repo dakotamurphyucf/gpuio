@@ -199,12 +199,18 @@ val shortcut_label
   -> 'action View.t
 
 (** A structural bar, not a live region by default. Individual status content may
-    carry explicit live semantics. Slot contents keep their own native actions. *)
+    carry explicit live semantics. Slot contents keep their own native actions.
+    [center] fills the space between the ends: its content is centered when both
+    ends exist, end-aligned with only [leading], and start-aligned otherwise.
+    This is centering in the remaining space, not the whole window. Adding or
+    removing a slot preserves controls in the other slots. Omitting [center]
+    preserves the two-region layout. *)
 val status_bar
   :  Appearance.t
   -> ?key:Key.t
   -> ?style:Style.t
   -> ?leading:'action View.t
+  -> ?center:'action View.t
   -> ?trailing:'action View.t
   -> unit
   -> 'action View.t

@@ -503,7 +503,14 @@ let shortcut_label (p : Appearance.t) ?key ?style:(custom = Style.empty) names =
          name))
 ;;
 
-let status_bar (p : Appearance.t) ?key ?style:(custom = Style.empty) ?leading ?trailing ()
+let status_bar
+      (p : Appearance.t)
+      ?key
+      ?style:(custom = Style.empty)
+      ?leading
+      ?center
+      ?trailing
+      ()
   =
   View.row
     ?key
@@ -525,9 +532,25 @@ let status_bar (p : Appearance.t) ?key ?style:(custom = Style.empty) ?leading ?t
        [ Option.map leading ~f:(fun content ->
            View.column
              ~key:(internal_key "leading")
-             ~style:(style [ Min_width (px 0.); Grow 1. ])
+             ~style:
+               (style
+                  [ Min_width (px 0.); Grow (if Option.is_none center then 1. else 0.) ])
              [ content ])
-       ; Some (View.column ~key:(internal_key "spacer") ~style:(style [ Grow 1. ]) [])
+       ; Some
+           (View.row
+              ~key:(internal_key "center")
+              ~style:
+                (style
+                   [ Min_width (px 0.)
+                   ; Grow 1.
+                   ; Basis (px 0.)
+                   ; Align_items Center
+                   ; Justify_content
+                       (if Option.is_some leading
+                        then if Option.is_some trailing then Center else End
+                        else Start)
+                   ])
+              (Option.to_list center))
        ; optional_slot "trailing" trailing
        ])
 ;;

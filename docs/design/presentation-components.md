@@ -60,6 +60,14 @@ alert/banner, shortcut/status and attachment/message/bubble/tool-result helpers
 use ordinary views. They accept polymorphic actions, so Bonsai can use them without
 a second implementation. `examples/presentation/` exercises these public APIs.
 
+`Presentation.status_bar` accepts leading, center and trailing views. The center
+uses the space left between the ends: centered with both ends, end-aligned with
+only leading, and start-aligned otherwise. Omitting it preserves the existing
+two-region layout. Stable slot keys preserve controls when other regions change.
+The [pinned presentation review](../catalog/presentation-review.md) records this
+functional equivalent and remaining badge/label differences; the presence of a
+GPUIO helper does not imply every upstream configuration is implemented.
+
 Link presentation uses the existing native button activation path with Link
 semantics. Activation calls the application action; URL/file/network I/O remains
 an explicit Eio application decision. Keyboard shortcut labels display the

@@ -53,6 +53,12 @@ that every source entry is implemented or validated.
   no module is silently dropped. Nested public families/configuration still need
   detailed audit, including code-editor and document plugin subfamilies.
 
+- [Presentation behavior review](presentation-review.md): exact status-bar,
+  badge and label source snapshots. Three-region status composition now has
+  public native geometry/keyboard/identity evidence; overlay badge and label
+  configuration gaps remain explicit. This begins detailed review without
+  converting the entire family into an acceptance claim.
+
 - `expanded-v1.json`: canvas, native extensions, container rules, desktop
   integration and OS notifications from the accepted v1 expansion. These additions
   sit outside the Longbridge root-module map; they must not disappear merely

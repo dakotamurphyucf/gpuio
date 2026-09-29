@@ -6,11 +6,12 @@
       "id": "presentation",
       "owner": "OCH-33",
       "scope": "v1",
-      "audit_status": "mapping established; detailed behavioral review pending",
+      "audit_status": "partial behavioral review: status bar functional equivalent; badge and label gaps recorded; remaining modules pending",
       "public_interface": "lib/core/presentation.mli",
       "example": "examples/presentation",
       "evidence": [
-        "docs/evidence/presentation-components-och33.md"
+        "docs/evidence/presentation-components-och33.md",
+        "docs/catalog/presentation-review.md"
       ],
       "gallery_page": "presentation",
       "contract": "Stateless compositions, explicit content slots, semantic roles and theme/style overrides.",
