@@ -166,6 +166,7 @@ struct Line {
     // stays in GPUI's Arc; repeated matches do not scan all preceding glyphs.
     run_ends: Vec<(usize, usize)>,
     monotonic: bool,
+    reordered: Option<gpui_base::text::ReorderedTextGeometry>,
 }
 impl Line {
     fn new(layout: Arc<WrappedLineLayout>, offset: usize, row: usize) -> Self {
@@ -183,12 +184,18 @@ impl Line {
                 run_ends.push((last.index, index));
             }
         }
+        let reordered = if monotonic {
+            None
+        } else {
+            gpui_base::text::ReorderedTextGeometry::new(&layout.unwrapped_layout)
+        };
         Self {
             layout,
             offset,
             row,
             run_ends,
             monotonic,
+            reordered,
         }
     }
     fn x(&self, index: usize) -> Pixels {
@@ -253,10 +260,10 @@ impl Line {
             }
             let (from, x_from) = self.boundary(row);
             let (to, x_to) = self.boundary(row + 1);
-            if from >= end {
+            if self.monotonic && from >= end {
                 break;
             }
-            if to <= start {
+            if self.monotonic && to <= start {
                 continue;
             }
             let width = x_to - x_from;
@@ -265,6 +272,15 @@ impl Line {
                 TextAlign::Center => (bounds.size.width - width) / 2.,
                 TextAlign::Right => bounds.size.width - width,
             };
+            if let Some(geometry) = &self.reordered {
+                geometry.spans(start..end, x_from..x_to, |span| {
+                    emit(Bounds::new(
+                        point(bounds.left() + inset + span.start - x_from, y),
+                        size(span.end - span.start, line_height),
+                    ));
+                });
+                continue;
+            }
             let a = self.x(start.max(from)) - x_from;
             let b = self.x(end.min(to)) - x_from;
             if a == b {

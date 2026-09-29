@@ -531,6 +531,7 @@ pub(crate) struct LineLayout {
     /// Whether any run of this line carries a background color, so [`Self::paint_background`]
     /// can skip the glyph walk for the common case of a line without highlights.
     has_background: bool,
+    range_geometry: std::cell::OnceCell<Vec<Option<crate::text::ReorderedTextGeometry>>>,
 }
 
 impl LineLayout {
@@ -543,6 +544,7 @@ impl LineLayout {
             whitespace_chars: Vec::new(),
             whitespace_indicators: None,
             has_background: false,
+            range_geometry: Default::default(),
         }
     }
 
@@ -575,6 +577,7 @@ impl LineLayout {
     }
 
     pub(crate) fn set_wrapped_lines(&mut self, wrapped_lines: SmallVec<[ShapedLine; 1]>) {
+        self.range_geometry.take();
         self.len = wrapped_lines.iter().map(|l| l.len).sum();
         let width = wrapped_lines
             .iter()
@@ -829,36 +832,52 @@ impl LineLayout {
         radius: Pixels,
         window: &mut Window,
     ) {
+        let geometries = self.range_geometry.get_or_init(|| {
+            self.wrapped_lines
+                .iter()
+                .map(|line| crate::text::ReorderedTextGeometry::new(line))
+                .collect()
+        });
         let mut offset = 0;
         for (row, line) in self.wrapped_lines.iter().enumerate() {
             let end = offset + line.len;
             let start_byte = bytes.start.max(offset);
             let end_byte = bytes.end.min(end);
             if start_byte < end_byte {
-                let x1 = line.x_for_index(start_byte - offset);
-                let x2 = line.x_for_index(end_byte - offset);
                 let align_x = match align {
                     TextAlign::Left => px(0.),
                     TextAlign::Center => (width - line.width).half().max(px(0.)),
                     TextAlign::Right => (width - line.width).max(px(0.)),
                 };
-                let bounds = gpui::Bounds::new(
-                    origin
-                        + point(
-                            self.line_indent(row) + align_x + x1.min(x2),
-                            row * line_height,
-                        ),
-                    size((x2 - x1).abs(), line_height),
-                );
-                if bounds.size.width > px(0.) && bounds.intersects(&window.content_mask().bounds) {
-                    window.paint_quad(gpui::quad(
-                        bounds,
-                        radius,
-                        color,
-                        px(0.),
-                        gpui::transparent_black(),
-                        Default::default(),
-                    ));
+                let mut paint = |x: Range<Pixels>| {
+                    let bounds = gpui::Bounds::new(
+                        origin
+                            + point(self.line_indent(row) + align_x + x.start, row * line_height),
+                        size(x.end - x.start, line_height),
+                    );
+                    if bounds.size.width > px(0.)
+                        && bounds.intersects(&window.content_mask().bounds)
+                    {
+                        window.paint_quad(gpui::quad(
+                            bounds,
+                            radius,
+                            color,
+                            px(0.),
+                            gpui::transparent_black(),
+                            Default::default(),
+                        ));
+                    }
+                };
+                if let Some(geometry) = &geometries[row] {
+                    geometry.spans(
+                        start_byte - offset..end_byte - offset,
+                        px(0.)..line.width,
+                        &mut paint,
+                    );
+                } else {
+                    let x1 = line.x_for_index(start_byte - offset);
+                    let x2 = line.x_for_index(end_byte - offset);
+                    paint(x1.min(x2)..x1.max(x2));
                 }
             }
             offset = end;

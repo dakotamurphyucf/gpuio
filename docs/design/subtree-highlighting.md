@@ -242,13 +242,30 @@ actual wrap boundaries and per-row alignment, with downstream start affinity,
 rather than guessing positions from character widths. It maps retained source
 slices through start/end/middle truncation and never highlights a synthetic
 ellipsis. A clipping mask skips off-screen rows; GPUI clips the painted pixels.
+For reordered shaped text, logical endpoints alone are insufficient. The shared
+`ReorderedTextGeometry` indexes visual glyph cells by their logical source-cluster
+ranges and emits separate visual spans; an unmatched intervening glyph is not
+painted merely because it lies between the selected logical endpoints. Wrapping
+clips those spans to each actual visual row before alignment. A partial range
+inside a reordered shaped cluster paints its complete cell. Matching/count order
+remains logical source order.
+
+Monotonic layouts keep the existing fast path without a per-glyph index. Ordinary
+text caches reordered geometry with the shaped line; source editors lazily cache
+it with their wrapped layouts and clear it on replacement. Markdown constructs it
+once per line per paint pass, outside the match loop. This geometry is proportional
+to shaped glyph count; whole-application CPU/memory budgets remain a separate gate.
+The change does not alter GPUI's native caret, selection or accessibility mapping.
+
 Native selection backgrounds paint afterward. Active-index comparison subtracts
 the virtualized offset after checking its lower bound, avoiding signed overflow.
 
 The helper and mounted ordinary/selectable and prepared Markdown text views pass
 focused native GPU tests, including declared custom text and dynamic image
-placeholders. The geometry fixtures are not broad
-script/bidirectional-text acceptance, and highlighting has not yet passed the
+placeholders. Hebrew/Arabic, mixed direction, wrapped RTL and aligned ordinary
+text now have targeted native glyph-cell/pixel evidence; source/Markdown adapters
+also paint the middle Hebrew query. This is not exhaustive script/IME/caret
+acceptance, and highlighting has not yet passed the
 milestone's application-scale performance budget.
 
 ## Mounted ordinary-text integration

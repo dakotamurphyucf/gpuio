@@ -1772,62 +1772,6 @@
 +        valid
 +    }
 +}
---- a/src/input/editor/display_map/text_wrapper.rs
-+++ b/src/input/editor/display_map/text_wrapper.rs
-@@ -815,6 +815,53 @@
-                 window,
-                 cx,
-             );
-+        }
-+    }
-+
-+    pub(crate) fn paint_range_background(
-+        &self,
-+        bytes: Range<usize>,
-+        origin: Point<Pixels>,
-+        line_height: Pixels,
-+        align: TextAlign,
-+        width: Pixels,
-+        color: gpui::Hsla,
-+        radius: Pixels,
-+        window: &mut Window,
-+    ) {
-+        let mut offset = 0;
-+        for (row, line) in self.wrapped_lines.iter().enumerate() {
-+            let end = offset + line.len;
-+            let start_byte = bytes.start.max(offset);
-+            let end_byte = bytes.end.min(end);
-+            if start_byte < end_byte {
-+                let x1 = line.x_for_index(start_byte - offset);
-+                let x2 = line.x_for_index(end_byte - offset);
-+                let align_x = match align {
-+                    TextAlign::Left => px(0.),
-+                    TextAlign::Center => (width - line.width).half().max(px(0.)),
-+                    TextAlign::Right => (width - line.width).max(px(0.)),
-+                };
-+                let bounds = gpui::Bounds::new(
-+                    origin
-+                        + point(
-+                            self.line_indent(row) + align_x + x1.min(x2),
-+                            row * line_height,
-+                        ),
-+                    size((x2 - x1).abs(), line_height),
-+                );
-+                if bounds.size.width > px(0.) && bounds.intersects(&window.content_mask().bounds) {
-+                    window.paint_quad(gpui::quad(
-+                        bounds,
-+                        radius,
-+                        color,
-+                        px(0.),
-+                        gpui::transparent_black(),
-+                        Default::default(),
-+                    ));
-+                }
-+            }
-+            offset = end;
-         }
-     }
- 
 --- a/src/input/editor/mod.rs
 +++ b/src/input/editor/mod.rs
 @@ -36,6 +36,7 @@
@@ -1875,181 +1819,6 @@
  pub use base::{InputBase, InputContextMenuCapabilities, InputStyles};
  pub use cursor::Selection;
  pub use decorations::{TextDecoration, TextDecorationCollection};
---- /dev/null
-+++ b/src/text/backgrounds.rs
-@@ -0,0 +1,147 @@
-+//! Prepared decoration data; no matching or application callbacks during paint.
-+use std::{ops::Range, rc::Rc, sync::Arc};
-+
-+use gpui::{Bounds, TextAlign, TextLayout, Window, point, px, quad, size};
-+
-+use crate::input::{RangeBackground, RangeBackgroundError, RangeBackgrounds};
-+
-+use super::{DisplayedFragment, DisplayedText};
-+
-+/// A fixed array of paint layers for one immutable parsed text snapshot. The
-+/// range providers retain their preparation leases through each painted frame.
-+pub struct TextBackgrounds {
-+    pub(super) source: Arc<DisplayedText>,
-+    layers: Vec<Option<Rc<dyn RangeBackgrounds>>>,
-+}
-+impl TextBackgrounds {
-+    pub fn new(
-+        source: Arc<DisplayedText>,
-+        layers: Vec<Option<Rc<dyn RangeBackgrounds>>>,
-+    ) -> Result<Self, RangeBackgroundError> {
-+        if layers.len() != source.fragments().len() {
-+            return Err(RangeBackgroundError::InvalidRange);
-+        }
-+        let mut count = 0usize;
-+        for (fragment, layer) in source.fragments().iter().zip(&layers) {
-+            if let Some(layer) = layer {
-+                count += layer.ranges().len();
-+                if count > 32768 {
-+                    return Err(RangeBackgroundError::Limit);
-+                }
-+                for wash in layer.ranges() {
-+                    if wash.bytes.start >= wash.bytes.end
-+                        || wash.bytes.end > fragment.text().len()
-+                        || !fragment.text().is_char_boundary(wash.bytes.start)
-+                        || !fragment.text().is_char_boundary(wash.bytes.end)
-+                    {
-+                        return Err(RangeBackgroundError::InvalidRange);
-+                    }
-+                    if !wash.radius.as_f32().is_finite()
-+                        || wash.radius < px(0.)
-+                        || wash.radius > px(64.)
-+                    {
-+                        return Err(RangeBackgroundError::InvalidRadius);
-+                    }
-+                }
-+            }
-+        }
-+        Ok(Self { source, layers })
-+    }
-+
-+    pub(super) fn layer(&self, fragment: &DisplayedFragment) -> Option<Rc<dyn RangeBackgrounds>> {
-+        let current = self.source.fragments().get(fragment.id() as usize)?;
-+        // Identical bytes in a different prepared AST are still a new source.
-+        if !Arc::ptr_eq(current.text(), fragment.text()) {
-+            return None;
-+        }
-+        self.layers.get(fragment.id() as usize)?.clone()
-+    }
-+}
-+
-+/// Source ranges are local to the unsplit prepared fragment. InlineFlow calls
-+/// this with its actual shaped subrange, preserving Unicode byte boundaries.
-+pub(super) fn paint(
-+    ranges: &[RangeBackground],
-+    source: Range<usize>,
-+    layout: &TextLayout,
-+    align: TextAlign,
-+    window: &mut Window,
-+) {
-+    let bounds = layout.bounds();
-+    let height = layout.line_height();
-+    let mask = window.content_mask().bounds;
-+    let lines = layout.line_layouts();
-+    for wash in ranges {
-+        let start = wash.bytes.start.max(source.start);
-+        let end = wash.bytes.end.min(source.end);
-+        if start >= end {
-+            continue;
-+        }
-+        let start = start - source.start;
-+        let end = end - source.start;
-+        let mut offset = 0;
-+        let mut row = 0;
-+        for line in &lines {
-+            let local_start = start.saturating_sub(offset);
-+            let local_end = end.saturating_sub(offset).min(line.len());
-+            if local_start < local_end {
-+                let boundary = |row: usize| {
-+                    if row == 0 {
-+                        (0, px(0.))
-+                    } else {
-+                        line.wrap_boundaries.get(row - 1).map_or(
-+                            (line.len(), line.unwrapped_layout.width),
-+                            |b| {
-+                                let glyph =
-+                                    &line.unwrapped_layout.runs[b.run_ix].glyphs[b.glyph_ix];
-+                                (glyph.index, glyph.position.x)
-+                            },
-+                        )
-+                    }
-+                };
-+                for wrapped in 0..=line.wrap_boundaries.len() {
-+                    let y = bounds.top() + height * (row + wrapped);
-+                    if y >= mask.bottom() {
-+                        break;
-+                    }
-+                    if y + height <= mask.top() {
-+                        continue;
-+                    }
-+                    let (from, x_from) = boundary(wrapped);
-+                    let (to, x_to) = boundary(wrapped + 1);
-+                    let a = local_start.max(from);
-+                    let b = local_end.min(to);
-+                    if a >= b {
-+                        continue;
-+                    }
-+                    let inset = match align {
-+                        TextAlign::Left => px(0.),
-+                        TextAlign::Center => (bounds.size.width - (x_to - x_from)) / 2.,
-+                        TextAlign::Right => bounds.size.width - (x_to - x_from),
-+                    };
-+                    let a = line.unwrapped_layout.x_for_index(a) - x_from;
-+                    let b = line.unwrapped_layout.x_for_index(b) - x_from;
-+                    if a == b {
-+                        continue;
-+                    }
-+                    window.paint_quad(quad(
-+                        Bounds::new(
-+                            point(bounds.left() + inset + a.min(b), y),
-+                            size((b - a).abs(), height),
-+                        ),
-+                        wash.radius,
-+                        wash.color,
-+                        px(0.),
-+                        gpui::transparent_black(),
-+                        Default::default(),
-+                    ));
-+                }
-+            }
-+            row += line.wrap_boundaries.len() + 1;
-+            offset += line.len() + 1;
-+            if offset >= end {
-+                break;
-+            }
-+        }
-+    }
-+}
---- a/src/text/mod.rs
-+++ b/src/text/mod.rs
-@@ -1,3 +1,5 @@
-+mod backgrounds;
-+mod displayed_text;
- mod document;
- mod format;
- mod inline;
-@@ -6,6 +8,7 @@
- mod inline_object;
- #[cfg(test)]
- mod inline_virtual_tests;
-+mod link_navigation;
- mod markdown_ext;
- mod node;
- pub(crate) mod selection;
-@@ -15,6 +18,8 @@
- mod text_view;
- mod utils;
- 
-+pub use backgrounds::TextBackgrounds;
-+pub use displayed_text::{DisplayedFragment, DisplayedText};
- use gpui::{App, ElementId, IntoElement, RenderOnce, SharedString, Window};
- pub use inline_element::*;
- pub use markdown_ext::*;
 --- /dev/null
 +++ b/src/text/displayed_text.rs
 @@ -0,0 +1,233 @@
@@ -3721,3 +3490,417 @@
      let mut node_cx = NodeContext {
          markdown_extensions: options.markdown_extensions.clone(),
          ..NodeContext::default()
+--- a/src/input/editor/display_map/text_wrapper.rs
++++ b/src/input/editor/display_map/text_wrapper.rs
+@@ -531,6 +531,7 @@
+     /// Whether any run of this line carries a background color, so [`Self::paint_background`]
+     /// can skip the glyph walk for the common case of a line without highlights.
+     has_background: bool,
++    range_geometry: std::cell::OnceCell<Vec<Option<crate::text::ReorderedTextGeometry>>>,
+ }
+ 
+ impl LineLayout {
+@@ -543,6 +544,7 @@
+             whitespace_chars: Vec::new(),
+             whitespace_indicators: None,
+             has_background: false,
++            range_geometry: Default::default(),
+         }
+     }
+ 
+@@ -575,6 +577,7 @@
+     }
+ 
+     pub(crate) fn set_wrapped_lines(&mut self, wrapped_lines: SmallVec<[ShapedLine; 1]>) {
++        self.range_geometry.take();
+         self.len = wrapped_lines.iter().map(|l| l.len).sum();
+         let width = wrapped_lines
+             .iter()
+@@ -815,6 +818,69 @@
+                 window,
+                 cx,
+             );
++        }
++    }
++
++    pub(crate) fn paint_range_background(
++        &self,
++        bytes: Range<usize>,
++        origin: Point<Pixels>,
++        line_height: Pixels,
++        align: TextAlign,
++        width: Pixels,
++        color: gpui::Hsla,
++        radius: Pixels,
++        window: &mut Window,
++    ) {
++        let geometries = self.range_geometry.get_or_init(|| {
++            self.wrapped_lines
++                .iter()
++                .map(|line| crate::text::ReorderedTextGeometry::new(line))
++                .collect()
++        });
++        let mut offset = 0;
++        for (row, line) in self.wrapped_lines.iter().enumerate() {
++            let end = offset + line.len;
++            let start_byte = bytes.start.max(offset);
++            let end_byte = bytes.end.min(end);
++            if start_byte < end_byte {
++                let align_x = match align {
++                    TextAlign::Left => px(0.),
++                    TextAlign::Center => (width - line.width).half().max(px(0.)),
++                    TextAlign::Right => (width - line.width).max(px(0.)),
++                };
++                let mut paint = |x: Range<Pixels>| {
++                    let bounds = gpui::Bounds::new(
++                        origin
++                            + point(self.line_indent(row) + align_x + x.start, row * line_height),
++                        size(x.end - x.start, line_height),
++                    );
++                    if bounds.size.width > px(0.)
++                        && bounds.intersects(&window.content_mask().bounds)
++                    {
++                        window.paint_quad(gpui::quad(
++                            bounds,
++                            radius,
++                            color,
++                            px(0.),
++                            gpui::transparent_black(),
++                            Default::default(),
++                        ));
++                    }
++                };
++                if let Some(geometry) = &geometries[row] {
++                    geometry.spans(
++                        start_byte - offset..end_byte - offset,
++                        px(0.)..line.width,
++                        &mut paint,
++                    );
++                } else {
++                    let x1 = line.x_for_index(start_byte - offset);
++                    let x2 = line.x_for_index(end_byte - offset);
++                    paint(x1.min(x2)..x1.max(x2));
++                }
++            }
++            offset = end;
+         }
+     }
+ 
+--- /dev/null
++++ b/src/text/backgrounds.rs
+@@ -0,0 +1,168 @@
++//! Prepared decoration data; no matching or application callbacks during paint.
++use std::{ops::Range, rc::Rc, sync::Arc};
++
++use gpui::{Bounds, TextAlign, TextLayout, Window, point, px, quad, size};
++
++use crate::input::{RangeBackground, RangeBackgroundError, RangeBackgrounds};
++
++use super::{DisplayedFragment, DisplayedText, ReorderedTextGeometry};
++
++/// A fixed array of paint layers for one immutable parsed text snapshot. The
++/// range providers retain their preparation leases through each painted frame.
++pub struct TextBackgrounds {
++    pub(super) source: Arc<DisplayedText>,
++    layers: Vec<Option<Rc<dyn RangeBackgrounds>>>,
++}
++impl TextBackgrounds {
++    pub fn new(
++        source: Arc<DisplayedText>,
++        layers: Vec<Option<Rc<dyn RangeBackgrounds>>>,
++    ) -> Result<Self, RangeBackgroundError> {
++        if layers.len() != source.fragments().len() {
++            return Err(RangeBackgroundError::InvalidRange);
++        }
++        let mut count = 0usize;
++        for (fragment, layer) in source.fragments().iter().zip(&layers) {
++            if let Some(layer) = layer {
++                count += layer.ranges().len();
++                if count > 32768 {
++                    return Err(RangeBackgroundError::Limit);
++                }
++                for wash in layer.ranges() {
++                    if wash.bytes.start >= wash.bytes.end
++                        || wash.bytes.end > fragment.text().len()
++                        || !fragment.text().is_char_boundary(wash.bytes.start)
++                        || !fragment.text().is_char_boundary(wash.bytes.end)
++                    {
++                        return Err(RangeBackgroundError::InvalidRange);
++                    }
++                    if !wash.radius.as_f32().is_finite()
++                        || wash.radius < px(0.)
++                        || wash.radius > px(64.)
++                    {
++                        return Err(RangeBackgroundError::InvalidRadius);
++                    }
++                }
++            }
++        }
++        Ok(Self { source, layers })
++    }
++
++    pub(super) fn layer(&self, fragment: &DisplayedFragment) -> Option<Rc<dyn RangeBackgrounds>> {
++        let current = self.source.fragments().get(fragment.id() as usize)?;
++        // Identical bytes in a different prepared AST are still a new source.
++        if !Arc::ptr_eq(current.text(), fragment.text()) {
++            return None;
++        }
++        self.layers.get(fragment.id() as usize)?.clone()
++    }
++}
++
++/// Source ranges are local to the unsplit prepared fragment. InlineFlow calls
++/// this with its actual shaped subrange, preserving Unicode byte boundaries.
++pub(super) fn paint(
++    ranges: &[RangeBackground],
++    source: Range<usize>,
++    layout: &TextLayout,
++    align: TextAlign,
++    window: &mut Window,
++) {
++    let bounds = layout.bounds();
++    let height = layout.line_height();
++    let mask = window.content_mask().bounds;
++    let lines = layout.line_layouts();
++    // Construct at most once per shaped line in this paint pass, not per match.
++    let geometries = lines
++        .iter()
++        .map(|line| ReorderedTextGeometry::new(&line.unwrapped_layout))
++        .collect::<Vec<_>>();
++    for wash in ranges {
++        let start = wash.bytes.start.max(source.start);
++        let end = wash.bytes.end.min(source.end);
++        if start >= end {
++            continue;
++        }
++        let start = start - source.start;
++        let end = end - source.start;
++        let mut offset = 0;
++        let mut row = 0;
++        for (line, geometry) in lines.iter().zip(&geometries) {
++            let local_start = start.saturating_sub(offset);
++            let local_end = end.saturating_sub(offset).min(line.len());
++            if local_start < local_end {
++                let boundary = |row: usize| {
++                    if row == 0 {
++                        (0, px(0.))
++                    } else {
++                        line.wrap_boundaries.get(row - 1).map_or(
++                            (line.len(), line.unwrapped_layout.width),
++                            |b| {
++                                let glyph =
++                                    &line.unwrapped_layout.runs[b.run_ix].glyphs[b.glyph_ix];
++                                (glyph.index, glyph.position.x)
++                            },
++                        )
++                    }
++                };
++                for wrapped in 0..=line.wrap_boundaries.len() {
++                    let y = bounds.top() + height * (row + wrapped);
++                    if y >= mask.bottom() {
++                        break;
++                    }
++                    if y + height <= mask.top() {
++                        continue;
++                    }
++                    let (from, x_from) = boundary(wrapped);
++                    let (to, x_to) = boundary(wrapped + 1);
++                    let a = local_start.max(from);
++                    let b = local_end.min(to);
++                    if geometry.is_none() && a >= b {
++                        continue;
++                    }
++                    let inset = match align {
++                        TextAlign::Left => px(0.),
++                        TextAlign::Center => (bounds.size.width - (x_to - x_from)) / 2.,
++                        TextAlign::Right => bounds.size.width - (x_to - x_from),
++                    };
++                    if let Some(geometry) = geometry {
++                        geometry.spans(local_start..local_end, x_from..x_to, |span| {
++                            window.paint_quad(quad(
++                                Bounds::new(
++                                    point(bounds.left() + inset + span.start - x_from, y),
++                                    size(span.end - span.start, height),
++                                ),
++                                wash.radius,
++                                wash.color,
++                                px(0.),
++                                gpui::transparent_black(),
++                                Default::default(),
++                            ));
++                        });
++                        continue;
++                    }
++                    let a = line.unwrapped_layout.x_for_index(a) - x_from;
++                    let b = line.unwrapped_layout.x_for_index(b) - x_from;
++                    if a == b {
++                        continue;
++                    }
++                    window.paint_quad(quad(
++                        Bounds::new(
++                            point(bounds.left() + inset + a.min(b), y),
++                            size((b - a).abs(), height),
++                        ),
++                        wash.radius,
++                        wash.color,
++                        px(0.),
++                        gpui::transparent_black(),
++                        Default::default(),
++                    ));
++                }
++            }
++            row += line.wrap_boundaries.len() + 1;
++            offset += line.len() + 1;
++            if offset >= end {
++                break;
++            }
++        }
++    }
++}
+--- a/src/text/mod.rs
++++ b/src/text/mod.rs
+@@ -1,3 +1,5 @@
++mod backgrounds;
++mod displayed_text;
+ mod document;
+ mod format;
+ mod inline;
+@@ -6,8 +8,10 @@
+ mod inline_object;
+ #[cfg(test)]
+ mod inline_virtual_tests;
++mod link_navigation;
+ mod markdown_ext;
+ mod node;
++mod range_geometry;
+ pub(crate) mod selection;
+ mod selection_adapter;
+ mod state;
+@@ -15,10 +19,13 @@
+ mod text_view;
+ mod utils;
+ 
++pub use backgrounds::TextBackgrounds;
++pub use displayed_text::{DisplayedFragment, DisplayedText};
+ use gpui::{App, ElementId, IntoElement, RenderOnce, SharedString, Window};
+ pub use inline_element::*;
+ pub use markdown_ext::*;
+ pub use node::{CodeBlock, TableData};
++pub use range_geometry::ReorderedTextGeometry;
+ pub use state::*;
+ pub use style::*;
+ pub use text_view::*;
+--- /dev/null
++++ b/src/text/range_geometry.rs
+@@ -0,0 +1,111 @@
++//! Visual cells for shaped lines whose source indices are reordered (for example
++//! bidirectional text). Logical endpoints alone cannot describe their paint.
++use std::ops::Range;
++
++use gpui::{LineLayout, Pixels, px};
++
++struct Cell {
++    source: Range<usize>,
++    x: Range<Pixels>,
++}
++
++/// Immutable geometry tied to one shaped line. Build once per layout, then reuse
++/// for its ranges. Coordinates are unwrapped line coordinates, not screen pixels.
++/// A range touching part of a shaped cluster decorates that cluster's whole cell.
++pub struct ReorderedTextGeometry {
++    // Sorted by logical start/end, so finding a match does not scan earlier glyphs.
++    cells: Vec<Cell>,
++}
++
++impl ReorderedTextGeometry {
++    /// Monotonic layouts need no additional per-glyph geometry.
++    pub fn new(line: &LineLayout) -> Option<Self> {
++        let mut previous = 0;
++        let mut reordered = false;
++        for glyph in line.runs.iter().flat_map(|run| &run.glyphs) {
++            reordered |= glyph.index < previous;
++            previous = glyph.index;
++        }
++        if !reordered {
++            return None;
++        }
++        let mut positions = line
++            .runs
++            .iter()
++            .flat_map(|run| &run.glyphs)
++            .filter(|glyph| glyph.index < line.len)
++            .map(|glyph| (glyph.index, glyph.position.x))
++            .collect::<Vec<_>>();
++        let mut indices = positions
++            .iter()
++            .map(|(index, _)| *index)
++            .collect::<Vec<_>>();
++        indices.push(line.len);
++        indices.sort_unstable();
++        indices.dedup();
++        positions.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
++        let mut cells = Vec::with_capacity(positions.len());
++        let mut next = 0;
++        for (index, x) in &positions {
++            while next < positions.len() && positions[next].1 <= *x {
++                next += 1;
++            }
++            let end_x = positions.get(next).map_or(line.width, |(_, x)| *x);
++            let end_index = indices[indices.partition_point(|value| value <= index)];
++            if end_x > *x && end_index > *index {
++                cells.push(Cell {
++                    source: *index..end_index,
++                    x: *x..end_x,
++                });
++            }
++        }
++        cells.sort_by_key(|cell| cell.source.start);
++        Some(Self { cells })
++    }
++
++    /// Emit disjoint visual spans intersected with one visual row's coordinates.
++    /// No shaping, matching, callbacks or source mutation occurs here.
++    pub fn spans(
++        &self,
++        source: Range<usize>,
++        visible_x: Range<Pixels>,
++        mut emit: impl FnMut(Range<Pixels>),
++    ) {
++        if source.start >= source.end || visible_x.start >= visible_x.end {
++            return;
++        }
++        let first = self
++            .cells
++            .partition_point(|cell| cell.source.end <= source.start);
++        let mut spans = self.cells[first..]
++            .iter()
++            .take_while(|cell| cell.source.start < source.end)
++            .filter_map(|cell| {
++                let start = cell.x.start.max(visible_x.start);
++                let end = cell.x.end.min(visible_x.end);
++                (start < end).then_some(start..end)
++            })
++            .collect::<Vec<_>>();
++        spans.sort_by(|a, b| {
++            a.start
++                .partial_cmp(&b.start)
++                .unwrap_or(std::cmp::Ordering::Equal)
++        });
++        let mut merged: Option<Range<Pixels>> = None;
++        for span in spans {
++            if let Some(previous) = &mut merged {
++                if span.start <= previous.end + px(0.001) {
++                    previous.end = previous.end.max(span.end);
++                } else {
++                    emit(previous.clone());
++                    *previous = span;
++                }
++            } else {
++                merged = Some(span);
++            }
++        }
++        if let Some(span) = merged {
++            emit(span);
++        }
++    }
++}

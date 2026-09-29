@@ -549,3 +549,46 @@ The focused gallery check is integrated into the combined `--section all` comman
 the new combined 23-section run is still pending. Broad script/bidi/scroll/tab/fold,
 application performance/resource, installed consumers and consolidated release
 gates remain open. No highlighting capability or full release claim is added.
+
+## Reordered shaped text
+
+The native painter test reproduced an RTL defect: CoreText shaped `אבג` with
+source indices 4, 2, 0, and the existing endpoint lookup painted no wash for byte
+range 2..4. The same endpoint assumption existed in ordinary, Markdown and source
+document background painting.
+
+The shared Base `ReorderedTextGeometry` now maps source-cluster intervals to visual
+glyph cells. Matches can emit disjoint spans, which are clipped to visual wrap rows
+and then aligned. A logical-index binary search avoids rescanning preceding glyphs
+for every match. Ordinary text and source editors retain the index with their
+shaped layout; Markdown builds it once per line per paint pass, outside the range
+loop. Monotonic text retains its previous path. Native text shaping, matching,
+count ordinals, caret/selection and accessibility behavior are unchanged.
+
+Local macOS 14.5 arm64 evidence:
+
+- Extended `native_highlight_paint` passes actual GPU cell checks for the middle
+  Hebrew scalar, a whole Hebrew word, a mixed English/Hebrew logical range with
+  an unselected visual gap, an Arabic middle scalar, wrapped Hebrew and center/right
+  alignment. Existing wrapping, rounded corners, selection precedence and original
+  source-byte start-ellipsis checks also pass.
+- Extended `native_highlight_document` passes the middle Hebrew query in read-only
+  code and Markdown adapters, plus its existing code/diff/Markdown, custom/image,
+  selection, paging/collapse, streaming and owner-disposal regression. Native test
+  binaries ran sequentially under 60-second watchdogs; windows closed and processes
+  were reaped. These are native API/GPU checks, not physical keyboard or IME evidence.
+- The native library and highlight projection/collector/jobs/scope/geometry command
+  passes **398 tests** (362 library, 11 projection, six collector, 13 jobs, three
+  scope, three geometry). Two private-bus notification tests remain excluded.
+  New geometry fixtures cover visual clipping, disconnected ranges, whole-cluster
+  treatment and the monotonic path without an additional per-glyph index.
+- The Base patch reconstructs exactly from the pinned archive, excluding generated
+  Cargo.lock. SHA-256:
+  `0c2cc2e45384a01e33e9b66da9eea2d1faec77d95988c74805e9a7915a013d9e`.
+- Strict all-target native/protocol Clippy with `native-image-tests`, workspace and
+  changed-vendor formatting, and diff checks pass.
+
+The tested scripts/cases do not imply exhaustive typography, bidi caret/selection,
+screen-reader or Linux desktop acceptance. Broader scrolling/tab/fold integration,
+application-scale CPU/memory budgets, combined gallery/consumer checks and the
+remaining release gates stay open. No new capability advertisement.

@@ -514,6 +514,49 @@ async fn image_checks(
         .release(image)
         .unwrap();
 }
+async fn directional_checks(
+    cx: &mut AsyncApp,
+    handle: WindowHandle<View>,
+    session: &Rc<RefCell<Session>>,
+    transport: &Transport,
+    source: ResourceId,
+    p: &Entity<Presentation>,
+) {
+    for (index, mode) in [Mode::Code("txt".into()), Mode::Markdown]
+        .into_iter()
+        .enumerate()
+    {
+        let base = p.read_with(cx, |p, _| p.installed.as_ref().unwrap().revision);
+        publish(&mut session.borrow_mut(), source, base, "אבג\n");
+        handle
+            .update(cx, |view, _, cx| view.document_changed(source, cx))
+            .unwrap();
+        let mut search = config(0.);
+        search.0[0].query.as_mut().unwrap().text = "ב".into();
+        apply(
+            cx,
+            handle,
+            vec![
+                Op::Bind(node(0), Some(handler(500 + index as i64))),
+                Op::SetHighlightScope(node(0), search),
+                Op::SetDocument(node(1), document(source, mode)),
+            ],
+        );
+        installed_revision(cx, handle, transport, p, base + 1).await;
+        // Installation polling can drain Ready; rotate just the observer after it.
+        apply(
+            cx,
+            handle,
+            vec![Op::Bind(node(0), Some(handler(510 + index as i64)))],
+        );
+        ready(cx, handle, transport, 1).await;
+        assert!(
+            red_pixels(cx, handle) > 20,
+            "RTL middle glyph receives a wash in adapter {index}"
+        );
+    }
+}
+
 pub(crate) fn run() {
     let failure = Rc::new(RefCell::new(None));
     let task_failure = failure.clone();
@@ -569,10 +612,14 @@ pub(crate) fn run() {
                 markdown_checks(cx,handle,&session,&transport,source,&p).await;
                 image_checks(cx,handle,&session,&transport,source,&p).await;
                 let markdown_owner=p.read_with(cx,|p,_|Rc::downgrade(&p.markdown_highlight.as_ref().unwrap().backgrounds));
+                directional_checks(cx,handle,&session,&transport,source,&p).await;
+                assert!(markdown_owner.upgrade().is_none(),"replaced image Markdown releases prepared owner");
+                let directional_owner=p.read_with(cx,|p,_|Rc::downgrade(&p.markdown_highlight.as_ref().unwrap().backgrounds));
                 apply(cx,handle,vec![Op::SetRoot(None),Op::Remove(node(1)),Op::Remove(node(0))]);
                 draw(cx,handle);pause(cx).await;drop(p);drop(retired);draw(cx,handle);
                 assert!(background_owner.upgrade().is_none(),"retired editor frame releases prepared owner");
                 assert!(markdown_owner.upgrade().is_none(),"retired Markdown frame releases prepared owner");
+                assert!(directional_owner.upgrade().is_none(),"unmounted directional Markdown releases prepared owner");
                 assert_eq!(red_pixels(cx,handle),0);
                 eprintln!("GPUIO_NATIVE_HIGHLIGHT_DOCUMENT_OK: code/diff/Markdown GPU washes; headings, cross-format and inline-code runs, fenced code, tables and wrap; rounded radius, selection precedence, cosmetic epoch, collapse, native pages, pending installed revision, streaming replacement and unmount/owner disposal");
             }).await;

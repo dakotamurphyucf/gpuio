@@ -5,7 +5,7 @@ use gpui::{Bounds, TextAlign, TextLayout, Window, point, px, quad, size};
 
 use crate::input::{RangeBackground, RangeBackgroundError, RangeBackgrounds};
 
-use super::{DisplayedFragment, DisplayedText};
+use super::{DisplayedFragment, DisplayedText, ReorderedTextGeometry};
 
 /// A fixed array of paint layers for one immutable parsed text snapshot. The
 /// range providers retain their preparation leases through each painted frame.
@@ -71,6 +71,11 @@ pub(super) fn paint(
     let height = layout.line_height();
     let mask = window.content_mask().bounds;
     let lines = layout.line_layouts();
+    // Construct at most once per shaped line in this paint pass, not per match.
+    let geometries = lines
+        .iter()
+        .map(|line| ReorderedTextGeometry::new(&line.unwrapped_layout))
+        .collect::<Vec<_>>();
     for wash in ranges {
         let start = wash.bytes.start.max(source.start);
         let end = wash.bytes.end.min(source.end);
@@ -81,7 +86,7 @@ pub(super) fn paint(
         let end = end - source.start;
         let mut offset = 0;
         let mut row = 0;
-        for line in &lines {
+        for (line, geometry) in lines.iter().zip(&geometries) {
             let local_start = start.saturating_sub(offset);
             let local_end = end.saturating_sub(offset).min(line.len());
             if local_start < local_end {
@@ -111,7 +116,7 @@ pub(super) fn paint(
                     let (to, x_to) = boundary(wrapped + 1);
                     let a = local_start.max(from);
                     let b = local_end.min(to);
-                    if a >= b {
+                    if geometry.is_none() && a >= b {
                         continue;
                     }
                     let inset = match align {
@@ -119,6 +124,22 @@ pub(super) fn paint(
                         TextAlign::Center => (bounds.size.width - (x_to - x_from)) / 2.,
                         TextAlign::Right => bounds.size.width - (x_to - x_from),
                     };
+                    if let Some(geometry) = geometry {
+                        geometry.spans(local_start..local_end, x_from..x_to, |span| {
+                            window.paint_quad(quad(
+                                Bounds::new(
+                                    point(bounds.left() + inset + span.start - x_from, y),
+                                    size(span.end - span.start, height),
+                                ),
+                                wash.radius,
+                                wash.color,
+                                px(0.),
+                                gpui::transparent_black(),
+                                Default::default(),
+                            ));
+                        });
+                        continue;
+                    }
                     let a = line.unwrapped_layout.x_for_index(a) - x_from;
                     let b = line.unwrapped_layout.x_for_index(b) - x_from;
                     if a == b {
