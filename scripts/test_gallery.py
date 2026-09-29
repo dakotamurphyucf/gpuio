@@ -598,7 +598,8 @@ def document_structure(mac):
     equal = mac.cf.CFEqual
     equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
     root = mac.wait_find(TITLE, 'Markdown preview', 'AXGroup')
-    headings, tables, rows, all_cells = [], [], [], []
+    headings, tables, rows, all_cells, headers, row_headers = [], [], [], [], [], []
+    header_group = None
     try:
         headings = descendants(root, 'AXHeading')
         assert len(headings) == 1, len(headings)
@@ -610,6 +611,11 @@ def document_structure(mac):
         assert number(table, 'AXColumnCount') == 2
         rows = mac.children(table, 'AXRows')
         assert len(rows) == 3, len(rows)
+        headers = mac.children(table, 'AXColumnHeaderUIElements')
+        row_headers = mac.children(table, 'AXRowHeaderUIElements')
+        assert len(headers) == 2 and not row_headers, (len(headers), len(row_headers))
+        header_group = mac.attr(table, 'AXHeader')
+        assert header_group and equal(header_group, rows[0]), 'Table header must be its painted first row'
         expected = [('Idea', 'Next step'), ('Native text', 'Keep 世界 readable'),
                     ('Small details', 'Review together')]
         for row_index, row in enumerate(rows):
@@ -621,6 +627,8 @@ def document_structure(mac):
             for column_index, cell in enumerate(cells):
                 assert index_range(cell, 'AXRowIndexRange') == (row_index, 1)
                 assert index_range(cell, 'AXColumnIndexRange') == (column_index, 1)
+                if row_index == 0:
+                    assert equal(headers[column_index], cell), 'Header relation duplicated or reordered a cell'
                 labels = descendants(cell, 'AXStaticText')
                 try:
                     text = ''.join(mac.text(label, 'AXValue') or mac.text(label, 'AXTitle') or ''
@@ -631,10 +639,12 @@ def document_structure(mac):
                         mac.release(label)
         assert all(not equal(cell, prior) for i, cell in enumerate(all_cells)
                    for prior in all_cells[:i]), 'Cells from different rows share identity'
-        print('GALLERY_DOCUMENT_STRUCTURE_OK: heading level, table counts, distinct rows/cells, '
+        print('GALLERY_DOCUMENT_STRUCTURE_OK: heading level, table counts and header relationships, distinct rows/cells, '
               'zero-based indices and Unicode reading order', flush=True)
     finally:
-        for node in [*headings, *tables, *rows, *all_cells, root]:
+        if header_group:
+            mac.release(header_group)
+        for node in [*headings, *tables, *rows, *all_cells, *headers, *row_headers, root]:
             mac.release(node)
 
 

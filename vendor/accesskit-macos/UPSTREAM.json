@@ -24,7 +24,8 @@
     "tree-state.patch",
     "tree-actions.patch",
     "table-state.patch",
-    "document-semantics.patch"
+    "document-semantics.patch",
+    "table-headers.patch"
   ],
   "license_files_sha256": {
     "LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",

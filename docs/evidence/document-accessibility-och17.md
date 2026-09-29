@@ -4,6 +4,48 @@ Partial release finding repair, 2026-09-28, macOS 14.5 (23F79), arm64.
 The [contract](../design/document-accessibility.md) describes the full intended
 behavior. This checkpoint does not complete document accessibility or OCH-17.
 
+## Table header relationships — 2026-09-29
+
+The macOS adapter now exposes current column/row header arrays and the column
+headers' shared row/group container. These are references to existing painted
+semantic nodes, correlated with cell column indices. Queries filter hidden nodes,
+stop at nested tables and do not materialize offscreen history or retain another
+copy of the table. [Apple's API](https://developer.apple.com/documentation/appkit/nsaccessibility-c.protocol/accessibilitycolumnheaderuielements)
+and the [Core AAM draft mapping](https://www.w3.org/TR/2026/CRD-core-aam-1.2-20260923/#role-map-table)
+describe these macOS relationships.
+
+The external gallery's focused document walkthrough passes: two column headers
+are CFEqual to the actual first-row cells, AXHeader is the first row, and there
+are no semantic row headers. Existing count/index/Unicode checks repeat after
+collapse and across three remounts. Keyboard links, source/diff controls,
+streaming, native scrolling and shutdown continue to pass.
+
+The managed-table regression also passes against its 100k logical-row source.
+It receives exactly the two painted header cells and their shared container,
+repeats the check at logical row 50,001, and verifies a retained hidden-table
+reference no longer exposes the old headers. Existing OS keyboard/clipboard,
+selection, marked-text/grapheme, style and lifetime checks pass in that run.
+Its existing header container now has a RowGroup role; its element identity is
+preserved. These fixtures have no semantic row headers, so that array is empty.
+
+Local macOS 14.5 arm64 validation passes:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build examples/gallery/main.exe -j2
+python3 scripts/test_gallery.py --section documents
+./scripts/gpuio exec cargo test -p gpuio-native --test native_table_host --features native-image-tests --locked -j2 --no-run
+# Run the emitted native_table_host executable under a bounded process-group watchdog.
+./scripts/gpuio exec cargo clippy -p gpuio-native -p gpuio-protocol -p gpuio-table-adapter --all-targets --features gpuio-native/native-image-tests --locked -j2 -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build @fmt @test/gallery/runtest -j2
+```
+
+Both GUI processes exit zero and are reaped. The sixth ordered AccessKit patch,
+`table-headers.patch`, reconstructs exactly from the pinned crate and previous
+five patches. No dependency versions change. Logs use `table-headers` in the
+implementing agent's ignored notes directory. This does not add AXColumns or
+establish complete VoiceOver column navigation, selected-text/range APIs,
+rich/image-link acceptance, or consolidated hosted/consumer release acceptance.
+
 ## Heading levels and table structure — 2026-09-29
 
 The macOS adapter now exposes the parsed heading level as numeric AXValue; the

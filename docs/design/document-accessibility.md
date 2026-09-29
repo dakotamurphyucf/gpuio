@@ -29,6 +29,12 @@ row has a distinct identity within its table; cell text remains in the actual
 painted children. Both wrapping and horizontal-scroll layouts use this structure.
 Copy/action controls remain outside the table's data hierarchy. These are read-only
 document tables, so the semantics do not advertise row selection or editing.
+On macOS, AXColumnHeaderUIElements and AXRowHeaderUIElements return the current
+painted header nodes in reading order. AXHeader identifies their nearest shared
+row/group container when one exists. A nested table's headers belong to that
+table, and hidden/retired nodes are excluded. These queries neither prepare source
+text nor materialize offscreen rows or columns. The same mapping applies to the
+managed table; clients correlate header and cell column indices.
 
 The rendered document owns keyboard focus. Tab and Shift-Tab move through its
 logical Markdown links in source order; moving past either end returns traversal

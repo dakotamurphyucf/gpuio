@@ -53,7 +53,8 @@ Reconstruction: download the crate archive from `UPSTREAM.json`, verify its SHA2
 extract `Cargo.toml`, `Cargo.toml.orig`, README/CHANGELOG and `src/`, then apply
 `patch -p1 < expanded-state.patch` and then `patch -p1 < tree-state.patch` inside
 that directory, followed by `patch -p1 < tree-actions.patch`, `patch -p1 < table-state.patch`
-and `patch -p1 < document-semantics.patch`. Fetch LICENSE-APACHE and
+and `patch -p1 < document-semantics.patch`, then `patch -p1 < table-headers.patch`.
+Fetch LICENSE-APACHE and
 LICENSE-MIT from the pinned upstream Git revision and verify their recorded hashes.
 `UPSTREAM.json`, this note and the patches are GPUIO provenance additions. The
 registry archive's Cargo.lock and Cargo cache metadata are not build inputs.
@@ -111,3 +112,23 @@ reads level 1 and checks table row/cell indices through the existing table adapt
 Ordinary link actions have separate passing evidence; complete rich-link behavior,
 selection ranges and VoiceOver reading remain release work. The expected native heading role is also
 described in [WebKit's heading mapping](https://bugs.webkit.org/show_bug.cgi?id=131920).
+
+`table-headers.patch` exposes the table's current column/row header nodes through
+`accessibilityColumnHeaderUIElements` and `accessibilityRowHeaderUIElements`.
+`accessibilityHeader` returns the nearest shared exposed row/group ancestor of
+the column headers, if one exists below the table. See [Apple's header API](https://developer.apple.com/documentation/appkit/nsaccessibility-c.protocol/accessibilitycolumnheaderuielements)
+and the [Core AAM 1.2 draft table mapping](https://www.w3.org/TR/2026/CRD-core-aam-1.2-20260923/#role-map-table).
+Getters traverse only the current filtered tree, reject hidden/retired tables,
+and stop at nested tables/grids/trees. Returned objects reuse the adapter's
+existing node identities; no synthetic header copies, offscreen materialization
+or new persistent caches are introduced. Column indices correlate these headers
+with cells. This does not implement an AXColumns object model or prove VoiceOver
+column navigation.
+
+The external gallery checks Markdown headers against the actual first-row cells
+and AXHeader against that row, including collapse/remount. The native 100k-row
+table regression checks its two painted headers and shared group, repeats after
+scrolling to logical row 50,001, and verifies retained hidden-table references no
+longer expose headers. The managed table now marks its existing header container
+as RowGroup while preserving the delegate's element identity. Empty row-header
+arrays are correct for these fixtures; row-selection buttons are not row headers.

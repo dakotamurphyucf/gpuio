@@ -1164,6 +1164,41 @@ declare_class!(
             }).unwrap_or(NSAccessibilitySortDirection::Unknown)
         }
 
+        #[method_id(accessibilityColumnHeaderUIElements)]
+        fn column_headers(&self) -> Option<Id<NSArray<PlatformNode>>> {
+            self.table_headers(Role::ColumnHeader)
+        }
+
+        #[method_id(accessibilityRowHeaderUIElements)]
+        fn row_headers(&self) -> Option<Id<NSArray<PlatformNode>>> {
+            self.table_headers(Role::RowHeader)
+        }
+
+        #[method_id(accessibilityHeader)]
+        fn header(&self) -> Option<Id<PlatformNode>> {
+            self.resolve_with_context(|node, _, context| {
+                if !table_container(node) || filter(node) != FilterResult::Include {
+                    return None;
+                }
+                let headers: Vec<_> = node.filtered_children(|child| {
+                    table_header_filter(child, Role::ColumnHeader)
+                }).collect();
+                let mut parent = headers.first()?.filtered_parent(&filter);
+                while let Some(candidate) = parent {
+                    if candidate.id() == node.id() {
+                        return None;
+                    }
+                    if matches!(candidate.role(), Role::Row | Role::RowGroup | Role::Group)
+                        && headers.iter().all(|header| header.is_descendant_of(&candidate))
+                    {
+                        return Some(context.get_or_create_platform_node(candidate.id()));
+                    }
+                    parent = candidate.filtered_parent(&filter);
+                }
+                None
+            }).flatten()
+        }
+
         #[method_id(accessibilityRows)]
         fn rows(&self) -> Option<Id<NSArray<PlatformNode>>> {
             self.resolve_with_context(|node, _, context| {
@@ -1368,6 +1403,12 @@ declare_class!(
                     return node.role() == Role::TreeItem && node.data().level().is_some();
                 }
                 if selector == sel!(accessibilityRowCount) { return table_container(node); }
+                if selector == sel!(accessibilityColumnHeaderUIElements)
+                    || selector == sel!(accessibilityRowHeaderUIElements)
+                    || selector == sel!(accessibilityHeader)
+                {
+                    return table_container(node) && filter(node) == FilterResult::Include;
+                }
                 if selector == sel!(accessibilityColumnCount) {
                     return table_container(node) && node.data().column_count().is_some();
                 }
@@ -1464,6 +1505,14 @@ fn table_row_filter(node: &Node) -> FilterResult {
         _ => FilterResult::ExcludeNode,
     }
 }
+fn table_header_filter(node: &Node, role: Role) -> FilterResult {
+    match filter(node) {
+        FilterResult::ExcludeSubtree => FilterResult::ExcludeSubtree,
+        _ if node.role() == role => FilterResult::Include,
+        _ if matches!(node.role(), Role::Table | Role::Grid | Role::Tree | Role::TreeGrid) => FilterResult::ExcludeSubtree,
+        _ => FilterResult::ExcludeNode,
+    }
+}
 fn supports_table_selection(node: &Node) -> bool {
     table_item(node) && node.is_selectable()
         && node.supports_action(Action::CustomAction, &filter)
@@ -1491,6 +1540,19 @@ fn supports_tree_expansion(node: &Node) -> bool {
 }
 
 impl PlatformNode {
+    fn table_headers(&self, role: Role) -> Option<Id<NSArray<PlatformNode>>> {
+        self.resolve_with_context(|node, _, context| {
+            if !table_container(node) || filter(node) != FilterResult::Include {
+                return None;
+            }
+            let headers = node
+                .filtered_children(|child| table_header_filter(child, role))
+                .map(|header| context.get_or_create_platform_node(header.id()))
+                .collect::<Vec<_>>();
+            Some(NSArray::from_vec(headers))
+        }).flatten()
+    }
+
     fn set_tree_expanded(&self, expanded: bool) {
         self.resolve_with_context(|node, tree, context| {
             if !supports_tree_expansion(node) {

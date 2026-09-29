@@ -98,7 +98,9 @@ now exposes body text, read-only source/code, keyboard/AX inline-link activation
 and distant-link reveal. Parsed heading levels now reach macOS AXValue; Markdown
 tables expose row/cell structure with distinct identities and indices. The focused
 gallery passes level 1, wrapping-table counts/Unicode reading order and repeated
-collapse/remount. Rich/image links, selection/ranges, complete table and screen-reader
+collapse/remount. Table header queries now reuse painted cell/container identities;
+Markdown and 100k logical-row managed-table regressions pass, including far-row
+navigation and hidden-header retirement. Rich/image links, selection/ranges, complete table and screen-reader
 behavior remain open. No full document screen-reader or Linux desktop acceptance
 is claimed.
 
