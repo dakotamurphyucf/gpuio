@@ -25,8 +25,8 @@ module Resources = struct
      - Explore a direction\n\
      - Keep the useful details\n\
      - Share what you learn\n\n\
-     Before [Read the **design** notes](gpuio-preview:notes) and [世界 \
-     guide](gpuio-preview:unicode) after.\n\n\
+     Before [Read the **design** `notes`](gpuio-preview:notes) and [![世界 \
+     guide](asset://gallery-link)](gpuio-preview:unicode) after.\n\n\
      | Idea | Next step |\n\
      | --- | --- |\n\
      | Native text | Keep 世界 readable |\n\

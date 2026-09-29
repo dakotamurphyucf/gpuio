@@ -4,6 +4,68 @@ Partial release finding repair, 2026-09-28, macOS 14.5 (23F79), arm64.
 The [contract](../design/document-accessibility.md) describes the full intended
 behavior. This checkpoint does not complete document accessibility or OCH-17.
 
+## Rich links across rendered fragments — 2026-09-29
+
+The public document fixture now includes one link spanning ordinary, bold and
+inline-code text, plus a linked safe image placeholder with a Unicode alternative.
+Previously the first appeared as two partial AXLinks and the second appeared only
+as placeholder text. The frame-local rich-paragraph collector now exposes one
+logical action per link in source reading order, using its prepared full name and
+actual fragment geometry. Source identity distinguishes links with the same URL;
+the URL also participates in accessible identity when a target changes. Wrapped
+fragments contribute unioned accessible bounds, individual focus outlines and a
+first-fragment keyboard reveal target. The existing queued navigation handler
+still validates the installed native presentation.
+
+Projected plain-text fallbacks do not duplicate the link's alternative name.
+Native custom descendants retain their own semantics and input. Their premeasured
+element paths remain unchanged; accessibility-only visual containers forward the
+existing text/image layout rather than adding layout boxes. No text is reshaped
+for this collector, and no asset fetch or document-history cache is introduced.
+
+The focused gallery, native document/highlighting regressions, build/format and
+strict lint pass locally with the commands below. The gallery checks exact logical
+link counts/names, intervening text order, AXPress destinations, eight Tab/Enter
+targets, distant-link reveal/geometry, Shift-Tab/Escape and retained actions
+after collapse. The native document suite also covers
+selection, clipboard, registered-image rendering, streaming and disposal; that
+rendering check does **not** establish decoded-image accessibility acceptance.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build examples/gallery/main.exe @fmt @test/gallery/runtest -j2
+python3 scripts/test_gallery.py --section document-links
+./scripts/gpuio exec cargo test -p gpuio-native --test native_document --test native_highlight_document --features native-image-tests --locked -j2 --no-run
+# Run each emitted native executable separately under a bounded process-group watchdog.
+./scripts/gpuio exec cargo clippy -p gpuio-native -p gpuio-protocol --all-targets --features native-image-tests --locked -j2 -- -D warnings
+```
+
+Three focused Base unit tests pass for source identity, Unicode names, native
+reading-order barriers, wrapped union bounds and first-fragment geometry. The
+full Base text run had **148 passes and one failure**: the existing stateless
+Markdown initial-render assertion observed three renders against a limit of two.
+An isolated run and a fresh archive of unchanged `dc25013` reproduce the same
+failure. The threshold is unchanged; its cause remains part of the idle/performance
+release audit. This is not a passing full Base suite. A baseline build shared the
+same Cargo artifact filename, so the final current-source focused run explicitly
+recompiled and verified that all three new tests executed.
+
+The longer `--section documents` walkthrough passed during development but is
+not consistently passing: later runs timed out locating a fence after returning
+from Diff, or waiting for Expand after Reset diff followed by Collapse. Added
+geometry diagnostics produced another pass; a two-direction/current-viewport
+search did not establish a fix and was not retained. Inspection found generation
+installation resets collapse state in `Presentation::accept_ready`; a delayed
+reset may overwrite a newer collapse action, requiring a deterministic regression
+and repair. These failures remain release work. The dedicated `document-links`
+section isolates the complete new link checks, and the full walkthrough still
+calls the same checks rather than skipping them.
+
+The cumulative Base patch reconstructs all 233 vendored files byte-for-byte;
+the only additional local file is its ignored standalone Cargo.lock. Remaining
+acceptance includes decoded/unlinked images, arbitrary custom controls, direct
+AXFocus, selected-text/ranges, stale/modal cases and actual VoiceOver navigation.
+This checkpoint does not complete OCH-17, OCH-41 or Linux desktop qualification.
+
 ## Table header relationships — 2026-09-29
 
 The macOS adapter now exposes current column/row header arrays and the column

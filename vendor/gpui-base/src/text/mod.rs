@@ -6,6 +6,7 @@ mod inline;
 mod inline_element;
 mod inline_flow;
 mod inline_object;
+mod inline_semantics;
 #[cfg(test)]
 mod inline_virtual_tests;
 mod link_navigation;

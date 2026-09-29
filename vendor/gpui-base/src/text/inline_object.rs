@@ -225,6 +225,11 @@ impl Element for InlineObject {
         node.set_role(Role::GenericContainer);
         node.set_label(self.accessibility_label.as_ref());
         node.set_read_only();
+        // Only the built-in plain fallback is redundant with the logical link.
+        // Real custom children may be interactive and keep their semantics.
+        if self.link.is_some() && !self.content_measured {
+            node.set_hidden();
+        }
     }
 
     fn request_layout(

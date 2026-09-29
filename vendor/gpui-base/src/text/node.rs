@@ -1762,6 +1762,7 @@ impl Paragraph {
                         });
                     }
                 }
+                let linked = object_link.is_some();
                 let rendered_node = node.clone();
                 let extensions = node_cx.markdown_extensions.clone();
                 let projected = node_cx
@@ -1790,7 +1791,8 @@ impl Paragraph {
                                         vec![],
                                         None,
                                     )
-                                    .passive(),
+                                    .passive()
+                                    .suppress_semantics(linked),
                                 ),
                             ));
                         }

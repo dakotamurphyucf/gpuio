@@ -181,6 +181,8 @@ pub(super) struct Inline {
     range_backgrounds: Option<(Rc<dyn crate::input::RangeBackgrounds>, Range<usize>)>,
     style_backgrounds: Vec<crate::input::RangeBackground>,
     interaction: InlineInteraction,
+    semantic_sink: Option<(super::inline_semantics::Collector, usize)>,
+    suppress_semantics: bool,
     link_click_handler: Option<Arc<LinkClickHandlerFn>>,
 
     state: Arc<Mutex<InlineState>>,
@@ -271,9 +273,25 @@ impl Inline {
             range_backgrounds: None,
             style_backgrounds: Vec::new(),
             interaction: InlineInteraction::Text,
+            semantic_sink: None,
+            suppress_semantics: false,
             link_click_handler,
             state,
         }
+    }
+
+    pub(super) fn semantic_sink(
+        mut self,
+        sink: super::inline_semantics::Collector,
+        slot: usize,
+    ) -> Self {
+        self.semantic_sink = Some((sink, slot));
+        self
+    }
+
+    pub(super) fn suppress_semantics(mut self, suppress: bool) -> Self {
+        self.suppress_semantics = suppress;
+        self
     }
 
     /// Use the resolved style captured by a deferred parent layout.
@@ -321,7 +339,14 @@ impl Inline {
         window: &mut Window,
         cx: &mut App,
     ) -> Vec<gpui::AnyElement> {
-        if self.links.is_empty() || !window.is_a11y_active() {
+        if self.suppress_semantics {
+            return Vec::new();
+        }
+        if let Some((sink, _)) = &self.semantic_sink {
+            if !sink.enabled() {
+                return Vec::new();
+            }
+        } else if self.links.is_empty() || !window.is_a11y_active() {
             return Vec::new();
         }
         let layout = self.styled_text.layout();
@@ -346,6 +371,10 @@ impl Inline {
                     point(bounds.right(), end.y + height),
                 )
             };
+            if let Some((sink, slot)) = &self.semantic_sink {
+                sink.push(*slot, area, &self.text[range], link);
+                continue;
+            }
             let id: SharedString = format!(
                 "semantic-{}-{}-{}",
                 range.start,
@@ -724,6 +753,9 @@ impl Element for Inline {
     }
 
     fn a11y_role(&self) -> Option<gpui::accesskit::Role> {
+        if self.suppress_semantics || self.semantic_sink.is_some() {
+            return None;
+        }
         Some(if self.links.is_empty() {
             gpui::accesskit::Role::Label
         } else {
@@ -824,7 +856,9 @@ impl Element for Inline {
             }
         }
 
-        if let Some(view) = GlobalState::global(cx).text_view_state().cloned() {
+        if self.semantic_sink.is_none()
+            && let Some(view) = GlobalState::global(cx).text_view_state().cloned()
+        {
             let target = {
                 let state = view.read(cx);
                 state.link_reveal.filter(|_| !state.link_reveal_claimed)
@@ -907,7 +941,9 @@ impl Element for Inline {
             return;
         }
 
-        if let Some(view) = GlobalState::global(cx).text_view_state() {
+        if self.semantic_sink.is_none()
+            && let Some(view) = GlobalState::global(cx).text_view_state()
+        {
             let view = view.read(cx);
             if view.focus_handle().is_focused(window)
                 && let Some(active) = view.link_navigation.active

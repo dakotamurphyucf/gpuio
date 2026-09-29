@@ -678,7 +678,34 @@ def reveal_document_code(mac):
     raise RuntimeError('Appended code did not become accessible after native document scrolling')
 
 
-def exercise_documents(mac, images):
+def document_link_reading_order(mac):
+    """A mixed-font link and image alternative each occupy one source position."""
+    observed = []
+    def visit(node):
+        values, children = mac.node_values(node)
+        try:
+            if values[0] in ('AXStaticText', 'AXLink'):
+                observed.append((values[0], next((v for v in values[1:] if v), '')))
+            for child in children:
+                visit(child)
+        finally:
+            for child in children:
+                mac.release(child)
+    root = mac.wait_find(TITLE, 'Document content', 'AXGroup')
+    try:
+        visit(root)
+    finally:
+        mac.release(root)
+    start = observed.index(('AXStaticText', 'Before '))
+    assert observed[start:start + 5] == [
+        ('AXStaticText', 'Before '), ('AXLink', 'Read the design notes'),
+        ('AXStaticText', ' and '), ('AXLink', '世界 guide'),
+        ('AXStaticText', ' after.'),
+    ], observed
+    assert not any('[Image: 世界 guide]' == text for _, text in observed), observed
+
+
+def exercise_document_links(mac, images):
     mac.press(TITLE, 'Markdown & code')
     mac.wait_text(TITLE, 'Markdown preview')
     mac.wait_text(TITLE, 'A place for ideas')
@@ -688,6 +715,7 @@ def exercise_documents(mac, images):
     roles = tree_counts(mac, mac.wait_find(TITLE, 'Markdown preview', 'AXGroup'))
     assert roles.get('AXHeading') == 1 and roles.get('AXList') == 1, roles
     assert roles.get('AXLink') == 2, roles
+    document_link_reading_order(mac)
     document_structure(mac)
     link = mac.wait_find(TITLE, 'Read the design notes', 'AXLink')
     try:
@@ -774,6 +802,12 @@ def exercise_documents(mac, images):
     mac.wait_text(TITLE, 'Link requested: gpuio-preview:finding-5')
     mac.key(53)  # Escape clears link focus without leaving the document.
     expect_focus(mac, 'Document content', 'AXGroup')
+    print('GALLERY_DOCUMENT_LINKS_OK: rich text/code and safe-image alternative, '
+          'source reading order, AX press, Tab/Enter/reverse/Escape, collapse guard and far reveal', flush=True)
+
+
+def exercise_documents(mac, images):
+    exercise_document_links(mac, images)
     mac.press(TITLE, 'Code')
     mac.wait_text(TITLE, 'Code preview')
     editor = mac.wait_find(TITLE, 'Code preview', 'AXTextArea')
@@ -2050,7 +2084,7 @@ def main():
                         help='Run an independently built gallery instead of the repository executable')
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -2085,6 +2119,8 @@ def main():
                 exercise_journeys(mac, args.images)
             if args.section in ('all', 'collections'):
                 exercise_collections(mac, args.images)
+            if args.section == 'document-links':
+                exercise_document_links(mac, args.images)
             if args.section in ('all', 'documents'):
                 exercise_documents(mac, args.images)
             if args.section in ('all', 'highlighting'):

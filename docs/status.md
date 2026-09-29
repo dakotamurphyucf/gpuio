@@ -100,9 +100,15 @@ tables expose row/cell structure with distinct identities and indices. The focus
 gallery passes level 1, wrapping-table counts/Unicode reading order and repeated
 collapse/remount. Table header queries now reuse painted cell/container identities;
 Markdown and 100k logical-row managed-table regressions pass, including far-row
-navigation and hidden-header retirement. Rich/image links, selection/ranges, complete table and screen-reader
-behavior remain open. No full document screen-reader or Linux desktop acceptance
-is claimed.
+navigation and hidden-header retirement. Rich text/code and safe image-placeholder
+links now have one accessible name/action, ordered text, keyboard focus and queued navigation in the public
+fixture. Decoded-image/custom-control accessibility, selection/ranges, complete
+table and screen-reader behavior remain open. The broader Base text suite also
+reproduces a pre-existing initial-render count failure on unchanged `dc25013`;
+the idle/performance audit must resolve it before release. The longer document
+walkthrough also has intermittent post-reset collapse/reveal failures; the new
+dedicated link check does not waive those release regressions. No full document
+screen-reader or Linux desktop acceptance is claimed.
 
 Deferred overlay, tooltip/hover-card, toast/stack and context-menu highlighting
 now passes native count/GPU/lifetime checks. Floating-panel visibility preserves

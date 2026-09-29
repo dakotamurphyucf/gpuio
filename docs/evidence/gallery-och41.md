@@ -13,6 +13,11 @@ for exact state, keyboard/AX and lifecycle assertions. This advances the focused
 section; the latest combined result is recorded below. Release and Linux desktop
 acceptance remain separate.
 
+The [rich-link checkpoint](document-accessibility-och17.md#rich-links-across-rendered-fragments--2026-09-29)
+adds public inline-code/bold and safe image-placeholder links, with exact AX
+reading-order/action checks and retained keyboard navigation. Its focused result
+is separate from the combined/installed-consumer checkpoints below.
+
 ## Latest combined checkpoint — 2026-09-29
 
 Both the repository application and a fresh independent consumer of the staged

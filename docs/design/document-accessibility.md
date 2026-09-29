@@ -58,3 +58,17 @@ Acceptance needs actual macOS accessibility queries for values, structure and
 actions, native selection/copy and keyboard checks, and streaming/collapse/remount
 regressions. AX-tree presence alone is not evidence of complete VoiceOver reading
 or native selected-text range support. Linux desktop acceptance remains OCH-47.
+
+Rich paragraphs group adjacent painted fragments by logical link source identity,
+not by font, line, URL alone or image-loading state. A frame-local collector uses
+the existing shaped text and atomic-object bounds; it does not reshape or retain
+document history. One accessible action uses the prepared link name, unioned
+bounds and the existing guarded navigation callback. Keyboard reveal targets its
+first fragment, and focus outlines follow its individual painted fragments.
+Distinct links to the same destination remain distinct actions.
+
+Ordinary text and native custom children retain source reading order. Linked
+plain-text object fallbacks use their alternative name through the link instead
+of duplicating that text as a sibling. Custom native controls keep their own
+semantics and interaction; linking an atomic object does not hide its interactive
+descendants. This grouping changes neither selection projections nor asset I/O.

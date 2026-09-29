@@ -118,6 +118,13 @@ prepaint/paint ordering checks; see the [diff contract](design/diff-controls.md#
 and [native evidence](evidence/diff-controls-och41.md). Update the patch and its
 recorded hash together, then reconstruct into a fresh directory.
 
+Rich Markdown accessibility also adapts Base's measured inline flow. Its
+frame-local collector groups painted fragments by source link identity and keeps
+native custom children in reading order. Preserve custom-object measurement IDs,
+actual shaped geometry, first-fragment reveal and guarded queued link actions when
+upgrading; see [the contract](design/document-accessibility.md) and
+[the evidence](evidence/document-accessibility-och17.md).
+
 The Bonsai reconstruction script writes a whole `vendor/` directory and has no
 output option. Run it in a disposable staging tree containing copies of
 `scripts/vendor_bonsai.py`, `third_party/sources.json` and

@@ -2077,13 +2077,15 @@
  pub(super) struct Inline {
      id: ElementId,
      text: SharedString,
-@@ -171,9 +178,54 @@
+@@ -171,9 +178,56 @@
      paint_origin: Option<Point<Pixels>>,
      selection_bounds: Option<Bounds<Pixels>>,
      selection_source: Option<(Arc<Mutex<InlineState>>, Range<usize>)>,
 +    range_backgrounds: Option<(Rc<dyn crate::input::RangeBackgrounds>, Range<usize>)>,
 +    style_backgrounds: Vec<crate::input::RangeBackground>,
 +    interaction: InlineInteraction,
++    semantic_sink: Option<(super::inline_semantics::Collector, usize)>,
++    suppress_semantics: bool,
      link_click_handler: Option<Arc<LinkClickHandlerFn>>,
  
      state: Arc<Mutex<InlineState>>,
@@ -2132,7 +2134,7 @@
  }
  
  /// The inline text state, used RefCell to keep the selection state.
-@@ -183,6 +235,7 @@
+@@ -183,6 +237,7 @@
      /// The text that actually rendering, matched with selection.
      pub(super) text: SharedString,
      pub(super) selection: Option<Selection>,
@@ -2140,17 +2142,34 @@
  }
  
  impl InlineState {
-@@ -215,6 +268,9 @@
+@@ -215,14 +270,45 @@
              paint_origin: None,
              selection_bounds: None,
              selection_source: None,
 +            range_backgrounds: None,
 +            style_backgrounds: Vec::new(),
 +            interaction: InlineInteraction::Text,
++            semantic_sink: None,
++            suppress_semantics: false,
              link_click_handler,
              state,
          }
-@@ -223,6 +279,18 @@
++    }
++
++    pub(super) fn semantic_sink(
++        mut self,
++        sink: super::inline_semantics::Collector,
++        slot: usize,
++    ) -> Self {
++        self.semantic_sink = Some((sink, slot));
++        self
++    }
++
++    pub(super) fn suppress_semantics(mut self, suppress: bool) -> Self {
++        self.suppress_semantics = suppress;
++        self
+     }
+ 
      /// Use the resolved style captured by a deferred parent layout.
      pub(super) fn text_style(mut self, text_style: TextStyle) -> Self {
          self.text_style = Some(text_style);
@@ -2169,7 +2188,7 @@
          self
      }
  
-@@ -244,6 +312,104 @@
+@@ -244,6 +330,115 @@
      ) -> Self {
          self.selection_source = Some((state, range));
          self
@@ -2182,7 +2201,14 @@
 +        window: &mut Window,
 +        cx: &mut App,
 +    ) -> Vec<gpui::AnyElement> {
-+        if self.links.is_empty() || !window.is_a11y_active() {
++        if self.suppress_semantics {
++            return Vec::new();
++        }
++        if let Some((sink, _)) = &self.semantic_sink {
++            if !sink.enabled() {
++                return Vec::new();
++            }
++        } else if self.links.is_empty() || !window.is_a11y_active() {
 +            return Vec::new();
 +        }
 +        let layout = self.styled_text.layout();
@@ -2207,6 +2233,10 @@
 +                    point(bounds.right(), end.y + height),
 +                )
 +            };
++            if let Some((sink, slot)) = &self.semantic_sink {
++                sink.push(*slot, area, &self.text[range], link);
++                continue;
++            }
 +            let id: SharedString = format!(
 +                "semantic-{}-{}-{}",
 +                range.start,
@@ -2274,7 +2304,7 @@
      }
  
      /// Get link at given mouse position.
-@@ -547,7 +713,7 @@
+@@ -547,7 +742,7 @@
  
  impl Element for Inline {
      type RequestLayoutState = ();
@@ -2283,13 +2313,16 @@
  
      fn id(&self) -> Option<ElementId> {
          Some(self.id.clone())
-@@ -555,6 +721,22 @@
+@@ -555,6 +750,25 @@
  
      fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
          None
 +    }
 +
 +    fn a11y_role(&self) -> Option<gpui::accesskit::Role> {
++        if self.suppress_semantics || self.semantic_sink.is_some() {
++            return None;
++        }
 +        Some(if self.links.is_empty() {
 +            gpui::accesskit::Role::Label
 +        } else {
@@ -2306,7 +2339,7 @@
      }
  
      fn request_layout(
-@@ -568,7 +750,41 @@
+@@ -568,7 +782,41 @@
              .text_style
              .clone()
              .unwrap_or_else(|| window.text_style());
@@ -2349,7 +2382,7 @@
  
          self.styled_text = StyledText::new(self.text.clone()).with_runs(runs);
          let (layout_id, _) =
-@@ -593,11 +809,11 @@
+@@ -593,11 +841,11 @@
  
          // Report this element's laid-out extent so an ancestor TextView with
          // `max_lines` can snap its clip to a whole-line boundary. The state
@@ -2364,13 +2397,15 @@
                  && let Ok(mut line_spans) = state.line_spans.lock()
              {
                  line_spans.push(LineSpan {
-@@ -608,8 +824,34 @@
+@@ -608,8 +856,36 @@
              }
          }
  
 -        let hitbox = window.insert_hitbox(bounds, HitboxBehavior::Normal);
 -        hitbox
-+        if let Some(view) = GlobalState::global(cx).text_view_state().cloned() {
++        if self.semantic_sink.is_none()
++            && let Some(view) = GlobalState::global(cx).text_view_state().cloned()
++        {
 +            let target = {
 +                let state = view.read(cx);
 +                state.link_reveal.filter(|_| !state.link_reveal_claimed)
@@ -2401,7 +2436,7 @@
      }
  
      fn paint(
-@@ -624,10 +866,88 @@
+@@ -624,10 +900,90 @@
      ) {
          let bounds = Bounds::new(self.paint_origin.unwrap_or(bounds.origin), bounds.size);
          let current_view = window.current_view();
@@ -2447,7 +2482,9 @@
 +            return;
 +        }
 +
-+        if let Some(view) = GlobalState::global(cx).text_view_state() {
++        if self.semantic_sink.is_none()
++            && let Some(view) = GlobalState::global(cx).text_view_state()
++        {
 +            let view = view.read(cx);
 +            if view.focus_handle().is_focused(window)
 +                && let Some(active) = view.link_navigation.active
@@ -2491,7 +2528,7 @@
  
          // layout selections
          let (is_selectable, is_selection, selection) =
-@@ -1088,8 +1408,37 @@
+@@ -1088,8 +1444,37 @@
  
  #[cfg(test)]
  mod tests {
@@ -2532,7 +2569,15 @@
          InlineHighlight {
 --- a/src/text/inline_flow.rs
 +++ b/src/text/inline_flow.rs
-@@ -38,6 +38,7 @@
+@@ -18,6 +18,7 @@
+ use super::{
+     inline::{Inline, InlineHighlight, InlineState, text_runs, text_size_ranges},
+     inline_object::{InlineObject, MeasuredInlineObject},
++    inline_semantics::{self, Collector, visual_slot},
+     node::LinkMark,
+     utils::image_source,
+ };
+@@ -38,6 +39,7 @@
  pub(super) enum InlineFlowItem {
      Object {
          text: SharedString,
@@ -2540,7 +2585,183 @@
          id: usize,
          renderer: Arc<InlineRenderer>,
          accessibility_label: SharedString,
-@@ -547,12 +548,13 @@
+@@ -58,6 +60,12 @@
+         width: Option<DefiniteLength>,
+         height: Option<DefiniteLength>,
+     },
++}
++
++pub(super) struct InlineFlowPrepaint {
++    elements: Vec<(AnyElement, Option<(Bounds<Pixels>, gpui::Hsla)>)>,
++    semantics: Vec<(usize, AnyElement)>,
++    runs: Vec<inline_semantics::Run>,
+ }
+ 
+ pub(crate) struct InlineFlowLayoutState {
+@@ -212,7 +220,41 @@
+ 
+ impl Element for InlineFlow {
+     type RequestLayoutState = InlineFlowLayoutState;
+-    type PrepaintState = Vec<(AnyElement, Option<(Bounds<Pixels>, gpui::Hsla)>)>;
++    type PrepaintState = InlineFlowPrepaint;
++
++    fn a11y_role(&self) -> Option<gpui::Role> {
++        Some(gpui::Role::Group)
++    }
++
++    fn a11y_synthetic_children(
++        &mut self,
++        prepaint: &mut Self::PrepaintState,
++        builder: &mut gpui::A11ySubtreeBuilder,
++    ) {
++        // Geometry is collected from real leaves during prepaint. Proxies are
++        // then created after the visuals; interleave their IDs back into source
++        // order, preserving native child subtrees at their original slots.
++        let node = builder.parent_node();
++        let children = node.children().to_vec();
++        let visual_count = prepaint.elements.len();
++        debug_assert_eq!(children.len(), visual_count + prepaint.semantics.len());
++        if children.len() != visual_count + prepaint.semantics.len() {
++            return;
++        }
++        let mut ordered = Vec::with_capacity(children.len());
++        let mut semantics = prepaint.semantics.iter().enumerate().peekable();
++        for (slot, child) in children.iter().take(visual_count).enumerate() {
++            while let Some((index, (source_slot, _))) = semantics.peek() {
++                if *source_slot != slot {
++                    break;
++                }
++                ordered.push(children[visual_count + *index]);
++                semantics.next();
++            }
++            ordered.push(*child);
++        }
++        node.set_children(ordered);
++    }
+ 
+     fn id(&self) -> Option<ElementId> {
+         Some(self.id.clone())
+@@ -303,7 +345,7 @@
+ 
+     fn prepaint(
+         &mut self,
+-        _id: Option<&GlobalElementId>,
++        id: Option<&GlobalElementId>,
+         _inspector_id: Option<&InspectorElementId>,
+         bounds: Bounds<Pixels>,
+         request_layout: &mut Self::RequestLayoutState,
+@@ -319,6 +361,7 @@
+         let typography = request_layout.typography.clone();
+         let text_style = &typography.text_style;
+         let mut elements = Vec::with_capacity(fragments.len());
++        let collector = Collector::new(window, cx);
+ 
+         for fragment in fragments {
+             match fragment {
+@@ -340,6 +383,16 @@
+                         continue;
+                     };
+                     let object_size = object.metrics.size;
++                    if let Some(link) = link {
++                        collector.push(
++                            elements.len(),
++                            Bounds::new(bounds.origin + origin, object_size),
++                            accessibility_label,
++                            Some(link.clone()),
++                        );
++                    } else {
++                        collector.native(elements.len());
++                    }
+                     let mut element = InlineObject::new(
+                         ("inline-object", *id),
+                         text.clone(),
+@@ -443,6 +496,7 @@
+                         highlights,
+                         self.link_click_handler.clone(),
+                     )
++                    .semantic_sink(collector.clone(), elements.len())
+                     .selection_source(source_state.clone(), source_range)
+                     .text_style(text_style.clone())
+                     .selection_bounds(Bounds::new(
+@@ -450,7 +504,7 @@
+                         size(bounds.size.width, selection_bounds.size.height),
+                     ))
+                     .paint_origin(bounds.origin + origin + point(padding, Pixels::ZERO));
+-                    let mut element = div()
++                    let element = div()
+                         .font(text_style.font())
+                         .text_color(text_style.color)
+                         .when_some(text_style.background_color, |this, color| {
+@@ -462,6 +516,7 @@
+                         .whitespace_nowrap()
+                         .child(inline)
+                         .into_any_element();
++                    let mut element = visual_slot(elements.len(), element);
+                     window.with_rem_size(Some(typography.rem_size), |window| {
+                         element.prepaint_as_root(
+                             bounds.origin + origin + point(padding, Pixels::ZERO),
+@@ -486,7 +541,17 @@
+                     else {
+                         continue;
+                     };
+-                    let mut element = Self::image_element(
++                    if let Some(link) = link {
++                        collector.push(
++                            elements.len(),
++                            Bounds::new(bounds.origin + origin, fragment_size),
++                            title,
++                            Some(link.clone()),
++                        );
++                    } else {
++                        collector.native(elements.len());
++                    }
++                    let element = Self::image_element(
+                         elements.len(),
+                         url,
+                         link,
+@@ -494,6 +559,7 @@
+                         fragment_size,
+                         self.link_click_handler.clone(),
+                     );
++                    let mut element = visual_slot(elements.len(), element);
+                     element.prepaint_as_root(
+                         bounds.origin + origin,
+                         size(
+@@ -508,7 +574,14 @@
+             }
+         }
+ 
+-        elements
++        let runs = collector.finish();
++        inline_semantics::reveal(&runs, window, cx);
++        let semantics = inline_semantics::elements(&runs, id, &self.link_click_handler, window, cx);
++        InlineFlowPrepaint {
++            elements,
++            semantics,
++            runs,
++        }
+     }
+ 
+     fn paint(
+@@ -533,12 +606,16 @@
+             }
+         }
+         let radius = crate::Theme::global(cx).tokens.radius.sm;
+-        for (element, background) in prepaint {
++        for (element, background) in &mut prepaint.elements {
+             if let Some((bounds, color)) = background {
+                 window.paint_quad(gpui::fill(*bounds, *color).corner_radii(radius));
+             }
+             element.paint(window, cx);
+         }
++        for (_, element) in &mut prepaint.semantics {
++            element.paint(window, cx);
++        }
++        inline_semantics::paint_focus(&prepaint.runs, window, cx);
+     }
+ }
+ 
+@@ -547,12 +624,13 @@
          match item {
              InlineFlowItem::Object {
                  text,
@@ -2557,7 +2778,19 @@
                  style: *style,
 --- a/src/text/inline_object.rs
 +++ b/src/text/inline_object.rs
-@@ -326,10 +326,8 @@
+@@ -225,6 +225,11 @@
+         node.set_role(Role::GenericContainer);
+         node.set_label(self.accessibility_label.as_ref());
+         node.set_read_only();
++        // Only the built-in plain fallback is redundant with the logical link.
++        // Real custom children may be interactive and keep their semantics.
++        if self.link.is_some() && !self.content_measured {
++            node.set_hidden();
++        }
+     }
+ 
+     fn request_layout(
+@@ -326,10 +331,8 @@
          if let Ok(mut value) = self.selected.lock() {
              *value = selected;
          }
@@ -2570,7 +2803,7 @@
          if let Some(link) = self.link.clone() {
              window.set_cursor_style(CursorStyle::PointingHand, hitbox);
              let link_hitbox = hitbox.clone();
-@@ -404,6 +402,11 @@
+@@ -404,6 +407,11 @@
              });
          }
          self.content.paint(window, cx);
@@ -2758,8 +2991,11 @@
                          object_style.color = Some(node_cx.style.link());
                          object_style.underline = Some(gpui::UnderlineStyle {
                              thickness: px(1.),
-@@ -1758,11 +1764,36 @@
+@@ -1756,13 +1762,40 @@
+                         });
+                     }
                  }
++                let linked = object_link.is_some();
                  let rendered_node = node.clone();
                  let extensions = node_cx.markdown_extensions.clone();
 +                let projected = node_cx
@@ -2788,14 +3024,15 @@
 +                                        vec![],
 +                                        None,
 +                                    )
-+                                    .passive(),
++                                    .passive()
++                                    .suppress_semantics(linked),
 +                                ),
 +                            ));
 +                        }
                          extensions.render_inline(&rendered_node, context, window, cx)
                      }),
                      selected: inline_node.custom_selection.clone(),
-@@ -1813,11 +1844,7 @@
+@@ -1813,11 +1846,7 @@
                              ..Default::default()
                          });
  
@@ -2808,7 +3045,7 @@
  
                          links.push((inner_range.clone(), link_mark));
                      }
-@@ -2179,6 +2206,7 @@
+@@ -2179,6 +2208,7 @@
                  ..
              } => v_flex()
                  .id(("li", options.ix))
@@ -2816,7 +3053,7 @@
                  .w_full()
                  .min_w_0()
                  .when(*spread, |this| this.child(div()))
-@@ -2421,6 +2449,13 @@
+@@ -2421,6 +2451,13 @@
                  cells.push(
                      div()
                          .id(("cell", ix))
@@ -2830,7 +3067,7 @@
                          // Measured max-content width is the flex-basis;
                          // `flex_grow` (proportional to it) distributes extra
                          // space so a narrow table still fills the frame, while
-@@ -2445,7 +2480,9 @@
+@@ -2445,7 +2482,9 @@
              }
              rows.push(
                  div()
@@ -2841,7 +3078,7 @@
                      .w_full()
                      .when(row_ix < row_count - 1, |this| this.border_b_1())
                      .border_color(style.border())
-@@ -2489,7 +2526,14 @@
+@@ -2489,7 +2528,14 @@
                      // shrink-to-fit (their text wrapping), the definite
                      // `w(min_total_w)` keeps the floors once they are reached,
                      // letting the track exceed the viewport and scroll.
@@ -2857,7 +3094,7 @@
                  ),
              )
              // Custom actions row (e.g. copy / download) rendered below the
-@@ -2537,6 +2581,13 @@
+@@ -2537,6 +2583,13 @@
                  cells.push(
                      div()
                          .id(("cell", ix))
@@ -2871,7 +3108,7 @@
                          .overflow_hidden()
                          .when(align == ColumnumnAlign::Center, |this| this.text_center())
                          .when(align == ColumnumnAlign::Right, |this| this.text_right())
-@@ -2554,7 +2605,9 @@
+@@ -2554,7 +2607,9 @@
  
              rows.push(
                  div()
@@ -2882,7 +3119,7 @@
                      .w_full()
                      .when(row_ix < row_count - 1, |this| this.border_b_1())
                      .border_color(style.border())
-@@ -2578,6 +2631,9 @@
+@@ -2578,6 +2633,9 @@
              .child(
                  div()
                      .id(("table", options.ix))
@@ -2892,7 +3129,7 @@
                      .w_full()
                      .bg(cx.theme().tokens.colors.surface)
                      .border_1()
-@@ -2625,6 +2681,7 @@
+@@ -2625,6 +2683,7 @@
                  .into_any_element(),
              BlockNode::Paragraph(paragraph) => div()
                  .id(("p", ix))
@@ -2900,7 +3137,7 @@
                  .pb(mb)
                  .child(paragraph.render(node_cx, window, cx))
                  .into_any_element(),
-@@ -2648,6 +2705,8 @@
+@@ -2648,6 +2707,8 @@
  
                  div()
                      .id(SharedString::from(format!("h{}-{}", level, ix)))
@@ -2909,7 +3146,7 @@
                      .pb(rems(0.3))
                      .whitespace_normal()
                      .text_size(text_size)
-@@ -2679,6 +2738,7 @@
+@@ -2679,6 +2740,7 @@
                  children, ordered, ..
              } => v_flex()
                  .id((if *ordered { "ol" } else { "ul" }, ix))
@@ -2917,7 +3154,7 @@
                  .w_full()
                  .min_w_0()
                  .pb(mb)
-@@ -2710,6 +2770,19 @@
+@@ -2710,6 +2772,19 @@
                  .into_any_element(),
              BlockNode::CodeBlock(code_block) => code_block.render(&options, node_cx, window, cx),
              BlockNode::Custom(node) => {
@@ -2937,7 +3174,7 @@
                  let inner = match node_cx.markdown_extensions.render_block(node, window, cx) {
                      Some(rendered) => rendered,
                      None => div().child(node.as_text().to_string()).into_any_element(),
-@@ -3656,3 +3729,123 @@
+@@ -3656,3 +3731,123 @@
          assert_ne!(first, second);
      }
  }
@@ -3835,14 +4072,16 @@
 +}
 --- a/src/text/mod.rs
 +++ b/src/text/mod.rs
-@@ -1,3 +1,5 @@
+@@ -1,13 +1,18 @@
 +mod backgrounds;
 +mod displayed_text;
  mod document;
  mod format;
  mod inline;
-@@ -6,8 +8,10 @@
+ mod inline_element;
+ mod inline_flow;
  mod inline_object;
++mod inline_semantics;
  #[cfg(test)]
  mod inline_virtual_tests;
 +mod link_navigation;
@@ -3852,7 +4091,7 @@
  pub(crate) mod selection;
  mod selection_adapter;
  mod state;
-@@ -15,10 +19,13 @@
+@@ -15,10 +20,13 @@
  mod text_view;
  mod utils;
  
@@ -5110,5 +5349,413 @@
 +            TextAlign::Center => (run.bounds.size.width - self.width) / 2.,
 +            TextAlign::Right => run.bounds.size.width - self.width,
 +        }
++    }
++}
+--- /dev/null
++++ b/src/text/inline_semantics.rs
+@@ -0,0 +1,405 @@
++//! Frame-local reading order and logical links for measured rich paragraphs.
++use std::{cell::RefCell, collections::BTreeMap, rc::Rc, sync::Arc};
++
++use gpui::{
++    AnyElement, App, AvailableSpace, Bounds, ClickEvent, Element, ElementId, GlobalElementId,
++    InspectorElementId, InteractiveElement as _, IntoElement, LayoutId, Pixels, SharedString,
++    StatefulInteractiveElement as _, Styled as _, Window, div, prelude::FluentBuilder as _, px,
++    size,
++};
++
++use super::{
++    node::LinkMark,
++    text_view::{LinkClickHandlerFn, handle_link_click},
++};
++use crate::GlobalState;
++
++// Keep a direct, platform-filtered accessibility child per visual slot without
++// adding a layout box or changing the native element's measurement/input.
++struct VisualSlot {
++    slot: usize,
++    element: AnyElement,
++}
++
++impl IntoElement for VisualSlot {
++    type Element = Self;
++    fn into_element(self) -> Self {
++        self
++    }
++}
++
++impl Element for VisualSlot {
++    type RequestLayoutState = ();
++    type PrepaintState = ();
++    fn id(&self) -> Option<ElementId> {
++        Some(("flow-visual", self.slot).into())
++    }
++    fn source_location(&self) -> Option<&'static core::panic::Location<'static>> {
++        None
++    }
++    fn a11y_role(&self) -> Option<gpui::Role> {
++        Some(gpui::Role::GenericContainer)
++    }
++    fn request_layout(
++        &mut self,
++        _: Option<&GlobalElementId>,
++        _: Option<&InspectorElementId>,
++        window: &mut Window,
++        cx: &mut App,
++    ) -> (LayoutId, ()) {
++        (self.element.request_layout(window, cx), ())
++    }
++    fn prepaint(
++        &mut self,
++        _: Option<&GlobalElementId>,
++        _: Option<&InspectorElementId>,
++        _: Bounds<Pixels>,
++        _: &mut (),
++        window: &mut Window,
++        cx: &mut App,
++    ) {
++        self.element.prepaint(window, cx);
++    }
++    fn paint(
++        &mut self,
++        _: Option<&GlobalElementId>,
++        _: Option<&InspectorElementId>,
++        _: Bounds<Pixels>,
++        _: &mut (),
++        _: &mut (),
++        window: &mut Window,
++        cx: &mut App,
++    ) {
++        self.element.paint(window, cx);
++    }
++}
++
++pub(super) fn visual_slot(slot: usize, element: impl IntoElement) -> AnyElement {
++    VisualSlot {
++        slot,
++        element: element.into_any_element(),
++    }
++    .into_any_element()
++}
++
++#[derive(Clone)]
++pub(super) struct Collector {
++    fragments: Rc<RefCell<Vec<Fragment>>>,
++    labels: bool,
++    enabled: bool,
++}
++
++struct Fragment {
++    slot: usize,
++    bounds: Bounds<Pixels>,
++    text: String,
++    link: Option<LinkMark>,
++    native: bool,
++}
++
++pub(super) struct Run {
++    pub slot: usize,
++    pub bounds: Bounds<Pixels>,
++    pub fragments: Vec<Bounds<Pixels>>,
++    pub text: String,
++    pub link: Option<LinkMark>,
++}
++
++impl Collector {
++    pub fn new(window: &Window, cx: &App) -> Self {
++        let labels = window.is_a11y_active();
++        let enabled = labels
++            || GlobalState::global(cx)
++                .text_view_state()
++                .is_some_and(|view| {
++                    let state = view.read(cx);
++                    state.link_navigation.active.is_some() || state.link_reveal.is_some()
++                });
++        Self {
++            fragments: Rc::default(),
++            labels,
++            enabled,
++        }
++    }
++
++    pub fn enabled(&self) -> bool {
++        self.enabled
++    }
++
++    pub fn push(&self, slot: usize, bounds: Bounds<Pixels>, text: &str, link: Option<LinkMark>) {
++        if self.enabled {
++            self.fragments.borrow_mut().push(Fragment {
++                slot,
++                bounds,
++                text: if self.labels {
++                    text.to_owned()
++                } else {
++                    String::new()
++                },
++                link,
++                native: false,
++            });
++        }
++    }
++
++    /// An unlinked native object keeps its real descendants at this position.
++    pub fn native(&self, slot: usize) {
++        if self.enabled {
++            self.fragments.borrow_mut().push(Fragment {
++                slot,
++                bounds: Bounds::default(),
++                text: String::new(),
++                link: None,
++                native: true,
++            });
++        }
++    }
++
++    pub fn finish(&self) -> Vec<Run> {
++        coalesce(std::mem::take(&mut *self.fragments.borrow_mut()))
++    }
++}
++
++fn coalesce(fragments: Vec<Fragment>) -> Vec<Run> {
++    let mut runs: Vec<Run> = Vec::new();
++    let mut adjacent = false;
++    for fragment in fragments {
++        if fragment.native {
++            adjacent = false;
++            continue;
++        }
++        if adjacent
++            && let Some(link) = &fragment.link
++            && link.source_start.is_some()
++            && let Some(previous) = runs.last_mut()
++            && previous.link.as_ref() == Some(link)
++        {
++            previous.bounds = previous.bounds.union(&fragment.bounds);
++            previous.fragments.push(fragment.bounds);
++            previous.text.push_str(&fragment.text);
++        } else {
++            runs.push(Run {
++                slot: fragment.slot,
++                bounds: fragment.bounds,
++                fragments: vec![fragment.bounds],
++                text: fragment.text,
++                link: fragment.link,
++            });
++        }
++        adjacent = true;
++    }
++    runs
++}
++
++pub(super) fn reveal(runs: &[Run], window: &mut Window, cx: &mut App) {
++    let Some(view) = GlobalState::global(cx).text_view_state().cloned() else {
++        return;
++    };
++    let target = {
++        let state = view.read(cx);
++        state.link_reveal.filter(|_| !state.link_reveal_claimed)
++    };
++    if let Some(target) = target
++        && let Some(run) = runs
++            .iter()
++            .find(|run| run.link.as_ref().and_then(|link| link.source_start) == Some(target))
++        && let Some(first) = run.fragments.first()
++    {
++        window.request_autoscroll(Bounds::new(first.origin, size(px(2.), first.size.height)));
++        view.update(cx, |state, _| state.link_reveal_claimed = true);
++    }
++}
++
++pub(super) fn elements(
++    runs: &[Run],
++    owner: Option<&GlobalElementId>,
++    handler: &Option<Arc<LinkClickHandlerFn>>,
++    window: &mut Window,
++    cx: &mut App,
++) -> Vec<(usize, AnyElement)> {
++    if !window.is_a11y_active() {
++        return Vec::new();
++    }
++    let view = GlobalState::global(cx).text_view_state().cloned();
++    let mut occurrences = BTreeMap::<usize, usize>::new();
++    let mut active_claimed = false;
++    runs.iter()
++        .enumerate()
++        .map(|(index, run)| {
++            let area = run.bounds;
++            let id: SharedString = match run.link.as_ref().and_then(|link| link.source_start) {
++                Some(source) => {
++                    let occurrence = occurrences.entry(source).or_default();
++                    let url = &run.link.as_ref().expect("source belongs to a link").url;
++                    let id = format!("flow-link-{source}-{occurrence}-{url}");
++                    *occurrence += 1;
++                    id
++                }
++                None => format!("flow-text-{index}"),
++            }
++            .into();
++            let mut element = div().id(id).w(area.size.width).h(area.size.height);
++            if let Some(link) = &run.link {
++                let mut label = run.text.clone();
++                let active = view.as_ref().is_some_and(|view| {
++                    view.update(cx, |state, _| {
++                        // The prepared name includes whitespace elided by line wrapping.
++                        if let Some(source) = link.source_start
++                            && let Ok(index) = state
++                                .link_navigation
++                                .links
++                                .binary_search_by_key(&source, |entry| entry.source_start)
++                            && let Some(prepared) = state.link_navigation.links.get(index)
++                            && prepared.url == link.url
++                        {
++                            label.clone_from(&prepared.label);
++                        }
++                        if link.source_start.is_none()
++                            || state.link_navigation.active != link.source_start
++                        {
++                            return false;
++                        }
++                        let Some(owner) = owner else {
++                            return false;
++                        };
++                        if state.link_active_owner.is_none() {
++                            state.link_active_owner = Some(owner.clone());
++                        }
++                        state.link_active_owner.as_ref() == Some(owner)
++                    })
++                });
++                let active = active && !std::mem::replace(&mut active_claimed, true);
++                let url = link.url.clone();
++                let metadata_url = url.clone();
++                let handler = handler.clone();
++                element = element
++                    .role(gpui::Role::Link)
++                    .aria_label(label)
++                    .when(active, |element| element.aria_active_descendant())
++                    .a11y_synthetic_children(move |builder| {
++                        builder.parent_node().set_url(metadata_url.to_string())
++                    })
++                    .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
++                        handle_link_click(
++                            &handler,
++                            url.clone(),
++                            ClickEvent::Keyboard(gpui::KeyboardClickEvent {
++                                bounds: area,
++                                ..Default::default()
++                            }),
++                            window,
++                            cx,
++                        );
++                    });
++            } else {
++                element = element.role(gpui::Role::Label).aria_value(run.text.clone());
++            }
++            let mut element = element.into_any_element();
++            element.prepaint_as_root(
++                area.origin,
++                size(
++                    AvailableSpace::Definite(area.size.width),
++                    AvailableSpace::Definite(area.size.height),
++                ),
++                window,
++                cx,
++            );
++            (run.slot, element)
++        })
++        .collect()
++}
++
++pub(super) fn paint_focus(runs: &[Run], window: &mut Window, cx: &App) {
++    let Some(view) = GlobalState::global(cx).text_view_state() else {
++        return;
++    };
++    let state = view.read(cx);
++    if !state.focus_handle().is_focused(window) {
++        return;
++    }
++    let Some(active) = state.link_navigation.active else {
++        return;
++    };
++    for run in runs {
++        if run.link.as_ref().and_then(|link| link.source_start) != Some(active) {
++            continue;
++        }
++        for area in &run.fragments {
++            window.paint_quad(gpui::quad(
++                *area,
++                px(2.),
++                gpui::transparent_black(),
++                gpui::Edges::all(px(1.5)),
++                state.text_view_style.link(),
++                gpui::BorderStyle::default(),
++            ));
++        }
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use gpui::point;
++
++    fn fragment(slot: usize, text: &str, source: Option<usize>) -> Fragment {
++        Fragment {
++            slot,
++            bounds: Bounds::new(point(px(slot as f32 * 10.), px(0.)), size(px(10.), px(20.))),
++            text: text.into(),
++            link: Some(LinkMark {
++                source_start: source,
++                url: "test:same".into(),
++                ..Default::default()
++            }),
++            native: false,
++        }
++    }
++
++    #[test]
++    fn rich_fragments_share_one_action_but_same_url_is_not_identity() {
++        let runs = coalesce(vec![
++            fragment(0, "Read ", Some(4)),
++            fragment(1, "code", Some(4)),
++            fragment(2, " 世界", Some(4)),
++            fragment(3, "Again", Some(40)),
++        ]);
++        assert_eq!(runs.len(), 2);
++        assert_eq!(runs[0].text, "Read code 世界");
++        assert_eq!(runs[0].slot, 0);
++        assert_eq!(runs[0].bounds.size, size(px(30.), px(20.)));
++        assert_eq!(runs[0].fragments.len(), 3);
++        assert_eq!(runs[1].slot, 3);
++    }
++
++    #[test]
++    fn wrapped_link_keeps_first_fragment_and_unions_painted_bounds() {
++        let first = fragment(0, "first ", Some(4));
++        let first_bounds = first.bounds;
++        let mut second = fragment(1, "line", Some(4));
++        second.bounds = Bounds::new(point(px(0.), px(20.)), size(px(60.), px(20.)));
++        let runs = coalesce(vec![first, second]);
++        assert_eq!(runs.len(), 1);
++        assert_eq!(runs[0].bounds.size, size(px(60.), px(40.)));
++        assert_eq!(runs[0].fragments[0], first_bounds);
++        assert_eq!(runs[0].text, "first line");
++    }
++
++    #[test]
++    fn native_objects_and_unknown_identities_prevent_accidental_coalescing() {
++        let mut native = fragment(1, "", None);
++        native.native = true;
++        let runs = coalesce(vec![
++            fragment(0, "left", Some(4)),
++            native,
++            fragment(2, "right", Some(4)),
++            fragment(3, "one", None),
++            fragment(4, "two", None),
++        ]);
++        assert_eq!(runs.len(), 4);
++        assert_eq!(
++            runs.iter().map(|run| run.slot).collect::<Vec<_>>(),
++            [0, 2, 3, 4]
++        );
 +    }
 +}
