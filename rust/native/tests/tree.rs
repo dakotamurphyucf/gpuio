@@ -302,6 +302,22 @@ fn expanded_style_validation_is_atomic_and_counts_nested_storage() {
         Style::Fields(vec![Field::Opacity(1.1)]),
         Style::Fields(vec![Field::GridColumns(0)]),
         Style::Fields(vec![Field::FontWeight(1001)]),
+        Style::Fields(vec![Field::Background(Fill::LinearGradientIn(
+            2,
+            90.,
+            Color::Rgba(0xff0000ff),
+            0.,
+            Color::Rgba(0xffff),
+            1.,
+        ))]),
+        Style::Fields(vec![Field::Background(Fill::LinearGradientIn(
+            1,
+            90.,
+            Color::Rgba(0xff0000ff),
+            f64::NAN,
+            Color::Rgba(0xffff),
+            1.,
+        ))]),
         Style::Fields(vec![Field::Background(Fill::LinearGradient(
             45.,
             Color::Rgba(0),

@@ -538,6 +538,14 @@ impl Decoder<'_> {
                 self.color()?,
                 self.float()?,
             )),
+            2 => Ok(Fill::LinearGradientIn(
+                self.int()?,
+                self.float()?,
+                self.color()?,
+                self.float()?,
+                self.color()?,
+                self.float()?,
+            )),
             _ => Err(DecodeError::Malformed),
         }
     }

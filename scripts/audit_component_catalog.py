@@ -74,23 +74,26 @@ def audit_values_and_events(actual):
             raise ValueError('Value/event ledger must use the pinned GPUIX revision and schema')
     cursor = re.search(r'^export type CursorValue =\n((?:  \| "[^\n]+"\n)+)', host, re.M)
     overflow = re.search(r'^  textOverflow\?: ([^\n]+)', interface(host, 'StyleDesc'), re.M)
-    if not cursor or not overflow:
+    gradient = re.search(r'^  colorSpace\?: ([^\n]+)', interface(host, 'LinearGradientBackground'), re.M)
+    if not cursor or not overflow or not gradient:
         raise ValueError('Missing reviewed style value declarations')
-    expected = {'cursor': ('Cursor', re.findall(r'"([^"]+)"', cursor.group(1))),
-                'textOverflow': ('Text_overflow', re.findall(r'"([^"]+)"', overflow.group(1)))}
+    expected = {'cursor': ('Style', 'Cursor', re.findall(r'"([^"]+)"', cursor.group(1))),
+                'textOverflow': ('Style', 'Text_overflow', re.findall(r'"([^"]+)"', overflow.group(1))),
+                'background.colorSpace': ('Background', 'Color_space', re.findall(r'"([^"]+)"', gradient.group(1)))}
+    interfaces = {'Style': style, 'Background': (ROOT / 'lib/core/background.mli').read_text()}
     if {row['source_field'] for row in values['rows']} != set(expected):
         raise ValueError('Value ledger must explicitly cover the reviewed fields only')
-    for field, (module, source_values) in expected.items():
+    for field, (owner, module, source_values) in expected.items():
         rows = [row for row in values['rows'] if row['source_field'] == field]
         mapped = [value for row in rows for value in row['source_values']]
         if len(mapped) != len(set(mapped)) or set(mapped) != set(source_values):
             raise ValueError(f'Style values missing or duplicated: {field}')
-        declaration = re.search(r'^module ' + module + r' : sig\n(.*?)^end', style, re.M | re.S)
+        declaration = re.search(r'^module ' + module + r' : sig\n(.*?)^end', interfaces[owner], re.M | re.S)
         if not declaration:
             raise ValueError(f'Missing style value module: {module}')
         constructors = set(re.findall(r'^    \| (\w+)', declaration.group(1), re.M))
         for row in rows:
-            if (not row['source_values'] or row['public_type'] != f'Style.{module}'
+            if (not row['source_values'] or row['public_type'] != f'{owner}.{module}'
                     or row['public_value'] not in constructors):
                 raise ValueError(f'Invalid style value mapping: {row}')
     references = list(values['evidence'])
@@ -108,7 +111,7 @@ def audit_values_and_events(actual):
     for reference in references:
         if not (ROOT / reference).is_file():
             raise ValueError(f'Missing value/event reference: {reference}')
-    print(f'Value mapping: {len(expected)} reviewed fields; event contracts: {len(names)}; remaining gaps are explicit.')
+    print(f'Value mapping: {len(expected)} reviewed value sets; event contracts: {len(names)}; remaining gaps are explicit.')
 
 
 def main():

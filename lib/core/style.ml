@@ -704,10 +704,13 @@ module Expert = struct
     | Solid c ->
       let%map.Or_error c = color theme c in
       Wire.Fill.Solid c
-    | Linear_gradient (angle, (from, start), (to_, stop)) ->
+    | Linear_gradient (space, angle, (from, start), (to_, stop)) ->
       let%bind.Or_error from = color theme from in
       let%map.Or_error to_ = color theme to_ in
-      Wire.Fill.Linear_gradient (angle, from, start, to_, stop)
+      (match space with
+       | Background.Color_space.Srgb ->
+         Wire.Fill.Linear_gradient (angle, from, start, to_, stop)
+       | Oklab -> Wire.Fill.Linear_gradient_in (1L, angle, from, start, to_, stop))
   ;;
 
   let shadow theme shadow =

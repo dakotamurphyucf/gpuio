@@ -60,8 +60,8 @@ matching a style field name does not prove support for every value of that field
 
 The original research inventory omitted `onVisibleRange` and `onHighlight`;
 both are in this source-derived inventory and event audit. The value ledger now
-covers `ellipsis-start` and cursor variants; continue reviewing gradient color
-spaces, selection/inheritance and hit-testing semantics rather than equating field
+covers `ellipsis-start`, cursor variants and nested sRGB/Oklab gradient color
+spaces; continue reviewing selection/inheritance and hit-testing semantics rather than equating field
 presence with behavior. The completed ledger must link each capability to public API,
 commands/events, style/accessibility behavior, runnable examples, owner, evidence
 and platform status, with deferred/unsupported entries explicit.

@@ -201,13 +201,34 @@
       ],
       "public_type": "Style.Text_overflow",
       "public_value": "Ellipsis_start"
+    },
+    {
+      "source_field": "background.colorSpace",
+      "source_values": [
+        "srgb"
+      ],
+      "public_type": "Background.Color_space",
+      "public_value": "Srgb"
+    },
+    {
+      "source_field": "background.colorSpace",
+      "source_values": [
+        "oklab"
+      ],
+      "public_type": "Background.Color_space",
+      "public_value": "Oklab"
     }
   ],
   "evidence": [
     "test/view_api/style_values_test.ml",
     "rust/native/tests/style_values.rs",
     "rust/native/src/style.rs",
-    "scripts/test_gallery.py"
+    "scripts/test_gallery.py",
+    "lib/core/background.mli",
+    "test/view_api/gradient_test.ml",
+    "rust/protocol/tests/gradient.rs",
+    "rust/native/src/gradient_test.rs",
+    "docs/evidence/gradient-color-spaces-och41.md"
   ],
-  "limitations": "This validates complete enum mapping and native refinements. Gallery validates configurations and text paint; physical OS cursor glyphs and Linux desktop acceptance remain separate."
+  "limitations": "Three reviewed value sets, not all style fields. Gradient has paired encoding, native validation/GPU and public gallery evidence. Cursor/overflow mapping and focused gallery evidence do not establish physical OS cursor glyphs or Linux desktop acceptance. Full combined gallery/consumer and release gates remain."
 }

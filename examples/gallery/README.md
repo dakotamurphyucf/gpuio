@@ -49,7 +49,8 @@ Feedback checks shared command buttons/menus/shortcuts, chooser selection, nativ
 toast expiry, close and departure cleanup. Core checks include form error updates
 that preserve typed input, avatar semantics and loading-preview controls.
 Styling details demonstrates clip/end/start text truncation at two widths and all
-22 typed cursor choices. Full text remains available to accessibility. Preview
+22 typed cursor choices, plus a live sRGB/Oklab gradient interpolation swatch.
+Full text remains available to accessibility. Preview
 choices survive page visits; the test verifies configuration, keyboard activation,
 geometry and retention, with screenshots for truncation. It does not assert the
 physical OS cursor artwork, which may share glyphs between related choices.

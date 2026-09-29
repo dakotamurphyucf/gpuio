@@ -34,7 +34,9 @@ Ordinary styled roots now pass native hover/pressed/focus visibility, hidden-bas
 overrides, display-none and restyle checks. A pinned GPUI core patch now restores
 pressed-hide elements on release, cancels stale activation and passes controls
 regressions. Remaining style parity and application performance/resource
-acceptance are still open. The public Find &
+acceptance are still open. sRGB/Oklab gradient interpolation now has an explicit public API, paired bytes,
+native validation, GPU midpoint checks and a public gallery toggle; see the
+[gradient evidence](evidence/gradient-color-spaces-och41.md). The public Find &
 highlight gallery now demonstrates
 live queries, ranges, nested exclusions, selected matches and growing/collapsed
 Markdown, with focused local native interaction evidence. Targeted Hebrew/Arabic

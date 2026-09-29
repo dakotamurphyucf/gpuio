@@ -42,12 +42,15 @@ let component palette graph =
       graph
   in
   let narrow, toggle_width = B.toggle ~default_model:false graph in
+  let oklab, toggle_space = B.toggle ~default_model:false graph in
   let open B.Let_syntax in
   let%arr p = palette
   and index = index
   and next = next
   and narrow = narrow
-  and toggle_width = toggle_width in
+  and toggle_width = toggle_width
+  and oklab = oklab
+  and toggle_space = toggle_space in
   let label, cursor = cursors.(index) in
   let width = if narrow then 140. else 250. in
   let sample label overflow =
@@ -68,6 +71,14 @@ let component palette graph =
                ])
           source
       ]
+  in
+  let gradient =
+    Background.linear_gradient_in
+      (if oklab then Background.Color_space.Oklab else Srgb)
+      ~angle:90.
+      ~from:(Color.rgb_exn 0xff0000, 0.)
+      ~to_:(Color.rgb_exn 0x0000ff, 1.)
+    |> ok
   in
   V.column
     ~style:(style [ Gap (px 20.) ])
@@ -121,6 +132,26 @@ let component palette graph =
             ~muted:true
             "Cursor artwork follows the platform. Column and horizontal resize share a \
              shape on macOS, as do row and vertical resize."
+        ]
+    ; Palette.card
+        p
+        ~title:"Color between the stops"
+        [ Palette.text
+            p
+            ~muted:true
+            "The same two colors, blended in different color spaces."
+        ; Palette.button p "Change gradient interpolation" toggle_space
+        ; Palette.text p (if oklab then "Interpolation: Oklab" else "Interpolation: sRGB")
+        ; (V.column
+             ~style:
+               (style
+                  [ Width (px 340.); Height (px 72.); Radius 12.; Background gradient ])
+             []
+           |> fun view ->
+           V.with_accessibility
+             view
+             (Accessibility.create ~role:Group ~label:"Gradient preview surface" () |> ok)
+           |> ok)
         ]
     ]
 ;;

@@ -320,6 +320,7 @@ module type S = sig
     type t =
       | Solid of Color.t
       | Linear_gradient of float * Color.t * float * Color.t * float
+      | Linear_gradient_in of int64 * float * Color.t * float * Color.t * float
     [@@deriving bin_io, equal, sexp_of]
   end
 

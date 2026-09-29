@@ -1792,6 +1792,9 @@ def exercise_styles(mac, images):
             mac.release(root)
         assert len(widths) == 3 and all(abs(width-expected) < 1 for width in widths), widths
     text_widths(250)
+    mac.wait_text(TITLE, "Interpolation: sRGB")
+    mac.press(TITLE, "Change gradient interpolation")
+    mac.wait_text(TITLE, "Interpolation: Oklab")
     if images:
         screenshot(mac, images / 'gallery-styles-wide.png', title=TITLE)
     mac.press(TITLE, 'Narrow text previews')
@@ -1810,6 +1813,11 @@ def exercise_styles(mac, images):
     mac.wait_text(TITLE, 'Cursor 2 of 22: Text')
     cycle_preview_appearance(mac, 'Cursor 2 of 22: Text')
     text_widths(140)
+    mac.wait_text(TITLE, "Interpolation: Oklab")
+    mac.press(TITLE, "Change gradient interpolation")
+    mac.wait_text(TITLE, "Interpolation: sRGB")
+    mac.press(TITLE, "Change gradient interpolation")
+    mac.wait_text(TITLE, "Interpolation: Oklab")
     if images:
         screenshot(mac, images / 'gallery-styles-narrow.png', title=TITLE)
     for _ in range(3):
@@ -1819,8 +1827,9 @@ def exercise_styles(mac, images):
         mac.press(TITLE, 'Styling details')
         mac.wait_text(TITLE, 'Cursor 2 of 22: Text')
         mac.wait_text(TITLE, 'Text preview width: 140')
+        mac.wait_text(TITLE, 'Interpolation: Oklab')
     print('GALLERY_STYLES_OK: all22 cursor configurations, keyboard/theme/size/visit retention, '
-          'three bounded text samples with complete accessible source; physical cursor artwork is not asserted', flush=True)
+          'sRGB/Oklab gradient restyle, three bounded text samples with complete accessible source; physical cursor artwork is not asserted', flush=True)
 
 
 def exercise_desktop(mac, images, *, second_title=SECOND, bundled=False):

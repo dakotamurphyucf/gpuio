@@ -68,7 +68,9 @@ fn color(v: &Color) -> Result<(), ErrorCode> {
 fn fill(v: &Fill) -> Result<(), ErrorCode> {
     match v {
         Fill::Solid(c) => color(c),
-        Fill::LinearGradient(angle, from, start, to, end) => {
+        Fill::LinearGradientIn(space, ..) if !(0..=1).contains(space) => Err(ErrorCode::Malformed),
+        Fill::LinearGradient(angle, from, start, to, end)
+        | Fill::LinearGradientIn(_, angle, from, start, to, end) => {
             color(from)?;
             color(to)?;
             if angle.is_finite()
@@ -349,6 +351,19 @@ pub fn refine(style: &mut gpui::StyleRefinement, fields: &[Field]) {
                         gpui::linear_color_stop(gpui_color(to), *end as f32),
                     )
                     .into(),
+                    Fill::LinearGradientIn(space, angle, from, start, to, end) => {
+                        gpui::linear_gradient(
+                            *angle as f32,
+                            gpui::linear_color_stop(gpui_color(from), *start as f32),
+                            gpui::linear_color_stop(gpui_color(to), *end as f32),
+                        )
+                        .color_space(match space {
+                            0 => gpui::ColorSpace::Srgb,
+                            1 => gpui::ColorSpace::Oklab,
+                            _ => unreachable!("validated interpolation space"),
+                        })
+                        .into()
+                    }
                 })
             }
             Field::Foreground(v) => style.text.color = Some(gpui_color(v)),
@@ -458,6 +473,69 @@ pub fn refine(style: &mut gpui::StyleRefinement, fields: &[Field]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn explicit_gradient_spaces_validate_before_native_refinement() {
+        for space in [0, 1] {
+            for (angle, start, end) in [(0., 0., 1.), (360., 0.5, 0.5)] {
+                let fields = [Field::Background(Fill::LinearGradientIn(
+                    space,
+                    angle,
+                    Color::Rgba(0xff0000ff),
+                    start,
+                    Color::Rgba(0xffff),
+                    end,
+                ))];
+                validate_fields(&fields).unwrap();
+                let mut style = gpui::StyleRefinement::default();
+                refine(&mut style, &fields);
+                let expected = gpui::linear_gradient(
+                    angle as f32,
+                    gpui::linear_color_stop(gpui::rgb(0xff0000), start as f32),
+                    gpui::linear_color_stop(gpui::rgb(0xff), end as f32),
+                )
+                .color_space(if space == 0 {
+                    gpui::ColorSpace::Srgb
+                } else {
+                    gpui::ColorSpace::Oklab
+                });
+                assert_eq!(style.background, Some(expected.into()));
+            }
+        }
+        for (space, angle, start, end) in [
+            (-1, 90., 0., 1.),
+            (2, 90., 0., 1.),
+            (1, f64::NAN, 0., 1.),
+            (1, f64::INFINITY, 0., 1.),
+            (1, 361., 0., 1.),
+            (1, 90., f64::NAN, 1.),
+            (1, 90., 0., f64::INFINITY),
+            (1, 90., 0.8, 0.2),
+        ] {
+            assert_eq!(
+                validate_fields(&[Field::Background(Fill::LinearGradientIn(
+                    space,
+                    angle,
+                    Color::Rgba(0),
+                    start,
+                    Color::Rgba(0),
+                    end
+                ))]),
+                Err(ErrorCode::Malformed)
+            );
+        }
+        assert_eq!(
+            validate_fields(&[Field::Background(Fill::LinearGradientIn(
+                1,
+                90.,
+                Color::Rgba(-1),
+                0.,
+                Color::Rgba(0),
+                1.
+            ))]),
+            Err(ErrorCode::Malformed)
+        );
+    }
 
     #[test]
     fn public_cursor_values_reach_the_corresponding_gpui_refinement() {
