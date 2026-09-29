@@ -714,12 +714,13 @@ impl View {
             .child(
                 canvas(
                     move |rect, _, _| bounds.set(rect),
-                    move |_, _, window, _| {
+                    move |bounds, _, window, _| {
                         gate.borrow_mut().record(
                             id,
                             record_focus.clone(),
                             true,
                             record_focus.is_focused(window),
+                            bounds,
                         );
                     },
                 )

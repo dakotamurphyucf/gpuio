@@ -961,6 +961,15 @@ impl gpui::Element for Frame {
         window: &mut Window,
         cx: &mut App,
     ) {
+        let gate = {
+            let state = self.state.borrow();
+            state.native.read(cx).delegate().route.gate.clone()
+        };
+        let boundary = gate.borrow_mut().enter_clip(super::focus::Clip {
+            bounds,
+            x: true,
+            y: true,
+        });
         gpui::Element::paint(
             &mut self.element,
             id,
@@ -971,14 +980,12 @@ impl gpui::Element for Frame {
             window,
             cx,
         );
+        gate.borrow_mut().leave_boundary(boundary);
         let state = self.state.borrow();
         let native = state.native.read(cx);
         let route = &native.delegate().route;
-        let visible = bounds
-            .intersect(&window.content_mask().bounds)
-            .intersect(&window.fully_visible_bounds());
-        if visible.size.width > px(0.)
-            && visible.size.height > px(0.)
+        if bounds.size.width > px(0.)
+            && bounds.size.height > px(0.)
             && route.live()
             && route.gate.borrow().visible(route.node)
         {
@@ -988,6 +995,7 @@ impl gpui::Element for Frame {
                 focus.clone(),
                 !native.delegate().config.disabled,
                 focus.is_focused(window),
+                bounds,
             );
         }
     }

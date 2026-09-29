@@ -2030,12 +2030,13 @@ impl View {
                 move |bounds, _, window, cx| {
                     if bounds.size.width > px(0.)
                         && bounds.size.height > px(0.)
-                        && bounds.intersects(&window.content_mask().bounds)
                         && let Some(p) = weak.upgrade()
                     {
                         let handle = p.read(cx).primary_focus(cx);
                         let focused = handle.is_focused(window);
-                        manager.borrow_mut().record(id, handle, true, focused);
+                        manager
+                            .borrow_mut()
+                            .record(id, handle, true, focused, bounds);
                     }
                 },
             )

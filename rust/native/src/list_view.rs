@@ -838,8 +838,17 @@ impl Element for Frame {
         window: &mut Window,
         cx: &mut App,
     ) {
+        // Materialized overscan is not a new Tab destination. The list owns its
+        // scrolling/focus handoff; ordinary ancestor reveal cannot reveal a row
+        // through this viewport. Floating descendants paint outside this scope.
+        let boundary = self.focus.borrow_mut().enter_clip(super::focus::Clip {
+            bounds,
+            x: true,
+            y: true,
+        });
         self.element
             .paint(id, inspector, bounds, layout, prepaint, window, cx);
+        self.focus.borrow_mut().leave_boundary(boundary);
         let focus = {
             let mut state = self.state.borrow_mut();
             let Some(pending) = &state.pending_focus else {

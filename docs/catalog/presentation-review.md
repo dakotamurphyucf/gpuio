@@ -249,10 +249,11 @@ mapping, validated configuration, transport fixture, native focus-order hazard
 and required implementation/validation phases. Native admission, view/reconciliation
 and focused macOS checks now pass. The public gallery covers eight theme/content/icon
 cases and 34 native activations, identity, Tab policy and scoped SVG disposal.
-The first ordering run also exposed the paint-clipped traversal limitation recorded
-in the design: the passing ordering cases keep all targets visible. Offscreen
-behavior and mixed compound controls remain open, along with broader content/style
-coverage. No Link capability is advertised; both rows remain incomplete.
+The initial offscreen traversal defect now has measured native reveal and public
+viewport-containment checks, without manually scrolling successor links into view.
+Native coverage includes nested axes, fixed clips and range thumbs in a modal trap;
+see the [focus evidence](../evidence/focus-reveal-och41.md). Broader mixed native
+group ordering and content/style coverage remain open. No Link capability is advertised; both rows remain incomplete.
 
 ## Remaining presentation modules
 

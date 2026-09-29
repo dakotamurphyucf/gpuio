@@ -123,19 +123,44 @@ every paint, but post-update focus finalization is not run every paint. Traversa
 now orders its current eligible records on each Tab key, preserving paint order
 for equal indices. It never temporarily focuses an ineligible control to inspect it.
 
-### Open focus behavior: clipped controls
+### Measured focus and ordinary scroll reveal
 
-The first public gallery ordering run failed when only the first link was visible.
-GPUIO's fallback traversal records controls intersecting the paint mask; the later
-links were outside the scrolled viewport. The eight-case run above explicitly
-keeps all three links visible. It establishes ordering among those painted controls,
-**not offscreen traversal or automatic reveal**. Assess this against ordinary GPUI
-Tab traversal and define/test a consistent scrolled-content contract before closing
-the link rows. Do not silently treat a viewport workaround as feature acceptance.
+The initial public gallery exposed a defect: the fallback Tab order omitted
+controls outside the current scroll mask. Native controls now record measured
+bounds and their actual paint ancestry. Admission projects the target through
+ordinary scroll owners and fixed clips without moving or focusing anything.
+A target with no visible portion after clamped projection is excluded from the
+fallback order and explicit generic AX focus. A clipped target also disables the
+native fast path, so default index-zero traversal cannot reintroduce it.
 
-Mixed native compound-control ordering, full passive animation/avatar/content
+A newly focused target, Tab request, or explicit generic AX focus request reveals
+once after complete paint. Each ordinary scroller moves the least distance on its
+actual scroll axes, clamped to native limits. Oversized targets align their leading
+edge. Projection intersects the resolved overflow mask, including visible borders,
+before passing the visible portion to an outer owner. An owner never scrolls its
+own contents to reveal its root focus target. Fixed clips cannot be moved.
+
+Paint ancestry is deliberate: floating deferred dialogs do not inherit the scroll
+and clipping boundaries of their retained-tree anchor. Managed lists and tables
+retain controller-owned scrolling and focus semantics; this does not materialize
+unloaded rows or promise Tab traversal of an entire virtual collection. The frame
+records contain weak scroll references, and reveal uses a weak last-focus identity.
+There is no new timer and no redraw request when offsets are unchanged. Scrolling
+away with the same focus does not continually pull the viewport back.
+
+The public eight-case/34-action gallery test now reveals only its initial link
+with wheel input; subsequent real Tab/Shift-Tab steps must make the focused link's
+AX bounds fit the named Component preview viewport. It passes without the previous
+manual successor-scroll workaround. The native fixture additionally exercises
+nested XY scrolls, signed order/ties, range-thumb order inside a trap, explicit AX
+reveal without activation, fixed-clip exclusion at zero indices, one-axis limits,
+negative unreachable content, oversized targets and idle settling. See the
+[focus/reveal evidence](../evidence/focus-reveal-och41.md) for final regression
+commands and the precise platform scope.
+
+Broader mixed native compound/group ordering, full passive animation/avatar/content
 coverage, style/AX metadata refinements, pending-action races and fresh consumer/
-release checks also remain. No Link capability bit is advertised yet.
+release checks remain. No Link capability bit is advertised yet.
 
 ## Full implementation and acceptance contract
 

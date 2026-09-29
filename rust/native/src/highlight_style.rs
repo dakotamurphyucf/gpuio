@@ -19,6 +19,8 @@ struct Binding {
     part: Option<(usize, NodeId)>,
     styles: Arc<[Style]>,
     focus: focus::Shared,
+    visibility: bool,
+    clip: bool,
 }
 impl<E> Frame<E> {
     pub(super) fn new(element: E, node: &crate::tree::Node, focus: &focus::Shared) -> Self {
@@ -27,13 +29,21 @@ impl<E> Frame<E> {
             Style::State(_, fields) if fields.iter().any(|field|
                 matches!(field, Field::Display(_) | Field::Visibility(_))))
         });
+        let clip = node.style.iter().any(|style| match style {
+            Style::Fields(fields) | Style::State(_, fields) => fields
+                .iter()
+                .any(|field| matches!(field, Field::OverflowX(_) | Field::OverflowY(_))),
+            _ => false,
+        });
         Self {
             element,
-            binding: dynamic.then(|| Binding {
+            binding: (dynamic || clip).then(|| Binding {
                 node: node.id,
                 part: None,
                 styles: node.style.clone(),
                 focus: focus.clone(),
+                visibility: dynamic,
+                clip,
             }),
         }
     }
@@ -55,11 +65,12 @@ impl<E: Element<PrepaintState = Option<Hitbox>> + InteractiveElement> Frame<E> {
         &mut self,
         id: Option<&GlobalElementId>,
         hitbox: Option<&Hitbox>,
+        bounds: Option<Bounds<Pixels>>,
         window: &mut Window,
         cx: &mut App,
-    ) {
+    ) -> Option<usize> {
         let Some(binding) = &self.binding else {
-            return;
+            return None;
         };
         let style = self
             .element
@@ -68,12 +79,32 @@ impl<E: Element<PrepaintState = Option<Hitbox>> + InteractiveElement> Frame<E> {
         let hidden =
             style.display == gpui::Display::None || style.visibility == gpui::Visibility::Hidden;
         let mut focus = binding.focus.borrow_mut();
-        match binding.part {
-            None => focus.highlight_style(binding.node, &binding.styles, hidden),
-            Some(part) => {
-                focus.highlight_part_style(binding.node, Some(part), &binding.styles, hidden)
+        if binding.visibility {
+            match binding.part {
+                None => focus.highlight_style(binding.node, &binding.styles, hidden),
+                Some(part) => {
+                    focus.highlight_part_style(binding.node, Some(part), &binding.styles, hidden)
+                }
             }
         }
+        if binding.clip
+            && let Some(bounds) = bounds
+        {
+            // The native overflow mask is rectangular, including the other axis.
+            // Only an actual scroll axis can reveal content beyond that mask.
+            let x = style.overflow.x != gpui::Overflow::Scroll;
+            let y = style.overflow.y != gpui::Overflow::Scroll;
+            if (x || y)
+                && let Some(mask) = style.overflow_mask(bounds, window.rem_size())
+            {
+                return Some(focus.enter_clip(focus::Clip {
+                    bounds: mask.bounds,
+                    x,
+                    y,
+                }));
+            }
+        }
+        None
     }
 }
 impl<E: Element<PrepaintState = Option<Hitbox>> + InteractiveElement> IntoElement for Frame<E> {
@@ -99,7 +130,7 @@ impl<E: Element<PrepaintState = Option<Hitbox>> + InteractiveElement> Element fo
         cx: &mut App,
     ) -> (LayoutId, Self::RequestLayoutState) {
         let result = self.element.request_layout(id, inspector, window, cx);
-        self.observe(id, None, window, cx);
+        let _ = self.observe(id, None, None, window, cx);
         result
     }
     fn prepaint(
@@ -124,9 +155,17 @@ impl<E: Element<PrepaintState = Option<Hitbox>> + InteractiveElement> Element fo
         window: &mut Window,
         cx: &mut App,
     ) {
-        self.observe(id, prepaint.as_ref(), window, cx);
+        let boundary = self.observe(id, prepaint.as_ref(), Some(bounds), window, cx);
         self.element
             .paint(id, inspector, bounds, layout, prepaint, window, cx);
+        if let Some(depth) = boundary {
+            self.binding
+                .as_ref()
+                .unwrap()
+                .focus
+                .borrow_mut()
+                .leave_boundary(depth);
+        }
     }
     fn a11y_role(&self) -> Option<accesskit::Role> {
         self.element.a11y_role()

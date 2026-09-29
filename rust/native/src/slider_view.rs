@@ -645,15 +645,15 @@ pub(super) fn element(
             canvas(
                 |_, _, _| (),
                 move |bounds, _, window, _| {
-                    if bounds.size.width > px(0.)
-                        && bounds.size.height > px(0.)
-                        && bounds.intersects(&window.content_mask().bounds)
-                    {
+                    if bounds.size.width > px(0.) && bounds.size.height > px(0.) {
                         gate.borrow_mut().record_part(
                             node,
                             part as u16,
-                            record.clone(),
-                            focusable,
+                            super::focus::Target {
+                                handle: record.clone(),
+                                tab_stop: focusable,
+                                bounds,
+                            },
                             record.is_focused(window),
                         );
                     }

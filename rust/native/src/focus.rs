@@ -317,8 +317,86 @@ struct Entry {
     handle: FocusHandle,
     tab_stop: bool,
     tab_index: i64,
+    bounds: Bounds<Pixels>,
+    paint_path: Vec<Boundary>,
     disclosure_path: Vec<(NodeId, NodeId)>,
     navigation_path: Vec<(NodeId, NodeId)>,
+}
+/// One measured native focus part. Geometry comes from the current paint and is
+/// independent of the viewport mask; eligibility still uses the retained tree.
+pub(super) struct Target {
+    pub handle: FocusHandle,
+    pub tab_stop: bool,
+    pub bounds: Bounds<Pixels>,
+}
+#[derive(Clone)]
+pub(super) struct Clip {
+    pub bounds: Bounds<Pixels>,
+    pub x: bool,
+    pub y: bool,
+}
+impl Clip {
+    fn intersect(&self, mut target: Bounds<Pixels>) -> Option<Bounds<Pixels>> {
+        if self.x {
+            let left = target.left().max(self.bounds.left());
+            let right = target.right().min(self.bounds.right());
+            target.origin.x = left;
+            target.size.width = right - left;
+        }
+        if self.y {
+            let top = target.top().max(self.bounds.top());
+            let bottom = target.bottom().min(self.bounds.bottom());
+            target.origin.y = top;
+            target.size.height = bottom - top;
+        }
+        (target.size.width > gpui::px(0.) && target.size.height > gpui::px(0.)).then_some(target)
+    }
+}
+#[derive(Clone)]
+enum Boundary {
+    Clip(Clip),
+    Scroll(NodeId, std::rc::Weak<super::scroll::State>),
+}
+impl Boundary {
+    fn scroll_clip(state: &super::scroll::State, bounds: Bounds<Pixels>) -> Option<Bounds<Pixels>> {
+        match state.mask.get() {
+            Some(mask) => Clip {
+                bounds: mask,
+                x: true,
+                y: true,
+            }
+            .intersect(bounds),
+            None => Some(bounds),
+        }
+    }
+    fn project(&self, owner: NodeId, bounds: Bounds<Pixels>) -> Option<Bounds<Pixels>> {
+        match self {
+            Self::Clip(clip) => clip.intersect(bounds),
+            Self::Scroll(node, state) => {
+                let state = state.upgrade()?;
+                if *node == owner {
+                    Some(bounds)
+                } else {
+                    Self::scroll_clip(&state, state.project(bounds).0)
+                }
+            }
+        }
+    }
+    fn reveal(&self, owner: NodeId, bounds: Bounds<Pixels>) -> Option<(Bounds<Pixels>, bool)> {
+        match self {
+            Self::Clip(clip) => clip.intersect(bounds).map(|bounds| (bounds, false)),
+            Self::Scroll(node, state) => {
+                let state = state.upgrade()?;
+                if *node == owner {
+                    Some((bounds, false))
+                } else {
+                    let projected = Self::scroll_clip(&state, state.project(bounds).0)?;
+                    let (_, changed) = state.reveal(bounds);
+                    Some((projected, changed))
+                }
+            }
+        }
+    }
 }
 pub(super) struct Manager {
     window: WindowId,
@@ -338,6 +416,11 @@ pub(super) struct Manager {
     pending: bool,
     navigation: BTreeMap<NodeId, Navigation>,
     navigation_enter: Vec<(NodeId, Option<WeakFocusHandle>)>,
+    paint_path: Vec<Boundary>,
+    last_focus: Option<WeakFocusHandle>,
+    reveal_requested: Cell<bool>,
+    viewport: Bounds<Pixels>,
+    clipped_targets: bool,
 }
 impl Manager {
     pub(super) fn new(window: WindowId, session: SharedSession) -> Shared {
@@ -359,6 +442,11 @@ impl Manager {
             pending: false,
             navigation: BTreeMap::new(),
             navigation_enter: Vec::new(),
+            paint_path: Vec::new(),
+            last_focus: None,
+            reveal_requested: Cell::new(false),
+            viewport: Bounds::default(),
+            clipped_targets: false,
         }))
     }
     pub(super) fn active_selection_scope(&self) -> gpui_base::TextSelectionScopeId {
@@ -949,9 +1037,77 @@ impl Manager {
             stack.extend(node.children.iter().rev().copied());
         }
     }
-    pub(super) fn begin_frame(&mut self) {
+    pub(super) fn begin_frame(&mut self, viewport: Bounds<Pixels>) {
         self.entries.clear();
         self.seen.clear();
+        self.paint_path.clear();
+        self.viewport = viewport;
+        self.clipped_targets = false;
+    }
+    pub(super) fn enter_scroll(&mut self, node: NodeId, state: &Rc<super::scroll::State>) -> usize {
+        let depth = self.paint_path.len();
+        self.paint_path
+            .push(Boundary::Scroll(node, Rc::downgrade(state)));
+        depth
+    }
+    pub(super) fn enter_clip(&mut self, clip: Clip) -> usize {
+        let depth = self.paint_path.len();
+        self.paint_path.push(Boundary::Clip(clip));
+        depth
+    }
+    pub(super) fn leave_boundary(&mut self, depth: usize) {
+        debug_assert_eq!(self.paint_path.len(), depth + 1);
+        self.paint_path.truncate(depth);
+    }
+    pub(super) fn request_reveal(&self) {
+        self.reveal_requested.set(true);
+    }
+    fn reachable(&self, target: NodeId, bounds: Bounds<Pixels>) -> bool {
+        self.paint_path
+            .iter()
+            .rev()
+            .try_fold(bounds, |bounds, boundary| boundary.project(target, bounds))
+            .is_some_and(|bounds| bounds.intersects(&self.viewport))
+    }
+    /// Run after the complete paint, including deferred popups. A focus change
+    /// reveals once; later wheel motion with unchanged focus stays user-owned.
+    pub(super) fn finish_paint(&mut self, window: &mut Window, cx: &mut App) {
+        let focused = window.focused(cx).map(|handle| handle.downgrade());
+        if !self.reveal_requested.replace(false) && focused == self.last_focus {
+            return;
+        }
+        self.last_focus = focused.clone();
+        let Some(entry) = self.entries.iter().find(|entry| {
+            focused.as_ref().is_some_and(|focus| focus == &entry.handle)
+                && self.eligible(entry.node)
+        }) else {
+            return;
+        };
+        // Validate the whole path before moving any owner: a stale or newly
+        // clipped outer boundary must not produce a partial reveal.
+        if entry
+            .paint_path
+            .iter()
+            .rev()
+            .try_fold(entry.bounds, |bounds, boundary| {
+                boundary.project(entry.node, bounds)
+            })
+            .is_none_or(|bounds| !bounds.intersects(&self.viewport))
+        {
+            return;
+        }
+        let mut bounds = entry.bounds;
+        let mut changed = false;
+        for boundary in entry.paint_path.iter().rev() {
+            let Some((revealed, moved)) = boundary.reveal(entry.node, bounds) else {
+                break;
+            };
+            bounds = revealed;
+            changed |= moved;
+        }
+        if changed {
+            window.refresh();
+        }
     }
     pub(super) fn focused_node(&self, window: &Window) -> Option<NodeId> {
         self.entries
@@ -959,7 +1115,7 @@ impl Manager {
             .find(|entry| entry.handle.is_focused(window))
             .map(|entry| entry.node)
     }
-    pub(super) fn can_restore(&self, handle: &FocusHandle) -> bool {
+    pub(super) fn can_focus(&self, handle: &FocusHandle) -> bool {
         self.entries
             .iter()
             .any(|entry| &entry.handle == handle && self.eligible(entry.node))
@@ -978,19 +1134,34 @@ impl Manager {
         handle: FocusHandle,
         tab_stop: bool,
         focused: bool,
+        bounds: Bounds<Pixels>,
     ) {
-        self.record_part(node, 0, handle, tab_stop, focused);
+        self.record_part(
+            node,
+            0,
+            Target {
+                handle,
+                tab_stop,
+                bounds,
+            },
+            focused,
+        );
     }
     /// Distinct native controls can share one retained owner (e.g. range thumbs).
     /// Part identity only deduplicates paint; all eligibility stays owner-scoped.
-    pub(super) fn record_part(
-        &mut self,
-        node: NodeId,
-        part: u16,
-        handle: FocusHandle,
-        tab_stop: bool,
-        focused: bool,
-    ) {
+    pub(super) fn record_part(&mut self, node: NodeId, part: u16, target: Target, focused: bool) {
+        let Target {
+            handle,
+            tab_stop,
+            bounds,
+        } = target;
+        if bounds.size.width <= gpui::px(0.) || bounds.size.height <= gpui::px(0.) {
+            return;
+        }
+        if !self.reachable(node, bounds) {
+            self.clipped_targets = true;
+            return;
+        }
         if focused
             && self
                 .session
@@ -1044,6 +1215,8 @@ impl Manager {
                 handle,
                 tab_stop,
                 tab_index,
+                bounds,
+                paint_path: self.paint_path.clone(),
                 disclosure_path,
                 navigation_path,
             });
@@ -1226,9 +1399,11 @@ impl Manager {
         )
     }
     pub(super) fn traverse(&self, reverse: bool, window: &mut Window, cx: &mut App) {
+        self.request_reveal();
         // Inert exits still paint native focus handles. Preserve native traversal
         // for ordinary frames, but never let those ineligible handles become stops.
         if self.active.is_none()
+            && !self.clipped_targets
             && self
                 .entries
                 .iter()

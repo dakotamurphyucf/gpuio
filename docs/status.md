@@ -45,9 +45,10 @@ content and Tab-policy gaps. A validated `Link.Config` and matching bounded
 OCaml/Rust data codecs now extend through native admission, View/Bonsai rendering
 and a public composed-link preview. Six expect tests, native rollback/budget/input/AX
 checks and eight gallery cases with 34 native actions pass locally. A redraw-related
-Tab ordering regression is fixed. Offscreen/clipped traversal and mixed compound
-controls remain open; no Link capability is advertised and the link rows are not yet
-accepted. See the design for the precise passing scope and remaining validation.
+Tab ordering regression is fixed. Measured ordinary-scroll focus reveal now passes
+native boundary checks and actual public-gallery viewport containment. Broader
+mixed compound/group ordering and content coverage remain open; no Link capability
+is advertised and the link rows are not yet accepted. See the design for the precise passing scope and remaining validation.
 The [ordinary text-span API](design/text-content.md) now supplies bounded
 foreground runs through atomic bridge updates and View/Bonsai reconciliation.
 Local checks cover native GPU paint, wrapping, selection/copy and source AX labels.

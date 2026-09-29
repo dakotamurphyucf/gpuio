@@ -526,12 +526,13 @@ impl View {
             canvas(
                 |_, _, _| (),
                 move |bounds, _, window, _| {
-                    if bounds.intersects(&window.content_mask().bounds) {
+                    if bounds.size.width > px(0.) && bounds.size.height > px(0.) {
                         gate.borrow_mut().record(
                             id,
                             record.clone(),
                             true,
                             record.is_focused(window),
+                            bounds,
                         );
                     }
                 },

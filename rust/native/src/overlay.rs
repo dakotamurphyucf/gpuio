@@ -139,7 +139,7 @@ pub(super) fn element(
         .on_scroll_wheel(|_, _, cx| cx.stop_propagation());
     let panel = match scrolling {
         Some(state) => super::highlight_style::Frame::new(
-            super::scroll::Frame::new(panel, state),
+            super::scroll::Frame::new(panel, state, route.gate.clone(), node.id),
             node,
             &route.gate,
         )

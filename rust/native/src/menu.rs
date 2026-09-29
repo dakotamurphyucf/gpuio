@@ -200,7 +200,7 @@ impl View {
             && restore
             && state.focus.is_focused(window)
             && let Some(focus) = state.restore.take()
-            && self.focus.borrow().can_restore(&focus)
+            && self.focus.borrow().can_focus(&focus)
         {
             window.focus(&focus, cx);
         }
@@ -677,15 +677,13 @@ impl View {
                     }
                 },
                 move |bounds, _, window, _| {
-                    if bounds.size.width > px(0.)
-                        && bounds.size.height > px(0.)
-                        && bounds.intersects(&window.content_mask().bounds)
-                    {
+                    if bounds.size.width > px(0.) && bounds.size.height > px(0.) {
                         manager.borrow_mut().record(
                             id,
                             record_focus.clone(),
                             tab_stop && !disabled,
                             record_focus.is_focused(window),
+                            bounds,
                         );
                     }
                 },

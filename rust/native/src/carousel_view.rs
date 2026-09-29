@@ -431,6 +431,7 @@ impl View {
                                 recorded.clone(),
                                 enabled,
                                 recorded.is_focused(window),
+                                bounds,
                             );
                         }
                     },

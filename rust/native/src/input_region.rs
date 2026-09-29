@@ -367,17 +367,17 @@ impl<E: Element> Element for Region<E> {
             // Register the region before its native descendants so Tab follows
             // the same parent-before-child order as the public view tree.
             let state = self.state.borrow();
-            let visible = bounds.intersect(&prepaint.0.content_mask.bounds);
             if !state.config.disabled
                 && state.config.focus != Focus::None
-                && visible.size.width > gpui::px(0.)
-                && visible.size.height > gpui::px(0.)
+                && bounds.size.width > gpui::px(0.)
+                && bounds.size.height > gpui::px(0.)
             {
                 state.route.gate.borrow_mut().record(
                     state.route.node,
                     state.focus.clone(),
                     state.config.focus == Focus::Tab,
                     state.focus.is_focused(window),
+                    bounds,
                 );
             }
         }

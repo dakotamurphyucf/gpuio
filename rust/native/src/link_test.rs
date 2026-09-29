@@ -3,6 +3,8 @@
 use super::*;
 use gpuio_protocol::link::Config;
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+#[path = "link_scroll_test.rs"]
+mod scroll_test;
 
 fn id(slot: i64) -> NodeId {
     NodeId::from_parts(slot, 1).unwrap()
@@ -19,16 +21,17 @@ fn apply(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, operations: Vec<Op
     handle
         .update(cx, |view, window, cx| {
             let base = view.session.borrow().tree(view.id).unwrap().revision();
+            let transaction = Transaction {
+                window: view.id,
+                base,
+                revision: base + 1,
+                operations,
+            };
             let result = view
                 .session
                 .borrow_mut()
-                .apply(&Transaction {
-                    window: view.id,
-                    base,
-                    revision: base + 1,
-                    operations,
-                })
-                .unwrap();
+                .apply(&transaction)
+                .unwrap_or_else(|error| panic!("{error:?}: {transaction:?}"));
             view.update_editors(&result.dirty, window, cx);
             cx.notify();
         })
@@ -406,6 +409,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
     draw(cx, handle);
     key(cx, handle, "tab");
     focused(cx, handle, 2);
+    scroll_test::exercise(cx, handle, transport).await;
     let mut remove = vec![Op::SetRoot(None)];
     remove.extend((6..=9).map(|slot| Op::Remove(id(slot))));
     remove.extend((0..=5).map(|slot| Op::Remove(id(slot))));

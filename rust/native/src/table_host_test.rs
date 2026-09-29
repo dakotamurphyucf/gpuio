@@ -233,7 +233,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
             assert!(
                 view.focus
                     .borrow()
-                    .can_restore(&state.native.focus_handle(cx)),
+                    .can_focus(&state.native.focus_handle(cx)),
                 "table focus registered after begin_frame"
             );
             state.native.downgrade()

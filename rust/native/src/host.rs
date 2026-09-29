@@ -947,7 +947,8 @@ impl View {
                 let gate = self.focus.clone();
                 element =
                     element.on_a11y_action(gpui::AccessibleAction::Focus, move |_, window, cx| {
-                        if gate.borrow().eligible(id) {
+                        if gate.borrow().can_focus(&focus) {
+                            gate.borrow().request_reveal();
                             window.focus(&focus, cx);
                         }
                     });
@@ -1532,12 +1533,11 @@ impl View {
                 canvas(
                     |_, _, _| (),
                     move |bounds, _, window, _| {
-                        if bounds.size.width > px(0.)
-                            && bounds.size.height > px(0.)
-                            && bounds.intersects(&window.content_mask().bounds)
-                        {
+                        if bounds.size.width > px(0.) && bounds.size.height > px(0.) {
                             let focused = handle.is_focused(window);
-                            manager.borrow_mut().record(id, handle, tab_stop, focused);
+                            manager
+                                .borrow_mut()
+                                .record(id, handle, tab_stop, focused, bounds);
                         }
                     },
                 )
@@ -1617,7 +1617,7 @@ impl View {
             let image = image_corners::Rounded::capture(element, corners);
             return match &scrolling {
                 Some(state) => self.finish_element(
-                    scroll::Frame::new(image, state),
+                    scroll::Frame::new(image, state, self.focus.clone(), id),
                     node,
                     tree.revision(),
                     disabled,
@@ -1627,7 +1627,7 @@ impl View {
         }
         match scrolling {
             Some(state) => self.finish_element(
-                scroll::Frame::new(element, &state),
+                scroll::Frame::new(element, &state, self.focus.clone(), id),
                 node,
                 tree.revision(),
                 disabled,
@@ -1808,7 +1808,9 @@ impl Render for View {
                 canvas(
                     |_, _, _| (),
                     move |_, _, window, cx| {
-                        begin_focus.borrow_mut().begin_frame();
+                        begin_focus
+                            .borrow_mut()
+                            .begin_frame(window.content_mask().bounds);
                         let _ = program_begin.update(cx, |view, _| {
                             view.begin_carousel_paint();
                             view.begin_program_paint();
@@ -1985,6 +1987,7 @@ impl Render for View {
         let transport = self.transport.clone();
         let program_finish = cx.entity().downgrade();
         let navigation_focus = self.focus.clone();
+        let reveal_focus = self.focus.clone();
         root.child(
             canvas(
                 |_, _, _| (),
@@ -2014,6 +2017,9 @@ impl Render for View {
                             navigation_focus.borrow_mut().finish_navigation(window, cx);
                         });
                     }
+                    window.defer(cx, move |window, cx| {
+                        reveal_focus.borrow_mut().finish_paint(window, cx);
+                    });
                     let events = session.borrow_mut().painted(id, revision);
                     for event in events {
                         if matches!(event, Event::FrameRequested(..)) {

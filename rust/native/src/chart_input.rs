@@ -352,7 +352,7 @@ pub(super) fn prepaint(
     Some(hitbox)
 }
 pub(super) fn paint(state: &Shared, hitbox: Option<Hitbox>, window: &mut Window) {
-    let (token, focus, gate, node, eligible) = {
+    let (token, focus, gate, node, eligible, bounds) = {
         let state = state.borrow();
         (
             state.input.token.clone(),
@@ -361,10 +361,16 @@ pub(super) fn paint(state: &Shared, hitbox: Option<Hitbox>, window: &mut Window)
             state.node,
             state.base_input_allowed(window, false)
                 && state.lease.as_ref().and_then(Lease::snapshot).is_some(),
+            state.input.bounds,
         )
     };
-    gate.borrow_mut()
-        .record(node, focus.clone(), eligible, focus.is_focused(window));
+    gate.borrow_mut().record(
+        node,
+        focus.clone(),
+        eligible,
+        focus.is_focused(window),
+        bounds,
+    );
     let Some(hitbox) = hitbox else {
         return;
     };

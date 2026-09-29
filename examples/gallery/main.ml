@@ -99,12 +99,21 @@ let component ~app ~desktop ~motion ~open_window ~page ~appearance ~scale window
                    B.Expert.Var.set scale (Appearance.Scale.next scale_value)))
             ; Palette.button p "New window" (action open_window)
             ]
-        ; V.column
-            ~key:(Key.of_string ("preview-" ^ Page.key page_value) |> ok)
-            ~style:
-              (style
-                 [ Grow 1.; Min_height (px 0.); Overflow_y Scroll; Padding_right (px 8.) ])
-            [ content ]
+        ; (V.column
+             ~key:(Key.of_string ("preview-" ^ Page.key page_value) |> ok)
+             ~style:
+               (style
+                  [ Grow 1.
+                  ; Min_height (px 0.)
+                  ; Overflow_y Scroll
+                  ; Padding_right (px 8.)
+                  ])
+             [ content ]
+           |> fun view ->
+           V.with_accessibility
+             view
+             (Accessibility.create ~role:Group ~label:"Component preview" () |> ok)
+           |> ok)
         ]
     ]
 ;;

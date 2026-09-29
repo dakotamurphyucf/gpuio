@@ -144,6 +144,24 @@ def exercise_links(mac, images):
         activate(mac, mac.wait_find(TITLE, label, 'AXCheckBox'))
         time.sleep(.08)
 
+    def expect_revealed(label):
+        expect_focus(mac, label, 'AXLink')
+        deadline = time.monotonic() + 10
+        while True:
+            node = mac.wait_find(TITLE, label, 'AXLink')
+            viewport = mac.wait_find(TITLE, 'Component preview', 'AXGroup')
+            try:
+                x, y, w, h = element_rect(mac, node)
+                vx, vy, vw, vh = element_rect(mac, viewport)
+            finally:
+                mac.release(node)
+                mac.release(viewport)
+            if (w > 0 and h > 0 and x >= vx - 1 and y >= vy - 1
+                    and x + w <= vx + vw + 1 and y + h <= vy + vh + 1):
+                return
+            assert time.monotonic() < deadline, (label, (x, y, w, h), (vx, vy, vw, vh))
+            time.sleep(.025)
+
     def activated():
         nonlocal clicks
         clicks += 1
@@ -162,8 +180,7 @@ def exercise_links(mac, images):
                         assert equal(original, other), 'Composed content replaced link identity'
                     finally:
                         mac.release(other)
-                    # Keep all three targets painted for the explicit ordering check.
-                    reveal_gallery_control(mac, labels[1], 'AXLink')
+                    # Only reveal the first target; Tab must reach clipped successors.
                     x, y, w, h = reveal_gallery_control(mac, labels[0], 'AXLink')
                     point = (x + 28, y + h / 2)
                     mouse.check_owner(point)
@@ -183,11 +200,11 @@ def exercise_links(mac, images):
                     activated()
                     focus_gallery_control(mac, labels[0], 'AXLink')
                     mac.key(48)
-                    expect_focus(mac, labels[1], 'AXLink')
+                    expect_revealed(labels[1])
                     mac.key(48)
-                    expect_focus(mac, labels[2], 'AXLink')
+                    expect_revealed(labels[2])
                     mac.key(48, 1 << 17)
-                    expect_focus(mac, labels[1], 'AXLink')
+                    expect_revealed(labels[1])
                     if images and detail and icons:
                         screenshot(mac, images / f'gallery-links-{appearance.lower()}.png', title=TITLE)
                     toggle('Link icons')
@@ -198,9 +215,9 @@ def exercise_links(mac, images):
         mac.wait_text(TITLE, 'Link order: API · Release · Design')
         focus_gallery_control(mac, labels[2], 'AXLink')
         mac.key(48)
-        expect_focus(mac, labels[1], 'AXLink')
+        expect_revealed(labels[1])
         mac.key(48)
-        expect_focus(mac, labels[0], 'AXLink')
+        expect_revealed(labels[0])
         toggle('Links in Tab order')
         focus_gallery_control(mac, labels[0], 'AXLink')
         mac.key(36)
@@ -232,7 +249,7 @@ def exercise_links(mac, images):
     mac.press(TITLE, 'Presentation')
     mac.release(mac.wait_find(TITLE, labels[0], 'AXLink'))
     print('GALLERY_COMPOSED_LINK_OK: 8 theme/content/icon cases, 34 pointer/Return/Space/AX '
-          'actions, stable identity, signed Tab/reverse order, disabled recovery and scoped SVG cleanup', flush=True)
+          'actions, stable identity, signed Tab/reverse order with viewport reveal, disabled recovery and scoped SVG cleanup', flush=True)
 
 
 def exercise_groups(mac, images):
