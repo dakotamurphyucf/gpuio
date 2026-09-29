@@ -1,4 +1,7 @@
+mod geometry;
+
 use std::{
+    cell::OnceCell,
     collections::HashMap,
     ops::Range,
     rc::Rc,
@@ -296,6 +299,8 @@ pub struct TextSelectionRun {
     document_order: u64,
     /// The exact text used to produce `layout`.
     text: SharedString,
+    geometry: Rc<OnceCell<geometry::Geometry>>,
+    text_align: gpui::TextAlign,
     /// Laid-out glyph geometry in window coordinates.
     layout: TextLayout,
     /// The run's window-coordinate paint bounds.
@@ -308,9 +313,39 @@ impl TextSelectionRun {
         Self {
             document_order: 0,
             text: text.into(),
+            geometry: Rc::new(OnceCell::new()),
+            text_align: gpui::TextAlign::Left,
             layout,
             bounds,
         }
+    }
+
+    /// Update painted text/geometry while retaining immutable glyph-cell data
+    /// when the shaped lines are unchanged. Bounds and alignment stay dynamic.
+    pub fn update(
+        &mut self,
+        text: impl Into<SharedString>,
+        layout: TextLayout,
+        bounds: Bounds<Pixels>,
+    ) {
+        let text = text.into();
+        if self.text != text
+            || self
+                .geometry
+                .get()
+                .is_some_and(|geometry| !geometry.matches(&layout))
+        {
+            self.geometry = Rc::new(OnceCell::new());
+        }
+        self.text = text;
+        self.layout = layout;
+        self.bounds = bounds;
+    }
+
+    /// Use the same alignment as the painted StyledText.
+    pub fn with_text_align(mut self, align: gpui::TextAlign) -> Self {
+        self.text_align = align;
+        self
     }
 
     /// Sets the run's logical order within the participant.
@@ -401,31 +436,9 @@ fn selection_range_for_run(
         return None;
     }
 
-    let line_height = run.layout.line_height();
-    let mut range = None;
-    for (offset, character) in run.text.char_indices() {
-        let next_offset = offset + character.len_utf8();
-        let Some(position) = run.layout.position_for_index(offset) else {
-            continue;
-        };
-
-        let char_width = run
-            .layout
-            .position_for_index(next_offset)
-            .filter(|next| next.y == position.y)
-            .map_or_else(|| line_height.half(), |next| next.x - position.x);
-
-        if point_in_selection_band(
-            position,
-            char_width,
-            selection_start,
-            selection_end,
-            line_height,
-        ) {
-            range.get_or_insert(offset..offset).end = next_offset;
-        }
-    }
-    range
+    run.geometry
+        .get_or_init(|| geometry::Geometry::new(&run.text, &run.layout))
+        .project(run, selection_start, selection_end)
 }
 
 fn points_for_multi_click(

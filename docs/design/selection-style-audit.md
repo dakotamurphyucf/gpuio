@@ -187,13 +187,15 @@ source bytes; no production source-copy change was needed.
 The Base patch is reconstructed from the unchanged pinned archive by
 `scripts/vendor_gpui_base.py`; the resulting tree matches `vendor/gpui-base`
 (excluding generated `Cargo.lock`). `third_party/sources.json` records patch SHA256
-`0db2c9136afa1e987e90f70591b8c81bcf8a28125164374a5d715d8432d2059c`.
+`f719968830e5be0dea691eb6ba401c6991eb54c3dfbf92eae9e20426a34521fd`.
 The patch adds the editor policy, Markdown disable cleanup and copy guard, public
 native scope wrapper, active-scope Copy/presence filtering, ordinary participant
 paint-order/local-anchor APIs, whitespace Copy preservation and retired-endpoint
 cleanup. Markdown copy normalization is participant-local, and its Select All
-action retires prior shared geometry outside the widget borrow. No public OCaml or
-wire format changes are needed.
+action retires prior shared geometry outside the widget borrow. Ordinary run
+projection also uses cached shaped glyph cells and extended-grapheme boundaries,
+with current alignment applied at projection time. No public OCaml or wire format
+changes are needed.
 
 ## Ordinary window-selection adapter
 
@@ -342,15 +344,56 @@ all-target native/protocol Clippy with `native-image-tests`, formatting, diff an
 structural catalog checks passed. This checkpoint adds tests and documentation;
 it does not change production code, wire/API contracts or the pinned fork.
 
+## Ordinary pointer typography
+
+Pointer range projection uses shaped glyph cells instead of estimating widths
+from consecutive Unicode scalar caret positions. The latter copied only the first
+person from a joined family emoji in the initial native regression. Each cell now
+covers its entire extended grapheme; glyph source indices and visual positions
+also preserve source-byte ranges when Hebrew/Arabic glyphs are reordered. A visual
+selection projects to one contiguous logical source range. This does not introduce
+multiple disjoint bidi selection ranges.
+
+The native run lazily caches immutable cell geometry against source text and the
+shaped line identities. Retained runs reuse it until text or shaping changes;
+current paint bounds, line height and alignment apply when projecting. The cache
+retains shaped line data, not native entities or OCaml callbacks. No additional
+per-frame bridge traffic is needed. Hard-line separator cells preserve source
+newlines, including CRLF as one extended grapheme.
+
+`selection_typography_test.rs`, included by `native_ui`, checks actual laid-out
+glyph bands independently of logical caret lookup. Forward and reverse drags copy
+whole family emoji, combining-accent letters and flags, plus whole and partial
+Hebrew/Arabic spans. All cases run with left, center and right alignment; the
+latter two assert a nonzero layout inset. Additional cases select soft-wrapped,
+LF and CRLF text in both directions and a CRLF separator alone. The final native
+UI run exited 0 locally. These are native layout and GPUI-dispatched pointer/
+clipboard checks, not physical input or full international typography acceptance.
+
+The document, highlight and list regression executables also exited 0 on this
+geometry revision, with sequential 90/90/300-second process-group watchdogs.
+The list suite completed both 100,000-row traversals, retained at most 256 active
+views/selection caches and released evicted resources. Strict native/protocol
+all-target Clippy, production compilation, formatting, structural catalog checks
+and exact Base fork reconstruction passed. The build commands and watchdog
+procedure are the same as the ordinary-window adapter checks above; these results
+do not replace application-scale selection cost or hosted release validation.
+
+Local caret lookup, word/multi-click selection and keyboard-to-Shift-click anchors
+still use separate caret APIs. Their alignment and bidi behavior needs its own
+acceptance; the range-projection checks above do not establish those contracts.
+Broader mixed-direction wrapping and large-text projection/copy performance also
+remain open.
+
 ## Remaining implementation and acceptance
 
 - Complete document selection policy evidence for disabled Markdown multi-click,
   scrolling, file controls and accessible selection/range commands. The focused
   native checks above are not the whole OCH-17 input/AX matrix.
 - Complete multiple-document drag/copy, broader virtualized/interior-row lifecycle
-  cases, wrapped/mixed-direction text, multi-click cross-node semantics and
-  pointer-operated Copy controls. Ordinary two-window isolation and managed
-  endpoint eviction/reuse are now covered above.
+  cases, broader mixed-direction wrapping, aligned/bidi caret and word selection,
+  multi-click cross-node semantics and pointer-operated Copy controls. Ordinary
+  two-window isolation and managed endpoint eviction/reuse are now covered above.
   The focused ordinary-node regression does not prove those combinations.
 - Measure projection and copy cost for large selected text and bounded retention
   during repeated mount/unmount/window cycles.

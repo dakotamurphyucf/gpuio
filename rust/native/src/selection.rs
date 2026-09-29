@@ -167,6 +167,11 @@ impl State {
     }
 
     #[cfg(feature = "native-tests")]
+    pub(crate) fn layout(&self) -> gpui::TextLayout {
+        self.run.as_ref().expect("painted text").layout().clone()
+    }
+
+    #[cfg(feature = "native-tests")]
     pub(crate) fn displayed_text(&self) -> &str {
         self.run.as_ref().expect("painted text").text()
     }
@@ -272,11 +277,11 @@ pub fn element(
                         &displayed,
                         window.text_style().text_overflow.as_ref(),
                     );
-                    state.run = Some(gpui_base::TextSelectionRun::new(
-                        displayed,
-                        paint_layout.clone(),
-                        bounds,
-                    ));
+                    let mut run = state.run.take().unwrap_or_else(|| {
+                        gpui_base::TextSelectionRun::new("", paint_layout.clone(), bounds)
+                    });
+                    run.update(displayed, paint_layout.clone(), bounds);
+                    state.run = Some(run.with_text_align(window.text_style().text_align));
                     state.project(cx);
                     // Cache runs for native multi-click/endpoint projection even at rest.
                     if !state.geometric {

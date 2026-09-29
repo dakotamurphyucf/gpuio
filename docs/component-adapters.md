@@ -172,6 +172,13 @@ back to source bytes; never treat ellipsis byte offsets as source offsets. Reuse
 `text_projection` for this mapping and highlight painting. Retiring a registered
 endpoint must retire the window gesture, not just its current painted range.
 
+Retain ordinary `TextSelectionRun` values through `update` and set the painted
+text alignment with `with_text_align`. Projection caches immutable shaped glyph
+cells lazily; replacing runs every frame discards that reuse. Logical scalar caret
+positions are not glyph widths, especially for joined graphemes or reordered bidi
+glyphs. Keep source/display mapping separate from shaped visual geometry. Local
+caret/word and Shift-click anchoring still require independent typography checks.
+
 Renderer-specific Copy normalization belongs in that participant's callback;
 never trim the combined window result in a focused widget's Copy handler.
 Markdown Select All clears shared geometry before borrowing its native state,

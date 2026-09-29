@@ -54,8 +54,11 @@ Shift-click, reorder and hidden endpoint retirement. A mixed ordinary/Markdown
 fixture also checks focus-independent Copy, local Select All, source replacement
 and endpoint removal. Ordinary selection also passes independent-window Copy,
 close/reopen release and managed endpoint eviction/rematerialization checks.
-Multiple-document and broader virtualized cases, plus the complete input/
-accessibility matrix, remain open. General input regions now have mounted Core/Bonsai/native
+Ordinary pointer projection now preserves extended graphemes and uses shaped
+visual cells, with focused left/center/right, Hebrew/Arabic, soft-wrap and LF/CRLF
+Copy evidence. Aligned/bidi caret, word and Shift-click behavior remains separate
+acceptance work. Multiple-document and broader virtualized cases, plus the complete
+input/accessibility matrix, remain open. General input regions now have mounted Core/Bonsai/native
 integration, native edge-case and public gallery evidence; remaining consumer/
 release acceptance stays open in the [input ledger](evidence/input-observations-och41.md). Start ellipsis and the complete cursor vocabulary now have
 paired codec, native validation and focused gallery evidence. OCH-17 is also in progress: the
