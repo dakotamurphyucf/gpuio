@@ -142,6 +142,11 @@ range are rejected. File metadata is native preparation data; per-file collapse,
 show-more controls and paired old/new line callbacks are still pending public
 API work, tracked by OCH-41.
 
+The pending [diff controls design](diff-controls.md) specifies managed/controlled
+ownership, visible-source projection, selection transfer and event provenance.
+Its native projection tests are foundation evidence, not mounted public API
+acceptance.
+
 ## Native document accessibility actions
 
 The native presentation exposes its configured document label as a Group.
