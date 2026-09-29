@@ -73,6 +73,8 @@ def main():
         '[profile.dev]\ndebug = 0\n\n[profile.dev.package."*"]\nopt-level = 1\n\n'
         '[patch.crates-io]\n'
         f'accesskit_macos = {{ path = "{root / "vendor/accesskit-macos"}" }}\n\n'
+        '[patch."https://github.com/zed-industries/zed.git"]\n'
+        f'gpui = {{ path = "{root / "vendor/gpui"}" }}\n\n'
         '[workspace.metadata.typos]',
     )
     manifest.write_text(text)

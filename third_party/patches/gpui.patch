@@ -1,0 +1,44 @@
+--- a/src/elements/div.rs
++++ b/src/elements/div.rs
+@@ -2478,5 +2478,40 @@
+                 self.paint_hover_group_handler(window, cx);
+ 
+-                if style.visibility == Visibility::Hidden {
++                if style.visibility == Visibility::Hidden || style.display == Display::None {
++                    // GPUIO: hidden elements must not activate, but a press that
++                    // hid this element still needs its release cleanup. Keeping
++                    // that cleanup outside visible hitbox registration avoids a
++                    // permanently active style and stale clicks on later frames.
++                    if let Some(state) = element_state.as_mut() {
++                        if let Some(pending) = &state.pending_mouse_down {
++                            pending.borrow_mut().take();
++                        }
++                        if let Some(pending) = &state.pending_keyboard_down {
++                            pending.borrow_mut().take();
++                        }
++                        if let Some(active) = &state.clicked_state
++                            && active.borrow().is_clicked()
++                        {
++                            let released = active.clone();
++                            window.on_mouse_event(
++                                move |event: &MouseMoveEvent, phase, window, _| {
++                                    if phase == DispatchPhase::Capture
++                                        && event.pressed_button.is_none()
++                                        && released.borrow().is_clicked()
++                                    {
++                                        *released.borrow_mut() = ElementClickedState::default();
++                                        window.refresh();
++                                    }
++                                },
++                            );
++                            let active = active.clone();
++                            window.on_mouse_event(move |_: &MouseUpEvent, phase, window, _| {
++                                if phase == DispatchPhase::Capture && active.borrow().is_clicked() {
++                                    *active.borrow_mut() = ElementClickedState::default();
++                                    window.refresh();
++                                }
++                            });
++                        }
++                    }
+                     return ((), element_state);
+                 }

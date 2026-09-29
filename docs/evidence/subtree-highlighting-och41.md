@@ -708,13 +708,62 @@ Strict native/protocol all-target Clippy with `native-image-tests`, workspace
 formatting and diff checks pass. No hosted, installed-consumer or Linux GUI run
 is implied by this local checkpoint.
 
-An independent interaction gap remains: the pinned GPUI Div skips mouse-up
+This checkpoint exposed an independent interaction gap: the pinned GPUI Div skips mouse-up
 listener registration while visibility-hidden. In this fixture, hiding on press
 therefore remains hidden after synthetic release; explicitly restyling recovers.
-Highlighting follows the actual hidden result, but that is **not** acceptance of
-pressed-hide release behavior. The state-style audit must resolve it before
-claiming complete styling parity. Deferred popup/toast/tooltip and other specialized
+Highlighting followed the actual hidden result; this earlier check did **not**
+accept pressed-hide release behavior. The following GPUI patch resolves the
+reproduced case. Deferred popup/toast/tooltip and other specialized
 renderer visibility paths also remain to be integrated/verified; this checkpoint
 does not claim every state-style path. Native diff hunk-fold mapping, application
 resource/performance, combined gallery/consumer/CI and remaining release gates
 stay open.
+
+## Pressed-hide recovery in pinned GPUI
+
+The unchanged GPUI revision now has a reproducible local core adaptation; see
+[the patch and ownership contract](../design/gpui-core-adaptation.md).
+`Interactivity::paint` cancels pending activation on hidden/display-none elements
+but retains capture-phase release cleanup for an existing pressed state. A mouse
+move reporting no pressed button also recovers a release missed outside the
+window. This does not reset unrelated native state or synthesize application clicks.
+
+The expanded View suite passes actual native GPU/count checks for both
+Visibility-hidden and Display-none pressed styles, with repeated releases inside
+and outside the element and recovery from no-button motion. A real Button fixture
+also verifies that hidden activation is canceled, a later stray mouse-up cannot
+replay the old press, and a fresh visible click activates exactly once.
+The document suite and full native controls suite pass against the patched core
+on macOS 14.5 arm64. Each process runs under a watchdog and is reaped; the controls
+suite's existing synthetic native input/accessibility checks do not imply a new
+physical input/IME or Linux desktop qualification.
+
+All default/generated backends patch the same Git source to `vendor/gpui`, include
+it in Dune dependencies, and retain locked versions. Reconstruction from the
+hash-verified archive plus patch matches the committed source tree exactly.
+No shared Cargo source, global switch or dependency revision changes. Specialized
+visibility paths, diff hunk-fold mapping, application budgets and consolidated
+gallery/consumer/hosted/release acceptance remain open.
+
+Additional local validation for this patch:
+
+- Workspace library tests with `gpuio-native/native-image-tests`, `--locked -j2`:
+  440 pass; two private-bus cases remain ignored by this command.
+- Strict native/protocol all-target Clippy with `native-image-tests` and
+  `-D warnings`, first-party and changed-vendor Rust formatting, Python compile
+  checks and the three edited Dune backend format checks pass.
+- `scripts/test_extension_consumer.py --run` passes for both `extension_consumer`
+  and `signal_studio` in fresh ignored workspaces. Public OCaml libraries are
+  staged into local prefixes, generated backends build with locked dependencies,
+  and both applications exit successfully. Signal Studio reports its existing
+  unavailable-desktop-notifications fallback; this is not notification-service
+  acceptance or a clean-machine distribution claim.
+- Regenerated backend manifests point to the same patched GPUI source. Archive
+  checksum failure and existing-destination guards reject unsafe reconstruction;
+  the final reconstruction matches all 155 vendored files exactly. Two original
+  trailing spaces in upstream `_accessibility.rs` documentation are preserved;
+  the first-party/patch diff check passes independently of that unchanged file.
+
+These consumer runs validate the fork wiring and existing consumer self-tests.
+The full milestone's installed-consumer matrix, clean-machine checks, combined
+gallery and required hosted macOS/Linux release gates remain outstanding.

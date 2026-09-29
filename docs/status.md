@@ -31,8 +31,9 @@ scroll clipping, retained tabs/disclosures and responsive branch changes now als
 have focused native evidence. Animated navigation now verifies selected-route
 counts and pixels, interrupted slides, reduced motion and transition disposal.
 Ordinary styled roots now pass native hover/pressed/focus visibility, hidden-base
-overrides, display-none and restyle checks. Specialized/deferred style paths and
-pressed-hide release recovery remain open, along with diff hunk-fold mapping and
+overrides, display-none and restyle checks. A pinned GPUI core patch now restores
+pressed-hide elements on release, cancels stale activation and passes controls
+regressions. Specialized/deferred style paths remain open, along with diff hunk-fold mapping and
 application performance/resource acceptance. The public Find &
 highlight gallery now demonstrates
 live queries, ranges, nested exclusions, selected matches and growing/collapsed

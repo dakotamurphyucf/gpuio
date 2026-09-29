@@ -51,23 +51,23 @@ fn transition_pixels(cx: &mut AsyncApp, handle: WindowHandle<View>, selected: [u
 pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Transport) {
     cx.update(|cx| cx.set_reduce_motion(false));
     let mut ops = vec![Op::Splice(id(1), 0, 1, vec![])];
-    ops.extend((16..=20).rev().map(|n| Op::Remove(id(n))));
+    ops.extend((16..=21).rev().map(|n| Op::Remove(id(n))));
     ops.extend([
-        Op::Create(id(21), Kind::NavigationStack, "Routes".into(), None),
-        Op::SetNavigationStack(id(21), navigation(Some(0))),
-        Op::SetStyle(id(21), frame_style(Length::Px(350.), 120.)),
-        Op::Create(id(22), Kind::Panel, "First".into(), None),
-        Op::SetStyle(id(22), page(0x008000ff)),
-        Op::Create(id(23), Kind::Text, "aaa".into(), None),
-        Op::SetStyle(id(23), row(0., false, false)),
-        Op::Create(id(24), Kind::Panel, "Second".into(), None),
-        Op::SetStyle(id(24), page(0x0000ffff)),
-        Op::Create(id(25), Kind::Text, "aaa aaa".into(), None),
-        Op::SetStyle(id(25), row(0., false, false)),
-        Op::Splice(id(22), 0, 0, vec![id(23)]),
-        Op::Splice(id(24), 0, 0, vec![id(25)]),
-        Op::Splice(id(21), 0, 0, vec![id(22), id(24)]),
-        Op::Splice(id(1), 0, 0, vec![id(21)]),
+        Op::Create(id(22), Kind::NavigationStack, "Routes".into(), None),
+        Op::SetNavigationStack(id(22), navigation(Some(0))),
+        Op::SetStyle(id(22), frame_style(Length::Px(350.), 120.)),
+        Op::Create(id(23), Kind::Panel, "First".into(), None),
+        Op::SetStyle(id(23), page(0x008000ff)),
+        Op::Create(id(24), Kind::Text, "aaa".into(), None),
+        Op::SetStyle(id(24), row(0., false, false)),
+        Op::Create(id(25), Kind::Panel, "Second".into(), None),
+        Op::SetStyle(id(25), page(0x0000ffff)),
+        Op::Create(id(26), Kind::Text, "aaa aaa".into(), None),
+        Op::SetStyle(id(26), row(0., false, false)),
+        Op::Splice(id(23), 0, 0, vec![id(24)]),
+        Op::Splice(id(25), 0, 0, vec![id(26)]),
+        Op::Splice(id(22), 0, 0, vec![id(23), id(25)]),
+        Op::Splice(id(1), 0, 0, vec![id(22)]),
     ]);
     apply(cx, handle, ops);
     count(cx, handle, transport, 1).await;
@@ -75,7 +75,7 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
     apply(
         cx,
         handle,
-        vec![Op::SetNavigationStack(id(21), navigation(Some(1)))],
+        vec![Op::SetNavigationStack(id(22), navigation(Some(1)))],
     );
     let selected = count(cx, handle, transport, 2).await;
     cx.background_executor()
@@ -84,7 +84,7 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
     draw(cx, handle);
     transition_pixels(cx, handle, [0, 0, 255, 255]);
     let retained = result(cx, handle);
-    apply(cx, handle, vec![Op::SetText(id(23), "aaa aaa aaa".into())]);
+    apply(cx, handle, vec![Op::SetText(id(24), "aaa aaa aaa".into())]);
     draw(cx, handle);
     pause(cx).await;
     assert!(Arc::ptr_eq(&retained, &result(cx, handle)));
@@ -98,7 +98,7 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
     apply(
         cx,
         handle,
-        vec![Op::SetNavigationStack(id(21), navigation(Some(0)))],
+        vec![Op::SetNavigationStack(id(22), navigation(Some(0)))],
     );
     let returned = count(cx, handle, transport, 3).await;
     assert!(returned.epoch > selected.epoch);
@@ -112,7 +112,7 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
     apply(
         cx,
         handle,
-        vec![Op::SetNavigationStack(id(21), navigation(Some(1)))],
+        vec![Op::SetNavigationStack(id(22), navigation(Some(1)))],
     );
     count(cx, handle, transport, 2).await;
     assert_eq!(pixel(cx, handle, 4., 100.), [0, 0, 255, 255]);
@@ -121,23 +121,23 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
     apply(
         cx,
         handle,
-        vec![Op::SetNavigationStack(id(21), navigation(Some(0)))],
+        vec![Op::SetNavigationStack(id(22), navigation(Some(0)))],
     );
     count(cx, handle, transport, 3).await;
     apply(
         cx,
         handle,
-        vec![Op::SetNavigationStack(id(21), navigation(Some(1)))],
+        vec![Op::SetNavigationStack(id(22), navigation(Some(1)))],
     );
     count(cx, handle, transport, 2).await;
     let owner = handle
         .update(cx, |view, _, _| Rc::downgrade(&view.highlights[&id(1)]))
         .unwrap();
     let presenter = handle
-        .update(cx, |view, _, _| Rc::downgrade(&view.navigation[&id(21)]))
+        .update(cx, |view, _, _| Rc::downgrade(&view.navigation[&id(22)]))
         .unwrap();
     let mut ops = vec![Op::SetRoot(None)];
-    ops.extend((21..=25).rev().map(|n| Op::Remove(id(n))));
+    ops.extend((22..=26).rev().map(|n| Op::Remove(id(n))));
     ops.extend([Op::Remove(id(1)), Op::Remove(id(0))]);
     apply(cx, handle, ops);
     for _ in 0..4 {

@@ -12,3 +12,4 @@ target/
 __pycache__/
 
 /vendor/gpui-base/Cargo.lock
+/vendor/gpui/Cargo.lock

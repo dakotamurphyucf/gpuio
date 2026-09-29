@@ -1,0 +1,44 @@
+# Pinned GPUI core adaptation
+
+GPUIO uses GPUI 0.2.2 from Zed commit
+`a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b`, unchanged from the original project pin.
+`vendor/gpui` contains that crate and its Apache-2.0 license. Other Zed crates
+remain dependencies of the same pinned Git revision. The repository and generated
+application workspaces patch that Git source to the same local GPUI crate, keeping
+one native GPUI type universe. Applications using custom Cargo manifests must
+preserve the generated patch alongside the existing crates.io patches.
+
+`third_party/sources.json` records the archive and patch SHA256 values.
+`scripts/vendor_gpui.py` verifies both before reconstructing a fresh destination.
+It expands inherited dependency declarations from the pinned Zed workspace,
+including feature unions and aliases, converts workspace paths to Git dependencies
+at the same revision, retains `Cargo.toml.upstream`, copies the actual license
+instead of its upstream symlink, and declares the known `rust_analyzer` cfg for
+the standalone manifest. It does not mutate shared Cargo sources or toolchains.
+`third_party/patches/gpui.patch` is the complete source-code difference.
+
+## Hidden pressed elements
+
+The pinned `Interactivity::paint` returned early for hidden visibility, before
+registering its active-state release handler. A pressed style that hid its own
+element therefore persisted after mouse-up. Display-none elements also need
+cleanup despite having no visible hitbox. Retained pending activation could
+otherwise be replayed on a later visible frame.
+
+The patch cancels pending mouse/keyboard activation when the element is hidden
+or display-none. For an existing active state it registers only capture-phase
+cleanup: mouse-up, or a later mouse move reporting no pressed button, clears the
+state and refreshes the window. It does not register hidden hit/click handlers,
+emit an application click, reset unrelated focus/scroll state, or change IDs.
+Native tests verify repeated inside/outside releases, lost-release motion,
+Visibility/Display recovery, cancellation of stale activation and a fresh visible
+click. This is not a claim that every ancestor-removal or platform input case has
+been exhaustively validated.
+
+Before rebasing/removing the patch, rerun `native_highlight_view` with
+`native-image-tests`, document and controls regressions, library tests, and default
+and independent generated-backend builds. Require visible restoration and queued
+event evidence; successful compilation alone is insufficient. Reconstruct and
+compare the vendored tree, review lockfile changes, and preserve the required
+Linux build/unit/private-bus/consumer gates. macOS GUI evidence does not qualify
+the deferred Linux desktop milestone.
