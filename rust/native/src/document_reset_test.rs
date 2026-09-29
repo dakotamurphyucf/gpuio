@@ -130,6 +130,14 @@ pub(super) async fn exercise(
                         let state = presentation.read(cx);
                         assert_ne!(state.snapshot.generation, generation);
                         assert_eq!(state.lease.snapshot().generation, generation);
+                        if state.markdown.is_some() {
+                            let installed = state.installed.as_ref().unwrap();
+                            assert!(!state.allows_link_focus(
+                                Some((installed.generation, installed.revision)),
+                                &presentation,
+                                cx,
+                            ));
+                        }
                         window.focus(&state.buttons["document-collapse"].clone(), cx);
                         enter(window, cx);
                         generation
@@ -143,6 +151,16 @@ pub(super) async fn exercise(
                     presentation.read_with(cx, |p, _| p.collapsed),
                     !initially_collapsed
                 );
+                presentation.read_with(cx, |p, cx| {
+                    if p.markdown.is_some() {
+                        let installed = p.installed.as_ref().unwrap();
+                        assert!(!p.allows_link_focus(
+                            Some((installed.generation, installed.revision)),
+                            &presentation,
+                            cx,
+                        ));
+                    }
+                });
                 presentation.update(cx, |p, cx| {
                     p.defer_prepared_install = false;
                     cx.notify();

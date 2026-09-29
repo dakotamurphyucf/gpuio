@@ -1206,6 +1206,44 @@ impl Presentation {
             None
         }
     }
+    fn allows_link_focus(
+        &self,
+        installed_revision: Option<(i64, i64)>,
+        presentation: &Entity<Self>,
+        cx: &App,
+    ) -> bool {
+        let Some(installed) = &self.installed else {
+            return false;
+        };
+        if self.collapsed
+            || self.source_mode
+            || self.markdown.is_none()
+            || installed_revision != Some((installed.generation, installed.revision))
+            || self.lease.snapshot().generation != installed.generation
+        {
+            return false;
+        }
+        let Some(root) = self.root.upgrade() else {
+            return false;
+        };
+        let root = root.read(cx);
+        let session = root.session.borrow();
+        session.accepts_input(root.id)
+            && root.focus.borrow().allows(self.node)
+            && root
+                .documents
+                .get(&self.node)
+                .and_then(|state| state.presentation.as_ref())
+                == Some(presentation)
+            && session
+                .tree(root.id)
+                .and_then(|tree| tree.get(self.node))
+                .and_then(|node| node.document.as_ref())
+                .is_some_and(|config| {
+                    config.source == self.config.source && config.mode == self.config.mode
+                })
+    }
+
     fn navigate(&self, navigation: Navigation, cx: &mut Context<Self>) {
         if !navigation.is_valid() {
             return;
@@ -1581,6 +1619,7 @@ impl Render for Presentation {
                 .code_highlighter
                 .clone()
                 .expect("prepared Markdown highlighter");
+            let focus_weak = weak.clone();
             let text = TextView::new(state)
                 .style(markdown_style(self.config.dark, self.selection_color))
                 .selectable(self.user_selectable)
@@ -1619,6 +1658,15 @@ impl Render for Presentation {
                         })
                 })
                 .code_block_highlighter_shared(highlighter)
+                .link_focus_guard(move |cx| {
+                    focus_weak.upgrade().is_some_and(|presentation| {
+                        presentation.read(cx).allows_link_focus(
+                            installed_revision,
+                            &presentation,
+                            cx,
+                        )
+                    })
+                })
                 .on_link_click(move |url, _, _, cx| {
                     let _ = weak.update(cx, |this, cx| {
                         if !this.collapsed

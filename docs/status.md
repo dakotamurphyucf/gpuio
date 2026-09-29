@@ -102,7 +102,11 @@ collapse/remount. Table header queries now reuse painted cell/container identiti
 Markdown and 100k logical-row managed-table regressions pass, including far-row
 navigation and hidden-header retirement. Rich text/code and safe image-placeholder
 links now have one accessible name/action, ordered text, keyboard focus and queued navigation in the public
-fixture. Decoded-image/custom-control accessibility, selection/ranges, complete
+fixture. Direct macOS AX focus now selects and reveals rich and ordinary links
+without activation, using the document's native focus owner and guarded current
+presentation. The full document walkthrough, focused retained-collapse check,
+native ownership/reset regressions and 225 Base text tests pass locally.
+Decoded-image/custom-control accessibility, selection/ranges, complete
 table and screen-reader behavior remain open. The Base initial-render failure
 reproduced on unchanged `dc25013` is now fixed by applying the initial selection
 setting at keyed-state construction. Its unchanged threshold and all 224 text/

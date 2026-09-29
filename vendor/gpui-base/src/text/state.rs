@@ -17,8 +17,8 @@ use crate::{
     async_util::{Receiver, Sender, unbounded},
     input::{self, SelectAll},
     text::{
-        CodeBlockActionsFn, CodeBlockHighlighterFn, LinkClickHandlerFn, MarkdownExtensions,
-        TableActionsFn, TextViewStyle,
+        CodeBlockActionsFn, CodeBlockHighlighterFn, LinkClickHandlerFn, LinkFocusGuardFn,
+        MarkdownExtensions, TableActionsFn, TextViewStyle,
         document::ParsedDocument,
         format,
         node::{self, NodeContext},
@@ -104,6 +104,7 @@ pub struct TextViewState {
     pub(super) code_block_highlighter: Option<std::sync::Arc<CodeBlockHighlighterFn>>,
     pub(super) table_actions: Option<std::sync::Arc<TableActionsFn>>,
     pub(super) link_click_handler: Option<std::sync::Arc<LinkClickHandlerFn>>,
+    pub(super) link_focus_guard: Option<Arc<LinkFocusGuardFn>>,
     pub(super) markdown_extensions: Arc<MarkdownExtensions>,
 
     pub(super) is_selecting: bool,
@@ -319,6 +320,7 @@ impl TextViewState {
             code_block_highlighter: None,
             table_actions: None,
             link_click_handler: None,
+            link_focus_guard: None,
             markdown_extensions: Arc::default(),
             is_selecting: false,
             preserve_inline_selection: false,
@@ -354,6 +356,40 @@ impl TextViewState {
             unchanged_prefix,
         );
         self.link_reveal = None;
+    }
+
+    pub(super) fn focus_link(
+        &mut self,
+        link: &node::LinkMark,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(source) = link.source_start else {
+            return;
+        };
+        let Ok(index) = self
+            .link_navigation
+            .links
+            .binary_search_by_key(&source, |entry| entry.source_start)
+        else {
+            return;
+        };
+        let target = &self.link_navigation.links[index];
+        if target.url != link.url
+            || self
+                .link_focus_guard
+                .as_ref()
+                .is_some_and(|guard| !guard(cx))
+        {
+            return;
+        }
+        self.link_navigation.active = Some(source);
+        self.link_reveal = Some(source);
+        if self.scrollable {
+            self.list_state.scroll_to_reveal_item(target.block);
+        }
+        self.focus_handle.focus(window, cx);
+        cx.notify();
     }
 
     pub(super) fn on_link_key(

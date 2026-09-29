@@ -717,6 +717,18 @@ def exercise_document_links(mac, images):
     assert roles.get('AXLink') == 2, roles
     document_link_reading_order(mac)
     document_structure(mac)
+    for label in ['Read the design notes', '世界 guide']:
+        link = mac.wait_find(TITLE, label, 'AXLink')
+        try:
+            mac.set(link, 'AXFocused', mac.true)
+            expect_focus(mac, label, 'AXLink')
+            mac.wait_text(TITLE, 'Ready to explore')  # Focusing does not navigate.
+        finally:
+            mac.release(link)
+    mac.key(48, 1 << 17)
+    expect_focus(mac, 'Read the design notes', 'AXLink')
+    mac.key(53)
+    expect_focus(mac, 'Document content', 'AXGroup')
     link = mac.wait_find(TITLE, 'Read the design notes', 'AXLink')
     try:
         mac.perform(link, 'AXPress')
@@ -734,6 +746,17 @@ def exercise_document_links(mac, images):
         mac.press(TITLE, 'Collapse')
         mac.release(mac.wait_find(TITLE, 'Expand', 'AXButton'))
         wait_absent(mac, 'Read the design notes', 'AXLink')
+        expand = mac.wait_find(TITLE, 'Expand', 'AXButton')
+        try:
+            mac.set(expand, 'AXFocused', mac.true)
+        finally:
+            mac.release(expand)
+        attribute = mac.string('AXFocused')
+        try:
+            # A retained OS target must not steal focus from collapsed content.
+            mac.set_attr(stale_link, attribute, mac.true)
+        finally:
+            mac.release(attribute)
         press = mac.string('AXPress')
         try:
             # An OS-retained reference may report success for an asynchronous
@@ -742,6 +765,7 @@ def exercise_document_links(mac, images):
         finally:
             mac.release(press)
         time.sleep(.1)
+        expect_focus(mac, 'Expand')
         mac.wait_text(TITLE, 'Link requested: gpuio-preview:unicode')
         mac.press(TITLE, 'Expand')
         mac.release(mac.wait_find(TITLE, 'Read the design notes', 'AXLink'))
@@ -802,8 +826,19 @@ def exercise_document_links(mac, images):
     mac.wait_text(TITLE, 'Link requested: gpuio-preview:finding-5')
     mac.key(53)  # Escape clears link focus without leaving the document.
     expect_focus(mac, 'Document content', 'AXGroup')
+    link = mac.wait_find(TITLE, 'Explore finding 6', 'AXLink')
+    try:
+        mac.set(link, 'AXFocused', mac.true)
+        expect_focus(mac, 'Explore finding 6', 'AXLink')
+        mac.wait_text(TITLE, 'Link requested: gpuio-preview:finding-5')
+        mac.key(36)
+        mac.wait_text(TITLE, 'Link requested: gpuio-preview:finding-6')
+    finally:
+        mac.release(link)
+    mac.key(53)
     print('GALLERY_DOCUMENT_LINKS_OK: rich text/code and safe-image alternative, '
-          'source reading order, AX press, Tab/Enter/reverse/Escape, collapse guard and far reveal', flush=True)
+          'source reading order, direct AX focus without activation, AX press, '
+          'Tab/Enter/reverse/Escape, retained collapse guard and far reveal', flush=True)
 
 
 def exercise_documents(mac, images):

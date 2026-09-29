@@ -47,6 +47,14 @@ block taller than the viewport. This is a one-shot request, not a permanent scro
 lock. Unchanged links can retain selection through an append; reset or a changed
 target clears it. Only the active link claims accessible descendant focus.
 
+A direct accessibility Focus request selects that logical link and uses the same
+document focus owner and one-shot reveal. It does not activate the destination.
+Enter remains a separate navigation action. The target's prepared source identity
+and URL must still match. Before changing focus, the native host checks the
+installed presentation, live source generation, rendered mode and current
+window/visibility/modal input scope. This predicate is native-only; it neither
+calls OCaml nor introduces one native focus handle per link.
+
 Collapse, unmount and inactive modal scopes remove or disable interaction with
 document bodies. Accessible actions must validate the current native presentation
 and focus scope, including delayed actions after replacement. Streaming preserves

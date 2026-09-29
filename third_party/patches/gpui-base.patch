@@ -744,7 +744,48 @@
      dyn Fn(&CodeBlock) -> Vec<(Range<usize>, gpui::HighlightStyle)> + Send + Sync;
  
  /// Application-wide defaults for TextViews that do not provide explicit
-@@ -306,6 +307,16 @@
+@@ -75,6 +76,8 @@
+ 
+ pub(crate) type LinkClickHandlerFn =
+     dyn Fn(&SharedString, &ClickEvent, &mut Window, &mut App) + Send + Sync;
++
++pub(crate) type LinkFocusGuardFn = dyn Fn(&App) -> bool + Send + Sync;
+ 
+ pub(crate) fn handle_link_click(
+     handler: &Option<Arc<LinkClickHandlerFn>>,
+@@ -128,6 +131,7 @@
+     code_block_highlighter: Option<Arc<CodeBlockHighlighterFn>>,
+     table_actions: Option<Arc<TableActionsFn>>,
+     link_click_handler: Option<Arc<LinkClickHandlerFn>>,
++    link_focus_guard: Option<Arc<LinkFocusGuardFn>>,
+     markdown_extensions: Arc<MarkdownExtensions>,
+ }
+ 
+@@ -172,6 +176,7 @@
+             code_block_highlighter: None,
+             table_actions: None,
+             link_click_handler: None,
++            link_focus_guard: None,
+             markdown_extensions: Arc::default(),
+         }
+     }
+@@ -193,6 +198,7 @@
+             code_block_highlighter: None,
+             table_actions: None,
+             link_click_handler: None,
++            link_focus_guard: None,
+             markdown_extensions: Arc::default(),
+         }
+     }
+@@ -214,6 +220,7 @@
+             code_block_highlighter: None,
+             table_actions: None,
+             link_click_handler: None,
++            link_focus_guard: None,
+             markdown_extensions: Arc::default(),
+         }
+     }
+@@ -306,6 +313,16 @@
          self
      }
  
@@ -761,7 +802,26 @@
      /// Set custom actions to be rendered below each Markdown table.
      ///
      /// The closure receives the [`TableData`],
-@@ -518,16 +529,20 @@
+@@ -330,6 +347,18 @@
+         F: Fn(&SharedString, &ClickEvent, &mut Window, &mut App) + Send + Sync + 'static,
+     {
+         self.link_click_handler = Some(Arc::new(handler));
++        self
++    }
++
++    /// Authorize direct accessibility focus before changing the logical link
++    /// or the document's native focus. Hosts can reject stale presentations or
++    /// modal-blocked content. This native predicate must not mutate the view.
++    /// Without a guard, any current prepared link may receive focus.
++    pub fn link_focus_guard<F>(mut self, guard: F) -> Self
++    where
++        F: Fn(&App) -> bool + Send + Sync + 'static,
++    {
++        self.link_focus_guard = Some(Arc::new(guard));
+         self
+     }
+ 
+@@ -518,16 +547,20 @@
          } else {
              let default_format = self.format.unwrap_or(TextViewFormat::Markdown);
              let default_text = self.text.clone().unwrap_or_default();
@@ -784,16 +844,18 @@
                  },
              );
              self.state = Some(state.clone());
-@@ -555,7 +570,7 @@
+@@ -554,8 +587,9 @@
+             state.code_block_highlighter = code_block_highlighter.clone();
              state.table_actions = self.table_actions.clone();
              state.link_click_handler = self.link_click_handler.clone();
++            state.link_focus_guard = self.link_focus_guard.clone();
              state.set_markdown_extensions(self.markdown_extensions.clone(), cx);
 -            state.selectable = self.selectable;
 +            state.set_selectable(self.selectable, cx);
              state.selection_format = self.selection_format;
              state.scrollable = self.scrollable;
              state.max_lines = max_lines;
-@@ -569,6 +584,8 @@
+@@ -569,6 +603,8 @@
              }
          });
  
@@ -802,7 +864,7 @@
          let focus_handle = state.read(cx).focus_handle.clone();
          let list_state = state.read(cx).list_state.clone();
          // Cap the box at `n` body-text lines (the effective text style may be
-@@ -582,21 +599,43 @@
+@@ -582,21 +618,43 @@
  
          let mut el = div()
              .id(("text-view-scroll", state.entity_id()))
@@ -848,7 +910,7 @@
              .child(state.clone())
              // Overlay controls must paint after the document, otherwise rich
              // content and selection backgrounds cover the thumb and hitbox.
-@@ -626,20 +665,22 @@
+@@ -626,20 +684,22 @@
      ) -> Self::PrepaintState {
          let state = request_layout.state.clone();
          let max_lines_active = state.read(cx).max_lines.is_some();
@@ -878,7 +940,7 @@
  
          let mut clip_bottom = None;
          if max_lines_active {
-@@ -709,6 +750,11 @@
+@@ -709,6 +769,11 @@
          }
          GlobalState::global_mut(cx).text_view_state_stack.pop();
  
@@ -890,7 +952,7 @@
          if self.selectable {
              let (adapter, scroll_offset, content_bounds, self_scroll) = {
                  let state = state.read(cx);
-@@ -1195,6 +1241,48 @@
+@@ -1195,6 +1260,48 @@
              .join("\n\n")
      }
  
@@ -939,7 +1001,7 @@
      /// Replacing a document with one that happens to have the *same* block
      /// count must still re-measure. `Document::render_root` only resets the
      /// list when the count changes, so without an explicit re-measure every
-@@ -1258,13 +1346,14 @@
+@@ -1258,13 +1365,14 @@
  
      struct StatelessMarkdownRoot {
          renders: Arc<AtomicUsize>,
@@ -955,7 +1017,7 @@
                      .markdown_block_parser(|_, _| None),
              )
          }
-@@ -1295,7 +1384,14 @@
+@@ -1295,7 +1403,14 @@
          let renders = Arc::new(AtomicUsize::new(0));
          let (_, cx) = cx.add_window_view({
              let renders = renders.clone();
@@ -971,7 +1033,7 @@
          });
          let cx: &mut VisualTestContext = cx;
  
-@@ -1305,6 +1401,38 @@
+@@ -1305,6 +1420,38 @@
              "an unchanged TextView must settle after its parse, but rendered {} times",
              renders.load(Ordering::Relaxed),
          );
@@ -1010,6 +1072,74 @@
      }
  
      #[gpui::test]
+@@ -2192,6 +2339,67 @@
+     }
+ 
+     #[gpui::test]
++    fn direct_link_focus_validates_identity_and_guard_without_activation(cx: &mut TestAppContext) {
++        cx.update(crate::init);
++        let (root, cx) = cx.add_window_view(|_, cx| {
++            TextViewTestRoot::new(
++                "[first](https://example.com/first) [second](https://example.com/second)",
++                cx,
++            )
++        });
++        let cx: &mut VisualTestContext = cx;
++        cx.run_until_parked();
++        let state = root.read_with(cx, |root, _| root.text_view.clone());
++        cx.update(|window, cx| {
++            state.update(cx, |state, cx| {
++                let target = state.link_navigation.links[1].clone();
++                let mark = super::super::node::LinkMark {
++                    source_start: Some(target.source_start),
++                    url: target.url.clone(),
++                    identifier: None,
++                    title: None,
++                };
++                window.blur(cx);
++                state.link_focus_guard = Some(Arc::new(|_| false));
++                state.focus_link(&mark, window, cx);
++                assert!(state.link_navigation.active.is_none());
++                assert!(!state.focus_handle.is_focused(window));
++                state.link_focus_guard = None;
++                for invalid in [
++                    super::super::node::LinkMark {
++                        source_start: None,
++                        ..mark.clone()
++                    },
++                    super::super::node::LinkMark {
++                        source_start: Some(usize::MAX),
++                        ..mark.clone()
++                    },
++                    super::super::node::LinkMark {
++                        url: "https://example.com/stale".into(),
++                        ..mark.clone()
++                    },
++                ] {
++                    state.focus_link(&invalid, window, cx);
++                    assert!(state.link_navigation.active.is_none());
++                    assert!(!state.focus_handle.is_focused(window));
++                }
++                state.focus_link(&mark, window, cx);
++                assert_eq!(state.link_navigation.active, Some(target.source_start));
++                assert_eq!(state.link_reveal, Some(target.source_start));
++                assert!(state.focus_handle.is_focused(window));
++                let previous = state.link_navigation.step(true).unwrap();
++                assert_eq!(previous.url, "https://example.com/first");
++                state.set_text("replacement with no links", cx);
++                window.blur(cx);
++                state.focus_link(&mark, window, cx);
++                assert!(state.link_navigation.active.is_none());
++                assert!(!state.focus_handle.is_focused(window));
++            });
++        });
++        assert_eq!(cx.opened_url(), None);
++    }
++
++    #[gpui::test]
+     fn link_handler_receives_button_and_modifiers(cx: &mut TestAppContext) {
+         use std::sync::{Arc, Mutex};
+ 
 --- a/src/input/base/state.rs
 +++ b/src/input/base/state.rs
 @@ -427,6 +427,7 @@
@@ -2254,7 +2384,7 @@
          self
      }
  
-@@ -244,6 +330,115 @@
+@@ -244,6 +330,128 @@
      ) -> Self {
          self.selection_source = Some((state, range));
          self
@@ -2329,6 +2459,10 @@
 +                        state.link_active_owner.as_ref() == Some(owner)
 +                    })
 +                });
++                let focus_target = view
++                    .as_ref()
++                    .filter(|_| link.source_start.is_some())
++                    .map(|view| (view.downgrade(), link.clone()));
 +                let url = link.url;
 +                let metadata_url = url.clone();
 +                let handler = self.link_click_handler.clone();
@@ -2336,6 +2470,15 @@
 +                    .role(gpui::Role::Link)
 +                    .aria_label(text)
 +                    .when(active, |element| element.aria_active_descendant())
++                    .when_some(focus_target, |element, (view, link)| {
++                        element.on_a11y_action(
++                            gpui::AccessibleAction::Focus,
++                            move |_, window, cx| {
++                                let _ = view
++                                    .update(cx, |state, cx| state.focus_link(&link, window, cx));
++                            },
++                        )
++                    })
 +                    .a11y_synthetic_children(move |builder| {
 +                        builder.parent_node().set_url(metadata_url.to_string())
 +                    })
@@ -2370,7 +2513,7 @@
      }
  
      /// Get link at given mouse position.
-@@ -547,7 +742,7 @@
+@@ -547,7 +755,7 @@
  
  impl Element for Inline {
      type RequestLayoutState = ();
@@ -2379,7 +2522,7 @@
  
      fn id(&self) -> Option<ElementId> {
          Some(self.id.clone())
-@@ -555,6 +750,25 @@
+@@ -555,6 +763,25 @@
  
      fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
          None
@@ -2405,7 +2548,7 @@
      }
  
      fn request_layout(
-@@ -568,7 +782,41 @@
+@@ -568,7 +795,41 @@
              .text_style
              .clone()
              .unwrap_or_else(|| window.text_style());
@@ -2448,7 +2591,7 @@
  
          self.styled_text = StyledText::new(self.text.clone()).with_runs(runs);
          let (layout_id, _) =
-@@ -593,11 +841,11 @@
+@@ -593,11 +854,11 @@
  
          // Report this element's laid-out extent so an ancestor TextView with
          // `max_lines` can snap its clip to a whole-line boundary. The state
@@ -2463,7 +2606,7 @@
                  && let Ok(mut line_spans) = state.line_spans.lock()
              {
                  line_spans.push(LineSpan {
-@@ -608,8 +856,36 @@
+@@ -608,8 +869,36 @@
              }
          }
  
@@ -2502,7 +2645,7 @@
      }
  
      fn paint(
-@@ -624,10 +900,90 @@
+@@ -624,10 +913,90 @@
      ) {
          let bounds = Bounds::new(self.paint_origin.unwrap_or(bounds.origin), bounds.size);
          let current_view = window.current_view();
@@ -2594,7 +2737,7 @@
  
          // layout selections
          let (is_selectable, is_selection, selection) =
-@@ -1088,8 +1444,37 @@
+@@ -1088,8 +1457,37 @@
  
  #[cfg(test)]
  mod tests {
@@ -3366,7 +3509,26 @@
 +}
 --- a/src/text/state.rs
 +++ b/src/text/state.rs
-@@ -111,11 +111,17 @@
+@@ -17,8 +17,8 @@
+     async_util::{Receiver, Sender, unbounded},
+     input::{self, SelectAll},
+     text::{
+-        CodeBlockActionsFn, CodeBlockHighlighterFn, LinkClickHandlerFn, MarkdownExtensions,
+-        TableActionsFn, TextViewStyle,
++        CodeBlockActionsFn, CodeBlockHighlighterFn, LinkClickHandlerFn, LinkFocusGuardFn,
++        MarkdownExtensions, TableActionsFn, TextViewStyle,
+         document::ParsedDocument,
+         format,
+         node::{self, NodeContext},
+@@ -104,6 +104,7 @@
+     pub(super) code_block_highlighter: Option<std::sync::Arc<CodeBlockHighlighterFn>>,
+     pub(super) table_actions: Option<std::sync::Arc<TableActionsFn>>,
+     pub(super) link_click_handler: Option<std::sync::Arc<LinkClickHandlerFn>>,
++    pub(super) link_focus_guard: Option<Arc<LinkFocusGuardFn>>,
+     pub(super) markdown_extensions: Arc<MarkdownExtensions>,
+ 
+     pub(super) is_selecting: bool,
+@@ -111,11 +112,17 @@
      pub(super) preserve_inline_selection: bool,
      multi_click_selection: Option<TextViewMultiClickSelection>,
      selected_text_override: Option<String>,
@@ -3384,7 +3546,7 @@
      /// Content format (markdown / html), used for bounded synchronous parsing
      /// of small full-replace updates.
      format: TextViewFormat,
-@@ -126,72 +132,176 @@
+@@ -126,72 +133,176 @@
      layout_text_style: Option<(gpui::TextStyle, Pixels)>,
      parsed_error: Option<SharedString>,
      tx: Sender<UpdateOptions>,
@@ -3600,7 +3762,14 @@
              select_all: false,
              selectable: false,
              selection_format: SelectionFormat::default(),
-@@ -215,6 +325,11 @@
+@@ -209,12 +320,18 @@
+             code_block_highlighter: None,
+             table_actions: None,
+             link_click_handler: None,
++            link_focus_guard: None,
+             markdown_extensions: Arc::default(),
+             is_selecting: false,
+             preserve_inline_selection: false,
              auto_scroll: AutoScroll::default(),
              selection_adapter,
              parsed_content: Default::default(),
@@ -3612,7 +3781,7 @@
              format,
              parsed_error: None,
              text: text.to_string(),
-@@ -226,8 +341,61 @@
+@@ -226,8 +343,95 @@
              _parse_task,
              _receive_task,
          };
@@ -3630,6 +3799,40 @@
 +            unchanged_prefix,
 +        );
 +        self.link_reveal = None;
++    }
++
++    pub(super) fn focus_link(
++        &mut self,
++        link: &node::LinkMark,
++        window: &mut Window,
++        cx: &mut Context<Self>,
++    ) {
++        let Some(source) = link.source_start else {
++            return;
++        };
++        let Ok(index) = self
++            .link_navigation
++            .links
++            .binary_search_by_key(&source, |entry| entry.source_start)
++        else {
++            return;
++        };
++        let target = &self.link_navigation.links[index];
++        if target.url != link.url
++            || self
++                .link_focus_guard
++                .as_ref()
++                .is_some_and(|guard| !guard(cx))
++        {
++            return;
++        }
++        self.link_navigation.active = Some(source);
++        self.link_reveal = Some(source);
++        if self.scrollable {
++            self.list_state.scroll_to_reveal_item(target.block);
++        }
++        self.focus_handle.focus(window, cx);
++        cx.notify();
 +    }
 +
 +    pub(super) fn on_link_key(
@@ -3675,7 +3878,21 @@
      }
  
      /// Get the text content.
-@@ -305,7 +473,12 @@
+@@ -243,7 +447,13 @@
+ 
+     /// Set whether the text is selectable, default false.
+     pub fn set_selectable(&mut self, selectable: bool, cx: &mut Context<Self>) {
++        if self.selectable == selectable {
++            return;
++        }
+         self.selectable = selectable;
++        if !selectable {
++            self.reset_selection_and_adapter(cx);
++        }
+         cx.notify();
+     }
+ 
+@@ -305,7 +515,12 @@
          self.increment_update(new_text, true, cx);
      }
  
@@ -3689,7 +3906,7 @@
          &mut self,
          markdown_extensions: Arc<MarkdownExtensions>,
          cx: &mut Context<Self>,
-@@ -321,10 +494,29 @@
+@@ -321,10 +536,29 @@
          if parser_configuration_changed && self.format == TextViewFormat::Markdown {
              let text = self.text.clone();
              self.increment_update(&text, false, cx);
@@ -3719,7 +3936,7 @@
      pub fn selected_text(&self) -> String {
          self.selected_text_in(None)
      }
-@@ -353,6 +545,11 @@
+@@ -353,6 +587,11 @@
      /// [`ParsedDocument::selected_text`](crate::text::document::ParsedDocument).
      pub(super) fn selected_text_in(&self, blocks: Option<RangeInclusive<usize>>) -> String {
          let format = self.effective_format();
@@ -3731,7 +3948,7 @@
  
          if self.select_all {
              if format == SelectionFormat::Source {
-@@ -436,6 +633,8 @@
+@@ -436,6 +675,8 @@
              match parse_content(self.format, ParsedContent::default(), &update_options) {
                  Ok(content) => {
                      self.parsed_content = content;
@@ -3740,7 +3957,7 @@
                      self.parsed_error = None;
                      self.invalidate_measured_heights();
                      if !self.is_selecting {
-@@ -524,6 +723,7 @@
+@@ -524,6 +765,7 @@
          self.preserve_inline_selection = false;
          self.multi_click_selection = None;
          self.selected_text_override = None;
@@ -3748,7 +3965,7 @@
          self.select_all = false;
          self.is_selecting = false;
          self.auto_scroll.stop();
-@@ -556,6 +756,7 @@
+@@ -556,6 +798,7 @@
      pub fn select_all(&mut self, cx: &mut Context<Self>) {
          self.multi_click_selection = None;
          self.selected_text_override = None;
@@ -3756,7 +3973,7 @@
          self.select_all = true;
          self.is_selecting = false;
          self.auto_scroll.stop();
-@@ -579,6 +780,7 @@
+@@ -579,6 +822,7 @@
              line_bounds: None,
          });
          self.selected_text_override = Some(selected_text);
@@ -3764,7 +3981,7 @@
          self.select_all = false;
          self.is_selecting = false;
          self.auto_scroll.stop();
-@@ -593,6 +795,7 @@
+@@ -593,6 +837,7 @@
              cx,
          );
          self.selected_text_override = None;
@@ -3772,7 +3989,7 @@
          let offset = self.bounds.origin + self.scroll_offset();
          if let Some(selection) = self.multi_click_selection.as_mut() {
              selection.line_bounds = Some(Bounds::new(bounds.origin - offset, bounds.size));
-@@ -697,6 +900,7 @@
+@@ -697,6 +942,7 @@
          let state = cx.entity();
          let document = self.parsed_content.document.clone();
          let mut node_cx = self.parsed_content.node_cx.clone();
@@ -3780,7 +3997,7 @@
  
          node_cx.code_block_actions = self.code_block_actions.clone();
          node_cx.code_block_highlighter = self.code_block_highlighter.clone();
-@@ -767,6 +971,77 @@
+@@ -767,6 +1013,77 @@
  pub(crate) struct ParsedContent {
      pub(crate) document: ParsedDocument,
      pub(crate) node_cx: node::NodeContext,
@@ -3858,7 +4075,7 @@
  }
  
  struct UpdateFuture {
-@@ -884,6 +1159,10 @@
+@@ -884,6 +1201,10 @@
      mut content: ParsedContent,
      options: &UpdateOptions,
  ) -> Result<ParsedContent, SharedString> {
@@ -4677,22 +4894,6 @@
                  let last = state.parsed_content.document.blocks.len().saturating_sub(1);
                  let blocks = blocks_for_copy.borrow().block_range(selection_id, last);
                  state.selected_text_in(blocks)
---- a/src/text/state.rs
-+++ b/src/text/state.rs
-@@ -411,7 +411,13 @@
- 
-     /// Set whether the text is selectable, default false.
-     pub fn set_selectable(&mut self, selectable: bool, cx: &mut Context<Self>) {
-+        if self.selectable == selectable {
-+            return;
-+        }
-         self.selectable = selectable;
-+        if !selectable {
-+            self.reset_selection_and_adapter(cx);
-+        }
-         cx.notify();
-     }
- 
 --- a/src/text_selection.rs
 +++ b/src/text_selection.rs
 @@ -1084,6 +1084,7 @@
@@ -5370,7 +5571,7 @@
 +}
 --- /dev/null
 +++ b/src/text/inline_semantics.rs
-@@ -0,0 +1,405 @@
+@@ -0,0 +1,418 @@
 +//! Frame-local reading order and logical links for measured rich paragraphs.
 +use std::{cell::RefCell, collections::BTreeMap, rc::Rc, sync::Arc};
 +
@@ -5643,12 +5844,25 @@
 +                });
 +                let active = active && !std::mem::replace(&mut active_claimed, true);
 +                let url = link.url.clone();
++                let focus_target = view
++                    .as_ref()
++                    .filter(|_| link.source_start.is_some())
++                    .map(|view| (view.downgrade(), link.clone()));
 +                let metadata_url = url.clone();
 +                let handler = handler.clone();
 +                element = element
 +                    .role(gpui::Role::Link)
 +                    .aria_label(label)
 +                    .when(active, |element| element.aria_active_descendant())
++                    .when_some(focus_target, |element, (view, link)| {
++                        element.on_a11y_action(
++                            gpui::AccessibleAction::Focus,
++                            move |_, window, cx| {
++                                let _ = view
++                                    .update(cx, |state, cx| state.focus_link(&link, window, cx));
++                            },
++                        )
++                    })
 +                    .a11y_synthetic_children(move |builder| {
 +                        builder.parent_node().set_url(metadata_url.to_string())
 +                    })

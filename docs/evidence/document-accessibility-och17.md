@@ -4,6 +4,43 @@ Partial release finding repair, 2026-09-28, macOS 14.5 (23F79), arm64.
 The [contract](../design/document-accessibility.md) describes the full intended
 behavior. This checkpoint does not complete document accessibility or OCH-17.
 
+## Direct link focus — 2026-09-29
+
+The external macOS gallery test reproduced a missing action: setting AXFocused
+on the rich Markdown link did not focus it. Both ordinary Inline and rich
+InlineFlow semantic links now advertise and handle Focus. They validate the
+prepared source identity and URL, select the logical link and reveal it through
+the existing document focus owner. No navigation occurs until a separate
+activation. The host's native predicate rejects collapsed/source presentations,
+stale installed revisions or source generations, retired owners and input scopes
+blocked by the existing visibility/modal controller. No OCaml API, protocol or
+AccessKit modification is needed.
+
+The full `scripts/test_gallery.py --section documents` walkthrough passes on
+macOS 14.5 arm64: rich/code-font and Unicode image-placeholder links accept direct
+AX focus without navigation; Shift-Tab/Escape preserve the logical order and
+document owner; ordinary streamed links accept focus and Enter navigation.
+Retained collapsed links cannot steal focus or activate. Existing heading/table,
+streaming/reset, code/diff, copy and repeated remount checks also pass. The focused
+link test additionally checks the retained-node focus result after asynchronous
+action delivery and distinguishes focus from the subsequent Enter destination.
+
+The Base text suite passes **225 tests**, including the new identity/URL/guard
+rejection, successful focus, reverse navigation and source-replacement regression.
+The real native document suite passes, including installed-revision, collapsed,
+source-mode and native-hidden predicate checks, and source-generation rejection
+before/after presenter refresh during held reset installation. Strict native/
+protocol Clippy (`--all-targets --features native-image-tests -- -D warnings`),
+formatting and exact reconstruction of all 233 Base files pass. The cumulative
+Base patch SHA-256 is
+`621805197c758798969a388b20b04774cf6307da9592dda89477cc43e586ae7e`.
+
+This checkpoint covers external AX requests and native guard behavior. It does
+not establish an actual VoiceOver session or complete modal assistive-navigation
+acceptance. Decoded/unlinked images, custom control reading order, selected-text/
+range APIs and remaining release requirements stay open. The older direct-focus
+gap descriptions below are historical and are superseded by this checkpoint.
+
 ## Initial stateless-text rendering — 2026-09-29
 
 The earlier Base initial-render failure is repaired without relaxing its existing

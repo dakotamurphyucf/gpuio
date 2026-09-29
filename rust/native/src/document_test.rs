@@ -359,6 +359,46 @@ async fn exercise(
     markdown.read_with(cx, |p, _| {
         assert_eq!(p.images.0.len(), 1, "explicit registered image decoded")
     });
+    let focus_revision = markdown.read_with(cx, |p, cx| {
+        let installed = p.installed.as_ref().unwrap();
+        let revision = Some((installed.generation, installed.revision));
+        assert!(p.allows_link_focus(revision, &markdown, cx));
+        assert!(!p.allows_link_focus(None, &markdown, cx));
+        assert!(!p.allows_link_focus(
+            Some((installed.generation, installed.revision + 1)),
+            &markdown,
+            cx
+        ));
+        revision
+    });
+    markdown.update(cx, |p, cx| {
+        p.collapsed = true;
+        assert!(!p.allows_link_focus(focus_revision, &markdown, cx));
+        p.collapsed = false;
+        p.source_mode = true;
+        assert!(!p.allows_link_focus(focus_revision, &markdown, cx));
+        p.source_mode = false;
+        assert!(p.allows_link_focus(focus_revision, &markdown, cx));
+    });
+    window
+        .update(cx, |view, _, _| {
+            view.focus
+                .borrow_mut()
+                .set_query_hidden([node()].into_iter().collect());
+        })
+        .unwrap();
+    markdown.read_with(cx, |p, cx| {
+        assert!(!p.allows_link_focus(focus_revision, &markdown, cx))
+    });
+    window
+        .update(cx, |view, _, _| {
+            view.focus.borrow_mut().set_query_hidden(Default::default());
+        })
+        .unwrap();
+    // Read outside the root update: the guard reads the presentation's owner.
+    markdown.read_with(cx, |p, cx| {
+        assert!(p.allows_link_focus(focus_revision, &markdown, cx))
+    });
     session
         .borrow_mut()
         .assets()

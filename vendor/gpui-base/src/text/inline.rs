@@ -401,6 +401,10 @@ impl Inline {
                         state.link_active_owner.as_ref() == Some(owner)
                     })
                 });
+                let focus_target = view
+                    .as_ref()
+                    .filter(|_| link.source_start.is_some())
+                    .map(|view| (view.downgrade(), link.clone()));
                 let url = link.url;
                 let metadata_url = url.clone();
                 let handler = self.link_click_handler.clone();
@@ -408,6 +412,15 @@ impl Inline {
                     .role(gpui::Role::Link)
                     .aria_label(text)
                     .when(active, |element| element.aria_active_descendant())
+                    .when_some(focus_target, |element, (view, link)| {
+                        element.on_a11y_action(
+                            gpui::AccessibleAction::Focus,
+                            move |_, window, cx| {
+                                let _ = view
+                                    .update(cx, |state, cx| state.focus_link(&link, window, cx));
+                            },
+                        )
+                    })
                     .a11y_synthetic_children(move |builder| {
                         builder.parent_node().set_url(metadata_url.to_string())
                     })

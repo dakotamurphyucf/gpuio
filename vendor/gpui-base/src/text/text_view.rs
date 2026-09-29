@@ -77,6 +77,8 @@ pub(crate) type TableActionsFn =
 pub(crate) type LinkClickHandlerFn =
     dyn Fn(&SharedString, &ClickEvent, &mut Window, &mut App) + Send + Sync;
 
+pub(crate) type LinkFocusGuardFn = dyn Fn(&App) -> bool + Send + Sync;
+
 pub(crate) fn handle_link_click(
     handler: &Option<Arc<LinkClickHandlerFn>>,
     url: SharedString,
@@ -129,6 +131,7 @@ pub struct TextView {
     code_block_highlighter: Option<Arc<CodeBlockHighlighterFn>>,
     table_actions: Option<Arc<TableActionsFn>>,
     link_click_handler: Option<Arc<LinkClickHandlerFn>>,
+    link_focus_guard: Option<Arc<LinkFocusGuardFn>>,
     markdown_extensions: Arc<MarkdownExtensions>,
 }
 
@@ -173,6 +176,7 @@ impl TextView {
             code_block_highlighter: None,
             table_actions: None,
             link_click_handler: None,
+            link_focus_guard: None,
             markdown_extensions: Arc::default(),
         }
     }
@@ -194,6 +198,7 @@ impl TextView {
             code_block_highlighter: None,
             table_actions: None,
             link_click_handler: None,
+            link_focus_guard: None,
             markdown_extensions: Arc::default(),
         }
     }
@@ -215,6 +220,7 @@ impl TextView {
             code_block_highlighter: None,
             table_actions: None,
             link_click_handler: None,
+            link_focus_guard: None,
             markdown_extensions: Arc::default(),
         }
     }
@@ -341,6 +347,18 @@ impl TextView {
         F: Fn(&SharedString, &ClickEvent, &mut Window, &mut App) + Send + Sync + 'static,
     {
         self.link_click_handler = Some(Arc::new(handler));
+        self
+    }
+
+    /// Authorize direct accessibility focus before changing the logical link
+    /// or the document's native focus. Hosts can reject stale presentations or
+    /// modal-blocked content. This native predicate must not mutate the view.
+    /// Without a guard, any current prepared link may receive focus.
+    pub fn link_focus_guard<F>(mut self, guard: F) -> Self
+    where
+        F: Fn(&App) -> bool + Send + Sync + 'static,
+    {
+        self.link_focus_guard = Some(Arc::new(guard));
         self
     }
 
@@ -569,6 +587,7 @@ impl Element for TextView {
             state.code_block_highlighter = code_block_highlighter.clone();
             state.table_actions = self.table_actions.clone();
             state.link_click_handler = self.link_click_handler.clone();
+            state.link_focus_guard = self.link_focus_guard.clone();
             state.set_markdown_extensions(self.markdown_extensions.clone(), cx);
             state.set_selectable(self.selectable, cx);
             state.selection_format = self.selection_format;
@@ -2316,6 +2335,67 @@ mod tests {
             Modifiers::default(),
         );
 
+        assert_eq!(cx.opened_url(), None);
+    }
+
+    #[gpui::test]
+    fn direct_link_focus_validates_identity_and_guard_without_activation(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let (root, cx) = cx.add_window_view(|_, cx| {
+            TextViewTestRoot::new(
+                "[first](https://example.com/first) [second](https://example.com/second)",
+                cx,
+            )
+        });
+        let cx: &mut VisualTestContext = cx;
+        cx.run_until_parked();
+        let state = root.read_with(cx, |root, _| root.text_view.clone());
+        cx.update(|window, cx| {
+            state.update(cx, |state, cx| {
+                let target = state.link_navigation.links[1].clone();
+                let mark = super::super::node::LinkMark {
+                    source_start: Some(target.source_start),
+                    url: target.url.clone(),
+                    identifier: None,
+                    title: None,
+                };
+                window.blur(cx);
+                state.link_focus_guard = Some(Arc::new(|_| false));
+                state.focus_link(&mark, window, cx);
+                assert!(state.link_navigation.active.is_none());
+                assert!(!state.focus_handle.is_focused(window));
+                state.link_focus_guard = None;
+                for invalid in [
+                    super::super::node::LinkMark {
+                        source_start: None,
+                        ..mark.clone()
+                    },
+                    super::super::node::LinkMark {
+                        source_start: Some(usize::MAX),
+                        ..mark.clone()
+                    },
+                    super::super::node::LinkMark {
+                        url: "https://example.com/stale".into(),
+                        ..mark.clone()
+                    },
+                ] {
+                    state.focus_link(&invalid, window, cx);
+                    assert!(state.link_navigation.active.is_none());
+                    assert!(!state.focus_handle.is_focused(window));
+                }
+                state.focus_link(&mark, window, cx);
+                assert_eq!(state.link_navigation.active, Some(target.source_start));
+                assert_eq!(state.link_reveal, Some(target.source_start));
+                assert!(state.focus_handle.is_focused(window));
+                let previous = state.link_navigation.step(true).unwrap();
+                assert_eq!(previous.url, "https://example.com/first");
+                state.set_text("replacement with no links", cx);
+                window.blur(cx);
+                state.focus_link(&mark, window, cx);
+                assert!(state.link_navigation.active.is_none());
+                assert!(!state.focus_handle.is_focused(window));
+            });
+        });
         assert_eq!(cx.opened_url(), None);
     }
 
