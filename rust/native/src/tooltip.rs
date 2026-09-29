@@ -522,7 +522,8 @@ impl View {
                         align: Align::Center,
                         offset: 6.,
                     }),
-                    content: panel.into_any_element(),
+                    content: super::highlight_style::Frame::part(panel, node, 1, &self.focus)
+                        .into_any_element(),
                 })
                 .with_priority(priority),
             );

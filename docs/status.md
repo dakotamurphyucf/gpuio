@@ -51,6 +51,13 @@ and distant-link reveal. Rich/image links, selection/ranges, table and screen-re
 behavior remain open. No full document screen-reader or Linux desktop acceptance
 is claimed.
 
+Deferred overlay, tooltip/hover-card, toast/stack and context-menu highlighting
+now passes native count/GPU/lifetime checks. Floating-panel visibility preserves
+its anchor; role swaps and child replacement reject obsolete samples. Toast stack
+state styles now apply consistently with individual notifications. The full
+native controls regression passes. See the [deferred visibility evidence](evidence/subtree-highlighting-och41.md#deferred-surface-visibility);
+remaining specialized styling, catalog and release gates are still open.
+
 The macOS-first/Linux-deferral policy [PR #15](https://github.com/dakotamurphyucf/gpuio/pull/15)
 merged at `af7f6f0c0f9db1c64a8591d9e9a078aa73eacdec` after both required jobs in
 [CI run 36453260976](https://github.com/dakotamurphyucf/gpuio/actions/runs/36453260976)

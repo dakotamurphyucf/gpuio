@@ -290,8 +290,17 @@ computed Display/Visibility, including hover/pressed/focus refinements. The
 window records the final layout/paint sample, commits it after the complete paint
 cycle and invalidates matching only when resolved visibility changes. Offscreen
 clipping does not mark a node hidden. Records use generational IDs and weak style
-identity; restyles and removals invalidate them. Deferred/specialized renderer
-paths still require the same integration and acceptance audit.
+identity; restyles and removals invalidate them. Overlay panels, notifications,
+notification stacks and menu roots use the same observer on their actual styled
+elements. Tooltip and hover-card styles target their floating panel: the visibility
+record gates only the content child, preserving the visible anchor. That record
+also captures the child's position and generational ID; replacement or changing
+anchor/content roles rejects obsolete samples. A content child's own hidden style
+still applies independently. Native hover/open/close checks verify counts, paint,
+quiet stable frames and nested scope disposal for these paths. Notification stack
+focus/hover/pressed refinements now apply like the individual notification panel;
+hover follows GPUI hit testing, including occlusion by a child notification.
+Other specialized paths, including document-root state styling, remain under audit.
 Actual virtual-list recycling, installed native pages, controlled
 tabs/disclosures and native responsive branch changes also have focused evidence.
 

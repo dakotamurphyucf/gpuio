@@ -767,3 +767,45 @@ Additional local validation for this patch:
 These consumer runs validate the fork wiring and existing consumer self-tests.
 The full milestone's installed-consumer matrix, clean-machine checks, combined
 gallery and required hosted macOS/Linux release gates remain outstanding.
+
+
+## Deferred surface visibility
+
+The resolved-style observer now wraps the actual overlay, toast, toast-stack and
+menu root. Tooltip/hover-card panel samples gate the content child without hiding
+its anchor. Samples retain only weak style identity and a generational child ID
+with its position; changed styles, removed/replaced children and anchor/content
+role swaps invalidate obsolete samples. Native child styles compose with the panel
+gate. No protocol, OCaml API or additional fork changes are needed.
+
+On macOS 14.5 arm64, `native_highlight_view` now includes a separate deferred-surface
+window with real GPUI input dispatch, GPU pixel checks and queued observations:
+
+- Controlled tooltips and hover cards keep one anchor match while closed or
+  hover-hidden, show three while open, and restore the panel's two matches on
+  hover exit. The visible anchor retains its GPU wash throughout.
+- Dialog, individual toast, toast stack and context-menu content lose all matches
+  and red wash while hover-hidden, then restore both on exit. Metadata such as
+  the menu label is not projected as ordinary text.
+- Nested empty scopes are released when unpainted or closed and remounted when
+  shown. Stable hidden frames reuse the result and emit no extra observation.
+  Removing each family clears its painted highlights.
+- Stack state refinements were previously discarded; focus-within, hover and
+  pressed styles now follow the same application policy as the toast panel.
+  The hover fixture targets exposed stack padding because a notification's own
+  hitbox intentionally occludes its parent. This preserves native pointer policy.
+
+The full `native_controls` suite also passes locally, covering its existing
+sheet/dialog/popover, tooltip, menu, toast, input/focus and macOS accessibility
+regressions. Both processes ran sequentially under 90-second watchdogs and were
+reaped. These checks use synthetic GPUI input and do not establish physical
+keyboard/IME or Linux desktop qualification.
+
+The pure visibility regression additionally checks invalid descendant targets,
+child-style composition, role swaps and child generation replacement. Workspace
+library tests with `gpuio-native/native-image-tests`, `--locked -j2` pass (441 tests);
+two private-bus tests remain excluded by that command. Strict native/protocol
+all-target Clippy with `native-image-tests` and `-D warnings`, Rust formatting and
+diff whitespace checks pass. Document-root state styling,
+native diff hunk-fold mapping, broader input/resource/performance acceptance,
+combined gallery/consumer/hosted checks and the remaining release gates stay open.

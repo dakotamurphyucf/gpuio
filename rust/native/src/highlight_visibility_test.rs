@@ -2,6 +2,8 @@
 //! activation is needed; controlled panels use the same tree updates as Bonsai.
 use super::*;
 
+#[path = "highlight_deferred_test.rs"]
+mod deferred;
 #[path = "highlight_navigation_test.rs"]
 mod navigation;
 #[path = "highlight_state_style_test.rs"]
@@ -368,4 +370,5 @@ pub(super) async fn exercise(
     if let Err(error) = checked {
         std::panic::resume_unwind(error);
     }
+    deferred::exercise(cx, session, transport).await;
 }

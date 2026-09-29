@@ -12,7 +12,13 @@ use std::sync::Arc;
 
 pub(super) struct Frame<E> {
     element: E,
-    binding: Option<(NodeId, Arc<[Style]>, focus::Shared)>,
+    binding: Option<Binding>,
+}
+struct Binding {
+    node: NodeId,
+    part: Option<(usize, NodeId)>,
+    styles: Arc<[Style]>,
+    focus: focus::Shared,
 }
 impl<E> Frame<E> {
     pub(super) fn new(element: E, node: &crate::tree::Node, focus: &focus::Shared) -> Self {
@@ -23,8 +29,25 @@ impl<E> Frame<E> {
         });
         Self {
             element,
-            binding: dynamic.then(|| (node.id, node.style.clone(), focus.clone())),
+            binding: dynamic.then(|| Binding {
+                node: node.id,
+                part: None,
+                styles: node.style.clone(),
+                focus: focus.clone(),
+            }),
         }
+    }
+    pub(super) fn part(
+        element: E,
+        node: &crate::tree::Node,
+        part: usize,
+        focus: &focus::Shared,
+    ) -> Self {
+        let mut frame = Self::new(element, node, focus);
+        if let Some(binding) = &mut frame.binding {
+            binding.part = Some((part, node.children[part]));
+        }
+        frame
     }
 }
 impl<E: Element<PrepaintState = Option<Hitbox>> + InteractiveElement> Frame<E> {
@@ -35,7 +58,7 @@ impl<E: Element<PrepaintState = Option<Hitbox>> + InteractiveElement> Frame<E> {
         window: &mut Window,
         cx: &mut App,
     ) {
-        let Some((node, styles, focus)) = &self.binding else {
+        let Some(binding) = &self.binding else {
             return;
         };
         let style = self
@@ -44,7 +67,13 @@ impl<E: Element<PrepaintState = Option<Hitbox>> + InteractiveElement> Frame<E> {
             .compute_style(id, hitbox, window, cx);
         let hidden =
             style.display == gpui::Display::None || style.visibility == gpui::Visibility::Hidden;
-        focus.borrow_mut().highlight_style(*node, styles, hidden);
+        let mut focus = binding.focus.borrow_mut();
+        match binding.part {
+            None => focus.highlight_style(binding.node, &binding.styles, hidden),
+            Some(part) => {
+                focus.highlight_part_style(binding.node, Some(part), &binding.styles, hidden)
+            }
+        }
     }
 }
 impl<E: Element<PrepaintState = Option<Hitbox>> + InteractiveElement> IntoElement for Frame<E> {

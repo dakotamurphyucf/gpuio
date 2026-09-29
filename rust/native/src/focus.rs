@@ -177,6 +177,103 @@ mod search_visibility_tests {
             "removed nodes retain no visibility records"
         );
     }
+
+    #[test]
+    fn panel_visibility_preserves_anchor_and_fences_replaced_children() {
+        let session = Rc::new(RefCell::new(crate::session::Session::default()));
+        let window = WindowId::from_parts(0, 1).unwrap();
+        session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
+        session
+            .borrow_mut()
+            .open(1, window, "parts", 400., 200.)
+            .unwrap();
+        let id = |slot| NodeId::from_parts(slot, 1).unwrap();
+        let apply = |operations| {
+            let base = session.borrow().tree(window).unwrap().revision();
+            session
+                .borrow_mut()
+                .apply(&Transaction {
+                    window,
+                    base,
+                    revision: base + 1,
+                    operations,
+                })
+                .unwrap();
+        };
+        apply(vec![
+            Op::Create(id(0), Kind::Container, "".into(), None),
+            Op::SetStyle(id(0), vec![Style::State(2, vec![Field::Visibility(1)])]),
+            Op::Create(id(1), Kind::Text, "anchor".into(), None),
+            Op::Create(id(2), Kind::Container, "".into(), None),
+            Op::Create(id(3), Kind::Text, "content".into(), None),
+            Op::Splice(id(2), 0, 0, vec![id(3)]),
+            Op::Splice(id(0), 0, 0, vec![id(1), id(2)]),
+            Op::SetRoot(Some(id(0))),
+        ]);
+        let manager = Manager::new(window, session.clone());
+        let mut manager = manager.borrow_mut();
+        let source = session
+            .borrow()
+            .tree(window)
+            .unwrap()
+            .get(id(0))
+            .unwrap()
+            .style
+            .clone();
+        let visible = |manager: &Manager, node| {
+            manager.highlight_visible(session.borrow().tree(window).unwrap(), node)
+        };
+        // A part can only name a direct child, never an arbitrary descendant.
+        manager.highlight_part_style(id(0), Some((1, id(3))), &source, true);
+        assert!(manager.highlight_styles.is_empty());
+        manager.highlight_part_style(id(0), Some((1, id(2))), &source, true);
+        assert!(manager.commit_highlight_styles());
+        assert!(visible(&manager, id(0)));
+        assert!(visible(&manager, id(1)));
+        assert!(!visible(&manager, id(2)));
+        assert!(!visible(&manager, id(3)));
+        // Revealing the floating panel does not override its child's own style.
+        apply(vec![Op::SetStyle(
+            id(2),
+            vec![Style::Fields(vec![Field::Visibility(1)])],
+        )]);
+        manager.highlight_part_style(id(0), Some((1, id(2))), &source, false);
+        manager.commit_highlight_styles();
+        assert!(!visible(&manager, id(3)));
+        assert!(visible(&manager, id(1)));
+        apply(vec![Op::SetStyle(id(2), vec![])]);
+        assert!(visible(&manager, id(3)));
+        manager.highlight_part_style(id(0), Some((1, id(2))), &source, true);
+        manager.commit_highlight_styles();
+        // Swapping child roles cannot apply an old panel sample to the anchor.
+        apply(vec![Op::Splice(id(0), 0, 2, vec![id(2), id(1)])]);
+        manager.prune_highlight_styles();
+        assert!(manager.highlight_styles.is_empty());
+        manager.highlight_part_style(id(0), Some((1, id(2))), &source, true);
+        assert!(manager.highlight_styles.is_empty());
+        assert!(visible(&manager, id(3)));
+        apply(vec![Op::Splice(id(0), 0, 2, vec![id(1), id(2)])]);
+        manager.highlight_part_style(id(0), Some((1, id(2))), &source, true);
+        manager.commit_highlight_styles();
+        // The owner style identity is unchanged, but the target generation is new.
+        let replacement = NodeId::from_parts(2, 2).unwrap();
+        apply(vec![
+            Op::Splice(id(0), 1, 1, vec![]),
+            Op::Remove(id(3)),
+            Op::Remove(id(2)),
+            Op::Create(replacement, Kind::Text, "new content".into(), None),
+            Op::Splice(id(0), 1, 0, vec![replacement]),
+        ]);
+        manager.prune_highlight_styles();
+        assert!(manager.highlight_styles.is_empty());
+        manager.highlight_part_style(id(0), Some((1, id(2))), &source, true);
+        assert!(manager.highlight_styles.is_empty());
+        assert!(visible(&manager, replacement));
+        manager.highlight_part_style(id(0), Some((1, replacement)), &source, true);
+        assert!(manager.commit_highlight_styles());
+        assert!(!visible(&manager, replacement));
+        assert!(visible(&manager, id(1)));
+    }
 }
 
 fn navigation_hidden(tree: &crate::tree::Tree, node: &crate::tree::Node) -> bool {
@@ -201,6 +298,8 @@ struct Navigation {
 pub(super) type Shared = Rc<RefCell<Manager>>;
 struct HighlightStyle {
     source: std::sync::Weak<[Style]>,
+    /// None observes the owner; Some gates a child at its captured position.
+    part: Option<(usize, NodeId)>,
     hidden: bool,
     pending: Option<bool>,
 }
@@ -330,23 +429,41 @@ impl Manager {
         styles: &std::sync::Arc<[Style]>,
         hidden: bool,
     ) {
+        self.highlight_part_style(node, None, styles, hidden);
+    }
+    pub(super) fn highlight_part_style(
+        &mut self,
+        node: NodeId,
+        part: Option<(usize, NodeId)>,
+        styles: &std::sync::Arc<[Style]>,
+        hidden: bool,
+    ) {
         let session = self.session.borrow();
         if !session
             .tree(self.window)
             .and_then(|t| t.get(node))
-            .is_some_and(|n| std::sync::Arc::ptr_eq(&n.style, styles))
+            .is_some_and(|n| {
+                std::sync::Arc::ptr_eq(&n.style, styles)
+                    && part.is_none_or(|(index, part)| n.children.get(index) == Some(&part))
+            })
         {
             return;
         }
         let previous = self
             .highlight_styles
             .get(&node)
-            .filter(|entry| entry.source.ptr_eq(&std::sync::Arc::downgrade(styles)))
-            .map_or_else(|| search_style_hidden(styles), |entry| entry.hidden);
+            .filter(|entry| {
+                entry.part == part && entry.source.ptr_eq(&std::sync::Arc::downgrade(styles))
+            })
+            .map_or_else(
+                || part.is_none() && search_style_hidden(styles),
+                |entry| entry.hidden,
+            );
         self.highlight_styles.insert(
             node,
             HighlightStyle {
                 source: std::sync::Arc::downgrade(styles),
+                part,
                 hidden: previous,
                 pending: Some(hidden),
             },
@@ -370,11 +487,27 @@ impl Manager {
         changed
     }
 
-    fn highlight_style_hidden(&self, node: &crate::tree::Node) -> bool {
-        self.highlight_styles
+    fn highlight_style_hidden(&self, tree: &crate::tree::Tree, node: &crate::tree::Node) -> bool {
+        let own = self
+            .highlight_styles
             .get(&node.id)
-            .filter(|entry| entry.source.ptr_eq(&std::sync::Arc::downgrade(&node.style)))
-            .map_or_else(|| search_style_hidden(&node.style), |entry| entry.hidden)
+            .filter(|entry| {
+                entry.part.is_none() && entry.source.ptr_eq(&std::sync::Arc::downgrade(&node.style))
+            })
+            .map_or_else(|| search_style_hidden(&node.style), |entry| entry.hidden);
+        own || node
+            .parent
+            .and_then(|parent| tree.get(parent))
+            .is_some_and(|parent| {
+                self.highlight_styles.get(&parent.id).is_some_and(|entry| {
+                    entry.part.is_some_and(|(index, part)| {
+                        part == node.id && parent.children.get(index) == Some(&part)
+                    }) && entry.hidden
+                        && entry
+                            .source
+                            .ptr_eq(&std::sync::Arc::downgrade(&parent.style))
+                })
+            })
     }
     /// Visual search eligibility is independent of focus, disabled controls and
     /// modal interaction gates. Hidden popup/query/navigation branches still
@@ -388,7 +521,7 @@ impl Manager {
             if self.hidden.contains(&id)
                 || self.query_hidden.contains(&id)
                 || navigation_hidden(tree, item)
-                || self.highlight_style_hidden(item)
+                || self.highlight_style_hidden(tree, item)
             {
                 return false;
             }
@@ -546,8 +679,12 @@ impl Manager {
         let session = self.session.borrow();
         let tree = session.tree(self.window);
         self.highlight_styles.retain(|id, entry| {
-            tree.and_then(|tree| tree.get(*id))
-                .is_some_and(|node| entry.source.ptr_eq(&std::sync::Arc::downgrade(&node.style)))
+            tree.and_then(|tree| tree.get(*id)).is_some_and(|node| {
+                entry.source.ptr_eq(&std::sync::Arc::downgrade(&node.style))
+                    && entry
+                        .part
+                        .is_none_or(|(index, part)| node.children.get(index) == Some(&part))
+            })
         });
     }
     pub(super) fn sync(&mut self, window: &mut Window, cx: &mut App) {

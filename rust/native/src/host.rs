@@ -1542,6 +1542,7 @@ impl View {
                 },
                 scrolling.as_ref(),
                 window,
+                node,
             );
         }
         if let Some(config) = &node.drag_source

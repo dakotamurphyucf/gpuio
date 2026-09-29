@@ -779,7 +779,7 @@ impl View {
             hidden: false,
             metadata: None,
             live: None,
-            element: base,
+            element: super::highlight_style::Frame::new(base, node, &self.focus),
             disabled,
             read_only: false,
             modal: false,
