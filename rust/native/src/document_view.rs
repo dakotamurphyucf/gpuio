@@ -94,6 +94,7 @@ pub(super) struct Presentation {
     source_lines: usize,
     installed: Option<Arc<Snapshot>>,
     images: document_markdown::Images,
+    markdown_extensions: gpui_base::text::MarkdownExtensions,
 }
 struct MarkdownHighlight {
     source: Arc<gpui_base::text::DisplayedText>,
@@ -181,9 +182,9 @@ impl Presentation {
             // malformed metadata clears old washes rather than decorating stale text.
             let _ = editor.set_range_backgrounds(backgrounds, cx);
         });
-        let source = self
-            .markdown_highlight_source(cx)
-            .filter(|source| source.opaque_nodes() == 0);
+        let source = self.markdown_highlight_source(cx).filter(|source| {
+            self.highlight.is_some() && source.opaque_nodes() == 0 && !source.fragments().is_empty()
+        });
         if let Some(source) = source {
             let installed = self.installed.as_ref().unwrap();
             let paints: Vec<_> = source
@@ -212,7 +213,12 @@ impl Presentation {
                             _ => false,
                         })
             });
-            if !same {
+            if paints.iter().all(Option::is_none) {
+                // No washes means no extra paint owner. Individual unpainted
+                // fragments are normal; any actual wash retains the complete
+                // admitted Ready/source projection through its provider.
+                self.markdown_highlight = None;
+            } else if !same {
                 let layers = paints
                     .iter()
                     .map(|paint| paint.as_ref().map(|paint| paint.editor_backgrounds()))
@@ -300,6 +306,7 @@ impl Presentation {
             source_lines: 1,
             installed: None,
             images: Default::default(),
+            markdown_extensions: document_markdown::extensions(Default::default()),
         }
     }
     fn primary_focus(&self, cx: &App) -> gpui::FocusHandle {
@@ -544,7 +551,13 @@ impl Presentation {
                                     0
                                 }
                             });
-                        state.update(cx, |state, cx| state.set_prepared(*document, prefix, cx));
+                        state.update(cx, |state, cx| {
+                            state.set_prepared(*document, prefix, cx);
+                            state.set_markdown_extensions(
+                                Arc::new(self.markdown_extensions.clone()),
+                                cx,
+                            );
+                        });
                         self.code_highlighter = Some(Arc::new(move |block| {
                             let key = (
                                 block
@@ -962,13 +975,11 @@ impl Render for Presentation {
                 .code_highlighter
                 .clone()
                 .expect("prepared Markdown highlighter");
-            let mut images = document_markdown::Images::default();
-            images.0.clone_from(&self.images.0);
             let text = TextView::new(state)
                 .style(markdown_style(self.config.dark))
                 .selectable(true)
                 .scrollable(matches!(self.config.layout, Layout::Viewport(_)))
-                .markdown_extensions(document_markdown::extensions(images))
+                .markdown_extensions(self.markdown_extensions.clone())
                 .table_actions(|table, _, _| {
                     let markdown = table.markdown.clone();
                     let accessible_markdown = markdown.clone();
@@ -1226,8 +1237,16 @@ impl View {
                 });
             state.images = document_markdown::Images(images);
             if changed {
+                state.markdown_extensions = document_markdown::extensions(
+                    document_markdown::Images(state.images.0.clone()),
+                );
                 if let Some(markdown) = &state.markdown {
-                    markdown.update(cx, |state, cx| state.invalidate_inline_layout(cx));
+                    markdown.update(cx, |markdown, cx| {
+                        markdown.set_markdown_extensions(
+                            Arc::new(state.markdown_extensions.clone()),
+                            cx,
+                        );
+                    });
                 }
                 state.invalidate_row(cx);
                 cx.notify();

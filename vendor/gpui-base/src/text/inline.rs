@@ -160,6 +160,13 @@ pub(super) fn text_size_ranges(
 /// A inline element used to render a inline text and support selectable.
 ///
 /// All text in TextView (including the CodeBlock) used this for text rendering.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum InlineInteraction {
+    Text,
+    AtomicObject,
+    BlockObject,
+}
+
 pub(super) struct Inline {
     id: ElementId,
     text: SharedString,
@@ -173,6 +180,7 @@ pub(super) struct Inline {
     selection_source: Option<(Arc<Mutex<InlineState>>, Range<usize>)>,
     range_backgrounds: Option<(Rc<dyn crate::input::RangeBackgrounds>, Range<usize>)>,
     style_backgrounds: Vec<crate::input::RangeBackground>,
+    interaction: InlineInteraction,
     link_click_handler: Option<Arc<LinkClickHandlerFn>>,
 
     state: Arc<Mutex<InlineState>>,
@@ -262,6 +270,7 @@ impl Inline {
             selection_source: None,
             range_backgrounds: None,
             style_backgrounds: Vec::new(),
+            interaction: InlineInteraction::Text,
             link_click_handler,
             state,
         }
@@ -270,6 +279,18 @@ impl Inline {
     /// Use the resolved style captured by a deferred parent layout.
     pub(super) fn text_style(mut self, text_style: TextStyle) -> Self {
         self.text_style = Some(text_style);
+        self
+    }
+
+    /// Glyph presentation inside an atomic custom object. The object owns
+    /// selection, links and input; it must not acquire a second text controller.
+    pub(super) fn passive(mut self) -> Self {
+        self.interaction = InlineInteraction::AtomicObject;
+        self
+    }
+
+    pub(super) fn passive_block(mut self) -> Self {
+        self.interaction = InlineInteraction::BlockObject;
         self
     }
 
@@ -791,7 +812,8 @@ impl Element for Inline {
         // stack also supplies the one-shot keyboard link reveal request.
         if let Some(text_view_state) = GlobalState::global(cx).text_view_state().cloned() {
             let state = text_view_state.read(cx);
-            if state.max_lines.is_some()
+            if self.interaction == InlineInteraction::Text
+                && state.max_lines.is_some()
                 && let Ok(mut line_spans) = state.line_spans.lock()
             {
                 line_spans.push(LineSpan {
@@ -865,6 +887,25 @@ impl Element for Inline {
         }
         self.styled_text
             .paint(global_id, None, bounds, &mut (), &mut (), window, cx);
+
+        if self.interaction != InlineInteraction::Text {
+            // Custom blocks already participate in whole-document copy. Keep
+            // select-all visible without inventing partial selection behavior.
+            if self.interaction == InlineInteraction::BlockObject
+                && let Some(view) = GlobalState::global(cx).text_view_state()
+                && view.read(cx).is_selectable()
+                && view.read(cx).is_all_selected()
+            {
+                Self::paint_selection(
+                    &Selection::new(0, self.text.len()),
+                    &text_layout,
+                    &bounds,
+                    window,
+                    view.read(cx).text_view_style.selection(),
+                );
+            }
+            return;
+        }
 
         if let Some(view) = GlobalState::global(cx).text_view_state() {
             let view = view.read(cx);

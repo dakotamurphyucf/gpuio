@@ -326,10 +326,8 @@ impl Element for InlineObject {
         if let Ok(mut value) = self.selected.lock() {
             *value = selected;
         }
-        if selected {
-            let color = view.as_ref().unwrap().read(cx).text_view_style.selection();
-            window.paint_quad(gpui::fill(bounds, color));
-        }
+        let selection_color =
+            selected.then(|| view.as_ref().unwrap().read(cx).text_view_style.selection());
         if let Some(link) = self.link.clone() {
             window.set_cursor_style(CursorStyle::PointingHand, hitbox);
             let link_hitbox = hitbox.clone();
@@ -404,6 +402,11 @@ impl Element for InlineObject {
             });
         }
         self.content.paint(window, cx);
+        // The atomic object owns this layer; text/image/native child backgrounds
+        // must not cover selection or let prepared search washes take precedence.
+        if let Some(color) = selection_color {
+            window.paint_quad(gpui::fill(bounds, color));
+        }
     }
 }
 

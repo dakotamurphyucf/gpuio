@@ -24,8 +24,9 @@ The retained-tree collector and GPUI executor service now connect to mounted
 ordinary/selectable views, source caching, base/structural visibility and queued
 observations. Installed code/diff/source-mode pages also have native matching and
 rounded painting. Prepared Markdown text fragments now share a validated native
-paint adapter. Custom/image projections, broader acceptance and the public gallery
-remain in development.
+paint adapter. Custom text and image placeholders use explicit renderer projections;
+loaded images contribute no glyphs. Broader acceptance and the public gallery remain
+in development.
 
 Queries default to case-insensitive matching. Matching uses Unicode scalar
 lowercasing on both source and query, without normalization or full case folding.
@@ -169,8 +170,10 @@ and installed-document changes and may keep its existing Arc when comparison
 succeeds. The mounted cache and installed source-page provider are implemented.
 Code, diff and Markdown source-mode pages use their installed snapshot interval.
 Rendered Markdown uses the immutable fragment table of its installed prepared AST.
-Documents with opaque custom/image nodes still report SourceUnavailable until those
-renderers provide an explicit displayed-text contract; partial counts are not Ready.
+Unspecified custom renderers still report SourceUnavailable until they declare an
+explicit displayed-content contract; partial counts are not Ready. GPUIO image
+placeholders and literal HTML now use the framework-owned text path, while loaded
+images explicitly declare non-text content.
 
 Native page projections can now use `Source::document_slice(snapshot, bytes)`.
 The constructor validates ordered, in-bounds UTF-8 byte endpoints before creating
@@ -243,7 +246,8 @@ Native selection backgrounds paint afterward. Active-index comparison subtracts
 the virtualized offset after checking its lower bound, avoiding signed overflow.
 
 The helper and mounted ordinary/selectable and prepared Markdown text views pass
-focused native GPU tests. Opaque custom/image fragments remain unresolved. The geometry fixtures are not broad
+focused native GPU tests, including declared custom text and dynamic image
+placeholders. The geometry fixtures are not broad
 script/bidirectional-text acceptance, and highlighting has not yet passed the
 milestone's application-scale performance budget.
 
@@ -282,7 +286,8 @@ until dropped.
 ## Installed native-document adapters
 
 The code/diff/source-mode and prepared Markdown text adapters are implemented.
-Custom/image projection and broader acceptance remain open. The document presenter keeps the last installed revision
+Declared custom text and dynamic image projections are also implemented; broader
+acceptance remains open. The document presenter keeps the last installed revision
 visible while the next parse is pending. Its highlighting source must use that same installed snapshot,
 mode and page, with a separate identity that also changes for collapse/expand and
 native page changes. Publishing a new parse must invalidate the enclosing scope
@@ -313,8 +318,8 @@ Paragraph/heading formatting stays in one run; images and custom objects split
 runs, and each cell and code block is independent. The table exists before any
 paint, including virtualized blocks. It is not the copy/AX representation: those
 representations include separators and alternative text that may not be glyphs.
-Opaque nodes are counted explicitly and currently prevent whole-document query
-acceptance. Their renderer contracts remain an implementation requirement.
+Unspecified custom nodes are counted explicitly and prevent whole-document query
+acceptance. A Rust renderer can implement the projection contract below.
 
 The prepared inline state carries its fragment identity; `InlineFlow` retains the
 original fragment byte interval when splitting by font size, inline code or wraps.
@@ -330,10 +335,45 @@ until the replacement is actually installed.
 
 Focused native GPU tests cover headings, cross-format text, inline and fenced
 code, table cells, wrapping, rounded corners, selection, streaming, collapse and
-owner disposal. Broader script/bidi, tabs/folding/scroll, custom objects, concurrent
+owner disposal. Broader script/bidi, tabs/folding/scroll, rich-object accessibility, concurrent
 windows/virtual rows and application-scale resource/performance acceptance remain
 required. The current Markdown range geometry uses GPUI's index lookup; dense
 match/long-line benchmarking and measured optimization remain release work.
+
+## Custom Markdown presentations
+
+`MarkdownPlugin::presentation` declares `Text`, `NonText` or `Opaque` from already
+prepared resources. No I/O, layout or matching is allowed in that resolver. `Text`
+is painted by TextView itself, bypassing the arbitrary plugin renderer, so its
+searchable bytes and glyphs agree. Atomic inline objects retain their existing
+copy text, accessibility label, links and selection controller; passive glyph
+children add no second input controller. Their selection layer paints above the
+child content. Text blocks retain whole-document selection/copy; this does not
+claim complete partial block-selection or accessibility acceptance.
+
+`NonText` keeps the native renderer and contributes no searchable text. Its
+fallback also contains no glyphs, so a missing or invalid element cannot turn an
+AX/copy alternative into an unprojected label. `Opaque` is the default for an
+unspecified renderer and fails complete query collection explicitly. Renderers
+must declare `NonText` honestly; this is a trusted Rust extension contract, not
+inspection of arbitrary native elements. Built-in low-level image nodes without
+this declaration remain opaque; GPUIO intercepts its images through the safe plugin.
+
+Each parsed custom occurrence has a fresh retained identity even when a plugin
+clones a template. Immutable projection data is indexed by that identity; matching
+order remains the structural fragment vector's order. Passive rendering creates
+frame-local readers and never shares a mutable controller between occurrences.
+The existing fragment/byte/layer admission limits also bound projected custom text.
+
+GPUIO declares literal HTML as text, image placeholders as `[Image: alternative]`,
+and decoded images as non-text. The presenter caches extension handles rather
+than creating a new configuration every frame. An image-resource change rebuilds
+the bounded installed AST's displayed projection on the UI thread without parsing
+or querying, clears old paint owners, preserves logical selection/list position,
+and invalidates the enclosing scope. Ordinary async parsing remains distinct.
+The original document revision is unchanged by a resource-only update. Native
+paint caches retain no extra projection owner when there are no actual washes;
+an individual fragment with zero matches does not suppress other fragments.
 
 ## Pinned comparison and acceptance
 

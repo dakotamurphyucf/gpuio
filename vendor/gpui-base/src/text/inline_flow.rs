@@ -38,6 +38,7 @@ pub(super) type InlineRenderer = dyn Fn(&super::InlineRenderContext, &mut Window
 pub(super) enum InlineFlowItem {
     Object {
         text: SharedString,
+        fallback_text: Option<SharedString>,
         id: usize,
         renderer: Arc<InlineRenderer>,
         accessibility_label: SharedString,
@@ -547,12 +548,13 @@ impl From<&InlineFlowItem> for MeasureItem {
         match item {
             InlineFlowItem::Object {
                 text,
+                fallback_text,
                 id,
                 renderer,
                 style,
                 ..
             } => Self::Object {
-                text: text.clone(),
+                text: fallback_text.as_ref().unwrap_or(text).clone(),
                 id: *id,
                 renderer: renderer.clone(),
                 style: *style,

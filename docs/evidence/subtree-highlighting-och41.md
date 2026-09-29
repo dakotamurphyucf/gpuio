@@ -7,7 +7,8 @@ worker service, a shaped-text paint adapter, and mounted ordinary/selectable tex
 with real GPU painting, cached sources and queued observations. Installed native
 code/diff/source-mode pages now have rounded background painting and revision/page
 fences. Prepared Markdown text fragments now have focused native GPU evidence.
-Custom/image fragments, virtual-list and multiwindow highlighting acceptance,
+Declared custom text and dynamic image placeholders are also implemented.
+Virtual-list and multiwindow highlighting acceptance,
 application performance and the public gallery remain pending. No highlighting capability is
 advertised.
 OCH-41 remains In Progress. The sections below distinguish each implementation
@@ -416,3 +417,56 @@ without publishing partial Ready counts. This remains required follow-up work.
 Broad tabs/folds/scroll/bidi, virtual-row and independent-window behavior, public
 gallery and application resource/performance acceptance remain open. No hosted,
 Linux GUI, new capability advertisement or full highlighting acceptance is implied.
+
+
+## Declared custom text and image-resource transitions
+
+`MarkdownPresentation` now distinguishes framework-painted text, explicitly
+non-text native content and an unspecified opaque renderer. Prepared custom
+occurrences have separate identities, structural match positions and immutable
+projection data. Text uses passive glyph elements inside the existing object
+selection/link wrapper. Atomic selection now paints above child backgrounds.
+GPUIO uses this contract for literal HTML and image placeholders; loaded images
+contribute no glyphs. Their copy/AX alternatives remain separate from visible text.
+
+Image-resource changes rebuild the bounded installed AST's displayed projection
+without parsing or matching, preserve the document revision and invalidate the
+scope. Cached extension handles prevent a new projection on every frame. Opaque
+third-party renderers still report SourceUnavailable until they declare their
+presentation; no glyph representation is guessed from an accessibility label.
+The native Markdown paint cache has no additional projection owner when no washes
+exist, while a zero-match fragment does not suppress other fragments' highlights.
+
+Local macOS 14.5 arm64 evidence:
+
+- The extended `native_highlight_document` passes actual GPU checks for literal
+  HTML blocks and inline attributes, image placeholders, selection precedence and
+  restoration, and two identical placeholders with separate normal/active colors.
+  Registering a real PNM asset through the session changes the count from two to
+  zero and paints the decoded blue image. Removing the resource restores two
+  matches. The installed document revision stays unchanged; the displayed table
+  changes. Select-all copy remains `aaa aaa`, independent of the visible placeholder
+  syntax. Empty-scope cleanup and explicit asset release/image-worker shutdown pass.
+- Rebuilt `native_highlight_view` and `native_document` also pass. Final binaries
+  ran sequentially under 60-second watchdogs; all windows closed and processes were
+  reaped. Existing document diagnostics report 17338 microseconds layout/paint and
+  70123520 bytes peak RSS; these are not application performance-budget acceptance.
+- The full native library/projection/collector/jobs/scope command passes **395
+  tests** (362 library, 11 projection, six collector, 13 jobs, three scope), with two
+  existing private-bus notification tests excluded. New unit checks distinguish
+  declared text from copy text, verify non-text/opaque behavior and reject oversized
+  renderer text. Strict all-target native/protocol Clippy with native-image-tests,
+  workspace/changed-vendor format and diff checks pass.
+- The Base patch reconstructs exactly from the pinned archive, excluding generated
+  Cargo.lock. SHA-256:
+  `b4d09f1b3bda02575b7db9beb63d339babb87c4951745e814427166bd4e4c559`.
+
+The expanded run caught and fixed an overly strict cleanup condition: a fragment
+with no matches has no paint, which must not discard other fragments' valid washes.
+A subsequent fixture correction adds the required handler rebinding when changing
+to an empty scope configuration. The corrected final runs pass.
+
+Selection checks use native APIs, not physical keyboard/IME input. Complete partial
+selection of custom blocks, rich-object accessibility, broad script/bidi/scroll,
+virtual-row and multiwindow acceptance, public gallery, performance/resource budgets
+and release gates remain required. No hosted CI, Linux GUI or new capability claim.

@@ -41,8 +41,25 @@ type MarkdownInlineRenderFn = dyn Fn(&MarkdownNode, &InlineRenderContext, &mut W
     + Send
     + Sync;
 
+/// A custom renderer's explicit displayed-content contract. Text is rendered
+/// by TextView itself so its searchable bytes and painted glyphs agree. NonText
+/// promises the custom element contains no searchable glyphs. Opaque keeps the
+/// existing renderer but cannot establish complete document query counts.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MarkdownPresentation {
+    Opaque,
+    Text(SharedString),
+    NonText,
+}
+type MarkdownPresentationFn = dyn Fn(&MarkdownNode) -> MarkdownPresentation + Send + Sync;
+
 /// A reusable Markdown extension that parses and renders one custom node.
 pub trait MarkdownPlugin: Send + Sync + 'static {
+    /// Resolve from already-prepared data only: no I/O, layout or matching.
+    /// TextView replaces the plugin renderer for Text; NonText retains it.
+    fn presentation(&self, _node: &MarkdownNode) -> MarkdownPresentation {
+        MarkdownPresentation::Opaque
+    }
     /// Whether this plugin produces block-level nodes.
     ///
     /// Plugins are inline by default. Block plugins should return `true`.
@@ -106,6 +123,7 @@ impl<'a> MarkdownParseContext<'a> {
 /// A custom Markdown node produced by [`MarkdownExtensions`].
 #[derive(Clone)]
 pub struct MarkdownNode {
+    pub(crate) projection_key: Arc<()>,
     name: SharedString,
     text: SharedString,
     markdown: SharedString,
@@ -121,6 +139,7 @@ impl MarkdownNode {
         T: Any + Send + Sync + 'static,
     {
         Self {
+            projection_key: Arc::new(()),
             name: name.into(),
             text: SharedString::default(),
             markdown: SharedString::default(),
@@ -208,6 +227,9 @@ impl MarkdownNode {
     }
 
     pub(crate) fn set_span(&mut self, span: Option<Span>) {
+        // A plugin may reuse a cloned template. Each parsed occurrence needs
+        // its own identity; subsequent renderer clones preserve this key.
+        self.projection_key = Arc::new(());
         self.span = span;
     }
 
@@ -244,6 +266,7 @@ impl PartialEq for MarkdownNode {
 /// Registry for custom Markdown parsing and rendering.
 #[derive(Clone, Default)]
 pub struct MarkdownExtensions {
+    presentations: HashMap<SharedString, Arc<MarkdownPresentationFn>>,
     enable_mdx: bool,
     enable_frontmatter: bool,
     block_parsers: Vec<Arc<MarkdownBlockParserFn>>,
@@ -308,12 +331,17 @@ impl MarkdownExtensions {
     }
 
     /// Apply a reusable Markdown plugin.
-    pub fn plugin<P>(self, plugin: P) -> Self
+    pub fn plugin<P>(mut self, plugin: P) -> Self
     where
         P: MarkdownPlugin,
     {
         let plugin = Arc::new(plugin);
         let name = SharedString::from(plugin.name().to_string());
+        let presentation = plugin.clone();
+        self.presentations.insert(
+            name.clone(),
+            Arc::new(move |node| presentation.presentation(node)),
+        );
         let parser = plugin.clone();
         let renderer = plugin;
 
@@ -341,6 +369,12 @@ impl MarkdownExtensions {
 
     pub(crate) fn revision(&self) -> u64 {
         self.revision
+    }
+
+    pub(crate) fn presentation(&self, node: &MarkdownNode) -> MarkdownPresentation {
+        self.presentations
+            .get(node.name())
+            .map_or(MarkdownPresentation::Opaque, |f| f(node))
     }
 
     /// Whether replacing these extension handles can change the parsed tree.

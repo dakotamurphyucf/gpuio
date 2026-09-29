@@ -199,6 +199,13 @@ async fn markdown_checks(
         ("formatting", "a**a**a\n", 1),
         ("inline code split", "a`a`a\n", 1),
         ("fenced code", "```txt\naaa\n```\n", 1),
+        ("literal HTML block", "<div>aaa</div>\n", 1),
+        (
+            "literal HTML inline",
+            "before <span title=\"aaa\">text</span> after\n",
+            1,
+        ),
+        ("image placeholder", "![aaa](asset://highlight)\n", 1),
         (
             "table cells",
             "| aaa | aaa |\n|---|---|\n| aaa | aaa |\n",
@@ -339,6 +346,174 @@ async fn markdown_checks(
     });
     ready(cx, handle, transport, 4).await;
 }
+
+async fn image_checks(
+    cx: &mut AsyncApp,
+    handle: WindowHandle<View>,
+    session: &Rc<RefCell<Session>>,
+    transport: &Transport,
+    source: ResourceId,
+    p: &Entity<Presentation>,
+) {
+    let base = p.read_with(cx, |p, _| p.installed.as_ref().unwrap().revision);
+    publish(
+        &mut session.borrow_mut(),
+        source,
+        base,
+        "![aaa](asset://highlight) ![aaa](asset://highlight)\n",
+    );
+    handle
+        .update(cx, |view, _, cx| view.document_changed(source, cx))
+        .unwrap();
+    installed_revision(cx, handle, transport, p, base + 1).await;
+    ready(cx, handle, transport, 2).await;
+    assert!(
+        red_pixels(cx, handle) > 20,
+        "visible image placeholder is searchable"
+    );
+    let mut active = config(8.);
+    active.0[0].active_index = Some(1);
+    active.0[0].appearance.active_color = 0x00ff00ff;
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Bind(node(0), Some(handler(300))),
+            Op::SetHighlightScope(node(0), active),
+        ],
+    );
+    ready(cx, handle, transport, 2).await;
+    let green = handle
+        .update(cx, |_, window, _| {
+            window
+                .render_to_image()
+                .unwrap()
+                .pixels()
+                .filter(|p| p.0 == [0, 255, 0, 255])
+                .count()
+        })
+        .unwrap();
+    assert!(
+        green > 20 && red_pixels(cx, handle) > 20,
+        "identical custom objects retain distinct match ordinals"
+    );
+    let before = p.read_with(cx, |p, cx| {
+        p.markdown
+            .as_ref()
+            .unwrap()
+            .read(cx)
+            .displayed_text()
+            .unwrap()
+    });
+    let image = {
+        let mut session = session.borrow_mut();
+        let store = session.assets().unwrap();
+        let mut bytes = b"P6\n16 16\n255\n".to_vec();
+        for _ in 0..256 {
+            bytes.extend([20, 100, 240]);
+        }
+        let image = store
+            .begin(gpuio_protocol::asset::Format::Pnm, bytes.len())
+            .unwrap();
+        store.append(image, 0, &bytes).unwrap();
+        store.finish(image).unwrap();
+        image
+    };
+    let mut with_image = document(source, Mode::Markdown);
+    with_image.images = vec![("asset://highlight".into(), ImageSource::Reference(image))];
+    apply(cx, handle, vec![Op::SetDocument(node(1), with_image)]);
+    ready(cx, handle, transport, 0).await;
+    assert_eq!(
+        red_pixels(cx, handle),
+        0,
+        "loaded image has no placeholder glyph wash"
+    );
+    let blue = handle
+        .update(cx, |_, window, _| {
+            window
+                .render_to_image()
+                .unwrap()
+                .pixels()
+                .filter(|p| p.0[2] > 200 && p.0[0] < 80 && p.0[1] > 60 && p.0[1] < 160)
+                .count()
+        })
+        .unwrap();
+    assert!(blue > 50, "decoded image actually paints: {blue}");
+    p.read_with(cx, |p, cx| {
+        let displayed = p
+            .markdown
+            .as_ref()
+            .unwrap()
+            .read(cx)
+            .displayed_text()
+            .unwrap();
+        assert!(!Arc::ptr_eq(&before, &displayed));
+        assert_eq!(displayed.opaque_nodes(), 0);
+        assert!(
+            displayed
+                .fragments()
+                .iter()
+                .all(|f| f.text().trim().is_empty())
+        );
+        assert_eq!(
+            p.installed.as_ref().unwrap().revision,
+            base + 1,
+            "resource-only projection does not reparse the document"
+        );
+    });
+    apply(
+        cx,
+        handle,
+        vec![Op::SetDocument(node(1), document(source, Mode::Markdown))],
+    );
+    ready(cx, handle, transport, 2).await;
+    assert!(
+        red_pixels(cx, handle) > 20,
+        "resource removal restores visible placeholder query"
+    );
+    let markdown = p.read_with(cx, |p, _| p.markdown.clone()).unwrap();
+    markdown.update(cx, |state, cx| state.select_all(cx));
+    draw(cx, handle);
+    markdown.read_with(cx, |state, _| {
+        assert_eq!(
+            state.selected_text().trim(),
+            "aaa aaa",
+            "copy alternative stays independent of painted placeholder"
+        )
+    });
+    markdown.update(cx, |state, cx| state.clear_selection(cx));
+    draw(cx, handle);
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Bind(node(0), Some(handler(399))),
+            Op::SetHighlightScope(node(0), highlight::Config(vec![])),
+        ],
+    );
+    draw(cx, handle);
+    p.read_with(cx, |p, _| {
+        assert!(
+            p.markdown_highlight.is_none(),
+            "empty scopes retain no Markdown paint owner"
+        )
+    });
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Bind(node(0), Some(handler(400))),
+            Op::SetHighlightScope(node(0), config(8.)),
+        ],
+    );
+    ready(cx, handle, transport, 2).await;
+    session
+        .borrow_mut()
+        .assets()
+        .unwrap()
+        .release(image)
+        .unwrap();
+}
 pub(crate) fn run() {
     let failure = Rc::new(RefCell::new(None));
     let task_failure = failure.clone();
@@ -392,6 +567,7 @@ pub(crate) fn run() {
                 let retired=p.read_with(cx,|p,_|p.highlight_paint.as_ref().map(|(paint,_)|paint.clone())).unwrap();
                 let background_owner=p.read_with(cx,|p,_|Rc::downgrade(&p.highlight_paint.as_ref().unwrap().1));
                 markdown_checks(cx,handle,&session,&transport,source,&p).await;
+                image_checks(cx,handle,&session,&transport,source,&p).await;
                 let markdown_owner=p.read_with(cx,|p,_|Rc::downgrade(&p.markdown_highlight.as_ref().unwrap().backgrounds));
                 apply(cx,handle,vec![Op::SetRoot(None),Op::Remove(node(1)),Op::Remove(node(0))]);
                 draw(cx,handle);pause(cx).await;drop(p);drop(retired);draw(cx,handle);
@@ -402,7 +578,7 @@ pub(crate) fn run() {
             }).await;
             *task_failure.borrow_mut()=checked.err();
             let _=handle.update(cx,|_,window,_|window.remove_window());
-            crate::highlight_host::shutdown(cx).await;crate::document_host::shutdown(cx).await;
+            crate::highlight_host::shutdown(cx).await;crate::document_host::shutdown(cx).await;crate::image_host::shutdown(cx).await;
             cx.update(crate::host::stop_application);
         }).detach();
     });

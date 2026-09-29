@@ -2025,17 +2025,46 @@
 +        }
 +    }
 +}
+--- a/src/text/mod.rs
++++ b/src/text/mod.rs
+@@ -1,3 +1,5 @@
++mod backgrounds;
++mod displayed_text;
+ mod document;
+ mod format;
+ mod inline;
+@@ -6,6 +8,7 @@
+ mod inline_object;
+ #[cfg(test)]
+ mod inline_virtual_tests;
++mod link_navigation;
+ mod markdown_ext;
+ mod node;
+ pub(crate) mod selection;
+@@ -15,6 +18,8 @@
+ mod text_view;
+ mod utils;
+ 
++pub use backgrounds::TextBackgrounds;
++pub use displayed_text::{DisplayedFragment, DisplayedText};
+ use gpui::{App, ElementId, IntoElement, RenderOnce, SharedString, Window};
+ pub use inline_element::*;
+ pub use markdown_ext::*;
 --- /dev/null
 +++ b/src/text/displayed_text.rs
-@@ -0,0 +1,149 @@
+@@ -0,0 +1,233 @@
 +//! Immutable text runs prepared with the AST, before virtualization or paint.
 +//! This is not the copy/Markdown/AX representation: separators, list markers,
 +//! image descriptions and arbitrary custom renderers do not fabricate glyphs.
-+use std::sync::{Arc, Mutex};
++use std::{
++    collections::BTreeMap,
++    sync::{Arc, Mutex},
++};
 +
 +use gpui::SharedString;
 +
 +use super::{
++    MarkdownExtensions, MarkdownNode, MarkdownPresentation,
 +    document::ParsedDocument,
 +    inline::InlineState,
 +    node::{BlockNode, Paragraph},
@@ -2066,13 +2095,48 @@
 +/// Retaining this value retains its text, but no mutable selection/layout state.
 +/// A nonzero opaque count means custom/image content needs a separate renderer
 +/// contract; its copy or accessibility label is not searchable displayed text.
-+#[derive(Debug, Default, PartialEq, Eq)]
++#[derive(Debug, Default)]
 +pub struct DisplayedText {
 +    fragments: Vec<DisplayedFragment>,
 +    bytes: usize,
 +    opaque_nodes: usize,
++    objects: BTreeMap<usize, PreparedObject>,
 +}
++
++#[derive(Debug)]
++struct PreparedObject {
++    _key: Arc<()>,
++    text: Option<(SharedString, Option<DisplayedFragment>)>,
++    non_text: bool,
++}
++
++// The snapshot is an identity, not structural equality over mutable inline state.
++impl PartialEq for DisplayedText {
++    fn eq(&self, other: &Self) -> bool {
++        std::ptr::eq(self, other)
++    }
++}
++impl Eq for DisplayedText {}
++
 +impl DisplayedText {
++    pub(super) fn object_is_non_text(&self, node: &MarkdownNode) -> bool {
++        self.objects
++            .get(&(Arc::as_ptr(&node.projection_key) as usize))
++            .is_some_and(|object| object.non_text)
++    }
++    pub(super) fn object_text(&self, node: &MarkdownNode) -> Option<Arc<Mutex<InlineState>>> {
++        let (text, fragment) = self
++            .objects
++            .get(&(Arc::as_ptr(&node.projection_key) as usize))?
++            .text
++            .as_ref()?;
++        // Passive glyph elements have no persistent controller state. Keep the
++        // shared projection immutable and create only a frame-local reader.
++        let mut state = InlineState::default();
++        state.set_text(text.clone());
++        state.displayed_fragment = fragment.clone();
++        Some(Arc::new(Mutex::new(state)))
++    }
 +    pub fn fragments(&self) -> &[DisplayedFragment] {
 +        &self.fragments
 +    }
@@ -2083,18 +2147,30 @@
 +        self.opaque_nodes
 +    }
 +
-+    pub(super) fn prepare(document: &ParsedDocument) -> Result<Arc<Self>, SharedString> {
++    pub(super) fn prepare(
++        document: &ParsedDocument,
++        extensions: &MarkdownExtensions,
++    ) -> Result<Arc<Self>, SharedString> {
 +        let mut result = Self::default();
 +        // parse_bounded has already validated depth and total AST node count.
 +        for block in document.blocks.iter() {
-+            result.block(block)?;
++            result.block(block, extensions)?;
 +        }
 +        Ok(Arc::new(result))
 +    }
 +
 +    fn push(&mut self, state: &Arc<Mutex<InlineState>>, text: &str) -> Result<(), SharedString> {
++        let fragment = self.fragment(text)?;
++        state
++            .lock()
++            .map_err(|_| SharedString::from("invalid prepared inline state"))?
++            .displayed_fragment = fragment;
++        Ok(())
++    }
++
++    fn fragment(&mut self, text: &str) -> Result<Option<DisplayedFragment>, SharedString> {
 +        if text.is_empty() {
-+            return Ok(());
++            return Ok(None);
 +        }
 +        if self.fragments.len() >= MAX_FRAGMENTS || text.len() > MAX_BYTES - self.bytes {
 +            return Err("displayed Markdown text exceeds preparation limits".into());
@@ -2103,24 +2179,53 @@
 +            id: self.fragments.len() as u32,
 +            text: Arc::from(text),
 +        };
-+        state
-+            .lock()
-+            .map_err(|_| SharedString::from("invalid prepared inline state"))?
-+            .displayed_fragment = Some(fragment.clone());
 +        self.bytes += text.len();
-+        self.fragments.push(fragment);
++        self.fragments.push(fragment.clone());
++        Ok(Some(fragment))
++    }
++
++    fn object(
++        &mut self,
++        node: &MarkdownNode,
++        extensions: &MarkdownExtensions,
++    ) -> Result<(), SharedString> {
++        let presentation = extensions.presentation(node);
++        let non_text = presentation == MarkdownPresentation::NonText;
++        let text = match presentation {
++            MarkdownPresentation::Opaque => {
++                self.opaque_nodes += 1;
++                None
++            }
++            MarkdownPresentation::NonText => None,
++            MarkdownPresentation::Text(text) => {
++                let fragment = self.fragment(&text)?;
++                Some((text, fragment))
++            }
++        };
++        self.objects.insert(
++            Arc::as_ptr(&node.projection_key) as usize,
++            PreparedObject {
++                _key: node.projection_key.clone(),
++                text,
++                non_text,
++            },
++        );
 +        Ok(())
 +    }
 +
-+    fn paragraph(&mut self, paragraph: &Paragraph) -> Result<(), SharedString> {
++    fn paragraph(
++        &mut self,
++        paragraph: &Paragraph,
++        extensions: &MarkdownExtensions,
++    ) -> Result<(), SharedString> {
 +        let mut text = String::new();
 +        for child in &paragraph.children {
 +            // This is the same ownership split as Paragraph::inline_flow_items:
 +            // the object child's state owns the text preceding that object.
-+            if child.custom.is_some() {
++            if let Some(node) = &child.custom {
 +                self.push(&child.state, &text)?;
 +                text.clear();
-+                self.opaque_nodes += 1;
++                self.object(node, extensions)?;
 +                continue;
 +            }
 +            if child.text.len() > MAX_BYTES - self.bytes - text.len() {
@@ -2136,18 +2241,22 @@
 +        self.push(&paragraph.state, &text)
 +    }
 +
-+    fn block(&mut self, block: &BlockNode) -> Result<(), SharedString> {
++    fn block(
++        &mut self,
++        block: &BlockNode,
++        extensions: &MarkdownExtensions,
++    ) -> Result<(), SharedString> {
 +        match block {
 +            BlockNode::Root { children, .. } | BlockNode::Blockquote { children, .. } => {
 +                for child in children {
-+                    self.block(child)?;
++                    self.block(child, extensions)?;
 +                }
 +            }
 +            BlockNode::List { children, .. } => {
 +                for child in children {
 +                    if let BlockNode::ListItem { children, .. } = child {
 +                        for child in children {
-+                            self.block(child)?;
++                            self.block(child, extensions)?;
 +                        }
 +                    }
 +                }
@@ -2157,17 +2266,17 @@
 +                children: paragraph,
 +                ..
 +            } => {
-+                self.paragraph(paragraph)?;
++                self.paragraph(paragraph, extensions)?;
 +            }
 +            BlockNode::CodeBlock(code) => self.push(&code.state, &code.code())?,
 +            BlockNode::Table(table) => {
 +                for row in &table.children {
 +                    for cell in &row.children {
-+                        self.paragraph(&cell.children)?;
++                        self.paragraph(&cell.children, extensions)?;
 +                    }
 +                }
 +            }
-+            BlockNode::Custom(_) => self.opaque_nodes += 1,
++            BlockNode::Custom(node) => self.object(node, extensions)?,
 +            BlockNode::Break { .. }
 +            | BlockNode::HorizontalRule { .. }
 +            | BlockNode::Definition { .. }
@@ -2185,12 +2294,27 @@
  use std::{
      ops::Range,
      rc::Rc,
-@@ -171,9 +171,53 @@
+@@ -160,6 +160,13 @@
+ /// A inline element used to render a inline text and support selectable.
+ ///
+ /// All text in TextView (including the CodeBlock) used this for text rendering.
++#[derive(Clone, Copy, PartialEq, Eq)]
++enum InlineInteraction {
++    Text,
++    AtomicObject,
++    BlockObject,
++}
++
+ pub(super) struct Inline {
+     id: ElementId,
+     text: SharedString,
+@@ -171,9 +178,54 @@
      paint_origin: Option<Point<Pixels>>,
      selection_bounds: Option<Bounds<Pixels>>,
      selection_source: Option<(Arc<Mutex<InlineState>>, Range<usize>)>,
 +    range_backgrounds: Option<(Rc<dyn crate::input::RangeBackgrounds>, Range<usize>)>,
 +    style_backgrounds: Vec<crate::input::RangeBackground>,
++    interaction: InlineInteraction,
      link_click_handler: Option<Arc<LinkClickHandlerFn>>,
  
      state: Arc<Mutex<InlineState>>,
@@ -2239,7 +2363,7 @@
  }
  
  /// The inline text state, used RefCell to keep the selection state.
-@@ -183,6 +227,7 @@
+@@ -183,6 +235,7 @@
      /// The text that actually rendering, matched with selection.
      pub(super) text: SharedString,
      pub(super) selection: Option<Selection>,
@@ -2247,16 +2371,36 @@
  }
  
  impl InlineState {
-@@ -215,6 +260,8 @@
+@@ -215,6 +268,9 @@
              paint_origin: None,
              selection_bounds: None,
              selection_source: None,
 +            range_backgrounds: None,
 +            style_backgrounds: Vec::new(),
++            interaction: InlineInteraction::Text,
              link_click_handler,
              state,
          }
-@@ -244,6 +291,104 @@
+@@ -223,6 +279,18 @@
+     /// Use the resolved style captured by a deferred parent layout.
+     pub(super) fn text_style(mut self, text_style: TextStyle) -> Self {
+         self.text_style = Some(text_style);
++        self
++    }
++
++    /// Glyph presentation inside an atomic custom object. The object owns
++    /// selection, links and input; it must not acquire a second text controller.
++    pub(super) fn passive(mut self) -> Self {
++        self.interaction = InlineInteraction::AtomicObject;
++        self
++    }
++
++    pub(super) fn passive_block(mut self) -> Self {
++        self.interaction = InlineInteraction::BlockObject;
+         self
+     }
+ 
+@@ -244,6 +312,104 @@
      ) -> Self {
          self.selection_source = Some((state, range));
          self
@@ -2361,7 +2505,7 @@
      }
  
      /// Get link at given mouse position.
-@@ -547,7 +692,7 @@
+@@ -547,7 +713,7 @@
  
  impl Element for Inline {
      type RequestLayoutState = ();
@@ -2370,7 +2514,7 @@
  
      fn id(&self) -> Option<ElementId> {
          Some(self.id.clone())
-@@ -555,6 +700,22 @@
+@@ -555,6 +721,22 @@
  
      fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
          None
@@ -2393,7 +2537,7 @@
      }
  
      fn request_layout(
-@@ -568,7 +729,41 @@
+@@ -568,7 +750,41 @@
              .text_style
              .clone()
              .unwrap_or_else(|| window.text_style());
@@ -2436,7 +2580,7 @@
  
          self.styled_text = StyledText::new(self.text.clone()).with_runs(runs);
          let (layout_id, _) =
-@@ -593,8 +788,7 @@
+@@ -593,11 +809,11 @@
  
          // Report this element's laid-out extent so an ancestor TextView with
          // `max_lines` can snap its clip to a whole-line boundary. The state
@@ -2445,8 +2589,13 @@
 +        // stack also supplies the one-shot keyboard link reveal request.
          if let Some(text_view_state) = GlobalState::global(cx).text_view_state().cloned() {
              let state = text_view_state.read(cx);
-             if state.max_lines.is_some()
-@@ -608,8 +802,34 @@
+-            if state.max_lines.is_some()
++            if self.interaction == InlineInteraction::Text
++                && state.max_lines.is_some()
+                 && let Ok(mut line_spans) = state.line_spans.lock()
+             {
+                 line_spans.push(LineSpan {
+@@ -608,8 +824,34 @@
              }
          }
  
@@ -2483,7 +2632,7 @@
      }
  
      fn paint(
-@@ -624,10 +844,69 @@
+@@ -624,10 +866,88 @@
      ) {
          let bounds = Bounds::new(self.paint_origin.unwrap_or(bounds.origin), bounds.size);
          let current_view = window.current_view();
@@ -2509,6 +2658,25 @@
 +        }
          self.styled_text
              .paint(global_id, None, bounds, &mut (), &mut (), window, cx);
++
++        if self.interaction != InlineInteraction::Text {
++            // Custom blocks already participate in whole-document copy. Keep
++            // select-all visible without inventing partial selection behavior.
++            if self.interaction == InlineInteraction::BlockObject
++                && let Some(view) = GlobalState::global(cx).text_view_state()
++                && view.read(cx).is_selectable()
++                && view.read(cx).is_all_selected()
++            {
++                Self::paint_selection(
++                    &Selection::new(0, self.text.len()),
++                    &text_layout,
++                    &bounds,
++                    window,
++                    view.read(cx).text_view_style.selection(),
++                );
++            }
++            return;
++        }
 +
 +        if let Some(view) = GlobalState::global(cx).text_view_state() {
 +            let view = view.read(cx);
@@ -2554,7 +2722,7 @@
  
          // layout selections
          let (is_selectable, is_selection, selection) =
-@@ -1088,8 +1367,37 @@
+@@ -1088,8 +1408,37 @@
  
  #[cfg(test)]
  mod tests {
@@ -2593,31 +2761,152 @@
  
      fn mono(style: HighlightStyle) -> InlineHighlight {
          InlineHighlight {
---- a/src/text/mod.rs
-+++ b/src/text/mod.rs
-@@ -1,3 +1,5 @@
-+mod backgrounds;
-+mod displayed_text;
- mod document;
- mod format;
- mod inline;
-@@ -6,6 +8,7 @@
- mod inline_object;
- #[cfg(test)]
- mod inline_virtual_tests;
-+mod link_navigation;
- mod markdown_ext;
- mod node;
- pub(crate) mod selection;
-@@ -15,6 +18,8 @@
- mod text_view;
- mod utils;
+--- a/src/text/inline_flow.rs
++++ b/src/text/inline_flow.rs
+@@ -38,6 +38,7 @@
+ pub(super) enum InlineFlowItem {
+     Object {
+         text: SharedString,
++        fallback_text: Option<SharedString>,
+         id: usize,
+         renderer: Arc<InlineRenderer>,
+         accessibility_label: SharedString,
+@@ -547,12 +548,13 @@
+         match item {
+             InlineFlowItem::Object {
+                 text,
++                fallback_text,
+                 id,
+                 renderer,
+                 style,
+                 ..
+             } => Self::Object {
+-                text: text.clone(),
++                text: fallback_text.as_ref().unwrap_or(text).clone(),
+                 id: *id,
+                 renderer: renderer.clone(),
+                 style: *style,
+--- a/src/text/inline_object.rs
++++ b/src/text/inline_object.rs
+@@ -326,10 +326,8 @@
+         if let Ok(mut value) = self.selected.lock() {
+             *value = selected;
+         }
+-        if selected {
+-            let color = view.as_ref().unwrap().read(cx).text_view_style.selection();
+-            window.paint_quad(gpui::fill(bounds, color));
+-        }
++        let selection_color =
++            selected.then(|| view.as_ref().unwrap().read(cx).text_view_style.selection());
+         if let Some(link) = self.link.clone() {
+             window.set_cursor_style(CursorStyle::PointingHand, hitbox);
+             let link_hitbox = hitbox.clone();
+@@ -404,6 +402,11 @@
+             });
+         }
+         self.content.paint(window, cx);
++        // The atomic object owns this layer; text/image/native child backgrounds
++        // must not cover selection or let prepared search washes take precedence.
++        if let Some(color) = selection_color {
++            window.paint_quad(gpui::fill(bounds, color));
++        }
+     }
+ }
  
-+pub use backgrounds::TextBackgrounds;
-+pub use displayed_text::{DisplayedFragment, DisplayedText};
- use gpui::{App, ElementId, IntoElement, RenderOnce, SharedString, Window};
- pub use inline_element::*;
- pub use markdown_ext::*;
+--- a/src/text/markdown_ext.rs
++++ b/src/text/markdown_ext.rs
+@@ -41,8 +41,25 @@
+     + Send
+     + Sync;
+ 
++/// A custom renderer's explicit displayed-content contract. Text is rendered
++/// by TextView itself so its searchable bytes and painted glyphs agree. NonText
++/// promises the custom element contains no searchable glyphs. Opaque keeps the
++/// existing renderer but cannot establish complete document query counts.
++#[derive(Clone, Debug, PartialEq, Eq)]
++pub enum MarkdownPresentation {
++    Opaque,
++    Text(SharedString),
++    NonText,
++}
++type MarkdownPresentationFn = dyn Fn(&MarkdownNode) -> MarkdownPresentation + Send + Sync;
++
+ /// A reusable Markdown extension that parses and renders one custom node.
+ pub trait MarkdownPlugin: Send + Sync + 'static {
++    /// Resolve from already-prepared data only: no I/O, layout or matching.
++    /// TextView replaces the plugin renderer for Text; NonText retains it.
++    fn presentation(&self, _node: &MarkdownNode) -> MarkdownPresentation {
++        MarkdownPresentation::Opaque
++    }
+     /// Whether this plugin produces block-level nodes.
+     ///
+     /// Plugins are inline by default. Block plugins should return `true`.
+@@ -106,6 +123,7 @@
+ /// A custom Markdown node produced by [`MarkdownExtensions`].
+ #[derive(Clone)]
+ pub struct MarkdownNode {
++    pub(crate) projection_key: Arc<()>,
+     name: SharedString,
+     text: SharedString,
+     markdown: SharedString,
+@@ -121,6 +139,7 @@
+         T: Any + Send + Sync + 'static,
+     {
+         Self {
++            projection_key: Arc::new(()),
+             name: name.into(),
+             text: SharedString::default(),
+             markdown: SharedString::default(),
+@@ -208,6 +227,9 @@
+     }
+ 
+     pub(crate) fn set_span(&mut self, span: Option<Span>) {
++        // A plugin may reuse a cloned template. Each parsed occurrence needs
++        // its own identity; subsequent renderer clones preserve this key.
++        self.projection_key = Arc::new(());
+         self.span = span;
+     }
+ 
+@@ -244,6 +266,7 @@
+ /// Registry for custom Markdown parsing and rendering.
+ #[derive(Clone, Default)]
+ pub struct MarkdownExtensions {
++    presentations: HashMap<SharedString, Arc<MarkdownPresentationFn>>,
+     enable_mdx: bool,
+     enable_frontmatter: bool,
+     block_parsers: Vec<Arc<MarkdownBlockParserFn>>,
+@@ -308,12 +331,17 @@
+     }
+ 
+     /// Apply a reusable Markdown plugin.
+-    pub fn plugin<P>(self, plugin: P) -> Self
++    pub fn plugin<P>(mut self, plugin: P) -> Self
+     where
+         P: MarkdownPlugin,
+     {
+         let plugin = Arc::new(plugin);
+         let name = SharedString::from(plugin.name().to_string());
++        let presentation = plugin.clone();
++        self.presentations.insert(
++            name.clone(),
++            Arc::new(move |node| presentation.presentation(node)),
++        );
+         let parser = plugin.clone();
+         let renderer = plugin;
+ 
+@@ -341,6 +369,12 @@
+ 
+     pub(crate) fn revision(&self) -> u64 {
+         self.revision
++    }
++
++    pub(crate) fn presentation(&self, node: &MarkdownNode) -> MarkdownPresentation {
++        self.presentations
++            .get(node.name())
++            .map_or(MarkdownPresentation::Opaque, |f| f(node))
+     }
+ 
+     /// Whether replacing these extension handles can change the parsed tree.
 --- a/src/text/node.rs
 +++ b/src/text/node.rs
 @@ -360,10 +360,25 @@
@@ -2664,7 +2953,15 @@
      highlight_cache: Arc<Mutex<Option<CachedCodeBlockHighlights>>>,
      pub span: Option<Span>,
  }
-@@ -1665,11 +1680,7 @@
+@@ -1477,6 +1492,7 @@
+ /// A context for rendering nodes, contains link references.
+ #[derive(Default, Clone)]
+ pub(crate) struct NodeContext {
++    pub(crate) displayed_text: Option<Arc<super::DisplayedText>>,
+     /// The byte offset of the node in the original markdown text.
+     /// Used for incremental updates.
+     pub(crate) offset: usize,
+@@ -1665,11 +1681,7 @@
                          });
  
                          // convert link references, replace link
@@ -2677,7 +2974,7 @@
  
                          links.push((inner_range.clone(), link_mark));
                      }
-@@ -1742,13 +1753,7 @@
+@@ -1742,13 +1754,7 @@
                  for (_, mark) in &inline_node.marks {
                      object_style = object_style.highlight(mark_highlight(mark, node_cx, cx).style);
                      if let Some(link) = &mark.link {
@@ -2692,7 +2989,44 @@
                          object_style.color = Some(node_cx.style.link());
                          object_style.underline = Some(gpui::UnderlineStyle {
                              thickness: px(1.),
-@@ -1813,11 +1818,7 @@
+@@ -1758,11 +1764,36 @@
+                 }
+                 let rendered_node = node.clone();
+                 let extensions = node_cx.markdown_extensions.clone();
++                let projected = node_cx
++                    .displayed_text
++                    .as_ref()
++                    .and_then(|source| source.object_text(node));
+                 items.push(InlineFlowItem::Object {
+                     text: node.shared_text(),
++                    // A missing/invalid non-text element must not silently turn
++                    // its copy/AX alternative into unprojected fallback glyphs.
++                    fallback_text: node_cx
++                        .displayed_text
++                        .as_ref()
++                        .is_some_and(|source| source.object_is_non_text(node))
++                        .then(SharedString::default),
+                     accessibility_label: node.shared_accessibility_name(),
+                     id: node.source_range().map_or(items.len(), |range| range.start),
+                     renderer: Arc::new(move |context, window, cx| {
++                        if let Some(state) = &projected {
++                            return Some(super::InlineElement::new(
++                                div().min_w(px(1.)).min_h(px(1.)).child(
++                                    Inline::new(
++                                        "projected-object",
++                                        state.clone(),
++                                        vec![],
++                                        vec![],
++                                        None,
++                                    )
++                                    .passive(),
++                                ),
++                            ));
++                        }
+                         extensions.render_inline(&rendered_node, context, window, cx)
+                     }),
+                     selected: inline_node.custom_selection.clone(),
+@@ -1813,11 +1844,7 @@
                              ..Default::default()
                          });
  
@@ -2705,7 +3039,7 @@
  
                          links.push((inner_range.clone(), link_mark));
                      }
-@@ -2179,6 +2180,7 @@
+@@ -2179,6 +2206,7 @@
                  ..
              } => v_flex()
                  .id(("li", options.ix))
@@ -2713,7 +3047,7 @@
                  .w_full()
                  .min_w_0()
                  .when(*spread, |this| this.child(div()))
-@@ -2625,6 +2627,7 @@
+@@ -2625,6 +2653,7 @@
                  .into_any_element(),
              BlockNode::Paragraph(paragraph) => div()
                  .id(("p", ix))
@@ -2721,7 +3055,7 @@
                  .pb(mb)
                  .child(paragraph.render(node_cx, window, cx))
                  .into_any_element(),
-@@ -2648,6 +2651,8 @@
+@@ -2648,6 +2677,8 @@
  
                  div()
                      .id(SharedString::from(format!("h{}-{}", level, ix)))
@@ -2730,7 +3064,7 @@
                      .pb(rems(0.3))
                      .whitespace_normal()
                      .text_size(text_size)
-@@ -2679,6 +2684,7 @@
+@@ -2679,6 +2710,7 @@
                  children, ordered, ..
              } => v_flex()
                  .id((if *ordered { "ol" } else { "ul" }, ix))
@@ -2738,7 +3072,27 @@
                  .w_full()
                  .min_w_0()
                  .pb(mb)
-@@ -3656,3 +3662,123 @@
+@@ -2710,6 +2742,19 @@
+                 .into_any_element(),
+             BlockNode::CodeBlock(code_block) => code_block.render(&options, node_cx, window, cx),
+             BlockNode::Custom(node) => {
++                if let Some(state) = node_cx
++                    .displayed_text
++                    .as_ref()
++                    .and_then(|source| source.object_text(node))
++                {
++                    return div()
++                        .pb(mb)
++                        .child(
++                            Inline::new(("projected-block", ix), state, vec![], vec![], None)
++                                .passive_block(),
++                        )
++                        .into_any_element();
++                }
+                 let inner = match node_cx.markdown_extensions.render_block(node, window, cx) {
+                     Some(rendered) => rendered,
+                     None => div().child(node.as_text().to_string()).into_any_element(),
+@@ -3656,3 +3701,123 @@
          assert_ne!(first, second);
      }
  }
@@ -3173,7 +3527,33 @@
      }
  
      /// Get the text content.
-@@ -325,6 +493,17 @@
+@@ -305,7 +473,12 @@
+         self.increment_update(new_text, true, cx);
+     }
+ 
+-    pub(crate) fn set_markdown_extensions(
++    /// Replace prepared renderer resources. For bounded externally prepared
++    /// documents with unchanged parser configuration, this rebuilds only the
++    /// displayed-text projection, not the AST. Parser changes use the normal
++    /// content-update path and require a new bounded preparation for decoration.
++    /// Callers must invalidate their enclosing query source after this operation.
++    pub fn set_markdown_extensions(
+         &mut self,
+         markdown_extensions: Arc<MarkdownExtensions>,
+         cx: &mut Context<Self>,
+@@ -321,10 +494,29 @@
+         if parser_configuration_changed && self.format == TextViewFormat::Markdown {
+             let text = self.text.clone();
+             self.increment_update(&text, false, cx);
++        } else if self.parsed_content.bounded {
++            self.text_backgrounds = None;
++            self.parsed_content.displayed_text = super::DisplayedText::prepare(
++                &self.parsed_content.document,
++                &self.markdown_extensions,
++            )
++            .ok();
++            self.invalidate_inline_layout(cx);
+         }
      }
  
      /// Return the selected text, in the view's [`SelectionFormat`].
@@ -3191,7 +3571,7 @@
      pub fn selected_text(&self) -> String {
          self.selected_text_in(None)
      }
-@@ -353,6 +532,11 @@
+@@ -353,6 +545,11 @@
      /// [`ParsedDocument::selected_text`](crate::text::document::ParsedDocument).
      pub(super) fn selected_text_in(&self, blocks: Option<RangeInclusive<usize>>) -> String {
          let format = self.effective_format();
@@ -3203,7 +3583,7 @@
  
          if self.select_all {
              if format == SelectionFormat::Source {
-@@ -436,6 +620,8 @@
+@@ -436,6 +633,8 @@
              match parse_content(self.format, ParsedContent::default(), &update_options) {
                  Ok(content) => {
                      self.parsed_content = content;
@@ -3212,7 +3592,7 @@
                      self.parsed_error = None;
                      self.invalidate_measured_heights();
                      if !self.is_selecting {
-@@ -524,6 +710,7 @@
+@@ -524,6 +723,7 @@
          self.preserve_inline_selection = false;
          self.multi_click_selection = None;
          self.selected_text_override = None;
@@ -3220,7 +3600,7 @@
          self.select_all = false;
          self.is_selecting = false;
          self.auto_scroll.stop();
-@@ -556,6 +743,7 @@
+@@ -556,6 +756,7 @@
      pub fn select_all(&mut self, cx: &mut Context<Self>) {
          self.multi_click_selection = None;
          self.selected_text_override = None;
@@ -3228,7 +3608,7 @@
          self.select_all = true;
          self.is_selecting = false;
          self.auto_scroll.stop();
-@@ -579,6 +767,7 @@
+@@ -579,6 +780,7 @@
              line_bounds: None,
          });
          self.selected_text_override = Some(selected_text);
@@ -3236,7 +3616,7 @@
          self.select_all = false;
          self.is_selecting = false;
          self.auto_scroll.stop();
-@@ -593,6 +782,7 @@
+@@ -593,6 +795,7 @@
              cx,
          );
          self.selected_text_override = None;
@@ -3244,11 +3624,20 @@
          let offset = self.bounds.origin + self.scroll_offset();
          if let Some(selection) = self.multi_click_selection.as_mut() {
              selection.line_bounds = Some(Bounds::new(bounds.origin - offset, bounds.size));
-@@ -767,6 +957,72 @@
+@@ -697,6 +900,7 @@
+         let state = cx.entity();
+         let document = self.parsed_content.document.clone();
+         let mut node_cx = self.parsed_content.node_cx.clone();
++        node_cx.displayed_text = self.parsed_content.displayed_text.clone();
+ 
+         node_cx.code_block_actions = self.code_block_actions.clone();
+         node_cx.code_block_highlighter = self.code_block_highlighter.clone();
+@@ -767,6 +971,77 @@
  pub(crate) struct ParsedContent {
      pub(crate) document: ParsedDocument,
      pub(crate) node_cx: node::NodeContext,
 +    displayed_text: Option<Arc<super::DisplayedText>>,
++    bounded: bool,
 +}
 +
 +/// A single-use full Markdown parse prepared outside the native UI thread.
@@ -3268,12 +3657,16 @@
 +            ..NodeContext::default()
 +        };
 +        let document = format::markdown::parse_bounded(source, &mut node_cx)?;
-+        let displayed_text = Some(super::DisplayedText::prepare(&document)?);
++        let displayed_text = Some(super::DisplayedText::prepare(
++            &document,
++            &node_cx.markdown_extensions,
++        )?);
 +        Ok(Self {
 +            content: ParsedContent {
 +                document,
 +                node_cx,
 +                displayed_text,
++                bounded: true,
 +            },
 +        })
 +    }
@@ -3317,13 +3710,14 @@
  }
  
  struct UpdateFuture {
-@@ -884,6 +1140,9 @@
+@@ -884,6 +1159,10 @@
      mut content: ParsedContent,
      options: &UpdateOptions,
  ) -> Result<ParsedContent, SharedString> {
 +    // A later ordinary parse cannot reuse identities from an installed bounded
 +    // snapshot. It has no admission contract for this extra representation.
 +    content.displayed_text = None;
++    content.bounded = false;
      let mut node_cx = NodeContext {
          markdown_extensions: options.markdown_extensions.clone(),
          ..NodeContext::default()

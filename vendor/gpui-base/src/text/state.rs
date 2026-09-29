@@ -473,7 +473,12 @@ impl TextViewState {
         self.increment_update(new_text, true, cx);
     }
 
-    pub(crate) fn set_markdown_extensions(
+    /// Replace prepared renderer resources. For bounded externally prepared
+    /// documents with unchanged parser configuration, this rebuilds only the
+    /// displayed-text projection, not the AST. Parser changes use the normal
+    /// content-update path and require a new bounded preparation for decoration.
+    /// Callers must invalidate their enclosing query source after this operation.
+    pub fn set_markdown_extensions(
         &mut self,
         markdown_extensions: Arc<MarkdownExtensions>,
         cx: &mut Context<Self>,
@@ -489,6 +494,14 @@ impl TextViewState {
         if parser_configuration_changed && self.format == TextViewFormat::Markdown {
             let text = self.text.clone();
             self.increment_update(&text, false, cx);
+        } else if self.parsed_content.bounded {
+            self.text_backgrounds = None;
+            self.parsed_content.displayed_text = super::DisplayedText::prepare(
+                &self.parsed_content.document,
+                &self.markdown_extensions,
+            )
+            .ok();
+            self.invalidate_inline_layout(cx);
         }
     }
 
@@ -887,6 +900,7 @@ impl Render for TextViewState {
         let state = cx.entity();
         let document = self.parsed_content.document.clone();
         let mut node_cx = self.parsed_content.node_cx.clone();
+        node_cx.displayed_text = self.parsed_content.displayed_text.clone();
 
         node_cx.code_block_actions = self.code_block_actions.clone();
         node_cx.code_block_highlighter = self.code_block_highlighter.clone();
@@ -958,6 +972,7 @@ pub(crate) struct ParsedContent {
     pub(crate) document: ParsedDocument,
     pub(crate) node_cx: node::NodeContext,
     displayed_text: Option<Arc<super::DisplayedText>>,
+    bounded: bool,
 }
 
 /// A single-use full Markdown parse prepared outside the native UI thread.
@@ -977,12 +992,16 @@ impl PreparedMarkdown {
             ..NodeContext::default()
         };
         let document = format::markdown::parse_bounded(source, &mut node_cx)?;
-        let displayed_text = Some(super::DisplayedText::prepare(&document)?);
+        let displayed_text = Some(super::DisplayedText::prepare(
+            &document,
+            &node_cx.markdown_extensions,
+        )?);
         Ok(Self {
             content: ParsedContent {
                 document,
                 node_cx,
                 displayed_text,
+                bounded: true,
             },
         })
     }
@@ -1143,6 +1162,7 @@ fn parse_content(
     // A later ordinary parse cannot reuse identities from an installed bounded
     // snapshot. It has no admission contract for this extra representation.
     content.displayed_text = None;
+    content.bounded = false;
     let mut node_cx = NodeContext {
         markdown_extensions: options.markdown_extensions.clone(),
         ..NodeContext::default()

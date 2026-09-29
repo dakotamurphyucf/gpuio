@@ -1492,6 +1492,7 @@ impl CodeBlock {
 /// A context for rendering nodes, contains link references.
 #[derive(Default, Clone)]
 pub(crate) struct NodeContext {
+    pub(crate) displayed_text: Option<Arc<super::DisplayedText>>,
     /// The byte offset of the node in the original markdown text.
     /// Used for incremental updates.
     pub(crate) offset: usize,
@@ -1763,11 +1764,36 @@ impl Paragraph {
                 }
                 let rendered_node = node.clone();
                 let extensions = node_cx.markdown_extensions.clone();
+                let projected = node_cx
+                    .displayed_text
+                    .as_ref()
+                    .and_then(|source| source.object_text(node));
                 items.push(InlineFlowItem::Object {
                     text: node.shared_text(),
+                    // A missing/invalid non-text element must not silently turn
+                    // its copy/AX alternative into unprojected fallback glyphs.
+                    fallback_text: node_cx
+                        .displayed_text
+                        .as_ref()
+                        .is_some_and(|source| source.object_is_non_text(node))
+                        .then(SharedString::default),
                     accessibility_label: node.shared_accessibility_name(),
                     id: node.source_range().map_or(items.len(), |range| range.start),
                     renderer: Arc::new(move |context, window, cx| {
+                        if let Some(state) = &projected {
+                            return Some(super::InlineElement::new(
+                                div().min_w(px(1.)).min_h(px(1.)).child(
+                                    Inline::new(
+                                        "projected-object",
+                                        state.clone(),
+                                        vec![],
+                                        vec![],
+                                        None,
+                                    )
+                                    .passive(),
+                                ),
+                            ));
+                        }
                         extensions.render_inline(&rendered_node, context, window, cx)
                     }),
                     selected: inline_node.custom_selection.clone(),
@@ -2716,6 +2742,19 @@ impl BlockNode {
                 .into_any_element(),
             BlockNode::CodeBlock(code_block) => code_block.render(&options, node_cx, window, cx),
             BlockNode::Custom(node) => {
+                if let Some(state) = node_cx
+                    .displayed_text
+                    .as_ref()
+                    .and_then(|source| source.object_text(node))
+                {
+                    return div()
+                        .pb(mb)
+                        .child(
+                            Inline::new(("projected-block", ix), state, vec![], vec![], None)
+                                .passive_block(),
+                        )
+                        .into_any_element();
+                }
                 let inner = match node_cx.markdown_extensions.render_block(node, window, cx) {
                     Some(rendered) => rendered,
                     None => div().child(node.as_text().to_string()).into_any_element(),
