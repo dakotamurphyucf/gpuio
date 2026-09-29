@@ -167,6 +167,15 @@ succeeds. The mounted ordinary-text cache is implemented. Its document provider
 still returns SourceUnavailable for nonempty native documents rather than treating
 raw Markdown syntax as displayed source.
 
+Native page projections can now use `Source::document_slice(snapshot, bytes)`.
+The constructor validates ordered, in-bounds UTF-8 byte endpoints before creating
+an opaque slice. Matching streams only that rope interval and returns page-local
+byte offsets. Source equivalence requires both the same snapshot identity and the
+same interval, so even a same-content new installed revision retires old paints.
+The slice retains the original document-store reservation; highlight admission
+counts the displayed interval separately. This primitive is implemented and tested;
+connecting it to the installed document presenter and painter remains pending.
+
 An application-wide native pool owns at most 128 mounted scope entries and two running jobs, with
 64 MiB of conservative admission units for queued/running/ready/retired data.
 Admission accounts for retained source/projection/configuration, the maximum
@@ -262,6 +271,34 @@ selectable widget retains its existing selection, native focus and input handlin
 selection backgrounds paint above the search wash. Scope removal releases caches
 and cancels matching; retired frame readers continue to carry their reservation
 until dropped.
+
+## Installed native-document adapter plan
+
+The document presenter keeps the last installed revision visible while the next
+parse is pending. Its highlighting source must use that same installed snapshot,
+mode and page, with a separate identity that also changes for collapse/expand and
+native page changes. Publishing a new parse must invalidate the enclosing scope
+and wake the root without reentering its current render. Before first installation,
+collection reports Pending; collapsed bodies contribute no text. A completion for
+a prior installed page must never decorate the replacement page.
+
+The source editor exposes shaped visible lines and their original buffer-byte
+offsets internally. Extend its existing background paint pass with immutable
+rounded range washes, preserving syntax backgrounds below and native selection
+above. The range data must retain the match-result lease through its last frame
+reader. Existing TextDecoration backgrounds alone are insufficient because they
+do not preserve radius or independently overlapping washes. Folded lines, tabs,
+soft wraps and scrolled clipping must use the editor's actual layout.
+
+Markdown needs an immutable displayed-fragment table tied to its prepared AST,
+with the same structural fragment identities reused by paragraph, inline-flow,
+code-block and table-cell rendering. Do not derive it from visited/painted blocks
+or the plain-text copy representation: virtualized blocks can be unpainted, and
+copy text includes semantic separators and inline-object alternatives. The table
+must stay bounded at preparation time, and replacement must preserve the existing
+streaming layout/selection retention. These adapter steps remain unimplemented;
+they are requirements for the next integration, not evidence of native-document
+highlighting acceptance.
 
 ## Pinned comparison and acceptance
 

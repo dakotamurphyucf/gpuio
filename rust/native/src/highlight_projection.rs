@@ -24,12 +24,37 @@ pub enum Source {
     Text(Arc<str>),
     /// Retains the document store's original reservation; never flatten for find.
     Document(Arc<Snapshot>),
+    /// The exact installed native page, with offsets local to this slice.
+    DocumentSlice(DocumentSlice),
+}
+
+/// Validated UTF-8 byte boundaries into an immutable document-store snapshot.
+/// Keeping the snapshot also keeps its original store reservation alive.
+#[derive(Clone)]
+pub struct DocumentSlice {
+    snapshot: Arc<Snapshot>,
+    bytes: Range<usize>,
 }
 impl Source {
+    pub fn document_slice(
+        snapshot: Arc<Snapshot>,
+        bytes: Range<usize>,
+    ) -> Result<Self, RangeError> {
+        if bytes.start > bytes.end || bytes.end > snapshot.text.len() {
+            return Err(RangeError::OutOfBounds);
+        }
+        if !snapshot.text.is_char_boundary(bytes.start)
+            || !snapshot.text.is_char_boundary(bytes.end)
+        {
+            return Err(RangeError::ScalarBoundary);
+        }
+        Ok(Self::DocumentSlice(DocumentSlice { snapshot, bytes }))
+    }
     pub(crate) fn len(&self) -> usize {
         match self {
             Self::Text(text) => text.len(),
             Self::Document(s) => s.text.len(),
+            Self::DocumentSlice(s) => s.bytes.len(),
         }
     }
     fn same_source(&self, other: &Self) -> bool {
@@ -38,6 +63,9 @@ impl Source {
             // A newer document revision must fence paints even if its bytes
             // happen to be equal. Retain the original snapshot reservation.
             (Self::Document(a), Self::Document(b)) => Arc::ptr_eq(a, b),
+            (Self::DocumentSlice(a), Self::DocumentSlice(b)) => {
+                Arc::ptr_eq(&a.snapshot, &b.snapshot) && a.bytes == b.bytes
+            }
             _ => false,
         }
     }
@@ -45,12 +73,18 @@ impl Source {
         match self {
             Self::Text(text) => text.is_char_boundary(offset),
             Self::Document(s) => s.text.is_char_boundary(offset),
+            Self::DocumentSlice(s) => {
+                offset <= s.bytes.len() && s.snapshot.text.is_char_boundary(s.bytes.start + offset)
+            }
         }
     }
     fn chunks(&self) -> Chunks<'_> {
         match self {
             Self::Text(text) => Chunks::Text(Some(text)),
             Self::Document(s) => Chunks::Document(s.text.chunks()),
+            Self::DocumentSlice(s) => {
+                Chunks::Document(s.snapshot.text.slice(s.bytes.clone()).chunks())
+            }
         }
     }
 }

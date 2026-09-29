@@ -324,3 +324,128 @@ fn rope_snapshot_survives_retirement_and_keeps_original_byte_offsets() {
         Err(Error::Cancelled)
     );
 }
+
+fn published(
+    store: &mut Store,
+    text: &str,
+) -> (
+    gpuio_protocol::ResourceId,
+    Arc<gpuio_native::document_store::Snapshot>,
+) {
+    use gpuio_protocol::document::{Status, Update};
+    let id = store.create().unwrap();
+    store
+        .begin(Update {
+            id,
+            base: 0,
+            revision: 1,
+            generation: 1,
+            from_byte: 0,
+            suffix_bytes: text.len() as i64,
+            status: Status::Complete,
+        })
+        .unwrap();
+    store.chunk(id, 1, 0, text.as_bytes()).unwrap();
+    store.publish(id, 1).unwrap();
+    (id, store.acquire(id).unwrap().snapshot())
+}
+
+fn page_projection(
+    snapshot: Arc<gpuio_native::document_store::Snapshot>,
+    bytes: std::ops::Range<usize>,
+) -> Projection {
+    Projection::new(vec![group(
+        Kind::NativeDocument,
+        vec![Run {
+            key: key(0),
+            source: Source::document_slice(snapshot, bytes).unwrap(),
+        }],
+    )])
+    .unwrap()
+}
+
+#[test]
+fn installed_pages_match_only_their_slice_with_local_byte_offsets() {
+    let text = format!(
+        "excluded λfind\n{}λfind λfind\nexcluded λfind",
+        "x".repeat(8191)
+    );
+    let mut store = Store::default();
+    let (id, snapshot) = published(&mut store, &text);
+    let start = "excluded λfind\n".len();
+    let end = start + 8191 + "λfind λfind".len();
+    let page = page_projection(snapshot.clone(), start..end);
+    assert_eq!(page.source_bytes(), end - start);
+    assert_eq!(page.ordinary_bytes(), 0);
+    let matches = page
+        .find(&Config(vec![spec(Some("λfind"), &[])]), || false)
+        .unwrap();
+    assert_eq!(
+        matches.counts,
+        vec![Count {
+            total: 2,
+            stored: 2
+        }]
+    );
+    assert_eq!(
+        spans(&matches, 0),
+        vec![(0, 0, 8191, 8197), (0, 1, 8198, 8204)]
+    );
+    // Full-document match ordinals must not leak into a mounted native page.
+    assert!(page.same_source(&page_projection(snapshot.clone(), start..end)));
+    assert!(!page.same_source(&page_projection(snapshot.clone(), 0..end)));
+    store
+        .begin(gpuio_protocol::document::Update {
+            id,
+            base: 1,
+            revision: 2,
+            generation: 1,
+            from_byte: text.len() as i64,
+            suffix_bytes: 0,
+            status: gpuio_protocol::document::Status::Complete,
+        })
+        .unwrap();
+    store.publish(id, 2).unwrap();
+    let other_revision_identity = store.acquire(id).unwrap().snapshot();
+    assert!(
+        !page.same_source(&page_projection(other_revision_identity, start..end)),
+        "identical page bytes from another installed snapshot must invalidate paints"
+    );
+}
+
+#[test]
+fn native_slices_validate_endpoints_and_keep_retired_snapshot_charge() {
+    let mut store = Store::default();
+    let (id, snapshot) = published(&mut store, "prefix é🙂 suffix");
+    for bytes in [7..8, 0..8, 10..13] {
+        assert!(matches!(
+            Source::document_slice(snapshot.clone(), bytes),
+            Err(RangeError::ScalarBoundary)
+        ));
+    }
+    for (start, end) in [(9, 8), (0, usize::MAX), (100, 100)] {
+        assert!(matches!(
+            Source::document_slice(snapshot.clone(), start..end),
+            Err(RangeError::OutOfBounds)
+        ));
+    }
+    let end = snapshot.text.len();
+    let empty = page_projection(snapshot.clone(), end..end);
+    assert_eq!(empty.source_bytes(), 0);
+    let page = page_projection(snapshot.clone(), 7..13);
+    let weak = Arc::downgrade(&snapshot);
+    drop(snapshot);
+    store.release(id).unwrap();
+    assert!(weak.upgrade().is_some());
+    assert!(
+        store.reserved_bytes() > 0,
+        "page retains the original store reservation"
+    );
+    let found = page
+        .find(&Config(vec![spec(Some("é🙂"), &[])]), || false)
+        .unwrap();
+    assert_eq!(spans(&found, 0), vec![(0, 0, 0, 6)]);
+    drop(page);
+    assert!(weak.upgrade().is_none());
+    assert_eq!(store.reserved_bytes(), 0);
+}

@@ -282,3 +282,27 @@ painting, dynamic style visibility, virtual-list/independent-window acceptance,
 large workloads and the public gallery remain required before capability
 advertisement. No OCaml/protocol representations changed in this checkpoint;
 prior Dune/bridge evidence remains tied to its recorded revisions.
+
+
+## Immutable installed-page source primitive
+
+`Source::document_slice` validates an immutable document snapshot interval and
+streams its rope chunks directly. Match offsets are local to that interval;
+NativeDocument groups remain excluded from ordinary explicit-range offsets.
+Changing either page or installed snapshot identity invalidates source equivalence,
+even when a newly published revision has identical bytes. The original document
+store charge survives retirement until the final slice reader is dropped.
+
+Local macOS 14.5 arm64: the isolated Cargo command
+`cargo test -p gpuio-native --lib --test highlight_projection --test highlight_jobs --test highlight_collect --locked -j2`
+passes **386 tests** (357 library, ten projection, 13 jobs, six collector); two
+existing private-bus notification tests are excluded. The two new projection tests
+cover page-local matching across rope content, outside-page exclusion, page and
+same-content revision identity, invalid/reversed/out-of-bounds/UTF-8 endpoints,
+empty pages and release of the original store reservation. Strict all-target
+native/protocol Clippy with native-image-tests and Rust format/diff checks pass.
+
+No native window test is claimed for this source primitive. Installed document
+collection, rounded editor backgrounds and Markdown fragment/paint adapters remain
+pending; the mounted provider still reports SourceUnavailable for nonempty native
+document queries. No protocol, capability or OCaml API changes.
