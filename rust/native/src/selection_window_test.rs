@@ -1,5 +1,7 @@
 //! Native cross-node selection, source retirement, exclusions and modal ownership.
 use super::*;
+#[path = "selection_isolation_test.rs"]
+mod isolation;
 use crate::host::editor_test::{frame, key as press};
 
 fn apply(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, operations: Vec<Op>) {
@@ -336,6 +338,7 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, window: WindowHandle<View>
             assert!(gpui_base::TextSelection::selected_text(w, cx).is_empty())
         })
         .unwrap();
+    isolation::exercise(cx, window).await;
     cx.update(|cx| {
         cx.write_to_clipboard(
             saved.unwrap_or_else(|| gpui::ClipboardItem::new_string(String::new())),

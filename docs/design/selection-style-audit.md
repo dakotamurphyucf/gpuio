@@ -29,9 +29,9 @@ sharing native paint order and focus-trap scopes with Markdown participants.
 Single-click drags can span ordinary nodes, while keyboard ranges and double/
 triple-click gestures remain local to the focused node. This is a cross-node
 foundation, not complete cross-document acceptance. Mixed ordinary/Markdown
-native checks are recorded below; virtualized boundaries, separate windows,
-multiple documents and the broader input matrix remain required before closing
-the catalog audit.
+native checks are recorded below, alongside ordinary-window isolation and managed
+endpoint eviction. Multiple documents, larger virtualized ranges and the broader
+input matrix remain required before closing the catalog audit.
 
 ## Selection color implementation
 
@@ -307,14 +307,50 @@ structural catalog and exact Base fork reconstruction also passed. The preceding
 100k list evidence belongs to the ordinary-window-selection checkpoint above;
 this narrower Markdown action change did not rerun that traversal.
 
+## Separate windows and managed endpoint eviction
+
+`selection_isolation_test.rs`, included by `native_ui`, opens a second native
+window without requesting activation. It reuses node IDs while keeping selected
+text, clearing and source-replacement effects independent between windows. Closing
+the second window releases its native selection owners; the first keeps its range.
+Reopening the same protocol window slot with a new generation starts with no
+selection. The fixture checks these transitions for two successive generations,
+including actual clipboard results routed to each window. It uses GPUI-dispatched
+input; it does not assert physical active-window keyboard behavior or a broad
+window-cycle memory budget.
+
+`list_selection_test.rs`, included by `native_list`, selects across two materialized
+rows. The focused anchor remains in native admission pins. The unfocused endpoint
+can be legally evicted while its logical row remains in the source order, matching
+the accepted managed-list policy that historical unfocused selection does not
+pin resources indefinitely. Eviction releases the old selection owner and clears
+the shared result rather than allowing a partial stale Copy. Rematerializing that
+logical row under a new node generation does not restore the old range; a fresh
+gesture copies the new payload. The surrounding native suite continues to cover
+held-drag retention, source deletion, disposal and bounded 100k-row traversal.
+
+These cases do not promise Copy over arbitrary unloaded history or all interior-
+row eviction combinations. An application's loaded logical data and bounded native
+row materialization remain separate owners; see [managed lists](managed-lists.md).
+They also do not establish mixed-document selection across independent windows.
+
+Both `native_ui` and `native_list` exited 0 locally on this fixture revision, under
+90- and 300-second process-group watchdogs respectively. The list suite completed
+two 100,000-row traversals with at most 256 active native views/selection caches,
+released evicted owners and completed its demand-convergence checks. Strict
+all-target native/protocol Clippy with `native-image-tests`, formatting, diff and
+structural catalog checks passed. This checkpoint adds tests and documentation;
+it does not change production code, wire/API contracts or the pinned fork.
+
 ## Remaining implementation and acceptance
 
 - Complete document selection policy evidence for disabled Markdown multi-click,
   scrolling, file controls and accessible selection/range commands. The focused
   native checks above are not the whole OCH-17 input/AX matrix.
-- Complete multiple-document drag/copy, replaced endpoint identities, virtual-row
-  reuse, separate-window boundaries, wrapped/mixed-direction text, multi-click
-  cross-node semantics and pointer-operated Copy controls.
+- Complete multiple-document drag/copy, broader virtualized/interior-row lifecycle
+  cases, wrapped/mixed-direction text, multi-click cross-node semantics and
+  pointer-operated Copy controls. Ordinary two-window isolation and managed
+  endpoint eviction/reuse are now covered above.
   The focused ordinary-node regression does not prove those combinations.
 - Measure projection and copy cost for large selected text and bounded retention
   during repeated mount/unmount/window cycles.

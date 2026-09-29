@@ -1,5 +1,7 @@
 //! Real GPUI layout through the production host, including sparse placeholders.
 use super::*;
+#[path = "list_selection_test.rs"]
+mod selection_lifecycle;
 use gpuio_protocol::list::{
     Config, IdRun, Order, Row, ScrollPolicy, ScrollRequest, ScrollTarget, Viewport,
 };
@@ -652,6 +654,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: WindowHandle<View>) {
     super::native_test::mouse(cx, window, text_position, false);
     frame(cx, window).await;
     assert!(!selection.upgrade().unwrap().borrow().is_dragging());
+    let recycled = selection_lifecycle::exercise(cx, window).await;
     let owner = window
         .update(cx, |view, _, _| Rc::downgrade(&view.lists[&node(0)]))
         .unwrap();
@@ -659,7 +662,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: WindowHandle<View>) {
     remove.extend(
         (1..=11)
             .filter(|id| *id != 2)
-            .map(|id| Op::Remove(node(id))),
+            .map(|id| Op::Remove(if id == 4 { recycled } else { node(id) })),
     );
     remove.push(Op::Remove(node(0)));
     apply(cx, window, remove);

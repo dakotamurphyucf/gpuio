@@ -149,6 +149,12 @@ required rows. The OCaml driver discards only that pending candidate, schedules
 retention callbacks from the last accepted view, and retries without running
 Bonsai deactivation/reset hooks. Explicit source deletion or list removal still
 disposes the row. A historical unfocused selection alone does not pin it forever.
+For an ordinary cross-row text range, eviction of an unfocused endpoint retires
+the shared selection and releases that native owner. Rematerializing the logical
+row with a fresh node generation starts unselected; copying requires a fresh
+gesture. The native `list_selection_test.rs` fixture checks admission pins,
+clipboard results and weak-owner release for this transition. This is not a
+promise to copy text from rows that have never been materialized.
 
 Tests cover atomic rollback, explicit deletion, response-reservation release,
 source-generation validation, independent OCaml/Rust bin_prot fixtures, and an
