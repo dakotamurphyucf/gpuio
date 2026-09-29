@@ -2150,6 +2150,15 @@ def main():
             mac.close(TITLE)
             if child.wait(timeout=15) != 0:
                 raise RuntimeError('Gallery exited unsuccessfully')
+        except Exception:
+            if mac and child.poll() is None:
+                try:
+                    mac.dump(TITLE)
+                    if args.images:
+                        screenshot(mac, args.images / 'gallery-failure.png', title=TITLE)
+                except Exception as diagnostic_error:
+                    print('GALLERY_FAILURE_CAPTURE', diagnostic_error, flush=True)
+            raise
         finally:
             if mac:
                 mac.release(mac.app)

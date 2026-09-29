@@ -4,6 +4,42 @@ Partial release finding repair, 2026-09-28, macOS 14.5 (23F79), arm64.
 The [contract](../design/document-accessibility.md) describes the full intended
 behavior. This checkpoint does not complete document accessibility or OCH-17.
 
+## Reset preparation and newer collapse input — 2026-09-29
+
+The post-reset collapse failure recorded below now has a deterministic native
+reproduction and repair. A prepared generation installed after the user's Collapse
+and unconditionally restored `initially_collapsed`, undoing the action. The native
+presentation now records which source generation supplied the current collapse
+state. The shared pointer/keyboard/accessibility operation stamps the current
+lease generation, including before the presenter has refreshed. Installation
+restores the configured default only when no interaction has already established
+state for that generation. Later resets still restore defaults; append preserves
+the current choice. No worker scheduling or public wire/API contract changes.
+
+`document_reset_test.rs` holds actual prepared-result installation through a
+`native-tests`-only gate and sends Enter through native GPUI focus/input routing.
+The first reproduction failed when collapsed `true` became `false` on installation.
+The repaired test passes twelve code/Markdown/diff × initial-state × input-order
+cases, with input both before and after presenter refresh. Each also verifies
+append retention and the next unacted reset's default. Publication and input in
+the before-refresh case share one native update; neither test depends on sleeps
+or worker speed. This is GPUI key injection, distinct from OS keyboard acceptance.
+
+The complete `native_document` regression passes. The unchanged full gallery
+`--section documents` flow also passes locally, including the previously failing
+Reset diff → Collapse/Expand → Markdown sequence, native scrolling to code,
+rich-link checks and repeated remounts. Its earlier fence-reveal timeouts are
+retained below; this run does not independently establish their cause. Failure
+diagnostics now dump the accessible tree and, when `--images` is supplied, capture
+the application window before teardown.
+
+Validation on macOS 14.5 arm64: native document build/run, gallery build plus
+`@fmt @test/gallery/runtest`, full document gallery with screenshots, strict
+feature-enabled Clippy, default-feature Cargo check, Rust formatting and Python
+compilation. Relevant commands are the rich-link commands below with gallery
+`--section documents --images <directory>`. No Linux GUI, full installed-consumer
+rerun or release/performance acceptance is inferred from these checks.
+
 ## Rich links across rendered fragments — 2026-09-29
 
 The public document fixture now includes one link spanning ordinary, bold and
@@ -55,8 +91,8 @@ from Diff, or waiting for Expand after Reset diff followed by Collapse. Added
 geometry diagnostics produced another pass; a two-direction/current-viewport
 search did not establish a fix and was not retained. Inspection found generation
 installation resets collapse state in `Presentation::accept_ready`; a delayed
-reset may overwrite a newer collapse action, requiring a deterministic regression
-and repair. These failures remain release work. The dedicated `document-links`
+reset could overwrite a newer collapse action. The follow-up above reproduces
+and repairs that race; the earlier observations remain recorded here. The dedicated `document-links`
 section isolates the complete new link checks, and the full walkthrough still
 calls the same checks rather than skipping them.
 

@@ -173,3 +173,10 @@ new text did not add a line. Paginated source metadata likewise describes the
 installed snapshot and remains present while newer preparation is pending.
 Actual content growth, Markdown interpretation and explicit expand/collapse can
 still change row height; this does not freeze document layout or tail following.
+
+A generation reset restores the configured initial collapse state when the new
+content installs, unless the user has explicitly expanded or collapsed that
+generation in the meantime. Record that interaction against the current source
+lease generation, including when preparation has not yet caught up. Delayed
+preparation cannot overwrite the newer interaction. An append retains collapse
+state; a subsequent reset without a new interaction restores the initial value.

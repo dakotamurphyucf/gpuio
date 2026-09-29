@@ -106,8 +106,12 @@ pub(super) struct Presentation {
     raw_diff: bool,
     charge: Option<document_jobs::Charge>,
     collapsed: bool,
+    // Generation whose default or explicit input produced `collapsed`.
+    collapse_generation: i64,
     error: Option<String>,
     ready: bool,
+    #[cfg(feature = "native-tests")]
+    defer_prepared_install: bool,
     previous_pages: Vec<usize>,
     source_mode: bool,
     installed_page_start: usize,
@@ -320,6 +324,7 @@ impl Presentation {
             node,
             lease,
             collapsed: config.initially_collapsed,
+            collapse_generation: snapshot.generation,
             config,
             selection_color: None,
             user_selectable: true,
@@ -350,6 +355,8 @@ impl Presentation {
             charge: None,
             error: None,
             ready: false,
+            #[cfg(feature = "native-tests")]
+            defer_prepared_install: false,
             previous_pages: vec![],
             source_mode: false,
             installed_page_start: 0,
@@ -809,6 +816,11 @@ impl Presentation {
         self.invalidate_row(cx);
     }
     fn accept_ready(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        // Deterministically exercise user input before asynchronous installation.
+        #[cfg(feature = "native-tests")]
+        if self.defer_prepared_install {
+            return;
+        }
         let ready = match &self.job {
             Ok(job) => job.take_ready(),
             Err(error) if !self.ready => Some(Err(*error)),
@@ -826,7 +838,10 @@ impl Presentation {
             self.previous_pages.clear();
             self.source_mode = false;
             self.raw_diff = false;
+        }
+        if self.collapse_generation != self.snapshot.generation {
             self.collapsed = self.config.initially_collapsed;
+            self.collapse_generation = self.snapshot.generation;
         }
         self.ready = true;
         self.error = None;
@@ -1331,6 +1346,9 @@ impl Render for Presentation {
                 if self.collapsed { "Expand" } else { "Collapse" },
                 |this, _, cx| {
                     this.collapsed = !this.collapsed;
+                    // Publication can precede this view's next render/refresh.
+                    // Associate input with the current lease, not the old body.
+                    this.collapse_generation = this.lease.snapshot().generation;
                     this.invalidate_row(cx);
                     cx.notify();
                 },
