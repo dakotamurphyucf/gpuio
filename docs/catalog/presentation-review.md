@@ -156,6 +156,13 @@ implemented `Highlight` system supplies scoped searches/ranges and GPU painting.
 These facts do not yet prove the particular secondary/prefix/masking behavior.
 There is no label masking configuration in the current public helper.
 
+The [ordinary text-span foundation](../design/text-content.md) now defines and
+validates one logical UTF-8 string with bounded, sorted foreground ranges in
+OCaml and Rust, with matching independent byte fixtures. It deliberately avoids
+replacing inline text with separate layout boxes. Native transaction/reconciliation/
+rendering integration and the enhanced label helper remain required; this data
+foundation does not close the label configuration gap.
+
 Required follow-up: review an explicit public recipe or API for secondary text,
 prefix/all-match styling and masked display, including non-ASCII boundaries and
 accessibility/copy behavior. A visually masked string must not accidentally
