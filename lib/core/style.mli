@@ -106,6 +106,12 @@ module Text_decoration : sig
   [@@deriving equal, sexp_of]
 end
 
+(** [Scroll] enables native scrolling on the declared axis. Ordinary containers
+    with both axes scrollable preserve diagonal movement; a single-axis
+    container does not translate wheel input from the other axis. Consumed
+    events stop at that viewport, and events at its boundary can reach an
+    ancestor. A partly consumed event does not forward leftover movement.
+    Managed lists and native editor/control widgets own their scroll policies. *)
 module Overflow : sig
   type t =
     | Visible

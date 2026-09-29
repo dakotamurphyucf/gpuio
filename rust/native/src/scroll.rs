@@ -11,7 +11,7 @@ use std::{
     cell::{Cell, RefCell},
     rc::{Rc, Weak},
 };
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 struct Axes {
     x: bool,
     y: bool,
@@ -61,7 +61,10 @@ pub(super) fn attach(
                     };
                     let axes = state.axes.get();
                     let mut delta = event.delta.pixel_delta(line_height);
-                    if event.delta.precise() {
+                    // A two-axis viewport supports diagonal panning. Keep GPUI's
+                    // gesture filtering only for single-axis containers, where
+                    // it prevents cross-axis drift into nested scroll regions.
+                    if event.delta.precise() && !(axes.x && axes.y) {
                         state
                             .ongoing
                             .borrow_mut()
@@ -72,13 +75,6 @@ pub(super) fn attach(
                     }
                     if !axes.y {
                         delta.y = px(0.);
-                    }
-                    if delta.x != px(0.) && delta.y != px(0.) {
-                        if delta.x.abs() > delta.y.abs() {
-                            delta.y = px(0.);
-                        } else {
-                            delta.x = px(0.);
-                        }
                     }
                     let max = state.handle.max_offset();
                     let clamp = |point: gpui::Point<Pixels>| {
@@ -172,10 +168,15 @@ impl<E: Element<PrepaintState = Option<Hitbox>> + InteractiveElement + Styled> E
                 self.element
                     .interactivity()
                     .compute_style(id, prepaint.as_ref(), window, cx);
-            state.axes.set(Axes {
+            let axes = Axes {
                 x: style.overflow.x == gpui::Overflow::Scroll,
                 y: style.overflow.y == gpui::Overflow::Scroll,
-            });
+            };
+            if state.axes.replace(axes) != axes {
+                // Hover/focus refinements can change axes during a gesture.
+                // An earlier one-axis lock must not survive a policy change.
+                *state.ongoing.borrow_mut() = gpui::OngoingScroll::default();
+            }
         }
         self.element
             .paint(id, inspector, bounds, layout, prepaint, window, cx);

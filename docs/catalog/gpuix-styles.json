@@ -852,12 +852,13 @@
       "source_field": "overflow",
       "public_api": "Style.Property.Overflow",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; local native two-axis/nested-scroll evidence; full value/root audit pending",
+      "note": "Typed Overflow values and per-axis declarations control ordinary-container scrolling. Both Scroll axes preserve precise/discrete diagonals; one-axis filtering, partial/both-axis limits, nested propagation, hovered-axis changes, retained offsets/owner and teardown pass native tests. Managed lists/editor widgets own their policies. Shorthand order and remaining keyword/root acceptance still need review.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/scrolling-och11.md"
       ],
       "release_owner": "OCH-17"
     },
@@ -865,12 +866,13 @@
       "source_field": "overflowX",
       "public_api": "Style.Property.Overflow_x",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; local native two-axis/nested-scroll evidence; full value/root audit pending",
+      "note": "Typed Overflow values and per-axis declarations control ordinary-container scrolling. Both Scroll axes preserve precise/discrete diagonals; one-axis filtering, partial/both-axis limits, nested propagation, hovered-axis changes, retained offsets/owner and teardown pass native tests. Managed lists/editor widgets own their policies. Shorthand order and remaining keyword/root acceptance still need review.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/scrolling-och11.md"
       ],
       "release_owner": "OCH-17"
     },
@@ -878,12 +880,13 @@
       "source_field": "overflowY",
       "public_api": "Style.Property.Overflow_y",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; local native two-axis/nested-scroll evidence; full value/root audit pending",
+      "note": "Typed Overflow values and per-axis declarations control ordinary-container scrolling. Both Scroll axes preserve precise/discrete diagonals; one-axis filtering, partial/both-axis limits, nested propagation, hovered-axis changes, retained offsets/owner and teardown pass native tests. Managed lists/editor widgets own their policies. Shorthand order and remaining keyword/root acceptance still need review.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/scrolling-och11.md"
       ],
       "release_owner": "OCH-17"
     },

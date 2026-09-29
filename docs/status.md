@@ -15,6 +15,13 @@ submodule. Alignment helper/refinement and layer-merge tests pass. Numeric
 policies, remaining display/overflow values and specialized-root behavior remain
 open.
 
+Ordinary two-axis containers now preserve diagonal scrolling. The new native
+[scroll regression](evidence/scrolling-och11.md#milestone-07-parity-two-axis-containers)
+reproduced a dropped Y component and now passes precise/discrete diagonals,
+boundary propagation, hovered-axis changes and retained-owner teardown alongside
+the existing nested transcript/composer/popup/modal suite. Physical trackpad,
+public-gallery and Linux desktop acceptance remain separate.
+
 Milestone 07 is in progress. OCH-41's public
 [Component Studio](../examples/gallery/README.md) now has twenty-three preview sections,
 including canvas, images/icons, charts, native motion, responsive layouts, native extensions, input/transfers, input observations, desktop services and styling details. The [gallery evidence](evidence/gallery-och41.md) records
