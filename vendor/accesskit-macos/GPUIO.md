@@ -104,7 +104,10 @@ fixes that mismatch and delegates other attribute queries to AppKit.
 The gallery's real macOS regression checks Markdown heading/list roles and
 Unicode body text, code/diff values, AXValue not settable, native focus, rejection
 of typing/backspace, collapse and remount. Existing editable fields must still
-accept AXValue replacement. Heading levels exist in the AccessKit tree but
-macOS level exposure, Markdown link actions, selection ranges and VoiceOver
-reading remain separate release work. The expected native heading role is also
+accept AXValue replacement. The patch now maps a heading's AccessKit level to its
+numeric AXValue, following [WebKit's macOS heading value mapping](https://chromium.googlesource.com/external/Webkit/+/b4170928e42cb313b7c8304a796879ddb2ff7f12/Source/WebCore/accessibility/mac/WebAccessibilityObjectWrapperMac.mm).
+The painted children continue to supply its text. The external gallery regression
+reads level 1 and checks table row/cell indices through the existing table adapter.
+Ordinary link actions have separate passing evidence; complete rich-link behavior,
+selection ranges and VoiceOver reading remain release work. The expected native heading role is also
 described in [WebKit's heading mapping](https://bugs.webkit.org/show_bug.cgi?id=131920).

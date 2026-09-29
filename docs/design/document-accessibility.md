@@ -21,6 +21,15 @@ and visible focus. Selection and copying continue to refer to the rendered text.
 Parsing and accessibility remain bounded by the document preparation limits;
 oversized documents use the existing paginated source presentation.
 
+Markdown headings retain their parsed level (1–6); the macOS heading's numeric
+AXValue exposes that level while painted child text supplies its content. Markdown
+tables expose one table with row/column counts, ordered rows, and header/data cells
+with zero-based row and column indices. The first parsed row is the header. Each
+row has a distinct identity within its table; cell text remains in the actual
+painted children. Both wrapping and horizontal-scroll layouts use this structure.
+Copy/action controls remain outside the table's data hierarchy. These are read-only
+document tables, so the semantics do not advertise row selection or editing.
+
 The rendered document owns keyboard focus. Tab and Shift-Tab move through its
 logical Markdown links in source order; moving past either end returns traversal
 to the containing widget. Enter activates the selected link, Escape returns to

@@ -2449,6 +2449,13 @@ impl BlockNode {
                 cells.push(
                     div()
                         .id(("cell", ix))
+                        .role(if row_ix == 0 {
+                            gpui::Role::ColumnHeader
+                        } else {
+                            gpui::Role::Cell
+                        })
+                        .aria_row_index(row_ix)
+                        .aria_column_index(ix)
                         // Measured max-content width is the flex-basis;
                         // `flex_grow` (proportional to it) distributes extra
                         // space so a narrow table still fills the frame, while
@@ -2473,7 +2480,9 @@ impl BlockNode {
             }
             rows.push(
                 div()
-                    .id("row")
+                    .id(("row", row_ix))
+                    .role(gpui::Role::Row)
+                    .aria_row_index(row_ix)
                     .w_full()
                     .when(row_ix < row_count - 1, |this| this.border_b_1())
                     .border_color(style.border())
@@ -2517,7 +2526,14 @@ impl BlockNode {
                     // shrink-to-fit (their text wrapping), the definite
                     // `w(min_total_w)` keeps the floors once they are reached,
                     // letting the track exceed the viewport and scroll.
-                    div().min_w_full().w(px(min_total_w)).children(rows),
+                    div()
+                        .id("table-data")
+                        .role(gpui::Role::Table)
+                        .aria_row_count(row_count)
+                        .aria_column_count(col_count)
+                        .min_w_full()
+                        .w(px(min_total_w))
+                        .children(rows),
                 ),
             )
             // Custom actions row (e.g. copy / download) rendered below the
@@ -2565,6 +2581,13 @@ impl BlockNode {
                 cells.push(
                     div()
                         .id(("cell", ix))
+                        .role(if row_ix == 0 {
+                            gpui::Role::ColumnHeader
+                        } else {
+                            gpui::Role::Cell
+                        })
+                        .aria_row_index(row_ix)
+                        .aria_column_index(ix)
                         .overflow_hidden()
                         .when(align == ColumnumnAlign::Center, |this| this.text_center())
                         .when(align == ColumnumnAlign::Right, |this| this.text_right())
@@ -2582,7 +2605,9 @@ impl BlockNode {
 
             rows.push(
                 div()
-                    .id("row")
+                    .id(("row", row_ix))
+                    .role(gpui::Role::Row)
+                    .aria_row_index(row_ix)
                     .w_full()
                     .when(row_ix < row_count - 1, |this| this.border_b_1())
                     .border_color(style.border())
@@ -2606,6 +2631,9 @@ impl BlockNode {
             .child(
                 div()
                     .id(("table", options.ix))
+                    .role(gpui::Role::Table)
+                    .aria_row_count(row_count)
+                    .aria_column_count(col_lens.len())
                     .w_full()
                     .bg(cx.theme().tokens.colors.surface)
                     .border_1()

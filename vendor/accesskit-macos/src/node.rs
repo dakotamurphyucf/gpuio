@@ -321,6 +321,11 @@ impl NodeWrapper<'_> {
     }
 
     pub(crate) fn value(&self) -> Option<Value> {
+        if self.0.role() == Role::Heading {
+            // macOS exposes a heading's hierarchy through its numeric AXValue;
+            // its title/painted children continue to provide the heading text.
+            return self.0.data().level().map(|level| Value::Number(level as f64));
+        }
         if let Some(toggled) = self.0.toggled() {
             return Some(Value::Bool(toggled != Toggled::False));
         }

@@ -553,6 +553,121 @@ def exercise_highlighting(mac, images):
     mac.wait_text(TITLE, '7 matches · selected 1')
 
 
+def document_structure(mac):
+    """Read the actual painted Markdown hierarchy through external macOS AX."""
+    def descendants(node, role):
+        result = []
+        if mac.text(node, 'AXRole') == role:
+            result.append(mac.retain(node))
+        children = mac.children(node)
+        try:
+            for child in children:
+                result.extend(descendants(child, role))
+        finally:
+            for child in children:
+                mac.release(child)
+        return result
+
+    def number(node, attribute):
+        get = mac.cf.CFNumberGetValue
+        get.restype, get.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
+        number_type = mac.cf.CFNumberGetTypeID
+        number_type.restype, number_type.argtypes = C.c_ulong, []
+        value, result = mac.attr(node, attribute), C.c_longlong()
+        try:
+            assert value and mac.type_id(value) == number_type(), attribute
+            assert value and get(value, 4, C.byref(result)), attribute
+            return result.value
+        finally:
+            if value:
+                mac.release(value)
+
+    def index_range(node, attribute):
+        class Range(C.Structure):
+            _fields_ = [('location', C.c_long), ('length', C.c_long)]
+        get = mac.ax.AXValueGetValue
+        get.restype, get.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
+        value, result = mac.attr(node, attribute), Range()
+        try:
+            assert value and get(value, 4, C.byref(result)), attribute
+            return result.location, result.length
+        finally:
+            if value:
+                mac.release(value)
+
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    root = mac.wait_find(TITLE, 'Markdown preview', 'AXGroup')
+    headings, tables, rows, all_cells = [], [], [], []
+    try:
+        headings = descendants(root, 'AXHeading')
+        assert len(headings) == 1, len(headings)
+        assert number(headings[0], 'AXValue') == 1
+        tables = descendants(root, 'AXTable')
+        assert len(tables) == 1, len(tables)
+        table = tables[0]
+        assert number(table, 'AXRowCount') == 3
+        assert number(table, 'AXColumnCount') == 2
+        rows = mac.children(table, 'AXRows')
+        assert len(rows) == 3, len(rows)
+        expected = [('Idea', 'Next step'), ('Native text', 'Keep 世界 readable'),
+                    ('Small details', 'Review together')]
+        for row_index, row in enumerate(rows):
+            assert number(row, 'AXIndex') == row_index
+            assert not any(equal(row, prior) for prior in rows[:row_index])
+            cells = descendants(row, 'AXCell')
+            all_cells.extend(cells)
+            assert len(cells) == 2, (row_index, len(cells))
+            for column_index, cell in enumerate(cells):
+                assert index_range(cell, 'AXRowIndexRange') == (row_index, 1)
+                assert index_range(cell, 'AXColumnIndexRange') == (column_index, 1)
+                labels = descendants(cell, 'AXStaticText')
+                try:
+                    text = ''.join(mac.text(label, 'AXValue') or mac.text(label, 'AXTitle') or ''
+                                   for label in labels)
+                    assert text == expected[row_index][column_index], (row_index, column_index, text)
+                finally:
+                    for label in labels:
+                        mac.release(label)
+        assert all(not equal(cell, prior) for i, cell in enumerate(all_cells)
+                   for prior in all_cells[:i]), 'Cells from different rows share identity'
+        print('GALLERY_DOCUMENT_STRUCTURE_OK: heading level, table counts, distinct rows/cells, '
+              'zero-based indices and Unicode reading order', flush=True)
+    finally:
+        for node in [*headings, *tables, *rows, *all_cells, root]:
+            mac.release(node)
+
+
+def reveal_document_code(mac):
+    # The table makes the initial Markdown taller. Scroll the actual native
+    # viewport to mount the appended fence before looking for its Copy action.
+    raise_gallery(mac)
+    mouse = GalleryMouse(mac)
+    x, y, width, height = mouse.bounds('Markdown preview')
+    point = (x + width / 2, y + height / 2)
+    mouse.send(5, point)
+    time.sleep(.1)
+    create = mac.cg.CGEventCreateScrollWheelEvent
+    create.restype, create.argtypes = C.c_void_p, [C.c_void_p, C.c_uint, C.c_uint, C.c_int]
+    locate = mac.cg.CGEventSetLocation
+    locate.restype, locate.argtypes = None, [C.c_void_p, GalleryMouse.Point]
+    for _ in range(20):
+        control = mac.find(TITLE, 'Copy code', 'AXButton')
+        if control:
+            mac.release(control)
+            return
+        mouse.check_owner(point)
+        event = create(None, 0, 1, C.c_int(-80))
+        assert event
+        try:
+            locate(event, GalleryMouse.Point(*point))
+            mouse.post(0, event)
+        finally:
+            mac.release(event)
+        time.sleep(.1)
+    raise RuntimeError('Appended code did not become accessible after native document scrolling')
+
+
 def exercise_documents(mac, images):
     mac.press(TITLE, 'Markdown & code')
     mac.wait_text(TITLE, 'Markdown preview')
@@ -563,6 +678,7 @@ def exercise_documents(mac, images):
     roles = tree_counts(mac, mac.wait_find(TITLE, 'Markdown preview', 'AXGroup'))
     assert roles.get('AXHeading') == 1 and roles.get('AXList') == 1, roles
     assert roles.get('AXLink') == 2, roles
+    document_structure(mac)
     link = mac.wait_find(TITLE, 'Read the design notes', 'AXLink')
     try:
         mac.perform(link, 'AXPress')
@@ -591,10 +707,12 @@ def exercise_documents(mac, images):
         mac.wait_text(TITLE, 'Link requested: gpuio-preview:unicode')
         mac.press(TITLE, 'Expand')
         mac.release(mac.wait_find(TITLE, 'Read the design notes', 'AXLink'))
+        document_structure(mac)
     finally:
         mac.release(stale_link)
     mac.press(TITLE, 'Append a finding')
     mac.wait_text(TITLE, 'Appended findings: 1 / 6')
+    reveal_document_code(mac)
     mac.release(mac.wait_find(TITLE, 'Copy code', 'AXButton'))
     mac.wait_text(TITLE, 'Finding 1')
     for finding in range(2, 7):
@@ -689,6 +807,7 @@ def exercise_documents(mac, images):
     mac.release(mac.wait_find(TITLE, 'Collapse', 'AXButton'))
     mac.release(mac.wait_find(TITLE, 'Diff preview', 'AXTextArea'))
     mac.press(TITLE, 'Markdown')
+    reveal_document_code(mac)
     mac.release(mac.wait_find(TITLE, 'Copy code', 'AXButton'))
     if images:
         screenshot(mac, images / 'gallery-documents.png', title=TITLE)
@@ -702,9 +821,11 @@ def exercise_documents(mac, images):
         absent(mac, 'Markdown preview', 'AXGroup')
         mac.press(TITLE, 'Markdown & code')
         mac.wait_text(TITLE, 'Markdown preview')
+        document_structure(mac)
         wait_absent(mac, 'Copy code', 'AXButton')
         mac.press(TITLE, 'Append a finding')
         mac.wait_text(TITLE, 'Appended findings: 1 / 6')
+        reveal_document_code(mac)
         mac.release(mac.wait_find(TITLE, 'Copy code', 'AXButton'))
     mac.press(TITLE, 'Presentation')
     mac.wait_text(TITLE, 'A little context goes a long way')

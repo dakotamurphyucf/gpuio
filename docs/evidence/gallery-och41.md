@@ -22,6 +22,12 @@ verification and transfer gesture identity verification. This supersedes the
 older combined-page counts and pending gallery-consumer notes below; those
 sections preserve the earlier implementation evidence.
 
+The installed-consumer checkpoint is `f9d125a`. The subsequent
+[heading/table accessibility change](document-accessibility-och17.md#heading-levels-and-table-structure--2026-09-29)
+also passes the full repository walkthrough, now including table identities,
+Unicode cell order and heading level checks across repeated document remounts.
+Its independent-consumer rerun remains part of consolidated release validation.
+
 The run includes styling details, input observations, document diff controls and
 Find & highlight, along with the existing component, desktop, independent-window
 and shutdown checks. The consumer uses its own Dune project and independently

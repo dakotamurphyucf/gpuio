@@ -95,7 +95,10 @@ release acceptance stays open in the [input ledger](evidence/input-observations-
 paired codec, native validation and focused gallery evidence. OCH-17 is also in progress: the
 [native document accessibility repair](evidence/document-accessibility-och17.md)
 now exposes body text, read-only source/code, keyboard/AX inline-link activation
-and distant-link reveal. Rich/image links, selection/ranges, table and screen-reader
+and distant-link reveal. Parsed heading levels now reach macOS AXValue; Markdown
+tables expose row/cell structure with distinct identities and indices. The focused
+gallery passes level 1, wrapping-table counts/Unicode reading order and repeated
+collapse/remount. Rich/image links, selection/ranges, complete table and screen-reader
 behavior remain open. No full document screen-reader or Linux desktop acceptance
 is claimed.
 

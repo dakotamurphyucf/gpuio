@@ -2816,7 +2816,83 @@
                  .w_full()
                  .min_w_0()
                  .when(*spread, |this| this.child(div()))
-@@ -2625,6 +2653,7 @@
+@@ -2421,6 +2449,13 @@
+                 cells.push(
+                     div()
+                         .id(("cell", ix))
++                        .role(if row_ix == 0 {
++                            gpui::Role::ColumnHeader
++                        } else {
++                            gpui::Role::Cell
++                        })
++                        .aria_row_index(row_ix)
++                        .aria_column_index(ix)
+                         // Measured max-content width is the flex-basis;
+                         // `flex_grow` (proportional to it) distributes extra
+                         // space so a narrow table still fills the frame, while
+@@ -2445,7 +2480,9 @@
+             }
+             rows.push(
+                 div()
+-                    .id("row")
++                    .id(("row", row_ix))
++                    .role(gpui::Role::Row)
++                    .aria_row_index(row_ix)
+                     .w_full()
+                     .when(row_ix < row_count - 1, |this| this.border_b_1())
+                     .border_color(style.border())
+@@ -2489,7 +2526,14 @@
+                     // shrink-to-fit (their text wrapping), the definite
+                     // `w(min_total_w)` keeps the floors once they are reached,
+                     // letting the track exceed the viewport and scroll.
+-                    div().min_w_full().w(px(min_total_w)).children(rows),
++                    div()
++                        .id("table-data")
++                        .role(gpui::Role::Table)
++                        .aria_row_count(row_count)
++                        .aria_column_count(col_count)
++                        .min_w_full()
++                        .w(px(min_total_w))
++                        .children(rows),
+                 ),
+             )
+             // Custom actions row (e.g. copy / download) rendered below the
+@@ -2537,6 +2581,13 @@
+                 cells.push(
+                     div()
+                         .id(("cell", ix))
++                        .role(if row_ix == 0 {
++                            gpui::Role::ColumnHeader
++                        } else {
++                            gpui::Role::Cell
++                        })
++                        .aria_row_index(row_ix)
++                        .aria_column_index(ix)
+                         .overflow_hidden()
+                         .when(align == ColumnumnAlign::Center, |this| this.text_center())
+                         .when(align == ColumnumnAlign::Right, |this| this.text_right())
+@@ -2554,7 +2605,9 @@
+ 
+             rows.push(
+                 div()
+-                    .id("row")
++                    .id(("row", row_ix))
++                    .role(gpui::Role::Row)
++                    .aria_row_index(row_ix)
+                     .w_full()
+                     .when(row_ix < row_count - 1, |this| this.border_b_1())
+                     .border_color(style.border())
+@@ -2578,6 +2631,9 @@
+             .child(
+                 div()
+                     .id(("table", options.ix))
++                    .role(gpui::Role::Table)
++                    .aria_row_count(row_count)
++                    .aria_column_count(col_lens.len())
+                     .w_full()
+                     .bg(cx.theme().tokens.colors.surface)
+                     .border_1()
+@@ -2625,6 +2681,7 @@
                  .into_any_element(),
              BlockNode::Paragraph(paragraph) => div()
                  .id(("p", ix))
@@ -2824,7 +2900,7 @@
                  .pb(mb)
                  .child(paragraph.render(node_cx, window, cx))
                  .into_any_element(),
-@@ -2648,6 +2677,8 @@
+@@ -2648,6 +2705,8 @@
  
                  div()
                      .id(SharedString::from(format!("h{}-{}", level, ix)))
@@ -2833,7 +2909,7 @@
                      .pb(rems(0.3))
                      .whitespace_normal()
                      .text_size(text_size)
-@@ -2679,6 +2710,7 @@
+@@ -2679,6 +2738,7 @@
                  children, ordered, ..
              } => v_flex()
                  .id((if *ordered { "ol" } else { "ul" }, ix))
@@ -2841,7 +2917,7 @@
                  .w_full()
                  .min_w_0()
                  .pb(mb)
-@@ -2710,6 +2742,19 @@
+@@ -2710,6 +2770,19 @@
                  .into_any_element(),
              BlockNode::CodeBlock(code_block) => code_block.render(&options, node_cx, window, cx),
              BlockNode::Custom(node) => {
@@ -2861,7 +2937,7 @@
                  let inner = match node_cx.markdown_extensions.render_block(node, window, cx) {
                      Some(rendered) => rendered,
                      None => div().child(node.as_text().to_string()).into_any_element(),
-@@ -3656,3 +3701,123 @@
+@@ -3656,3 +3729,123 @@
          assert_ne!(first, second);
      }
  }

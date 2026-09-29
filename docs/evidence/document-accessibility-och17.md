@@ -4,6 +4,56 @@ Partial release finding repair, 2026-09-28, macOS 14.5 (23F79), arm64.
 The [contract](../design/document-accessibility.md) describes the full intended
 behavior. This checkpoint does not complete document accessibility or OCH-17.
 
+## Heading levels and table structure — 2026-09-29
+
+The macOS adapter now exposes the parsed heading level as numeric AXValue; the
+heading's actual painted children continue to provide its text. This follows
+[WebKit's macOS heading value mapping](https://chromium.googlesource.com/external/Webkit/+/b4170928e42cb313b7c8304a796879ddb2ff7f12/Source/WebCore/accessibility/mac/WebAccessibilityObjectWrapperMac.mm).
+GPUI Base's wrapping and horizontal-scroll Markdown table renderers now declare
+table/row/header/cell roles, row/column counts and zero-based indices. Rows use
+distinct identities instead of sharing `"row"` within one table. Action controls
+stay outside the table's data hierarchy; no editing or selection action is added.
+
+The focused external macOS gallery test passes heading level 1, exactly one
+three-row/two-column table, AXRows enumeration, distinct row and cell references,
+row/column index ranges and ordered Unicode cell text. It repeats these checks
+after collapse/expand and across three page departures/remounts. Native scrolling
+reveals appended code before querying its control; merely waiting for an offscreen
+virtual block does not materialize it. Existing link keyboard/AX activation,
+streaming, read-only editor and diff controls pass in the same walkthrough.
+The complete 23-section gallery also passes with these changes, including the
+extension lifetime and transfer identity assertions and normal window shutdown.
+
+Local checks passed with the pinned environment:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build examples/gallery/main.exe -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build @fmt @test/gallery/runtest -j2
+python3 scripts/test_gallery.py --section documents --images scratch/document-structure-images
+python3 scripts/test_gallery.py --section all --images scratch/document-structure-combined-images
+./scripts/gpuio exec cargo test -p gpuio-native --test native_document --features native-image-tests --locked -j2 --no-run
+# Run the emitted native_document executable under a bounded process-group watchdog.
+./scripts/gpuio exec cargo clippy -p gpuio-native -p gpuio-protocol --all-targets --features native-image-tests --locked -j2 -- -D warnings
+./scripts/gpuio exec cargo fmt --all --check
+python3 scripts/audit_component_catalog.py
+```
+
+The emitted native document executable exits zero, covering Markdown tables,
+selection/streaming, source/diff behavior and lease teardown. Both modified vendor
+sources reconstruct exactly from pinned archives and reviewed patches. No version
+changes are involved. Local logs use `document-structure` in the implementing
+agent's ignored notepad directory. Initial failed attempts caught offscreen-control
+assumptions and an incomplete ctypes wheel-event signature; the corrected tests
+retain the original interaction assertions and reap their children.
+
+The gallery exercises the default wrapping table layout. Horizontal-scroll table
+AX behavior, all heading levels, header associations/column navigation, full
+selected-text/range APIs, rich/image links and actual VoiceOver reading remain
+separate acceptance work. These results do not establish complete table or
+screen-reader accessibility, Linux desktop behavior or release resource budgets.
+
+## Earlier body and read-only source checkpoint
+
 The native source editor now exposes its installed page as a labelled read-only
 multiline text input. Focus validates the current presentation and modal/visibility
 scope. There is no value-replacement action. Markdown's custom Inline element now
@@ -46,7 +96,7 @@ ordered patches; source comparison excludes GPUI Base's generated Cargo.lock.
 Failed intermediate probes remain local notes, not acceptance evidence.
 
 Remaining release requirements include rich-fragment/image link accessibility,
-macOS heading-level exposure, table reading semantics, native selected
+complete table/header reading semantics, native selected
 text/range APIs, copy, modal/stale-action cases, bounded source pagination through
 assistive tools, and actual VoiceOver reading/navigation. No hidden duplicate raw source substitutes for these
 requirements. Linux desktop accessibility remains deferred to OCH-47.
