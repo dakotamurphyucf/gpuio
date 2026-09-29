@@ -890,3 +890,35 @@ pass with `gpuio-native/native-image-tests --locked -j2` (two private-bus cases
 excluded by this command); strict native/protocol all-target Clippy with the same
 feature and `-D warnings`, first-party/changed-vendor formatting, and diff whitespace
 checks pass. No dependency revision, public protocol or OCaml API changes.
+
+## File boundaries in native diff folding
+
+The native gutter fixture now uses two separate files, each with a hunk. It
+covers a parser boundary problem: the final hunk of one file previously ran
+through the next file's metadata. File-local ranges now terminate the hunk before
+that header. On macOS 14.5 arm64, `native_highlight_document` passes with the next
+file header visible after folding, correct later-match geometry/pixels, stable
+installed-page counts and owners, and native selection precedence. It ran under
+a 90-second watchdog and exited successfully; the process was reaped.
+
+Six parser tests cover file boundaries including intervening rename-only/binary
+files, duplicate labels, bare unified headers, deletions, partial UTF-8 streams,
+no-final-newline annotations, old/new coordinates, exact CRLF/payload ranges and
+size/coordinate limits. A 6000-row fixture verifies shared storage for a4096-byte
+path rather than one allocation per row. Every tested partial source retains its
+original bytes and file/hunk ownership invariants. Workspace library tests pass
+(446 tests, two private-bus cases excluded by this command):
+
+```sh
+./scripts/gpuio exec cargo test --workspace --lib --features native-image-tests --locked -j2
+./scripts/gpuio exec cargo test -p gpuio-native --features native-image-tests --test native_highlight_document --locked --no-run -j2
+```
+
+The built native executable was run directly with the watchdog. This checkpoint
+adds native metadata and fixes folding boundaries; it does not implement the
+pending public per-file controls, line limits or richer diff events. No new
+platform, IME, screen-reader, consumer or release acceptance is claimed.
+
+Strict native/protocol all-target Clippy with `native-image-tests --locked -j2`
+and `-D warnings`, `cargo fmt --all --check`, diff whitespace checks and the
+structural catalog audit also pass for this checkpoint.

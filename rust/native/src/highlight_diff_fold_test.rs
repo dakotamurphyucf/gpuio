@@ -60,7 +60,7 @@ pub(super) async fn exercise(
     source: ResourceId,
     p: &Entity<Presentation>,
 ) {
-    let text = "--- a/世界.txt\n+++ b/世界.txt\n@@ -1,3 +1,3 @@\n-aaa old\n+aaa new\n keep α\n tail\n@@ -20,3 +20,3 @@\n context 🌍\n-plain\n+aaa later\n end\n";
+    let text = "diff --git a/世界.txt b/世界.txt\n--- a/世界.txt\n+++ b/世界.txt\n@@ -1,3 +1,3 @@\n-aaa old\n+aaa new\n keep α\n tail\ndiff --git a/other.txt b/other.txt\n--- a/other.txt\n+++ b/other.txt\n@@ -20,3 +20,3 @@\n context 🌍\n-plain\n+aaa later\n end\n";
     let first = text.find("aaa old").unwrap();
     let later = text.find("aaa later").unwrap();
     let header = text.find("@@").unwrap();
@@ -111,6 +111,13 @@ pub(super) async fn exercise(
     let snapshot = p.read_with(cx, |p, _| p.installed.clone().unwrap());
     let _ = transport.mailbox.lock().unwrap().drain(128);
     gutter(cx, handle, &editor, header..header + 2).await;
+    let next_file = text.find("diff --git a/other.txt").unwrap();
+    assert!(
+        editor.read_with(cx, |editor, _| editor
+            .range_to_bounds(&(next_file..next_file + 4))
+            .is_some()),
+        "a folded hunk never consumes the next file header"
+    );
     let folded = bounds(cx, &editor, later..later + 3);
     assert!(
         folded.top() < original.top(),

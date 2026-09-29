@@ -111,6 +111,37 @@ macOS accessibility; toolbar actions have explicit accessible names. Code/source
 uses the native platform monospace family. See the [M4 evidence ledger](../evidence/agent-workspace-m4.md)
 for measurements and consolidated platform validation. Linux GUI remains deferred.
 
+### Unified-diff metadata
+
+The native diff parser preserves every source byte, including partial trailing
+hunks, while recording file-local line and hunk ranges. A hunk ends before the
+next file's header, including rename-only and binary sections. Native gutter
+folding therefore cannot consume the following file's metadata. Files with the
+same label remain distinct sections within an installed snapshot.
+
+Each body row retains both optional one-based old/new coordinates and the UTF-8
+payload range. That range excludes the diff marker and one LF or CRLF ending;
+an extra carriage return or a final standalone carriage return remains payload.
+No-final-newline annotations have no old/new coordinates. These annotations
+count as body rows alongside context, added and removed lines; file and hunk
+headers do not. This supplies the metadata needed for the pending line-limit
+and richer event APIs, without changing the existing navigation event yet.
+
+Path labels are at most4096 UTF-8 bytes and contain no NUL. They never cause
+filesystem access. Header labels remove the conventional `a/` or `b/` prefix;
+explicit rename/copy labels retain their full names. Deleted files use the old
+label; other files prefer the new label. Quoted Git labels remain literal quoted
+strings, without C-escape decoding. Ambiguous unquoted names are left unknown
+until explicit file headers or rename metadata identify them. Rows share path
+storage with their file rather than allocating a full path per line.
+
+Diff preparation remains bounded to256KiB, 8192 source lines and16KiB per line,
+with cancellation between lines and source fallback on limit overflow. Hunk
+coordinates whose final line would exceed the supported positive signed-32-bit
+range are rejected. File metadata is native preparation data; per-file collapse,
+show-more controls and paired old/new line callbacks are still pending public
+API work, tracked by OCH-41.
+
 ## Native document accessibility actions
 
 The native presentation exposes its configured document label as a Group.

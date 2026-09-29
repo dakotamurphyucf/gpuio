@@ -33,8 +33,8 @@ counts and pixels, interrupted slides, reduced motion and transition disposal.
 Ordinary styled roots now pass native hover/pressed/focus visibility, hidden-base
 overrides, display-none and restyle checks. A pinned GPUI core patch now restores
 pressed-hide elements on release, cancels stale activation and passes controls
-regressions. Specialized/deferred style paths remain open, along with diff hunk-fold mapping and
-application performance/resource acceptance. The public Find &
+regressions. Remaining style parity and application performance/resource
+acceptance are still open. The public Find &
 highlight gallery now demonstrates
 live queries, ranges, nested exclusions, selected matches and growing/collapsed
 Markdown, with focused local native interaction evidence. Targeted Hebrew/Arabic
@@ -62,6 +62,12 @@ Native diff gutter folding also passes source-byte geometry, hidden-row painting
 selection precedence and result-reuse checks; folded/scrolled-out byte-range lookup
 now rejects positions that have no laid-out text. Remaining style/diff API parity,
 catalog and release gates are still open.
+
+Diff preparation now records bounded per-file metadata with shared path labels,
+paired old/new line coordinates and exact payload byte ranges. File boundaries
+close the preceding hunk; a native two-file test verifies that folding preserves
+the next header and its highlights. This is a foundation for the pending per-file
+collapse, line-limit/show-more and richer callback APIs, not completion of them.
 
 The macOS-first/Linux-deferral policy [PR #15](https://github.com/dakotamurphyucf/gpuio/pull/15)
 merged at `af7f6f0c0f9db1c64a8591d9e9a078aa73eacdec` after both required jobs in
