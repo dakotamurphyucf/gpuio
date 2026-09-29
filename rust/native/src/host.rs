@@ -2016,6 +2016,7 @@ pub fn run(transport: Arc<Transport>) {
                     crate::chart_render_host::shutdown(cx).await;
                     crate::image_host::shutdown(cx).await;
                     crate::document_host::shutdown(cx).await;
+                    crate::highlight_host::shutdown(cx).await;
                     if !stopping.replace(true) {
                         cx.update(stop_application);
                     }
@@ -2295,6 +2296,7 @@ pub fn run(transport: Arc<Transport>) {
                     crate::chart_render_host::shutdown(cx).await;
                             crate::image_host::shutdown(cx).await;
                             crate::document_host::shutdown(cx).await;
+                            crate::highlight_host::shutdown(cx).await;
                             for event in session.borrow_mut().shutdown() {
                                 transport.respond(event);
                             }
@@ -2331,6 +2333,7 @@ pub(crate) fn stop_application(cx: &mut App) {
     crate::chart_render_host::finish_before_quit(cx);
     crate::image_host::finish_before_quit(cx);
     crate::document_host::finish_before_quit(cx);
+    crate::highlight_host::finish_before_quit(cx);
     cx.shutdown();
     // Embedded runtime must regain control instead of NSApplication.terminate.
     unsafe {
@@ -2348,6 +2351,7 @@ pub(crate) fn stop_application(cx: &mut App) {
     crate::chart_render_host::finish_before_quit(cx);
     crate::image_host::finish_before_quit(cx);
     crate::document_host::finish_before_quit(cx);
+    crate::highlight_host::finish_before_quit(cx);
     cx.quit();
 }
 

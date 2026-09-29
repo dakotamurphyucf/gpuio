@@ -26,10 +26,19 @@ pub enum Source {
     Document(Arc<Snapshot>),
 }
 impl Source {
-    fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         match self {
             Self::Text(text) => text.len(),
             Self::Document(s) => s.text.len(),
+        }
+    }
+    fn same_source(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Text(a), Self::Text(b)) => Arc::ptr_eq(a, b) || a == b,
+            // A newer document revision must fence paints even if its bytes
+            // happen to be equal. Retain the original snapshot reservation.
+            (Self::Document(a), Self::Document(b)) => Arc::ptr_eq(a, b),
+            _ => false,
         }
     }
     fn is_boundary(&self, offset: usize) -> bool {
@@ -203,6 +212,23 @@ impl Projection {
 
     pub fn source_bytes(&self) -> usize {
         self.source_bytes
+    }
+
+    /// Compare ordered source identities and run keys, excluding presentation.
+    /// A mounted cache may keep its existing Arc when this returns true, so
+    /// unrelated tree/style changes do not cancel matching or advance its epoch.
+    pub fn same_source(&self, other: &Self) -> bool {
+        self.source_bytes == other.source_bytes
+            && self.ordinary_len == other.ordinary_len
+            && self.run_count == other.run_count
+            && self.groups.len() == other.groups.len()
+            && self.groups.iter().zip(&other.groups).all(|(a, b)| {
+                a.ordinary == b.ordinary
+                    && a.runs.len() == b.runs.len()
+                    && a.runs.iter().zip(&b.runs).all(|(a, b)| {
+                        a.key == b.key && a.bytes == b.bytes && a.source.same_source(&b.source)
+                    })
+            })
     }
     pub fn ordinary_bytes(&self) -> usize {
         self.ordinary_len

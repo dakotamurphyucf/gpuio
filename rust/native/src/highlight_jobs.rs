@@ -23,6 +23,7 @@ pub const MAX_RESERVED_BYTES: usize = 64 * 1024 * 1024;
 pub enum Error {
     Closed,
     AdmissionLimit,
+    EpochExhausted,
     Match(projection::Error),
     WorkerFailed,
 }
@@ -181,6 +182,13 @@ pub struct Handle {
     quota: Arc<Quota>,
 }
 impl Handle {
+    /// Native window teardown can cancel this entry even while another native
+    /// owner still holds a handle. Retired paint readers keep their own charge.
+    pub fn close(&self) {
+        let mut entry = self.entry.borrow_mut();
+        entry.closed = true;
+        entry.fail(Error::Closed);
+    }
     pub fn scope_id(&self) -> ScopeId {
         self.scope
     }
@@ -223,8 +231,8 @@ impl Handle {
             return Ok(Update::Presentation);
         }
         let Some(epoch) = entry.epoch.checked_add(1) else {
-            entry.fail(Error::AdmissionLimit);
-            return Err(Error::AdmissionLimit);
+            entry.fail(Error::EpochExhausted);
+            return Err(Error::EpochExhausted);
         };
         entry.epoch = epoch;
         entry.cancel.store(true, Ordering::Relaxed);
@@ -356,7 +364,7 @@ impl Pool {
         })
     }
 
-    fn reap_abandoned(&mut self) {
+    pub(crate) fn reap_abandoned(&mut self) {
         let dead: Vec<_> = self
             .running
             .iter()
@@ -369,7 +377,7 @@ impl Pool {
                 let mut entry = entry.borrow_mut();
                 if entry.running == Some(task) {
                     entry.running = None;
-                    if entry.epoch == running.epoch {
+                    if !entry.closed && entry.epoch == running.epoch {
                         entry.fail(Error::WorkerFailed);
                     }
                 }
@@ -504,12 +512,12 @@ mod tests {
         let late = pool.next_work().unwrap().run();
         assert_eq!(
             handle.update(Arc::new(Projection::new(vec![]).unwrap()), config),
-            Err(Error::AdmissionLimit)
+            Err(Error::EpochExhausted)
         );
         assert!(!pool.complete(late));
         assert!(matches!(
             handle.status(),
-            Status::Failed(Error::AdmissionLimit)
+            Status::Failed(Error::EpochExhausted)
         ));
         assert_eq!(pool.reserved_bytes(), 0);
     }

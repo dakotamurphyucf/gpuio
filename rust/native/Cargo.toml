@@ -283,3 +283,8 @@ required-features = ["native-tests"]
 name = "native_input_region"
 harness = false
 required-features = ["native-tests"]
+
+[[test]]
+name = "native_highlight_host"
+harness = false
+required-features = ["native-tests"]

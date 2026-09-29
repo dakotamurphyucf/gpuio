@@ -2,9 +2,10 @@
 
 The current checkpoint implements validated configuration, a windowless native
 query kernel, range/run projections, an owned worker pool, retained scope
-declarations and observation routing. It does **not** implement native source
-collection, GPUI executor/wakeup integration, actual observation production,
-painting or gallery acceptance. No highlighting capability is advertised.
+declarations and observation routing, bounded retained-tree collection and a GPUI
+worker service. It does **not** yet connect the mounted visibility/document
+adapters, source cache, actual observation production, painting or gallery
+acceptance. No highlighting capability is advertised.
 OCH-41 remains In Progress. The sections below distinguish each implementation
 checkpoint; constructed projections and injected observations do not establish
 mounted rendering behavior.
@@ -144,7 +145,53 @@ corrected against the existing schema. The full build also found two low-level
 examples missing explicit cases for Input_observed and Highlight_observed; both
 now compile exhaustively. None of these failures involved user desktop activity.
 
-This is declaration/routing evidence using injected observations. Retained source
-collection, bounded GPUI worker dispatch/shutdown, real observation production,
-ordinary/selectable/native-document painting and public gallery acceptance remain
-pending. No GUI windows, hosted CI or Linux desktop qualification were run here.
+This declaration/routing checkpoint used injected observations. Its remaining
+work was retained source collection, bounded GPUI worker dispatch/shutdown, real
+observation production, ordinary/selectable/native-document painting and public
+gallery acceptance. No GUI windows, hosted CI or Linux desktop qualification were run here.
+
+## Retained collection and native worker service
+
+The retained-tree collector preserves adjacent text groups, empty-text
+transparency, nested declaration boundaries and native group source ordering.
+It excludes widget metadata/editor values, accepts the mounted adapter's
+visibility and installed document text, and rejects Pending/Unavailable document
+sources without publishing partial counts. Empty scopes and range-only scopes
+avoid unnecessary document work. It bounds all visited nodes, including empty
+ones, and checks group/run/source limits before appending. Source comparison
+preserves reuse across cosmetic updates while checking group order, generational
+keys and document snapshot identity.
+
+The GPUI service now dispatches the owned pool on the real background executor,
+wakes the owning window on completion, and cancels a scope on drop/window close.
+Application abort, protocol shutdown and platform quit drain workers. Reentrant
+cleanup retains worker destruction signals; completion delivery cannot block on
+a UI callback. Abandoned tickets preserve explicit Closed state. No idle polling
+or synchronous OCaml callback is introduced.
+
+Local macOS 14.5 arm64 checks:
+
+- `./scripts/gpuio exec cargo test -p gpuio-native --lib --test highlight_collect --test highlight_projection --test highlight_jobs --locked -j2`:
+  377 tests pass (350 library, six collector, eight projection, 13 job tests).
+  Two existing notification tests still require isolated private-bus validation.
+- Built `native_highlight_host` using `cargo test -p gpuio-native --test native_highlight_host --features native-tests --no-run --locked -j2` through
+  `./scripts/gpuio exec`, then ran Cargo's reported binary under a 35-second
+  subprocess timeout. It passes with `GPUIO_NATIVE_HIGHLIGHT_HOST_OK`.
+  After one forced Pending draw, completion must repaint the window without
+  further manual draws. It verifies cosmetic result identity, latest-request
+  epochs/counts, window-close cancellation while a native handle survives, and
+  repeated shutdown with two actual dispatched workers. All worker slots,
+  reserved bytes, completion buffers and window routes return to zero/empty.
+  The windows request no focus, close sequentially and are reaped.
+- Strict native/protocol all-target Clippy with `native-tests`, Rust formatting,
+  shell syntax and diff checks pass. No OCaml/protocol representation changes in
+  this continuation; prior Dune evidence remains tied to its own checkpoint.
+
+The native test is included in required macOS CI and informational Linux GUI
+scripts, with required cross-platform test compilation. Hosted execution remains
+pending the consolidated milestone run. This local native evidence verifies
+worker lifecycle, not actual text highlighting, keyboard/IME or Linux desktop
+behavior. The collector's document fixtures supply prepared strings; they do not
+prove Markdown/code/diff adapters. Connecting those adapters, mounted cache and
+observations, selection-aware/radius-aware paints and the public gallery remains
+required before advertising the capability or completing OCH-41.

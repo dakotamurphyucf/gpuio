@@ -196,6 +196,8 @@ pub fn run_native_document_test() {
 }
 
 pub mod document_search;
+pub mod highlight_collect;
+pub mod highlight_host;
 pub mod highlight_jobs;
 pub mod highlight_projection;
 pub mod highlight_search;
@@ -297,4 +299,9 @@ pub fn run_native_hover_card_test() {
 #[cfg(feature = "native-tests")]
 pub fn run_native_carousel_test() {
     host::control_test::run_carousel();
+}
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_highlight_host_test() {
+    highlight_host::test::run();
 }

@@ -305,3 +305,37 @@ fn invalid_update_cancels_queued_work_and_advances_its_epoch() {
     ));
     assert_eq!(pool.reserved_bytes(), 0);
 }
+
+#[test]
+fn explicit_close_cancels_surviving_handles_and_late_worker_completion() {
+    let mut pool = Pool::default();
+    let handle = pool.request(source("a a"), config("a")).unwrap();
+    let survivor = handle.clone();
+    let work = pool.next_work().unwrap();
+    handle.close();
+    handle.close(); // teardown is idempotent
+    assert!(matches!(survivor.status(), Status::Failed(Error::Closed)));
+    assert_eq!(
+        survivor.update(source("a"), config("a")),
+        Err(Error::Closed)
+    );
+    assert!(!pool.complete(std::thread::spawn(move || work.run()).join().unwrap()));
+    assert_eq!(pool.running_count(), 0);
+    assert_eq!(pool.reserved_bytes(), 0);
+    assert!(pool.next_work().is_none());
+    drop(handle);
+    assert!(matches!(survivor.status(), Status::Failed(Error::Closed)));
+}
+
+#[test]
+fn abandoned_ticket_does_not_overwrite_explicit_closed_state() {
+    let mut pool = Pool::default();
+    let handle = pool.request(source("a"), config("a")).unwrap();
+    let work = pool.next_work().unwrap();
+    handle.close();
+    drop(work);
+    assert!(pool.next_work().is_none());
+    assert!(matches!(handle.status(), Status::Failed(Error::Closed)));
+    assert_eq!(pool.running_count(), 0);
+    assert_eq!(pool.reserved_bytes(), 0);
+}

@@ -19,8 +19,10 @@ with its own asynchronous observer; it does not replace editor ownership or add 
 second unrelated callback to every widget. Nested declarations replace the entire
 inherited config, including empty declarations. Updating appearance or the active
 cursor must reuse match results; removing a scope cancels its work and subscriptions.
-Its Core/Bonsai declarations, reconciliation and native tree storage are wired;
-native scheduling/painting and observation production remain in development.
+Its Core/Bonsai declarations, reconciliation and native tree storage are wired.
+The retained-tree collector and GPUI executor service exist independently; their
+mounted visibility/document adapters, painting and observation production remain
+in development.
 
 Queries default to case-insensitive matching. Matching uses Unicode scalar
 lowercasing on both source and query, without normalization or full case folding.
@@ -143,6 +145,27 @@ deferred until native production/rendering and public acceptance pass.
 
 ### Worker pool contract
 
+`highlight_collect` walks the validated retained tree in structural order. Own
+content is collected for built-in Text/Container nodes, matching GPUIX text/div;
+widget metadata and editor values are excluded. Consecutive Text leaves share
+one group, with empty leaves transparent. Non-text siblings split groups even
+when their content is hidden or overridden. The adapter supplies visibility and
+the exact installed native-document groups, with Pending/Unavailable failures
+instead of fabricated or partial counts. Empty scopes skip traversal; range-only
+scopes do not wait for document queries. The collector limits traversal to 32768
+visited nodes (including empty/ineligible nodes), checks projection limits before
+appending, and retains original text Arcs without flattening. Validated tree depth
+is at most 128. The document provider must bound its own prepared output before
+returning it; collector validation does not bound allocations inside a provider.
+
+`Projection.same_source` compares ordered groups, generational run keys and source
+identities independently of presentation. Equal immutable strings may reuse the
+old projection; document snapshots require the same Arc, preserving installed
+revision fences. A mounted cache must invalidate on visibility, page, tree/source
+and installed-document changes and may keep its existing Arc when comparison
+succeeds. These comparison/collection helpers are implemented; the actual mounted
+cache and document provider remain pending.
+
 An application-wide native pool owns at most 128 mounted scope entries and two running jobs, with
 64 MiB of conservative admission units for queued/running/ready/retired data.
 Admission accounts for retained source/projection/configuration, the maximum
@@ -167,6 +190,21 @@ may run from the worker or paint.
 Opaque pool-local scope IDs let that service route accepted completions to their
 own windows. A dropped work/completion ticket is detected during pool maintenance
 and releases its worker slot with a typed failure instead of hanging indefinitely.
+
+`highlight_host` now provides that GPUI service: a two-slot completion channel,
+deferred bounded worker dispatch and refreshes routed to the owning native window.
+Only work/completion data cross threads. It has no idle polling and never calls
+OCaml. Scope drop and window close explicitly cancel jobs, including handles that
+outlive their OS window. Abandoned-ticket cleanup cannot overwrite a closed
+state. Epoch exhaustion is distinct from ordinary admission capacity.
+
+Application abort, protocol shutdown and platform quit all join worker destruction
+signals. Workers use nonblocking completion delivery, so synchronous quit does
+not wait for UI callbacks. Signals remain reachable during asynchronous shutdown
+so a reentrant synchronous quit can wait on the same workers. Final cleanup reaps
+discarded completion tickets. The native test exercises actual executor wakeups,
+closed-window cancellation and repeated cleanup with two in-flight jobs. This is
+service lifecycle evidence, not yet mounted highlighting/painting acceptance.
 
 ## Pinned comparison and acceptance
 
