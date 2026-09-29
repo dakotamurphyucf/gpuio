@@ -15,6 +15,7 @@ type t =
   | Journeys
   | Collections
   | Documents
+  | Highlighting
   | Canvas
   | Assets
   | Charts

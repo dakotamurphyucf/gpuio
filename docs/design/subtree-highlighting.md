@@ -285,6 +285,13 @@ until dropped.
 
 ## Installed native-document adapters
 
+The public [Find & highlight gallery](../../examples/gallery/highlight_page.ml)
+shows a complete Core/Bonsai/Eio integration, including scoped documents, native
+query editing, paired observations, cursor clamping and nested exclusions. Its
+[native evidence](../evidence/subtree-highlighting-och41.md) is narrower than full
+highlighting release acceptance. Match selection changes color; automatic reveal
+is not part of this scope API.
+
 The code/diff/source-mode and prepared Markdown text adapters are implemented.
 Declared custom text and dynamic image projections are also implemented; broader
 acceptance remains open. The document presenter keeps the last installed revision

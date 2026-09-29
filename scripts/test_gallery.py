@@ -456,6 +456,103 @@ def exercise_collections(mac, images):
     absent(mac, 'Preview outline', 'AXOutline')
 
 
+def exercise_highlighting(mac, images):
+    mac.press(TITLE, 'Find & highlight')
+    mac.wait_text(TITLE, '7 matches · selected 1')
+    expect_field(mac, TITLE, 'Find in preview', 'ideas')
+    mac.press(TITLE, 'Next match')
+    mac.wait_text(TITLE, '7 matches · selected 2')
+    mac.press(TITLE, 'Previous match')
+    mac.wait_text(TITLE, '7 matches · selected 1')
+    mac.press(TITLE, 'Previous match')
+    mac.wait_text(TITLE, '7 matches · selected 7')
+    mac.press(TITLE, 'Next match')
+    mac.wait_text(TITLE, '7 matches · selected 1')
+    if images:
+        screenshot(mac, images / 'gallery-highlighting-dark.png', title=TITLE)
+
+    def search(text):
+        # Real native accessibility editing; this does not replace the editor's
+        # OCaml model or synthesize a highlight observation.
+        mac.field(TITLE, 'Find in preview', 'AXTextField', text=text)
+        expect_field(mac, TITLE, 'Find in preview', text)
+
+    search('IDEAS')
+    mac.wait_text(TITLE, '7 matches · selected 1')
+    activate(mac, mac.wait_find(TITLE, 'Match case', 'AXCheckBox'))
+    mac.wait_text(TITLE, 'No matches')
+    activate(mac, mac.wait_find(TITLE, 'Match case', 'AXCheckBox'))
+    mac.wait_text(TITLE, '7 matches · selected 1')
+    search('idea')
+    mac.wait_text(TITLE, '7 matches · selected 1')
+    activate(mac, mac.wait_find(TITLE, 'Whole words', 'AXCheckBox'))
+    mac.wait_text(TITLE, 'No matches')
+    search('ideas')
+    mac.wait_text(TITLE, '7 matches · selected 1')
+    activate(mac, mac.wait_find(TITLE, 'Whole words', 'AXCheckBox'))
+    activate(mac, mac.wait_find(TITLE, 'Enable search', 'AXCheckBox'))
+    mac.wait_text(TITLE, 'Search paused')
+    expect_field(mac, TITLE, 'Find in preview', 'ideas')
+    activate(mac, mac.wait_find(TITLE, 'Enable search', 'AXCheckBox'))
+    mac.wait_text(TITLE, '7 matches · selected 1')
+    search('')
+    mac.wait_text(TITLE, 'Enter a word to search')
+    search('x' * 4097)
+    mac.wait_text(TITLE, 'Choose a search of at most 4,096 UTF-8 bytes, without NUL')
+    search('ideas')
+    mac.wait_text(TITLE, '7 matches · selected 1')
+    mac.press(TITLE, 'Add a paragraph')
+    mac.wait_text(TITLE, '9 matches · selected 1')
+    mac.press(TITLE, 'Add a paragraph')
+    mac.wait_text(TITLE, '9 matches · selected 1')
+    # The document's native collapse control changes searchable presentation.
+    mac.press(TITLE, 'Previous match')
+    mac.wait_text(TITLE, '9 matches · selected 9')
+    mac.press(TITLE, 'Collapse')
+    mac.wait_text(TITLE, '4 matches · selected 4')
+    mac.press(TITLE, 'Previous match')
+    mac.wait_text(TITLE, '4 matches · selected 3')
+    mac.press(TITLE, 'Next match')
+    mac.wait_text(TITLE, '4 matches · selected 4')
+    mac.press(TITLE, 'Next match')
+    mac.wait_text(TITLE, '4 matches · selected 1')
+    mac.press(TITLE, 'Expand')
+    mac.wait_text(TITLE, '9 matches · selected 1')
+    dark_button = mac.find(TITLE, 'Dark', 'AXButton')
+    current_theme = 'Dark' if dark_button else 'Light'
+    if dark_button:
+        mac.release(dark_button)
+    mac.press(TITLE, current_theme)
+    alternate_theme = 'Light' if current_theme == 'Dark' else 'Dark'
+    mac.release(mac.wait_find(TITLE, alternate_theme, 'AXButton'))
+    # A theme update rotates the paired highlight configuration asynchronously.
+    # Do not accept the old frame's count before that update has settled.
+    deadline, stable_since = time.monotonic() + 10, None
+    while time.monotonic() < deadline:
+        node = mac.find(TITLE, '9 matches · selected 1')
+        if node:
+            mac.release(node)
+            if stable_since is None:
+                stable_since = time.monotonic()
+            if time.monotonic() - stable_since >= .2:
+                break
+        else:
+            stable_since = None
+        time.sleep(.025)
+    else:
+        raise RuntimeError('Highlight count did not settle after theme change')
+    expect_field(mac, TITLE, 'Find in preview', 'ideas')
+    if images:
+        screenshot(mac, images / 'gallery-highlighting-alternate.png', title=TITLE)
+    mac.press(TITLE, alternate_theme)
+    mac.press(TITLE, 'Presentation')
+    wait_absent(mac, 'Find in preview', 'AXTextField')
+    wait_absent(mac, 'Searchable notebook', 'AXGroup')
+    mac.press(TITLE, 'Find & highlight')
+    expect_field(mac, TITLE, 'Find in preview', 'ideas')
+    mac.wait_text(TITLE, '7 matches · selected 1')
+
+
 def exercise_documents(mac, images):
     mac.press(TITLE, 'Markdown & code')
     mac.wait_text(TITLE, 'Markdown preview')
@@ -1743,7 +1840,7 @@ def main():
     parser.add_argument('--images', type=Path)
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -1779,6 +1876,8 @@ def main():
                 exercise_collections(mac, args.images)
             if args.section in ('all', 'documents'):
                 exercise_documents(mac, args.images)
+            if args.section in ('all', 'highlighting'):
+                exercise_highlighting(mac, args.images)
             if args.section in ('all', 'canvas'):
                 exercise_canvas(mac, args.images)
             if args.section in ('all', 'assets'):

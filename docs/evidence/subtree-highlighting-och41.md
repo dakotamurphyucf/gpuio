@@ -506,3 +506,46 @@ provides evidence of interference from the owner's desktop interaction.
 This is functional lifecycle evidence, not a 100k-row performance budget or a
 deterministic worker-cancellation race test. Broad scrolling/tab/fold/bidi,
 application resource budgets, public gallery and release acceptance remain open.
+
+## Public OCaml gallery
+
+Component Studio's **Find & highlight** page uses only public Core/Bonsai/Eio APIs.
+The native editor supplies the query snapshot; case/whole-word/enabled controls
+rebuild a validated configuration. A displayed observation is paired with its exact
+configuration, so the prior query's Ready count is not presented as the new query's
+answer. Selecting a match changes appearance metadata; changing the query or its
+case/word semantics resets the cursor. When collapse removes matches, the app
+clamps the cursor to the remaining count. Selection does not automatically reveal
+an offscreen match.
+
+The scope contains ordinary/selectable text, a match crossing styled leaves, and
+a scoped Markdown document with bold/inline-code/fenced-code content. An empty
+nested scope excludes a note. A separate explicit UTF-8 range highlights `世界`.
+One idempotent append grows the notebook; page departure clears observations/cursor
+and releases document/editor resources. Toggle preferences survive page visits;
+the query and notebook are fresh on return.
+
+Local macOS 14.5 arm64 evidence:
+
+- `./scripts/gpuio build examples/gallery/main.exe` passes using the isolated switch.
+- `python3 scripts/test_gallery.py --section highlighting --images scratch/agents/root-20260928-m7/highlight-gallery-images`
+  passes actual AX query edits, case/whole-word controls, empty/oversized query
+  recovery, pause/resume, next/previous wrap, bounded append, native document
+  collapse/expand, theme/editor retention and page remount. Counts change 7→9→4;
+  collapsing at selected match 9 clamps to 4 and subsequent stepping remains valid.
+  Final app closes and is reaped. AX editing is not physical keyboard/IME evidence.
+- Dark/alternate-theme screenshots were generated; inspection of the dark image
+  found an existing inline-code contrast defect. The native Markdown adapter now
+  sets inline-code background explicitly to its document palette. Changing only
+  Base's general code background left the default inline style's light color intact.
+  The corrected dark screenshot shows readable code and the query wash.
+- Rebuilt `native_highlight_document` passes actual code/diff/Markdown GPU washes,
+  selection precedence, native paging/collapse, streaming replacement and ownership
+  disposal under a 60-second watchdog. Its window closes and process is reaped.
+- Gallery/highlight expect targets, strict all-target native/protocol Clippy with
+  `native-image-tests`, formatting, catalog structure and diff checks pass.
+
+The focused gallery check is integrated into the combined `--section all` command;
+the new combined 23-section run is still pending. Broad script/bidi/scroll/tab/fold,
+application performance/resource, installed consumers and consolidated release
+gates remain open. No highlighting capability or full release claim is added.

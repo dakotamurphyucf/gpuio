@@ -332,11 +332,13 @@
       "status": "partial",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/renderer.rs#L3001",
       "public_interfaces": [
-        "lib/core/document.mli"
+        "lib/core/highlight.mli",
+        "lib/core/view.mli",
+        "examples/gallery/highlight_page.mli"
       ],
-      "contract": "Native document literal search paints matches and exposes native navigation/count UI.",
-      "remaining": "No arbitrary-subtree query/range highlighting, nearest-scope override, active match offsets or count observations to OCaml. Syntax highlighting is a different feature.",
-      "evidence": "docs/evidence/document-accessibility-och17.md",
+      "contract": "Paired subtree query/range configuration and asynchronous epoch/count observations; nearest-scope override, active match offsets, ordinary/selectable and prepared native-document painting. Public Find & highlight gallery exercises live query, selected match and growing/collapsed Markdown.",
+      "remaining": "Broad scroll/tab/fold/bidi, application performance/resource and consolidated consumer/release acceptance remain open; no highlighting capability is advertised yet. Syntax highlighting remains a separate feature.",
+      "evidence": "docs/evidence/subtree-highlighting-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
       "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."

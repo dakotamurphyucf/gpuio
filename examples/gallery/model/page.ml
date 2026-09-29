@@ -13,6 +13,7 @@ type t =
   | Journeys
   | Collections
   | Documents
+  | Highlighting
   | Canvas
   | Assets
   | Charts
@@ -38,6 +39,7 @@ let all =
   ; Journeys
   ; Collections
   ; Documents
+  ; Highlighting
   ; Canvas
   ; Assets
   ; Charts
@@ -64,6 +66,7 @@ let title = function
   | Journeys -> "Carousels & journeys"
   | Collections -> "Lists, trees & tables"
   | Documents -> "Markdown & code"
+  | Highlighting -> "Find & highlight"
   | Canvas -> "Canvas & drawing"
   | Assets -> "Images & icons"
   | Charts -> "Charts & data"
@@ -89,6 +92,7 @@ let description = function
   | Journeys -> "Native transitions with a sense of continuity."
   | Collections -> "Explore more while keeping the visible work small."
   | Documents -> "Rich documents, precise code and thoughtful change reviews."
+  | Highlighting -> "Find the useful details, from a sentence to a growing notebook."
   | Canvas -> "A native drawing surface, with room to move."
   | Assets -> "Scalable artwork, crisp icons and thoughtful fallbacks."
   | Charts -> "Clear pictures, with the original values always within reach."
@@ -114,6 +118,7 @@ let key = function
   | Journeys -> "journeys"
   | Collections -> "collections"
   | Documents -> "documents"
+  | Highlighting -> "highlighting"
   | Canvas -> "canvas"
   | Assets -> "assets"
   | Charts -> "charts"

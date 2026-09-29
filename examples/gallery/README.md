@@ -4,7 +4,7 @@ A native public-API gallery under implementation for OCH-41. The first sections
 cover presentation, selection/actions, native text editing, numeric/range inputs,
 verification codes, rating, dates/colors, overlays, navigation/layout and commands/
 feedback, carousel/sidebar/history, managed collections, documents and runtime/
-window previews, canvas, images/icons, charts, plus native motion sequences, shared clocks, responsive layouts, native extensions, input/transfers, desktop services, styling details and general input observations. Additional v1
+window previews, canvas, images/icons, charts, plus native motion sequences, shared clocks, responsive layouts, native extensions, input/transfers, desktop services, styling details, general input observations and subtree highlighting. Additional v1
 families and the complete coverage ledger are still being integrated; this is
 not the completed milestone 07 release.
 
@@ -39,7 +39,7 @@ python3 scripts/test_gallery.py --images scratch/gallery-images
 ```
 
 Use `--section core`, `styles`, `pickers`, `overlays`, `navigation`, `feedback`, `journeys`,
-`collections`, `documents`, `canvas`, `assets`, `charts`, `motion`, `responsive`, `extensions`, `input`, `observations`, `desktop` or `runtime` for focused iteration;
+`collections`, `documents`, `highlighting`, `canvas`, `assets`, `charts`, `motion`, `responsive`, `extensions`, `input`, `observations`, `desktop` or `runtime` for focused iteration;
 the default `all` exercises all currently integrated acceptance stages in one
 application lifetime. Pickers verify draft cancel/apply and focus restoration;
 overlays exercise dialog/drawer/confirmation/popover dismissal and focus; workspace
@@ -58,6 +58,20 @@ preview panels retain native state; leaving the whole page unmounts them.
 Documents acquire a fresh child scope per page visit and release registrations on
 departure. The runtime page samples public registration counts on demand and can
 open a native file picker without reading the selected file.
+
+Find & highlight uses `View.highlight_scope` over ordinary/selectable text and a
+scoped Markdown document. Its native query editor drives case/whole-word controls;
+next/previous select a match color without automatically scrolling to that match.
+One word crosses two styled text leaves. An empty nested scope excludes a private
+note, while a separate UTF-8 byte range marks `世界` independently. Match counts
+come from queued native observations paired with the current configuration.
+Appending a paragraph is bounded and idempotent; collapse removes the document's
+matches and clamps the selected index. Leaving clears observations/cursor and
+releases the document/editor; revisiting creates a fresh notebook/query. Toggle
+preferences survive page visits. The focused native test covers query edits,
+invalid/empty queries, count/selection updates, collapse, themes and remounting.
+Native accessibility edits are not evidence for OS IME behavior. Full script/bidi,
+scrolling and application performance acceptance remain separate release work.
 
 The canvas page uses a validated pure scene model, with native selection, movement,
 activation, viewport commands and hide/disabled controls. The paper stage remains

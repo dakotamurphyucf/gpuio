@@ -511,10 +511,11 @@
       "public_interface": "lib/core/document.mli",
       "example": "examples/documents",
       "evidence": [
-        "docs/evidence/agent-workspace-m4.md"
+        "docs/evidence/agent-workspace-m4.md",
+        "docs/evidence/subtree-highlighting-och41.md"
       ],
       "gallery_page": "documents",
-      "contract": "Revisioned Markdown/code/diff, native text selection/navigation and literal document search. Audit cross-element selection, highlighting/search counts and custom plugin subfamilies explicitly.",
+      "contract": "Revisioned Markdown/code/diff, native text selection/navigation and literal document search; additional Find & highlight page demonstrates public subtree query/range scopes, queued counts and selected matches. Full selection/custom-plugin and broad highlighting acceptance remain open.",
       "upstream_modules": [
         "base/selectable_text",
         "base/text",

@@ -6,7 +6,7 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 passed on `473407c`; all twelve tickets are Done.
 
 Milestone 07 is in progress. OCH-41's public
-[Component Studio](../examples/gallery/README.md) now has twenty-two preview sections,
+[Component Studio](../examples/gallery/README.md) now has twenty-three preview sections,
 including canvas, images/icons, charts, native motion, responsive layouts, native extensions, input/transfers, input observations, desktop services and styling details. The [gallery evidence](evidence/gallery-och41.md) records
 local macOS interaction, geometry, gallery expect tests, formatting and structural
 catalog checks, separately from earlier native document/Clippy regression checks.
@@ -27,8 +27,10 @@ focused native GPU/selection/streaming/collapse/cleanup checks. Declared custom
 text, literal HTML and image placeholders now share that painter; decoded images
 remove placeholder matches without changing document revisions. Focused native
 checks now also pass for 100k logical-list row reuse and independent windows;
-broad scrolling/tab/fold/bidi coverage, the public highlighting gallery and
-application performance/resource acceptance remain pending. The gallery page count does
+broad scrolling/tab/fold/bidi coverage and application performance/resource
+acceptance remain pending. The public Find & highlight gallery now demonstrates
+live queries, ranges, nested exclusions, selected matches and growing/collapsed
+Markdown, with focused local native interaction evidence. The gallery page count does
 not imply parity. General input regions now have mounted Core/Bonsai/native
 integration, native edge-case and public gallery evidence; remaining consumer/
 release acceptance stays open in the [input ledger](evidence/input-observations-och41.md). Start ellipsis and the complete cursor vocabulary now have

@@ -1303,6 +1303,12 @@ fn markdown_style(dark: bool) -> gpui_base::TextViewStyle {
         .with_foreground(gpui::rgb(foreground).into())
         .with_link(gpui::rgb(link).into())
         .with_code_background(gpui::rgb(background).into())
+        // Base's default inline-code style already has an explicit light
+        // background, so the code-background fallback alone cannot theme it.
+        .with_inline_code(gpui::HighlightStyle {
+            background_color: Some(gpui::rgb(background).into()),
+            ..Default::default()
+        })
         .with_border(gpui::rgb(border).into())
 }
 fn editor_style(dark: bool) -> gpui_base::input::InputEditorStyle {

@@ -1,6 +1,6 @@
 # Component Studio implementation evidence
 
-Status: partial OCH-41 implementation, 2026-09-28. The gallery and catalog audit
+Status: partial OCH-41 implementation. The gallery and catalog audit
 are not complete. This record is narrower than milestone 07 release acceptance.
 Local platform: macOS 14.5 (23F79), arm64. Use the pinned repository environment.
 
@@ -19,6 +19,7 @@ Local platform: macOS 14.5 (23F79), arm64. Use the pinned repository environment
 | Carousels & journeys | Horizontal/vertical carousel and navigation-history transitions preserve native edits; hidden editor/links leave AX; icon/offcanvas sidebar keeps selection | Pointer gestures, timed auto-advance and all scale combinations in gallery |
 | Lists, trees & tables | 1,000 variable-height entries, far reveal and growth elsewhere; loaded hierarchy reveal/selection; 1,000-row table selection/reveal; native AX row/cell limits; retained internal panels | Paging/retry, sort/resize/reorder, drag and full performance workloads |
 | Markdown & code | Scoped Markdown/code/diff, bounded append/reset, parsed code-block controls, native collapse/expand and repeated departure/remount; AX body text/heading/list and read-only code/diff values | Complete screen-reader/selection and rich/image-link semantics, source/selection clipboard and complete theme/scale matrix |
+| Find & highlight | Public ordinary/selectable/Markdown scope, styled-leaf match, nested exclusion and Unicode range; native query edits, case/word toggles, counts, selected match, growth/collapse and remount | Broad script/bidi/scrolling, all scales, performance/resource and consolidated release gates |
 | Canvas & drawing | Validated scene model, native selection/movement/activation, viewport commands, hide/disabled state, reset and scope cleanup | Larger scenes, additional drawing primitives and resource budgets |
 | Images & icons | SVG/raster decode, all fit controls, explicit failure/recovery, icon/button semantics and page-scoped registrations | Remaining codec families and full GPU/cache budgets |
 | Charts & data | Seven native families plus mixed layers; keyboard selection, publication updates, bounded original-data browsing, disabled metadata, theme/scale retention and scope cleanup | Larger/reduced datasets, pointer selection and release performance budgets |
@@ -28,6 +29,11 @@ Local platform: macOS 14.5 (23F79), arm64. Use the pinned repository environment
 | Responsive layouts | Width/height boundaries, first-match priority, retained branch drafts/counters, silent same-branch resize, hidden AX/focus fencing and theme/size changes | Nested layouts, physical display movement and larger query workloads |
 | Desktop services | Shared identity/link/notification receivers, per-window metadata, actual packaged OS links, picker/open/reveal, notification permission/presentation/replacement/action/dismissal | Gallery default-handler reassignment and release packaging/clean-machine gates |
 | Runtime & windows | Public diagnostics, observed content geometry, native file picker cancellation | Broader window command matrix |
+
+The gallery now has 23 sections. The newest Find & highlight section passes its
+focused macOS test; see the [highlighting evidence](subtree-highlighting-och41.md)
+for the exact cases and inline-code theme correction. A combined 23-section result
+is still pending.
 
 The combined native test opens a second independent window, verifies independent
 editor values, closes it, cycles editor page unmount/remount three times and
