@@ -3,8 +3,9 @@
 The current checkpoint implements validated configuration, a windowless native
 query kernel, range/run projections, an owned worker pool, retained scope
 declarations and observation routing, bounded retained-tree collection and a GPUI
-worker service. It does **not** yet connect the mounted visibility/document
-adapters, source cache, actual observation production, painting or gallery
+worker service, and a shaped-text paint adapter tested with native GPU pixels.
+It does **not** yet connect the mounted visibility/document adapters, source
+cache, actual observation production, ordinary/document view painting or gallery
 acceptance. No highlighting capability is advertised.
 OCH-41 remains In Progress. The sections below distinguish each implementation
 checkpoint; constructed projections and injected observations do not establish
@@ -195,3 +196,43 @@ behavior. The collector's document fixtures supply prepared strings; they do not
 prove Markdown/code/diff adapters. Connecting those adapters, mounted cache and
 observations, selection-aware/radius-aware paints and the public gallery remains
 required before advertising the capability or completing OCH-41.
+
+## Shaped-text paint adapter
+
+`highlight_paint` now resolves prepared matches to colors/radii and paints an
+underlay using GPUI's shaped layout. It follows actual soft wraps and alignment,
+maps original UTF-8 offsets through truncation, excludes synthetic ellipses, and
+leaves native selection decoration on top. Geometry cache and Paint readers retain
+the Ready lease and original worker reservation. Query matching never runs in
+paint; shape/source changes replace cached geometry.
+
+Local macOS 14.5 arm64 evidence:
+
+- `./scripts/gpuio exec cargo test -p gpuio-native --lib --locked -j2`: all 355
+  library tests pass; two private-bus notification tests remain excluded from this
+  command. Five new tests cover truncation mapping (including equal-length
+  changed display strings), visual-row alignment/wrap boundaries/clipping,
+  UTF-8 cluster indices, active offsets near `i64::MAX`, and reservation retention
+  until the last retired Paint/geometry reader drops.
+- Built `native_highlight_paint` with `cargo test -p gpuio-native --test native_highlight_paint --features native-image-tests --no-run --locked -j2` through
+  the isolated wrapper, then executed Cargo's reported binary under a 35-second
+  subprocess timeout. Final `GPUIO_NATIVE_HIGHLIGHT_PAINT_OK` passes: real native
+  GPU pixels show both wrapped rows, rounded corners, selection above the wash,
+  centered text and the highlighted original suffix after start ellipsis. The
+  ellipsis itself retains the background. The background window closes/reaps.
+- Strict all-target native/protocol Clippy with `native-image-tests`, Rust
+  formatting and shell syntax/diff checks pass. New test compilation/macOS
+  execution is wired into CI; Linux GUI invocation remains informational.
+
+After adding reservation ownership, one native fixture failed because GPUI drew
+its scene before the asynchronous test task prepared its Paint. Preparation now
+runs in the scene constructor. The final rerun passes with leased paint data;
+this was fixture initialization, unrelated to user desktop activity.
+
+This is real GPU evidence for the independent paint adapter, not public
+`View.highlight_scope` acceptance. Mounted state/visibility/document providers,
+source invalidation, actual callback production, ordinary/selectable/document
+view wiring, stress workloads and the public gallery are still required. No
+highlight capability, full script/bidi coverage, hosted pass or Linux desktop
+qualification is claimed. Prior full Dune/bridge results remain tied to their
+stated checkpoints; no OCaml API or protocol representation changed here.

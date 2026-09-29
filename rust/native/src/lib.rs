@@ -199,6 +199,7 @@ pub mod document_search;
 pub mod highlight_collect;
 pub mod highlight_host;
 pub mod highlight_jobs;
+pub mod highlight_paint;
 pub mod highlight_projection;
 pub mod highlight_search;
 
@@ -304,4 +305,9 @@ pub fn run_native_carousel_test() {
 #[cfg(feature = "native-tests")]
 pub fn run_native_highlight_host_test() {
     highlight_host::test::run();
+}
+
+#[cfg(feature = "native-image-tests")]
+pub fn run_native_highlight_paint_test() {
+    highlight_paint::native_test::run();
 }

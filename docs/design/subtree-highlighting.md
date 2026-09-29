@@ -206,6 +206,30 @@ discarded completion tickets. The native test exercises actual executor wakeups,
 closed-window cancellation and repeated cleanup with two in-flight jobs. This is
 service lifecycle evidence, not yet mounted highlighting/painting acceptance.
 
+## Shaped-text paint adapter
+
+`highlight_paint` resolves the prepared per-run matches to appearance without
+rerunning queries. A Paint and its geometry cache retain the worker's Ready lease,
+so retiring a scope does not release its reservation while a paint reader still
+owns the source. Cache identity includes source, truncation policy and GPUI shaped
+line identities; bounds, alignment and line height are taken from the current
+paint. The cache stores font-run metadata and references GPUI's shaped glyph data,
+without creating a glyph-sized position copy. Monotonic glyph indices use binary
+lookup; other layouts use GPUI's own index lookup.
+
+The underlay emits a rounded quad per intersected visible visual row. It uses
+actual wrap boundaries and per-row alignment, with downstream start affinity,
+rather than guessing positions from character widths. It maps retained source
+slices through start/end/middle truncation and never highlights a synthetic
+ellipsis. A clipping mask skips off-screen rows; GPUI clips the painted pixels.
+Native selection backgrounds paint afterward. Active-index comparison subtracts
+the virtualized offset after checking its lower bound, avoiding signed overflow.
+
+The helper passes native GPU tests independently. Binding it to ordinary/selectable
+retained views and Markdown/code/diff fragments remains required. Its geometry
+test fixtures are not broad script/bidirectional-text acceptance, and it has not
+yet passed the milestone's application-scale performance budget.
+
 ## Pinned comparison and acceptance
 
 Compared with GPUIX `18e695ed0ee8121a7793413ca795e08eda2a13df`:
