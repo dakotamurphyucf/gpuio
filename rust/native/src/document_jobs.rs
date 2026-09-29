@@ -266,6 +266,23 @@ pub struct Pool {
     pub peak_reserved_bytes: usize,
 }
 impl Pool {
+    /// Reserve mounted presentation storage in the same budget as parser work.
+    /// Call before allocating; dropping the charge releases these admission units.
+    pub fn reserve(&mut self, bytes: usize) -> Result<Charge, Error> {
+        if self.closed {
+            return Err(Error::Closed);
+        }
+        let reserved = self.reserved.load(Ordering::Relaxed);
+        if bytes > MAX_RESERVED_BYTES - reserved {
+            return Err(Error::ResourceLimit);
+        }
+        self.reserved.fetch_add(bytes, Ordering::Relaxed);
+        self.peak_reserved_bytes = self.peak_reserved_bytes.max(reserved + bytes);
+        Ok(Charge {
+            used: self.reserved.clone(),
+            bytes,
+        })
+    }
     pub fn request(&mut self, request: Request) -> Result<Handle, Error> {
         if self.closed {
             return Err(Error::Closed);
@@ -406,6 +423,22 @@ impl Pool {
 mod tests {
     use super::*;
     use crate::document_store::Store;
+
+    #[test]
+    fn presentation_reservations_share_the_work_budget_and_release_on_drop() {
+        let mut pool = Pool::default();
+        let first = pool.reserve(MAX_RESERVED_BYTES - 8).unwrap();
+        assert!(matches!(pool.reserve(9), Err(Error::ResourceLimit)));
+        let final_bytes = pool.reserve(8).unwrap();
+        assert_eq!(pool.reserved_bytes(), MAX_RESERVED_BYTES);
+        drop(first);
+        assert_eq!(pool.reserved_bytes(), 8);
+        pool.close();
+        assert!(matches!(pool.reserve(1), Err(Error::Closed)));
+        drop(final_bytes);
+        assert_eq!(pool.reserved_bytes(), 0);
+    }
+
     use gpuio_protocol::document::{Status, Update};
 
     fn request(text: &str) -> Request {

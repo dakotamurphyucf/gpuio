@@ -200,4 +200,97 @@ pub(super) async fn exercise(
     eprintln!(
         "GPUIO_NATIVE_HIGHLIGHT_DIFF_FOLD_OK: real gutter collapse/expand, UTF-8 source offsets, hidden-row wash removal, later-range geometry, unchanged page matching/owners and selection precedence"
     );
+    use gpuio_protocol::document_diff::{Collapse, Config as DiffConfig, FileKey, LineLimit};
+    apply(
+        cx,
+        handle,
+        vec![Op::SetDocumentDiff(
+            node(1),
+            1,
+            Some(DiffConfig {
+                collapse: Collapse::Controlled(vec![FileKey::Path("世界.txt".into())]),
+                ..DiffConfig::default()
+            }),
+        )],
+    );
+    ready(cx, handle, transport, 1).await;
+    settle(cx, handle).await;
+    let projected_later =
+        editor.read_with(cx, |editor, _| editor.value().find("aaa later").unwrap());
+    let moved = bounds(cx, &editor, projected_later..projected_later + 3);
+    assert!(
+        moved.top() < original.top(),
+        "per-file projection removes preceding rows from layout"
+    );
+    assert!(
+        wash_in(cx, handle, moved) > 20,
+        "projected coordinates paint the surviving match"
+    );
+    assert_eq!(p.read_with(cx, |p, _| p.editor.clone()), editor);
+    assert!(
+        p.read_with(cx, |p, _| Arc::ptr_eq(
+            &snapshot,
+            p.installed.as_ref().unwrap()
+        )),
+        "projection does not replace canonical snapshot"
+    );
+    let projected_owner = p.read_with(cx, |p, _| {
+        Rc::downgrade(&p.highlight_paint.as_ref().unwrap().1)
+    });
+    editor.update(cx, |editor, cx| {
+        editor.bridge_select(projected_later, projected_later + 3, cx)
+    });
+    draw(cx, handle);
+    assert!(
+        wash_in(cx, handle, moved) < 20,
+        "projected selection still paints above highlights"
+    );
+    editor.update(cx, |editor, cx| editor.bridge_select(0, 0, cx));
+    let projected_header = editor.read_with(cx, |editor, _| editor.value().find("@@").unwrap());
+    gutter(cx, handle, &editor, projected_header..projected_header + 2).await;
+    assert_eq!(
+        red_pixels(cx, handle),
+        0,
+        "projected hunk folds the surviving source rows"
+    );
+    gutter(cx, handle, &editor, projected_header..projected_header + 2).await;
+    let unfolded = bounds(cx, &editor, projected_later..projected_later + 3);
+    assert!(wash_in(cx, handle, unfolded) > 20);
+    apply(
+        cx,
+        handle,
+        vec![Op::SetDocumentDiff(
+            node(1),
+            2,
+            Some(DiffConfig {
+                line_limit: LineLimit::Controlled(Some(0)),
+                ..DiffConfig::default()
+            }),
+        )],
+    );
+    ready(cx, handle, transport, 0).await;
+    settle(cx, handle).await;
+    assert_eq!(red_pixels(cx, handle), 0);
+    assert!(
+        projected_owner.upgrade().is_none(),
+        "projection change releases obsolete painter"
+    );
+    apply(
+        cx,
+        handle,
+        vec![Op::SetDocumentDiff(node(1), 3, Some(DiffConfig::default()))],
+    );
+    ready(cx, handle, transport, 3).await;
+    settle(cx, handle).await;
+    assert!(red_pixels(cx, handle) > 20);
+    apply(cx, handle, vec![Op::SetDocumentDiff(node(1), 4, None)]);
+    ready(cx, handle, transport, 3).await;
+    settle(cx, handle).await;
+    assert_eq!(
+        editor.read_with(cx, |editor, _| editor.value().to_string()),
+        text
+    );
+    eprintln!(
+        "GPUIO_NATIVE_HIGHLIGHT_DIFF_PROJECTION_OK: controlled file/preview projection, moved GPU washes, selection precedence, projected gutter folding, retired paint owners and raw restoration"
+    );
 }

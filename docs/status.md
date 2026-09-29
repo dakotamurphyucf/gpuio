@@ -71,7 +71,11 @@ collapse, line-limit/show-more and richer callback APIs, not completion of them.
 `Document.Diff` now has validated configuration/event domain values, paired
 standalone OCaml/Rust codecs and tested native managed/controlled state. Additive
 live transport, Core/Bonsai callbacks, configuration epochs and source-revision
-checks now have integration tests. Mounted native controls remain pending; see the
+checks now have integration tests. Controlled collapse and preview settings now
+drive a mounted native editor with mapped selection, navigation, bounded pages,
+canonical search/raw return and additional shared-pool memory admission. Native
+GPU checks verify projected highlights, selection, hunk folding and owner disposal.
+Interactive per-file/show-more and richer line actions remain pending; see the
 [diff controls evidence](evidence/diff-controls-och41.md).
 
 The macOS-first/Linux-deferral policy [PR #15](https://github.com/dakotamurphyucf/gpuio/pull/15)

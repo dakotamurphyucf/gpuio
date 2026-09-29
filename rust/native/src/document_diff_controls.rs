@@ -4,6 +4,7 @@ use crate::{document_diff::Diff, document_diff_projection::Projection};
 use gpuio_protocol::document_diff::{Collapse, Config, File, FileKey, LineLimit, Observation};
 use std::collections::{BTreeMap, BTreeSet};
 
+#[derive(Clone)]
 pub struct Controls {
     config: Config,
     generation: i64,
@@ -68,6 +69,18 @@ impl Controls {
         self.config = config;
         self.generation = generation;
         Ok(true)
+    }
+    /// Conservative owned storage units, including seeds retained from an
+    /// earlier managed config. This is admission accounting, not allocator RSS.
+    pub fn retained_bytes(&self) -> usize {
+        let key_bytes = |key: &FileKey| match key {
+            FileKey::Unnamed => 128,
+            FileKey::Path(path) => 128 + path.capacity(),
+        };
+        std::mem::size_of::<Self>()
+            + self.config.retained_bytes()
+            + self.seed.iter().map(key_bytes).sum::<usize>()
+            + self.overrides.keys().map(key_bytes).sum::<usize>()
     }
     pub fn config(&self) -> &Config {
         &self.config
@@ -154,6 +167,20 @@ mod tests {
             state.limit(),
         )
         .unwrap()
+    }
+    #[test]
+    fn replaced_managed_config_still_charges_its_original_seed() {
+        let config = Config {
+            collapse: Collapse::Managed(vec![FileKey::Path("x".repeat(4096))]),
+            ..Config::default()
+        };
+        let mut controls = Controls::new(config, 1).unwrap();
+        controls.configure(Config::default(), 1).unwrap();
+        assert!(controls.config().collapse.keys().is_empty());
+        let retained = controls.retained_bytes();
+        assert!(retained > 4096);
+        controls.configure(Config::default(), 2).unwrap();
+        assert!(controls.retained_bytes() + 4096 < retained);
     }
     #[test]
     fn managed_values_survive_updates_but_reset_with_ownership_or_generation() {

@@ -1,6 +1,8 @@
 //! Mounted source leases and disposable native document presentations.
 use super::{Interaction, View, apply_styles};
 use crate::{
+    document_diff_controls::Controls,
+    document_diff_projection::Projection,
     document_editor, document_host,
     document_jobs::{self, Prepared},
     document_markdown,
@@ -38,6 +40,9 @@ fn page(snapshot: &Snapshot, start: usize) -> Page {
         .text
         .floor_char_boundary((start + 65536).min(snapshot.text.len()));
     let text = snapshot.text.slice(start..limit).to_string();
+    bounded_page(&text, start)
+}
+fn bounded_page(text: &str, start: usize) -> Page {
     let mut end = text.len();
     let mut line_start = 0;
     for (index, (offset, c)) in text.char_indices().filter(|(_, c)| *c == '\n').enumerate() {
@@ -82,6 +87,14 @@ pub(super) struct Presentation {
     search_index: Option<usize>,
     runs: Arc<Vec<crate::document_highlight::Run>>,
     diff: Option<crate::document_diff::Diff>,
+    diff_config: Option<Arc<gpuio_protocol::document_diff::Config>>,
+    diff_epoch: i64,
+    diff_controls: Option<Controls>,
+    projection: Option<Projection>,
+    projection_charge: Option<document_jobs::Charge>,
+    projection_error: Option<String>,
+    projected_page: Option<Arc<str>>,
+    raw_diff: bool,
     charge: Option<document_jobs::Charge>,
     collapsed: bool,
     error: Option<String>,
@@ -148,6 +161,12 @@ impl Presentation {
         let installed = self.installed.as_ref().ok_or(DocumentError::Pending)?;
         if !self.source_mode {
             return Err(DocumentError::Unavailable);
+        }
+        if let Some(text) = &self.projected_page {
+            return Ok(Some(crate::highlight_projection::Source::document_text(
+                installed.clone(),
+                text.clone(),
+            )));
         }
         crate::highlight_projection::Source::document_slice(
             installed.clone(),
@@ -295,6 +314,14 @@ impl Presentation {
             search_index: None,
             runs: Arc::default(),
             diff: None,
+            diff_config: None,
+            diff_epoch: 0,
+            diff_controls: None,
+            projection: None,
+            projection_charge: None,
+            projection_error: None,
+            projected_page: None,
+            raw_diff: false,
             charge: None,
             error: None,
             ready: false,
@@ -399,12 +426,6 @@ impl Presentation {
             || config.dark != self.config.dark
             || config.search != self.config.search;
         if changed {
-            if snapshot.generation != self.snapshot.generation {
-                self.page_start = 0;
-                self.previous_pages.clear();
-                self.source_mode = false;
-                self.collapsed = config.initially_collapsed;
-            }
             self.snapshot = snapshot;
             self.ready = false;
             cx.notify();
@@ -423,6 +444,26 @@ impl Presentation {
         }
         self.config = config;
     }
+    fn refresh_diff(
+        &mut self,
+        config: Option<Arc<gpuio_protocol::document_diff::Config>>,
+        epoch: i64,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.diff_epoch == epoch {
+            return;
+        }
+        self.diff_config = config;
+        self.diff_epoch = epoch;
+        if self.diff_config.is_none() {
+            self.diff_controls = None;
+            self.raw_diff = false;
+        }
+        if let Some(snapshot) = self.installed.clone() {
+            self.rebuild_diff(snapshot, window, cx);
+        }
+    }
     fn show_source(
         &mut self,
         runs: Vec<crate::document_highlight::Run>,
@@ -430,13 +471,194 @@ impl Presentation {
         cx: &mut Context<Self>,
     ) {
         self.runs = Arc::new(runs);
-        self.show_page(window, cx);
+        self.rebuild_diff(self.snapshot.clone(), window, cx);
+    }
+    fn rebuild_diff(
+        &mut self,
+        snapshot: Arc<Snapshot>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let prepared: Result<_, document_jobs::Error> = (|| {
+            let (Some(config), Some(diff)) = (&self.diff_config, &self.diff) else {
+                return Ok(None);
+            };
+            // Conservative admission units, not RSS. Include controller copies,
+            // keys, row maps, projected runs, old/new page text and editor buffers.
+            // Hold the previous charge until replacement has finished.
+            let bytes = 4096
+                + 4 * config.retained_bytes()
+                + 128 * config.collapse.keys().len()
+                + 2 * self
+                    .diff_controls
+                    .as_ref()
+                    .map_or(0, Controls::retained_bytes)
+                + 8 * snapshot.text.len()
+                + 256 * diff.lines.len()
+                + 2 * self.runs.len() * std::mem::size_of::<crate::document_highlight::Run>()
+                + 4 * 65536;
+            let charge = self.job.as_ref().map_err(|error| *error)?.reserve(bytes)?;
+            let mut controls = match &self.diff_controls {
+                Some(controls) => {
+                    let mut next = controls.clone();
+                    next.configure((**config).clone(), snapshot.generation)
+                        .map_err(|_| document_jobs::Error::Parse)?;
+                    next
+                }
+                None => Controls::new((**config).clone(), snapshot.generation)
+                    .map_err(|_| document_jobs::Error::Parse)?,
+            };
+            controls.install(diff);
+            let projection = Projection::new(
+                &snapshot.text.to_string(),
+                diff,
+                |_, file| controls.is_collapsed(file),
+                controls.limit(),
+            )
+            .ok_or(document_jobs::Error::Parse)?;
+            Ok(Some((projection, charge, controls)))
+        })();
+        self.projection_error = None;
+        let (next, charge) = match prepared {
+            Ok(Some((projection, charge, controls))) => {
+                self.diff_controls = Some(controls);
+                (Some(projection), Some(charge))
+            }
+            Ok(None) => {
+                self.diff_controls = None;
+                (None, None)
+            }
+            Err(error) => {
+                self.projection_error = Some(format!(
+                    "Diff controls unavailable ({error:?}); showing source."
+                ));
+                // Preserve managed values and their old admission while source
+                // fallback is visible. A failed replacement is not a reset.
+                (None, self.projection_charge.take())
+            }
+        };
+        let selection = self.editor.read(cx).bridge_selection();
+        let mapped = if !self.raw_diff
+            && self
+                .installed
+                .as_ref()
+                .is_some_and(|old| old.generation == snapshot.generation)
+        {
+            self.projection
+                .as_ref()
+                .zip(next.as_ref())
+                .and_then(|(old, next)| {
+                    old.remap_selection(
+                        next,
+                        (
+                            self.installed_page_start + selection.0,
+                            self.installed_page_start + selection.1,
+                        ),
+                    )
+                })
+        } else {
+            None
+        };
+        let page_origin = self
+            .projection
+            .as_ref()
+            .zip(next.as_ref())
+            .filter(|_| {
+                self.installed
+                    .as_ref()
+                    .is_some_and(|old| old.generation == snapshot.generation)
+            })
+            .and_then(|(old, next)| {
+                next.display_caret(old.source_caret(self.installed_page_start)?)
+            });
+        let projection_changed = self.projection.is_some() || next.is_some();
+        self.projection = next;
+        if projection_changed && !self.raw_diff {
+            // Keep the same visible origin across appends. Move only when the
+            // old origin disappeared or the surviving selection precedes it.
+            self.page_start = page_origin.unwrap_or(0);
+            if let Some((a, b)) = mapped {
+                self.page_start = self.page_start.min(a.min(b));
+            }
+            self.previous_pages.clear();
+        }
+        self.show_page_for(
+            snapshot,
+            mapped,
+            projection_changed && !self.raw_diff,
+            window,
+            cx,
+        );
+        self.projection_charge = charge;
+    }
+    fn active_projection(&self) -> Option<&Projection> {
+        self.projection.as_ref().filter(|_| !self.raw_diff)
+    }
+    fn display_bytes(&self) -> usize {
+        self.active_projection().map_or_else(
+            || {
+                self.installed
+                    .as_ref()
+                    .map_or(0, |snapshot| snapshot.text.len())
+            },
+            |projection| projection.text().len(),
+        )
     }
     fn show_page(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let page = page(&self.snapshot, self.page_start);
+        if let Some(snapshot) = self.installed.clone() {
+            self.show_page_for(snapshot, None, false, window, cx);
+        }
+    }
+    fn show_page_for(
+        &mut self,
+        snapshot: Arc<Snapshot>,
+        mapped_selection: Option<(usize, usize)>,
+        projection_changed: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let projection = self.active_projection();
+        let (page, origin, final_line, candidates, projected_runs) =
+            if let Some(projection) = projection {
+                let text = projection.text();
+                let start = text.floor_char_boundary(self.page_start.min(text.len()));
+                let limit = text.floor_char_boundary((start + 65536).min(text.len()));
+                let page = bounded_page(&text[start..limit], start);
+                let origin = text[..start].bytes().filter(|b| *b == b'\n').count();
+                let final_line = origin + page.text.bytes().filter(|b| *b == b'\n').count();
+                let hunks = projection.hunks(self.diff.as_ref().expect("projected diff"));
+                let runs = projection
+                    .highlights(&self.runs)
+                    .expect("prepared diff runs");
+                (page, origin, final_line, hunks, Some(runs))
+            } else {
+                let page = page(&snapshot, self.page_start);
+                let origin = snapshot.text.byte_to_line_idx(
+                    self.page_start.min(snapshot.text.len()),
+                    ropey::LineType::LF,
+                );
+                let final_line = snapshot
+                    .text
+                    .byte_to_line_idx(page.end, ropey::LineType::LF);
+                let hunks = self
+                    .diff
+                    .as_ref()
+                    .map_or_else(Vec::new, |diff| diff.hunks.clone());
+                (page, origin, final_line, hunks, None)
+            };
+        self.page_start = page.end - page.text.len();
         self.page_end = page.end;
+        self.projected_page = projected_runs
+            .as_ref()
+            .map(|_| Arc::from(page.text.as_str()));
+        let word_diff = self
+            .diff_config
+            .as_ref()
+            .is_none_or(|config| config.word_diff);
         let runs = Arc::new(
-            self.runs
+            projected_runs
+                .as_deref()
+                .unwrap_or(&self.runs)
                 .iter()
                 .cloned()
                 .filter_map(|mut run| {
@@ -446,41 +668,43 @@ impl Presentation {
                         return None;
                     }
                     run.bytes = run.bytes.start - self.page_start..run.bytes.end - self.page_start;
+                    if self.diff.is_some() && !word_diff {
+                        run.bold = false;
+                        run.underline = false;
+                    }
                     Some(run)
                 })
                 .collect::<Vec<_>>(),
         );
-        let origin = self
-            .snapshot
-            .text
-            .byte_to_line_idx(self.page_start, ropey::LineType::LF);
-        let final_line = self
-            .snapshot
-            .text
-            .byte_to_line_idx(self.page_end, ropey::LineType::LF);
-        let folds: Vec<_> = self.diff.as_ref().map_or_else(Vec::new, |diff| {
-            diff.hunks
-                .iter()
-                .filter(|hunk| {
-                    hunk.start >= origin && hunk.end <= final_line && hunk.end > hunk.start + 2
-                })
-                .map(|hunk| {
-                    gpui_base::input::FoldRange::new(hunk.start - origin, hunk.end - origin)
-                })
-                .collect()
-        });
+        let folds: Vec<_> = candidates
+            .iter()
+            .filter(|hunk| {
+                hunk.start >= origin && hunk.end <= final_line && hunk.end > hunk.start + 2
+            })
+            .map(|hunk| gpui_base::input::FoldRange::new(hunk.start - origin, hunk.end - origin))
+            .collect();
         self.source_lines = page.text.bytes().filter(|byte| *byte == b'\n').count() + 1;
         let old = self.installed.as_ref();
         self.editor.update(cx, |state, cx| {
             let mut selection = state.bridge_selection();
             let selected_end = selection.0.max(selection.1);
-            let preserve = self.page_start == self.installed_page_start
-                && old.is_some_and(|old| old.generation == self.snapshot.generation)
+            let same_selection = mapped_selection.is_some_and(|(a, b)| {
+                a == self.page_start + selection.0 && b == self.page_start + selection.1
+            });
+            let preserve = (!projection_changed || same_selection)
+                && self.page_start == self.installed_page_start
+                && old.is_some_and(|old| old.generation == snapshot.generation)
                 && selected_end <= page.text.len()
                 && selected_end <= state.value().len()
                 && state.value().get(..selected_end) == page.text.get(..selected_end);
             if !preserve {
                 selection = (0, 0);
+            }
+            if let Some((anchor, caret)) = mapped_selection
+                && anchor.min(caret) >= self.page_start
+                && anchor.max(caret) <= self.page_end
+            {
+                selection = (anchor - self.page_start, caret - self.page_start);
             }
             let offset = state.scroll_offset();
             state.bridge_replace_all(page.text.into(), selection, false, window, cx);
@@ -498,18 +722,13 @@ impl Presentation {
                 cx,
             );
             state.set_line_number(self.config.line_numbers, window, cx);
-            state.set_line_number_offset(
-                self.snapshot
-                    .text
-                    .byte_to_line_idx(self.page_start, ropey::LineType::LF),
-                cx,
-            );
+            state.set_line_number_offset(origin, cx);
             state.set_editor_style(editor_style(self.config.dark));
             state.set_search_query(self.config.search.clone(), false, cx);
         });
         self.source_mode = true;
         self.installed_page_start = self.page_start;
-        self.installed = Some(self.snapshot.clone());
+        self.installed = Some(snapshot);
         self.invalidate_row(cx);
     }
     fn accept_ready(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -521,6 +740,17 @@ impl Presentation {
         let Some(ready) = ready else {
             return;
         };
+        if self
+            .installed
+            .as_ref()
+            .is_some_and(|old| old.generation != self.snapshot.generation)
+        {
+            self.page_start = 0;
+            self.previous_pages.clear();
+            self.source_mode = false;
+            self.raw_diff = false;
+            self.collapsed = self.config.initially_collapsed;
+        }
         self.ready = true;
         self.error = None;
         self.diff = None;
@@ -536,6 +766,12 @@ impl Presentation {
                 }
                 match ready.prepared {
                     Prepared::Markdown { document, code } => {
+                        self.projection = None;
+                        self.projection_charge = None;
+                        self.projection_error = None;
+                        self.projected_page = None;
+                        self.diff_controls = None;
+                        self.raw_diff = false;
                         let showing_source = self.source_mode && self.markdown.is_some();
                         let state = self
                             .markdown
@@ -572,7 +808,7 @@ impl Presentation {
                             })
                         }));
                         if showing_source {
-                            self.show_page(window, cx);
+                            self.show_page_for(self.snapshot.clone(), None, false, window, cx);
                         } else {
                             self.source_mode = false;
                             self.editor.update(cx, |state, cx| {
@@ -628,7 +864,12 @@ impl Presentation {
         };
         let range = self.search.ranges[index].clone();
         self.search_index = Some(index);
-        self.previous_pages.push(self.page_start);
+        if self.projection.is_some() {
+            self.raw_diff = true;
+            self.previous_pages.clear();
+        } else {
+            self.previous_pages.push(self.page_start);
+        }
         self.page_start = range.start;
         self.show_page(window, cx);
         self.editor.update(cx, |state, cx| {
@@ -639,7 +880,11 @@ impl Presentation {
         cx.notify();
     }
     fn navigation_at_caret(&self, cx: &App) -> Option<Navigation> {
-        let caret = self.page_start + self.editor.read(cx).bridge_selection().1;
+        let caret = self.installed_page_start + self.editor.read(cx).bridge_selection().1;
+        let caret = match self.active_projection() {
+            Some(projection) => projection.source_caret(caret)?,
+            None => caret,
+        };
         if let Some(diff) = &self.diff {
             diff.lines
                 .iter()
@@ -765,6 +1010,7 @@ impl Render for Presentation {
             "document-search-next",
             "document-location",
             "document-rendered",
+            "document-diff-view",
         ] {
             self.buttons
                 .entry(name)
@@ -817,6 +1063,20 @@ impl Render for Presentation {
                 cx,
             ));
         }
+        if self.raw_diff && self.projection.is_some() {
+            toolbar = toolbar.child(self.button(
+                "document-diff-view",
+                "Diff view",
+                |this, window, cx| {
+                    this.raw_diff = false;
+                    this.page_start = 0;
+                    this.previous_pages.clear();
+                    this.show_page_for(this.installed.clone().unwrap(), None, true, window, cx);
+                    cx.notify();
+                },
+                cx,
+            ));
+        }
         if !self.config.search.is_empty() {
             toolbar = toolbar
                 .child(format!(
@@ -855,7 +1115,7 @@ impl Render for Presentation {
         }
         if (self.markdown.is_none() || self.source_mode)
             && self.ready
-            && self.page_end < self.snapshot.text.len()
+            && self.page_end < self.display_bytes()
         {
             toolbar = toolbar.child(self.button(
                 "document-next",
@@ -893,12 +1153,15 @@ impl Render for Presentation {
         }
         if (self.markdown.is_none() || self.source_mode)
             && self.ready
-            && self.page_end < self.snapshot.text.len()
+            && self.page_end < self.display_bytes()
         {
             order.push(self.buttons["document-next"].clone());
         }
         if self.source_mode && self.markdown.is_some() {
             order.push(self.buttons["document-rendered"].clone());
+        }
+        if self.raw_diff && self.projection.is_some() {
+            order.push(self.buttons["document-diff-view"].clone());
         }
         if navigation.is_some() {
             order.push(self.buttons["document-location"].clone());
@@ -951,7 +1214,7 @@ impl Render for Presentation {
         if self.collapsed {
             return root.into_any_element();
         }
-        if let Some(error) = &self.error {
+        for error in [&self.error, &self.projection_error].into_iter().flatten() {
             root = root.child(error.clone());
         }
         // Keep the last installed document geometrically stable while a newer
@@ -1036,14 +1299,19 @@ impl Render for Presentation {
             });
         } else {
             self.configure_source_semantics(cx);
-            if let Some(installed) = self.installed.as_ref()
-                && (self.page_start > 0 || self.page_end < installed.text.len())
+            if self.installed.is_some()
+                && (self.page_start > 0 || self.page_end < self.display_bytes())
             {
                 root = root.child(format!(
-                    "Source bytes {}–{} of {}",
+                    "{} bytes {}–{} of {}",
+                    if self.active_projection().is_some() {
+                        "Visible diff"
+                    } else {
+                        "Source"
+                    },
                     self.page_start,
                     self.page_end,
-                    installed.text.len()
+                    self.display_bytes()
                 ));
             }
             root = root.child(
@@ -1142,6 +1410,13 @@ impl View {
             if let Some(presentation) = &state.presentation {
                 presentation.update(cx, |state, cx| {
                     state.refresh(config.clone(), cx);
+                    let node = tree.get(*id).unwrap();
+                    state.refresh_diff(
+                        node.document_diff.clone(),
+                        node.document_diff_epoch,
+                        window,
+                        cx,
+                    );
                     cx.notify();
                 });
             }
@@ -1275,6 +1550,12 @@ impl View {
                 cx.notify();
             }
             state.refresh(config, cx);
+            state.refresh_diff(
+                node.document_diff.clone(),
+                node.document_diff_epoch,
+                window,
+                cx,
+            );
             state.install_highlight(cx);
         });
         let presentation = presentation.clone();

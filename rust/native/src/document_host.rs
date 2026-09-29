@@ -162,6 +162,10 @@ pub fn request(mut request: Request, window: &mut Window, cx: &mut App) -> Resul
     })
 }
 impl Handle {
+    pub fn reserve(&self, bytes: usize) -> Result<jobs::Charge, Error> {
+        let service = self.service.upgrade().ok_or(Error::Closed)?;
+        service.borrow_mut().pool.reserve(bytes)
+    }
     pub fn update(&self, mut request: Request, cx: &mut App) -> Result<(), Error> {
         let service = self.service.upgrade().ok_or(Error::Closed)?;
         if !cx

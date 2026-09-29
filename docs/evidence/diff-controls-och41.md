@@ -126,3 +126,58 @@ private-bus cases excluded by this command), plus the scoped OCaml suites and
 strict Clippy. These checks opened no windows. No capability is newly advertised;
 per-file native controls, projected editor integration, input/accessibility,
 gallery, installed-consumer and release acceptance remain open.
+
+## Mounted visible editor and resource admission
+
+The retained document presenter now consumes live diff settings and projects one
+read-only native editor. It keeps canonical snapshots separate from displayed
+bytes, projects cached syntax and hunk candidates, and supports the `word_diff`
+emphasis switch. Explicit raw-source search and the Diff view return preserve
+controlled collapse/preview values. The new native tests drive settings through
+real retained-tree transactions; they do not claim per-file/show-more action UI.
+
+The extended `native_document` harness passes on macOS14.5 arm64:
+
+- Collapsed and preview-limited text actually reaches the mounted editor without
+  replacing its entity or canonical source.
+- A backwards selection in a surviving file retains its exact bytes/direction
+  after preceding rows reappear; a selection crossing newly hidden rows clears.
+- Navigation maps visible Unicode bytes back to the correct original path/line.
+- Searching hidden canonical text opens raw source and selects its exact bytes;
+  returning restores the configured diff projection.
+- Paging while a newer source is preparing keeps the installed old snapshot.
+  A3000-line projection uses bounded native pages and correct second-page source
+  navigation. Pending parse keeps installed Flow/Viewport geometry stable.
+- Clearing settings disposes projection/controller/page-text reservations.
+
+The extended `native_highlight_document` harness passes actual GPU checks for
+per-file collapse moving the surviving match to its projected row, preview-zero
+removing washes, selection painting above highlights, native gutter folding on
+projected hunk rows, old painter disposal and restoration of the raw full source.
+Existing code/Markdown/image/bidi/scroll/state-style/fold regressions also pass.
+These runs used background windows, with native input dispatch for gutter checks;
+they do not qualify OS keyboard focus, clipboard/IME or screen-reader behavior.
+
+Additional mounted memory is admitted before construction in the same64MiB pool
+as parser work. Conservative units include projection/controller/runs/page buffers,
+old and replacement state, and seeds retained from earlier managed configs. A
+pool test verifies exact shared-budget exhaustion, rejection after closure and
+release on drop; another checks that replacing a large managed declaration with
+an empty config keeps its original seed charged until generation reset.
+
+Commands:
+
+```sh
+./scripts/gpuio exec cargo test -p gpuio-native --test native_document --features native-image-tests --locked -j2
+./scripts/gpuio exec cargo test -p gpuio-native --test native_highlight_document --features native-image-tests --locked -j2
+./scripts/gpuio exec cargo test --workspace --lib --features native-image-tests --locked -j2
+./scripts/gpuio exec cargo test -p gpuio-native --lib document_ --features native-image-tests --locked -j2
+./scripts/gpuio exec cargo clippy -p gpuio-native -p gpuio-protocol --all-targets --features native-image-tests --locked -j2 -- -D warnings
+```
+
+The first two GUI runs and workspace/Clippy checks pass. The full library run has
+462 passing tests and two excluded private-bus cases; the subsequent targeted
+run passes38 cases including the managed-seed accounting regression. The native
+document harness passes again after that final accounting change. Interactive file headers,
+show-more and richer line actions, path-based syntax parity, gallery/consumer,
+application budgets and release gates remain open. No new capability is advertised.

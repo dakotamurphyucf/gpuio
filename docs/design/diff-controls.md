@@ -3,8 +3,10 @@
 Status: OCH-41 implementation design. The bounded parser, visible-source
 projection, Core configuration/event types, paired standalone codecs and native
 control state exist. View configuration, live transport and stale-event routing
-also exist; mounted native presentation remains pending. This document does not
-advertise a capability.
+also exist. Mounted configuration now drives one projected native editor, with
+selection/page/search and GPU highlight evidence. Per-file/header and show-more
+actions, richer line activation and gallery/consumer acceptance remain pending.
+This document does not advertise a capability.
 
 The reference is GPUIX at
 [`18e695ed0ee8121a7793413ca795e08eda2a13df`](https://github.com/remorses/gpuix/tree/18e695ed0ee8121a7793413ca795e08eda2a13df):
@@ -19,8 +21,8 @@ native-managed defaults. Hot reload is unrelated to this scope.
 only with `Mode.Diff`; omission preserves the existing raw presentation. Core and
 Bonsai `View.document ?on_diff` now share the document node's handler router with
 unchanged navigation. Supplying `on_diff` without explicit diff configuration is
-a reconciliation error. Native mounting remains unfinished, so these APIs do not
-yet produce the extended controls on screen.
+a reconciliation error. Controlled collapse and preview settings now change the
+mounted editor. The interactive header/show-more controls and extended line actions remain unfinished.
 
 The following constructors exist under `Document.Diff`:
 
@@ -123,8 +125,14 @@ The subtree-highlight collector uses the installed visible page text with its ex
 snapshot identity. Explicit ranges use that displayed text's coordinates, consistent
 with other rendered text fragments. A projection change invalidates its match/paint
 owner; ordinary native hunk folding still changes paint visibility without changing
-installed-page logical counts. The existing parser/source resource reservation must
-also charge retained projection text, row maps and editor page buffers before mount.
+installed-page logical counts. The shared parser/source resource pool now also
+charges retained projection text, row maps and editor page buffers before mount.
+The mounted adapter reserves additional conservative units from the same64MiB pool
+before building a replacement; the old reservation stays live during replacement.
+Controller accounting includes captured managed seeds even after a smaller config
+replaces their original declaration. Admission failure visibly falls back to raw
+source while retaining the last managed values and their charge. This is bounded
+resource admission, not an exact allocator/RSS measurement.
 
 ## Event and bridge contract
 
@@ -190,9 +198,11 @@ hunk mapping, streaming prefixes and exact limits. Paired config/event fixtures,
 validation and native state-transition tests now also pass, including controlled
 nonmutation, managed seed retention/reset and pruning of removed-file overrides.
 Core/Bonsai routing, live-envelope fixtures, tree/queue validation and source
-registry tests also pass. These do not prove mounted UI. Completion still requires
-native per-file/show-more
-keyboard, AX and pointer controls; source/page/search/copy behavior; selection and
-GPU highlight mapping under streaming; bounded lifetime/resource tests; the public
+registry tests also pass. Mounted config updates now pass retained-editor,
+selection/direction, canonical navigation/search, bounded-page and source-revision
+checks. Native GPU checks cover projected matches, selection precedence, hunk
+folding and retired painter disposal. Completion still requires native
+per-file/show-more keyboard, AX and pointer controls; source/page/search/copy
+behavior; selection and GPU highlight mapping under streaming; bounded lifetime/resource tests; the public
 gallery and independent consumer; and the required release gates. Audit word-diff
 options and path-based syntax behavior separately before claiming GPUIX parity.
