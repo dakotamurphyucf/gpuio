@@ -32,12 +32,13 @@
       "source_field": "flexDirection",
       "public_api": "Style.Property.Direction",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; native keywords reviewed; all-root behavior pending",
+      "note": "GPUIO additionally supports reverse directions; this pinned GPUIX handler only explicitly applies row and column. See native alias evidence; specialized roots and release acceptance remain.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-native-aliases-och41.md"
       ],
       "release_owner": "OCH-17"
     },
@@ -45,12 +46,13 @@
       "source_field": "flexWrap",
       "public_api": "Style.Property.Wrap",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; native keywords reviewed; all-root behavior pending",
+      "note": "Explicit no-wrap replaces a previous wrap refinement. See native alias evidence; specialized roots and release acceptance remain.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-native-aliases-och41.md"
       ],
       "release_owner": "OCH-17"
     },
@@ -97,12 +99,13 @@
       "source_field": "alignItems",
       "public_api": "Style.Property.Align_items",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; native keywords reviewed; all-root behavior pending",
+      "note": "Start/end aliases are flex-relative, not Style.Align.Start/End. See native alias evidence; specialized roots and release acceptance remain.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-native-aliases-och41.md"
       ],
       "release_owner": "OCH-17"
     },
@@ -110,12 +113,13 @@
       "source_field": "alignSelf",
       "public_api": "Style.Property.Align_self",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; native keywords reviewed; all-root behavior pending",
+      "note": "Native handler writes GPUI AlignItems values directly. See native alias evidence; specialized roots and release acceptance remain.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-native-aliases-och41.md"
       ],
       "release_owner": "OCH-17"
     },
@@ -123,12 +127,13 @@
       "source_field": "alignContent",
       "public_api": "Style.Property.Align_content",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; native keywords reviewed; all-root behavior pending",
+      "note": "Normal removes the declaration from this style layer. An unset hover/pressed layer does not override the base layer; removal of an intrinsic native component default needs separate root-specific review. See native alias evidence; specialized roots and release acceptance remain.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-native-aliases-och41.md"
       ],
       "release_owner": "OCH-17"
     },
@@ -136,12 +141,13 @@
       "source_field": "justifyContent",
       "public_api": "Style.Property.Justify_content",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; native keywords reviewed; all-root behavior pending",
+      "note": "The pinned GPUI justify_start/end helpers use Start/End, unlike items_start/content_start. No evenly branch exists in this pinned GPUIX renderer. See native alias evidence; specialized roots and release acceptance remain.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-native-aliases-och41.md"
       ],
       "release_owner": "OCH-17"
     },
@@ -214,12 +220,13 @@
       "source_field": "gridColumnMin",
       "public_api": "Style.Property.Grid_column_minimum",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; finite values reviewed; all-root behavior pending",
+      "note": "Three minima map to Grid_minimum. Pair with an explicit column count for GPUIX-equivalent behavior; a minimum alone creates one track in GPUIO. Specialized roots and full release acceptance remain.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-finite-values-och41.md"
       ],
       "release_owner": "OCH-17"
     },
@@ -227,12 +234,13 @@
       "source_field": "gridRowMin",
       "public_api": "Style.Property.Grid_row_minimum",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; finite values reviewed; all-root behavior pending",
+      "note": "Three minima map to Grid_minimum. Pair with an explicit row count for GPUIX-equivalent behavior; a minimum alone creates one track in GPUIO. Specialized roots and full release acceptance remain.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-finite-values-och41.md"
       ],
       "release_owner": "OCH-17"
     },
@@ -448,12 +456,13 @@
       "source_field": "position",
       "public_api": "Style.Property.Position",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; native keywords reviewed; all-root behavior pending",
+      "note": "Fixed is only an alias for absolute in GPUIX, not viewport-fixed positioning. See native alias evidence; specialized roots and release acceptance remain.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-native-aliases-och41.md"
       ],
       "release_owner": "OCH-17"
     },
@@ -761,12 +770,13 @@
       "source_field": "textAlign",
       "public_api": "Style.Property.Text_align",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; native keywords reviewed; all-root behavior pending",
+      "note": "Start is an alias for physical left in the pinned renderer. See native alias evidence; specialized roots and release acceptance remain.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-native-aliases-och41.md"
       ],
       "release_owner": "OCH-17"
     },
@@ -787,12 +797,13 @@
       "source_field": "whiteSpace",
       "public_api": "Style.Property.White_space",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; finite values reviewed; all-root behavior pending",
+      "note": "Normal/No_wrap map both pinned values; replacing nowrap with normal is tested in native refinement. Specialized roots and full release acceptance remain.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-finite-values-och41.md"
       ],
       "release_owner": "OCH-17"
     },
@@ -800,12 +811,13 @@
       "source_field": "textOverflow",
       "public_api": "Style.Property.Text_overflow",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Value gap: GPUIX declares ellipsis-start; GPUIO currently exposes Clip/Ellipsis. Audit native feasibility and resolve in OCH-17 before claiming full value parity.",
+      "status": "mapped; complete pinned keyword set; local focused evidence",
+      "note": "Both pinned ellipsis and ellipsis-start values map to Ellipsis/Ellipsis_start; Clip is an additional GPUIO value. Paired bytes, native refinement and focused gallery evidence exist; full specialized-root/release acceptance remains.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/catalog/gpuix-values.json"
       ],
       "release_owner": "OCH-17"
     },
@@ -826,12 +838,13 @@
       "source_field": "textDecoration",
       "public_api": "Style.Property.Text_decoration",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; finite values reviewed; all-root behavior pending",
+      "note": "None/Underline/Strikethrough map intent, with additional combined decoration. GPUIO explicitly replaces both flags; None suppresses both, unlike omission and the pinned GPUIX helper. Specialized roots and full release acceptance remain.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-finite-values-och41.md"
       ],
       "release_owner": "OCH-17"
     },
@@ -878,12 +891,13 @@
       "source_field": "cursor",
       "public_api": "Style.Property.Cursor",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Value gap: GPUIX declares directional/diagonal resize, vertical-text, alias/copy/context-menu and other cursors beyond the present GPUIO enum. Review functional equivalents and missing cursor variants in OCH-17.",
+      "status": "mapped; complete pinned keyword set; local focused evidence",
+      "note": "All 29 pinned keywords map to 22 public Cursor variants, with aliases. Paired bytes, native refinement and focused gallery evidence exist; physical OS artwork and all-root behavior are not asserted.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/catalog/gpuix-values.json"
       ],
       "release_owner": "OCH-17"
     },

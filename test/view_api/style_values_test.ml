@@ -2,6 +2,109 @@ open Core
 open Gpuio
 open Gpuio_protocol
 
+let%expect_test "native alignment aliases retain distinct flex-relative encodings" =
+  let properties : Style.Property.t list =
+    [ Align_items Flex_start
+    ; Align_items Flex_end
+    ; Align_self Flex_start
+    ; Align_self Flex_end
+    ; Align_content Flex_start
+    ; Align_content Flex_end
+    ; Justify_content Start
+    ; Justify_content End
+    ; Direction Row
+    ; Direction Column
+    ; Wrap No_wrap
+    ; Wrap Wrap
+    ; Wrap Wrap_reverse
+    ; Position Relative
+    ; Position Absolute
+    ; Text_align Left
+    ; Text_align Center
+    ; Text_align Right
+    ; User_select false
+    ; User_select true
+    ]
+  in
+  List.iter properties ~f:(fun property ->
+    match
+      Style.create_exn [ property ]
+      |> Style.Expert.to_wire ~theme:Theme.default
+      |> Or_error.ok_exn
+    with
+    | [ Wire.Style.Fields [ field ] ] ->
+      let bytes =
+        Bin_prot.Utils.bin_dump Wire.Field.bin_writer_t field |> Bigstring.to_string
+      in
+      print_endline
+        (String.concat_map bytes ~f:(fun ch -> sprintf "%02x" (Char.to_int ch)))
+    | _ -> assert false);
+  [%expect
+    {|
+    0702
+    0703
+    0802
+    0803
+    0902
+    0903
+    0a00
+    0a01
+    0200
+    0201
+    0300
+    0301
+    0302
+    1f00
+    1f01
+    3400
+    3401
+    3402
+    3e00
+    3e01
+    |}]
+;;
+
+let%expect_test "unset removes only its layer and a later declaration can replace it" =
+  let original =
+    Style.create_exn [ Align_content Center ]
+    |> fun t -> Style.with_state_exn t Hovered [ Align_content Flex_end ]
+  in
+  let remove_hover = Style.unset Style.empty ~state:Hovered Align_content in
+  let remove_base = Style.unset Style.empty Align_content in
+  let show styles =
+    Style.merge styles
+    |> Style.Expert.to_wire ~theme:Theme.default
+    |> Or_error.ok_exn
+    |> List.map ~f:(fun style ->
+      let state, fields =
+        match style with
+        | Wire.Style.Fields fields -> "base", fields
+        | State (2L, fields) -> "hover", fields
+        | _ -> assert false
+      in
+      let value =
+        match fields with
+        | [] -> "absent"
+        | [ Wire.Field.Align_content value ] -> Int64.to_string value
+        | _ -> assert false
+      in
+      state ^ ":" ^ value)
+    |> String.concat ~sep:" "
+    |> print_endline
+  in
+  show [ original; remove_hover ];
+  show [ original; remove_base ];
+  show [ original; remove_base; remove_hover ];
+  show [ original; remove_base; Style.create_exn [ Align_content Stretch ] ];
+  [%expect
+    {|
+    base:4 hover:absent
+    base:absent hover:3
+    base:absent hover:absent
+    base:5 hover:3
+    |}]
+;;
+
 let%expect_test "finite grid and text choices have stable native field bytes" =
   let properties : Style.Property.t list =
     [ Grid_column_minimum Zero

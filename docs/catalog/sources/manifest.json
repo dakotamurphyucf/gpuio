@@ -70,5 +70,31 @@
     "source": "packages/native/src/renderer.rs",
     "snapshot": "gpuix-renderer.rs.txt",
     "sha256": "31d1178c171b27e64a4b86c8a399f00c5ddc7ded5054ae8274bf27806bd36556"
+  },
+  {
+    "project": "gpuix-gpui",
+    "revision": "81c99f816b4a5f69d3c014774068034c24d1d7af",
+    "repository": "https://github.com/remorses/zed",
+    "source": "crates/gpui/src/styled.rs",
+    "snapshot": "gpuix-gpui-styled.rs.txt",
+    "sha256": "c6e62fe136bedf887ee755c886df5466d5fe0b398a004b35d1a3530fef809c8d",
+    "submodule_of": {
+      "project": "gpuix",
+      "revision": "18e695ed0ee8121a7793413ca795e08eda2a13df",
+      "path": "zed"
+    }
+  },
+  {
+    "project": "gpuix-gpui",
+    "revision": "81c99f816b4a5f69d3c014774068034c24d1d7af",
+    "repository": "https://github.com/remorses/zed",
+    "source": "crates/gpui/LICENSE-APACHE",
+    "snapshot": "gpuix-gpui-LICENSE-APACHE",
+    "sha256": "9cff568488e9d56aae60f162404acdb15d8533a0202cf01f6eb0843b264f20ff",
+    "submodule_of": {
+      "project": "gpuix",
+      "revision": "18e695ed0ee8121a7793413ca795e08eda2a13df",
+      "path": "zed"
+    }
   }
 ]

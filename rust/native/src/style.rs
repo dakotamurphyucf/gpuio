@@ -475,6 +475,77 @@ mod tests {
     use super::*;
 
     #[test]
+    fn alignment_aliases_match_the_pinned_gpui_helpers() {
+        use gpui::Styled;
+        // GPUIX calls different helpers for items/content versus justification.
+        // In particular, justify_start is Start, not FlexStart.
+        for (field, expected) in [
+            (
+                Field::AlignItems(2),
+                gpui::StyleRefinement::default().items_start(),
+            ),
+            (
+                Field::AlignItems(3),
+                gpui::StyleRefinement::default().items_end(),
+            ),
+            (
+                Field::AlignSelf(2),
+                gpui::StyleRefinement::default().self_flex_start(),
+            ),
+            (
+                Field::AlignSelf(3),
+                gpui::StyleRefinement::default().self_flex_end(),
+            ),
+            (
+                Field::AlignContent(2),
+                gpui::StyleRefinement::default().content_start(),
+            ),
+            (
+                Field::AlignContent(3),
+                gpui::StyleRefinement::default().content_end(),
+            ),
+            (
+                Field::JustifyContent(0),
+                gpui::StyleRefinement::default().justify_start(),
+            ),
+            (
+                Field::JustifyContent(1),
+                gpui::StyleRefinement::default().justify_end(),
+            ),
+        ] {
+            validate_fields(std::slice::from_ref(&field)).unwrap();
+            let mut actual = gpui::StyleRefinement::default();
+            refine(&mut actual, &[field]);
+            assert_eq!(actual.align_items, expected.align_items);
+            assert_eq!(actual.align_self, expected.align_self);
+            assert_eq!(actual.align_content, expected.align_content);
+            assert_eq!(actual.justify_content, expected.justify_content);
+        }
+        assert_ne!(gpui::AlignItems::Start, gpui::AlignItems::FlexStart);
+        assert_ne!(gpui::JustifyContent::Start, gpui::JustifyContent::FlexStart);
+    }
+
+    #[test]
+    fn empty_state_refinement_preserves_base_alignment() {
+        use gpui::{Refineable, Styled};
+        let base = crate::appearance::refinement(&[Style::Fields(vec![Field::AlignContent(4)])], 0);
+        let hover = crate::appearance::refinement(&[Style::State(2, vec![])], 2);
+        let mut resolved = gpui::Style::default();
+        resolved.refine(&base);
+        resolved.refine(&hover);
+        assert_eq!(resolved.align_content, Some(gpui::AlignContent::Center));
+
+        // This is exactly the effect of GPUIX applying content_normal to the
+        // hover refinement: absence leaves the base declaration authoritative.
+        let normal = gpui::StyleRefinement::default()
+            .content_end()
+            .content_normal();
+        assert!(normal.align_content.is_none());
+        resolved.refine(&normal);
+        assert_eq!(resolved.align_content, Some(gpui::AlignContent::Center));
+    }
+
+    #[test]
     fn grid_minimum_replacement_preserves_track_counts_and_other_axis() {
         use gpui::GridTemplateMinSize::{MaxContent, MinContent, Zero};
         let mut style = gpui::StyleRefinement::default();

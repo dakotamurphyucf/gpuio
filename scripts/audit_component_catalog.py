@@ -123,6 +123,83 @@ def audit_values_and_events(actual):
     print(f'Value mapping: {len(expected)} reviewed value sets; event contracts: {len(names)}; remaining gaps are explicit.')
 
 
+def audit_native_values():
+    """Check reviewed native branches; this deliberately does not infer CSS semantics."""
+    ledger = json.loads((CATALOG / 'gpuix-native-values.json').read_text())
+    manifest = {entry['snapshot']: entry for entry in
+                json.loads((CATALOG / 'sources/manifest.json').read_text())}
+    native = manifest['gpuix-renderer.rs.txt']
+    helper = manifest['gpuix-gpui-styled.rs.txt']
+    if (ledger['schema_version'] != 1 or ledger['revision'] != native['revision']
+            or ledger['helper_revision'] != helper['revision']
+            or helper['submodule_of']['revision'] != native['revision']
+            or helper['submodule_of']['path'] != 'zed'
+            or ledger['source'] != 'sources/gpuix-renderer.rs.txt'
+            or ledger['helper_source'] != 'sources/gpuix-gpui-styled.rs.txt'):
+        raise ValueError('Native value ledger must follow the pinned renderer and GPUI submodule')
+    source = (CATALOG / ledger['source']).read_text()
+    apply_styles = source.split('pub(crate) fn apply_styles<', 1)[1].split('\n    el\n}', 1)[0]
+    inherited = source.split('fn descend(mut self, style: Option<&StyleDesc>)', 1)[1]
+    inherited = inherited.split('\n        self\n', 1)[0]
+    reviewed = {
+        'flexDirection': ('flex_direction', 'Direction', 'Direction'),
+        'flexWrap': ('flex_wrap', 'Wrap', 'Wrap'),
+        'alignItems': ('align_items', 'Align_items', 'Align'),
+        'alignSelf': ('align_self', 'Align_self', 'Align'),
+        'alignContent': ('align_content', 'Align_content', 'Distribution'),
+        'justifyContent': ('justify_content', 'Justify_content', 'Distribution'),
+        'position': ('position', 'Position', 'Position'),
+        'textAlign': ('text_align', 'Text_align', 'Text_align'),
+        'userSelect': ('user_select', 'User_select', 'bool'),
+    }
+    names = [field['source_field'] for field in ledger['fields']]
+    if len(names) != len(set(names)) or set(names) != set(reviewed):
+        raise ValueError('Native value ledger must cover the reviewed fields exactly once')
+    interface_source = (ROOT / 'lib/core/style.mli').read_text()
+    properties = interface_source.split('module Property : sig', 1)[1].split('module Name : sig', 1)[0]
+    for field in ledger['fields']:
+        name = field['source_field']
+        native_field, prop, module = reviewed[name]
+        if name == 'flexDirection':
+            expected = re.findall(r'if style\.flex_direction\.as_deref\(\) == Some\("([^"]+)"\)',
+                                  apply_styles)
+        else:
+            scope = inherited if name == 'userSelect' else apply_styles
+            branch = scope.split(f'match style.{native_field}.as_deref() {{', 1)[1]
+            indent = 8 if name == 'userSelect' else 4
+            branch = re.split(r'^' + ' ' * indent + r'\}', branch, maxsplit=1, flags=re.M)[0]
+            expected = re.findall(r'Some\("([^"]+)"\)', branch)
+        mapped = [value for row in field['rows'] for value in row['source_values']]
+        if not expected or len(mapped) != len(set(mapped)) or set(mapped) != set(expected):
+            raise ValueError(f'Native keyword mapping missing or repeated: {name}')
+        public_type = 'bool' if module == 'bool' else f'Style.{module}'
+        property_type = 'bool' if module == 'bool' else f'{module}.t'
+        if (field['public_property'] != prop or field['public_type'] != public_type
+                or not field['note'] or not re.search(
+                    r'^    \| ' + prop + r' of ' + re.escape(property_type) + r'$', properties, re.M)):
+            raise ValueError(f'Invalid native value public property: {name}')
+        constructors = set()
+        if module != 'bool':
+            declaration = re.search(r'^module ' + module + r' : sig\n(.*?)^end',
+                                    interface_source, re.M | re.S)
+            if not declaration:
+                raise ValueError(f'Missing public style module: {module}')
+            constructors = set(re.findall(r'^    \| (\w+)', declaration.group(1), re.M))
+        for row in field['rows']:
+            target = row['target']
+            kind = target['kind']
+            valid = (kind == 'constructor' and target.get('value') in constructors
+                     or kind == 'boolean' and module == 'bool' and type(target.get('value')) is bool
+                     or kind == 'unset' and name == 'alignContent'
+                     and row['source_values'] == ['normal'] and set(target) == {'kind'})
+            if not row['source_values'] or not valid:
+                raise ValueError(f'Invalid native value target: {row}')
+    for reference in ledger['evidence']:
+        if not (ROOT / reference).is_file():
+            raise ValueError(f'Missing native value evidence: {reference}')
+    print(f'Native keyword mapping: {len(names)} reviewed fields; aliases and reset limits remain explicit.')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--write', action='store_true', help='replace structural inventory after pin review')
@@ -134,6 +211,7 @@ def main():
     elif json.loads(path.read_text()) != actual:
         raise ValueError('Catalog inventory differs from pinned sources; review before --write')
     audit_values_and_events(actual)
+    audit_native_values()
     styles = json.loads((CATALOG / 'gpuix-styles.json').read_text())['rows']
     names = [row['source_field'] for row in styles]
     if len(names) != len(set(names)) or set(names) != set(actual['gpuix_style_fields']):

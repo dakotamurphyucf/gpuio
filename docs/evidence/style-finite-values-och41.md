@@ -34,8 +34,9 @@ its element. GPUIO always writes both underline and strikethrough thicknesses:
 `Strikethrough` suppresses underline. This also makes suppression explicit over
 inherited or component-provided decorations. Omitting/unsetting the property is
 a separate operation and should not be substituted for `Text_decoration None`.
-This audit does not assume that GPUIX's dependency helper has our replacement
-semantics, or establish arbitrary nested document/control inheritance behavior.
+The subsequent [native helper audit](style-native-aliases-och41.md) confirms that
+the pinned upstream none helper only clears underline. Neither audit establishes
+arbitrary nested document/control inheritance behavior.
 
 ## Validation scope
 
@@ -54,10 +55,10 @@ semantics, or establish arbitrary nested document/control inheritance behavior.
   public constructor. It checks snapshot hashes and reference existence; it is
   deliberately not a behavioral acceptance test.
 
-Remaining value audits include the native-renderer aliases behind unrestricted
-TypeScript strings, `alignContent: normal` and conditional reset semantics,
-pointer occlusion versus event delivery, `userSelect: auto`, numeric policies and
-specialized/deferred roots. OCH-41 and OCH-17 remain in progress. No additional
+The subsequent [native keyword audit](style-native-aliases-och41.md) records
+alignment aliases, conditional unset, user-select auto and pointer policy
+differences. Remaining audits include display/visibility/overflow, numeric
+policies and specialized/deferred roots. OCH-41 and OCH-17 remain in progress. No additional
 macOS GUI, Linux desktop, full gallery or release acceptance is claimed here.
 
 Local macOS validation (2026-09-29): `./scripts/gpuio exec dune runtest

@@ -9,7 +9,11 @@ The [finite style-value audit](evidence/style-finite-values-och41.md) now covers
 seven keyword sets with pinned native GPUIX sources. Grid count/minimum and
 text-decoration replacement differences are explicit; paired OCaml/Rust bytes,
 atomic validation and native refinement checks pass locally without GUI windows.
-Unrestricted aliases, reset semantics and specialized-root behavior remain open.
+Nine further [native keyword sets](evidence/style-native-aliases-och41.md) now
+record aliases and state-local unset semantics against GPUIX's exact GPUI
+submodule. Alignment helper/refinement and layer-merge tests pass. Numeric
+policies, remaining display/overflow values and specialized-root behavior remain
+open.
 
 Milestone 07 is in progress. OCH-41's public
 [Component Studio](../examples/gallery/README.md) now has twenty-three preview sections,

@@ -1,0 +1,401 @@
+{
+  "schema_version": 1,
+  "revision": "18e695ed0ee8121a7793413ca795e08eda2a13df",
+  "source": "sources/gpuix-renderer.rs.txt",
+  "helper_source": "sources/gpuix-gpui-styled.rs.txt",
+  "helper_revision": "81c99f816b4a5f69d3c014774068034c24d1d7af",
+  "fields": [
+    {
+      "source_field": "flexDirection",
+      "public_property": "Direction",
+      "public_type": "Style.Direction",
+      "rows": [
+        {
+          "source_values": [
+            "row"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Row"
+          }
+        },
+        {
+          "source_values": [
+            "column"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Column"
+          }
+        }
+      ],
+      "note": "GPUIO additionally supports reverse directions; this pinned GPUIX handler only explicitly applies row and column."
+    },
+    {
+      "source_field": "flexWrap",
+      "public_property": "Wrap",
+      "public_type": "Style.Wrap",
+      "rows": [
+        {
+          "source_values": [
+            "nowrap"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "No_wrap"
+          }
+        },
+        {
+          "source_values": [
+            "wrap"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Wrap"
+          }
+        },
+        {
+          "source_values": [
+            "wrap-reverse"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Wrap_reverse"
+          }
+        }
+      ],
+      "note": "Explicit no-wrap replaces a previous wrap refinement."
+    },
+    {
+      "source_field": "alignItems",
+      "public_property": "Align_items",
+      "public_type": "Style.Align",
+      "rows": [
+        {
+          "source_values": [
+            "center"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Center"
+          }
+        },
+        {
+          "source_values": [
+            "start",
+            "flex-start"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Flex_start"
+          }
+        },
+        {
+          "source_values": [
+            "end",
+            "flex-end"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Flex_end"
+          }
+        }
+      ],
+      "note": "Start/end aliases are flex-relative, not Style.Align.Start/End."
+    },
+    {
+      "source_field": "alignSelf",
+      "public_property": "Align_self",
+      "public_type": "Style.Align",
+      "rows": [
+        {
+          "source_values": [
+            "center"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Center"
+          }
+        },
+        {
+          "source_values": [
+            "start",
+            "flex-start"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Flex_start"
+          }
+        },
+        {
+          "source_values": [
+            "end",
+            "flex-end"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Flex_end"
+          }
+        },
+        {
+          "source_values": [
+            "stretch"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Stretch"
+          }
+        },
+        {
+          "source_values": [
+            "baseline"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Baseline"
+          }
+        }
+      ],
+      "note": "Native handler writes GPUI AlignItems values directly."
+    },
+    {
+      "source_field": "alignContent",
+      "public_property": "Align_content",
+      "public_type": "Style.Distribution",
+      "rows": [
+        {
+          "source_values": [
+            "center"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Center"
+          }
+        },
+        {
+          "source_values": [
+            "start",
+            "flex-start"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Flex_start"
+          }
+        },
+        {
+          "source_values": [
+            "end",
+            "flex-end"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Flex_end"
+          }
+        },
+        {
+          "source_values": [
+            "between",
+            "space-between"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Space_between"
+          }
+        },
+        {
+          "source_values": [
+            "around",
+            "space-around"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Space_around"
+          }
+        },
+        {
+          "source_values": [
+            "evenly",
+            "space-evenly"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Space_evenly"
+          }
+        },
+        {
+          "source_values": [
+            "stretch"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Stretch"
+          }
+        },
+        {
+          "source_values": [
+            "normal"
+          ],
+          "target": {
+            "kind": "unset"
+          }
+        }
+      ],
+      "note": "Normal removes the declaration from this style layer. An unset hover/pressed layer does not override the base layer; removal of an intrinsic native component default needs separate root-specific review."
+    },
+    {
+      "source_field": "justifyContent",
+      "public_property": "Justify_content",
+      "public_type": "Style.Distribution",
+      "rows": [
+        {
+          "source_values": [
+            "center"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Center"
+          }
+        },
+        {
+          "source_values": [
+            "start",
+            "flex-start"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Start"
+          }
+        },
+        {
+          "source_values": [
+            "end",
+            "flex-end"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "End"
+          }
+        },
+        {
+          "source_values": [
+            "between",
+            "space-between"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Space_between"
+          }
+        },
+        {
+          "source_values": [
+            "around",
+            "space-around"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Space_around"
+          }
+        }
+      ],
+      "note": "The pinned GPUI justify_start/end helpers use Start/End, unlike items_start/content_start. No evenly branch exists in this pinned GPUIX renderer."
+    },
+    {
+      "source_field": "position",
+      "public_property": "Position",
+      "public_type": "Style.Position",
+      "rows": [
+        {
+          "source_values": [
+            "absolute",
+            "fixed"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Absolute"
+          }
+        },
+        {
+          "source_values": [
+            "relative"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Relative"
+          }
+        }
+      ],
+      "note": "Fixed is only an alias for absolute in GPUIX, not viewport-fixed positioning."
+    },
+    {
+      "source_field": "textAlign",
+      "public_property": "Text_align",
+      "public_type": "Style.Text_align",
+      "rows": [
+        {
+          "source_values": [
+            "left",
+            "start"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Left"
+          }
+        },
+        {
+          "source_values": [
+            "center"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Center"
+          }
+        },
+        {
+          "source_values": [
+            "right"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Right"
+          }
+        }
+      ],
+      "note": "Start is an alias for physical left in the pinned renderer."
+    },
+    {
+      "source_field": "userSelect",
+      "public_property": "User_select",
+      "public_type": "bool",
+      "rows": [
+        {
+          "source_values": [
+            "none"
+          ],
+          "target": {
+            "kind": "boolean",
+            "value": false
+          }
+        },
+        {
+          "source_values": [
+            "text",
+            "auto"
+          ],
+          "target": {
+            "kind": "boolean",
+            "value": true
+          }
+        }
+      ],
+      "note": "Auto explicitly enables, including beneath a disabled ancestor. Omission inherits. GPUIO ordinary text defaults to opt-in, whereas GPUIX defaults enabled; native document defaults and editable widget ownership remain separate."
+    }
+  ],
+  "evidence": [
+    "docs/evidence/style-native-aliases-och41.md",
+    "test/view_api/style_values_test.ml",
+    "rust/native/src/style.rs",
+    "rust/native/tests/style_values.rs",
+    "docs/design/selection-style-audit.md"
+  ],
+  "limitations": "Pinned native keyword audit, not a general CSS parser or all-root visual acceptance. No implicit pointer-occlusion heuristics, viewport-fixed positioning or state-layer reset opcode is introduced."
+}

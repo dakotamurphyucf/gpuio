@@ -337,7 +337,14 @@ val empty : t
 val create : Property.t list -> t Or_error.t
 val create_exn : Property.t list -> t
 val merge : t list -> t
+
+(** Remove the declaration from the selected state, including an earlier value
+    in that state when styles are merged. This emits no native reset command.
+    Unsetting a hover/pressed declaration leaves the base declaration in effect;
+    it does not force the native default while that state is active. Removing a
+    base declaration restores the receiving component's defaults/inheritance. *)
 val unset : t -> ?state:State.t -> Property.Name.t -> t
+
 val with_state : t -> State.t -> Property.t list -> t Or_error.t
 val with_state_exn : t -> State.t -> Property.t list -> t
 
