@@ -566,7 +566,7 @@ impl Element for TextView {
             state.table_actions = self.table_actions.clone();
             state.link_click_handler = self.link_click_handler.clone();
             state.set_markdown_extensions(self.markdown_extensions.clone(), cx);
-            state.selectable = self.selectable;
+            state.set_selectable(self.selectable, cx);
             state.selection_format = self.selection_format;
             state.scrollable = self.scrollable;
             state.max_lines = max_lines;

@@ -411,7 +411,13 @@ impl TextViewState {
 
     /// Set whether the text is selectable, default false.
     pub fn set_selectable(&mut self, selectable: bool, cx: &mut Context<Self>) {
+        if self.selectable == selectable {
+            return;
+        }
         self.selectable = selectable;
+        if !selectable {
+            self.reset_selection_and_adapter(cx);
+        }
         cx.notify();
     }
 

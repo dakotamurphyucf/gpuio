@@ -1084,6 +1084,7 @@ impl WindowSelectionState {
     fn copy_items(&self, cx: &App) -> Vec<CopyItem> {
         self.participants
             .values()
+            .filter(|registration| registration.registration.scope == self.active_scope)
             .filter_map(|registration| {
                 let participant = registration.participant.upgrade()?;
                 participant
@@ -1102,10 +1103,11 @@ impl WindowSelectionState {
     pub fn has_selection(&self, cx: &App) -> bool {
         self.snapshot().is_some()
             || self.participants.values().any(|registration| {
-                registration
-                    .participant
-                    .upgrade()
-                    .is_some_and(|participant| participant.read(cx).local_selection)
+                registration.registration.scope == self.active_scope
+                    && registration
+                        .participant
+                        .upgrade()
+                        .is_some_and(|participant| participant.read(cx).local_selection)
             })
     }
 
@@ -1729,7 +1731,10 @@ impl TextSelection {
 /// element identity retains the window-local selection entity across frames.
 pub struct TextSelectionLayer;
 
-pub(crate) fn text_selection_scope(
+/// Assign selection participants inside this element to a retained scope.
+/// Activate the matching scope with [`TextSelection::activate_scope`].
+/// Modal hosts should allocate once per scope lifetime, not once per frame.
+pub fn text_selection_scope(
     scope: TextSelectionScopeId,
     element: impl IntoElement,
 ) -> impl IntoElement {

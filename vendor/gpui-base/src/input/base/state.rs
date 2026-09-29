@@ -419,6 +419,7 @@ pub struct InputBaseState<M: InputModeKind> {
     pub(super) column_select_start: Option<ColumnarPoint>,
     pub(crate) disabled: bool,
     pub(crate) readonly: bool,
+    user_selectable: bool,
     pub(crate) text_align: TextAlign,
     pub(super) masked: bool,
     pub(super) clean_on_escape: bool,
@@ -638,11 +639,33 @@ impl<M: InputModeKind> InputBaseState<M> {
         M::CODE_EDITOR
     }
 
+    /// Whether pointer and keyboard gestures may select text. Programmatic
+    /// bridge selection remains available for search and navigation.
+    pub fn is_user_selectable(&self) -> bool {
+        self.user_selectable
+    }
+
+    /// Enable user selection (the default). Disabling cancels an active drag,
+    /// collapses the current range at its head and disables selection Copy.
+    /// It preserves focus, navigation, scrolling and programmatic selection.
+    pub fn set_user_selectable(&mut self, selectable: bool, cx: &mut Context<Self>) {
+        if self.user_selectable == selectable {
+            return;
+        }
+        self.user_selectable = selectable;
+        if !selectable {
+            self.cancel_drag_selection();
+            self.selections.remove_all_but_active();
+            self.set_cursor_to(self.cursor());
+        }
+        cx.notify();
+    }
+
     /// Whether the user is allowed to copy the selection out.
     ///
     /// A masked input keeps its value out of the clipboard.
     pub fn is_copyable(&self) -> bool {
-        self.selections.iter().any(|sel| !sel.is_empty()) && !self.masked
+        self.user_selectable && self.selections.iter().any(|sel| !sel.is_empty()) && !self.masked
     }
 
     pub fn context_menu_capabilities(&self) -> InputContextMenuCapabilities {
@@ -651,7 +674,7 @@ impl<M: InputModeKind> InputBaseState<M> {
             .disabled(self.disabled)
             .readonly(self.readonly)
             .code_editor(self.is_code_editor())
-            .selection(!self.active_selection().is_empty())
+            .selection(self.user_selectable && !self.active_selection().is_empty())
             .masked(self.masked)
             .go_to_definition(go_to_definition)
             .code_actions(code_actions)
@@ -747,6 +770,7 @@ impl<M: InputModeKind> InputBaseState<M> {
             ime_marked_range: None,
             input_bounds: Bounds::default(),
             selecting: false,
+            user_selectable: true,
             disabled: false,
             readonly: false,
             text_align: TextAlign::Left,
@@ -1512,7 +1536,9 @@ impl<M: InputModeKind> InputBaseState<M> {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.select_all(window, cx);
+        if self.user_selectable {
+            self.select_all(window, cx);
+        }
     }
 
     pub(super) fn select_to_start(
@@ -2292,7 +2318,7 @@ impl<M: InputModeKind> InputBaseState<M> {
     /// the first/last display row) or that would duplicate an existing cursor
     /// are skipped.
     fn add_cursor_vertical(&mut self, move_lines: isize, cx: &mut Context<Self>) {
-        if !self.is_multi_line() {
+        if !self.is_multi_line() || !self.user_selectable {
             return;
         }
 
@@ -2340,7 +2366,7 @@ impl<M: InputModeKind> InputBaseState<M> {
     /// Rejected when `offset` lands inside an existing selection or exactly on
     /// an existing cursor.
     pub(super) fn add_cursor_at(&mut self, offset: usize, cx: &mut Context<Self>) {
-        if !self.is_multi_line() {
+        if !self.is_multi_line() || !self.user_selectable {
             return;
         }
 
@@ -2437,11 +2463,21 @@ impl<M: InputModeKind> InputBaseState<M> {
             }
         }
 
-        self.selecting = true;
+        self.selecting = self.user_selectable;
         let (offset, line_end_affinity, columns_past_line_end) =
             self.resolve_mouse_position(event.position);
 
         if M::on_click(self, event, offset, window, cx) {
+            return;
+        }
+
+        if !self.user_selectable {
+            if event.button == MouseButton::Left {
+                self.selections.remove_all_but_active();
+                self.move_to_with_affinity(offset, None, line_end_affinity, cx);
+            } else if event.button == MouseButton::Right && self.enable_context_menu {
+                self.pending_context_menu = Some((event.position, offset));
+            }
             return;
         }
 
@@ -3225,6 +3261,9 @@ impl<M: InputModeKind> InputBaseState<M> {
         f: impl Fn(&Self, &CursorSelection) -> usize,
         cx: &mut Context<Self>,
     ) {
+        if !self.user_selectable {
+            return;
+        }
         self.pause_blink_cursor(cx);
         self.undo_manager.break_transaction_coalescing();
         M::clear_inline_completion(self, cx);

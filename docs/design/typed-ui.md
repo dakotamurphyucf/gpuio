@@ -108,8 +108,13 @@ restoration of native defaults when declarations are removed. Offsets are UTF-8 
 changes. Native state is preserved for a stable node and discarded on removal,
 replacement or deselection. This is per-text-node selection, not a rich-text editor
 or cross-node document selection. Native editors own their editing selection.
+Document bodies default to selectable and honor inherited/local `User_select`;
+disabling clears user selection without disabling links, scroll or explicit Copy
+source controls. Programmatic document search selection remains available, while
+selection Copy stays disabled. Editable inputs retain their own selection even
+under `User_select false`.
 The [selection-style audit](selection-style-audit.md) records the pinned GPUIX
-default differences and remaining document-selection/cross-node gaps.
+default differences, document user-selection policy and remaining cross-node gaps.
 
 ## Keys, events and commit ownership
 

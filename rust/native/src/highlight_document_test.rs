@@ -14,6 +14,8 @@ use std::{
 };
 #[path = "highlight_diff_fold_test.rs"]
 mod diff_fold;
+#[path = "document_selection_policy_test.rs"]
+mod selection_policy;
 #[path = "document_selection_style_test.rs"]
 mod selection_style;
 #[path = "highlight_document_style_test.rs"]
@@ -725,6 +727,7 @@ pub(crate) fn run() {
                 assert!(directional_owner.upgrade().is_none(),"source mode replaces directional Markdown owner");
                 let scroll_owner=p.read_with(cx,|p,_|Rc::downgrade(&p.highlight_paint.as_ref().unwrap().1));
                 selection_style::exercise(cx,handle,&session,&transport,source,&p).await;
+                selection_policy::exercise(cx,handle,&session,&transport,source,&p).await;
                 state_style::exercise(cx,handle,&session,&transport,source,&p).await;
                 diff_fold::exercise(cx,handle,&session,&transport,source,&p).await;
                 apply(cx,handle,vec![Op::SetRoot(None),Op::Remove(node(1)),Op::Remove(node(0))]);

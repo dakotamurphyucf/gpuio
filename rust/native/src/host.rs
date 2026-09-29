@@ -145,14 +145,14 @@ struct ButtonState {
 #[derive(Clone, Copy)]
 struct Interaction {
     pointer: bool,
-    selectable: bool,
+    selectable: Option<bool>,
     selection_color: Option<gpui::Hsla>,
 }
 impl Default for Interaction {
     fn default() -> Self {
         Self {
             pointer: true,
-            selectable: false,
+            selectable: None,
             selection_color: None,
         }
     }
@@ -613,7 +613,7 @@ impl View {
                 for field in fields {
                     match field {
                         Field::PointerEvents(v) => interaction.pointer = *v,
-                        Field::UserSelect(v) => interaction.selectable = *v,
+                        Field::UserSelect(v) => interaction.selectable = Some(*v),
                         Field::SelectionColor(v) => interaction.selection_color = Some(color(v)),
                         Field::AccessibleName(v) => accessible_name = v.clone().into(),
                         _ => (),
@@ -637,7 +637,7 @@ impl View {
             || node.otp_input.is_some()
             || node.calendar.is_some()
             || node.color_input.is_some()
-            || (node.kind == Kind::Text && interaction.selectable))
+            || (node.kind == Kind::Text && interaction.selectable.unwrap_or(false)))
             && tree_input::within_input_collection(tree, id)
         {
             element = element.block_mouse_except_scroll();
@@ -649,7 +649,10 @@ impl View {
             _ => element,
         };
 
-        if node.kind == Kind::Text && !interaction.selectable && !node.text.is_empty() {
+        if node.kind == Kind::Text
+            && !interaction.selectable.unwrap_or(false)
+            && !node.text.is_empty()
+        {
             element = element
                 .role(gpui::Role::Label)
                 .aria_label(node.text.clone());
@@ -1267,7 +1270,7 @@ impl View {
                     cx.stop_propagation();
                 })
                 .child(editor.element());
-        } else if node.kind == Kind::Text && interaction.selectable {
+        } else if node.kind == Kind::Text && interaction.selectable.unwrap_or(false) {
             self.visited.insert(id);
             let selection = self
                 .selections
@@ -1721,7 +1724,13 @@ impl Render for View {
         let canvases: Vec<_> = self.canvases.values().map(Rc::downgrade).collect();
         let drag_window = self.id;
         let input_pointer_inside = self.input_pointer_inside.clone();
+        gpui_base::TextSelection::activate_scope(
+            self.focus.borrow().active_selection_scope(),
+            window,
+            cx,
+        );
         let mut root = drag_drop::root(div(), self.id, cx)
+            .child(gpui_base::TextSelectionLayer)
             .capture_key_down(cx.listener(|view, event: &gpui::KeyDownEvent, window, cx| {
                 if event.keystroke.key == "escape"
                     && (view.cancel_color_inputs(

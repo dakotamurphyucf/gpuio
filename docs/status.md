@@ -45,7 +45,10 @@ geometry; full typography/input acceptance
 remains broader than these cases. The gallery page count does
 not imply parity. Document selection colors now inherit and restore defaults with
 source/Markdown GPU evidence; the [selection audit](design/selection-style-audit.md)
-records remaining document-disable and cross-node selection gaps. General input regions now have mounted Core/Bonsai/native
+now records inherited document selection-disable behavior, restored native Markdown
+drag/copy through the window selection layer, retained focus-trap Copy isolation,
+and passing document/UI/editor/control regressions. Cross-node selection and the
+complete input/accessibility matrix remain open. General input regions now have mounted Core/Bonsai/native
 integration, native edge-case and public gallery evidence; remaining consumer/
 release acceptance stays open in the [input ledger](evidence/input-observations-och41.md). Start ellipsis and the complete cursor vocabulary now have
 paired codec, native validation and focused gallery evidence. OCH-17 is also in progress: the

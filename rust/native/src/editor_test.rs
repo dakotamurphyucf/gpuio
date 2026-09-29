@@ -503,7 +503,12 @@ pub fn run() {
             .borrow_mut()
             .open(1, window_id, "GPUIO native editor test", 460., 360.)
             .unwrap();
-        let mut operations = vec![Op::Create(node(0), Kind::Container, "".into(), None)];
+        // Application chrome can disable document selection without disabling
+        // the editable widgets' own selection, clipboard or IME contracts.
+        let mut operations = vec![
+            Op::Create(node(0), Kind::Container, "".into(), None),
+            Op::SetStyle(node(0), vec![Style::Fields(vec![Field::UserSelect(false)])]),
+        ];
         for (slot, kind) in [(1, Kind::Input), (2, Kind::Textarea)] {
             operations.extend([
                 Op::Create(

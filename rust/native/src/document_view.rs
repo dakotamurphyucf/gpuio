@@ -79,6 +79,7 @@ pub(super) struct Presentation {
     lease: Lease,
     config: Arc<Config>,
     selection_color: Option<gpui::Hsla>,
+    user_selectable: bool,
     snapshot: Arc<Snapshot>,
     job: Result<document_host::Handle, document_jobs::Error>,
     markdown: Option<Entity<TextViewState>>,
@@ -321,6 +322,7 @@ impl Presentation {
             collapsed: config.initially_collapsed,
             config,
             selection_color: None,
+            user_selectable: true,
             snapshot,
             job,
             editor,
@@ -1563,7 +1565,7 @@ impl Render for Presentation {
                 .expect("prepared Markdown highlighter");
             let text = TextView::new(state)
                 .style(markdown_style(self.config.dark, self.selection_color))
-                .selectable(true)
+                .selectable(self.user_selectable)
                 .scrollable(matches!(self.config.layout, Layout::Viewport(_)))
                 .markdown_extensions(self.markdown_extensions.clone())
                 .table_actions(|table, _, _| {
@@ -1828,6 +1830,19 @@ impl View {
         if let Some(style) = pressed {
             root = root.active(move |_| style);
         }
+        let user_selectable = node
+            .style
+            .iter()
+            .filter_map(|style| match style {
+                Style::Fields(fields) => fields.iter().rev().find_map(|field| match field {
+                    Field::UserSelect(value) => Some(*value),
+                    _ => None,
+                }),
+                _ => None,
+            })
+            .next_back()
+            .or(interaction.selectable)
+            .unwrap_or(true);
         let selection_color = node
             .style
             .iter()
@@ -1885,6 +1900,18 @@ impl View {
             .collect();
         presentation.update(cx, |state, cx| {
             state.highlight = highlight;
+            if state.user_selectable != user_selectable {
+                state.user_selectable = user_selectable;
+                state.editor.update(cx, |editor, cx| {
+                    editor.set_user_selectable(user_selectable, cx);
+                });
+                if let Some(markdown) = &state.markdown {
+                    markdown.update(cx, |markdown, cx| {
+                        markdown.set_selectable(user_selectable, cx);
+                    });
+                }
+                cx.notify();
+            }
             if state.selection_color != selection_color {
                 state.selection_color = selection_color;
                 state.editor.update(cx, |editor, _| {
@@ -1951,7 +1978,11 @@ impl View {
             .left_0()
             .size_full(),
         );
-        super::highlight_style::Frame::new(root, node, &self.focus).into_any_element()
+        gpui_base::text_selection_scope(
+            self.focus.borrow().selection_scope(node.id),
+            super::highlight_style::Frame::new(root, node, &self.focus),
+        )
+        .into_any_element()
     }
 }
 

@@ -24,7 +24,7 @@ fn pixels(cx: &mut AsyncApp, handle: WindowHandle<View>, color: [u8; 4]) -> usiz
         })
         .unwrap()
 }
-fn publish_streaming(
+pub(super) fn publish_streaming(
     session: &mut Session,
     source: ResourceId,
     base: i64,

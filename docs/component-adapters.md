@@ -147,3 +147,17 @@ Preserve upstream copyright and license files in all copied sources. Update
 [THIRD_PARTY.md](../THIRD_PARTY.md) and distribution acknowledgements, including
 syntax/theme asset notices and extracted chart sources. A project's Apache-2.0
 license does not replace the licenses of its dependencies.
+
+## Native document selection ownership
+
+Read-only document bodies inherit the optional `User_select` declaration and
+otherwise default to selectable. Editable inputs retain their widget-owned
+selection. Do not implement read-only selection policy by disabling all pointer
+input: links, scrolling and explicit copy controls remain independent.
+
+The host mounts one Base `TextSelectionLayer` first in each native window and
+assigns documents stable selection scopes from retained focus traps. Activate the
+current trap scope before rendering; a fresh per-frame scope would clear selection
+on every frame. Inactive scopes must be excluded from local-selection Copy as well
+as geometric snapshots. The [selection audit](design/selection-style-audit.md)
+records the narrow Base patch, tested behavior and remaining acceptance work.

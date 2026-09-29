@@ -305,6 +305,7 @@ struct HighlightStyle {
 }
 struct Scope {
     handle: FocusHandle,
+    selection: gpui_base::TextSelectionScopeId,
     restore: Option<WeakFocusHandle>,
     config: FocusScopeConfig,
     order: u64,
@@ -359,6 +360,22 @@ impl Manager {
             navigation_enter: Vec::new(),
         }))
     }
+    pub(super) fn active_selection_scope(&self) -> gpui_base::TextSelectionScopeId {
+        self.active
+            .and_then(|id| self.scopes.get(&id))
+            .map(|scope| scope.selection)
+            .unwrap_or_default()
+    }
+
+    pub(super) fn selection_scope(&self, node: NodeId) -> gpui_base::TextSelectionScopeId {
+        self.scopes
+            .iter()
+            .filter(|(id, scope)| scope.config.trap && self.within(node, **id))
+            .max_by_key(|(_, scope)| scope.order)
+            .map(|(_, scope)| scope.selection)
+            .unwrap_or_default()
+    }
+
     fn within(&self, node: NodeId, scope: NodeId) -> bool {
         let session = self.session.borrow();
         let Some(tree) = session.tree(self.window) else {
@@ -793,6 +810,7 @@ impl Manager {
                     id,
                     Scope {
                         handle: cx.focus_handle(),
+                        selection: gpui_base::TextSelectionScopeId::new(),
                         restore: window.focused(cx).map(|handle| handle.downgrade()),
                         config,
                         order: self.order,

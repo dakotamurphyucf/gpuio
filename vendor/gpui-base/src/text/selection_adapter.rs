@@ -136,6 +136,11 @@ impl TextViewSelectionAdapter {
                     return String::new();
                 };
                 let state = view.read(cx);
+                // A restyle can disable selection before the frame-end sweep
+                // removes this participant's previous registration.
+                if !state.is_selectable() {
+                    return String::new();
+                }
                 let last = state.parsed_content.document.blocks.len().saturating_sub(1);
                 let blocks = blocks_for_copy.borrow().block_range(selection_id, last);
                 state.selected_text_in(blocks)

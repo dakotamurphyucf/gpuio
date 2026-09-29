@@ -435,7 +435,7 @@ impl View {
                 for field in fields {
                     match field {
                         Field::PointerEvents(value) => interaction.pointer = *value,
-                        Field::UserSelect(value) => interaction.selectable = *value,
+                        Field::UserSelect(value) => interaction.selectable = Some(*value),
                         Field::SelectionColor(value) => {
                             interaction.selection_color = Some(color(value))
                         }

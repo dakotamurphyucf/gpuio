@@ -4147,3 +4147,217 @@
          self.state.update(cx, |state, cx| {
              let geometry_changed = state.last_bounds != Some(bounds)
                  || state.input_bounds != input_bounds
+--- a/src/input/base/state.rs
++++ b/src/input/base/state.rs
+@@ -419,6 +419,7 @@
+     pub(super) column_select_start: Option<ColumnarPoint>,
+     pub(crate) disabled: bool,
+     pub(crate) readonly: bool,
++    user_selectable: bool,
+     pub(crate) text_align: TextAlign,
+     pub(super) masked: bool,
+     pub(super) clean_on_escape: bool,
+@@ -638,11 +639,33 @@
+         M::CODE_EDITOR
+     }
+ 
++    /// Whether pointer and keyboard gestures may select text. Programmatic
++    /// bridge selection remains available for search and navigation.
++    pub fn is_user_selectable(&self) -> bool {
++        self.user_selectable
++    }
++
++    /// Enable user selection (the default). Disabling cancels an active drag,
++    /// collapses the current range at its head and disables selection Copy.
++    /// It preserves focus, navigation, scrolling and programmatic selection.
++    pub fn set_user_selectable(&mut self, selectable: bool, cx: &mut Context<Self>) {
++        if self.user_selectable == selectable {
++            return;
++        }
++        self.user_selectable = selectable;
++        if !selectable {
++            self.cancel_drag_selection();
++            self.selections.remove_all_but_active();
++            self.set_cursor_to(self.cursor());
++        }
++        cx.notify();
++    }
++
+     /// Whether the user is allowed to copy the selection out.
+     ///
+     /// A masked input keeps its value out of the clipboard.
+     pub fn is_copyable(&self) -> bool {
+-        self.selections.iter().any(|sel| !sel.is_empty()) && !self.masked
++        self.user_selectable && self.selections.iter().any(|sel| !sel.is_empty()) && !self.masked
+     }
+ 
+     pub fn context_menu_capabilities(&self) -> InputContextMenuCapabilities {
+@@ -651,7 +674,7 @@
+             .disabled(self.disabled)
+             .readonly(self.readonly)
+             .code_editor(self.is_code_editor())
+-            .selection(!self.active_selection().is_empty())
++            .selection(self.user_selectable && !self.active_selection().is_empty())
+             .masked(self.masked)
+             .go_to_definition(go_to_definition)
+             .code_actions(code_actions)
+@@ -747,6 +770,7 @@
+             ime_marked_range: None,
+             input_bounds: Bounds::default(),
+             selecting: false,
++            user_selectable: true,
+             disabled: false,
+             readonly: false,
+             text_align: TextAlign::Left,
+@@ -1512,7 +1536,9 @@
+         window: &mut Window,
+         cx: &mut Context<Self>,
+     ) {
+-        self.select_all(window, cx);
++        if self.user_selectable {
++            self.select_all(window, cx);
++        }
+     }
+ 
+     pub(super) fn select_to_start(
+@@ -2292,7 +2318,7 @@
+     /// the first/last display row) or that would duplicate an existing cursor
+     /// are skipped.
+     fn add_cursor_vertical(&mut self, move_lines: isize, cx: &mut Context<Self>) {
+-        if !self.is_multi_line() {
++        if !self.is_multi_line() || !self.user_selectable {
+             return;
+         }
+ 
+@@ -2340,7 +2366,7 @@
+     /// Rejected when `offset` lands inside an existing selection or exactly on
+     /// an existing cursor.
+     pub(super) fn add_cursor_at(&mut self, offset: usize, cx: &mut Context<Self>) {
+-        if !self.is_multi_line() {
++        if !self.is_multi_line() || !self.user_selectable {
+             return;
+         }
+ 
+@@ -2437,11 +2463,21 @@
+             }
+         }
+ 
+-        self.selecting = true;
++        self.selecting = self.user_selectable;
+         let (offset, line_end_affinity, columns_past_line_end) =
+             self.resolve_mouse_position(event.position);
+ 
+         if M::on_click(self, event, offset, window, cx) {
++            return;
++        }
++
++        if !self.user_selectable {
++            if event.button == MouseButton::Left {
++                self.selections.remove_all_but_active();
++                self.move_to_with_affinity(offset, None, line_end_affinity, cx);
++            } else if event.button == MouseButton::Right && self.enable_context_menu {
++                self.pending_context_menu = Some((event.position, offset));
++            }
+             return;
+         }
+ 
+@@ -3225,6 +3261,9 @@
+         f: impl Fn(&Self, &CursorSelection) -> usize,
+         cx: &mut Context<Self>,
+     ) {
++        if !self.user_selectable {
++            return;
++        }
+         self.pause_blink_cursor(cx);
+         self.undo_manager.break_transaction_coalescing();
+         M::clear_inline_completion(self, cx);
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -171,7 +171,7 @@
+     TextSelection, TextSelectionContentKey, TextSelectionCoverage, TextSelectionEndpoint,
+     TextSelectionEvent, TextSelectionHandle, TextSelectionLayer, TextSelectionProjection,
+     TextSelectionRegistration, TextSelectionRun, TextSelectionScopeId, TextSelectionSnapshot,
+-    TextSelectionWindowPoints,
++    TextSelectionWindowPoints, text_selection_scope,
+ };
+ pub use theme::{ResizableTheme, ScrollbarTheme, Theme, ThemeAppearance};
+ pub use theme_tokens::{
+--- a/src/text/selection_adapter.rs
++++ b/src/text/selection_adapter.rs
+@@ -136,6 +136,11 @@
+                     return String::new();
+                 };
+                 let state = view.read(cx);
++                // A restyle can disable selection before the frame-end sweep
++                // removes this participant's previous registration.
++                if !state.is_selectable() {
++                    return String::new();
++                }
+                 let last = state.parsed_content.document.blocks.len().saturating_sub(1);
+                 let blocks = blocks_for_copy.borrow().block_range(selection_id, last);
+                 state.selected_text_in(blocks)
+--- a/src/text/state.rs
++++ b/src/text/state.rs
+@@ -411,7 +411,13 @@
+ 
+     /// Set whether the text is selectable, default false.
+     pub fn set_selectable(&mut self, selectable: bool, cx: &mut Context<Self>) {
++        if self.selectable == selectable {
++            return;
++        }
+         self.selectable = selectable;
++        if !selectable {
++            self.reset_selection_and_adapter(cx);
++        }
+         cx.notify();
+     }
+ 
+--- a/src/text/text_view.rs
++++ b/src/text/text_view.rs
+@@ -566,7 +566,7 @@
+             state.table_actions = self.table_actions.clone();
+             state.link_click_handler = self.link_click_handler.clone();
+             state.set_markdown_extensions(self.markdown_extensions.clone(), cx);
+-            state.selectable = self.selectable;
++            state.set_selectable(self.selectable, cx);
+             state.selection_format = self.selection_format;
+             state.scrollable = self.scrollable;
+             state.max_lines = max_lines;
+--- a/src/text_selection.rs
++++ b/src/text_selection.rs
+@@ -1084,6 +1084,7 @@
+     fn copy_items(&self, cx: &App) -> Vec<CopyItem> {
+         self.participants
+             .values()
++            .filter(|registration| registration.registration.scope == self.active_scope)
+             .filter_map(|registration| {
+                 let participant = registration.participant.upgrade()?;
+                 participant
+@@ -1102,10 +1103,11 @@
+     pub fn has_selection(&self, cx: &App) -> bool {
+         self.snapshot().is_some()
+             || self.participants.values().any(|registration| {
+-                registration
+-                    .participant
+-                    .upgrade()
+-                    .is_some_and(|participant| participant.read(cx).local_selection)
++                registration.registration.scope == self.active_scope
++                    && registration
++                        .participant
++                        .upgrade()
++                        .is_some_and(|participant| participant.read(cx).local_selection)
+             })
+     }
+ 
+@@ -1729,7 +1731,10 @@
+ /// element identity retains the window-local selection entity across frames.
+ pub struct TextSelectionLayer;
+ 
+-pub(crate) fn text_selection_scope(
++/// Assign selection participants inside this element to a retained scope.
++/// Activate the matching scope with [`TextSelection::activate_scope`].
++/// Modal hosts should allocate once per scope lifetime, not once per frame.
++pub fn text_selection_scope(
+     scope: TextSelectionScopeId,
+     element: impl IntoElement,
+ ) -> impl IntoElement {
