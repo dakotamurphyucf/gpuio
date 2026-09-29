@@ -9,10 +9,12 @@ The [finite style-value audit](evidence/style-finite-values-och41.md) now covers
 seven keyword sets with pinned native GPUIX sources. Grid count/minimum and
 text-decoration replacement differences are explicit; paired OCaml/Rust bytes,
 atomic validation and native refinement checks pass locally without GUI windows.
-Nine further [native keyword sets](evidence/style-native-aliases-och41.md) now
+Fourteen further [native keyword sets](evidence/style-native-aliases-och41.md) now
 record aliases and state-local unset semantics against GPUIX's exact GPUI
-submodule. Alignment helper/refinement and layer-merge tests pass. Numeric
-policies, remaining display/overflow values and specialized-root behavior remain
+submodule. Alignment helper/refinement and layer-merge tests pass. The [numeric/shorthand audit](evidence/style-numeric-policies-och41.md) records
+limits, percentage and Auto/sign semantics, byte/count limits and ordered
+composition for 47 more field rows. Independent OCaml/native validation checks
+and atomic rejection pass; specialized-root behavior and release gates remain
 open.
 
 Ordinary two-axis containers now preserve diagonal scrolling. The new native

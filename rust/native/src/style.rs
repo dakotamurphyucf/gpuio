@@ -475,6 +475,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn percentage_points_above_one_hundred_are_not_clamped_to_full_size() {
+        let fields = [
+            Field::Width(Length::Percent(200.)),
+            Field::RowGap(Length::Percent(25.)),
+        ];
+        validate_fields(&fields).unwrap();
+        let mut style = gpui::StyleRefinement::default();
+        refine(&mut style, &fields);
+        assert_eq!(style.size.width, Some(gpui::relative(2.).into()));
+        assert_eq!(style.gap.height, Some(gpui::relative(0.25)));
+    }
+
+    #[test]
     fn alignment_aliases_match_the_pinned_gpui_helpers() {
         use gpui::Styled;
         // GPUIX calls different helpers for items/content versus justification.

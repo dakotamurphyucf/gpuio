@@ -103,9 +103,10 @@ constructors, Boolean values or the single reviewed unset operation. Checksums
 freeze the helper semantics for human review. These checks cannot prove visual
 layout, mouse interaction, or correctness of every manually selected mapping.
 
-Display/visibility/overflow values, numeric and shorthand policies, intrinsic
-widget defaults, deferred/specialized roots, combined gallery/consumers and
-OCH-17 release validation remain open. No new platform GUI acceptance is claimed.
+The subsequent [numeric/display audit](style-numeric-policies-och41.md) covers
+five more native keyword sets and numeric/shorthand policies. Intrinsic widget
+defaults, deferred/specialized roots, combined gallery/consumers and OCH-17 release
+validation remain open. No new platform GUI acceptance is claimed here.
 
 Local macOS validation on 2026-09-29, using `./scripts/gpuio exec`:
 

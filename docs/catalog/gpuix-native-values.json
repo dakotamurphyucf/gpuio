@@ -388,6 +388,127 @@
         }
       ],
       "note": "Auto explicitly enables, including beneath a disabled ancestor. Omission inherits. GPUIO ordinary text defaults to opt-in, whereas GPUIX defaults enabled; native document defaults and editable widget ownership remain separate."
+    },
+    {
+      "source_field": "display",
+      "public_property": "Display",
+      "public_type": "Style.Display",
+      "rows": [
+        {
+          "source_values": [
+            "flex"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Flex"
+          }
+        },
+        {
+          "source_values": [
+            "grid"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Grid"
+          }
+        }
+      ],
+      "note": "Only flex/grid have explicit native application branches in this GPUIX pin. GPUIO additionally exposes Block/Hidden; do not infer display:none support from the upstream unrestricted string type."
+    },
+    {
+      "source_field": "visibility",
+      "public_property": "Visibility",
+      "public_type": "Style.Visibility",
+      "rows": [
+        {
+          "source_values": [
+            "hidden"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Hidden"
+          }
+        }
+      ],
+      "note": "Only hidden has an explicit native application branch in this GPUIX pin. GPUIO additionally exposes Visible as an explicit replacement."
+    },
+    {
+      "source_field": "overflow",
+      "public_property": "Overflow",
+      "public_type": "Style.Overflow",
+      "rows": [
+        {
+          "source_values": [
+            "hidden"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Hidden"
+          }
+        },
+        {
+          "source_values": [
+            "scroll"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Scroll"
+          }
+        }
+      ],
+      "note": "Hidden applies through Styled; Scroll is handled by the stateful container host. GPUIO additionally exposes Visible/Clip. Both-axis diagonal, nested boundary routing and hovered-axis replacement have native evidence. GPUIX axis longhands always beat shorthand; GPUIO declaration list order determines the winner."
+    },
+    {
+      "source_field": "overflowX",
+      "public_property": "Overflow_x",
+      "public_type": "Style.Overflow",
+      "rows": [
+        {
+          "source_values": [
+            "hidden"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Hidden"
+          }
+        },
+        {
+          "source_values": [
+            "scroll"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Scroll"
+          }
+        }
+      ],
+      "note": "Hidden applies through Styled; Scroll is handled by the stateful container host. GPUIO additionally exposes Visible/Clip. Both-axis diagonal, nested boundary routing and hovered-axis replacement have native evidence. GPUIX axis longhands always beat shorthand; GPUIO declaration list order determines the winner."
+    },
+    {
+      "source_field": "overflowY",
+      "public_property": "Overflow_y",
+      "public_type": "Style.Overflow",
+      "rows": [
+        {
+          "source_values": [
+            "hidden"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Hidden"
+          }
+        },
+        {
+          "source_values": [
+            "scroll"
+          ],
+          "target": {
+            "kind": "constructor",
+            "value": "Scroll"
+          }
+        }
+      ],
+      "note": "Hidden applies through Styled; Scroll is handled by the stateful container host. GPUIO additionally exposes Visible/Clip. Both-axis diagonal, nested boundary routing and hovered-axis replacement have native evidence. GPUIX axis longhands always beat shorthand; GPUIO declaration list order determines the winner."
     }
   ],
   "evidence": [
@@ -395,7 +516,9 @@
     "test/view_api/style_values_test.ml",
     "rust/native/src/style.rs",
     "rust/native/tests/style_values.rs",
-    "docs/design/selection-style-audit.md"
+    "docs/design/selection-style-audit.md",
+    "docs/evidence/style-numeric-policies-och41.md",
+    "docs/evidence/scrolling-och11.md"
   ],
   "limitations": "Pinned native keyword audit, not a general CSS parser or all-root visual acceptance. No implicit pointer-occlusion heuristics, viewport-fixed positioning or state-layer reset opcode is introduced."
 }

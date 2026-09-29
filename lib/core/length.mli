@@ -1,7 +1,8 @@
 open Core
 
 (** Logical pixels or percentage points (100 means the full parent dimension).
-    Values must be finite; negative lengths are useful for offsets and margins.
+    Values must be finite with absolute value at most 1,000,000; negative lengths
+    are useful for offsets and margins.
     Properties such as width validate nonnegative values separately. *)
 type t [@@deriving equal, sexp_of]
 

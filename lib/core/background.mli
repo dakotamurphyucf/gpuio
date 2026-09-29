@@ -11,7 +11,8 @@ end
 
 val solid : Color.t -> t
 
-(** GPUI's two-stop sRGB linear gradient. Angle is clockwise degrees from the top;
+(** GPUI's two-stop sRGB linear gradient. Angle is finite, in 0..360 clockwise
+    degrees from the top;
     stops use fractions in 0..1 and must be ordered. *)
 val linear_gradient
   :  angle:float

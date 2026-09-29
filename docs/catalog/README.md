@@ -26,12 +26,17 @@ that every source entry is implemented or validated.
   support further audits of aliases and reset behavior. Other value sets and
   component-root behavior remain under review; physical OS cursor glyphs are not
   asserted by these checks.
-- `gpuix-native-values.json`: nine additional renderer-derived keyword sets,
+- `gpuix-native-values.json`: fourteen additional renderer-derived keyword sets,
   with typed aliases, Boolean selection policy and a state-local unset operation.
   The [native alias audit](../evidence/style-native-aliases-och41.md) follows the
   exact GPUIX GPUI submodule helpers; it distinguishes flex-relative alignment
   from justification, normal versus base-style replacement, and fixed/absolute.
   Pointer eligibility and occlusion remain explicitly different API concepts.
+- [Numeric and shorthand policies](../evidence/style-numeric-policies-och41.md):
+  validated limits, units, signed/Auto choices, text byte counts and ordered
+  shorthand composition, including deliberate differences from permissive
+  upstream parsing/clamping. Independent OCaml/native boundary and atomicity
+  checks supplement the existing codecs; specialized-root behavior stays open.
 - `gpuix-events.json`: all 22 event properties, with current public contracts,
   exact pinned implementation links, remaining differences, owner and platform
   limits. General input observations now have local native and public gallery

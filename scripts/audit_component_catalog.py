@@ -142,6 +142,11 @@ def audit_native_values():
     inherited = source.split('fn descend(mut self, style: Option<&StyleDesc>)', 1)[1]
     inherited = inherited.split('\n        self\n', 1)[0]
     reviewed = {
+        'display': ('display', 'Display', 'Display'),
+        'visibility': ('visibility', 'Visibility', 'Visibility'),
+        'overflow': ('overflow', 'Overflow', 'Overflow'),
+        'overflowX': ('overflow_x', 'Overflow_x', 'Overflow'),
+        'overflowY': ('overflow_y', 'Overflow_y', 'Overflow'),
         'flexDirection': ('flex_direction', 'Direction', 'Direction'),
         'flexWrap': ('flex_wrap', 'Wrap', 'Wrap'),
         'alignItems': ('align_items', 'Align_items', 'Align'),
@@ -160,7 +165,14 @@ def audit_native_values():
     for field in ledger['fields']:
         name = field['source_field']
         native_field, prop, module = reviewed[name]
-        if name == 'flexDirection':
+        if name.startswith('overflow'):
+            # Both the Styled hidden branch and the host's scroll branch resolve
+            # axis longhands before the shorthand. Other strings do not apply.
+            expected = sorted(set(re.findall(r'resolved_[xy] == Some\("([^"]+)"\)', source)))
+        elif name == 'visibility':
+            expected = re.findall(r'if style\.visibility\.as_deref\(\) == Some\("([^"]+)"\)',
+                                  apply_styles)
+        elif name == 'flexDirection':
             expected = re.findall(r'if style\.flex_direction\.as_deref\(\) == Some\("([^"]+)"\)',
                                   apply_styles)
         else:

@@ -340,7 +340,22 @@ end
 type t [@@deriving equal, sexp_of]
 
 val empty : t
+
+(** Validate before constructing a style. Numeric values are finite and bounded:
+    grow, shrink, border widths and radii are in 0..1,000,000; font size is
+    strictly positive and at most 1,000,000; opacity is in 0..1. Grid counts and
+    line clamp are integers in 1..1024; font weight is in 1..1000. Font family
+    uses 1..256 UTF-8 bytes, accessible name 1..1024 bytes, and shadows at most
+    eight entries. Invalid values are rejected rather than clamped.
+
+    Length constructors enforce their own finite magnitude limit. Widths,
+    heights and basis allow nonnegative lengths or Auto; padding, gaps and line
+    height require nonnegative definite lengths; margins and offsets also allow
+    negatives and Auto. Shorthands expand in list order: the last declaration
+    of an individual side/axis wins, including when a later shorthand replaces
+    an earlier longhand. At most 128 input declarations are accepted per call. *)
 val create : Property.t list -> t Or_error.t
+
 val create_exn : Property.t list -> t
 val merge : t list -> t
 

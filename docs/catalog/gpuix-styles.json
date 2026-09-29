@@ -6,12 +6,15 @@
       "source_field": "display",
       "public_api": "Style.Property.Display",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Pinned native handler explicitly applies flex/grid. GPUIO also exposes Block/Hidden. Root-specific defaults/visibility/lifecycle still require native acceptance. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -19,12 +22,15 @@
       "source_field": "visibility",
       "public_api": "Style.Property.Visibility",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Pinned native handler explicitly applies hidden; GPUIO also exposes Visible as an explicit replacement. Specialized-root lifecycle/paint acceptance remains. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -60,12 +66,15 @@
       "source_field": "flexGrow",
       "public_api": "Style.Property.Grow",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Finite 0..1,000,000, rejected rather than silently clamped. GPUIX clamps negative border widths but forwards other values. Last declaration wins after shorthand expansion. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -73,12 +82,15 @@
       "source_field": "flexShrink",
       "public_api": "Style.Property.Shrink",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Finite 0..1,000,000, rejected rather than silently clamped. GPUIX clamps negative border widths but forwards other values. Last declaration wins after shorthand expansion. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -86,12 +98,15 @@
       "source_field": "flexBasis",
       "public_api": "Style.Property.Basis",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated nonnegative Length or Auto; finite magnitude <=1,000,000. Typed percent values preserve >100%; unlike GPUIX width/height full-size shortcut, 200% remains 200%. GPUIX basis uses pixels; GPUIO also supports percentage/Auto. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -155,12 +170,15 @@
       "source_field": "gap",
       "public_api": "Style.Property.Gap",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated nonnegative definite Length; Auto rejected. GPUIO adds typed percentages. Zero line height is explicit in GPUIO but ignored by GPUIX. Shorthands expand in declaration order, with last side/axis assignment winning. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -168,12 +186,15 @@
       "source_field": "rowGap",
       "public_api": "Style.Property.Row_gap",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated nonnegative definite Length; Auto rejected. GPUIO adds typed percentages. Zero line height is explicit in GPUIO but ignored by GPUIX. Shorthands expand in declaration order, with last side/axis assignment winning. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -181,12 +202,15 @@
       "source_field": "columnGap",
       "public_api": "Style.Property.Column_gap",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated nonnegative definite Length; Auto rejected. GPUIO adds typed percentages. Zero line height is explicit in GPUIO but ignored by GPUIX. Shorthands expand in declaration order, with last side/axis assignment winning. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -194,12 +218,15 @@
       "source_field": "gridTemplateColumns",
       "public_api": "Style.Property.Grid_columns",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Pinned upstream takes a column count, not arbitrary CSS grid track syntax; compare to Grid_columns.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated integer 1..1024. GPUIX grid counts round/clamp to 1..64; line clamp ignores <1 then casts. No implicit rounding in the public OCaml API. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -207,12 +234,15 @@
       "source_field": "gridTemplateRows",
       "public_api": "Style.Property.Grid_rows",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Pinned upstream takes a row count, not arbitrary CSS grid track syntax; compare to Grid_rows.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated integer 1..1024. GPUIX grid counts round/clamp to 1..64; line clamp ignores <1 then casts. No implicit rounding in the public OCaml API. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -248,12 +278,15 @@
       "source_field": "width",
       "public_api": "Style.Property.Width",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated nonnegative Length or Auto; finite magnitude <=1,000,000. Typed percent values preserve >100%; unlike GPUIX width/height full-size shortcut, 200% remains 200%. GPUIX basis uses pixels; GPUIO also supports percentage/Auto. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -261,12 +294,15 @@
       "source_field": "height",
       "public_api": "Style.Property.Height",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated nonnegative Length or Auto; finite magnitude <=1,000,000. Typed percent values preserve >100%; unlike GPUIX width/height full-size shortcut, 200% remains 200%. GPUIX basis uses pixels; GPUIO also supports percentage/Auto. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -274,12 +310,15 @@
       "source_field": "minWidth",
       "public_api": "Style.Property.Min_width",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated nonnegative Length or Auto; finite magnitude <=1,000,000. Typed percent values preserve >100%; unlike GPUIX width/height full-size shortcut, 200% remains 200%. GPUIX basis uses pixels; GPUIO also supports percentage/Auto. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -287,12 +326,15 @@
       "source_field": "minHeight",
       "public_api": "Style.Property.Min_height",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated nonnegative Length or Auto; finite magnitude <=1,000,000. Typed percent values preserve >100%; unlike GPUIX width/height full-size shortcut, 200% remains 200%. GPUIX basis uses pixels; GPUIO also supports percentage/Auto. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -300,12 +342,15 @@
       "source_field": "maxWidth",
       "public_api": "Style.Property.Max_width",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated nonnegative Length or Auto; finite magnitude <=1,000,000. Typed percent values preserve >100%; unlike GPUIX width/height full-size shortcut, 200% remains 200%. GPUIX basis uses pixels; GPUIO also supports percentage/Auto. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -313,12 +358,15 @@
       "source_field": "maxHeight",
       "public_api": "Style.Property.Max_height",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated nonnegative Length or Auto; finite magnitude <=1,000,000. Typed percent values preserve >100%; unlike GPUIX width/height full-size shortcut, 200% remains 200%. GPUIX basis uses pixels; GPUIO also supports percentage/Auto. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -326,12 +374,15 @@
       "source_field": "padding",
       "public_api": "Style.Property.Padding",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated nonnegative definite Length; Auto rejected. GPUIO adds typed percentages. Zero line height is explicit in GPUIO but ignored by GPUIX. Shorthands expand in declaration order, with last side/axis assignment winning. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -339,12 +390,15 @@
       "source_field": "paddingTop",
       "public_api": "Style.Property.Padding_top",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated nonnegative definite Length; Auto rejected. GPUIO adds typed percentages. Zero line height is explicit in GPUIO but ignored by GPUIX. Shorthands expand in declaration order, with last side/axis assignment winning. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -352,12 +406,15 @@
       "source_field": "paddingRight",
       "public_api": "Style.Property.Padding_right",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated nonnegative definite Length; Auto rejected. GPUIO adds typed percentages. Zero line height is explicit in GPUIO but ignored by GPUIX. Shorthands expand in declaration order, with last side/axis assignment winning. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -365,12 +422,15 @@
       "source_field": "paddingBottom",
       "public_api": "Style.Property.Padding_bottom",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated nonnegative definite Length; Auto rejected. GPUIO adds typed percentages. Zero line height is explicit in GPUIO but ignored by GPUIX. Shorthands expand in declaration order, with last side/axis assignment winning. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -378,12 +438,15 @@
       "source_field": "paddingLeft",
       "public_api": "Style.Property.Padding_left",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated nonnegative definite Length; Auto rejected. GPUIO adds typed percentages. Zero line height is explicit in GPUIO but ignored by GPUIX. Shorthands expand in declaration order, with last side/axis assignment winning. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -391,12 +454,15 @@
       "source_field": "margin",
       "public_api": "Style.Property.Margin",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated signed Length or Auto, finite magnitude <=1,000,000. GPUIX uses pixel numbers. Shorthand order is explicit in the OCaml list. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -404,12 +470,15 @@
       "source_field": "marginTop",
       "public_api": "Style.Property.Margin_top",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated signed Length or Auto, finite magnitude <=1,000,000. GPUIX uses pixel numbers. Shorthand order is explicit in the OCaml list. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -417,12 +486,15 @@
       "source_field": "marginRight",
       "public_api": "Style.Property.Margin_right",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated signed Length or Auto, finite magnitude <=1,000,000. GPUIX uses pixel numbers. Shorthand order is explicit in the OCaml list. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -430,12 +502,15 @@
       "source_field": "marginBottom",
       "public_api": "Style.Property.Margin_bottom",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated signed Length or Auto, finite magnitude <=1,000,000. GPUIX uses pixel numbers. Shorthand order is explicit in the OCaml list. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -443,12 +518,15 @@
       "source_field": "marginLeft",
       "public_api": "Style.Property.Margin_left",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated signed Length or Auto, finite magnitude <=1,000,000. GPUIX uses pixel numbers. Shorthand order is explicit in the OCaml list. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -470,12 +548,15 @@
       "source_field": "top",
       "public_api": "Style.Property.Top",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated signed Length or Auto, finite magnitude <=1,000,000. GPUIX uses pixel numbers. Shorthand order is explicit in the OCaml list. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -483,12 +564,15 @@
       "source_field": "right",
       "public_api": "Style.Property.Right",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated signed Length or Auto, finite magnitude <=1,000,000. GPUIX uses pixel numbers. Shorthand order is explicit in the OCaml list. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -496,12 +580,15 @@
       "source_field": "bottom",
       "public_api": "Style.Property.Bottom",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated signed Length or Auto, finite magnitude <=1,000,000. GPUIX uses pixel numbers. Shorthand order is explicit in the OCaml list. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -509,12 +596,15 @@
       "source_field": "left",
       "public_api": "Style.Property.Left",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated signed Length or Auto, finite magnitude <=1,000,000. GPUIX uses pixel numbers. Shorthand order is explicit in the OCaml list. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -536,12 +626,13 @@
       "source_field": "backgroundColor",
       "public_api": "Style.Property.Background",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Functional alias of Background.solid; typed Color replaces CSS strings.",
+      "status": "mapped; typed color policy reviewed; all-root behavior pending",
+      "note": "Validated typed RGBA/theme tokens replace CSS strings; missing theme names are recoverable encoding errors, not silently ignored native CSS parses. BackgroundColor translates to Background.solid; when translating both background and backgroundColor, put the solid override last to match GPUIX precedence. Inheritance and native painting acceptance remain root-specific.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md"
       ],
       "release_owner": "OCH-17"
     },
@@ -549,12 +640,13 @@
       "source_field": "color",
       "public_api": "Style.Property.Foreground",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; typed color policy reviewed; all-root behavior pending",
+      "note": "Validated typed RGBA/theme tokens replace CSS strings; missing theme names are recoverable encoding errors, not silently ignored native CSS parses. BackgroundColor translates to Background.solid; when translating both background and backgroundColor, put the solid override last to match GPUIX precedence. Inheritance and native painting acceptance remain root-specific.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md"
       ],
       "release_owner": "OCH-17"
     },
@@ -562,12 +654,15 @@
       "source_field": "opacity",
       "public_api": "Style.Property.Opacity",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Finite 0..1 validated before native publication. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -575,12 +670,15 @@
       "source_field": "borderWidth",
       "public_api": "Style.Property.Border_width",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Finite 0..1,000,000, rejected rather than silently clamped. GPUIX clamps negative border widths but forwards other values. Last declaration wins after shorthand expansion. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -588,12 +686,15 @@
       "source_field": "borderTopWidth",
       "public_api": "Style.Property.Border_top_width",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Finite 0..1,000,000, rejected rather than silently clamped. GPUIX clamps negative border widths but forwards other values. Last declaration wins after shorthand expansion. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -601,12 +702,15 @@
       "source_field": "borderRightWidth",
       "public_api": "Style.Property.Border_right_width",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Finite 0..1,000,000, rejected rather than silently clamped. GPUIX clamps negative border widths but forwards other values. Last declaration wins after shorthand expansion. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -614,12 +718,15 @@
       "source_field": "borderBottomWidth",
       "public_api": "Style.Property.Border_bottom_width",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Finite 0..1,000,000, rejected rather than silently clamped. GPUIX clamps negative border widths but forwards other values. Last declaration wins after shorthand expansion. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -627,12 +734,15 @@
       "source_field": "borderLeftWidth",
       "public_api": "Style.Property.Border_left_width",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Finite 0..1,000,000, rejected rather than silently clamped. GPUIX clamps negative border widths but forwards other values. Last declaration wins after shorthand expansion. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -640,12 +750,13 @@
       "source_field": "borderColor",
       "public_api": "Style.Property.Border_color",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; typed color policy reviewed; all-root behavior pending",
+      "note": "Validated typed RGBA/theme tokens replace CSS strings; missing theme names are recoverable encoding errors, not silently ignored native CSS parses. BackgroundColor translates to Background.solid; when translating both background and backgroundColor, put the solid override last to match GPUIX precedence. Inheritance and native painting acceptance remain root-specific.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md"
       ],
       "release_owner": "OCH-17"
     },
@@ -653,12 +764,15 @@
       "source_field": "borderRadius",
       "public_api": "Style.Property.Radius",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Finite 0..1,000,000, rejected rather than silently clamped. GPUIX clamps negative border widths but forwards other values. Last declaration wins after shorthand expansion. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -666,12 +780,15 @@
       "source_field": "borderTopLeftRadius",
       "public_api": "Style.Property.Top_left_radius",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Finite 0..1,000,000, rejected rather than silently clamped. GPUIX clamps negative border widths but forwards other values. Last declaration wins after shorthand expansion. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -679,12 +796,15 @@
       "source_field": "borderTopRightRadius",
       "public_api": "Style.Property.Top_right_radius",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Finite 0..1,000,000, rejected rather than silently clamped. GPUIX clamps negative border widths but forwards other values. Last declaration wins after shorthand expansion. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -692,12 +812,15 @@
       "source_field": "borderBottomLeftRadius",
       "public_api": "Style.Property.Bottom_left_radius",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Finite 0..1,000,000, rejected rather than silently clamped. GPUIX clamps negative border widths but forwards other values. Last declaration wins after shorthand expansion. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -705,12 +828,15 @@
       "source_field": "borderBottomRightRadius",
       "public_api": "Style.Property.Bottom_right_radius",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Finite 0..1,000,000, rejected rather than silently clamped. GPUIX clamps negative border widths but forwards other values. Last declaration wins after shorthand expansion. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -718,12 +844,15 @@
       "source_field": "boxShadow",
       "public_api": "Style.Property.Shadows",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed Shadow values and list replace upstream single object spelling. Review blur/spread/offset/color behavior.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated list of at most eight Shadow values; finite dimensions bounded by1,000,000, nonnegative blur and signed spread/offsets. GPUIO supports inset. GPUIX takes one shadow with nonnegative-clamped blur/spread. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -731,12 +860,15 @@
       "source_field": "fontSize",
       "public_api": "Style.Property.Font_size",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Finite >0 and <=1,000,000 logical pixels, validated before native publication. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -744,12 +876,15 @@
       "source_field": "fontFamily",
       "public_api": "Style.Property.Font_family",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Nonempty string of at most 256 bytes; Unicode byte-boundary admission is tested independently in OCaml/native code. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -757,12 +892,15 @@
       "source_field": "fontWeight",
       "public_api": "Style.Property.Font_weight",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed integer weight replaces string-or-number spelling. Compare actual valid weight range and native rendering.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Integer 1..1000; named upstream weights map to documented integers. GPUIO rejects invalid values instead of parsing/clamping strings or defaulting to normal. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -784,12 +922,15 @@
       "source_field": "lineHeight",
       "public_api": "Style.Property.Line_height",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated nonnegative definite Length; Auto rejected. GPUIO adds typed percentages. Zero line height is explicit in GPUIO but ignored by GPUIX. Shorthands expand in declaration order, with last side/axis assignment winning. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -825,12 +966,15 @@
       "source_field": "lineClamp",
       "public_api": "Style.Property.Line_clamp",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Typed field mapping established. Audit accepted values/defaults and native behavior against the pinned source.",
+      "status": "mapped; source/value policy reviewed; all-root behavior pending",
+      "note": "Validated integer 1..1024. GPUIX grid counts round/clamp to 1..64; line clamp ignores <1 then casts. No implicit rounding in the public OCaml API. See numeric/style policy evidence; no all-root or release acceptance claim.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml",
+        "rust/native/tests/style_validation.rs"
       ],
       "release_owner": "OCH-17"
     },
@@ -853,12 +997,13 @@
       "public_api": "Style.Property.Overflow",
       "interface": "lib/core/style.mli",
       "status": "mapped; local native two-axis/nested-scroll evidence; full value/root audit pending",
-      "note": "Typed Overflow values and per-axis declarations control ordinary-container scrolling. Both Scroll axes preserve precise/discrete diagonals; one-axis filtering, partial/both-axis limits, nested propagation, hovered-axis changes, retained offsets/owner and teardown pass native tests. Managed lists/editor widgets own their policies. Shorthand order and remaining keyword/root acceptance still need review.",
+      "note": "Typed Overflow values and per-axis declarations control ordinary-container scrolling. Both Scroll axes preserve precise/discrete diagonals; one-axis filtering, partial/both-axis limits, nested propagation, hovered-axis changes, retained offsets/owner and teardown pass native tests. Managed lists/editor widgets own their policies. Native keyword/shorthand policies are reviewed in numeric/style evidence; specialized-root and release acceptance remain.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
         "docs/evidence/theme-scale-och11.md",
-        "docs/evidence/scrolling-och11.md"
+        "docs/evidence/scrolling-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md"
       ],
       "release_owner": "OCH-17"
     },
@@ -867,12 +1012,13 @@
       "public_api": "Style.Property.Overflow_x",
       "interface": "lib/core/style.mli",
       "status": "mapped; local native two-axis/nested-scroll evidence; full value/root audit pending",
-      "note": "Typed Overflow values and per-axis declarations control ordinary-container scrolling. Both Scroll axes preserve precise/discrete diagonals; one-axis filtering, partial/both-axis limits, nested propagation, hovered-axis changes, retained offsets/owner and teardown pass native tests. Managed lists/editor widgets own their policies. Shorthand order and remaining keyword/root acceptance still need review.",
+      "note": "Typed Overflow values and per-axis declarations control ordinary-container scrolling. Both Scroll axes preserve precise/discrete diagonals; one-axis filtering, partial/both-axis limits, nested propagation, hovered-axis changes, retained offsets/owner and teardown pass native tests. Managed lists/editor widgets own their policies. Native keyword/shorthand policies are reviewed in numeric/style evidence; specialized-root and release acceptance remain.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
         "docs/evidence/theme-scale-och11.md",
-        "docs/evidence/scrolling-och11.md"
+        "docs/evidence/scrolling-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md"
       ],
       "release_owner": "OCH-17"
     },
@@ -881,12 +1027,13 @@
       "public_api": "Style.Property.Overflow_y",
       "interface": "lib/core/style.mli",
       "status": "mapped; local native two-axis/nested-scroll evidence; full value/root audit pending",
-      "note": "Typed Overflow values and per-axis declarations control ordinary-container scrolling. Both Scroll axes preserve precise/discrete diagonals; one-axis filtering, partial/both-axis limits, nested propagation, hovered-axis changes, retained offsets/owner and teardown pass native tests. Managed lists/editor widgets own their policies. Shorthand order and remaining keyword/root acceptance still need review.",
+      "note": "Typed Overflow values and per-axis declarations control ordinary-container scrolling. Both Scroll axes preserve precise/discrete diagonals; one-axis filtering, partial/both-axis limits, nested propagation, hovered-axis changes, retained offsets/owner and teardown pass native tests. Managed lists/editor widgets own their policies. Native keyword/shorthand policies are reviewed in numeric/style evidence; specialized-root and release acceptance remain.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
         "docs/evidence/theme-scale-och11.md",
-        "docs/evidence/scrolling-och11.md"
+        "docs/evidence/scrolling-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md"
       ],
       "release_owner": "OCH-17"
     },
@@ -951,12 +1098,14 @@
       "source_field": "hover",
       "public_api": "Style.with_state Hovered",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Native Style.with_state Hovered; only supported state refinements are valid. Structural/input refinements are intentionally rejected. Review upstream differences by value.",
+      "status": "mapped; state declaration policy reviewed; all-root behavior pending",
+      "note": "Style.with_state Hovered accepts layout and visual declarations. Pointer_occlusion, Pointer_events, User_select, Selection_color, Accessible_name and Inert are base-only. Removing a state declaration leaves base styles authoritative. Native widget parts may further constrain appearance properties; specialized/deferred-root behavior and release acceptance remain.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml"
       ],
       "release_owner": "OCH-17"
     },
@@ -964,12 +1113,14 @@
       "source_field": "active",
       "public_api": "Style.with_state Pressed",
       "interface": "lib/core/style.mli",
-      "status": "mapped; value/behavior acceptance pending",
-      "note": "Native Style.with_state Pressed; only supported state refinements are valid. Structural/input refinements are intentionally rejected. Review upstream differences by value.",
+      "status": "mapped; state declaration policy reviewed; all-root behavior pending",
+      "note": "Style.with_state Pressed accepts layout and visual declarations. Pointer_occlusion, Pointer_events, User_select, Selection_color, Accessible_name and Inert are base-only. Removing a state declaration leaves base styles authoritative. Native widget parts may further constrain appearance properties; specialized/deferred-root behavior and release acceptance remain.",
       "evidence": [
         "test/view_api/style_fixture_test.ml",
         "test/view_api/view_api_test.ml",
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/evidence/style-numeric-policies-och41.md",
+        "test/view_api/style_validation_test.ml"
       ],
       "release_owner": "OCH-17"
     }
