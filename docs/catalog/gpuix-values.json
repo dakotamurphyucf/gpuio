@@ -217,6 +217,94 @@
       ],
       "public_type": "Background.Color_space",
       "public_value": "Oklab"
+    },
+    {
+      "source_field": "gridColumnMin",
+      "source_values": [
+        "zero"
+      ],
+      "public_type": "Style.Grid_minimum",
+      "public_value": "Zero"
+    },
+    {
+      "source_field": "gridColumnMin",
+      "source_values": [
+        "min-content"
+      ],
+      "public_type": "Style.Grid_minimum",
+      "public_value": "Min_content"
+    },
+    {
+      "source_field": "gridColumnMin",
+      "source_values": [
+        "max-content"
+      ],
+      "public_type": "Style.Grid_minimum",
+      "public_value": "Max_content"
+    },
+    {
+      "source_field": "gridRowMin",
+      "source_values": [
+        "zero"
+      ],
+      "public_type": "Style.Grid_minimum",
+      "public_value": "Zero"
+    },
+    {
+      "source_field": "gridRowMin",
+      "source_values": [
+        "min-content"
+      ],
+      "public_type": "Style.Grid_minimum",
+      "public_value": "Min_content"
+    },
+    {
+      "source_field": "gridRowMin",
+      "source_values": [
+        "max-content"
+      ],
+      "public_type": "Style.Grid_minimum",
+      "public_value": "Max_content"
+    },
+    {
+      "source_field": "whiteSpace",
+      "source_values": [
+        "normal"
+      ],
+      "public_type": "Style.White_space",
+      "public_value": "Normal"
+    },
+    {
+      "source_field": "whiteSpace",
+      "source_values": [
+        "nowrap"
+      ],
+      "public_type": "Style.White_space",
+      "public_value": "No_wrap"
+    },
+    {
+      "source_field": "textDecoration",
+      "source_values": [
+        "underline"
+      ],
+      "public_type": "Style.Text_decoration",
+      "public_value": "Underline"
+    },
+    {
+      "source_field": "textDecoration",
+      "source_values": [
+        "line-through"
+      ],
+      "public_type": "Style.Text_decoration",
+      "public_value": "Strikethrough"
+    },
+    {
+      "source_field": "textDecoration",
+      "source_values": [
+        "none"
+      ],
+      "public_type": "Style.Text_decoration",
+      "public_value": "None"
     }
   ],
   "evidence": [
@@ -228,7 +316,8 @@
     "test/view_api/gradient_test.ml",
     "rust/protocol/tests/gradient.rs",
     "rust/native/src/gradient_test.rs",
-    "docs/evidence/gradient-color-spaces-och41.md"
+    "docs/evidence/gradient-color-spaces-och41.md",
+    "docs/evidence/style-finite-values-och41.md"
   ],
-  "limitations": "Three reviewed value sets, not all style fields. Gradient has paired encoding, native validation/GPU and public gallery evidence. Cursor/overflow mapping and focused gallery evidence do not establish physical OS cursor glyphs or Linux desktop acceptance. Full combined gallery/consumer and release gates remain."
+  "limitations": "Seven reviewed value sets, not all style fields. Grid minima need explicit track counts for GPUIX-equivalent behavior. Decoration maps user intent; GPUIO explicitly replaces both decorations, including inherited values. See finite-value evidence for these differences. Gradient has paired encoding, native validation/GPU and public gallery evidence. Cursor/overflow mapping and focused gallery evidence do not establish physical OS cursor glyphs or Linux desktop acceptance. Full combined gallery/consumer and release gates remain."
 }

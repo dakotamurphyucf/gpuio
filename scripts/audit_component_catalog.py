@@ -80,6 +80,15 @@ def audit_values_and_events(actual):
     expected = {'cursor': ('Style', 'Cursor', re.findall(r'"([^"]+)"', cursor.group(1))),
                 'textOverflow': ('Style', 'Text_overflow', re.findall(r'"([^"]+)"', overflow.group(1))),
                 'background.colorSpace': ('Background', 'Color_space', re.findall(r'"([^"]+)"', gradient.group(1)))}
+    for field, module in [('gridColumnMin', 'Grid_minimum'),
+                          ('gridRowMin', 'Grid_minimum'),
+                          ('whiteSpace', 'White_space'),
+                          ('textDecoration', 'Text_decoration')]:
+        declaration = re.search(r'^  ' + field + r'\?: ([^\n]+)',
+                                interface(host, 'StyleDesc'), re.M)
+        if not declaration:
+            raise ValueError(f'Missing reviewed style declaration: {field}')
+        expected[field] = ('Style', module, re.findall(r'"([^"]+)"', declaration.group(1)))
     interfaces = {'Style': style, 'Background': (ROOT / 'lib/core/background.mli').read_text()}
     if {row['source_field'] for row in values['rows']} != set(expected):
         raise ValueError('Value ledger must explicitly cover the reviewed fields only')

@@ -2,6 +2,53 @@ open Core
 open Gpuio
 open Gpuio_protocol
 
+let%expect_test "finite grid and text choices have stable native field bytes" =
+  let properties : Style.Property.t list =
+    [ Grid_column_minimum Zero
+    ; Grid_column_minimum Min_content
+    ; Grid_column_minimum Max_content
+    ; Grid_row_minimum Zero
+    ; Grid_row_minimum Min_content
+    ; Grid_row_minimum Max_content
+    ; White_space Normal
+    ; White_space No_wrap
+    ; Text_decoration None
+    ; Text_decoration Underline
+    ; Text_decoration Strikethrough
+    ; Text_decoration Underline_and_strikethrough
+    ]
+  in
+  List.iter properties ~f:(fun property ->
+    let fields =
+      Style.create_exn [ property ]
+      |> Style.Expert.to_wire ~theme:Theme.default
+      |> Or_error.ok_exn
+    in
+    match fields with
+    | [ Wire.Style.Fields [ field ] ] ->
+      let bytes =
+        Bin_prot.Utils.bin_dump Wire.Field.bin_writer_t field |> Bigstring.to_string
+      in
+      print_endline
+        (String.concat_map bytes ~f:(fun ch -> sprintf "%02x" (Char.to_int ch)))
+    | _ -> assert false);
+  [%expect
+    {|
+    0f00
+    0f01
+    0f02
+    1000
+    1001
+    1002
+    3600
+    3601
+    3900
+    3901
+    3902
+    3903
+    |}]
+;;
+
 let cursors : Style.Cursor.t list =
   [ Arrow
   ; Ibeam

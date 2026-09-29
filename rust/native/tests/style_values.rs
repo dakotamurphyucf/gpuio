@@ -2,6 +2,28 @@ use gpuio_native::session::Session;
 use gpuio_protocol::{NodeId, WindowId, v1::*};
 
 #[test]
+fn finite_grid_and_text_choices_have_stable_ocaml_field_bytes() {
+    for (field, bytes) in [
+        (Field::GridColumnMinimum(0), [0x0f, 0]),
+        (Field::GridColumnMinimum(1), [0x0f, 1]),
+        (Field::GridColumnMinimum(2), [0x0f, 2]),
+        (Field::GridRowMinimum(0), [0x10, 0]),
+        (Field::GridRowMinimum(1), [0x10, 1]),
+        (Field::GridRowMinimum(2), [0x10, 2]),
+        (Field::WhiteSpace(0), [0x36, 0]),
+        (Field::WhiteSpace(1), [0x36, 1]),
+        (Field::TextDecoration(0), [0x39, 0]),
+        (Field::TextDecoration(1), [0x39, 1]),
+        (Field::TextDecoration(2), [0x39, 2]),
+        (Field::TextDecoration(3), [0x39, 3]),
+    ] {
+        let mut encoded = Vec::new();
+        binprot::BinProtWrite::binprot_write(&field, &mut encoded).unwrap();
+        assert_eq!(encoded, bytes);
+    }
+}
+
+#[test]
 fn extended_style_values_validate_before_atomic_publication() {
     assert_eq!(CAPABILITIES & CAP_STYLE_VALUES, 1_i64 << 44);
     let window = WindowId::from_parts(0, 1).unwrap();
@@ -32,6 +54,10 @@ fn extended_style_values_validate_before_atomic_publication() {
                     vec![Style::Fields(vec![
                         Field::Cursor(value),
                         Field::TextOverflow(value % 3),
+                        Field::GridColumnMinimum(value % 3),
+                        Field::GridRowMinimum(value % 3),
+                        Field::WhiteSpace(value % 2),
+                        Field::TextDecoration(value % 4),
                     ])],
                 )],
             })
@@ -44,6 +70,14 @@ fn extended_style_values_validate_before_atomic_publication() {
         Field::Cursor(22),
         Field::TextOverflow(-1),
         Field::TextOverflow(3),
+        Field::GridColumnMinimum(-1),
+        Field::GridColumnMinimum(3),
+        Field::GridRowMinimum(-1),
+        Field::GridRowMinimum(3),
+        Field::WhiteSpace(-1),
+        Field::WhiteSpace(2),
+        Field::TextDecoration(-1),
+        Field::TextDecoration(4),
     ] {
         assert_eq!(
             session

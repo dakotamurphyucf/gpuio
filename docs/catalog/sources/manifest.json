@@ -54,5 +54,21 @@
     "source": "LICENSE",
     "snapshot": "gpuix-LICENSE",
     "sha256": "043b2e38b6d079a31838b3be6a80f6c1253d126f66fc4981d034126b9efeb6f2"
+  },
+  {
+    "project": "gpuix",
+    "revision": "18e695ed0ee8121a7793413ca795e08eda2a13df",
+    "repository": "https://github.com/remorses/gpuix",
+    "source": "packages/native/src/style.rs",
+    "snapshot": "gpuix-style.rs.txt",
+    "sha256": "7570037449b1f249208d256078ad2667181d13e465c57b0050e1027e2f23fd82"
+  },
+  {
+    "project": "gpuix",
+    "revision": "18e695ed0ee8121a7793413ca795e08eda2a13df",
+    "repository": "https://github.com/remorses/gpuix",
+    "source": "packages/native/src/renderer.rs",
+    "snapshot": "gpuix-renderer.rs.txt",
+    "sha256": "31d1178c171b27e64a4b86c8a399f00c5ddc7ded5054ae8274bf27806bd36556"
   }
 ]

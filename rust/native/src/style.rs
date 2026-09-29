@@ -475,6 +475,51 @@ mod tests {
     use super::*;
 
     #[test]
+    fn grid_minimum_replacement_preserves_track_counts_and_other_axis() {
+        use gpui::GridTemplateMinSize::{MaxContent, MinContent, Zero};
+        let mut style = gpui::StyleRefinement::default();
+        refine(&mut style, &[Field::GridColumns(3), Field::GridRows(5)]);
+        for (column, expected_column) in [(0, Zero), (1, MinContent), (2, MaxContent)] {
+            for (row, expected_row) in [(0, Zero), (1, MinContent), (2, MaxContent)] {
+                refine(&mut style, &[Field::GridColumnMinimum(column)]);
+                refine(&mut style, &[Field::GridRowMinimum(row)]);
+                assert_eq!(style.grid_cols.as_ref().unwrap().repeat, 3);
+                assert_eq!(style.grid_rows.as_ref().unwrap().repeat, 5);
+                assert_eq!(style.grid_cols.as_ref().unwrap().min_size, expected_column);
+                assert_eq!(style.grid_rows.as_ref().unwrap().min_size, expected_row);
+            }
+        }
+        // A minimum alone creates one track; supplying a later count retains it.
+        let mut style = gpui::StyleRefinement::default();
+        refine(&mut style, &[Field::GridColumnMinimum(1)]);
+        assert_eq!(style.grid_cols.as_ref().unwrap().repeat, 1);
+        assert!(style.grid_rows.is_none());
+        refine(&mut style, &[Field::GridColumns(7)]);
+        assert_eq!(style.grid_cols.as_ref().unwrap().repeat, 7);
+        assert_eq!(style.grid_cols.as_ref().unwrap().min_size, MinContent);
+    }
+
+    #[test]
+    fn text_decoration_replaces_both_lines_and_white_space_can_be_restored() {
+        use gpui::Styled;
+        for (value, underline, strike) in [(0, 0., 0.), (1, 1., 0.), (2, 0., 1.), (3, 1., 1.)] {
+            let mut style = gpui::StyleRefinement::default().underline().line_through();
+            refine(&mut style, &[Field::TextDecoration(value)]);
+            // Explicit zero thickness suppresses inherited or component defaults.
+            assert_eq!(style.text.underline.unwrap().thickness, gpui::px(underline));
+            assert_eq!(
+                style.text.strikethrough.unwrap().thickness,
+                gpui::px(strike)
+            );
+        }
+        let mut style = gpui::StyleRefinement::default();
+        for (value, expected) in [(1, gpui::WhiteSpace::Nowrap), (0, gpui::WhiteSpace::Normal)] {
+            refine(&mut style, &[Field::WhiteSpace(value)]);
+            assert_eq!(style.text.white_space, Some(expected));
+        }
+    }
+
+    #[test]
     fn explicit_gradient_spaces_validate_before_native_refinement() {
         for space in [0, 1] {
             for (angle, start, end) in [(0., 0., 1.), (360., 0.5, 0.5)] {

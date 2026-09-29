@@ -5,6 +5,12 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
 passed on `473407c`; all twelve tickets are Done.
 
+The [finite style-value audit](evidence/style-finite-values-och41.md) now covers
+seven keyword sets with pinned native GPUIX sources. Grid count/minimum and
+text-decoration replacement differences are explicit; paired OCaml/Rust bytes,
+atomic validation and native refinement checks pass locally without GUI windows.
+Unrestricted aliases, reset semantics and specialized-root behavior remain open.
+
 Milestone 07 is in progress. OCH-41's public
 [Component Studio](../examples/gallery/README.md) now has twenty-three preview sections,
 including canvas, images/icons, charts, native motion, responsive layouts, native extensions, input/transfers, input observations, desktop services and styling details. The [gallery evidence](evidence/gallery-och41.md) records

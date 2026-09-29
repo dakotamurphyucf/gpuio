@@ -17,12 +17,15 @@ that every source entry is implemented or validated.
 - `gpuix-styles.json`: all 73 field-to-public-API mappings, with evidence entry
   points and explicit value/behavior reviews still pending. The audit checks
   completeness and that referenced APIs/files exist, not visual equivalence.
-- `gpuix-values.json`: complete source-value mappings for cursor and text overflow.
-  All 29 cursor keywords map to 22 typed choices, including aliases. Start and end
-  ellipsis map separately. The check validates these two reviewed fields against
-  the pinned declarations and public constructors; other value sets still need
-  review. Native refinement tests and gallery text screenshots provide separate
-  evidence; physical OS cursor glyphs are not asserted.
+- `gpuix-values.json`: seven reviewed source-value sets: cursor, text overflow,
+  gradient color space, both grid minima, whitespace and text decoration. The
+  check requires complete mappings to public constructors for those declarations.
+  The [finite-value audit](../evidence/style-finite-values-och41.md) records grid
+  count and decoration replacement differences, paired field-byte tests and
+  native refinement/transaction validation. Native GPUIX renderer/style snapshots
+  support further audits of aliases and reset behavior. Other value sets and
+  component-root behavior remain under review; physical OS cursor glyphs are not
+  asserted by these checks.
 - `gpuix-events.json`: all 22 event properties, with current public contracts,
   exact pinned implementation links, remaining differences, owner and platform
   limits. General input observations now have local native and public gallery
