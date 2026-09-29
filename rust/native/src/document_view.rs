@@ -734,8 +734,7 @@ impl Presentation {
                     }
                     run.bytes = run.bytes.start - self.page_start..run.bytes.end - self.page_start;
                     if self.diff.is_some() && !word_diff {
-                        run.bold = false;
-                        run.underline = false;
+                        run.diff_emphasis = false;
                     }
                     Some(run)
                 })

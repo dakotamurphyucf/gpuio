@@ -4,6 +4,14 @@ Status: partial OCH-41 implementation. The gallery and catalog audit
 are not complete. This record is narrower than milestone 07 release acceptance.
 Local platform: macOS 14.5 (23F79), arm64. Use the pinned repository environment.
 
+The Documents section now includes multi-file diff controls, language syntax,
+managed/controlled expansion, preview/Show more, word policy and streamed file
+additions. The focused document driver passes on both the repository executable
+and an independently built consumer of staged public packages. See the
+[diff evidence](diff-controls-och41.md#filename-syntax-word-groups-and-public-gallery)
+for exact state, keyboard/AX and lifecycle assertions. This advances the focused
+section; combined gallery, release and Linux desktop acceptance remain separate.
+
 ## Implemented preview sections
 
 | Section | Native/public behavior exercised | Remaining coverage examples |

@@ -82,7 +82,12 @@ Unicode/CRLF payloads, old/new coordinates, drag/gutter exclusion and installed
 revision provenance. Per-file gutter controls and metadata now pass native
 pointer, Tab/Space/Enter, macOS AX, managed/controlled state, callback replacement,
 scrolling alignment and focus cleanup checks. Source text remains selectable in
-the same editor. Gallery/consumer, syntax parity and release gates remain; see the
+the same editor. Filename-based syntax now uses separate old/new language contexts,
+bounded background work and complete diff-color fallback. Word emphasis pairs
+equal-length replacement groups and preserves syntax styling when disabled. The
+public gallery and an independently installed consumer now pass focused native
+diff controls, line events, streaming and theme/size/reset checks. Broader header,
+combined gallery/consumer, performance and release gates remain; see the
 [diff controls evidence](evidence/diff-controls-och41.md).
 
 The macOS-first/Linux-deferral policy [PR #15](https://github.com/dakotamurphyucf/gpuio/pull/15)

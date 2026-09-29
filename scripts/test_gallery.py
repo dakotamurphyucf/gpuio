@@ -681,6 +681,7 @@ def exercise_documents(mac, images):
         assert value and '-let greeting' in value and '+let greeting' in value, value
     finally:
         mac.release(editor)
+    exercise_diff_controls(mac, images)
     mac.press(TITLE, 'Collapse')
     mac.release(mac.wait_find(TITLE, 'Expand', 'AXButton'))
     wait_absent(mac, 'Diff preview', 'AXTextArea')
@@ -707,6 +708,66 @@ def exercise_documents(mac, images):
         mac.release(mac.wait_find(TITLE, 'Copy code', 'AXButton'))
     mac.press(TITLE, 'Presentation')
     mac.wait_text(TITLE, 'A little context goes a long way')
+
+
+def exercise_diff_controls(mac, images):
+    def source(*, present=(), missing=()):
+        deadline = time.monotonic() + 10
+        value = None
+        while time.monotonic() < deadline:
+            value = mac.field(TITLE, 'Diff preview', 'AXTextArea')
+            if value is not None and all(s in value for s in present) and all(s not in value for s in missing):
+                return value
+            time.sleep(.025)
+        raise RuntimeError(f'Diff source mismatch: present={present!r}, missing={missing!r}, value={value!r}')
+
+    mac.release(mac.wait_find(TITLE, 'Collapse file greeting.ml', 'AXButton'))
+    mac.release(mac.wait_find(TITLE, 'Show more diff lines', 'AXButton'))
+    mac.press(TITLE, 'Collapse file greeting.ml')
+    mac.wait_text(TITLE, 'Collapsed greeting.ml')
+    source(present=('--- a/greeting.ml', 'settings.json'), missing=('-let greeting',))
+    mac.press(TITLE, 'Expand file greeting.ml')
+    mac.wait_text(TITLE, 'Expanded greeting.ml')
+    source(present=('-let greeting', '+let greeting'))
+    mac.press(TITLE, 'Show more diff lines')
+    mac.wait_text(TITLE, 'Showing up to 8 changed and context lines')
+    full = source(present=('"language": "世界"',))
+    wait_absent(mac, 'Show more diff lines', 'AXButton')
+    activate(mac, mac.wait_find(TITLE, 'Emphasize changed words', 'AXCheckBox'))
+    expect_field(mac, TITLE, 'Diff preview', full, role='AXTextArea')
+
+    activate(mac, mac.wait_find(TITLE, 'Application controls expansion', 'AXCheckBox'))
+    mac.release(mac.wait_find(TITLE, 'Show more diff lines', 'AXButton'))
+    mac.press(TITLE, 'Collapse file settings.json')
+    mac.wait_text(TITLE, 'Collapsed settings.json')
+    source(present=('--- a/settings.json',), missing=('"theme"',))
+    mac.press(TITLE, 'Expand file settings.json')
+    mac.wait_text(TITLE, 'Expanded settings.json')
+    mac.press(TITLE, 'Show more diff lines')
+    mac.wait_text(TITLE, 'Showing up to 8 changed and context lines')
+    expect_field(mac, TITLE, 'Diff preview', full, role='AXTextArea')
+
+    focus_gallery_control(mac, 'Diff preview', 'AXTextArea')
+    mac.key(126, 1 << 20)  # Command-Up: canonical first source row.
+    for _ in range(3):
+        mac.key(125)  # Down to the removed OCaml line.
+    mac.key(36)
+    mac.wait_text(TITLE, 'Selected greeting.ml · old 1 → new — · let greeting = "Hello"')
+    mac.press(TITLE, 'Append a file')
+    mac.wait_text(TITLE, 'Appended files: 1 / 3')
+    mac.press(TITLE, 'Show more diff lines')
+    mac.wait_text(TITLE, 'Showing up to 11 changed and context lines')
+    expanded = source(present=('worker-1.rs', '+fn main()', 'println!'))
+    cycle_preview_appearance(mac, 'Appended files: 1 / 3')
+    expect_field(mac, TITLE, 'Diff preview', expanded, role='AXTextArea')
+    if images:
+        screenshot(mac, images / 'gallery-diff-controls.png', title=TITLE)
+    mac.press(TITLE, 'Reset diff')
+    mac.wait_text(TITLE, 'Diff reset')
+    source(present=('-let greeting',), missing=('worker-1.rs', '"language"'))
+    mac.release(mac.wait_find(TITLE, 'Show more diff lines', 'AXButton'))
+    print('GALLERY_DIFF_OK: managed/controlled collapse and preview, public queued file/show-more/line events, '
+          'native keyboard activation, word-toggle source preservation, streamed file append, theme/scale retention and generation reset', flush=True)
 
 
 def wait_absent(mac, label, role):
@@ -1838,6 +1899,8 @@ def exercise_runtime(mac, images):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--images', type=Path)
+    parser.add_argument('--executable', type=Path,
+                        help='Run an independently built gallery instead of the repository executable')
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--section', choices=['all', 'core', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
@@ -1849,7 +1912,8 @@ def main():
     if args.section in ('all', 'extensions'):
         env['GPUIO_COUNTER_TRACE'] = '1'
     with tempfile.TemporaryFile(mode='w+') as log:
-        child = subprocess.Popen([str(repo / '_build/default/examples/gallery/main.exe'),
+        executable = args.executable.resolve() if args.executable else repo / '_build/default/examples/gallery/main.exe'
+        child = subprocess.Popen([str(executable),
                                   *(['--trace-canvas'] if args.trace_canvas else []),
                                   *(['--trace-motion'] if args.trace_motion else []),
                                   *(['--trace-input'] if args.section in ('all', 'input') else []),

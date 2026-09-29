@@ -127,6 +127,27 @@ and inline links with keyboard activation. Rich/image links, selected-text/range
 heading-level, table and broader screen-reader behavior remain open in the
 [document evidence ledger](../../docs/evidence/document-accessibility-och17.md).
 
+The Diff tab now previews an OCaml/JSON patch with per-file collapse, a four-row
+preview and native Show more. Application controls expansion switches between
+native-managed state and an OCaml reducer that applies typed requests. Word
+emphasis is independent of filename-based syntax colors. Append a file streams a
+Rust file into the same source; Reset diff starts a new source generation and
+restores expansion seeds. File/show-more/line observations update the preview
+notice; Enter on a source row demonstrates exact old/new coordinates and payload.
+The reducer keeps managed seeds stable when observations arrive.
+
+Build the entire gallery against staged installed public libraries, without
+installing into the active opam switch:
+
+```sh
+python3 scripts/test_extension_consumer.py --example gallery --workspace scratch/gallery-consumer
+```
+
+On macOS, add `--run --gallery-section documents` for the focused native document
+driver, or `--run` for the full gallery driver. The driver accepts `--executable`
+to rerun an already built independent gallery. A focused pass is not combined
+catalog or clean-machine release acceptance.
+
 The initial macOS test covers semantic navigation, button actions, OS typing and
 submission, theme/size changes without resetting the editor, independent windows,
 repeated page unmount/remount and window shutdown. It is not an OS IME or complete

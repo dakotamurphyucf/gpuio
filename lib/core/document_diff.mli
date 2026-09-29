@@ -1,7 +1,8 @@
 open Core
 
-(** Diff control values. Mounted document integration is in progress; these
-    constructors alone do not enable per-file controls in a view. *)
+(** Per-file collapse, row previews and source-provenance observations.
+    Pass [Config.t] to [Document.Config.create ~diff] and receive queued events
+    through [View.document ~on_diff]. No synchronous native callback is exposed. *)
 module File_key : sig
   type t =
     | Path of string
@@ -22,7 +23,7 @@ end
 
 module Line_limit : sig
   (** Counts expanded context/added/removed/annotation rows, not headers.
-      [None] is unlimited; a limit is0..8192, a step is1..8192. Collapsed bodies
+      [None] is unlimited; a limit is 0..8192, a step is 1..8192. Collapsed bodies
       do not contribute to the hidden count used by Show more. *)
   type t =
     | Managed of
@@ -36,9 +37,9 @@ end
 module Config : sig
   type t [@@deriving equal, sexp_of]
 
-  (** Defaults: managed expanded files, unlimited rows, step200, word emphasis.
-      Keys must be unique (at most8192); named paths are1..4096 UTF-8 bytes,
-      NUL-free labels with no filesystem behavior. Encoded config <=256KiB.
+  (** Defaults: managed expanded files, unlimited rows, step 200, word emphasis.
+      Keys must be unique (at most 8192); named paths are 1..4096 UTF-8 bytes,
+      NUL-free labels with no filesystem behavior. Encoded config <=256 KiB.
       Unknown keys are valid for future streamed file headers. *)
   val create
     :  ?collapse:Collapse.t

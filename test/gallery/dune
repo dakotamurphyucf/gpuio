@@ -1,6 +1,6 @@
 (library
  (name gpuio_gallery_tests)
- (libraries core gpuio gpuio_gallery_model)
+ (libraries core gpuio gpuio_protocol gpuio_gallery_model)
  (inline_tests)
  (preprocess
   (pps ppx_jane ppx_expect)))

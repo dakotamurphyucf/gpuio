@@ -23,12 +23,31 @@ pub struct Run {
     pub bold: bool,
     pub italic: bool,
     pub underline: bool,
+    /// Diff word emphasis is independent of a grammar's own font styling.
+    pub diff_emphasis: bool,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {
     Limit,
     Cancelled,
     Grammar,
+}
+
+/// Resolve a display path without accessing the filesystem. Unknown extensions
+/// retain diff colors rather than pretending to recognize a language.
+pub fn language_for_path(path: &str) -> Option<&'static str> {
+    let path = path
+        .strip_prefix('"')
+        .and_then(|p| p.strip_suffix('"'))
+        .unwrap_or(path);
+    let name = path.rsplit('/').next()?;
+    let extension = name
+        .rsplit_once('.')
+        .map_or(name, |(_, extension)| extension);
+    syntaxes()
+        .find_syntax_by_extension(extension)
+        .or_else(|| syntaxes().find_syntax_by_extension(name))
+        .map(|syntax| syntax.name.as_str())
 }
 
 /// Complete bounded input only. A limit/error returns no partially colored
@@ -83,6 +102,7 @@ pub fn highlight(
                     bold: style.font_style.contains(FontStyle::BOLD),
                     italic: style.font_style.contains(FontStyle::ITALIC),
                     underline: style.font_style.contains(FontStyle::UNDERLINE),
+                    diff_emphasis: false,
                 });
             }
             offset = end;

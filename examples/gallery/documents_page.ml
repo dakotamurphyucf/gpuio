@@ -4,6 +4,7 @@ module B = Bonsai.Cont
 module E = Bonsai.Effect
 module V = Gpuio_bonsai.View
 module D = Gpuio_eio.Document
+module Diff_state = Gpuio_gallery_model.Diff_state
 
 let ok = Or_error.ok_exn
 let style = Style.create_exn
@@ -15,6 +16,7 @@ module Resources = struct
     ; code : D.t
     ; diff : D.t
     ; mutable fragments : int
+    ; mutable diff_fragments : int
     }
 
   let intro =
@@ -40,7 +42,15 @@ module Resources = struct
      @@ -1,2 +1,2 @@\n\
      -let greeting = \"Hello\"\n\
      +let greeting = \"Hello, 世界\"\n\
-    \ let answer = 42\n"
+    \ let answer = 42\n\
+     --- a/settings.json\n\
+     +++ b/settings.json\n\
+     @@ -1,4 +1,4 @@\n\
+    \ {\n\
+     -  \"theme\": \"light\",\n\
+     +  \"theme\": \"dark\",\n\
+    \   \"language\": \"世界\"\n\
+    \ }\n"
   ;;
 
   let create app scope =
@@ -60,8 +70,10 @@ module Resources = struct
               | Error error -> E.return (Error error)
               | Ok code ->
                 E.map
-                  (create (Text_source.of_string diff |> ok))
-                  ~f:(Result.map ~f:(fun diff -> { markdown; code; diff; fragments = 0 }))))
+                  (create (Text_source.of_string ~status:Streaming diff |> ok))
+                  ~f:
+                    (Result.map ~f:(fun diff ->
+                       { markdown; code; diff; fragments = 0; diff_fragments = 0 }))))
   ;;
 
   let append t =
@@ -88,6 +100,28 @@ module Resources = struct
   ;;
 
   let reset t = Result.map (D.reset t.markdown intro) ~f:(fun () -> t.fragments <- 0)
+
+  let append_diff t =
+    if t.diff_fragments = 3
+    then Ok t.diff_fragments
+    else (
+      let next = t.diff_fragments + 1 in
+      let fragment =
+        sprintf
+          "--- /dev/null\n\
+           +++ b/worker-%d.rs\n\
+           @@ -0,0 +1,3 @@\n\
+           +fn main() {\n\
+           +    println!(\"Hello, 世界\");\n\
+           +}\n"
+          next
+      in
+      Result.map (D.append t.diff fragment) ~f:(fun () ->
+        t.diff_fragments <- next;
+        next))
+  ;;
+
+  let reset_diff t = Result.map (D.reset t.diff diff) ~f:(fun () -> t.diff_fragments <- 0)
 end
 
 module Mode = struct
@@ -117,9 +151,18 @@ let component app window palette graph =
   let mode, set_mode = B.state Mode.Markdown graph in
   let notice, set_notice = B.state "Ready to explore" graph in
   let highlight, toggle_highlight = B.toggle ~default_model:false graph in
+  let diff_state, inject_diff =
+    B.state_machine0
+      ~default_model:Diff_state.initial
+      ~apply_action:(fun _ state action -> Diff_state.apply state action)
+      graph
+  in
   let open B.Let_syntax in
   B.Edge.lifecycle
-    ~on_deactivate:(B.map set_notice ~f:(fun set_notice -> set_notice "Ready to explore"))
+    ~on_deactivate:
+      (let%arr set_notice = set_notice
+       and inject_diff = inject_diff in
+       E.Many [ set_notice "Ready to explore"; inject_diff Diff_state.Action.Reset ])
     graph;
   let%arr resources = resources
   and p = palette
@@ -128,7 +171,9 @@ let component app window palette graph =
   and notice = notice
   and set_notice = set_notice
   and highlight = highlight
-  and toggle_highlight = toggle_highlight in
+  and toggle_highlight = toggle_highlight
+  and diff_state = diff_state
+  and inject_diff = inject_diff in
   match resources with
   | Loading -> Palette.text p "Preparing document previews…"
   | Failed error ->
@@ -156,8 +201,12 @@ let component app window palette graph =
         ~search:(if highlight then "let" else "")
         ?path:
           (match mode with
-           | Markdown -> None
-           | Code | Diff -> Some "greeting.ml")
+           | Markdown | Diff -> None
+           | Code -> Some "greeting.ml")
+        ?diff:
+          (match mode with
+           | Diff -> Some (Diff_state.config diff_state)
+           | Markdown | Code -> None)
         ()
       |> ok
     in
@@ -174,22 +223,54 @@ let component app window palette graph =
       ; Palette.card
           p
           ~title:"Words that keep their shape"
-          [ V.row
-              ~style:(style [ Gap (px 10.); Wrap Wrap ])
-              [ Palette.button
-                  p
-                  "Append a finding"
-                  (run (fun () ->
-                     Result.map (Resources.append resources) ~f:(fun n ->
-                       sprintf "Appended findings: %d / 6" n)))
-              ; Palette.button
-                  p
-                  "Reset document"
-                  (run (fun () ->
-                     Result.map (Resources.reset resources) ~f:(fun () ->
-                       "Document reset")))
-              ; V.switch ~checked:highlight ~on_toggle:toggle_highlight "Highlight let"
-              ]
+          [ (match mode with
+             | Diff ->
+               V.row
+                 ~style:(style [ Gap (px 10.); Wrap Wrap ])
+                 [ V.switch
+                     ~checked:(Diff_state.controlled diff_state)
+                     ~on_toggle:(inject_diff Diff_state.Action.Toggle_controlled)
+                     "Application controls expansion"
+                 ; V.switch
+                     ~checked:(Diff_state.word_diff diff_state)
+                     ~on_toggle:(inject_diff Diff_state.Action.Toggle_words)
+                     "Emphasize changed words"
+                 ; Palette.button
+                     p
+                     "Append a file"
+                     (run (fun () ->
+                        Result.map (Resources.append_diff resources) ~f:(fun n ->
+                          sprintf "Appended files: %d / 3" n)))
+                 ; Palette.button
+                     p
+                     "Reset diff"
+                     (E.bind
+                        (E.of_thunk (fun () -> Resources.reset_diff resources))
+                        ~f:(function
+                          | Error error -> set_notice (Error.to_string_hum error)
+                          | Ok () ->
+                            E.Many
+                              [ inject_diff Diff_state.Action.Reset
+                              ; set_notice "Diff reset"
+                              ]))
+                 ]
+             | Markdown | Code ->
+               V.row
+                 ~style:(style [ Gap (px 10.); Wrap Wrap ])
+                 [ Palette.button
+                     p
+                     "Append a finding"
+                     (run (fun () ->
+                        Result.map (Resources.append resources) ~f:(fun n ->
+                          sprintf "Appended findings: %d / 6" n)))
+                 ; Palette.button
+                     p
+                     "Reset document"
+                     (run (fun () ->
+                        Result.map (Resources.reset resources) ~f:(fun () ->
+                          "Document reset")))
+                 ; V.switch ~checked:highlight ~on_toggle:toggle_highlight "Highlight let"
+                 ])
           ; V.document
               ~key:(Key.of_string_exn (Mode.label mode))
               ~style:
@@ -210,8 +291,18 @@ let component app window palette graph =
                         | After -> "after")
                        (Option.value path ~default:"document")
                        line))
+              ?on_diff:
+                (match mode with
+                 | Diff ->
+                   Some (fun event -> inject_diff (Diff_state.Action.Observe event))
+                 | Markdown | Code -> None)
               config
-          ; Palette.text p ~muted:true notice
+          ; Palette.text
+              p
+              ~muted:true
+              (match mode with
+               | Diff -> Diff_state.notice diff_state ^ "\n" ^ notice
+               | Markdown | Code -> notice)
           ; Palette.text
               p
               ~muted:true

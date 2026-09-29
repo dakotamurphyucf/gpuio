@@ -187,6 +187,8 @@ pub fn run_native_table_history_test() {
 pub mod document_diff;
 pub mod document_diff_controls;
 pub mod document_diff_projection;
+mod document_diff_syntax;
+mod document_diff_words;
 
 pub mod document_markdown;
 

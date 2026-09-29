@@ -510,6 +510,7 @@ mod tests {
             assert_eq!(run.foreground, original.foreground);
             assert_eq!(run.background, original.background);
             assert_eq!(run.bold, original.bold);
+            assert_eq!(run.diff_emphasis, original.diff_emphasis);
         }
         assert_eq!(p.hunks(&diff), vec![5..8]);
         let header = p.rows()[5].source_line;

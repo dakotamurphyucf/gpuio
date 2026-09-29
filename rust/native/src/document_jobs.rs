@@ -212,11 +212,32 @@ impl Work {
                 }
                 Mode::Diff => {
                     let start = Instant::now();
-                    let diff = crate::document_diff::parse(&text, cancelled)
-                        .ok_or(Error::ResourceLimit)?;
+                    let diff = crate::document_diff::parse(&text, cancelled).ok_or_else(|| {
+                        if cancelled() {
+                            Error::Cancelled
+                        } else {
+                            Error::ResourceLimit
+                        }
+                    })?;
                     measurements.parse_us = start.elapsed().as_micros();
+                    let start = Instant::now();
+                    let runs = match crate::document_diff_syntax::highlight(
+                        &text,
+                        &diff,
+                        self.request.dark,
+                        cancelled,
+                    ) {
+                        Ok(runs) => runs,
+                        Err(highlight::Error::Cancelled) => return Err(Error::Cancelled),
+                        // Syntax is optional; keep complete diff semantics on a
+                        // grammar/work-limit failure, never a colored prefix.
+                        Err(highlight::Error::Limit | highlight::Error::Grammar) => {
+                            crate::document_diff::highlights(&diff, self.request.dark)
+                        }
+                    };
+                    measurements.highlight_us = start.elapsed().as_micros();
                     Prepared::Diff {
-                        runs: crate::document_diff::highlights(&diff, self.request.dark),
+                        runs,
                         document: diff,
                     }
                 }
@@ -322,14 +343,12 @@ impl Pool {
                 continue;
             }
             // Conservative work/cache units, distinct from measured allocator RSS.
-            let bytes = 4096
-                + entry
-                    .request
-                    .snapshot
-                    .text
-                    .len()
-                    .min(highlight::MAX_HIGHLIGHT_BYTES)
-                    * 32;
+            let source_bytes = entry.request.snapshot.text.len();
+            let bytes = if matches!(entry.request.mode, Mode::Diff) {
+                crate::document_diff_syntax::work_units(source_bytes)
+            } else {
+                4096 + source_bytes.min(highlight::MAX_HIGHLIGHT_BYTES) * 32
+            };
             let reserved = self.reserved.load(Ordering::Relaxed);
             if bytes > MAX_RESERVED_BYTES - reserved {
                 entry.completed = entry.serial;
@@ -466,6 +485,29 @@ mod tests {
             dark: true,
             search: String::new(),
         }
+    }
+
+    #[test]
+    fn diff_syntax_limit_keeps_complete_diff_controls_and_colors() {
+        let text = format!(
+            "--- /dev/null\n+++ b/many.ml\n@@ -0,0 +1,3000 @@\n{}",
+            "+let value = 42 (* note *)\n".repeat(3000)
+        );
+        let mut request = request(&text);
+        request.mode = Mode::Diff;
+        let mut pool = Pool::default();
+        let handle = pool.request(request).unwrap();
+        let work = pool.next_work().unwrap();
+        pool.complete(work.run());
+        let ready = handle.take_ready().unwrap().unwrap();
+        let Prepared::Diff { document, runs } = ready.prepared else {
+            panic!("syntax limits must not disable diff controls")
+        };
+        assert_eq!(document.files[0].added, 3000);
+        assert_eq!(runs, crate::document_diff::highlights(&document, true));
+        assert_eq!(runs.last().unwrap().bytes.end, text.len());
+        drop(ready.charge);
+        assert_eq!(pool.reserved_bytes(), 0);
     }
 
     #[test]

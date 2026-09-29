@@ -7,8 +7,9 @@ also exist. Mounted configuration now drives one projected native editor, with
 selection/page/search and GPU highlight evidence. Show more also has native
 pointer/keyboard/macOS accessibility and queued-event evidence. Rich line
 activation now also has mounted pointer/Enter/AX evidence. Per-file headers have
-native collapse controls, metadata and pointer/keyboard/AX checks.
-Gallery/consumer and broader release acceptance remain pending.
+native collapse controls, metadata and pointer/keyboard/AX checks. The public
+gallery demonstrates managed/controlled expansion, streaming and queued events.
+Broader gallery/consumer and release acceptance remain pending.
 This document does not advertise a capability.
 
 The reference is GPUIX at
@@ -242,6 +243,39 @@ projection updates. Tab traverses viewport headers before the source editor;
 removing a focused header returns focus to the primary document control. Raw
 source and non-diff modes clear the adornments.
 
+## Syntax and word emphasis
+
+Background preparation resolves each side's language from its own filename label,
+without opening the file. Deleted lines use the old language, added lines the new
+language, and context uses the new side (or the old side if only that language is
+recognized). The two grammar states are independent, including on language-changing
+renames. Synthetic side buffers omit diff markers and annotations; UTF-8 intervals
+map tokens back onto exact canonical payload ranges. Source markers, line endings,
+metadata colors, diff backgrounds and selection coordinates remain intact.
+
+Each hunk starts a fresh syntax context. A patch cannot recover lexical state from
+omitted source; carrying a comment/string through an unknown gap can miscolor later
+hunks. No padding or array is indexed by original line numbers, so a distant hunk
+does not inflate work. Unknown languages keep diff colors. Syntax errors or run
+limits fall back to complete diff coloring while retaining controls; cancellation
+remains cancellation. Admission includes side buffers, parser metadata, row maps,
+and intermediate/final run vectors under the shared work budget. Highlighting stays
+off layout/paint and capped at the existing limit of 32,768 runs.
+
+Word emphasis pairs equal-length contiguous removal/addition groups by line index
+within each hunk. Unequal groups retain ordinary diff colors rather than guessing
+which lines correspond. Common prefix/suffix comparison uses Unicode alphanumeric
+or underscore word tokens, with punctuation/whitespace as individual tokens. It is
+linear trimming, not full LCS. Emphasis is separate from syntax font flags:
+`word_diff=false` removes only change emphasis, preserving grammar styling.
+
+The public Documents gallery's Diff tab uses a small OCaml reducer for controlled
+requests; managed observations leave its native initialization seeds unchanged.
+It shows multiple file languages, bounded preview/Show more, file and line events,
+streamed file additions and source-generation reset. The gallery can also be built
+against a staged installation without changing any opam switch. See its README
+and the focused evidence before treating the larger catalog as accepted.
+
 ## Acceptance still required
 
 The projection unit tests cover bytes, hidden gaps, selection transfer, syntax and
@@ -254,7 +288,10 @@ selection/direction, canonical navigation/search, bounded-page and source-revisi
 checks. Native GPU checks cover projected matches, selection precedence, hunk
 folding and retired painter disposal. Per-file pointer, Tab/Space/Enter and macOS
 AX actions now pass, including managed/controlled ownership, handler refresh,
-scrolling and focus cleanup. Completion still requires broader source/page/search/copy
-behavior; selection and GPU highlight mapping under streaming; bounded lifetime/resource tests; the public
-gallery and independent consumer; and the required release gates. Audit word-diff
-options and path-based syntax behavior separately before claiming GPUIX parity.
+scrolling and focus cleanup. Focused public gallery and independently installed
+consumer checks now pass for managed/controlled expansion, word configuration,
+typed line actions, streaming, theme/size retention and reset. Syntax and word
+group tests pass separately. Completion still requires broader header horizontal
+clipping, source/page/search/copy and streaming/selection behavior, bounded
+application resource/performance tests, the combined gallery/consumer matrix and
+required release gates. These checks do not establish all GPUIX behavior parity.

@@ -190,7 +190,6 @@ pub fn parse(text: &str, cancelled: impl Fn() -> bool) -> Option<Diff> {
     let mut offset = 0;
     let mut unified_header = false;
     let mut coordinates: Option<((usize, usize), (usize, usize))> = None;
-    let mut previous_removed: Option<usize> = None;
     for raw in text.split_inclusive('\n') {
         if cancelled() || diff.lines.len() >= 8192 || raw.len() > 16384 {
             return None;
@@ -329,38 +328,13 @@ pub fn parse(text: &str, cancelled: impl Fn() -> bool) -> Option<Diff> {
                 Kind::Added | Kind::Removed | Kind::Context | Kind::Meta
             ));
         }
-        if kind == Kind::Added
-            && let Some(previous) = previous_removed
-        {
-            let old: &Line = &diff.lines[previous];
-            let a = without_line_ending(&text[old.bytes.start + 1..old.bytes.end]);
-            let b = value.get(1..).unwrap_or("");
-            let prefix = a
-                .chars()
-                .zip(b.chars())
-                .take_while(|(a, b)| a == b)
-                .map(|(a, _)| a.len_utf8())
-                .sum::<usize>();
-            let suffix = a[prefix..]
-                .chars()
-                .rev()
-                .zip(b[prefix..].chars().rev())
-                .take_while(|(a, b)| a == b)
-                .map(|(a, _)| a.len_utf8())
-                .sum::<usize>();
-            let old_start = old.bytes.start + 1;
-            let a_len = a.len();
-            diff.lines[previous].changed = Some(old_start + prefix..old_start + a_len - suffix);
-            diff.lines[index].changed = Some(offset + 1 + prefix..offset + 1 + b.len() - suffix);
-        }
-        previous_removed = (kind == Kind::Removed).then_some(index);
         offset += raw.len();
         if coordinates.is_some_and(|(old, new)| old.1 == 0 && new.1 == 0) {
             coordinates = None;
         }
     }
     diff.finish_file(diff.lines.len());
-    Some(diff)
+    crate::document_diff_words::annotate(text, &mut diff, cancelled).then_some(diff)
 }
 pub fn highlights(diff: &Diff, dark: bool) -> Vec<crate::document_highlight::Run> {
     let mut runs = Vec::new();
@@ -388,9 +362,10 @@ pub fn highlights(diff: &Diff, dark: bool) -> Vec<crate::document_highlight::Run
                     bytes,
                     foreground,
                     background,
-                    bold: emphasis,
+                    bold: false,
                     italic: false,
-                    underline: emphasis,
+                    underline: false,
+                    diff_emphasis: emphasis,
                 });
             }
         };

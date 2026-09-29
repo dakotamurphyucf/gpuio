@@ -258,28 +258,34 @@
     },
     {
       "source_event": "onToggleFile",
-      "status": "partial",
+      "status": "mapped_with_difference",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/custom_elements/diff.rs#L660",
       "public_interfaces": [
-        "lib/core/document.mli"
+        "lib/core/document_diff.mli",
+        "lib/core/document.mli",
+        "lib/core/view.mli",
+        "lib/bonsai/gpuio_bonsai.mli"
       ],
-      "contract": "Document has native whole-document collapse and an initially_collapsed mount/reset value.",
-      "remaining": "Per-file path collapse observations and application-controlled collapsedPaths are absent; whole-document collapse is not equivalent.",
-      "evidence": "docs/evidence/document-accessibility-och17.md",
+      "contract": "Document.Diff.Observation.Toggle_file reports file index/key, before/after paths, requested collapse and whether native-managed ownership applied it. Controlled path keys queue intent and await application configuration; native pointer, keyboard and AX share lifecycle fences.",
+      "remaining": "Focused native, public gallery and independently installed consumer macOS document checks pass, including streaming/reset and theme/size retention. Broader header horizontal/streaming acceptance, combined gallery matrix, application budgets and consolidated release gates remain open. No extended-diff capability is advertised yet.",
+      "evidence": "docs/evidence/diff-controls-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
       "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
     },
     {
       "source_event": "onShowMore",
-      "status": "partial",
+      "status": "mapped_with_difference",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/custom_elements/diff.rs#L614",
       "public_interfaces": [
-        "lib/core/document.mli"
+        "lib/core/document_diff.mli",
+        "lib/core/document.mli",
+        "lib/core/view.mli",
+        "lib/bonsai/gpuio_bonsai.mli"
       ],
-      "contract": "Documents bound preparation and support viewport/flow presentations.",
-      "remaining": "No configurable diff maxLines/show-more control or hidden-count observation; bounding work alone is not equivalent.",
-      "evidence": "docs/evidence/document-accessibility-och17.md",
+      "contract": "Document.Diff.Line_limit supports managed initial/step and controlled body-row limits. Show_more reports visible and hidden expanded body counts plus the managed applied limit. Per-file collapsed rows do not count as hidden preview rows.",
+      "remaining": "Focused native, public gallery and independently installed consumer macOS document checks pass, including streaming/reset and theme/size retention. Broader header horizontal/streaming acceptance, combined gallery matrix, application budgets and consolidated release gates remain open. No extended-diff capability is advertised yet.",
+      "evidence": "docs/evidence/diff-controls-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
       "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."
@@ -289,11 +295,14 @@
       "status": "mapped_with_difference",
       "upstream": "https://github.com/remorses/gpuix/blob/18e695ed0ee8121a7793413ca795e08eda2a13df/packages/native/src/custom_elements/diff.rs#L842",
       "public_interfaces": [
-        "lib/core/document.mli"
+        "lib/core/document_diff.mli",
+        "lib/core/document.mli",
+        "lib/core/view.mli",
+        "lib/bonsai/gpuio_bonsai.mli"
       ],
-      "contract": "Document.Navigation.Line reports path, Before/After side and one-based source line.",
-      "remaining": "GPUIX supplies clicked line text plus old/new line numbers. Review callers needing paired-line/content observations before claiming full event equivalence.",
-      "evidence": "docs/evidence/document-accessibility-och17.md",
+      "contract": "Document.Diff.Observation.Line reports exact canonical UTF-8 payload bytes/text, file index/key/paths and both optional old/new line numbers, with installed source revision/generation. Native text click, Enter and Go to line activate; selection drags/gutter actions do not. Legacy Navigation.Line remains available separately.",
+      "remaining": "Focused native, public gallery and independently installed consumer macOS document checks pass, including streaming/reset and theme/size retention. Broader header horizontal/streaming acceptance, combined gallery matrix, application budgets and consolidated release gates remain open. No extended-diff capability is advertised yet.",
+      "evidence": "docs/evidence/diff-controls-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
       "platform": "Existing evidence is macOS/local and linked historical gates; Linux GUI deferred to OCH-47. This row is not consolidated release acceptance."

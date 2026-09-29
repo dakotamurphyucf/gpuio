@@ -311,3 +311,73 @@ This is native synthetic input and AX-action evidence, not physical keyboard/IME
 or VoiceOver qualification. Broader header horizontal-clipping/streaming acceptance,
 path-based syntax parity, gallery/independent consumer and all remaining milestone07
 release gates stay open. No new capability is advertised at this checkpoint.
+
+## Filename syntax, word groups and public gallery
+
+The bounded worker now colors payloads using separate old/new filename languages.
+Mapped tokens preserve canonical UTF-8/CRLF payload offsets, metadata/markers,
+diff backgrounds and source selection. Hunk gaps reset syntax state; no absent
+source is read or padded to original line numbers. Unknown languages retain diff
+colors. A syntax-run or grammar failure preserves the full parsed diff/control
+presentation rather than a partially colored prefix. Shared admission now accounts
+for temporary side buffers, metadata/mappings and intermediate/final run vectors.
+
+The audit also corrected word pairing: equal-length contiguous delete/add groups
+pair by index, while unequal groups remain unpaired. Prefix/suffix trimming compares
+Unicode word tokens, keeping identifier changes coherent. This matches the pinned
+GPUIX algorithm's intent without a quadratic LCS. The previous adjacent-pair logic
+could compare the last deletion with the first addition of a multi-line group.
+Change emphasis has its own flag; disabling it no longer erases syntax font styles.
+
+Forty-seven document-related Rust tests pass, including renamed language selection,
+independent multiline comment state, hunk gaps at large coordinates, complete run
+coverage/backgrounds, cancellation, unknown/quoted paths, syntax-budget fallback,
+replacement grouping and every prefix of a streamed Unicode patch. The worker
+fallback test verifies that controls and full diff colors survive run exhaustion.
+Core gallery expect tests verify managed seed retention, controlled collapse/limit
+updates, word policy/reset and obsolete ownership-intent rejection.
+
+The public Documents gallery now uses explicit diff configuration and queued
+observations. Its native macOS document driver passes managed and controlled file
+collapse/expand, preview/Show more, native keyboard line activation with exact text
+and old/new coordinates, word-toggle source preservation, streamed Rust-file
+addition, theme/size retention, generation reset and repeated page teardown.
+A captured gallery image was inspected for actual OCaml/JSON syntax coloring and
+header metadata. That image is visual evidence, not the interaction assertion.
+
+An independently staged installation also builds the entire gallery and passes
+the same focused document driver. The staging prefix is separate from the opam
+switch. The generated composed backend uses the existing locked counter package;
+the app copies only public gallery/example sources. CI now requires this gallery
+consumer build on macOS and Linux; hosted execution has not run for this checkpoint.
+The driver's `--executable` option targets the independent binary. Its initial
+keyboard check was corrected to wait for native focus before posting OS keys.
+
+Local macOS14.5 arm64 commands/results:
+
+```sh
+./scripts/gpuio exec cargo test -p gpuio-native --lib document_ --features native-image-tests --locked -j2
+./scripts/gpuio exec cargo clippy -p gpuio-native -p gpuio-protocol --all-targets --features native-image-tests --locked -j2 -- -D warnings
+./scripts/gpuio exec cargo check -p gpuio-native --features native-tests --locked -j2
+./scripts/gpuio exec dune build examples/gallery/main.exe @test/gallery/runtest @test/document_diff/runtest
+./scripts/gpuio exec dune build @fmt @test/gallery/runtest @test/document_diff/runtest
+python3 scripts/test_gallery.py --section documents
+python3 scripts/test_extension_consumer.py --example gallery --workspace SCRATCH_CONSUMER
+python3 scripts/test_gallery.py --executable SCRATCH_CONSUMER/consumer/_build/default/main.exe --section documents
+python3 scripts/audit_component_catalog.py
+```
+
+`SCRATCH_CONSUMER` denotes a fresh ignored staging directory. After the final Rust
+word-pair correction, that existing consumer was rebuilt against the updated Rust
+source using its staged `OCAMLPATH` before running the driver. Native document and
+GPU highlight targets were compiled with `cargo test ... --no-run`, then the two
+reported executables ran sequentially under 90-second watchdogs. Both pass;
+the final document run reports peak RSS75,399,168 bytes (diagnostic, not a budget).
+Formatting, Python compilation and whitespace checks pass. No Base fork change
+was needed for this syntax/gallery work.
+
+The combined gallery/consumer matrix, broader header horizontal clipping and
+streaming/selection cases, application performance/resource limits, full macOS
+accessibility/input/distribution and consolidated hosted gates remain open.
+This focused evidence does not claim full catalog parity, Linux GUI qualification
+or completion of OCH-41/OCH-17, and advertises no new capability.

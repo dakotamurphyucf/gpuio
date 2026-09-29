@@ -129,6 +129,9 @@ jobs:
       - name: Independent native extension consumer
         id: extension-consumer
         run: python3 scripts/test_extension_consumer.py 2>&1 | tee .cache/ci/extension-consumer.log
+      - name: Independent public gallery consumer
+        id: gallery-consumer
+        run: python3 scripts/test_extension_consumer.py --example gallery 2>&1 | tee .cache/ci/gallery-consumer.log
       - name: Independent Signal Studio consumer
         id: signal-consumer
         run: |
