@@ -2,6 +2,9 @@
 use super::*;
 use gpuio_protocol::document_diff::{Collapse, FileKey};
 
+#[path = "document_diff_retention_test.rs"]
+mod retention;
+
 const PATCH: &str = "--- a/世界.ml\n+++ b/世界.ml\n@@ -1 +1 @@\n-old λ\n+new 🦀\n--- a/second.ml\n+++ b/second.ml\n@@ -1 +1 @@\n keep β\n";
 
 fn settings(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>, collapse: Collapse) {
@@ -348,6 +351,7 @@ pub(super) async fn exercise(
             .document_request(Request::Release(source)),
         Response::Ack
     );
+    retention::exercise(cx, window, session).await;
     eprintln!(
         "GPUIO_NATIVE_DIFF_HEADERS_OK: measured pointer, Tab/Space/Enter, macOS AX press; managed and controlled per-file collapse, callback refresh, current-frame scrolling, stale page/offscreen rejection and focus cleanup"
     );

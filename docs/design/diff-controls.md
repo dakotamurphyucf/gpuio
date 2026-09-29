@@ -27,8 +27,8 @@ Bonsai `View.document ?on_diff` now share the document node's handler router wit
 unchanged navigation. Supplying `on_diff` without explicit diff configuration is
 a reconciliation error. Controlled collapse and preview settings now change the
 mounted editor. Show more supports managed updates and controlled asynchronous
-intent. Rich line observations are mounted; interactive file headers remain
-unfinished.
+intent. Rich line observations and interactive file headers are mounted, with
+local native and public-gallery evidence.
 
 The following constructors exist under `Document.Diff`:
 
@@ -114,6 +114,9 @@ one editor per line/file and preserves the existing native input/selection engin
 - Native selection copies the selected visible text. It cannot silently include
   collapsed rows crossed by a display selection. Copy source still copies the
   complete canonical source, including hidden and preview-limited content.
+- File-header presses take native control focus without starting a source-editor
+  selection. Collapsing an unrelated file therefore preserves selected source
+  bytes; decoration text never enters the selection or clipboard.
 - A projection change preserves anchor/caret direction only when the exact selected
   source intervals and bytes remain one contiguous display interval. Otherwise it
   clears selection. A caret at a join belongs to the following visible source row;
@@ -291,7 +294,10 @@ AX actions now pass, including managed/controlled ownership, handler refresh,
 scrolling and focus cleanup. Focused public gallery and independently installed
 consumer checks now pass for managed/controlled expansion, word configuration,
 typed line actions, streaming, theme/size retention and reset. Syntax and word
-group tests pass separately. Completion still requires broader header horizontal
-clipping, source/page/search/copy and streaming/selection behavior, bounded
-application resource/performance tests, the combined gallery/consumer matrix and
-required release gates. These checks do not establish all GPUIX behavior parity.
+group tests pass separately. Wide-header checks now force horizontal scrolling,
+verify shaped suffix alignment, gutter clipping and full caption reachability.
+Native clipboard and backwards selection survive streamed appends and collapse
+of preceding files; page replacement retires old header geometry and repairs focus.
+Completion still requires bounded application resource/performance tests, the
+combined gallery/consumer matrix, broader input/accessibility and required release
+gates. These checks do not establish all GPUIX behavior parity.

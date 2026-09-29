@@ -86,8 +86,11 @@ the same editor. Filename-based syntax now uses separate old/new language contex
 bounded background work and complete diff-color fallback. Word emphasis pairs
 equal-length replacement groups and preserves syntax styling when disabled. The
 public gallery and an independently installed consumer now pass focused native
-diff controls, line events, streaming and theme/size/reset checks. Broader header,
-combined gallery/consumer, performance and release gates remain; see the
+diff controls, line events, streaming and theme/size/reset checks. Wide headers
+now pass actual horizontal-scroll geometry/clipping checks, and a native selection
+regression fixes file-button presses clearing selected source text. Streamed
+selection/copy and bounded-page focus retirement also pass. Combined
+gallery/consumer, performance and release gates remain; see the
 [diff controls evidence](evidence/diff-controls-och41.md).
 
 The macOS-first/Linux-deferral policy [PR #15](https://github.com/dakotamurphyucf/gpuio/pull/15)

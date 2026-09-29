@@ -267,7 +267,7 @@
         "lib/bonsai/gpuio_bonsai.mli"
       ],
       "contract": "Document.Diff.Observation.Toggle_file reports file index/key, before/after paths, requested collapse and whether native-managed ownership applied it. Controlled path keys queue intent and await application configuration; native pointer, keyboard and AX share lifecycle fences.",
-      "remaining": "Focused native, public gallery and independently installed consumer macOS document checks pass, including streaming/reset and theme/size retention. Broader header horizontal/streaming acceptance, combined gallery matrix, application budgets and consolidated release gates remain open. No extended-diff capability is advertised yet.",
+      "remaining": "Focused native, public gallery and independently installed consumer macOS document checks pass, including streaming/reset and theme/size retention. Additional native wide-header clipping/scroll extent, streamed backwards selection/clipboard and page-focus retirement checks pass. Combined gallery/consumer matrix, broader input/accessibility, application budgets and consolidated release gates remain open. No extended-diff capability is advertised yet.",
       "evidence": "docs/evidence/diff-controls-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
@@ -284,7 +284,7 @@
         "lib/bonsai/gpuio_bonsai.mli"
       ],
       "contract": "Document.Diff.Line_limit supports managed initial/step and controlled body-row limits. Show_more reports visible and hidden expanded body counts plus the managed applied limit. Per-file collapsed rows do not count as hidden preview rows.",
-      "remaining": "Focused native, public gallery and independently installed consumer macOS document checks pass, including streaming/reset and theme/size retention. Broader header horizontal/streaming acceptance, combined gallery matrix, application budgets and consolidated release gates remain open. No extended-diff capability is advertised yet.",
+      "remaining": "Focused native, public gallery and independently installed consumer macOS document checks pass, including streaming/reset and theme/size retention. Additional native wide-header clipping/scroll extent, streamed backwards selection/clipboard and page-focus retirement checks pass. Combined gallery/consumer matrix, broader input/accessibility, application budgets and consolidated release gates remain open. No extended-diff capability is advertised yet.",
       "evidence": "docs/evidence/diff-controls-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",
@@ -301,7 +301,7 @@
         "lib/bonsai/gpuio_bonsai.mli"
       ],
       "contract": "Document.Diff.Observation.Line reports exact canonical UTF-8 payload bytes/text, file index/key/paths and both optional old/new line numbers, with installed source revision/generation. Native text click, Enter and Go to line activate; selection drags/gutter actions do not. Legacy Navigation.Line remains available separately.",
-      "remaining": "Focused native, public gallery and independently installed consumer macOS document checks pass, including streaming/reset and theme/size retention. Broader header horizontal/streaming acceptance, combined gallery matrix, application budgets and consolidated release gates remain open. No extended-diff capability is advertised yet.",
+      "remaining": "Focused native, public gallery and independently installed consumer macOS document checks pass, including streaming/reset and theme/size retention. Additional native wide-header clipping/scroll extent, streamed backwards selection/clipboard and page-focus retirement checks pass. Combined gallery/consumer matrix, broader input/accessibility, application budgets and consolidated release gates remain open. No extended-diff capability is advertised yet.",
       "evidence": "docs/evidence/diff-controls-och41.md",
       "owner": "OCH-41",
       "release_scope": "v1",

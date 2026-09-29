@@ -1,6 +1,12 @@
 //! Current-frame file controls beside original selectable diff header text.
 use super::*;
 use gpui_base::ElementExt as _;
+#[cfg(feature = "native-tests")]
+#[derive(Clone, Copy)]
+pub(super) struct SuffixGeometry {
+    pub(super) bounds: gpui::Bounds<gpui::Pixels>,
+    pub(super) clip: gpui::Bounds<gpui::Pixels>,
+}
 impl Presentation {
     pub(super) fn install_file_headers(
         &mut self,
@@ -11,6 +17,8 @@ impl Presentation {
         let old = std::mem::take(&mut self.file_buttons);
         let had_focus = old.values().any(|(_, focus)| focus.is_focused(window));
         self.file_visible.borrow_mut().clear();
+        #[cfg(feature = "native-tests")]
+        self.file_suffixes.borrow_mut().clear();
         let mut entries = BTreeMap::new();
         let mut next_buttons = BTreeMap::new();
         let action =
@@ -86,6 +94,7 @@ impl Presentation {
                         let click_action = action.clone();
                         let ax_action = action.clone();
                         let visible = visible.clone();
+                        let mouse_focus = focus_for_button.clone();
                         gpui_base::Button::new(("diff-file", index))
                             .w(slot.width)
                             .h(slot.height)
@@ -99,6 +108,13 @@ impl Presentation {
                                 style.bg(gpui::rgb(if dark { 0x324563 } else { 0xd8e7ff }))
                             })
                             .track_focus(&focus_for_button)
+                            .on_mouse_down(gpui::MouseButton::Left, move |_, window, cx| {
+                                // This control sits inside the source editor.
+                                // Its press must not start an editor selection
+                                // before collapse can map the existing one.
+                                window.focus(&mouse_focus, cx);
+                                cx.stop_propagation();
+                            })
                             .aria_label(label.clone())
                             .aria_expanded(!collapsed)
                             .child(if collapsed { "▸" } else { "▾" })
@@ -119,17 +135,43 @@ impl Presentation {
                             .into_any_element()
                     },
                 );
+                #[cfg(feature = "native-tests")]
+                let suffixes = self.file_suffixes.clone();
                 let suffix = Rc::new(
                     move |slot: gpui::Size<gpui::Pixels>, _: &mut Window, _: &mut App| {
-                        div()
+                        let element = div()
                             .w(slot.width)
                             .h(slot.height)
                             .pl(px(10.))
                             .text_size(px(11.))
                             .text_color(gpui::rgb(if dark { 0x969dad } else { 0x656a76 }))
                             .text_ellipsis()
-                            .child(caption.clone())
-                            .into_any_element()
+                            .child(caption.clone());
+                        #[cfg(feature = "native-tests")]
+                        let element = {
+                            let suffixes = suffixes.clone();
+                            // Pin the observer to the slot origin. ElementExt's
+                            // automatic static position follows the caption text.
+                            element.child(
+                                gpui::canvas(
+                                    move |bounds, window, _| {
+                                        suffixes.borrow_mut().insert(
+                                            index,
+                                            SuffixGeometry {
+                                                bounds,
+                                                clip: window.content_mask().bounds,
+                                            },
+                                        );
+                                    },
+                                    |_, _, _, _| {},
+                                )
+                                .absolute()
+                                .top_0()
+                                .left_0()
+                                .size_full(),
+                            )
+                        };
+                        element.into_any_element()
                     },
                 );
                 let local_row = display_row - origin;
@@ -146,10 +188,20 @@ impl Presentation {
         }
         self.file_buttons = next_buttons;
         let begin = self.file_visible.clone();
+        #[cfg(feature = "native-tests")]
+        let suffixes = self.file_suffixes.clone();
         self.editor.update(cx, |editor, cx| {
             let set = (!entries.is_empty()).then(|| Rc::new(entries));
             editor
-                .set_row_adornments(set, Some(Rc::new(move || begin.borrow_mut().clear())), cx)
+                .set_row_adornments(
+                    set,
+                    Some(Rc::new(move || {
+                        begin.borrow_mut().clear();
+                        #[cfg(feature = "native-tests")]
+                        suffixes.borrow_mut().clear();
+                    })),
+                    cx,
+                )
                 .expect("bounded installed read-only diff page");
         });
         if had_focus

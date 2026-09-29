@@ -381,3 +381,57 @@ streaming/selection cases, application performance/resource limits, full macOS
 accessibility/input/distribution and consolidated hosted gates remain open.
 This focused evidence does not claim full catalog parity, Linux GUI qualification
 or completion of OCH-41/OCH-17, and advertises no new capability.
+
+
+## Wide headers, streamed selection and native clipboard
+
+The new `document_diff_retention_test.rs` forces horizontal overflow with a long
+Unicode filename. Current-frame observations verify a fixed gutter at a measured
+−130px offset and at the rightmost scroll position, exact alignment of the caption
+slot to the shaped header end, clipping of a short caption out of the gutter,
+removal of fully clipped captions and reachability of the complete caption slot.
+The observers are compiled only with `native-tests`; production behavior does not
+carry a geometry collection for this evidence. These are actual layout/content-mask
+assertions, not a screenshot-based assessment of caption pixels.
+
+The same mounted test uncovered and fixes an interaction defect: left-mousedown
+on a file button propagated to its enclosing source editor, replacing the existing
+selection before the collapse projection could preserve it. The button now takes
+its own focus and stops that mousedown from starting an editor selection. Existing
+pointer, Tab/Space/Enter and macOS AX activation regressions still pass.
+
+Native clipboard dispatch now verifies exact source bytes, including Unicode and
+newlines, for a backwards selection containing another file's header and body:
+
+- A streamed file append preserves editor identity, selection direction and text,
+  existing file focus identity, and the selected clipboard contents.
+- Collapsing a preceding file maps the surviving selection without changing its
+  bytes or direction. Expanding and selecting all copies source, never captions.
+- An action retained from the preceding installed page cannot collapse a new page.
+- A350-file fixture moves across the1024-row native page boundary, removes outgoing
+  header handles/geometry, repairs focused-header ownership to the retained editor,
+  and clears all decorations when the feature is removed.
+
+The clipboard is saved and restored around each check. Input uses native synthetic
+key/mouse dispatch; it does not establish physical keyboard routing, IME, VoiceOver
+or Linux desktop acceptance. The first two development runs corrected the test's
+measurement canvas position, and a later run corrected fixture cleanup before
+returning to the parent suite. The selection failure between those runs was the
+product defect described above; it was not attributed to user interaction.
+
+Local macOS14.5 arm64 validation:
+
+```sh
+./scripts/gpuio exec cargo test -p gpuio-native --test native_document --test native_highlight_document --features native-image-tests --locked -j2 --no-run
+./scripts/gpuio exec cargo clippy -p gpuio-native -p gpuio-protocol --all-targets --features native-image-tests --locked -j2 -- -D warnings
+./scripts/gpuio exec cargo check -p gpuio-native --locked -j2
+./scripts/gpuio exec cargo fmt --all --check
+git diff --check
+```
+
+The two Cargo-reported native executables passed sequentially under90-second
+process-group watchdogs, including existing GPU document/highlight/folding and
+owner-disposal checks. Strict Clippy passes. Document diagnostic peak RSS was
+77,053,952bytes; this is not the application budget acceptance. No vendored fork,
+wire format or public API changed. Combined gallery/consumer, application
+performance/resource and release gates remain open.

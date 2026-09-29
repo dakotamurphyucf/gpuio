@@ -95,6 +95,8 @@ pub(super) struct Presentation {
     diff_controls: Option<Controls>,
     file_buttons: BTreeMap<usize, (Option<Arc<str>>, gpui::FocusHandle)>,
     file_visible: Rc<RefCell<BTreeMap<usize, gpui::Bounds<gpui::Pixels>>>>,
+    #[cfg(feature = "native-tests")]
+    file_suffixes: Rc<RefCell<BTreeMap<usize, file_headers::SuffixGeometry>>>,
     projection: Option<Projection>,
     projection_charge: Option<document_jobs::Charge>,
     projection_error: Option<String>,
@@ -334,6 +336,8 @@ impl Presentation {
             diff_controls: None,
             file_buttons: BTreeMap::new(),
             file_visible: Rc::default(),
+            #[cfg(feature = "native-tests")]
+            file_suffixes: Rc::default(),
             projection: None,
             projection_charge: None,
             projection_error: None,
@@ -882,6 +886,8 @@ impl Presentation {
                             self.source_mode = false;
                             self.file_buttons.clear();
                             self.file_visible.borrow_mut().clear();
+                            #[cfg(feature = "native-tests")]
+                            self.file_suffixes.borrow_mut().clear();
                             self.editor.update(cx, |state, cx| {
                                 let _ = state.set_row_adornments(None, None, cx);
                                 state.bridge_replace_all("".into(), (0, 0), false, window, cx)
