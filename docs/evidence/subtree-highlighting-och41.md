@@ -592,3 +592,50 @@ The tested scripts/cases do not imply exhaustive typography, bidi caret/selectio
 screen-reader or Linux desktop acceptance. Broader scrolling/tab/fold integration,
 application-scale CPU/memory budgets, combined gallery/consumer checks and the
 remaining release gates stay open. No new capability advertisement.
+
+## Viewports and retained structural visibility
+
+The expanded `native_highlight_view` now checks a production scroll container,
+retained TabPanel/disclosure content and a responsive ContainerQuery under one
+highlight scope. Native APIs drive layout/visibility; these fixtures do not send
+OS keyboard or pointer input.
+
+- A viewport starts on one highlighted row, scrolls through a middle region with
+  no matches, and then reveals the distant highlighted row. Actual GPU pixels
+  verify clipping and alignment. The prepared matching result stays identical,
+  and scrolling publishes no new count/epoch observation.
+- Editing offscreen text changes the logical count while keeping its wash clipped
+  and preserving scroll position. Scrolling back reveals the updated matches.
+- Switching retained tab visibility changes the count. Editing the hidden tab
+  reuses the visible result and emits no highlight observation; switching back
+  exposes its updated text. A disclosure's closed body contributes no matches or
+  painted washes, and reopening restores them.
+- Resizing the real native window across a responsive threshold changes the count
+  and epoch while the retained tree revision stays unchanged. Resizing within the
+  same branch preserves the result and emits no highlight observation.
+
+The expanded `native_highlight_document` also checks source-editor scrolling with
+tab/Unicode-prefixed text and two distant matches. Vertical scrolling hides both
+washes in the middle; at the bottom, a horizontally distant match remains clipped
+until horizontal scrolling reveals it. The prepared background owner is reused,
+the installed-page count stays constant, and returning to the origin restores
+the first wash. Replacing Markdown releases its old provider, and unmounting the
+final scrolled source editor releases the current background owner.
+
+Local macOS 14.5 arm64 validation:
+
+- `./scripts/gpuio exec cargo test -p gpuio-native --features native-image-tests --test native_highlight_view --test native_highlight_document --no-run --locked -j2`
+  builds both suites. Their final binaries pass sequentially under 60-second
+  watchdogs, including the earlier multiwindow/100k-row and document regression
+  checks. All windows close and processes are reaped.
+- Strict native/protocol all-target Clippy with `native-image-tests`, workspace
+  formatting and diff checks pass. This checkpoint changes test coverage only;
+  the production code and Base fork patch remain unchanged from the RTL fix.
+- The first run passed scrolling/tabs/disclosures but rejected the responsive
+  fixture because ContainerQuery nodes require an empty text payload. Correcting
+  that fixture produced the final passing run; no bridge validation was relaxed.
+
+These are functional clipping/visibility checks, not application performance
+budgets or physical wheel/keyboard/IME acceptance. Animated navigation transitions,
+native diff hunk-fold byte mapping, broader script/input matrices, combined gallery,
+installed consumers and consolidated release gates remain open.

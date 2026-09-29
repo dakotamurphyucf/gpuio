@@ -557,6 +557,98 @@ async fn directional_checks(
     }
 }
 
+async fn source_scroll_checks(
+    cx: &mut AsyncApp,
+    handle: WindowHandle<View>,
+    session: &Rc<RefCell<Session>>,
+    transport: &Transport,
+    source: ResourceId,
+    p: &Entity<Presentation>,
+) {
+    let base = p.read_with(cx, |p, _| p.installed.as_ref().unwrap().revision);
+    let text = format!(
+        "\t世界 aaa start\n{}\t{} aaa\n",
+        "plain middle\n".repeat(60),
+        "x".repeat(100)
+    );
+    publish(&mut session.borrow_mut(), source, base, &text);
+    handle
+        .update(cx, |view, _, cx| view.document_changed(source, cx))
+        .unwrap();
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::Bind(node(0), Some(handler(600))),
+            Op::SetHighlightScope(node(0), config(0.)),
+            Op::SetDocument(node(1), document(source, Mode::Code("txt".into()))),
+        ],
+    );
+    installed_revision(cx, handle, transport, p, base + 1).await;
+    ready(cx, handle, transport, 2).await;
+    assert!(
+        red_pixels(cx, handle) > 20,
+        "tab/Unicode-prefixed source match paints"
+    );
+    let editor = p.read_with(cx, |p, _| p.editor.clone());
+    let paint = p.read_with(cx, |p, _| p.highlight_paint.as_ref().unwrap().1.clone());
+    let line_height = editor.read_with(cx, |editor, _| editor.line_height().unwrap());
+    // The source page includes both distant matches; the editor viewport paints
+    // only the current rows. This does not request a different source page.
+    for (x, y, paints) in [
+        (px(0.), -line_height * 30., false),
+        (px(0.), -line_height * 61., false),
+        (px(-1_000_000.), -line_height * 61., true),
+        (px(0.), px(0.), true),
+    ] {
+        editor.update(cx, |editor, cx| {
+            editor.set_scroll_offset(gpui::point(x, y), cx)
+        });
+        for _ in 0..4 {
+            draw(cx, handle);
+            pause(cx).await;
+        }
+        if paints {
+            assert!(
+                red_pixels(cx, handle) > 20,
+                "visible source match follows offset {x:?}/{y:?}"
+            );
+        } else {
+            assert_eq!(
+                red_pixels(cx, handle),
+                0,
+                "offscreen source match cannot leak through clipping"
+            );
+        }
+        if x < px(0.) {
+            assert!(
+                editor.read_with(cx, |editor, _| editor.scroll_offset().x) < px(0.),
+                "horizontal scrolling must actually occur"
+            );
+        }
+        assert!(
+            p.read_with(cx, |p, _| Rc::ptr_eq(
+                &paint,
+                &p.highlight_paint.as_ref().unwrap().1
+            )),
+            "viewport scrolling reuses the prepared background owner"
+        );
+        assert!(
+            !transport
+                .mailbox
+                .lock()
+                .unwrap()
+                .drain(128)
+                .iter()
+                .any(|event| matches!(event, Event::HighlightObserved(..))),
+            "source viewport movement does not change logical matches"
+        );
+    }
+    eprintln!(
+        "GPUIO_NATIVE_HIGHLIGHT_SOURCE_SCROLL_OK: tab/Unicode prefix, offscreen rows, horizontal clipping and retained source-page matching"
+    );
+}
+
 pub(crate) fn run() {
     let failure = Rc::new(RefCell::new(None));
     let task_failure = failure.clone();
@@ -615,11 +707,15 @@ pub(crate) fn run() {
                 directional_checks(cx,handle,&session,&transport,source,&p).await;
                 assert!(markdown_owner.upgrade().is_none(),"replaced image Markdown releases prepared owner");
                 let directional_owner=p.read_with(cx,|p,_|Rc::downgrade(&p.markdown_highlight.as_ref().unwrap().backgrounds));
+                source_scroll_checks(cx,handle,&session,&transport,source,&p).await;
+                assert!(directional_owner.upgrade().is_none(),"source mode replaces directional Markdown owner");
+                let scroll_owner=p.read_with(cx,|p,_|Rc::downgrade(&p.highlight_paint.as_ref().unwrap().1));
                 apply(cx,handle,vec![Op::SetRoot(None),Op::Remove(node(1)),Op::Remove(node(0))]);
                 draw(cx,handle);pause(cx).await;drop(p);drop(retired);draw(cx,handle);
                 assert!(background_owner.upgrade().is_none(),"retired editor frame releases prepared owner");
                 assert!(markdown_owner.upgrade().is_none(),"retired Markdown frame releases prepared owner");
                 assert!(directional_owner.upgrade().is_none(),"unmounted directional Markdown releases prepared owner");
+                assert!(scroll_owner.upgrade().is_none(),"unmounted scrolled source releases prepared owner");
                 assert_eq!(red_pixels(cx,handle),0);
                 eprintln!("GPUIO_NATIVE_HIGHLIGHT_DOCUMENT_OK: code/diff/Markdown GPU washes; headings, cross-format and inline-code runs, fenced code, tables and wrap; rounded radius, selection precedence, cosmetic epoch, collapse, native pages, pending installed revision, streaming replacement and unmount/owner disposal");
             }).await;

@@ -27,12 +27,14 @@ focused native GPU/selection/streaming/collapse/cleanup checks. Declared custom
 text, literal HTML and image placeholders now share that painter; decoded images
 remove placeholder matches without changing document revisions. Focused native
 checks now also pass for 100k logical-list row reuse and independent windows;
-broad scrolling/tab/fold/bidi coverage and application performance/resource
-acceptance remain pending. The public Find & highlight gallery now demonstrates
+scroll clipping, retained tabs/disclosures and responsive branch changes now also
+have focused native evidence. Animated navigation, diff hunk-fold mapping and
+application performance/resource acceptance remain pending. The public Find &
+highlight gallery now demonstrates
 live queries, ranges, nested exclusions, selected matches and growing/collapsed
 Markdown, with focused local native interaction evidence. Targeted Hebrew/Arabic
-and mixed-direction GPU checks now pass
-after fixing reordered-glyph range geometry; full typography/input acceptance
+and mixed-direction GPU checks now pass after fixing reordered-glyph range
+geometry; full typography/input acceptance
 remains broader than these cases. The gallery page count does
 not imply parity. General input regions now have mounted Core/Bonsai/native
 integration, native edge-case and public gallery evidence; remaining consumer/

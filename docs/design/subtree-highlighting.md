@@ -282,8 +282,9 @@ The mounted observation epoch is independent of a recreated worker handle.
 Search visibility currently follows explicit/query hidden branches, navigation
 selection and base Display/Visibility fields (last declaration wins). Inertness,
 disabled input and modal input gates do not remove visually present text. Dynamic
-state-style visibility, actual virtual-list recycling and installed native document
-pages still require their dedicated integration/acceptance checks.
+state-style visibility and animated navigation still require dedicated integration
+checks. Actual virtual-list recycling, installed native pages, controlled
+tabs/disclosures and native responsive branch changes now have focused evidence.
 
 A scope marks itself during paint. The window sweeps unused scopes only after the
 complete paint effect cycle, including lazy children and deferred surfaces; render
@@ -327,8 +328,10 @@ replacing/editing text clears prepared ranges. Only read-only buffers accept thi
 API. Range count, UTF-8 endpoints and radius are validated; invalid input clears
 old washes. The frame retains its own provider and paints visible buffer lines,
 using actual soft wraps and alignment rather than treating displayed/folded rows
-as a contiguous byte string. Dedicated broad wrap/tab/fold/scroll and load tests
-remain required beyond the current native source-page checks.
+as a contiguous byte string. Native checks now cover vertical/horizontal source
+viewport clipping, tab/Unicode prefixes and retained background ownership during
+scrolling. Scrolling does not change the installed source page or its count.
+Native hunk-fold mapping and application load tests remain required.
 
 The enclosing scope's source/observation stamp includes a shared document identity.
 Native document invalidations replace that identity and defer a root wakeup, avoiding

@@ -15,6 +15,8 @@ use std::{
 
 #[path = "highlight_lifecycle_test.rs"]
 mod lifecycle;
+#[path = "highlight_visibility_test.rs"]
+mod visibility;
 
 fn id(slot: i64) -> NodeId {
     NodeId::from_parts(slot, 1).unwrap()
@@ -240,6 +242,7 @@ pub(crate) fn run() {
                 assert!(handle.update(cx,|view,_,_|view.highlights.is_empty()).unwrap());
                 assert!(observations(&transport).is_empty(),"no callback from unmounted scope");
                 lifecycle::exercise(cx,handle,&session,&transport).await;
+                visibility::exercise(cx,&session,&transport).await;
                 eprintln!("GPUIO_NATIVE_HIGHLIGHT_VIEW_OK: mounted GPU ordinary/selectable paint and selection precedence, nested empty barrier, queued counts, cosmetic reuse, source retirement/latest update, native visibility, invalid range recovery and unmount cleanup");
             }).await;
             *task_failure.borrow_mut()=checked.err();
