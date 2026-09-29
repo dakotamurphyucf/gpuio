@@ -178,12 +178,10 @@ impl State {
 
     fn local_anchor(&self, cx: &mut App) {
         let point = self.run.as_ref().and_then(|run| {
-            let mut point = run
-                .layout()
-                .position_for_index(text_projection::displayed_offset(
-                    &self.mapping,
-                    self.selection.anchor,
-                )?)?;
+            let mut point = run.position_for_index(text_projection::displayed_offset(
+                &self.mapping,
+                self.selection.anchor,
+            )?)?;
             point.y += run.layout().line_height() / 2.;
             Some(point)
         });
@@ -312,12 +310,15 @@ pub fn element(
     if pointer {
         element = element.cursor_text();
         let down_state = state.clone();
-        let down_layout = layout.clone();
         element = element.on_mouse_down(MouseButton::Left, move |event, window, cx| {
-            let index = down_layout
-                .index_for_position(event.position)
-                .unwrap_or_else(|i| i);
             let mut state = down_state.borrow_mut();
+            let Some(run) = &state.run else { return };
+            let index = if event.click_count >= 2 {
+                run.index_for_position(event.position)
+            } else {
+                run.caret_for_position(event.position)
+            };
+            let Some(index) = index else { return };
             let Some(index) = text_projection::source_offset(&state.mapping, index) else {
                 return;
             };
@@ -348,10 +349,13 @@ pub fn element(
         element = element.on_mouse_move(move |event, _, cx| {
             let mut state = move_state.borrow_mut();
             if state.dragging && state.local_gesture {
-                let index = layout
-                    .index_for_position(event.position)
-                    .unwrap_or_else(|i| i);
-                if let Some(index) = text_projection::source_offset(&state.mapping, index) {
+                let index = state
+                    .run
+                    .as_ref()
+                    .and_then(|run| run.caret_for_position(event.position));
+                if let Some(index) =
+                    index.and_then(|index| text_projection::source_offset(&state.mapping, index))
+                {
                     state.selection.head = index;
                 }
                 cx.notify(owner);

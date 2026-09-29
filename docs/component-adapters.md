@@ -177,7 +177,12 @@ text alignment with `with_text_align`. Projection caches immutable shaped glyph
 cells lazily; replacing runs every frame discards that reuse. Logical scalar caret
 positions are not glyph widths, especially for joined graphemes or reordered bidi
 glyphs. Keep source/display mapping separate from shaped visual geometry. Local
-caret/word and Shift-click anchoring still require independent typography checks.
+caret/word hits and Shift-click anchors use `caret_for_position`,
+`index_for_position` and `position_for_index` on the retained run. These use
+resolved bidi direction and downstream cluster affinity; do not substitute the raw
+GPUI layout accessors, which omit alignment in this pinned version. Read-only
+arrow movement remains logical grapheme order. See the audit for tested cases and
+remaining typography acceptance.
 
 Renderer-specific Copy normalization belongs in that participant's callback;
 never trim the combined window result in a focused widget's Copy handler.

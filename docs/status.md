@@ -56,9 +56,10 @@ and endpoint removal. Ordinary selection also passes independent-window Copy,
 close/reopen release and managed endpoint eviction/rematerialization checks.
 Ordinary pointer projection now preserves extended graphemes and uses shaped
 visual cells, with focused left/center/right, Hebrew/Arabic, soft-wrap and LF/CRLF
-Copy evidence. Aligned/bidi caret, word and Shift-click behavior remains separate
-acceptance work. Multiple-document and broader virtualized cases, plus the complete
-input/accessibility matrix, remain open. General input regions now have mounted Core/Bonsai/native
+Copy evidence. Native word/caret hits and keyboard-to-Shift-click anchors now use
+that geometry too, with focused accented/Hebrew/Arabic and whole-grapheme evidence.
+Broader typography/input, multiple-document and virtualized cases, plus the complete
+accessibility matrix, remain open. General input regions now have mounted Core/Bonsai/native
 integration, native edge-case and public gallery evidence; remaining consumer/
 release acceptance stays open in the [input ledger](evidence/input-observations-och41.md). Start ellipsis and the complete cursor vocabulary now have
 paired codec, native validation and focused gallery evidence. OCH-17 is also in progress: the

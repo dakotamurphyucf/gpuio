@@ -14,6 +14,45 @@ async fn gesture(
     mouse(cx, window, end, false);
     frame(cx, window).await;
 }
+async fn click(
+    cx: &mut gpui::AsyncApp,
+    window: WindowHandle<View>,
+    position: gpui::Point<gpui::Pixels>,
+    count: usize,
+    shift: bool,
+) {
+    move_mouse(cx, window, position, false);
+    window
+        .update(cx, |_, window, cx| {
+            window.dispatch_event(
+                PlatformInput::MouseDown(MouseDownEvent {
+                    position,
+                    button: MouseButton::Left,
+                    modifiers: gpui::Modifiers {
+                        shift,
+                        ..Default::default()
+                    },
+                    click_count: count,
+                    first_mouse: false,
+                }),
+                cx,
+            );
+            window.dispatch_event(
+                PlatformInput::MouseUp(MouseUpEvent {
+                    position,
+                    button: MouseButton::Left,
+                    modifiers: gpui::Modifiers {
+                        shift,
+                        ..Default::default()
+                    },
+                    click_count: count,
+                }),
+                cx,
+            );
+        })
+        .unwrap();
+    frame(cx, window).await;
+}
 fn band(
     layout: &gpui::TextLayout,
     bytes: Range<usize>,
@@ -99,6 +138,48 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, window: WindowHandle<View>
                 .unwrap();
             let start = source.find(expected).unwrap();
             let (left, right) = band(&layout, start..start + expected.len(), align);
+            // Resolve word hits from actual visual glyph positions, including RTL.
+            if expected == "ב" || expected == "ح" || expected == "e\u{301}" {
+                click(
+                    cx,
+                    window,
+                    gpui::point((left.x + right.x) / 2., left.y),
+                    2,
+                    false,
+                )
+                .await;
+                let word = source.split_whitespace().nth(1).unwrap();
+                assert_eq!(
+                    copy(cx, window),
+                    word,
+                    "visual word hit {source:?}, align={align}"
+                );
+            }
+            let rtl = matches!(expected, "אבג" | "ב" | "مرحبا" | "ح");
+            let leading = if rtl { right } else { left };
+            click(cx, window, leading, 1, false).await;
+            press(cx, window, "shift-right");
+            frame(cx, window).await;
+            let first = unicode_segmentation::UnicodeSegmentation::graphemes(expected, true)
+                .next()
+                .unwrap();
+            assert_eq!(
+                copy(cx, window),
+                first,
+                "nearest leading caret {source:?}, align={align}"
+            );
+            if expected != "ב" && expected != "ح" {
+                press(cx, window, "home");
+                press(cx, window, "right");
+                press(cx, window, "right");
+                frame(cx, window).await;
+                click(cx, window, if rtl { left } else { right }, 1, true).await;
+                assert_eq!(
+                    copy(cx, window),
+                    expected,
+                    "keyboard to Shift-click {source:?}, align={align}"
+                );
+            }
             for (a, b) in [(left, right), (right, left)] {
                 gesture(cx, window, a, b).await;
                 assert_eq!(

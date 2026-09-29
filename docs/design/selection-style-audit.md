@@ -187,7 +187,7 @@ source bytes; no production source-copy change was needed.
 The Base patch is reconstructed from the unchanged pinned archive by
 `scripts/vendor_gpui_base.py`; the resulting tree matches `vendor/gpui-base`
 (excluding generated `Cargo.lock`). `third_party/sources.json` records patch SHA256
-`f719968830e5be0dea691eb6ba401c6991eb54c3dfbf92eae9e20426a34521fd`.
+`61e91aef2a2c46bf6db7aa60b7dd261e33c8b053e57988938467c6699b46eee6`.
 The patch adds the editor policy, Markdown disable cleanup and copy guard, public
 native scope wrapper, active-scope Copy/presence filtering, ordinary participant
 paint-order/local-anchor APIs, whitespace Copy preservation and retired-endpoint
@@ -379,11 +379,44 @@ and exact Base fork reconstruction passed. The build commands and watchdog
 procedure are the same as the ordinary-window adapter checks above; these results
 do not replace application-scale selection cost or hosted release validation.
 
-Local caret lookup, word/multi-click selection and keyboard-to-Shift-click anchors
-still use separate caret APIs. Their alignment and bidi behavior needs its own
-acceptance; the range-projection checks above do not establish those contracts.
-Broader mixed-direction wrapping and large-text projection/copy performance also
-remain open.
+### Local caret and word selection
+
+Ordinary pointer handlers and keyboard-to-Shift-click anchors now use that same
+shaped geometry. Word hits resolve the source cluster under the pointer; single
+clicks and local drags resolve its nearest caret edge. Each cell uses its resolved
+Unicode bidi level to distinguish leading and trailing visual edges. The existing
+`unicode-bidi` 0.3.18 dependency is now also a direct Base dependency; no package
+versions changed. Adjacent glyphs painting one grapheme share one caret midpoint.
+
+Logical source boundaries prefer the downstream cluster at bidi and wrap edges.
+An index inside a shaped cluster snaps to its leading edge; this is not a promise
+of platform-specific ligature caret subdivisions or two simultaneous bidi carets.
+Read-only Left/Right movement retains logical extended-grapheme order. Editable
+inputs retain their own native widget engine. The shared Base multi-click helper
+also computes visual endpoints from selected glyph cells instead of assuming
+logical offsets increase from left to right.
+
+The added native regression first reproduced a centered accented-letter double
+click selecting nothing. It now passes centered/right/left word selection for
+accented, Hebrew and Arabic text; near-leading-edge clicks followed by Shift-Right
+copy the intended complete grapheme, including joined emoji and flags. Keyboard
+movement to a word start followed by Shift-click copies the expected span across
+all three alignments and both text directions. Existing ordinary cross-node,
+window-isolation, truncation and full wrapped-copy checks still pass. These are
+actual laid-out glyph coordinates and native clipboard results with dispatched
+GPUI input. Broader mixed-direction wrapping, multi-click cross-node semantics,
+physical input and large-text projection/copy performance remain open.
+
+On this caret revision, the 45 standalone Base `text_selection::tests` passed
+against GPUIO's local GPUI/accessibility/layout patches. This includes the shared
+multi-click, scope, retirement and separate-window state-machine tests; their GPUI
+test context is distinct from the native UI evidence above. The application native
+UI and document regression executables both exited 0 under separate 90-second
+process-group watchdogs. Strict all-target native/protocol Clippy passed, as did production
+compilation, formatting, structural catalog validation and exact Base patch
+reconstruction. The two 100k-row traversals reported in the preceding section
+belong to the prior range-projection revision, not a new performance measurement
+of the bidi/caret path.
 
 ## Remaining implementation and acceptance
 
@@ -391,7 +424,7 @@ remain open.
   scrolling, file controls and accessible selection/range commands. The focused
   native checks above are not the whole OCH-17 input/AX matrix.
 - Complete multiple-document drag/copy, broader virtualized/interior-row lifecycle
-  cases, broader mixed-direction wrapping, aligned/bidi caret and word selection,
+  cases, broader mixed-direction wrapping and caret/word combinations,
   multi-click cross-node semantics and pointer-operated Copy controls. Ordinary
   two-window isolation and managed endpoint eviction/reuse are now covered above.
   The focused ordinary-node regression does not prove those combinations.

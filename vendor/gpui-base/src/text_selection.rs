@@ -348,6 +348,31 @@ impl TextSelectionRun {
         self
     }
 
+    fn geometry(&self) -> Option<&geometry::Geometry> {
+        (self.text.len() == self.layout.len()).then(|| {
+            self.geometry
+                .get_or_init(|| geometry::Geometry::new(&self.text, &self.layout))
+        })
+    }
+
+    /// Source cluster under a window-coordinate position, clamped to the nearest
+    /// visible cell. Suitable for word selection; never splits a grapheme.
+    pub fn index_for_position(&self, position: Point<Pixels>) -> Option<usize> {
+        Some(self.geometry()?.index_at(self, position, false))
+    }
+
+    /// Nearest shaped-cluster caret, respecting alignment and resolved bidi
+    /// direction. Read-only arrow movement remains a separate logical policy.
+    pub fn caret_for_position(&self, position: Point<Pixels>) -> Option<usize> {
+        Some(self.geometry()?.index_at(self, position, true))
+    }
+
+    /// Visual caret for a source byte offset, with downstream affinity at bidi
+    /// and wrap boundaries. Interior cluster offsets snap to the leading edge.
+    pub fn position_for_index(&self, index: usize) -> Option<Point<Pixels>> {
+        self.geometry()?.position(self, index)
+    }
+
     /// Sets the run's logical order within the participant.
     pub const fn with_document_order(mut self, document_order: u64) -> Self {
         self.document_order = document_order;
@@ -450,7 +475,7 @@ fn points_for_multi_click(
     if run.text.len() != run.layout.len() {
         return None;
     }
-    let offset = run.layout.index_for_position(position).ok()?;
+    let offset = run.index_for_position(position)?;
     let range = match click_count {
         2 => word_range_at(&run.text, offset)?,
         3.. => line_range_at(&run.text, offset),
@@ -459,10 +484,7 @@ fn points_for_multi_click(
     if range.is_empty() {
         return None;
     }
-    Some((
-        run.layout.position_for_index(range.start)?,
-        run.layout.position_for_index(range.end)?,
-    ))
+    run.geometry()?.range_points(run, range)
 }
 
 fn point_in_selection_band(
