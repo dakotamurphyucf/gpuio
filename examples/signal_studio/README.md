@@ -85,7 +85,10 @@ not replace physical input or pixel validation.
 The consumer check stages public libraries into a fresh prefix, copies this app
 and the separate component, and builds the locked composed backend. It never
 installs packages into or changes the current opam switch. Omit `--run` for the
-Linux build-only gate. Full Linux GUI validation remains tracked by OCH-17.
+Linux build-only gate. To run the full AppKit walkthrough against an already built
+consumer, pass `--executable /path/to/consumer/_build/default/main.exe` to
+`scripts/test_signal_studio.py`. Full Linux GUI validation is deferred to OCH-47;
+OCH-17 retains the macOS release gates.
 
 The desktop walkthrough creates and removes a disposable application bundle,
 checks actual Launch Services cold/warm delivery and same-process window reopen,

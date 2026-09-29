@@ -27,4 +27,6 @@ locked composed Rust backend. It also supports `extension_consumer` and
 CI platforms. On macOS, `--run --gallery-section documents` exercises the
 independent gallery's document/diff UI; omit the section option to run all pages.
 `test_gallery.py --executable PATH --section documents` can drive an existing
-consumer binary without rebuilding it. Full Linux desktop behavior remains OCH-47.
+consumer binary without rebuilding it. `test_signal_studio.py --executable PATH`
+likewise runs the complete Signal Studio AppKit walkthrough against an independent
+consumer. Full Linux desktop behavior remains OCH-47.

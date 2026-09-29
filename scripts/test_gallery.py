@@ -1233,15 +1233,22 @@ def exercise_observations(mac, images, *, second_title=SECOND):
     mac.wait_text(TITLE, 'Floating action: 1')
     mac.wait_text(TITLE, 'Down: 2')
     mac.wait_text(TITLE, 'Clicks: 2')
+    # The combined run preserves shell appearance across preceding sections.
+    # Exercise both themes and restore the current one, rather than assuming
+    # the fresh-process default used by a focused observations run.
+    theme = mac.find(TITLE, 'Dark', 'AXButton')
+    current, alternate = ('Dark', 'Light') if theme else ('Light', 'Dark')
+    if theme:
+        mac.release(theme)
     if images:
-        screenshot(mac, images / 'gallery-observations-dark.png', title=TITLE)
-    mac.press(TITLE, 'Dark')
-    mac.release(mac.wait_find(TITLE, 'Light', 'AXButton'))
+        screenshot(mac, images / f'gallery-observations-{current.lower()}.png', title=TITLE)
+    mac.press(TITLE, current)
+    mac.release(mac.wait_find(TITLE, alternate, 'AXButton'))
     expect_field(mac, TITLE, 'Observation draft', 'a')
     if images:
-        screenshot(mac, images / 'gallery-observations-light.png', title=TITLE)
-    mac.press(TITLE, 'Light')
-    mac.release(mac.wait_find(TITLE, 'Dark', 'AXButton'))
+        screenshot(mac, images / f'gallery-observations-{alternate.lower()}.png', title=TITLE)
+    mac.press(TITLE, alternate)
+    mac.release(mac.wait_find(TITLE, current, 'AXButton'))
     mac.press(TITLE, 'New window')
     mac.wait_text(second_title, 'A little context goes a long way')
     mac.press(second_title, 'Input observations')

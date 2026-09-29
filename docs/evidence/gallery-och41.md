@@ -10,7 +10,53 @@ additions. The focused document driver passes on both the repository executable
 and an independently built consumer of staged public packages. See the
 [diff evidence](diff-controls-och41.md#filename-syntax-word-groups-and-public-gallery)
 for exact state, keyboard/AX and lifecycle assertions. This advances the focused
-section; combined gallery, release and Linux desktop acceptance remain separate.
+section; the latest combined result is recorded below. Release and Linux desktop
+acceptance remain separate.
+
+## Latest combined checkpoint — 2026-09-29
+
+Both the repository application and a fresh independent consumer of the staged
+public libraries pass the complete **23-section** macOS walkthrough. Both runs
+exit normally with `GPUIO_GALLERY_AX_OK: section=all`, exact extension lifetime
+verification and transfer gesture identity verification. This supersedes the
+older combined-page counts and pending gallery-consumer notes below; those
+sections preserve the earlier implementation evidence.
+
+The run includes styling details, input observations, document diff controls and
+Find & highlight, along with the existing component, desktop, independent-window
+and shutdown checks. The consumer uses its own Dune project and independently
+locked native backend against installed public OCaml packages. It uses this
+checkout's pinned native sources/toolchain: it is not a clean-machine or packaged
+distribution result. Broader family behavior, performance/resource budgets,
+screen-reader acceptance and required hosted checks remain open.
+
+The build exposed missing `gpui-base -> unicode-bidi` dependency edges in both
+independent application lockfiles. Adding those edges changes no package versions;
+the root lockfile already contained the dependency. A first combined attempt
+also exposed a driver assumption that the theme was Dark. Earlier sections
+correctly retain Light, so the input-observation check now exercises both themes
+and restores whichever was active. Both complete runs pass after that correction;
+the failed attempt is not counted as acceptance.
+
+Commands for this checkpoint (consumer workspaces must be fresh):
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build examples/gallery/main.exe test/gallery -j2
+./scripts/gpuio exec dune runtest test/gallery -j2
+python3 scripts/test_gallery.py --section all --images scratch/gallery-direct-images
+GPUIO_JOBS=2 ./scripts/gpuio exec python3 scripts/test_extension_consumer.py \
+  --example gallery --workspace scratch/gallery-consumer
+python3 scripts/test_gallery.py --section all \
+  --executable scratch/gallery-consumer/consumer/_build/default/main.exe \
+  --images scratch/gallery-consumer-images
+python3 scripts/audit_component_catalog.py
+```
+
+All pass locally on macOS 14.5 arm64 with the pinned repository toolchain.
+The GUI drivers ran under a 900-second process-group watchdog and reaped their
+children. Logs and screenshots are retained under the implementing agent's ignored
+notepad directory with the `gallery-consolidated` prefix. No new Linux GUI or
+physical IME/screen-reader claim follows from this walkthrough.
 
 ## Implemented preview sections
 
@@ -28,20 +74,21 @@ section; combined gallery, release and Linux desktop acceptance remain separate.
 | Lists, trees & tables | 1,000 variable-height entries, far reveal and growth elsewhere; loaded hierarchy reveal/selection; 1,000-row table selection/reveal; native AX row/cell limits; retained internal panels | Paging/retry, sort/resize/reorder, drag and full performance workloads |
 | Markdown & code | Scoped Markdown/code/diff, bounded append/reset, parsed code-block controls, native collapse/expand and repeated departure/remount; AX body text/heading/list and read-only code/diff values | Complete screen-reader/selection and rich/image-link semantics, source/selection clipboard and complete theme/scale matrix |
 | Find & highlight | Public ordinary/selectable/Markdown scope, styled-leaf match, nested exclusion and Unicode range; native query edits, case/word toggles, counts, selected match, growth/collapse and remount | Broad script/bidi/scrolling, all scales, performance/resource and consolidated release gates |
+| Styling details | Clip/start/end ellipsis at wide/narrow sizes, all typed cursor choices, keyboard activation, retained choices across themes/sizes/revisits | Physical OS cursor artwork, specialized-root behavior and broader typography acceptance |
 | Canvas & drawing | Validated scene model, native selection/movement/activation, viewport commands, hide/disabled state, reset and scope cleanup | Larger scenes, additional drawing primitives and resource budgets |
 | Images & icons | SVG/raster decode, all fit controls, explicit failure/recovery, icon/button semantics and page-scoped registrations | Remaining codec families and full GPU/cache budgets |
 | Charts & data | Seven native families plus mixed layers; keyboard selection, publication updates, bounded original-data browsing, disabled metadata, theme/scale retention and scope cleanup | Larger/reduced datasets, pointer selection and release performance budgets |
 | Motion & rhythm | Interrupted native targets, tween/spring sequence, pause/resume/cancel/reverse/restart, shared-clock join, live reduced motion and cross-window policy | Full timing/property combinations and resource/performance budgets |
 | Native extensions | Independently packaged counter, native AX/keyboard activation, property updates, commands while disabled/hidden, generation reset and exact teardown traces | Additional independent packages, failure/overload gallery fixtures and release consumer gates |
 | Input & transfers | Real captured pointer beyond bounds, Escape/disable/page departure, keyboard alternatives, text/custom drag-drop IDs, rejection and retained page state | Gallery OS file arrival and broader generic hover/key/focus/wheel surface audit |
+| Input observations | Pointer routing/occlusion, focus, native typing, raw keys, configuration updates, disabled routing, themes, independent windows and departure cleanup | Full native event matrix, physical IME and release resource budgets |
 | Responsive layouts | Width/height boundaries, first-match priority, retained branch drafts/counters, silent same-branch resize, hidden AX/focus fencing and theme/size changes | Nested layouts, physical display movement and larger query workloads |
 | Desktop services | Shared identity/link/notification receivers, per-window metadata, actual packaged OS links, picker/open/reveal, notification permission/presentation/replacement/action/dismissal | Gallery default-handler reassignment and release packaging/clean-machine gates |
 | Runtime & windows | Public diagnostics, observed content geometry, native file picker cancellation | Broader window command matrix |
 
-The gallery now has 23 sections. The newest Find & highlight section passes its
-focused macOS test; see the [highlighting evidence](subtree-highlighting-och41.md)
-for the exact cases and inline-code theme correction. A combined 23-section result
-is still pending.
+The gallery now has 23 sections, covered by the latest combined checkpoint above.
+See the [highlighting evidence](subtree-highlighting-och41.md) for the focused
+cases and inline-code theme correction.
 
 The combined native test opens a second independent window, verifies independent
 editor values, closes it, cycles editor page unmount/remount three times and

@@ -2193,6 +2193,7 @@ dependencies = [
  "smol",
  "sum_tree",
  "tracing",
+ "unicode-bidi",
  "unicode-segmentation",
  "web-time",
 ]

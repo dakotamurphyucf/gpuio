@@ -30,7 +30,12 @@ including canvas, images/icons, charts, native motion, responsive layouts, nativ
 local macOS interaction, geometry, gallery expect tests, formatting and structural
 catalog checks, separately from earlier native document/Clippy regression checks.
 The current catalog maps every required v1 family to a gallery page. Detailed
-behavioral parity, installed-consumer and release gates are still pending. The
+behavioral parity and release gates are still pending. The complete 23-section
+walkthrough now passes on both the repository application and a fresh independent
+consumer of installed public libraries. The consumer backend builds with its
+independent lockfile; this does not establish clean-machine distribution. The
+independent [Signal Studio consumer](evidence/signal-studio-och29.md) also passes
+its self-test and full AppKit input/layout/lifetime walkthrough locally. The
 [event audit](catalog/gpuix-events.json) records validated input contracts and remaining subtree
 highlighting and diff-control gaps. The [highlighting foundation](evidence/subtree-highlighting-och41.md)
 now has paired validated configuration, bounded text/range projections, an

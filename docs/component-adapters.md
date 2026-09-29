@@ -128,6 +128,15 @@ omits `--record-archives`; that flag records new hashes and belongs only in a
 deliberate source-update review. See [development](development.md) for opam and
 Cargo lock updates in the isolated environment.
 
+Native dependency changes also affect the independent application lockfiles:
+`examples/extension_consumer/backend/Cargo.lock` (used by Component Studio) and
+`examples/signal_studio/backend/Cargo.lock`, as well as the root `Cargo.lock`.
+They do not inherit updates to the root lockfile. Resolve each affected manifest
+with the isolated toolchain, review the exact diff, and retain existing versions
+unless the upgrade explicitly requires a change. Verify the corresponding
+`--locked` application builds. A new dependency edge to an already locked package
+can otherwise pass root native tests but break the gallery or installed consumer.
+
 An upgrade changes exact pins, patch files, their hashes, lockfiles and source
 snapshots together. Review removed patches as carefully as new ones, including
 grapheme editing, document selection, lifecycle snapshots, retained action paths
