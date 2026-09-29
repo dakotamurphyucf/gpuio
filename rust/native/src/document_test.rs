@@ -9,6 +9,8 @@ use std::{
     cell::RefCell,
     os::fd::{AsRawFd, FromRawFd, OwnedFd},
 };
+#[path = "document_diff_actions_test.rs"]
+mod diff_actions;
 #[path = "document_diff_view_test.rs"]
 mod diff_view;
 
@@ -409,6 +411,7 @@ async fn exercise(
         assert_eq!(p.diff.as_ref().unwrap().lines.len(), 5);
     });
     diff_view::exercise(cx, window, &session).await;
+    diff_actions::exercise(cx, window, &session).await;
     let huge = format!("{}last λ target", "row\n".repeat(25000));
     publish(&mut session.borrow_mut(), source, 5, 4, 0, &huge);
     configure(cx, window, source, Mode::Markdown, "last λ target");

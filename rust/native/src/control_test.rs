@@ -1310,6 +1310,15 @@ pub(super) fn accessible_role(
     accessible(cx, handle, label, false).map(|node| node.role)
 }
 #[cfg(target_os = "macos")]
+pub(super) fn accessible_button(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    label: &str,
+    press: bool,
+) -> bool {
+    accessible_with_role(cx, handle, label, Some("AXButton"), press).is_some()
+}
+#[cfg(target_os = "macos")]
 #[derive(Clone, Copy)]
 enum AccessibilityRequest<'a> {
     Inspect,

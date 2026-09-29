@@ -4,7 +4,8 @@ Status: OCH-41 implementation design. The bounded parser, visible-source
 projection, Core configuration/event types, paired standalone codecs and native
 control state exist. View configuration, live transport and stale-event routing
 also exist. Mounted configuration now drives one projected native editor, with
-selection/page/search and GPU highlight evidence. Per-file/header and show-more
+selection/page/search and GPU highlight evidence. Show more also has native
+pointer/keyboard/macOS accessibility and queued-event evidence. Per-file/header
 actions, richer line activation and gallery/consumer acceptance remain pending.
 This document does not advertise a capability.
 
@@ -22,7 +23,8 @@ only with `Mode.Diff`; omission preserves the existing raw presentation. Core an
 Bonsai `View.document ?on_diff` now share the document node's handler router with
 unchanged navigation. Supplying `on_diff` without explicit diff configuration is
 a reconciliation error. Controlled collapse and preview settings now change the
-mounted editor. The interactive header/show-more controls and extended line actions remain unfinished.
+mounted editor. Show more supports managed updates and controlled asynchronous
+intent. Interactive file headers and extended line actions remain unfinished.
 
 The following constructors exist under `Document.Diff`:
 
@@ -187,6 +189,15 @@ of the tree revision. Payload limits match the parser and are validated before a
 event reaches an application. Do not interpret snapshot-local byte ranges or file
 indices against a newer source without checking/rebasing them.
 
+Show-more activation captures the installed snapshot, displayed-page identity,
+configuration epoch and handler binding. The native presenter rejects retired
+pages/configs/callbacks, replaced presenters, hidden/modal-blocked nodes, reset or
+released sources, and closed/overloaded windows before changing managed values.
+Managed activation rebuilds locally and optionally queues an observation; no
+application callback is required. Controlled activation only queues intent.
+Removing the footer after a managed expansion or controlled config update repairs
+keyboard focus to the current primary document control.
+
 Pointer and keyboard/accessibility activation share the same native operation. No
 synchronous callback, filesystem read, syntax acquisition or network access is
 allowed from native rendering. File labels are display/navigation metadata only.
@@ -202,7 +213,7 @@ registry tests also pass. Mounted config updates now pass retained-editor,
 selection/direction, canonical navigation/search, bounded-page and source-revision
 checks. Native GPU checks cover projected matches, selection precedence, hunk
 folding and retired painter disposal. Completion still requires native
-per-file/show-more keyboard, AX and pointer controls; source/page/search/copy
+per-file keyboard, AX and pointer controls; richer line activation; source/page/search/copy
 behavior; selection and GPU highlight mapping under streaming; bounded lifetime/resource tests; the public
 gallery and independent consumer; and the required release gates. Audit word-diff
 options and path-based syntax behavior separately before claiming GPUIX parity.

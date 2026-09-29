@@ -181,3 +181,40 @@ run passes38 cases including the managed-seed accounting regression. The native
 document harness passes again after that final accounting change. Interactive file headers,
 show-more and richer line actions, path-based syntax parity, gallery/consumer,
 application budgets and release gates remain open. No new capability is advertised.
+
+## Native Show more and action provenance
+
+The footer now displays the expanded-but-preview-hidden row count and a native
+Show more button. Managed activation raises the limit locally; controlled
+activation leaves the view unchanged and queues an intent. Both use the existing
+asynchronous diff event envelope. Native-managed operation also works without a
+registered application callback.
+
+The extended `native_document` test passes measured-position pointer dispatch,
+Enter/Space and an actual macOS AXButton press. It verifies exact visible/hidden
+counts, managed applied limits versus controlled intent, source revision/generation
+in the queued observation, and focus returning to the editor when either managed
+expansion or controlled acceptance removes the footer. Captured old-page, old-config
+and old-handler actions reject; whole-document collapse, source reset and release
+also reject. A generation reset restores the managed initial limit. The test waits
+for the asynchronous AppKit action delivery before checking its queued event.
+
+Rendered actions hold snapshot/page/epoch/handler provenance. The shared admission
+check additionally requires the current presenter, node visibility/modal eligibility,
+source registration, and an open nonoverloaded window. No synchronous OCaml callback
+occurs during layout or native activation.
+
+Local macOS14.5 arm64 validation passes:
+
+```sh
+./scripts/gpuio exec cargo test -p gpuio-native --test native_document --features native-image-tests --locked -j2
+./scripts/gpuio exec cargo test --workspace --lib --features native-image-tests --locked -j2
+./scripts/gpuio exec cargo clippy -p gpuio-native -p gpuio-protocol --all-targets --features native-image-tests --locked -j2 -- -D warnings
+./scripts/gpuio exec cargo check -p gpuio-native --features native-tests --locked -j2
+```
+
+The library run has463 passing tests and two excluded private-bus cases. Formatting
+and whitespace checks pass. This is local native input/AX action evidence, not a
+VoiceOver walkthrough, physical keyboard/IME, Linux GUI or release acceptance.
+Interactive file headers and richer line activation remain the next mounted work;
+gallery/consumer, style parity, application budgets and release gates stay open.

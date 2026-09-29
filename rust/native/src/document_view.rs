@@ -89,6 +89,9 @@ pub(super) struct Presentation {
     diff: Option<crate::document_diff::Diff>,
     diff_config: Option<Arc<gpuio_protocol::document_diff::Config>>,
     diff_epoch: i64,
+    diff_handler: Option<gpuio_protocol::HandlerId>,
+    #[cfg(feature = "native-tests")]
+    diff_more_bounds: Rc<RefCell<Option<gpui::Bounds<gpui::Pixels>>>>,
     diff_controls: Option<Controls>,
     projection: Option<Projection>,
     projection_charge: Option<document_jobs::Charge>,
@@ -108,6 +111,13 @@ pub(super) struct Presentation {
     installed: Option<Arc<Snapshot>>,
     images: document_markdown::Images,
     markdown_extensions: gpui_base::text::MarkdownExtensions,
+}
+#[derive(Clone)]
+struct DiffAction {
+    snapshot: Arc<Snapshot>,
+    page: Arc<str>,
+    epoch: i64,
+    handler: Option<gpuio_protocol::HandlerId>,
 }
 struct MarkdownHighlight {
     source: Arc<gpui_base::text::DisplayedText>,
@@ -316,6 +326,9 @@ impl Presentation {
             diff: None,
             diff_config: None,
             diff_epoch: 0,
+            diff_handler: None,
+            #[cfg(feature = "native-tests")]
+            diff_more_bounds: Rc::default(),
             diff_controls: None,
             projection: None,
             projection_charge: None,
@@ -448,9 +461,11 @@ impl Presentation {
         &mut self,
         config: Option<Arc<gpuio_protocol::document_diff::Config>>,
         epoch: i64,
+        handler: Option<gpuio_protocol::HandlerId>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.diff_handler = handler;
         if self.diff_epoch == epoch {
             return;
         }
@@ -879,6 +894,131 @@ impl Presentation {
         self.invalidate_row(cx);
         cx.notify();
     }
+    fn diff_action(&self) -> Option<DiffAction> {
+        if self.collapsed || self.raw_diff || self.active_projection().is_none() {
+            return None;
+        }
+        Some(DiffAction {
+            snapshot: self.installed.clone()?,
+            page: self.projected_page.clone()?,
+            epoch: self.diff_epoch,
+            handler: self.diff_handler,
+        })
+    }
+    fn accepts_diff_action(&self, action: &DiffAction, cx: &Context<Self>) -> bool {
+        if self.collapsed
+            || self.raw_diff
+            || self.active_projection().is_none()
+            || self.diff_epoch != action.epoch
+            || self.diff_handler != action.handler
+            || !self
+                .installed
+                .as_ref()
+                .is_some_and(|current| Arc::ptr_eq(current, &action.snapshot))
+            || !self
+                .projected_page
+                .as_ref()
+                .is_some_and(|current| Arc::ptr_eq(current, &action.page))
+        {
+            return false;
+        }
+        let Some(root) = self.root.upgrade() else {
+            return false;
+        };
+        let root = root.read(cx);
+        let session = root.session.borrow();
+        let Some(tree) = session.tree(root.id) else {
+            return false;
+        };
+        let Some(node) = tree.get(self.node) else {
+            return false;
+        };
+        let Some(source) = self.config.source else {
+            return false;
+        };
+        session.accepts_input(root.id)
+            && root.focus.borrow().allows(self.node)
+            && root
+                .documents
+                .get(&self.node)
+                .and_then(|state| state.presentation.as_ref())
+                == Some(&cx.entity())
+            && node.handler == action.handler
+            && node.document_diff_epoch == action.epoch
+            && node.document_diff == self.diff_config
+            && node
+                .document
+                .as_ref()
+                .is_some_and(|config| config.source == Some(source))
+            && session
+                .document(source)
+                .is_ok_and(|lease| lease.snapshot().generation == action.snapshot.generation)
+    }
+    fn emit_diff(
+        &self,
+        action: &DiffAction,
+        observation: gpuio_protocol::document_diff::Observation,
+        cx: &mut Context<Self>,
+    ) {
+        let (Some(handler), Some(source)) = (action.handler, self.config.source) else {
+            return;
+        };
+        let event = gpuio_protocol::document_diff::Event {
+            config_epoch: action.epoch,
+            source_revision: action.snapshot.revision,
+            source_generation: action.snapshot.generation,
+            observation,
+        };
+        let _ = self.root.update(cx, |root, _| {
+            let event = root
+                .session
+                .borrow()
+                .document_diff_event(root.id, self.node, handler, source, event);
+            if let Some(event) = event
+                && !root.transport.input(event)
+                && root.session.borrow_mut().overload(root.id)
+            {
+                root.transport.fault(root.id);
+            }
+        });
+    }
+    fn show_more_diff(&mut self, action: &DiffAction, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.accepts_diff_action(action, cx) {
+            return;
+        }
+        let Some(observation) = self
+            .diff_controls
+            .as_mut()
+            .and_then(|controls| controls.show_more(self.projection.as_ref()?))
+        else {
+            return;
+        };
+        let applied = matches!(
+            &observation,
+            gpuio_protocol::document_diff::Observation::ShowMore {
+                applied_limit: Some(_),
+                ..
+            }
+        );
+        self.emit_diff(action, observation, cx);
+        if applied {
+            let was_focused = self
+                .buttons
+                .get("document-diff-more")
+                .is_some_and(|focus| focus.is_focused(window));
+            self.rebuild_diff(action.snapshot.clone(), window, cx);
+            if was_focused && !self.has_more_diff() {
+                window.focus(&self.editor.read(cx).focus_handle(cx), cx);
+            }
+            cx.notify();
+        }
+    }
+    fn has_more_diff(&self) -> bool {
+        !self.collapsed
+            && self
+                .active_projection()
+                .is_some_and(|projection| projection.hidden_body_lines() > 0)
+    }
     fn navigation_at_caret(&self, cx: &App) -> Option<Navigation> {
         let caret = self.installed_page_start + self.editor.read(cx).bridge_selection().1;
         let caret = match self.active_projection() {
@@ -999,6 +1139,16 @@ impl Render for Presentation {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.refresh(self.config.clone(), cx);
         self.accept_ready(window, cx);
+        if !self.has_more_diff()
+            && self
+                .buttons
+                .get("document-diff-more")
+                .is_some_and(|focus| focus.is_focused(window))
+        {
+            // Controlled acceptance, collapse and raw-source transitions can
+            // remove the footer outside its own activation callback.
+            window.focus(&self.primary_focus(cx), cx);
+        }
         self.install_highlight(cx);
         let weak = cx.weak_entity();
         for name in [
@@ -1011,6 +1161,7 @@ impl Render for Presentation {
             "document-location",
             "document-rendered",
             "document-diff-view",
+            "document-diff-more",
         ] {
             self.buttons
                 .entry(name)
@@ -1169,6 +1320,9 @@ impl Render for Presentation {
         if !self.collapsed && self.installed.is_some() {
             order.push(self.primary_focus(cx));
         }
+        if self.has_more_diff() {
+            order.push(self.buttons["document-diff-more"].clone());
+        }
         let root_view = self.root.clone();
         let node = self.node;
         let mut root = div()
@@ -1326,6 +1480,31 @@ impl Render for Presentation {
                     .child(Editor::new(&self.editor)),
             );
         }
+        if self.has_more_diff()
+            && let Some(action) = self.diff_action()
+        {
+            let hidden = self.active_projection().unwrap().hidden_body_lines();
+            let button = self.button(
+                "document-diff-more",
+                "Show more diff lines",
+                move |this, window, cx| this.show_more_diff(&action, window, cx),
+                cx,
+            );
+            #[cfg(feature = "native-tests")]
+            let button = {
+                use gpui_base::ElementExt as _;
+                let bounds = self.diff_more_bounds.clone();
+                button.on_prepaint(move |value, _, _| *bounds.borrow_mut() = Some(value))
+            };
+            root = root.child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(8.))
+                    .child(button)
+                    .child(format!("{hidden} more lines")),
+            );
+        }
         root.into_any_element()
     }
 }
@@ -1414,6 +1593,7 @@ impl View {
                     state.refresh_diff(
                         node.document_diff.clone(),
                         node.document_diff_epoch,
+                        node.handler,
                         window,
                         cx,
                     );
@@ -1553,6 +1733,7 @@ impl View {
             state.refresh_diff(
                 node.document_diff.clone(),
                 node.document_diff_epoch,
+                node.handler,
                 window,
                 cx,
             );
