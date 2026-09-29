@@ -106,15 +106,20 @@ Left/Right, Shift extension, Home/End and Cmd/Ctrl+A/C are supported. Selection
 color inherits into ordinary text and document bodies, with child overrides and
 restoration of native defaults when declarations are removed. Offsets are UTF-8 bytes and clamp to valid boundaries on text
 changes. Native state is preserved for a stable node and discarded on removal,
-replacement or deselection. This is per-text-node selection, not a rich-text editor
-or cross-node document selection. Native editors own their editing selection.
+replacement or deselection. Single-click drags and Shift-click can span ordinary
+text nodes in the active window selection scope; Copy follows rendered order and
+preserves selected whitespace. Keyboard ranges and multi-click gestures remain
+local to their text node. Source changes retire geometric selection, and hiding
+an endpoint retires its shared gesture. Truncated pointer selection maps retained
+glyphs to source bytes; Cmd/Ctrl+A still selects the complete source. Native editors
+own their editing selection.
 Document bodies default to selectable and honor inherited/local `User_select`;
 disabling clears user selection without disabling links, scroll or explicit Copy
 source controls. Programmatic document search selection remains available, while
 selection Copy stays disabled. Editable inputs retain their own selection even
 under `User_select false`.
 The [selection-style audit](selection-style-audit.md) records the pinned GPUIX
-default differences, document user-selection policy and remaining cross-node gaps.
+default differences, document user-selection policy and remaining cross-document acceptance.
 
 ## Keys, events and commit ownership
 
@@ -169,7 +174,7 @@ there is no promise of CSS syntax or the React development lifecycle.
 | overflow, overflowX, overflowY | Overflow shorthand, Overflow_x/y (Visible/Clip/Hidden/Scroll) |
 | cursor | Cursor; Move uses GPUI ClosedHand, the available drag cursor equivalent |
 | pointerEvents | Pointer_events; inherited interaction policy described above |
-| userSelect, selectionColor | User_select, Selection_color; native per-text-node selection described above |
+| userSelect, selectionColor | User_select, Selection_color; native ordinary/window and document selection described above |
 | hover, active | Style.with_state Hovered/Pressed; Focused is also available |
 
 ## Validation

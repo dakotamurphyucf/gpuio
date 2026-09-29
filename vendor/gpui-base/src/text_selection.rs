@@ -520,7 +520,7 @@ fn resolve_copy_items(mut items: Vec<CopyItem>, cx: &mut App) -> String {
                 .map(|callback| callback(cx))
                 .unwrap_or(item.fallback)
         })
-        .filter(|text| !text.trim().is_empty())
+        .filter(|text| !text.is_empty())
         .collect::<Vec<_>>()
         .join("\n")
 }
@@ -536,6 +536,7 @@ struct SelectableTextState {
     projected_copy_text: Option<String>,
     runs: Vec<TextSelectionRun>,
     local_selection: bool,
+    local_anchor: Option<Point<Pixels>>,
     snapshot: Option<TextSelectionSnapshot>,
     on_focus: Option<FocusCallback>,
     clear: Option<ClearHandler>,
@@ -552,6 +553,7 @@ impl SelectableTextState {
             projected_copy_text: None,
             runs: Vec::new(),
             local_selection: false,
+            local_anchor: None,
             snapshot: None,
             on_focus: None,
             clear: None,
@@ -642,6 +644,7 @@ impl SelectableTextState {
         self.snapshot = None;
         self.projected_copy_text = None;
         self.local_selection = false;
+        self.local_anchor = None;
         cx.emit(TextSelectionEvent::Cleared);
         cx.emit(TextSelectionEvent::SelectionChanged(None));
         self.clear.clone()
@@ -701,6 +704,12 @@ impl TextSelectionHandle {
             .update(cx, |state, _| state.set_local_selection(active));
     }
 
+    /// Supply a window-coordinate anchor for Shift-click after local keyboard
+    /// selection/caret movement. Refresh after layout; clear when no longer valid.
+    pub fn set_local_anchor(&self, point: Option<Point<Pixels>>, cx: &mut App) {
+        self.0.update(cx, |state, _| state.local_anchor = point);
+    }
+
     /// Returns whether participant-local selection is active.
     pub fn has_local_selection(&self, cx: &App) -> bool {
         self.0.read(cx).local_selection
@@ -722,6 +731,18 @@ impl TextSelectionHandle {
         state.update(cx, |state, cx| {
             state.register_participant(self.clone(), registration, cx)
         });
+    }
+
+    /// Register in the same frame-local paint order used by native TextViews.
+    /// Call exactly once per painted participant after mounting TextSelectionLayer.
+    pub fn register_in_paint_order(
+        &self,
+        mut registration: TextSelectionRegistration,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        registration.document_order = GlobalState::global_mut(cx).next_selection_document_order();
+        self.register(registration, window, cx);
     }
 
     /// Projects the current snapshot onto plain-text runs and caches their copy text.
@@ -978,6 +999,17 @@ impl WindowSelectionState {
                     .then(|| (*id, registration.participant.clone()))
             })
             .collect::<Vec<_>>();
+        // Retiring an endpoint must also retire the gesture. Otherwise showing
+        // the same retained participant later would resurrect cleared selection.
+        let retired_endpoint = [&self.anchor, &self.cursor, &self.pending_extension_anchor]
+            .into_iter()
+            .flatten()
+            .filter_map(SelectionEndpoint::entity_id)
+            .any(|id| stale.iter().any(|(stale_id, _)| *stale_id == id));
+        if retired_endpoint {
+            // Notify a self-scrolling anchor before dropping its registration.
+            self.stop_anchor_auto_scroll(cx);
+        }
         let mut handlers = Vec::new();
         for (id, participant) in stale {
             self.participants.remove(&id);
@@ -986,6 +1018,9 @@ impl WindowSelectionState {
                     handlers.push(handler);
                 }
             }
+        }
+        if retired_endpoint {
+            handlers.extend(self.clear_state(cx));
         }
         self.publish_snapshots(cx);
         self.frame_generation = self.frame_generation.wrapping_add(1);
@@ -1134,7 +1169,29 @@ impl WindowSelectionState {
     }
 
     fn prepare_for_mouse_down(&mut self, extend: bool, cx: &mut App) -> Vec<ClearHandler> {
-        let pending_extension_anchor = extend.then(|| self.anchor.clone()).flatten();
+        let pending_extension_anchor = extend
+            .then(|| {
+                self.anchor.clone().or_else(|| {
+                    self.participants.values().find_map(|registration| {
+                        if registration.registration.scope != self.active_scope {
+                            return None;
+                        }
+                        let participant = registration.participant.upgrade()?;
+                        let point = participant.read(cx).local_anchor?;
+                        Some(SelectionEndpoint {
+                            participant: Some(participant.downgrade()),
+                            point: point
+                                - registration.registration.bounds.origin
+                                - registration.registration.scroll_offset,
+                            inside: true,
+                            inside_text: true,
+                            content_key: None,
+                            content_key_resolver: None,
+                        })
+                    })
+                })
+            })
+            .flatten();
         self.stop_anchor_auto_scroll(cx);
         self.anchor = None;
         self.cursor = None;

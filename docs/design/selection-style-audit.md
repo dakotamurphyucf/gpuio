@@ -24,12 +24,13 @@ identical CSS/browser behavior. Native editor inputs keep their widget-owned
 selection and editing semantics; their selection must not be disabled simply
 because surrounding application chrome has `User_select false`.
 
-GPUIO currently keeps ordinary `View.text` selection per node. GPUIX also supports
-window selection spanning multiple read-only runs. The existing GPUIO document
-view supports selection inside its prepared document, but that does not establish
-cross-node or cross-document selection parity. Resolve and validate this remaining
-functional gap before closing the catalog audit; it is not silently deferred by
-this document.
+Ordinary `View.text` nodes now participate in Base's window selection engine,
+sharing native paint order and focus-trap scopes with Markdown participants.
+Single-click drags can span ordinary nodes, while keyboard ranges and double/
+triple-click gestures remain local to the focused node. This is a cross-node
+foundation, not complete cross-document acceptance: mixed ordinary/Markdown,
+virtualized boundaries, separate windows and the broader input matrix remain
+required before closing the catalog audit.
 
 ## Selection color implementation
 
@@ -88,8 +89,8 @@ retained focus trap receives a stable selection-scope identity; documents regist
 in the containing trap, and the host activates the current top trap. Changing the
 active trap clears obsolete selection. Both Copy and selection-presence queries
 exclude participant-local selections from inactive scopes, including a stale
-programmatic selection. These scopes do not turn ordinary per-node text selection
-into cross-node selection; that adapter remains separate work.
+programmatic selection. Ordinary text now registers in the same scopes and paint
+order through the adapter described below.
 
 Style updates keep the native editor/Markdown entity and installed source snapshot.
 The native default stays enabled when all declarations are removed, while a
@@ -185,20 +186,97 @@ source bytes; no production source-copy change was needed.
 The Base patch is reconstructed from the unchanged pinned archive by
 `scripts/vendor_gpui_base.py`; the resulting tree matches `vendor/gpui-base`
 (excluding generated `Cargo.lock`). `third_party/sources.json` records patch SHA256
-`5abb243f7c6a27f75bd8fe3afcc77dd0a50e72c629cb26420fef42b78b726556`.
+`e9bde1369b51a16f156abe3098ae4a6437a782e068b8d6ebbb9d2541434b9c82`.
 The patch adds the editor policy, Markdown disable cleanup and copy guard, public
-native scope wrapper, and active-scope Copy/presence filtering. No public OCaml or
+native scope wrapper, active-scope Copy/presence filtering, ordinary participant
+paint-order/local-anchor APIs, whitespace Copy preservation and retired-endpoint
+cleanup. No public OCaml or
 wire format changes are needed.
+
+## Ordinary window-selection adapter
+
+Each retained ordinary text node owns one Base participant. Its callbacks hold a
+weak reference to the node's native state; the window registry cannot keep an
+unmounted node alive. Paint registers current shaped geometry and the containing
+focus-trap scope. Pointer projection, local keyboard commands and Copy remain
+entirely native; no per-frame selection payload crosses the OCaml bridge.
+
+Single-click drag and Shift-click span eligible participants. Copy collects them
+in rendered order, joining nonempty results with a newline and preserving their
+selected source bytes, including whitespace-only selections. `User_select false`
+excludes ordinary nodes. A local keyboard range retires prior shared selection;
+Cmd/Ctrl+A remains focused-node Select All. Editable widgets retain their own
+selection engine. Native source changes retire geometric selection before the
+new source is exposed; local ranges clamp to valid UTF-8 boundaries.
+
+A shared source/display mapper now serves both search washes and selection.
+Truncated pointer ranges select retained source glyphs, never synthetic ellipsis
+bytes. A range crossing both retained pieces of middle truncation includes the
+intervening source bytes; an ellipsis-only geometric range is empty. Keyboard
+Select All includes hidden source. Hidden caret positions snap to the nearest
+retained edge for Shift-click anchoring. Public clip, end-ellipsis and start-
+ellipsis styles retain their existing wire values; no middle-ellipsis public
+constructor is added by this change.
+
+Selection painting follows projection in the same frame, after search washes and
+before glyphs. Reordering uses the endpoints' retained participant identities and
+new painted positions. When an endpoint stops registering for a completed frame,
+the window retires the gesture and stops autoscroll before dropping the endpoint.
+Showing that retained participant again cannot resurrect the old selection.
+Interior participant retirement alone does not discard surviving endpoints.
+
+The native `selection_window_test.rs` fixture runs inside `native_ui` and covers
+forward/reverse Unicode drag/Copy, exclusions, source replacement, disabling an
+interior participant, local grapheme movement, keyboard-to-Shift-click extension,
+exact whitespace Copy, actual start/end ellipsis shaping and reverse drag,
+full-source Select All, reorder, hide/show endpoint retirement and modal clearing.
+These use actual native windows/layout/clipboard with GPUI-dispatched input; they
+are not physical keyboard/IME or VoiceOver acceptance. Pure mapper tests also
+cover Unicode middle/affix-only and equal-byte-length truncation; those tests do
+not establish mounted middle-truncation behavior.
+
+The retirement regression first reproduced stale selection returning after an
+endpoint was hidden and shown. Base's post-frame sweep now retires endpoint state
+as well as clearing participant ranges. This is separate from source replacement
+and active-modal scope retirement.
+
+Local macOS validation of this adapter passed with observed exit 0 for
+`native_ui`, `native_highlight_view`, `native_highlight_document` and `native_list`.
+The last test completed two 100,000-row traversals, retained at most 256 active
+views/selection caches, and released evicted row payloads. This preserves the
+existing list regression; it is not acceptance of every virtualized cross-node
+selection gesture. Document selection-color/policy, streaming, modal isolation
+and native gutter/source/highlight checks also passed after the shared Base change.
+
+```sh
+./scripts/gpuio exec cargo test -p gpuio-native --lib text_projection --features native-image-tests --locked -j2
+./scripts/gpuio exec cargo test -p gpuio-native --lib highlight_paint::tests --features native-image-tests --locked -j2
+./scripts/gpuio exec cargo test -p gpuio-native --test native_ui --test native_highlight_view --test native_list --test native_highlight_document --features native-image-tests --locked -j2 --no-run
+./scripts/gpuio exec cargo clippy -p gpuio-native -p gpuio-protocol --all-targets --features native-image-tests --locked -j2 -- -D warnings
+./scripts/gpuio exec cargo check -p gpuio-native --locked -j2
+./scripts/gpuio exec cargo fmt --all --check
+python3 scripts/audit_component_catalog.py
+git diff --check
+```
+
+The Cargo-reported executables ran individually in process groups, with 90-second
+watchdogs for UI/highlight/document and 300 seconds for the full list traversal.
+Five shaped-paint unit tests and the source/display mapper test passed. Fork
+reconstruction matched the committed snapshot excluding generated `Cargo.lock`.
+The catalog check establishes structural coverage only (three reviewed style value
+sets); no new capability advertisement or hosted release acceptance is implied.
 
 ## Remaining implementation and acceptance
 
 - Complete document selection policy evidence for disabled Markdown multi-click,
   scrolling, file controls and accessible selection/range commands. The focused
   native checks above are not the whole OCH-17 input/AX matrix.
-- Ordinary cross-node and cross-document drag/copy behavior needs an explicit
-  implementation/acceptance decision, including exclusions, virtual-row reuse,
-  source changes, modal/window boundaries and bounded retention. Existing per-node
-  or per-document evidence does not prove it.
+- Complete mixed ordinary/Markdown and cross-document drag/copy, removed/replaced
+  endpoints, virtual-row reuse, separate-window boundaries, wrapped/mixed-direction
+  text, multi-click cross-node semantics and pointer-operated Copy controls.
+  The focused ordinary-node regression does not prove those combinations.
+- Measure projection and copy cost for large selected text and bounded retention
+  during repeated mount/unmount/window cycles.
 - Complete inherited-style checks through deferred/specialized roots and the
   public/installed-consumer gallery matrix. Retained state and compilation alone
   are not all-root behavioral evidence.

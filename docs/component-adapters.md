@@ -161,3 +161,13 @@ current trap scope before rendering; a fresh per-frame scope would clear selecti
 on every frame. Inactive scopes must be excluded from local-selection Copy as well
 as geometric snapshots. The [selection audit](design/selection-style-audit.md)
 records the narrow Base patch, tested behavior and remaining acceptance work.
+
+Ordinary selectable text uses the same window layer and scope identities. Register
+once per paint with `register_in_paint_order`; callbacks must not strongly retain
+the node. Local keyboard range changes clear prior window geometry before updating
+the participant, outside the node's mutable borrow. Refresh local caret anchors
+after layout for Shift-click. Copy preserves nonempty whitespace payloads. When
+source and displayed text differ, project displayed glyphs and map their ranges
+back to source bytes; never treat ellipsis byte offsets as source offsets. Reuse
+`text_projection` for this mapping and highlight painting. Retiring a registered
+endpoint must retire the window gesture, not just its current painted range.

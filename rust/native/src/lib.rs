@@ -85,6 +85,7 @@ mod selection;
 mod semantics;
 pub mod session;
 mod style;
+mod text_projection;
 mod transport;
 pub mod tree;
 

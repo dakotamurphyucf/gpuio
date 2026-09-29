@@ -1276,12 +1276,16 @@ impl View {
                 .selections
                 .entry(id)
                 .or_insert_with(|| {
-                    Rc::new(RefCell::new(crate::selection::State::new(
-                        node.text.clone(),
-                        cx,
-                    )))
+                    crate::selection::State::new(node.text.clone(), cx.entity_id(), cx)
                 })
                 .clone();
+            let changed_geometry = {
+                let state = selection.borrow();
+                state.text != node.text && state.has_geometry(cx)
+            };
+            if changed_geometry {
+                gpui_base::TextSelection::clear(window, cx);
+            }
             selection.borrow_mut().update(node.text.clone());
             let highlight = self.highlight_for(tree, id);
             element = element.child(crate::selection::element(
@@ -1291,6 +1295,7 @@ impl View {
                     .unwrap_or_else(|| rgba(0x386ac880).into()),
                 interaction.pointer,
                 cx.entity_id(),
+                self.focus.borrow().selection_scope(id),
                 highlight,
             ));
         } else if matches!(node.kind, Kind::Checkbox | Kind::Switch) {

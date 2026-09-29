@@ -1,6 +1,7 @@
 //! Paint-only highlight washes. Matching stays on workers; geometry follows the
 //! already-shaped text, including wrapping, alignment and truncation. Put this
 //! underlay before StyledText so native selection decoration remains on top.
+use crate::text_projection::{Mapping, mapping};
 use crate::{
     highlight_jobs::Ready,
     highlight_projection::{Matches, RunKey},
@@ -89,75 +90,7 @@ fn resolve_matches(matches: &Matches, key: RunKey, config: &Config) -> Arc<[Wash
         .collect::<Vec<_>>()
         .into()
 }
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct Mapping {
-    source: Range<usize>,
-    displayed: usize,
-}
-/// Never search for the query in displayed text. Map only retained source slices;
-/// synthetic ellipsis text cannot acquire a match or contribute an ordinal.
-fn mapping(source: &str, displayed: &str, overflow: Option<&TextOverflow>) -> Vec<Mapping> {
-    if source == displayed {
-        return vec![Mapping {
-            source: 0..source.len(),
-            displayed: 0,
-        }];
-    }
-    match overflow {
-        Some(TextOverflow::Truncate(affix)) => displayed
-            .strip_suffix(affix.as_ref())
-            .filter(|s| source.starts_with(s))
-            .map(|s| {
-                vec![Mapping {
-                    source: 0..s.len(),
-                    displayed: 0,
-                }]
-            })
-            .unwrap_or_default(),
-        Some(TextOverflow::TruncateStart(affix)) => displayed
-            .strip_prefix(affix.as_ref())
-            .filter(|s| source.ends_with(s))
-            .map(|s| {
-                vec![Mapping {
-                    source: source.len() - s.len()..source.len(),
-                    displayed: affix.len(),
-                }]
-            })
-            .unwrap_or_default(),
-        Some(TextOverflow::TruncateMiddle(affix)) if !affix.is_empty() => displayed
-            .match_indices(affix.as_ref())
-            .find_map(|(index, _)| {
-                let prefix = &displayed[..index];
-                let suffix = &displayed[index + affix.len()..];
-                (prefix.len() + suffix.len() <= source.len()
-                    && source.starts_with(prefix)
-                    && source.ends_with(suffix))
-                .then(|| {
-                    vec![
-                        Mapping {
-                            source: 0..prefix.len(),
-                            displayed: 0,
-                        },
-                        Mapping {
-                            source: source.len() - suffix.len()..source.len(),
-                            displayed: index + affix.len(),
-                        },
-                    ]
-                })
-            })
-            .unwrap_or_default(),
-        None | Some(TextOverflow::TruncateMiddle(_)) => {
-            if source.starts_with(displayed) {
-                vec![Mapping {
-                    source: 0..displayed.len(),
-                    displayed: 0,
-                }]
-            } else {
-                vec![]
-            }
-        }
-    }
-}
+
 struct Line {
     layout: Arc<WrappedLineLayout>,
     offset: usize,
@@ -363,6 +296,42 @@ impl Cache {
         }
     }
 }
+/// Paint selection after search washes, using the same shaped/Bidi-aware geometry.
+pub(crate) fn selection(
+    source: &Arc<str>,
+    layout: &TextLayout,
+    bytes: Range<usize>,
+    color: Hsla,
+    cache: &SharedCache,
+    window: &mut gpui::Window,
+) {
+    let style = window.text_style();
+    let mut cache = cache.borrow_mut();
+    cache.update(source, layout, style.text_overflow.clone());
+    cache.rectangles(
+        &Wash {
+            bytes,
+            color,
+            radius: 0.,
+            active: false,
+        },
+        layout.bounds(),
+        layout.line_height(),
+        style.text_align,
+        window.content_mask().bounds,
+        |bounds| {
+            window.paint_quad(quad(
+                bounds,
+                px(0.),
+                color,
+                px(0.),
+                gpui::transparent_black(),
+                Default::default(),
+            ))
+        },
+    );
+}
+
 pub fn underlay(
     source: Arc<str>,
     layout: TextLayout,
