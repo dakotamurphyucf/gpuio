@@ -25,8 +25,10 @@ streaming revision replacement and owner disposal. Prepared Markdown headings,
 formatted/inline-code text, fences, tables and wrapped paragraphs now also pass
 focused native GPU/selection/streaming/collapse/cleanup checks. Declared custom
 text, literal HTML and image placeholders now share that painter; decoded images
-remove placeholder matches without changing document revisions. Virtual-list/
-multiwindow acceptance and the public highlighting gallery remain pending. The gallery page count does
+remove placeholder matches without changing document revisions. Focused native
+checks now also pass for 100k logical-list row reuse and independent windows;
+broad scrolling/tab/fold/bidi coverage, the public highlighting gallery and
+application performance/resource acceptance remain pending. The gallery page count does
 not imply parity. General input regions now have mounted Core/Bonsai/native
 integration, native edge-case and public gallery evidence; remaining consumer/
 release acceptance stays open in the [input ledger](evidence/input-observations-och41.md). Start ellipsis and the complete cursor vocabulary now have

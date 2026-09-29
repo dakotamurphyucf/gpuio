@@ -13,6 +13,9 @@ use std::{
     time::Duration,
 };
 
+#[path = "highlight_lifecycle_test.rs"]
+mod lifecycle;
+
 fn id(slot: i64) -> NodeId {
     NodeId::from_parts(slot, 1).unwrap()
 }
@@ -67,6 +70,7 @@ fn apply(cx: &mut AsyncApp, handle: WindowHandle<View>, operations: Vec<Op>) {
                     panic!("highlight fixture transaction {}: {error:?}", base + 1)
                 });
             view.update_editors(&applied.dirty, window, cx);
+            view.list_actions(&applied.lists, window, cx);
             cx.notify();
         })
         .unwrap();
@@ -235,6 +239,7 @@ pub(crate) fn run() {
                 assert!(weak.upgrade().is_none(),"unmounted scope reclaimed after full paint");
                 assert!(handle.update(cx,|view,_,_|view.highlights.is_empty()).unwrap());
                 assert!(observations(&transport).is_empty(),"no callback from unmounted scope");
+                lifecycle::exercise(cx,handle,&session,&transport).await;
                 eprintln!("GPUIO_NATIVE_HIGHLIGHT_VIEW_OK: mounted GPU ordinary/selectable paint and selection precedence, nested empty barrier, queued counts, cosmetic reuse, source retirement/latest update, native visibility, invalid range recovery and unmount cleanup");
             }).await;
             *task_failure.borrow_mut()=checked.err();

@@ -470,3 +470,39 @@ Selection checks use native APIs, not physical keyboard/IME input. Complete part
 selection of custom blocks, rich-object accessibility, broad script/bidi/scroll,
 virtual-row and multiwindow acceptance, public gallery, performance/resource budgets
 and release gates remain required. No hosted CI, Linux GUI or new capability claim.
+
+## Virtual rows and independent windows
+
+The extended `native_highlight_view` runs two background windows through the
+production retained View, shared transport and native matching service. Both use
+the same node and handler IDs. Actual GPU colors, queued window-tagged counts,
+result identity and epochs verify that a source update in one window leaves the
+other window's result unchanged.
+
+One window then installs a managed list with 100,000 logical rows and 12 supplied
+row trees. Jumping to row 50,001 shows unloaded placeholders, clears highlight
+pixels and reclaims the previously painted row scopes. Rebinding the same native
+nodes to the distant logical page gives new counts and normal/active colors using
+the updated match offsets. The other window retains its prepared result throughout.
+Closing the first window immediately after a large text update releases its scope
+handles; no late observation from it appears during the subsequent survivor draws.
+The surviving window then accepts another source update and paints the new result.
+
+Local macOS 14.5 arm64 validation:
+
+- Build: `./scripts/gpuio exec cargo test -p gpuio-native --features native-image-tests --test native_highlight_view --no-run --locked -j2`.
+- The resulting native binary passes the existing ordinary/selectable suite and
+  the new lifecycle suite under a 60-second watchdog. Both windows close and the
+  process is reaped. Checks use native APIs; no OS keyboard/IME interaction is claimed.
+- Strict native/protocol all-target Clippy with `native-image-tests` passes.
+  Workspace formatting and diff checks pass. Production code and the Base fork
+  patch are unchanged by this fixture extension.
+
+Initial failures were fixture errors: computing window bounds from AsyncApp
+instead of App, then attempting sparse node allocation. The corrected fixture uses
+the production dense, generation-checked node allocation contract. Neither failure
+provides evidence of interference from the owner's desktop interaction.
+
+This is functional lifecycle evidence, not a 100k-row performance budget or a
+deterministic worker-cancellation race test. Broad scrolling/tab/fold/bidi,
+application resource budgets, public gallery and release acceptance remain open.
