@@ -35,8 +35,9 @@ Placement callbacks are fenced by acknowledged row visits; deterministic tests
 reject retired/older replies and captured group callbacks after retirement.
 The expanded repository and installed-consumer runs also pass physical split/keyboard resizing,
 custom-policy reset exclusions, focused pin/eviction/remount across 48 groups and
-two-window OS edits/reset/close isolation. It exposes an initial second-window
-AX focus-reporting discrepancy despite successful input; disabled Inert rows
+two-window OS edits/reset/close isolation. Its initial second-window AX focus
+mismatch is now repaired with a scoped adapter initialization patch and
+[initial/switch/inactive-peer regression](window-accessibility-och17.md); disabled Inert rows
 are absent from AX rather than exposed as disabled controls. Those accessibility
 limits and full composition/field/style coverage remain open. A native warm-row
 retention fix preserves neighbours when the sole visible row is pinned.

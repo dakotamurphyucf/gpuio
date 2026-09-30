@@ -1,7 +1,7 @@
-# GPUIO macOS disclosure, outline and table adaptation
+# GPUIO macOS accessibility adaptation
 
 This is the published `accesskit_macos` **0.26.3**, at AccessKit revision
-`c88605b96d04431f9c3c792464a0f2f253480e94`, with five scoped patches.
+`c88605b96d04431f9c3c792464a0f2f253480e94`, with seven scoped patches.
 The upstream MIT/Apache-2.0 notices and both license texts are preserved. Source,
 archive checksum and original per-file checksums are recorded in `UPSTREAM.json`.
 Cargo uses the registry-normalized manifest, retaining its exact dependency ranges.
@@ -53,7 +53,8 @@ Reconstruction: download the crate archive from `UPSTREAM.json`, verify its SHA2
 extract `Cargo.toml`, `Cargo.toml.orig`, README/CHANGELOG and `src/`, then apply
 `patch -p1 < expanded-state.patch` and then `patch -p1 < tree-state.patch` inside
 that directory, followed by `patch -p1 < tree-actions.patch`, `patch -p1 < table-state.patch`
-and `patch -p1 < document-semantics.patch`, then `patch -p1 < table-headers.patch`.
+and `patch -p1 < document-semantics.patch`, then `patch -p1 < table-headers.patch`
+and `patch -p1 < initial-window-focus.patch`.
 Fetch LICENSE-APACHE and
 LICENSE-MIT from the pinned upstream Git revision and verify their recorded hashes.
 `UPSTREAM.json`, this note and the patches are GPUIO provenance additions. The
@@ -132,3 +133,17 @@ scrolling to logical row 50,001, and verifies retained hidden-table references n
 longer expose headers. The managed table now marks its existing header container
 as RowGroup while preserving the delegate's element identity. Empty row-header
 arrays are correct for these fixtures; row-selection buttons are not row headers.
+
+`initial-window-focus.patch` seeds the window adapter's host-focus state from
+`NSWindow.isKeyWindow` at installation. The pinned GPUI macOS backend can install
+the adapter after AppKit has already made a newly opened window key. Starting
+unconditionally unfocused then suppresses the accessible focused node until a
+later key-window transition, although keyboard editing already works. The
+generic view constructor retains its documented before-first-focus behavior.
+Subsequent focus updates, accessibility tree ownership and action routing are
+unchanged; the patch does not activate windows or synthesize focus events.
+
+The public gallery's Settings two-window regression checks initial `AXFocused`,
+inactive peer state, switching back, actual OS edits, independent resets and the
+surviving window after close. These external getter/input checks do not establish
+VoiceOver speech or focus-notification delivery. No dependency version changes.

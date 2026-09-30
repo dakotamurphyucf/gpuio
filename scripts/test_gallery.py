@@ -2829,22 +2829,22 @@ def open_picker(mac, trigger, cancel):
     mac.release(mac.wait_find(TITLE, cancel, 'AXButton'))
 
 
-def expect_focus(mac, trigger, role="AXButton"):
+def expect_focus(mac, trigger, role="AXButton", *, title=TITLE, focused=True):
     get = mac.cf.CFBooleanGetValue
     get.restype, get.argtypes = C.c_bool, [C.c_void_p]
     deadline = time.monotonic() + 10
     while time.monotonic() < deadline:
-        node = mac.wait_find(TITLE, trigger, role)
+        node = mac.wait_find(title, trigger, role)
         value = mac.attr(node, 'AXFocused')
         try:
-            if value and get(value):
+            if value and bool(get(value)) == focused:
                 return
         finally:
             if value:
                 mac.release(value)
             mac.release(node)
         time.sleep(.03)
-    raise RuntimeError(f'Focus not restored to {trigger}')
+    raise RuntimeError(f'{title}: expected {trigger} AXFocused={focused}')
 
 
 def exercise_pickers(mac, images):
@@ -5699,33 +5699,29 @@ def exercise_settings_windows(mac):
             finally:
                 mac.release(field)
                 mac.release(window)
-            # Actual edits below prove keyboard ownership independently. The
-            # initial AXFocused flag in a new second window can report false;
-            # retain that observation for the separate accessibility audit.
-            field = mac.wait_find(title, 'Settings workspace name', 'AXTextField')
-            focused = mac.attr(field, 'AXFocused')
-            boolean = mac.cf.CFBooleanGetValue
-            boolean.restype, boolean.argtypes = C.c_bool, [C.c_void_p]
-            try:
-                print('GALLERY_SETTINGS_FOCUS_OBSERVATION', title,
-                      bool(focused and boolean(focused)), flush=True)
-            finally:
-                if focused:
-                    mac.release(focused)
-                mac.release(field)
+            expect_focus(mac, 'Settings workspace name', 'AXTextField', title=title)
         focus_field(second)
         mac.key(0, flags=1 << 20)
         mac.key(11)  # b in the second window
         expect_field(mac, second, 'Settings workspace name', 'b')
         expect_field(mac, TITLE, 'Settings workspace name', 'Northstar')
         focus_field(TITLE)
+        expect_focus(mac, 'Settings workspace name', 'AXTextField', title=second, focused=False)
         mac.key(0, flags=1 << 20)
         mac.key(7)  # x in the first window
         expect_field(mac, TITLE, 'Settings workspace name', 'x')
         expect_field(mac, second, 'Settings workspace name', 'b')
+        focus_field(second)
+        expect_focus(mac, 'Settings workspace name', 'AXTextField', focused=False)
+        mac.key(0, flags=1 << 20)
+        mac.key(8)  # c after returning to the second window.
+        expect_field(mac, second, 'Settings workspace name', 'c')
+        expect_field(mac, TITLE, 'Settings workspace name', 'x')
+        focus_field(TITLE)
+        expect_focus(mac, 'Settings workspace name', 'AXTextField', title=second, focused=False)
         mac.press(TITLE, 'Reset workspace-name')
         expect_field(mac, TITLE, 'Settings workspace name', 'Northstar')
-        expect_field(mac, second, 'Settings workspace name', 'b')
+        expect_field(mac, second, 'Settings workspace name', 'c')
         mac.close(second)
         second = None
         focus_field(TITLE)
@@ -5734,7 +5730,7 @@ def exercise_settings_windows(mac):
         expect_field(mac, TITLE, 'Settings workspace name', 'x')
         mac.press(TITLE, 'Reset workspace-name')
         expect_field(mac, TITLE, 'Settings workspace name', 'Northstar')
-        print('GALLERY_SETTINGS_WINDOWS_OK: independent OS edits/resets, remaining window usable after close', flush=True)
+        print('GALLERY_SETTINGS_WINDOWS_OK: independent OS edits/resets, initial and switched AX focus, remaining window usable after close', flush=True)
     finally:
         if second:
             window = mac.window(second)
@@ -5945,7 +5941,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'settings', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'settings', 'settings-windows', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -6054,7 +6050,7 @@ def main():
                 exercise_desktop(mac, args.images, second_title=('GPUIO · Component Studio 5' if args.section == 'all' else SECOND))
             if args.section in ('all', 'runtime'):
                 exercise_runtime(mac, args.images)
-            if args.section in ('all', 'settings'):
+            if args.section in ('all', 'settings', 'settings-windows'):
                 exercise_settings_windows(mac)
             mac.close(TITLE)
             if child.wait(timeout=15) != 0:

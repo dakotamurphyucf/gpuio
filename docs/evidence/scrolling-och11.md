@@ -207,6 +207,7 @@ The repository gallery and a fresh installed-library consumer also pass the expa
 actual sidebar drag/keyboard resize, policy reset exclusions, 48-group focused
 retention and blur/eviction/remount, native export and two-window OS input isolation.
 See [Settings evidence](../design/settings-composition.md#public-gallery-integration-checkpoint--2026-09-30)
-for commands and the separate AX focus-reporting/disabled-row limitations. These
+for commands and the separate accessibility limitations. The initial AX focus
+mismatch is now repaired with [its own evidence](window-accessibility-och17.md). These
 checks do not establish whole-application performance, VoiceOver or Linux desktop
 acceptance.

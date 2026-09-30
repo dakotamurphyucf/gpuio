@@ -362,15 +362,16 @@ scroll commands, the active budget or the wire protocol.
 
 Two normal windows also pass actual mouse/keyboard edits, independent reset and
 continued editing after closing the other window. Native hit testing checks which
-window owns the input point. The second window's initial `AXFocused` observation
-is false despite successful targeted keyboard input; the test records this and
-asserts actual resulting data independently. Correct focus reporting remains open
-for the accessibility audit. No VoiceOver acceptance is claimed.
+window owns the input point. The test exposed an initial second-window
+`AXFocused` mismatch despite correct keyboard routing. A scoped adapter
+initialization patch now passes initial focus, inactive-peer state, switching
+back and actual independent edits; see [window accessibility evidence](../evidence/window-accessibility-och17.md).
+No VoiceOver acceptance is claimed.
 
 The driver waits for actual intermediate page content when testing draft recovery;
 rapid coalesced navigation is not qualified by those steps. IME/composition
 retention, complete field/style/size and partial-native-failure/reset-race coverage,
-accessibility discoverability/focus reporting and application performance remain
+disabled-field accessibility discoverability and application performance remain
 open. Settings is not yet a functional-equivalent claim.
 
 ```sh

@@ -196,9 +196,10 @@ native Save/Eio readback now pass scoped repository and fresh installed-consumer
 installed consumer also passes the scoped checks, long-choice keyboard selection
 and Unicode paste. An expanded consumer passes physical split/keyboard resizing,
 custom-policy exclusions, 48-group focused retention/eviction/remount and
-two-window keyboard/reset/close isolation. Disabled-row discoverability, initial
-second-window AX focus reporting, composition and complete field/style/reset-edge
-coverage remain open; this checkpoint does not establish equivalence.
+two-window keyboard/reset/close isolation. Initial second-window AX focus reporting
+now has a scoped adapter repair and passing regression. Disabled-row
+discoverability, composition and complete field/style/reset-edge coverage remain
+open; this checkpoint does not establish equivalence.
 
 ## Delivery order
 
