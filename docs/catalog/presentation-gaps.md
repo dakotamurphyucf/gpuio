@@ -33,11 +33,14 @@ borders are dashed; images dim during uploading, processing or failure. Vertical
 actions sit at the top right. The action cluster stops mouse-down propagation
 even in gaps, preventing card activation. AttachmentGroup scrolls horizontally.
 
-The current horizontal preview/name/detail/actions helper lacks those behaviors.
-Use typed status and rich slots, with Eio upload/file work owned by the application.
-Share dashed borders and text shimmer with separator/marker work. Card activation
-needs intentional event/focus/AX semantics alongside independent actions; do not
-relax composed Link's passive-content constraint to admit nested controls.
+The original horizontal preview/name/detail/actions helper keeps its existing
+behavior. The new [typed Attachment adapter](../design/presentation-attachments.md)
+implements status, rich slots, horizontal/vertical sizing, dashed borders, native
+title shimmer and independent action/trigger controls. Eio upload/file work stays
+application-owned. Core and focused public macOS checks now cover status/layout
+transitions, retained identities, action-gap shielding, keyboard and pointer
+activation, image dimensions and page teardown. The broader acceptance items
+below remain open; composed Link's passive-content constraint is unchanged.
 The shared [text-shimmer foundation](../design/text-shimmer.md) now has paired,
 validated standalone/live codecs, Core/Bonsai reconciliation and atomic native
 tree admission, a native glyph painter and independent retained-clock GPU/lifecycle

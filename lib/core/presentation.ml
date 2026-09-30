@@ -46,6 +46,7 @@ module Appearance = struct
     ; success : Color.t
     ; warning : Color.t
     ; danger : Color.t
+    ; text_shimmer : Text_shimmer.Config.t
     }
 
   let create
@@ -70,7 +71,22 @@ module Appearance = struct
     ; success
     ; warning
     ; danger
+    ; text_shimmer = Text_shimmer.Config.default
     }
+  ;;
+
+  let with_text_shimmer t text_shimmer = { t with text_shimmer }
+
+  let themed_shimmer t ~dark =
+    let appearance =
+      Text_shimmer.Appearance.create
+        ~dark
+        ~foreground:t.foreground
+        ~background:t.surface
+        ()
+      |> Or_error.ok_exn
+    in
+    with_text_shimmer t (Text_shimmer.Config.create ~appearance () |> Or_error.ok_exn)
   ;;
 
   let light =
@@ -86,6 +102,7 @@ module Appearance = struct
       ~success:(c 0x21734c)
       ~warning:(c 0x87550b)
       ~danger:(c 0xb7344b)
+    |> fun t -> themed_shimmer t ~dark:false
   ;;
 
   let dark =
@@ -101,6 +118,7 @@ module Appearance = struct
       ~success:(c 0x8bd6af)
       ~warning:(c 0xf1c784)
       ~danger:(c 0xffa0af)
+    |> fun t -> themed_shimmer t ~dark:true
   ;;
 end
 
@@ -1009,6 +1027,465 @@ let attachment
        ])
   |> semantic Group
 ;;
+
+module Attachment = struct
+  module Status = struct
+    type t =
+      | Pending
+      | Uploading
+      | Processing
+      | Failed
+      | Complete
+    [@@deriving equal, sexp_of]
+
+    let is_in_progress = function
+      | Uploading | Processing -> true
+      | Pending | Failed | Complete -> false
+    ;;
+  end
+
+  module Size = struct
+    type t =
+      | Xsmall
+      | Small
+      | Medium
+      | Large
+      | Pixels of float
+    [@@deriving equal, sexp_of]
+
+    let xsmall = Xsmall
+    let small = Small
+    let medium = Medium
+    let large = Large
+
+    let pixels value =
+      if Float.is_finite value && Float.(value >= 1. && value <= 1_000_000.)
+      then Ok (Pixels value)
+      else Or_error.error_string "attachment size must be finite and in 1..1000000"
+    ;;
+
+    let media = function
+      | Xsmall -> 28.
+      | Small -> 32.
+      | Medium -> 40.
+      | Large -> 48.
+      | Pixels value -> value
+    ;;
+
+    let radius = function
+      | Xsmall -> 12.
+      | Small | Medium | Large | Pixels _ -> 16.
+    ;;
+
+    let media_radius = function
+      | Xsmall -> 4.
+      | Small | Medium | Large | Pixels _ -> 6.
+    ;;
+
+    let fields t ~has_media ~has_content =
+      let gap, font, horizontal, vertical =
+        match t with
+        | Xsmall -> 6., 12., 6., 4.
+        | Small -> 10., 12., 8., 6.
+        | Medium -> 8., 14., 10., 8.
+        | Large -> 12., 16., 16., 12.
+        | Pixels value -> 4., value *. 0.875, value *. 0.25, value *. 0.25
+      in
+      [ Gap (px gap); Font_size font ]
+      @
+      if has_media
+      then [ Padding (px vertical) ]
+      else if has_content
+      then
+        [ Padding_left (px horizontal)
+        ; Padding_right (px horizontal)
+        ; Padding_top (px vertical)
+        ; Padding_bottom (px vertical)
+        ]
+      else []
+    ;;
+  end
+
+  let alpha color factor = Color.with_opacity color factor |> Or_error.ok_exn
+
+  let fill_box =
+    [ Position Absolute; Top (px 0.); Right (px 0.); Bottom (px 0.); Left (px 0.) ]
+  ;;
+
+  let single_line =
+    [ Min_width (px 0.)
+    ; Max_width full
+    ; White_space No_wrap
+    ; Text_overflow Ellipsis
+    ; Overflow_x Hidden
+    ]
+  ;;
+
+  module Title = struct
+    type t =
+      { key : Key.t
+      ; style : Style.t
+      ; status : Status.t option
+      ; shimmer : Text_shimmer.Config.t option
+      ; text : string
+      }
+
+    let create ~key ?(style = Style.empty) ?status ?shimmer text =
+      if
+        String.length text > Gpuio_protocol.Text_shimmer_wire.max_text_bytes
+        || not (Stdlib.String.is_valid_utf_8 text)
+      then
+        Or_error.error_string
+          "attachment title must be valid UTF-8 of at most 16384 bytes"
+      else Ok { key; style; status; shimmer; text }
+    ;;
+
+    let view t ~status ~shimmer =
+      let status = Option.value t.status ~default:status in
+      let shimmer = Option.value t.shimmer ~default:shimmer in
+      View.text
+        ~key:t.key
+        ~style:(Style.merge [ style (single_line @ [ Font_weight 500 ]); t.style ])
+        t.text
+      |> fun view ->
+      View.with_text_shimmer view (Option.some_if (Status.is_in_progress status) shimmer)
+      |> Or_error.ok_exn
+    ;;
+  end
+
+  module Description = struct
+    type t =
+      { key : Key.t
+      ; style : Style.t
+      ; status : Status.t option
+      ; text : string
+      }
+
+    let create ~key ?(style = Style.empty) ?status text = { key; style; status; text }
+
+    let view t (p : Appearance.t) ~status =
+      let status = Option.value t.status ~default:status in
+      let foreground =
+        if Status.equal status Failed then alpha p.danger 0.8 else p.muted
+      in
+      View.text
+        ~key:t.key
+        ~style:
+          (Style.merge
+             [ style
+                 (single_line
+                  @ [ Foreground foreground
+                    ; Font_size 12.
+                    ; Line_height (Length.percent_exn 125.)
+                    ])
+             ; t.style
+             ])
+        t.text
+    ;;
+  end
+
+  module Content = struct
+    module Item = struct
+      type 'action t =
+        | Title of Title.t
+        | Description of Description.t
+        | Element of Key.t * 'action View.t
+
+      let title t = Title t
+      let description t = Description t
+      let element ~key t = Element (key, t)
+
+      let view t p ~status ~shimmer =
+        match t with
+        | Title t -> Title.view t ~status ~shimmer
+        | Description t -> Description.view t p ~status
+        | Element (key, view) ->
+          View.column ~key ~style:(style [ Min_width (px 0.) ]) [ view ]
+      ;;
+    end
+
+    type 'action t =
+      { style : Style.t
+      ; items : 'action Item.t list
+      }
+
+    let create ?(style = Style.empty) items = { style; items }
+
+    let view t p ~status ~shimmer ~axis =
+      View.column
+        ~key:(internal_key "content")
+        ~style:
+          (Style.merge
+             [ style
+                 ([ Min_width (px 0.)
+                  ; Max_width full
+                  ; Grow 1.
+                  ; Shrink 1.
+                  ; Basis (px 0.)
+                  ; Gap (px 2.)
+                  ; Line_height (Length.percent_exn 125.)
+                  ]
+                  @
+                  match axis with
+                  | Axis.Horizontal -> []
+                  | Vertical ->
+                    [ Width full; Padding_left (px 4.); Padding_right (px 4.) ])
+             ; t.style
+             ])
+        (List.map t.items ~f:(fun item -> Item.view item p ~status ~shimmer))
+    ;;
+  end
+
+  module Media = struct
+    module Image = struct
+      type 'action t =
+        { config : Image.Config.t
+        ; on_change : (Image.State.t -> 'action) option
+        }
+
+      let create ~asset ~description ?(fit = Image.Fit.Cover) ?on_change () =
+        { config = Image.Config.create ~asset ~description ~fit (); on_change }
+      ;;
+
+      let view t ~dimmed =
+        View.image
+          ~key:(internal_key "image")
+          ~style:
+            (style
+               (fill_box
+                @ [ Width full; Height full; Opacity (if dimmed then 0.6 else 1.) ]))
+          ?on_change:t.on_change
+          t.config
+      ;;
+    end
+
+    type 'action t =
+      { style : Style.t
+      ; size : Size.t option
+      ; image : 'action Image.t option
+      ; overlay : 'action View.t option
+      ; children : 'action View.t list
+      }
+
+    let create ?(style = Style.empty) ?size ?image ?overlay children =
+      { style; size; image; overlay; children }
+    ;;
+
+    let view t (p : Appearance.t) ~status ~size ~axis =
+      let size = Option.value t.size ~default:size in
+      let failed = Status.equal status Failed && Option.is_none t.image in
+      let dimensions =
+        match axis with
+        | Axis.Horizontal ->
+          [ Width (px (Size.media size)); Height (px (Size.media size)) ]
+        | Vertical -> [ Width full; Aspect_ratio 1. ]
+      in
+      let foreground = if failed then p.danger else p.foreground in
+      let background = if failed then alpha p.danger 0.1 else p.raised in
+      let above key children =
+        View.row
+          ~key:(internal_key key)
+          ~style:(style (fill_box @ [ Align_items Center; Justify_content Center ]))
+          children
+      in
+      View.row
+        ~key:(internal_key "media")
+        ~style:
+          (Style.merge
+             [ style
+                 ([ Position Relative
+                  ; Shrink 0.
+                  ; Align_items Center
+                  ; Justify_content Center
+                  ; Overflow Hidden
+                  ; Radius (Size.media_radius size)
+                  ; Foreground foreground
+                  ; Background (solid background)
+                  ]
+                  @ dimensions)
+             ; t.style
+             ])
+        (List.filter_opt
+           [ Option.map t.image ~f:(fun image ->
+               Image.view
+                 image
+                 ~dimmed:(Status.is_in_progress status || Status.equal status Failed))
+           ; (if List.is_empty t.children
+              then None
+              else Some (above "children" t.children))
+           ; Option.map t.overlay ~f:(fun overlay -> above "overlay" [ overlay ])
+           ])
+    ;;
+  end
+
+  module Actions = struct
+    type 'action t =
+      { style : Style.t
+      ; children : 'action View.t list
+      }
+
+    let create ?(style = Style.empty) children = { style; children }
+
+    let view t ~axis =
+      let position =
+        match axis with
+        | Axis.Horizontal -> [ Position Relative ]
+        | Vertical -> [ Position Absolute; Top (px 12.); Right (px 12.) ]
+      in
+      View.row
+        ~key:(internal_key "actions")
+        ~style:
+          (Style.merge
+             [ style ([ Shrink 0.; Align_items Center; Gap (px 4.) ] @ position)
+             ; t.style
+             ; style [ Pointer_occlusion Pointer ]
+             ])
+        t.children
+    ;;
+  end
+
+  module Trigger = struct
+    type 'action t =
+      { key : Key.t
+      ; accessible_name : string
+      ; style : Style.t
+      ; disabled : bool
+      ; on_click : unit -> 'action
+      }
+
+    let create
+          ~key
+          ~accessible_name
+          ?(style = Style.empty)
+          ?(disabled = false)
+          ~on_click
+          ()
+      =
+      if
+        String.is_empty accessible_name
+        || String.length accessible_name > 1024
+        || String.contains accessible_name '\000'
+        || not (Stdlib.String.is_valid_utf_8 accessible_name)
+      then
+        Or_error.error_string
+          "attachment trigger name must be nonempty UTF-8 without NUL, at most 1024 bytes"
+      else Ok { key; accessible_name; style; disabled; on_click }
+    ;;
+
+    let view t (p : Appearance.t) ~radius =
+      let transparent = Color.rgb_exn 0 |> fun c -> alpha c 0. in
+      let defaults =
+        style
+          [ Width full
+          ; Height full
+          ; Padding (px 0.)
+          ; Radius radius
+          ; Background (solid transparent)
+          ; Foreground p.foreground
+          ; Border_width 1.
+          ; Border_color transparent
+          ]
+        |> fun s ->
+        Style.with_state_exn s Focused [ Border_color p.accent ]
+        |> fun s -> Style.with_state_exn s Disabled [ Cursor Not_allowed ]
+      in
+      View.column
+        ~key:(internal_key "activation")
+        ~style:(style fill_box)
+        [ View.button
+            ~key:t.key
+            ~accessible_name:t.accessible_name
+            ~disabled:t.disabled
+            ~style:(Style.merge [ defaults; t.style ])
+            ~on_click:t.on_click
+            ""
+        ]
+    ;;
+  end
+
+  let create
+        (p : Appearance.t)
+        ?key
+        ?style:(custom = Style.empty)
+        ?(status = Status.Complete)
+        ?(size = Size.medium)
+        ?(axis = Axis.Horizontal)
+        ?shimmer
+        ?media
+        ?content
+        ?actions
+        ?trigger
+        ()
+    =
+    let shimmer = Option.value shimmer ~default:p.text_shimmer in
+    let radius = Size.radius size in
+    let clickable = Option.exists trigger ~f:(fun t -> not t.Trigger.disabled) in
+    let border = if Status.equal status Failed then alpha p.danger 0.3 else p.border in
+    let dimensions =
+      match axis with
+      | Axis.Horizontal -> [ Min_width (px 160.); Align_items Center ]
+      | Vertical ->
+        [ Width (px (if Option.is_some content then 120. else 96.)); Align_items Start ]
+    in
+    let defaults =
+      style
+        ([ Position Relative
+         ; Shrink 0.
+         ; Max_width full
+         ; Min_width (px 0.)
+         ; Radius radius
+         ; Border_width 1.
+         ; Border_color border
+         ; Border_style (if Status.equal status Pending then Dashed else Solid)
+         ; Background (solid p.surface)
+         ; Foreground p.foreground
+         ; Line_height (Length.percent_exn 125.)
+         ]
+         @ Size.fields
+             size
+             ~has_media:(Option.is_some media)
+             ~has_content:(Option.is_some content)
+         @ dimensions)
+      |> fun s ->
+      Style.with_state_exn
+        s
+        Hovered
+        (if clickable then [ Background (solid (alpha p.raised 0.5)) ] else [])
+    in
+    let children =
+      List.filter_opt
+        [ Option.map media ~f:(fun t -> Media.view t p ~status ~size ~axis)
+        ; Option.map content ~f:(fun t -> Content.view t p ~status ~shimmer ~axis)
+        ; Option.map trigger ~f:(fun t -> Trigger.view t p ~radius)
+        ; Option.map actions ~f:(fun t -> Actions.view t ~axis)
+        ]
+    in
+    (match axis with
+     | Axis.Horizontal -> View.row ?key
+     | Vertical -> View.column ?key)
+      ~style:(Style.merge [ defaults; custom ])
+      children
+    |> semantic Group
+  ;;
+
+  let group ~key ?style:(custom = Style.empty) children =
+    View.row
+      ~key
+      ~style:
+        (Style.merge
+           [ style
+               [ Width full
+               ; Min_width (px 0.)
+               ; Gap (px 12.)
+               ; Padding_top (px 4.)
+               ; Padding_bottom (px 4.)
+               ; Overflow_x Scroll
+               ]
+           ; custom
+           ])
+      children
+  ;;
+end
 
 let message
       (p : Appearance.t)

@@ -5,6 +5,17 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
 passed on `473407c`; all twelve tickets are Done.
 
+The [rich Attachment adapter](design/presentation-attachments.md) now composes
+typed status, size, axis, media/content/action slots and whole-card activation.
+Core checks cover retained identities/current callbacks, slot retirement, shimmer
+inheritance, image-only opacity and theme-relative alpha. The focused public macOS
+gallery passes 20 theme/layout/status cases, real keyboard and pointer actions,
+shielded action gaps/disabled buttons, decoded-image sizing and page teardown.
+A fresh installed consumer also passes decode-failure recovery, direct card
+pointer/accessibility activation and zero image/source counts after departure.
+The complete Attachment catalog review and wider release gates remain open;
+this does not establish Linux GUI, screen-reader or application performance acceptance.
+
 Native [aspect ratio](design/native-aspect-ratio.md) now exposes preferred
 proportional layout through validated styles, paired transport and capability bit
 50. Background GPU checks cover resizing, padded percentage widths, explicit

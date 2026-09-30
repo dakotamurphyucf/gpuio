@@ -36,6 +36,16 @@ The group owns no model or native controller; this example's Bonsai model persis
 across page navigation while the native controls unmount. Run its focused native
 check with `python3 scripts/test_gallery.py --section groups`.
 
+The **Attachments with a little more to say** card uses
+`Presentation.Attachment`: five statuses, horizontal/vertical layouts, four sizes
+plus a custom size, optional slots, image decode failure/recovery and separate
+whole-card/Save actions. Uploading and processing titles shimmer natively; image
+opacity leaves the overlay and controls unchanged. Decode work and registrations
+belong to the page's resource scope. Run
+`python3 scripts/test_gallery.py --section attachments` for its focused macOS
+interaction checks. See [the contract](../../docs/design/presentation-attachments.md)
+for ownership and validation limits.
+
 The Styling details page's **Proportions that follow your layout** card uses
 `Aspect_ratio` to resize a preview while retaining a child button's count and
 focus. Switch square/landscape/portrait proportions, compact/wide frames and

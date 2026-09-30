@@ -63,6 +63,7 @@ let status_regions palette graph =
 ;;
 
 let presentation app window palette graph =
+  let attachment_preview = Attachment_preview.component app window palette graph in
   let badge_preview = Badge_preview.component app window palette graph in
   let label_preview = Label_preview.component palette graph in
   let shimmer_preview = Shimmer_preview.component palette graph in
@@ -79,6 +80,7 @@ let presentation app window palette graph =
   and animate_loading = animate_loading
   and toggle_loading = toggle_loading
   and status_regions = status_regions
+  and attachment_preview = attachment_preview
   and badge_preview = badge_preview
   and shimmer_preview = shimmer_preview
   and label_preview = label_preview
@@ -114,6 +116,7 @@ let presentation app window palette graph =
         ; status_regions
         ; badge_preview
         ]
+    ; Palette.card p ~title:"Attachments with a little more to say" [ attachment_preview ]
     ; Palette.card p ~title:"Text with context" [ label_preview ]
     ; Palette.card p ~title:"A little light, in motion" [ shimmer_preview ]
     ; Palette.card p ~title:"Structure with flexibility" [ group_preview ]

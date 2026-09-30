@@ -18,6 +18,60 @@ adds public inline-code/bold and safe image-placeholder links, with exact AX
 reading-order/action checks and retained keyboard navigation. Its focused result
 is separate from the combined/installed-consumer checkpoints below.
 
+## Rich attachments — focused checkpoint, 2026-09-30
+
+`Presentation.Attachment` adds explicit status, size, orientation, keyed content,
+media, actions and a named card trigger. The existing string helper is unchanged.
+The [contract](../design/presentation-attachments.md) records application-owned
+I/O/tasks/assets, native shimmer inheritance, interaction layering, semantic color
+opacity and the pinned source mapping.
+
+The repository's normal-launch `--section attachments` walkthrough passes
+20 combinations (two application themes × two axes × five statuses), 21 actual
+Return/Space activations and 20 independent pointer Save actions. Each case checks
+card/trigger geometry and retained native control identities; real clicks in the
+action gap and on the disabled action leave the card count unchanged. Five
+horizontal decoded-image sizes and a width-derived vertical square pass. Explicit
+styles, optional content/media/action removal, disabled-trigger recovery and page
+departure/remount also pass. The native window closes and its process is reaped.
+The captured dark vertical card was visually inspected.
+
+The final preview also includes an intentionally invalid image and recovery.
+A fresh independently installed consumer passes the same matrix, plus that
+decode-failure/recovery case, direct card pointer and AX activation (23 total card
+activations), and zero image/registered-source counts after page departure.
+The extended result is `GALLERY_ATTACHMENT_OK`, followed by
+`GPUIO_GALLERY_AX_OK: section=attachments` and exit 0. The test closes/reaps the
+consumer window. Both runs use a bounded 480-second process-group wrapper.
+
+Validation commands:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @runtest @fmt
+python3 scripts/test_gallery.py --section attachments
+GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery \
+  --workspace /private/tmp/gpuio-m7-attachment-consumer-20260930
+python3 scripts/test_gallery.py --section attachments \
+  --executable /private/tmp/gpuio-m7-attachment-consumer-20260930/consumer/_build/default/main.exe
+python3 scripts/audit_component_catalog.py
+```
+
+The full Dune build/tests/format checks and fresh installed-consumer build pass.
+Core expect tests include 100 status/theme/axis/size transitions, retained owners,
+current callbacks, removed-generation rejection, empty-theme operation, image-only
+dimming, shimmer override precedence, slot styles and bounded token-aware opacity.
+One test draft attempted pointer shielding in an interaction state; shared Style
+validation already rejects this. The final test verifies that rule and forced
+base shielding without adding redundant state declarations.
+
+These focused results do not complete Attachment's detailed source review or the
+whole gallery/release gates. Attachment-specific reduced-motion captures, broader
+scroll/constraint/status-paint coverage and measured resource/performance budgets
+remain to be reviewed. No Linux GUI, real screen-reader/IME, hosted CI or
+clean-machine packaged-distribution acceptance is claimed. The independent
+consumer uses an isolated installed prefix and its own backend lockfile, while
+still building against this checkout's native sources/toolchain.
+
 ## Group boxes — focused checkpoint, 2026-09-29
 
 `Presentation.group_box` now supplies `Group_variant.Card/Plain/Filled/Outline`

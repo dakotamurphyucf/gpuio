@@ -2,15 +2,37 @@ open Core
 
 type t = int64 String.Map.t [@@deriving equal, sexp_of]
 
+let rec resolve t color =
+  match Color.Expert.value color with
+  | Rgba value -> Ok value
+  | Token name ->
+    (match Map.find t name with
+     | Some value -> Ok value
+     | None -> Or_error.errorf "undefined theme token %s" name)
+  | Opacity (base, factor) ->
+    let%map.Or_error value = resolve t base in
+    let alpha = Int64.(to_int_exn (bit_and value 255L)) in
+    let alpha = Float.iround_down_exn ((Float.of_int alpha *. factor) +. 0.5) in
+    Int64.(bit_or (bit_and value 0xffffff00L) (of_int alpha))
+;;
+
+let rec concrete color =
+  match Color.Expert.value color with
+  | Rgba _ -> true
+  | Token _ -> false
+  | Opacity (base, _) -> concrete base
+;;
+
 let create definitions =
   List.fold_result definitions ~init:String.Map.empty ~f:(fun map (name, color) ->
     let%bind.Or_error _ = Color.token name in
-    match Color.Expert.value color with
-    | Token _ -> Or_error.error_string "theme definitions must be concrete colors"
-    | Rgba value ->
-      (match Map.add map ~key:name ~data:value with
-       | `Duplicate -> Or_error.errorf "duplicate theme token %s" name
-       | `Ok map -> Ok map))
+    if not (concrete color)
+    then Or_error.error_string "theme definitions must be concrete colors"
+    else (
+      let%bind.Or_error value = resolve String.Map.empty color in
+      match Map.add map ~key:name ~data:value with
+      | `Duplicate -> Or_error.errorf "duplicate theme token %s" name
+      | `Ok map -> Ok map))
 ;;
 
 let default =
@@ -21,13 +43,4 @@ let default =
     ; "muted", Color.rgb_exn 0x8996ab
     ]
   |> Or_error.ok_exn
-;;
-
-let resolve t color =
-  match Color.Expert.value color with
-  | Rgba value -> Ok value
-  | Token name ->
-    (match Map.find t name with
-     | Some value -> Ok value
-     | None -> Or_error.errorf "undefined theme token %s" name)
 ;;

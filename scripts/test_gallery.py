@@ -35,6 +35,7 @@ def exercise(mac, images):
     exercise_badges(mac, images)
     exercise_labels(mac, images)
     exercise_shimmer(mac, images)
+    exercise_attachments(mac, images)
     exercise_groups(mac, images)
     exercise_separators(mac, images)
     exercise_links(mac, images)
@@ -3281,6 +3282,161 @@ def exercise_motion(mac, images, second_title=SECOND):
           'sequence, cancellation/reverse, reduced endpoints, shared phase and departure', flush=True)
 
 
+def exercise_attachments(mac, images):
+    mac.press(TITLE, 'Presentation')
+    mac.wait_text(TITLE, 'From queued to ready, with room for the details.')
+    opened = saved = cases = 0
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    original = mac.wait_find(TITLE, 'Open Aurora attachment', 'AXButton')
+    save_original = mac.wait_find(TITLE, 'Save attachment', 'AXButton')
+    mouse = GalleryMouse(mac)
+
+    def counter():
+        mac.wait_text(TITLE, f'Attachment opened: {opened} · saved: {saved}')
+
+    def toggle(label):
+        activate(mac, mac.wait_find(TITLE, label, 'AXCheckBox'))
+        time.sleep(.12)
+
+    def click(point):
+        mouse.check_owner(point)
+        mouse.send(5, point)
+        mouse.send(1, point)
+        mouse.send(2, point)
+
+    def rect(label, role='AXButton'):
+        node = mac.wait_find(TITLE, label, role)
+        try:
+            return element_rect(mac, node)
+        finally:
+            mac.release(node)
+
+    def identity():
+        for label, previous in [('Open Aurora attachment', original), ('Save attachment', save_original)]:
+            node = mac.wait_find(TITLE, label, 'AXButton')
+            try:
+                assert equal(previous, node), f'{label} replaced during restyle'
+            finally:
+                mac.release(node)
+
+    theme_node = mac.find(TITLE, 'Dark', 'AXButton')
+    theme = 'Dark' if theme_node else 'Light'
+    if theme_node:
+        mac.release(theme_node)
+    try:
+        for appearance in (theme, 'Light' if theme == 'Dark' else 'Dark'):
+            for axis in ('horizontal', 'vertical'):
+                for status, next_status in [('Complete','Pending'), ('Pending','Uploading'),
+                                            ('Uploading','Processing'), ('Processing','Failed'), ('Failed','Complete')]:
+                    reveal_gallery_control(mac, 'Open Aurora attachment', 'AXButton')
+                    identity()
+                    cx, cy, cw, ch = rect('Attachment preview card', 'AXGroup')
+                    tx, ty, tw, th = rect('Open Aurora attachment')
+                    assert abs(cw-(440 if axis=='horizontal' else 180)) < 1, (axis,cw)
+                    assert abs(cx-tx) <= 2 and abs(cy-ty) <= 2, ('trigger origin',(cx,cy),(tx,ty))
+                    assert abs(cw-tw) <= 4 and abs(ch-th) <= 4, ('trigger coverage',(cw,ch),(tw,th))
+                    focus_gallery_control(mac, 'Open Aurora attachment', 'AXButton')
+                    mac.key(36)
+                    opened += 1
+                    counter()
+                    sx, sy, sw, sh = rect('Save attachment')
+                    click((sx+sw/2, sy+sh/2))
+                    saved += 1
+                    counter()
+                    dx, dy, dw, dh = rect('Unavailable attachment action')
+                    assert dx-sx-sw > 6, ('action gap', (sx,sw,dx))
+                    click(((sx+sw+dx)/2, sy+sh/2))
+                    click((dx+dw/2, dy+dh/2))
+                    time.sleep(.12)
+                    counter()
+                    cases += 1
+                    mac.press(TITLE, 'Attachment status: '+status)
+                    mac.release(mac.wait_find(TITLE, 'Attachment status: '+next_status, 'AXButton'))
+                mac.press(TITLE, 'Attachment layout: '+axis)
+                mac.release(mac.wait_find(TITLE, 'Attachment layout: '+('vertical' if axis=='horizontal' else 'horizontal'), 'AXButton'))
+            mac.press(TITLE, appearance)
+            mac.release(mac.wait_find(TITLE, 'Light' if appearance=='Dark' else 'Dark', 'AXButton'))
+        toggle('Attachment image')
+        mac.wait_text(TITLE, 'Attachment image: ready')
+        toggle('Simulate attachment decode failure')
+        mac.wait_text(TITLE, 'Attachment image: failed')
+        identity()
+        toggle('Simulate attachment decode failure')
+        mac.wait_text(TITLE, 'Attachment image: ready')
+        for size, extent, next_size in [('M',40,'L'), ('L',48,'56'), ('56',56,'XS'), ('XS',28,'S'), ('S',32,'M')]:
+            reveal_gallery_control(mac, 'Open Aurora attachment', 'AXButton')
+            _, _, w, h = rect('Attachment landscape', 'AXImage')
+            assert abs(w-extent) < 1 and abs(h-extent) < 1, (size,w,h,extent)
+            identity()
+            mac.press(TITLE, 'Attachment size: '+size)
+            mac.release(mac.wait_find(TITLE, 'Attachment size: '+next_size, 'AXButton'))
+        mac.press(TITLE, 'Attachment layout: horizontal')
+        mac.release(mac.wait_find(TITLE, 'Attachment layout: vertical', 'AXButton'))
+        _, _, w, h = rect('Attachment landscape', 'AXImage')
+        assert abs(w-h) < 1 and abs(w-162) < 1, ('vertical square',(w,h))
+        toggle('Refine attachment style')
+        identity()
+        toggle('Refine attachment style')
+        toggle('Disable attachment')
+        reveal_gallery_control(mac, 'Open Aurora attachment', 'AXButton')
+        x,y,w,h = rect('Open Aurora attachment')
+        click((x+16,y+h-16))
+        time.sleep(.12)
+        counter()
+        toggle('Disable attachment')
+        reveal_gallery_control(mac, 'Open Aurora attachment', 'AXButton')
+        x,y,w,h = rect('Open Aurora attachment')
+        click((x+16,y+h-16))
+        opened += 1
+        counter()
+        mac.press(TITLE, 'Open Aurora attachment')
+        opened += 1
+        counter()
+        focus_gallery_control(mac, 'Open Aurora attachment', 'AXButton')
+        mac.key(49)
+        opened += 1
+        counter()
+        toggle('Attachment content')
+        absent(mac, 'Aurora · 京都.png', 'AXStaticText')
+        identity()
+        toggle('Attachment content')
+        mac.wait_text(TITLE, 'Aurora · 京都.png')
+        toggle('Attachment media')
+        absent(mac, 'Attachment landscape', 'AXImage')
+        identity()
+        toggle('Attachment media')
+        mac.release(mac.wait_find(TITLE, 'Attachment landscape', 'AXImage'))
+        if images:
+            reveal_gallery_control(mac, 'Open Aurora attachment', 'AXButton')
+            screenshot(mac, images / 'gallery-attachment.png', title=TITLE)
+        toggle('Attachment actions')
+        absent(mac, 'Save attachment', 'AXButton')
+        toggle('Attachment actions')
+        new_save = mac.wait_find(TITLE, 'Save attachment', 'AXButton')
+        try:
+            assert not equal(save_original, new_save), 'Removed action owner survived'
+        finally:
+            mac.release(new_save)
+        mac.press(TITLE, 'Runtime & windows')
+        mac.press(TITLE, 'Refresh resource counts')
+        mac.wait_text(TITLE, 'Images: 0 · Charts: 0 · Canvases: 0')
+        mac.wait_text(TITLE, 'Registered source bytes: 0')
+        absent(mac, 'Open Aurora attachment', 'AXButton')
+        absent(mac, 'Attachment landscape', 'AXImage')
+        mac.press(TITLE, 'Presentation')
+        restored = mac.wait_find(TITLE, 'Open Aurora attachment', 'AXButton')
+        try:
+            assert not equal(original, restored), 'Page departure retained trigger owner'
+        finally:
+            mac.release(restored)
+        counter()
+        print(f'GALLERY_ATTACHMENT_OK: {cases} theme/axis/status cases, 21 OS keyboard activations plus card pointer/AX activation, {saved} pointer actions, shielded gaps/disabled controls, decode failure/recovery, five decoded-image sizes and square layout, styles/slots/identity/disabled recovery/page teardown', flush=True)
+    finally:
+        mac.release(original)
+        mac.release(save_original)
+
+
 def exercise_aspect_ratio(mac, images):
     mac.press(TITLE, 'Styling details')
     mac.wait_text(TITLE, 'Proportions that follow your layout')
@@ -3568,7 +3724,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'attachments', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -3601,6 +3757,8 @@ def main():
                 exercise_groups(mac, args.images)
             if args.section == 'aspect-ratio':
                 exercise_aspect_ratio(mac, args.images)
+            if args.section == 'attachments':
+                exercise_attachments(mac, args.images)
             if args.section == 'shimmer':
                 exercise_shimmer(mac, args.images)
             if args.section == 'labels':

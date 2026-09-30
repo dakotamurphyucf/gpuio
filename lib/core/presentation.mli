@@ -45,6 +45,12 @@ module Appearance : sig
 
   val dark : t
 
+  (** Default glyph effect for status-bearing compositions. Built-in light/dark
+      appearances provide matching explicit shimmer colors/mode. Custom [create]
+      defaults to the native palette; supply a resolved application configuration
+      here when the app owns its theme. *)
+  val with_text_shimmer : t -> Text_shimmer.Config.t -> t
+
   val create
     :  surface:Color.t
     -> raised:Color.t
@@ -399,6 +405,160 @@ val attachment
   -> ?actions:'action View.t
   -> unit
   -> 'action View.t
+
+(** Rich attachments. All uploads, files, task lifetimes, asset registrations and
+    lifecycle status remain application-owned. These are ordinary keyed views;
+    status/layout changes do not replace surviving slots. The string [attachment]
+    helper above keeps its original layout. *)
+module Attachment : sig
+  module Status : sig
+    type t =
+      | Pending
+      | Uploading
+      | Processing
+      | Failed
+      | Complete
+    [@@deriving equal, sexp_of]
+
+    val is_in_progress : t -> bool
+  end
+
+  module Size : sig
+    type t [@@deriving equal, sexp_of]
+
+    val xsmall : t
+    val small : t
+    val medium : t
+    val large : t
+
+    (** Custom logical-pixel sizing basis, finite and in [1,1000000]. *)
+    val pixels : float -> t Or_error.t
+  end
+
+  module Title : sig
+    type t
+
+    (** Keys are sibling identities within [Content]. Title source must be valid
+        UTF-8, at most 16384 bytes, so changing status can always enable shimmer.
+        Status/configuration overrides are independent; otherwise both inherit
+        from the card. Uploading/Processing enables the native glyph effect. *)
+    val create
+      :  key:Key.t
+      -> ?style:Style.t
+      -> ?status:Status.t
+      -> ?shimmer:Text_shimmer.Config.t
+      -> string
+      -> t Or_error.t
+  end
+
+  module Description : sig
+    type t
+
+    (** Single-line muted text, destructive at 80% alpha when Failed. *)
+    val create : key:Key.t -> ?style:Style.t -> ?status:Status.t -> string -> t
+  end
+
+  module Content : sig
+    module Item : sig
+      type 'action t
+
+      val title : Title.t -> 'action t
+      val description : Description.t -> 'action t
+
+      (** Arbitrary keyed content keeps its own behavior; it does not implicitly
+          inherit title/description status styling. *)
+      val element : key:Key.t -> 'action View.t -> 'action t
+    end
+
+    type 'action t
+
+    (** Keys follow the ordinary View sibling-uniqueness rule. *)
+    val create : ?style:Style.t -> 'action Item.t list -> 'action t
+  end
+
+  module Media : sig
+    module Image : sig
+      type 'action t
+
+      (** Cover by default. Decode/registration ownership and observations follow
+          [View.image]. A supplied image, including a failed decode, keeps the
+          image status policy; only the image is dimmed during work/failure. *)
+      val create
+        :  asset:Asset.Handle.t
+        -> description:Image.Description.t
+        -> ?fit:Image.Fit.t
+        -> ?on_change:(Image.State.t -> 'action)
+        -> unit
+        -> 'action t
+    end
+
+    type 'action t
+
+    (** Horizontal size inherits the card unless overridden. Vertical media fills
+        the available width with ratio 1. Children and centered [overlay] paint
+        above the image without inheriting its 60% opacity. *)
+    val create
+      :  ?style:Style.t
+      -> ?size:Size.t
+      -> ?image:'action Image.t
+      -> ?overlay:'action View.t
+      -> 'action View.t list
+      -> 'action t
+  end
+
+  module Actions : sig
+    type 'action t
+
+    (** Horizontal row; top-right overlay in a vertical card. Pointer shielding
+        on the cluster is enforced after custom styling: its gaps and disabled
+        controls cannot arm the card trigger. Children keep their own actions;
+        wheel events retain native propagation. *)
+    val create : ?style:Style.t -> 'action View.t list -> 'action t
+  end
+
+  module Trigger : sig
+    type 'action t
+
+    (** One native button with a required nonempty accessible name (at most 1024
+        UTF-8 bytes, no NUL). Its stable key is scoped separately from other slots.
+        The trigger covers media/content and paints below Actions; place independent
+        controls in Actions when using whole-card activation. Keyboard/AX activation
+        dispatches the same queued action as pointer activation. *)
+    val create
+      :  key:Key.t
+      -> accessible_name:string
+      -> ?style:Style.t
+      -> ?disabled:bool
+      -> on_click:(unit -> 'action)
+      -> unit
+      -> 'action t Or_error.t
+  end
+
+  (** Defaults: Complete, Medium, Horizontal. Pending uses a dashed border;
+      Failed uses a translucent destructive border. Vertical cards are 120px wide
+      with content and 96px without; root style refines all visual defaults.
+      [shimmer] overrides the appearance default for this card, while an individual
+      Title may override it again. Reduced motion remains native-owned. *)
+  val create
+    :  Appearance.t
+    -> ?key:Key.t
+    -> ?style:Style.t
+    -> ?status:Status.t
+    -> ?size:Size.t
+    -> ?axis:Axis.t
+    -> ?shimmer:Text_shimmer.Config.t
+    -> ?media:'action Media.t
+    -> ?content:'action Content.t
+    -> ?actions:'action Actions.t
+    -> ?trigger:'action Trigger.t
+    -> unit
+    -> 'action View.t
+
+  (** Ordinary horizontal scroll container with stable identity, 12px gaps and
+      4px vertical padding. Scroll ownership follows ordinary [Overflow_x Scroll];
+      this is not a managed/virtualized list. Child attachment keys remain caller-owned. *)
+  val group : key:Key.t -> ?style:Style.t -> 'action View.t list -> 'action View.t
+end
 
 (** Document/asset registration and streaming state remain application-owned.
     These slots also accept native Markdown/code/diff views. *)
