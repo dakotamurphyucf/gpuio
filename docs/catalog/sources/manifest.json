@@ -320,5 +320,29 @@
     "source": "crates/component/src/shimmer.rs",
     "snapshot": "component-shimmer.rs.txt",
     "sha256": "ae2bd2fcf00758afb368ff8a045805655039c15c54d705c158587a00a8f73c7c"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/form/mod.rs",
+    "snapshot": "component-form-mod.rs.txt",
+    "sha256": "5902ce08e6b49d9938c75990b5fdd444bd714fa4c52db1bb60c45037c973e49d"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/form/form.rs",
+    "snapshot": "component-form-form.rs.txt",
+    "sha256": "6b6c709a120b95f53a8bfad34819097ec9a336cfa404a7ad3d8c15e9c0f28212"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/form/field.rs",
+    "snapshot": "component-form-field.rs.txt",
+    "sha256": "8cf81fd4295e047df01b720441c04f06f4885f4cf939b4a17846e204dad539e5"
   }
 ]

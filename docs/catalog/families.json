@@ -40,14 +40,15 @@
       "id": "forms",
       "owner": "OCH-33",
       "scope": "v1",
-      "audit_status": "mapping established; detailed behavioral review pending",
+      "audit_status": "pinned source reviewed; single-field helper implemented, rich collection/slots/placement/footer incomplete; see form-composition.md draft and acceptance requirements",
       "public_interface": "lib/core/form.mli",
       "example": "examples/presentation",
       "evidence": [
-        "docs/evidence/presentation-components-och33.md"
+        "docs/evidence/presentation-components-och33.md",
+        "docs/design/form-composition.md"
       ],
       "gallery_page": "text-inputs",
-      "contract": "Field help/error metadata and label association; validation remains application-owned.",
+      "contract": "Field help/error metadata and direct control association exist. Rich Form collection, independent grid/label orientation, field placement, rich slots and full-width footer require implementation and native/public-consumer evidence. Validation and persistence remain application-owned.",
       "upstream_modules": [
         "component/form"
       ]
