@@ -67,12 +67,14 @@ under an outer highlight scope, cosmetic/source updates, selection suppression,
 focus retention and scope retirement. The catalog's stale configuration-only
 Link status is corrected; full content/group and release acceptance remains open.
 
-A native SDK fixture reproduced a Tab-boundary failure from an extension's last
-internal control to a neighboring Link. The [focus-owner correction](design/composed-links.md#nested-extension-focus-correction--validation-pending)
-and expanded regression are implemented; Rust unit tests, strict Clippy and the
-full Dune checks pass. Post-correction native verification remains pending because
-the local macOS desktop locked before reruns could render. This is not Link or
-release acceptance, and no capability was advertised.
+A native SDK fixture reproduced and now passes a Tab-boundary regression from an
+extension's last internal control to a neighboring Link. The [focus-owner correction](design/composed-links.md#nested-extension-focus-correction--macos-validation)
+passes native nearest-owner selection, retained updates, modal leaf restoration,
+disabled fencing, exact bridge output and idle disposal. The complete native
+Link, controls, input-region, navigation and menu suites pass on unlocked macOS,
+as do Rust unit tests, strict Clippy and full Dune checks. Earlier locked-desktop
+waits are excluded from acceptance. No capability or whole-family/release
+acceptance is implied.
 The other eleven presentation modules now have a
 [pinned behavior/gap review](catalog/presentation-gaps.md), including nested settings
 fields. These implementation plans and source snapshots do not mark the families

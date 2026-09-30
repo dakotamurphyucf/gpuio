@@ -125,8 +125,9 @@ It remembers the actual child handle across modal/route transitions while the
 component is eligible and the child remains in its native focus tree. Eligibility
 of individual internal controls remains the package's responsibility. Host scroll reveal uses the component's
 recorded bounds; scrolling within a compound component remains package-owned.
-Native regression verification of this correction is pending an unlocked macOS
-desktop; see [the Link validation checkpoint](composed-links.md#nested-extension-focus-correction--validation-pending).
+The native boundary/update/modal/disabled regression passes on macOS; see
+[the Link validation checkpoint](composed-links.md#nested-extension-focus-correction--macos-validation)
+for the tested scope and remaining release gates.
 Pointer callbacks use `EventSink.guard_pointer`; keyboard/accessibility actions
 use `guard`. Inherited pointer disabling does not disable keyboard or accessible
 activation. Both guards reject hidden, disabled, obsolete and closed instances.

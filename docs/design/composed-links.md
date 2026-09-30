@@ -345,7 +345,7 @@ This closes neither the link review nor milestone 07 by itself. Other catalog
 families, macOS IME/VoiceOver, predeclared performance/resource workloads,
 clean-machine distribution and release documentation remain required.
 
-## Nested extension focus correction — validation pending
+## Nested extension focus correction — macOS validation
 
 A real SDK fixture reproduced a boundary-navigation failure: with signed Link
 ordering and a trapped scope, Tab from an extension's last internal control did
@@ -366,15 +366,23 @@ version, dependency or fork change is needed.
 negative/positive neighboring Links, an outer non-stop input region and a trap.
 The assertions cover internal/boundary Tab and Shift-Tab, wrap, retained-property
 updates, nearest owner, restoration of a child after a nested modal, disabled
-eligibility, exact bridge output and idle disposal. **Those post-correction
-native assertions are not yet accepted.** Subsequent local windows reached the
-test task but waited for the first rendered frame while macOS reported its
-screen locked. Stalled processes were terminated; no pass was inferred from
-launch, compilation, debugger attachment or an empty log.
+eligibility, exact bridge output and idle disposal. The complete native Link
+fixture now passes on an unlocked macOS arm64 desktop, including
+`GPUIO_LINK_EXTENSION_OK` and the other six result markers. The native controls,
+input-region, navigation and menu suites also pass against the shared correction.
+This verifies dispatched GPUI input and the fixtures' direct AppKit AX checks;
+it does not substitute for real VoiceOver, Linux desktop or release qualification.
+
+Earlier reruns waited for their first rendered frame while macOS reported its
+screen locked. Startup markers distinguished that wait from a test assertion
+failure. Those runs were terminated and were not counted as passes. The user
+closing an earlier window is not an established cause of the reproduced defect.
 
 The local Rust library tests (400 native, 37 protocol; two private-bus tests
 excluded from the normal run), strict Clippy and full isolated Dune
-`@all @runtest @fmt` pass for the correction. Re-run the native Link fixture and
-the affected controls/input-region/navigation/menu suites on an unlocked desktop
-before accepting this change. Link capability advertisement, catalog-family
-acceptance, hosted checks and OCH-17 release gates remain open.
+`@all @runtest @fmt` pass for the correction. Reproduction: build `native_link`,
+`native_controls`, `native_input_region`, `native_navigation` and `native_menus`
+with `cargo test -p gpuio-native --features native-image-tests --locked -j2 --no-run`
+(select those five `--test` targets), then run each built executable on an unlocked
+desktop with a bounded process timeout. Link capability advertisement,
+catalog-family acceptance, hosted checks and OCH-17 release gates remain open.
