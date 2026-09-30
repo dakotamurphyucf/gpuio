@@ -303,25 +303,53 @@ pub(super) async fn exercise(
     settle(cx, window).await;
     assert!(p.read_with(cx, |p, _| p.file_visible.borrow().contains_key(&0)));
     assert!(!p.read_with(cx, |p, _| p.file_visible.borrow().contains_key(&1)));
-    editor.update(cx, |e, cx| {
-        e.set_scroll_offset(gpui::point(px(-70.), px(-10000.)), cx)
-    });
-    draw(cx, window);
-    p.read_with(cx, |p, cx| {
-        assert!(
-            !p.file_visible.borrow().contains_key(&0),
-            "scrolled-away headers leave the native interaction map"
+    // Both directions must clamp before the first painted frame, not repair
+    // empty row geometry on a later frame. Finish at the last header for the
+    // stale offscreen-action and focus-retirement checks below.
+    for (offset, visible, hidden, needle) in [
+        (gpui::point(px(-70.), px(-10000.)), 1, 0, "--- a/last.ml"),
+        (gpui::point(px(70.), px(10000.)), 0, 1, "--- a/first.ml"),
+        (gpui::point(px(0.), px(-10000.)), 1, 0, "--- a/last.ml"),
+    ] {
+        editor.update(cx, |e, cx| e.set_scroll_offset(offset, cx));
+        draw(cx, window);
+        let geometry = |p: &Presentation, cx: &gpui::App| {
+            assert!(
+                !p.file_visible.borrow().contains_key(&hidden),
+                "offscreen headers leave the native interaction map"
+            );
+            let e = p.editor.read(cx);
+            let start = e.value().find(needle).unwrap();
+            let text = e.range_to_bounds(&(start..start + 3));
+            let button = *p.file_visible.borrow().get(&visible).unwrap_or_else(|| {
+                panic!(
+                    "diff header {visible} missing: requested={offset:?}, offset={:?}, input={:?}, text={text:?}, visible={:?}",
+                    e.scroll_offset(),
+                    e.input_bounds(),
+                    p.file_visible.borrow()
+                )
+            });
+            let text = text.expect("visible header has shaped source bounds");
+            assert!(
+                (f32::from(button.center().y - text.center().y)).abs() < 1.,
+                "header and source row share vertical geometry"
+            );
+            assert!(button.intersects(&e.input_bounds()));
+            assert_eq!(
+                e.scroll_offset().x,
+                px(0.),
+                "short source cannot scroll horizontally"
+            );
+            (e.scroll_offset(), text, button)
+        };
+        let first_frame = p.read_with(cx, geometry);
+        draw(cx, window);
+        assert_eq!(
+            p.read_with(cx, geometry),
+            first_frame,
+            "no follow-up frame jump"
         );
-        let button = p.file_visible.borrow()[&1];
-        let e = p.editor.read(cx);
-        let start = e.value().find("--- a/last.ml").unwrap();
-        let text = e.range_to_bounds(&(start..start + 3)).unwrap();
-        assert!(
-            (f32::from(button.center().y - text.center().y)).abs() < 1.,
-            "header and source row share vertical geometry"
-        );
-        assert!(button.intersects(&e.input_bounds()));
-    });
+    }
     // A stale offscreen activation is rejected without changing native state.
     let current = p.read_with(cx, |p, _| p.diff_action().unwrap());
     cx.update_window(window.into(), |_, window, cx| {

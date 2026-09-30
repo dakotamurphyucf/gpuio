@@ -464,6 +464,12 @@ impl<M: InputModeKind> TextElement<M> {
 
         let active_id = state.active_selection().id;
         let mut scroll_offset = state.scroll_handle.offset();
+        // Resolve the request against this layout before using it for either
+        // caret or text geometry. Clamping only when storing the painted state
+        // leaves one frame at the unbounded requested offset.
+        let deferred_scroll_offset = state
+            .deferred_scroll_offset
+            .map(|offset| state.clamp_scroll_offset(offset, scroll_size, bounds.size));
         let mut current_row = None;
         let mut cursor_infos: Vec<CursorRenderInfo> = Vec::with_capacity(state.selections.len());
 
@@ -605,8 +611,7 @@ impl<M: InputModeKind> TextElement<M> {
             // Match the caret to the deferred scroll target (applied below) that
             // the text paints at; otherwise the caret follows the cursor-scroll
             // while the text uses the deferred offset, flashing it mid-field.
-            let cursor_scroll_x = state
-                .deferred_scroll_offset
+            let cursor_scroll_x = deferred_scroll_offset
                 .map(|offset| offset.x)
                 .unwrap_or(scroll_offset.x);
 
@@ -630,7 +635,7 @@ impl<M: InputModeKind> TextElement<M> {
             });
         }
 
-        if let Some(deferred_scroll_offset) = state.deferred_scroll_offset {
+        if let Some(deferred_scroll_offset) = deferred_scroll_offset {
             scroll_offset = deferred_scroll_offset;
         }
         scroll_offset.y = clamp_auto_grow_vertical_scroll_offset(
@@ -933,7 +938,21 @@ impl<M: InputModeKind> TextElement<M> {
         }
 
         let mut scroll_top = if let Some(deferred_scroll_offset) = state.deferred_scroll_offset {
-            deferred_scroll_offset.y
+            // Select source rows using the current content extent, before
+            // shaping. Ignore completion ghost rows here: they can extend the
+            // final scroll extent, but cannot introduce earlier source rows.
+            // This conservatively shapes at most one viewport of source rows;
+            // layout_cursors resolves the final offset including ghost height.
+            let height = line_height * total_lines
+                + empty_bottom_height(
+                    state.is_code_editor(),
+                    state.scroll_beyond_last_line,
+                    input_height,
+                    line_height,
+                );
+            deferred_scroll_offset
+                .y
+                .clamp((input_height - height).min(px(0.)), px(0.))
         } else {
             state.scroll_handle.offset().y
         };

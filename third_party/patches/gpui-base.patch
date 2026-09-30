@@ -6108,3 +6108,113 @@
          self
      }
  }
+--- a/src/input/base/element.rs
++++ b/src/input/base/element.rs
+@@ -464,6 +464,12 @@
+ 
+         let active_id = state.active_selection().id;
+         let mut scroll_offset = state.scroll_handle.offset();
++        // Resolve the request against this layout before using it for either
++        // caret or text geometry. Clamping only when storing the painted state
++        // leaves one frame at the unbounded requested offset.
++        let deferred_scroll_offset = state
++            .deferred_scroll_offset
++            .map(|offset| state.clamp_scroll_offset(offset, scroll_size, bounds.size));
+         let mut current_row = None;
+         let mut cursor_infos: Vec<CursorRenderInfo> = Vec::with_capacity(state.selections.len());
+ 
+@@ -605,8 +611,7 @@
+             // Match the caret to the deferred scroll target (applied below) that
+             // the text paints at; otherwise the caret follows the cursor-scroll
+             // while the text uses the deferred offset, flashing it mid-field.
+-            let cursor_scroll_x = state
+-                .deferred_scroll_offset
++            let cursor_scroll_x = deferred_scroll_offset
+                 .map(|offset| offset.x)
+                 .unwrap_or(scroll_offset.x);
+ 
+@@ -630,7 +635,7 @@
+             });
+         }
+ 
+-        if let Some(deferred_scroll_offset) = state.deferred_scroll_offset {
++        if let Some(deferred_scroll_offset) = deferred_scroll_offset {
+             scroll_offset = deferred_scroll_offset;
+         }
+         scroll_offset.y = clamp_auto_grow_vertical_scroll_offset(
+@@ -933,7 +938,21 @@
+         }
+ 
+         let mut scroll_top = if let Some(deferred_scroll_offset) = state.deferred_scroll_offset {
+-            deferred_scroll_offset.y
++            // Select source rows using the current content extent, before
++            // shaping. Ignore completion ghost rows here: they can extend the
++            // final scroll extent, but cannot introduce earlier source rows.
++            // This conservatively shapes at most one viewport of source rows;
++            // layout_cursors resolves the final offset including ghost height.
++            let height = line_height * total_lines
++                + empty_bottom_height(
++                    state.is_code_editor(),
++                    state.scroll_beyond_last_line,
++                    input_height,
++                    line_height,
++                );
++            deferred_scroll_offset
++                .y
++                .clamp((input_height - height).min(px(0.)), px(0.))
+         } else {
+             state.scroll_handle.offset().y
+         };
+--- a/src/input/base/state.rs
++++ b/src/input/base/state.rs
+@@ -2619,7 +2619,23 @@
+         offset: Option<Point<Pixels>>,
+         cx: &mut Context<Self>,
+     ) {
+-        let mut offset = offset.unwrap_or(self.scroll_handle.offset());
++        let offset = self.clamp_scroll_offset(
++            offset.unwrap_or(self.scroll_handle.offset()),
++            self.scroll_size,
++            self.input_bounds.size,
++        );
++        if self.scroll_handle.offset() != offset {
++            self.scroll_handle.set_offset(offset);
++            cx.notify();
++        }
++    }
++
++    pub(super) fn clamp_scroll_offset(
++        &self,
++        mut offset: Point<Pixels>,
++        scroll_size: gpui::Size<Pixels>,
++        input_size: gpui::Size<Pixels>,
++    ) -> Point<Pixels> {
+         // In addition to left alignment, a cursor position will be reserved on the right side
+         let safe_x_offset = if self.text_align == TextAlign::Left {
+             px(0.)
+@@ -2627,10 +2643,9 @@
+             -CURSOR_WIDTH
+         };
+ 
+-        let safe_y_range =
+-            (-self.scroll_size.height + self.input_bounds.size.height).min(px(0.0))..px(0.);
+-        let safe_x_range = (-self.scroll_size.width + self.input_bounds.size.width + safe_x_offset)
+-            .min(safe_x_offset)..px(0.);
++        let safe_y_range = (-scroll_size.height + input_size.height).min(px(0.0))..px(0.);
++        let safe_x_range =
++            (-scroll_size.width + input_size.width + safe_x_offset).min(safe_x_offset)..px(0.);
+ 
+         offset.y = if self.is_single_line() {
+             px(0.)
+@@ -2638,10 +2653,7 @@
+             offset.y.clamp(safe_y_range.start, safe_y_range.end)
+         };
+         offset.x = offset.x.clamp(safe_x_range.start, safe_x_range.end);
+-        if self.scroll_handle.offset() != offset {
+-            self.scroll_handle.set_offset(offset);
+-            cx.notify();
+-        }
++        offset
+     }
+ 
+     /// Scroll to make the given offset visible.
