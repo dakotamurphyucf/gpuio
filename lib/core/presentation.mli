@@ -710,6 +710,20 @@ module Kbd : sig
     -> ?accessible_name:string
     -> Shortcut.t
     -> 'action View.t Or_error.t
+
+  (** Display one observed native stroke, preserving physical Function and native
+      key names outside [Shortcut]'s registration domain. Render every stroke of
+      a multi-stroke observation in order; this helper registers no binding.
+      Variants, styling and localized accessible-name validation match [create]. *)
+  val of_native_stroke
+    :  Appearance.t
+    -> platform:Shortcut.Platform.t
+    -> ?key:Key.t
+    -> ?style:Style.t
+    -> ?variant:Variant.t
+    -> ?accessible_name:string
+    -> Command_binding.Stroke.t
+    -> 'action View.t Or_error.t
 end
 
 (** Display only: these labels do not register shortcuts or commands. The caller

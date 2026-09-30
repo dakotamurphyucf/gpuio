@@ -118,7 +118,7 @@ jobs:
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-table-adapter --features native-tests --all-targets -- -D warnings
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_ui --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_editor --no-run
-          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_controls --test native_table_host --test native_table_history --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_controls --test native_command_binding --test native_table_host --test native_table_history --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_scroll --test native_list --test native_highlight_host --test native_document --test native_window --test native_tabs --test native_navigation --test native_tree --test native_carousel --test native_hover_card --test native_split --test native_extension --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_animation --test native_animation_program --test native_presentation --test native_slider --test native_number_input --test native_otp_input --test native_calendar --test native_color_input --test native_drag_drop --test native_file_dialog --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-tests --all-targets -- -D warnings
@@ -211,6 +211,24 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_controls"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-controls-native.log
+      - name: macOS native binding observation checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 - <<'PY' 2>&1 | tee .cache/ci/macos-command-binding-native.log
+          import os, signal, subprocess
+          process = subprocess.Popen(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_command_binding"], start_new_session=True)
+          try:
+              result = process.wait(timeout=90)
+          except subprocess.TimeoutExpired:
+              os.killpg(process.pid, signal.SIGTERM)
+              try:
+                  process.wait(timeout=5)
+              except subprocess.TimeoutExpired:
+                  os.killpg(process.pid, signal.SIGKILL)
+                  process.wait()
+              raise
+          raise SystemExit(result)
+          PY
       - name: macOS native input-region checks
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |

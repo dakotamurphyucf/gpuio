@@ -104,21 +104,22 @@ This source row is locally a functional equivalent; broader release gates remain
 symbols, optional plain appearance and styled keycaps. Its action/context/focus
 lookup displays only the first stroke of a binding. Formatting does not register
 a shortcut. GPUIO's `shortcut_label` currently accepts strings; `Shortcut` validates
-single chords and `Command.Registry` handles declaration shadowing, but neither
-offers an effective-focused-binding query.
+single chords and `Command.Registry` handles declaration shadowing. Native queries
+are provided separately through `Command_binding`.
 
 Typed display now exists in `Shortcut.format` / `accessible_label` and
 `Presentation.Kbd`; `Command.shortcuts` exposes ordered declarations. The
 [contract](../design/keyboard-labels.md) records platform aliases, Unicode mapping,
 filled/outline/plain styles and the distinction between display and registration.
 Core/full Dune, the focused macOS native gallery and a fresh installed consumer
-pass. The source row remains **partial** because effective native
-context/focus binding lookup is still missing. Implement that with asynchronous
-revision-fenced observations, shared native routing policy and explicit
-missing/disabled/stale behavior; never substitute static declaration lookup. The
-[observation design](../design/command-binding-observations.md) now records shared
-native resolution tests and the separate widget keymap source; its public observer
-and lifecycle remain unimplemented.
+pass. Native context/focus lookup now has an asynchronous mounted observer,
+Core callback and Bonsai value adapter, with configuration/epoch fencing and a
+separate bounded latest-value mailbox class. `Presentation.Kbd.of_native_stroke`
+displays the native domain without expanding registration. The
+[observation contract](../design/command-binding-observations.md) records shared
+resolution, widget keymap lookup and scoped native/lifecycle evidence. The source
+row remains **partial** pending observer gallery/installed-consumer examples and
+broader native context/lifetime/workload acceptance.
 
 ## Loading markers
 
@@ -177,8 +178,8 @@ responsive resizing, focus reveal and application persistence failures.
 Composed Link, shared dashed borders and Empty/Separator composition now have
 scoped native and installed-consumer evidence, as do shared text shimmer and the
 rich Attachment/Marker, Alert, Tag, Bubble/Message and Description adapters.
-Remaining presentation modules are Kbd and Settings: typed keyboard labels and
-settings composition.
+Remaining presentation modules are Kbd and Settings: native binding-observer
+gallery/acceptance and settings composition.
 Each family needs public gallery examples and meaningful native acceptance before
 its ledger status changes. Reuse ordinary views where possible; introduce native
 state or protocol operations only for concrete missing behavior.

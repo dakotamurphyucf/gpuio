@@ -73,6 +73,6 @@ let%expect_test "border styles have a distinct paired host capability" =
   [%expect
     {|
     0001fc0000000000000200
-    0001fcffffffffffff0f00
+    0001fcffffffffffff1f00
     |}]
 ;;

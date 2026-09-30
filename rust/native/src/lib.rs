@@ -368,3 +368,8 @@ pub fn run_native_aspect_ratio_test() {
 pub fn run_native_opacity_factor_test() {
     host::opacity_factor_test::run();
 }
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_command_binding_test() {
+    host::command_binding_test::run();
+}

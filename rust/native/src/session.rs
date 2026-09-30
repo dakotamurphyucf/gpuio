@@ -637,6 +637,7 @@ impl Session {
                 node.image.is_none()
                     && node.input_region.is_none()
                     && node.highlight_scope.is_none()
+                    && node.command_binding.is_none()
                     && node.slider.is_none()
                     && node.number_input.is_none()
                     && node.otp_input.is_none()
@@ -899,6 +900,27 @@ impl Session {
             state.tree.revision(),
             source,
             event,
+        ))
+    }
+
+    pub fn command_binding_observed(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        observation: gpuio_protocol::command_binding::Observation,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.command_binding.as_ref()?;
+        (!state.overloaded
+            && observation.valid_for(config)
+            && state.tree.accepts_handler(node, handler))
+        .then_some(Event::CommandBindingObserved(
+            window,
+            node,
+            handler,
+            state.tree.revision(),
+            observation,
         ))
     }
 

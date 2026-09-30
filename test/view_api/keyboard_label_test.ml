@@ -215,3 +215,42 @@ let%expect_test "keycap updates retain one inert native text node" =
   [%expect
     {| six platform/variant updates retain text identity; equal snapshots idle; unmount removes node |}]
 ;;
+
+let%expect_test "native keycaps preserve Function and raw key names without registration" =
+  let module Binding = Command_binding in
+  let config = Binding.Config.create [ Native_action Copy ] |> ok in
+  let observation =
+    Binding.Expert.of_wire
+      config
+      { Gpuio_protocol.Command_binding_wire.Observation.epoch = 1L
+      ; state =
+          Ready
+            [ Native_binding
+                { strokes = [ { key = "media-play"; modifiers = 24L } ]
+                ; disposition = Widget
+                }
+            ]
+      }
+    |> Option.value_exn
+  in
+  let stroke =
+    match Binding.Observation.state observation with
+    | Ready [ (_, Native_binding { strokes = [ stroke ]; _ }) ] -> stroke
+    | _ -> assert false
+  in
+  List.iter [ Shortcut.Platform.Macos; Linux ] ~f:(fun platform ->
+    let view = K.of_native_stroke p ~platform ~variant:Plain stroke |> ok in
+    let description = View.Expert.describe view in
+    let metadata =
+      Accessibility.Expert.to_wire (Option.value_exn description.accessibility)
+    in
+    assert (Option.is_none description.on_click && Option.is_none description.commands);
+    printf "%s | %s\n" description.text (Option.value_exn metadata.label));
+  assert (
+    Result.is_error (K.of_native_stroke p ~platform:Macos ~accessible_name:"" stroke));
+  [%expect
+    {|
+    fn⌘Media-play | Function + Command + Media-play
+    Fn+Super+Media-play | Function + Super + Media-play
+  |}]
+;;

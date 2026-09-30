@@ -128,6 +128,7 @@ pub struct Node {
     pub pointer: Option<Arc<PointerConfig>>,
     pub input_region: Option<Arc<gpuio_protocol::input::Config>>,
     pub highlight_scope: Option<Arc<gpuio_protocol::highlight::Config>>,
+    pub command_binding: Option<Arc<gpuio_protocol::command_binding::Config>>,
     pub placement: Option<Placement>,
     pub combobox_filter: Option<ComboboxFilter>,
     pub choice_appearance: Option<Arc<ChoiceAppearance>>,
@@ -244,6 +245,10 @@ impl Node {
                 .document_diff
                 .as_ref()
                 .map_or(0, |config| config.retained_bytes())
+            + self.command_binding.as_ref().map_or(0, |config| {
+                config.retained_bytes()
+                    + 2 * (gpuio_protocol::command_binding::MAX_OBSERVATION_BYTES + 256)
+            })
             + self
                 .highlight_scope
                 .as_ref()
@@ -344,6 +349,7 @@ struct Slot {
 
 #[derive(Debug)]
 pub struct Tree {
+    binding_owners: BTreeSet<NodeId>,
     window: WindowId,
     revision: i64,
     root: Option<NodeId>,
@@ -375,6 +381,7 @@ impl Tree {
     pub fn new(window: WindowId) -> Self {
         Self {
             window,
+            binding_owners: BTreeSet::new(),
             revision: 0,
             root: None,
             slots: Vec::new(),
@@ -384,6 +391,10 @@ impl Tree {
             chart_count: 0,
             retained_bytes: 0,
         }
+    }
+
+    pub fn binding_owners(&self) -> impl Iterator<Item = NodeId> + '_ {
+        self.binding_owners.iter().copied()
     }
 
     pub fn revision(&self) -> i64 {
@@ -474,19 +485,50 @@ impl Tree {
     /// before callers filter by shortcut, enabled state or input policy: an inner
     /// definition with no usable shortcut must still hide the outer definition.
     /// The iterator borrows the tree; it retains no command snapshots or owners.
+    fn command_steps_from(
+        &self,
+        node: NodeId,
+    ) -> impl Iterator<Item = (NodeId, Option<&Arc<CommandConfig>>)> {
+        std::iter::successors(Some(node), |id| self.get(*id)?.parent).flat_map(|id| {
+            std::iter::once((id, None)).chain(
+                self.get(id)
+                    .and_then(|node| node.commands.as_ref())
+                    .into_iter()
+                    .flat_map(move |commands| {
+                        commands.iter().map(move |command| (id, Some(command)))
+                    }),
+            )
+        })
+    }
+
     pub fn commands_from(
         &self,
         node: NodeId,
     ) -> impl Iterator<Item = (NodeId, &Arc<CommandConfig>)> {
         let mut seen = BTreeSet::new();
-        std::iter::successors(Some(node), |id| self.get(*id)?.parent)
-            .flat_map(|id| {
-                self.get(id)
-                    .and_then(|node| node.commands.as_ref())
-                    .into_iter()
-                    .flat_map(move |commands| commands.iter().map(move |command| (id, command)))
-            })
+        self.command_steps_from(node)
+            .filter_map(|(id, command)| command.map(|command| (id, command)))
             .filter(move |(_, command)| seen.insert(command.id.as_str()))
+    }
+
+    /// Count ancestors and shadowed declarations as work too. A result is whole
+    /// or absent; exhausting the budget must never look like a missing command.
+    pub fn bounded_commands_from(
+        &self,
+        node: NodeId,
+        remaining: &mut usize,
+    ) -> Option<Vec<(NodeId, &Arc<CommandConfig>)>> {
+        let mut seen = BTreeSet::new();
+        let mut result = Vec::new();
+        for (id, command) in self.command_steps_from(node) {
+            *remaining = remaining.checked_sub(1)?;
+            if let Some(command) = command
+                && seen.insert(command.id.as_str())
+            {
+                result.push((id, command));
+            }
+        }
+        Some(result)
     }
 
     pub fn accepts_handler(&self, node: NodeId, handler: HandlerId) -> bool {
@@ -680,6 +722,20 @@ impl Tree {
                             || !node.text.is_empty()
                             || (!config.disabled && node.handler.is_none())
                     })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if node.command_binding.as_ref().is_some_and(|config| {
+                    node.kind != Kind::Container || node.handler.is_none() || !config.is_valid()
+                        || !node.text.is_empty() || node.control.is_some() || node.choice.is_some()
+                        || matches!(config.context, gpuio_protocol::command_binding::Context::Editor(window, _) if window != self.window)
+                }) {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if let Some(old) = self.get(node.id)
+                    && old.command_binding != node.command_binding
+                    && old.command_binding.is_some()
+                    && old.handler == node.handler
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
@@ -1236,6 +1292,22 @@ impl Tree {
                 programs.push((node.id, Some(config.clone())));
             }
         }
+        let mut binding_owners = self.binding_owners.clone();
+        for (index, slot) in &plan.changes {
+            if let Some(before) = self.slots.get(*index).and_then(|s| s.node.as_ref()) {
+                binding_owners.remove(&before.id);
+            }
+            if let Some(after) = slot
+                .node
+                .as_ref()
+                .filter(|node| node.command_binding.is_some())
+            {
+                binding_owners.insert(after.id);
+            }
+        }
+        if binding_owners.len() > gpuio_protocol::command_binding::MAX_OBSERVERS {
+            return Err(ErrorCode::LimitExceeded.into());
+        }
         let Plan {
             changes,
             root,
@@ -1258,6 +1330,7 @@ impl Tree {
         for (index, slot) in changes {
             self.slots[index] = slot;
         }
+        self.binding_owners = binding_owners;
         self.root = root;
         self.node_count = node_count;
         self.extension_count = extension_count;
@@ -1584,6 +1657,7 @@ impl Plan<'_> {
             | Op::SetPointer(id, ..)
             | Op::SetInputRegion(id, ..)
             | Op::SetHighlightScope(id, ..)
+            | Op::SetCommandBinding(id, ..)
             | Op::SetComboboxFilter(id, ..)
             | Op::SetChoiceAppearance(id, ..)
             | Op::Bind(id, ..)
@@ -1711,6 +1785,7 @@ impl Plan<'_> {
                             pointer: None,
                             input_region: None,
                             highlight_scope: None,
+                            command_binding: None,
                             placement: None,
                             style: Arc::from([]),
                             handler: *handler,
@@ -1803,6 +1878,14 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.drop_target = Some(Arc::new(config.clone()));
+            }
+            Op::SetCommandBinding(id, config) => {
+                if self.node(*id)?.kind != Kind::Container
+                    || config.as_ref().is_some_and(|c| !c.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.command_binding = config.clone().map(Arc::new);
             }
             Op::SetHighlightScope(id, config) => {
                 if self.node(*id)?.kind != Kind::HighlightScope || !config.is_valid() {

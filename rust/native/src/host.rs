@@ -180,6 +180,8 @@ struct View {
     buttons: BTreeMap<NodeId, Rc<ButtonState>>,
     input_regions: BTreeMap<NodeId, input_region::Shared>,
     highlights: BTreeMap<NodeId, highlight::Shared>,
+    binding_queries: BTreeMap<NodeId, command::binding::Owner>,
+    binding_rendered: std::collections::BTreeSet<NodeId>,
     highlight_documents: Rc<RefCell<Rc<()>>>,
     input_pointer_inside: Rc<std::cell::Cell<bool>>,
     selections: BTreeMap<NodeId, Rc<RefCell<crate::selection::State>>>,
@@ -424,6 +426,8 @@ impl View {
             buttons: BTreeMap::new(),
             input_regions: BTreeMap::new(),
             highlights: BTreeMap::new(),
+            binding_queries: BTreeMap::new(),
+            binding_rendered: Default::default(),
             highlight_documents: Default::default(),
             input_pointer_inside: Rc::new(std::cell::Cell::new(true)),
             selections: BTreeMap::new(),
@@ -472,6 +476,7 @@ impl View {
         }
     }
     fn update_editors(&mut self, dirty: &[NodeId], window: &mut Window, cx: &mut Context<Self>) {
+        self.sync_binding_queries();
         self.sync_text_shimmers();
         self.install_command_interceptor(window, cx);
         self.install_pointer_observer(window, cx);
@@ -569,6 +574,9 @@ impl View {
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let node = tree.get(id).expect("validated retained node");
+        if node.command_binding.is_some() || node.editor.is_some() {
+            self.binding_rendered.insert(id);
+        }
         let highlight_scope = node
             .highlight_scope
             .as_ref()
@@ -1483,6 +1491,7 @@ impl View {
             && node.pointer.is_none()
             && node.input_region.is_none()
             && node.highlight_scope.is_none()
+            && node.command_binding.is_none()
             && node.image.is_none()
             && node.animation.is_none()
             && node.animation_program.is_none()
@@ -1787,8 +1796,10 @@ impl Render for View {
             self.render_count += 1;
         }
         self.refresh_list_pins(window, cx);
+        self.sync_binding_queries();
         self.sync_text_shimmers();
         self.visited.clear();
+        self.binding_rendered.clear();
         self.focus.borrow_mut().clear_surfaces();
         let shared = self.session.clone();
         let session = shared.borrow();
@@ -2044,6 +2055,7 @@ impl Render for View {
                                 || !view.container_queries.is_empty()
                                 || !view.carousels.is_empty()
                                 || !view.highlights.is_empty()
+                                || !view.binding_queries.is_empty()
                                 || !view.text_shimmers.is_empty()
                                 // A native style can reveal the last hidden scope.
                                 // Commit that sample even with no active matcher.
@@ -2054,6 +2066,7 @@ impl Render for View {
                         window.defer(cx, move |window, cx| {
                             let _ = program_finish.update(cx, |view, cx| {
                                 view.finish_query_paint(window, cx);
+                                view.finish_binding_paint(window, cx);
                                 view.finish_program_paint();
                                 view.schedule_carousels(window, cx);
                                 view.finish_highlight_paint(cx);
@@ -2253,6 +2266,11 @@ pub fn run(transport: Arc<Transport>) {
                             let result = session.borrow_mut().apply_guarded(&tx, &pins);
                             match result {
                                 Ok(applied) => {
+                                    transport.mailbox.lock().expect("mailbox poisoned")
+                                        .retain_bindings(tx.window, |node, handler| {
+                                            session.borrow().tree(tx.window).is_some_and(|tree|
+                                                tree.get(node).is_some_and(|n| n.command_binding.is_some() && n.handler == Some(handler)))
+                                        });
                                     transport.respond(Event::Accepted(tx.window, tx.revision));
                                     if let Some(window) = windows.get(&tx.window) {
                                         let _ = window.update(cx, |view, window, cx| {
@@ -2560,3 +2578,15 @@ pub(crate) mod text_shimmer_view_test;
 #[cfg(feature = "native-image-tests")]
 #[path = "opacity_factor_test.rs"]
 pub(crate) mod opacity_factor_test;
+
+impl Drop for View {
+    fn drop(&mut self) {
+        if let Ok(mut mailbox) = self.transport.mailbox.lock() {
+            mailbox.retain_bindings(self.id, |_, _| false);
+        }
+    }
+}
+
+#[cfg(feature = "native-tests")]
+#[path = "command_binding_test.rs"]
+pub(super) mod command_binding_test;

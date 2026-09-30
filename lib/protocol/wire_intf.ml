@@ -712,6 +712,7 @@ module type S = sig
       | Set_styled_text of Node_id.t * Text_content_wire.t
       | Set_link of Node_id.t * Link_wire.t
       | Set_text_shimmer of Node_id.t * Text_shimmer_wire.Config.t option
+      | Set_command_binding of Node_id.t * Command_binding_wire.Config.t option
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -981,6 +982,12 @@ module type S = sig
           * int64
           * Resource_id.t
           * Document_diff.Event.t
+      | Command_binding_observed of
+          Window_id.t
+          * Node_id.t
+          * Handler_id.t
+          * int64
+          * Command_binding_wire.Observation.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

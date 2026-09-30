@@ -350,3 +350,98 @@ let%expect_test "independent disposition and state tags, exact sequence bounds" 
     Media-play | Media-play
   |}]
 ;;
+
+let%expect_test "mounted binding owner fences config, epoch, callback and retirement" =
+  let module Wire = Gpuio_protocol.Wire in
+  let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok in
+  let node = Gpuio_protocol.Node_id.create ~slot:0L ~generation:1L |> ok in
+  let handler generation = Gpuio_protocol.Handler_id.create ~slot:0L ~generation |> ok in
+  let reconciler = Reconciler.create window in
+  let config = B.Config.create ~context:B.Context.here [ Command (id "run") ] |> ok in
+  let view config label =
+    View.command_binding_scope ~config ~on_update:(fun _ -> label) [ View.text "child" ]
+  in
+  let prepare view = Reconciler.prepare reconciler ~theme:Theme.default view |> ok in
+  let commit update = Reconciler.accept reconciler update |> ok in
+  let event ?(generation = 1L) ?(revision = 1L) epoch state =
+    Wire.Event.Command_binding_observed
+      (window, node, handler generation, revision, { epoch; state })
+  in
+  let dispatch event = Reconciler.dispatch reconciler event in
+  let ready = W.State.Ready [ Missing_command ] in
+  commit (prepare (Some (view config "first")));
+  assert (Option.equal String.equal (dispatch (event 1L ready)) (Some "first"));
+  assert (Option.is_none (dispatch (event 1L ready)));
+  assert (Option.is_none (dispatch (event 0L ready)));
+  let callback = prepare (Some (view config "latest")) in
+  assert (Option.is_none (Reconciler.message callback));
+  commit callback;
+  assert (Option.equal String.equal (dispatch (event 2L ready)) (Some "latest"));
+  let changed_config = B.Config.create [ Command (id "run") ] |> ok in
+  let changed = prepare (Some (view changed_config "changed")) in
+  (match Reconciler.message changed with
+   | Some
+       (Apply
+          { operations =
+              [ Bind (bound, Some next); Set_command_binding (configured, Some _) ]
+          ; _
+          }) ->
+     assert (Gpuio_protocol.Node_id.equal bound node);
+     assert (Gpuio_protocol.Node_id.equal configured node);
+     assert (Gpuio_protocol.Handler_id.equal next (handler 2L))
+   | _ -> assert false);
+  (* Merely preparing cannot retire an accepted callback or reset its epoch. *)
+  assert (Option.equal String.equal (dispatch (event 3L ready)) (Some "latest"));
+  commit changed;
+  assert (Option.is_none (dispatch (event 4L ready)));
+  assert (
+    Option.equal
+      String.equal
+      (dispatch (event ~generation:2L ~revision:2L 1L ready))
+      (Some "changed"));
+  assert (
+    Option.is_none
+      (dispatch (event ~generation:2L ~revision:2L 2L (Ready [ Native_unbound ]))));
+  assert (
+    Option.equal
+      String.equal
+      (dispatch (event ~generation:2L ~revision:2L 2L ready))
+      (Some "changed"));
+  let plain = prepare (Some (View.column [ View.text "child" ])) in
+  (match Reconciler.message plain with
+   | Some (Apply { operations = [ Bind (_, None); Set_command_binding (_, None) ]; _ }) ->
+     ()
+   | _ -> assert false);
+  commit plain;
+  assert (Option.is_none (dispatch (event ~generation:2L ~revision:2L 3L ready)));
+  commit (prepare None);
+  print_endline
+    "stable child and latest callback; config handler and monotonic epoch fencing; \
+     prepare isolation; observer removal";
+  [%expect
+    {| stable child and latest callback; config handler and monotonic epoch fencing; prepare isolation; observer removal |}]
+;;
+
+let%expect_test "binding transport appends independently specified envelope tags" =
+  let module Wire = Gpuio_protocol.Wire in
+  let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok in
+  let node = Gpuio_protocol.Node_id.create ~slot:0L ~generation:1L |> ok in
+  let handler = Gpuio_protocol.Handler_id.create ~slot:0L ~generation:1L |> ok in
+  let event =
+    Wire.Event.Command_binding_observed
+      (window, node, handler, 1L, { epoch = 1L; state = Suspended })
+  in
+  let encoded = bytes [%bin_writer: Wire.Event.t list] [ event ] in
+  assert (
+    String.equal (hex [%bin_writer: Wire.Event.t list] [ event ]) "0142000100010001010101");
+  assert (List.equal Wire.Event.equal (Wire.Event.decode encoded |> ok) [ event ]);
+  let op = Wire.Op.Set_command_binding (node, Some (B.Expert.to_wire config)) in
+  assert (String.equal (hex Wire.Op.bin_writer_t op) "3e0001010002000372756e0100");
+  assert (
+    String.equal (hex Wire.Op.bin_writer_t (Set_command_binding (node, None))) "3e000100");
+  print_endline
+    "operation 62; event 66; set and clear; bounded observation reader inside event \
+     envelope";
+  [%expect
+    {| operation 62; event 66; set and clear; bounded observation reader inside event envelope |}]
+;;

@@ -350,27 +350,12 @@ impl View {
             None => false,
         }
     }
-    pub(super) fn command_shortcut(
-        &mut self,
-        key: &Keystroke,
-        priority: ShortcutPriority,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let focused = self.focus.borrow().focused_node(window, cx);
-        let focused_kind = focused.and_then(|id| {
-            self.session
-                .borrow()
-                .tree(self.id)?
-                .get(id)
-                .map(|node| node.kind)
-        });
-        // Preserve the fast path: native navigation must not scan registries.
-        if priority == ShortcutPriority::NativeFirst
-            && InputContext::reserves_navigation(key, focused_kind)
-        {
-            return;
-        }
+    fn command_input_context(
+        &self,
+        focused_kind: Option<Kind>,
+        window: &Window,
+        cx: &App,
+    ) -> InputContext {
         let editor = self
             .editors
             .values()
@@ -400,11 +385,35 @@ impl View {
             || palette.is_some()
             || otp.is_some()
             || color.is_some();
-        let input = InputContext {
+        InputContext {
             editing,
             composing,
             focused_kind,
-        };
+        }
+    }
+
+    pub(super) fn command_shortcut(
+        &mut self,
+        key: &Keystroke,
+        priority: ShortcutPriority,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let focused = self.focus.borrow().focused_node(window, cx);
+        let focused_kind = focused.and_then(|id| {
+            self.session
+                .borrow()
+                .tree(self.id)?
+                .get(id)
+                .map(|node| node.kind)
+        });
+        // Preserve the fast path: native navigation must not scan registries.
+        if priority == ShortcutPriority::NativeFirst
+            && InputContext::reserves_navigation(key, focused_kind)
+        {
+            return;
+        }
+        let input = self.command_input_context(focused_kind, window, cx);
         let route = {
             let session = self.session.borrow();
             let Some(tree) = session.tree(self.id) else {
@@ -430,3 +439,6 @@ impl View {
         }
     }
 }
+
+#[path = "command_binding_view.rs"]
+pub(super) mod binding;

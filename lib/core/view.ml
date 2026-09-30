@@ -178,6 +178,11 @@ type 'action drop_target =
   ; on_event : Drag_and_drop.Target_event.t -> 'action
   }
 
+type 'action command_binding_scope =
+  { config : Command_binding.Config.t
+  ; on_update : Command_binding.Observation.t -> 'action
+  }
+
 type 'action highlight_scope =
   { config : Highlight.Config.t
   ; on_update : (Highlight.Observation.t -> 'action) option
@@ -288,6 +293,7 @@ type 'action t =
   ; pointer : 'action pointer option
   ; input_region : 'action input_region option
   ; highlight_scope : 'action highlight_scope option
+  ; command_binding_scope : 'action command_binding_scope option
   ; notification : 'action notification option
   ; toast_stack : Toast.Stack.t option
   ; progress : Progress.Config.t option
@@ -345,6 +351,7 @@ let text ?key ?(style = Style.empty) text =
   ; pointer = None
   ; input_region = None
   ; highlight_scope = None
+  ; command_binding_scope = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -524,6 +531,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; pointer = None
   ; input_region = None
   ; highlight_scope = None
+  ; command_binding_scope = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -638,6 +646,7 @@ let button
   ; pointer = None
   ; input_region = None
   ; highlight_scope = None
+  ; command_binding_scope = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -724,6 +733,7 @@ let toggle
   ; pointer = None
   ; input_region = None
   ; highlight_scope = None
+  ; command_binding_scope = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -791,6 +801,7 @@ let focus_scope ?key ?style ~config children =
   ; pointer = None
   ; input_region = None
   ; highlight_scope = None
+  ; command_binding_scope = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -1540,6 +1551,7 @@ let text_input
   ; pointer = None
   ; input_region = None
   ; highlight_scope = None
+  ; command_binding_scope = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -1595,6 +1607,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; pointer = None
   ; input_region = None
   ; highlight_scope = None
+  ; command_binding_scope = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -1676,6 +1689,7 @@ let combobox
   ; pointer = None
   ; input_region = None
   ; highlight_scope = None
+  ; command_binding_scope = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -1803,6 +1817,12 @@ let drop_target ?key ?(style = Style.empty) ~config ~on_event children =
   { (column ?key ~style children) with
     kind = Drop_target
   ; drop_target = Some { config; on_event }
+  }
+;;
+
+let command_binding_scope ?key ?(style = Style.empty) ~config ~on_update children =
+  { (column ?key ~style children) with
+    command_binding_scope = Some { config; on_update }
   }
 ;;
 
@@ -2068,6 +2088,11 @@ module Expert = struct
     ; on_event : Drag_and_drop.Target_event.t -> 'action
     }
 
+  type nonrec 'action command_binding_scope = 'action command_binding_scope =
+    { config : Command_binding.Config.t
+    ; on_update : Command_binding.Observation.t -> 'action
+    }
+
   type nonrec 'action highlight_scope = 'action highlight_scope =
     { config : Highlight.Config.t
     ; on_update : (Highlight.Observation.t -> 'action) option
@@ -2155,6 +2180,7 @@ module Expert = struct
     ; pointer : 'action pointer option
     ; input_region : 'action input_region option
     ; highlight_scope : 'action highlight_scope option
+    ; command_binding_scope : 'action command_binding_scope option
     ; notification : 'action notification option
     ; toast_stack : Toast.Stack.t option
     ; progress : Progress.Config.t option

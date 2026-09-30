@@ -1,5 +1,4 @@
-//! Bounded binding inspection data. Transport tags and mounted observers are not
-//! integrated yet; this module alone does not advertise a live capability.
+//! Bounded data for mounted binding observations (CAP_COMMAND_BINDINGS).
 use crate::{
     NodeId, WindowId,
     command::{CommandConfig, NativeCommand, Shortcut, ShortcutPriority},
@@ -30,6 +29,22 @@ pub struct Config {
     pub targets: Vec<Target>,
 }
 impl Config {
+    pub fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + std::mem::size_of_val(self.targets.as_slice())
+            + match &self.context {
+                Context::NativeContext(text) => text.len(),
+                _ => 0,
+            }
+            + self
+                .targets
+                .iter()
+                .map(|target| match target {
+                    Target::Command(id) => id.len(),
+                    Target::NativeAction(_) => 0,
+                })
+                .sum::<usize>()
+    }
     pub fn is_valid(&self) -> bool {
         (match &self.context {
             Context::NativeContext(text) => CommandConfig::valid_text(text, 1024),
@@ -176,6 +191,37 @@ pub struct Observation {
     pub state: State,
 }
 impl Observation {
+    /// Conservative encoded payload bound for the bounded latest-value lane.
+    pub fn payload_bytes(&self) -> usize {
+        32 + match &self.state {
+            State::Ready(entries) => entries
+                .iter()
+                .map(|entry| match entry {
+                    Entry::Registry { candidates, .. } => {
+                        32 + candidates
+                            .iter()
+                            .map(|candidate| {
+                                64 + candidate.shortcut.key.len()
+                                    + disposition_bytes(&candidate.disposition)
+                            })
+                            .sum::<usize>()
+                    }
+                    Entry::NativeBinding {
+                        strokes,
+                        disposition,
+                    } => {
+                        32 + disposition_bytes(disposition)
+                            + strokes
+                                .iter()
+                                .map(|stroke| stroke.key.len() + 24)
+                                .sum::<usize>()
+                    }
+                    _ => 8,
+                })
+                .sum::<usize>(),
+            _ => 0,
+        }
+    }
     pub fn is_valid(&self) -> bool {
         self.epoch > 0
             && match &self.state {
@@ -227,5 +273,12 @@ impl Observation {
                     })
             }
         }
+    }
+}
+
+fn disposition_bytes(disposition: &Disposition) -> usize {
+    match disposition {
+        Disposition::Unavailable(Suppression::Conflict(id)) => id.len() + 16,
+        _ => 8,
     }
 }

@@ -1041,6 +1041,7 @@ impl Decoder<'_> {
             59 => Op::SetStyledText(self.node()?, self.text_content()?),
             60 => Op::SetLink(self.node()?, self.link_config()?),
             61 => Op::SetTextShimmer(self.node()?, self.option(Self::text_shimmer_config)?),
+            62 => Op::SetCommandBinding(self.node()?, self.option(Self::command_binding_config)?),
             58 => {
                 let node = self.node()?;
                 let epoch = self.int()?;

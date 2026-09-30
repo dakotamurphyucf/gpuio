@@ -1796,18 +1796,16 @@ module Kbd = struct
     [@@deriving equal, sexp_of]
   end
 
-  let create
+  let label
         (p : Appearance.t)
-        ~platform
         ?key
         ?style:(custom = Style.empty)
         ?(variant = Variant.Filled)
         ?accessible_name
-        shortcut
+        ~spoken
+        visual
     =
-    let label =
-      Option.value accessible_name ~default:(Shortcut.accessible_label shortcut ~platform)
-    in
+    let label = Option.value accessible_name ~default:spoken in
     let%bind.Or_error accessibility = Accessibility.create ~role:Label ~label () in
     let defaults =
       match variant with
@@ -1834,11 +1832,30 @@ module Kbd = struct
              [ Background (solid p.surface); Border_width 1.; Border_color p.border ]
            | Plain -> [])
     in
-    View.text
-      ?key
-      ~style:(Style.merge [ defaults; custom ])
-      (Shortcut.format shortcut ~platform)
+    View.text ?key ~style:(Style.merge [ defaults; custom ]) visual
     |> fun view -> View.with_accessibility view accessibility
+  ;;
+
+  let create p ~platform ?key ?style ?variant ?accessible_name shortcut =
+    label
+      p
+      ?key
+      ?style
+      ?variant
+      ?accessible_name
+      ~spoken:(Shortcut.accessible_label shortcut ~platform)
+      (Shortcut.format shortcut ~platform)
+  ;;
+
+  let of_native_stroke p ~platform ?key ?style ?variant ?accessible_name stroke =
+    label
+      p
+      ?key
+      ?style
+      ?variant
+      ?accessible_name
+      ~spoken:(Command_binding.Stroke.accessible_label stroke ~platform)
+      (Command_binding.Stroke.format stroke ~platform)
   ;;
 end
 

@@ -5,28 +5,21 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
 passed on `473407c`; all twelve tickets are Done.
 
-The [binding-inspection data model](design/command-binding-observations.md#paired-data-contract)
-now has paired bounded codecs and a typed Core API for ordered registry/native
-results, editor leases, complete native key sequences and explicit unavailable
-states. Full local Dune build/expect/format checks, all 250 Rust protocol tests
-and strict protocol Clippy pass. The mounted native
-observer, capability negotiation, Bonsai value adapter and gallery integration
-remain required; these constructors do not query a window or register shortcuts.
-
-The [native command-resolution foundation](design/command-binding-observations.md)
-now shares nearest-scope/declaration-order lookup and input gates with actual
-shortcut routing. New unit and real-window regressions cover unbound/disabled
-shadowing, same-phase conflicts and cross-phase fallthrough. The complete native
-library suite, command-session checks, native controls and strict Clippy pass.
-The asynchronous binding observer remains unimplemented; its design records the
-separate registry/native-widget keymaps and stale-snapshot requirements.
+The [mounted native binding observer](design/command-binding-observations.md)
+now connects paired transport, Core View callbacks, Eio delivery and a Bonsai
+pending/latest-value adapter. A focused local macOS test passes actual widget
+bindings, child-driven composition changes, context/config/epoch replacement,
+coalescing, visibility recovery and cleanup. Core and native admission/lifecycle
+checks pass, and Bonsai tests preserve child state while fencing stale observation
+effects. Gallery/installed-consumer examples and broader native matrices remain
+required; Kbd parity and release acceptance are still incomplete.
 
 [Typed keyboard labels](design/keyboard-labels.md) now format validated shortcuts
 for macOS/Linux, supply spoken names and filled/outline/plain keycaps, and expose
 ordered command declarations. Core/full Dune and a fresh installed consumer pass
 native geometry, GPU appearance, identity and explicit registration/disabled/routing
-checks. Effective native focus/context binding lookup remains required OCH-41 work;
-this is partial Kbd coverage, not whole-source or release acceptance.
+checks. Effective native focus/context lookup is now implemented with scoped native
+evidence above; public gallery/consumer and wider acceptance work remain.
 
 The [rich Description list](design/description-lists.md) now provides validated
 column/span packing, rich term/value slots, both axes, label widths, sizes, borders
@@ -205,8 +198,8 @@ gates and the other presentation modules remain open.
 The remaining presentation modules have a
 [pinned behavior/gap review](catalog/presentation-gaps.md), including nested settings
 fields. These implementation plans and source snapshots do not mark the families
-accepted; remaining rich slots/layout, typed keyboard labels and settings
-composition still need implementation and native coverage.
+accepted; native binding-observer gallery/acceptance and settings composition
+remain, alongside the other catalog reviews.
 The [ordinary text-span API](design/text-content.md) now supplies bounded
 foreground runs through atomic bridge updates and View/Bonsai reconciliation.
 Local checks cover native GPU paint, wrapping, selection/copy and source AX labels.

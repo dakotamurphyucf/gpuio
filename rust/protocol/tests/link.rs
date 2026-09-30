@@ -4,10 +4,10 @@ use gpuio_protocol::{NodeId, WindowId, link::Config, v1::*};
 #[test]
 fn links_have_a_distinct_negotiated_capability() {
     assert_eq!(CAP_LINKS, 1_i64 << 48);
-    assert_eq!(CAPABILITIES, (1_i64 << 52) - 1);
+    assert_eq!(CAPABILITIES, (1_i64 << 53) - 1);
     for (required, expected) in [
         (CAP_LINKS, "0001fc0000000000000100"),
-        (CAPABILITIES, "0001fcffffffffffff0f00"),
+        (CAPABILITIES, "0001fcffffffffffff1f00"),
     ] {
         let hello = Message::Hello(VERSION, required);
         let mut bytes = vec![];

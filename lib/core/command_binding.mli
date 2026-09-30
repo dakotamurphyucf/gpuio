@@ -1,5 +1,6 @@
-(** Native binding-inspection data. The mounted observer is not wired yet; these
-    constructors do not query a window or register shortcuts. *)
+(** Native binding-inspection data. Mount [View.command_binding_scope] to observe
+    a window asynchronously, or use the Bonsai adapter. Constructing these values
+    alone does not query a window or register shortcuts. *)
 module Context : sig
   type t [@@deriving equal, sexp_of]
 

@@ -4,6 +4,7 @@ module Virtual_list = Virtual_list
 module Tree_rows = Tree_rows
 module Tree = Tree
 module Table = Table
+module Command_binding = Binding_observer
 
 (** The pure view API specialized to Bonsai effects. No driver, I/O runtime or
     scheduling policy is introduced here; window lifecycle scheduling is OCH-9. *)
@@ -99,6 +100,14 @@ module View : sig
     -> ?style:Gpuio.Style.t
     -> config:Gpuio.Drag_and_drop.Target.t
     -> on_event:(Gpuio.Drag_and_drop.Target_event.t -> unit Bonsai.Effect.t)
+    -> t list
+    -> t
+
+  val command_binding_scope
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Command_binding.Config.t
+    -> on_update:(Gpuio.Command_binding.Observation.t -> unit Bonsai.Effect.t)
     -> t list
     -> t
 

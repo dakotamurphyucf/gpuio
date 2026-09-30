@@ -83,6 +83,8 @@ type 'a callback =
   | Animation of int64 * int64 ref * (Animation.Event.t -> 'a)
   | Image of (Image.State.t -> 'a)
   | Input_region of Gpuio_protocol.Input_wire.Config.t * (Input_region.Event.t -> 'a)
+  | Command_binding_scope of
+      Command_binding.Config.t * int64 ref * (Command_binding.Observation.t -> 'a)
   | Highlight_scope of
       Gpuio_protocol.Highlight_wire.Config.t * (Highlight.Observation.t -> 'a)
   | Pointer of (Pointer.Event.t -> 'a)
@@ -123,6 +125,7 @@ type 'a mounted =
   ; program_seen : (int64 * int64) ref
   ; container_query : Wire.Container_query.Config.t option
   ; query_seen : int64 ref
+  ; binding_seen : int64 ref
   ; document_diff_epoch : int64
   ; slider_seen : int64 ref
   ; number_input_seen : int64 ref
@@ -171,7 +174,8 @@ type 'a update =
   }
 
 type 'a builder =
-  { mutable nodes : Allocator.t
+  { window : Window_id.t
+  ; mutable nodes : Allocator.t
   ; mutable handlers : Allocator.t
   ; mutable bindings : 'a binding Int.Map.t
   ; mutable operations : Wire.Op.t list
@@ -429,6 +433,25 @@ let rec mount builder ~depth previous view =
           in
           { candidate with generation }))
     in
+    let old_binding_config =
+      Option.bind previous ~f:(fun old ->
+        Option.map (View.Expert.describe old.view).command_binding_scope ~f:(fun item ->
+          item.config))
+    in
+    let binding_config =
+      Option.map description.command_binding_scope ~f:(fun item -> item.config)
+    in
+    let binding_changed =
+      not (Option.equal Command_binding.Config.equal old_binding_config binding_config)
+    in
+    let binding_seen =
+      if binding_changed
+      then ref 0L
+      else Option.value_map previous ~default:(ref 0L) ~f:(fun old -> old.binding_seen)
+    in
+    Option.iter binding_config ~f:(fun config ->
+      if not (Command_binding.Expert.valid_window config builder.window)
+      then fail "binding editor context belongs to another window");
     let query_seen =
       Option.value_map previous ~default:(ref 0L) ~f:(fun old -> old.query_seen)
     in
@@ -593,6 +616,13 @@ let rec mount builder ~depth previous view =
       | Some item, None -> Some (Toast item.on_dismiss)
       | None, callback -> callback
       | Some _, Some _ -> fail "toast cannot combine another handler"
+    in
+    let callback =
+      match description.command_binding_scope, callback with
+      | Some item, None ->
+        Some (Command_binding_scope (item.config, binding_seen, item.on_update))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "binding observer cannot combine another handler"
     in
     let callback =
       match description.highlight_scope, callback with
@@ -776,11 +806,13 @@ let rec mount builder ~depth previous view =
       | _ -> fail "incompatible virtual list callback"
     in
     let rotate_handler =
-      (match description.highlight_scope, previous with
-       | Some item, Some mounted ->
-         Option.exists (View.Expert.describe mounted.view).highlight_scope ~f:(fun old ->
-           not (Highlight.Config.equal item.config old.config))
-       | None, _ | Some _, None -> false)
+      binding_changed
+      || (match description.highlight_scope, previous with
+          | Some item, Some mounted ->
+            Option.exists
+              (View.Expert.describe mounted.view).highlight_scope
+              ~f:(fun old -> not (Highlight.Config.equal item.config old.config))
+          | None, _ | Some _, None -> false)
       || (match description.input_region, previous with
           | Some item, Some mounted ->
             Option.exists (View.Expert.describe mounted.view).input_region ~f:(fun old ->
@@ -981,6 +1013,12 @@ let rec mount builder ~depth previous view =
         emit
           builder
           (Set_drop_target (id, Drag_and_drop.Expert.target_to_wire item.config)));
+    if binding_changed
+    then
+      emit
+        builder
+        (Set_command_binding
+           (id, Option.map binding_config ~f:Command_binding.Expert.to_wire));
     Option.iter description.highlight_scope ~f:(fun item ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -1666,6 +1704,7 @@ let rec mount builder ~depth previous view =
     ; program_seen
     ; container_query
     ; query_seen
+    ; binding_seen
     ; document_diff_epoch
     ; slider_seen
     ; number_input_seen
@@ -1693,7 +1732,8 @@ let prepare t ~theme view =
   else (
     try
       let builder =
-        { nodes = t.state.nodes
+        { window = t.window
+        ; nodes = t.state.nodes
         ; handlers = t.state.handlers
         ; bindings = t.state.bindings
         ; operations = []
@@ -2122,6 +2162,7 @@ let dispatch t = function
         | Palette _
         | Toast _
         | Input_region _
+        | Command_binding_scope _
         | Highlight_scope _
         | Pointer _
         | Drag_source _
@@ -2412,6 +2453,23 @@ let dispatch t = function
        |> Result.ok
        |> Option.map ~f:callback
      | Some _ | None -> None)
+  | Command_binding_observed (window, node, handler, revision, sample)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Command_binding_scope (config, seen, callback)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Int64.(sample.epoch > !seen) ->
+       Option.map (Command_binding.Expert.of_wire config sample) ~f:(fun observation ->
+         seen := sample.epoch;
+         callback observation)
+     | Some _ | None -> None)
   | Highlight_observed (window, node, handler, revision, sample)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -2501,6 +2559,7 @@ let dispatch t = function
   | Drop_target_event _
   | Input_observed _
   | Highlight_observed _
+  | Command_binding_observed _
   | Pointer_event _
   | Toast_dismissed _
   | Palette_dismissed _

@@ -343,3 +343,8 @@ required-features = ["native-image-tests"]
 name = "native_opacity_factor"
 harness = false
 required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_command_binding"
+harness = false
+required-features = ["native-tests"]

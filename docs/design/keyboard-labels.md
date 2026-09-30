@@ -5,7 +5,8 @@ pure display portion of the pinned [Kbd source](../catalog/sources/component-kbd
 (gpui-kit `84f57fdfcb4910623fb0bb7f795b077e249f9271`). `Command.shortcuts` exposes
 ordered declarations for display. The legacy string-list `shortcut_label` remains
 unchanged. This is **partial source coverage**: effective native action/context/
-focus binding lookup remains required OCH-41 work.
+focus binding lookup now has a mounted observer; gallery/consumer acceptance
+for that observer remains required OCH-41 work.
 
 ```ocaml
 let shortcut =
@@ -123,31 +124,29 @@ No VoiceOver, real IME, Linux GUI, application performance or clean-machine
 qualification is established by these focused checks. Required Linux non-GUI
 checks remain; desktop qualification is deferred OCH-47.
 
-## Remaining binding-query contract
+## Native binding observations
 
 The source also queries the highest-precedence action binding for a context or
-focus handle and displays its first stroke. GPUIO has no equivalent effective
-binding observation yet. Do not promote the entire Kbd source row to a functional
-equivalent until this gap is resolved and validated.
+focus handle and displays its first stroke. GPUIO now exposes asynchronous
+`Command_binding` queries through `View.command_binding_scope` and the
+`Gpuio_bonsai.Command_binding.component` pending/latest-value adapter.
+`Presentation.Kbd.of_native_stroke` displays each observed native stroke without
+converting it to the narrower shortcut-registration domain. Display all strokes
+of a native sequence in order.
 
-The implementation should share native resolution policy with actual command
-routing. A pure scan of OCaml registry declarations cannot account for current
-focus, nearest-scope shadowing, native-first handling, priority, composition,
-modal focus boundaries or native editor availability. A query/result contract
-must define exactly which of these it answers rather than promising that any
-reported binding will consume every OS key event.
+The implementation shares native registry traversal and input policy with actual
+command routing, and separately queries GPUI's widget keymap using explicit focus
+handles. Results distinguish hypothetical declarations from known routing gates;
+they do not promise that a reported binding will consume every OS key event.
 
-Keep native resolution on the GPUI thread. Any result crossing into OCaml must be
-asynchronous, associated with the originating window and mounted query owner,
-and fenced by current focus/registry revision. Specify missing, disabled and stale
-results; retire observations on unmount/window close. Bound query counts, updates
-and retained results. Use the existing single-chord domain rather than silently
-adding sequences. Test nested/disabled shadowing, conflicts, focus transitions,
-IME gates, stale revisions, window isolation and actual invocation. Until that
-work lands, callers can display explicit declarations only.
+Samples are produced on the GPUI thread after paint, associated with the mounted
+window/node/handler generations and fenced by configuration epochs and accepted
+tree revisions. Query counts, registry work and retained/queued observations are
+bounded. Removing or reconfiguring owners retires stale samples. Native sequences
+are observational data only; registration remains single-chord.
 
-The [native observation design and shared resolver evidence](command-binding-observations.md)
-now specifies these requirements in more detail, including different same-phase
-and cross-phase conflict rules and the separate native widget keymap source.
-Actual routing uses the shared iterator/input policy and its native regressions
-pass. The public observation API and its lifecycle integration remain unfinished.
+The [native observation contract and evidence](command-binding-observations.md)
+records the contexts, suppression states, lifecycle, limits and scoped macOS
+validation. Public gallery/installed-consumer examples and broader native
+nested/modal/retained-row/window/workload matrices remain required. Keep the Kbd
+source row partial until that acceptance is complete.

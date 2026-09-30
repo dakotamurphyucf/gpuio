@@ -66,7 +66,9 @@ pub const CAP_LINKS: i64 = 1_i64 << 48;
 pub const CAP_BORDER_STYLES: i64 = 1_i64 << 49;
 pub const CAP_ASPECT_RATIO: i64 = 1_i64 << 50;
 pub const CAP_OPACITY_FACTOR: i64 = 1_i64 << 51;
-pub const CAPABILITIES: i64 = CAP_OPACITY_FACTOR
+pub const CAP_COMMAND_BINDINGS: i64 = 1_i64 << 52;
+pub const CAPABILITIES: i64 = CAP_COMMAND_BINDINGS
+    | CAP_OPACITY_FACTOR
     | CAP_ASPECT_RATIO
     | CAP_BORDER_STYLES
     | CAP_LINKS
@@ -715,6 +717,7 @@ pub enum Op {
     SetStyledText(NodeId, crate::text_content::Content),
     SetLink(NodeId, crate::link::Config),
     SetTextShimmer(NodeId, Option<crate::text_shimmer::Config>),
+    SetCommandBinding(NodeId, Option<crate::command_binding::Config>),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -924,5 +927,12 @@ pub enum Event {
         i64,
         crate::ResourceId,
         crate::document_diff::Event,
+    ),
+    CommandBindingObserved(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::command_binding::Observation,
     ),
 }

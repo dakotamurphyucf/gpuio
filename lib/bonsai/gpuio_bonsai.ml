@@ -3,6 +3,7 @@ module Virtual_list = Virtual_list
 module Tree_rows = Tree_rows
 module Tree = Tree
 module Table = Table
+module Command_binding = Binding_observer
 
 module View = struct
   type t = unit Bonsai.Effect.t Gpuio.View.t
@@ -12,6 +13,7 @@ module View = struct
   let with_accessibility = Gpuio.View.with_accessibility
   let drag_source = Gpuio.View.drag_source
   let drop_target = Gpuio.View.drop_target
+  let command_binding_scope = Gpuio.View.command_binding_scope
   let highlight_scope = Gpuio.View.highlight_scope
   let input_region = Gpuio.View.input_region
   let pointer_area = Gpuio.View.pointer_area

@@ -733,6 +733,18 @@ val drop_target
   -> 'action t list
   -> 'action t
 
+(** Observe native bindings asynchronously. This ordinary container introduces
+    no focus stop. Replacing config retires the old handler/epoch; changing only
+    the callback preserves the subscription and uses the current callback.
+    The supplied editor context must belong to the enclosing window. *)
+val command_binding_scope
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Command_binding.Config.t
+  -> on_update:(Command_binding.Observation.t -> 'action)
+  -> 'action t list
+  -> 'action t
+
 (** Retained highlight declaration. Empty config overrides an ancestor. Children
     retain their identities; updates are asynchronous. Native painting integration
     is in development and no highlight capability is advertised yet. *)
@@ -956,6 +968,11 @@ module Expert : sig
     ; on_event : Drag_and_drop.Target_event.t -> 'action
     }
 
+  type 'action command_binding_scope =
+    { config : Command_binding.Config.t
+    ; on_update : Command_binding.Observation.t -> 'action
+    }
+
   type 'action highlight_scope =
     { config : Highlight.Config.t
     ; on_update : (Highlight.Observation.t -> 'action) option
@@ -1113,6 +1130,7 @@ module Expert : sig
     ; pointer : 'action pointer option
     ; input_region : 'action input_region option
     ; highlight_scope : 'action highlight_scope option
+    ; command_binding_scope : 'action command_binding_scope option
     ; notification : 'action notification option
     ; toast_stack : Toast.Stack.t option
     ; progress : Progress.Config.t option

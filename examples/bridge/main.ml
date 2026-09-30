@@ -147,6 +147,7 @@ let worker native notification_read =
       | Animation_endpoint _
       | Input_observed _
       | Highlight_observed _
+      | Command_binding_observed _
       | Document_diff_event _
       | Command_invoked _ -> ()
     in

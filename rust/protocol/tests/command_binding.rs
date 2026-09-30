@@ -476,3 +476,49 @@ fn independent_dispositions_exact_limits_and_modifier_ordering() {
         }));
     }
 }
+
+#[test]
+fn mounted_envelopes_append_without_changing_existing_tags() {
+    let node = NodeId::from_parts(0, 1).unwrap();
+    let window = WindowId::from_parts(0, 1).unwrap();
+    let handler = gpuio_protocol::HandlerId::from_parts(0, 1).unwrap();
+    let op = Op::SetCommandBinding(node, Some(config()));
+    assert_eq!(bytes(&op), fixture("3e0001010002000372756e0100"));
+    assert_eq!(
+        bytes(&Op::SetCommandBinding(node, None)),
+        fixture("3e000100")
+    );
+    let request = Message::Apply(Transaction {
+        window,
+        base: 0,
+        revision: 1,
+        operations: vec![op],
+    });
+    let golden = fixture("0300010001013e0001010002000372756e0100");
+    assert_eq!(bytes(&request), golden);
+    assert_eq!(gpuio_protocol::decode(&golden).unwrap(), request);
+    let event = Event::CommandBindingObserved(
+        window,
+        node,
+        handler,
+        1,
+        Observation {
+            epoch: 1,
+            state: State::Suspended,
+        },
+    );
+    assert_eq!(bytes(&vec![event]), fixture("0142000100010001010101"));
+}
+
+#[test]
+fn capability_bit_and_current_mask_have_independent_bytes() {
+    assert_eq!(CAP_COMMAND_BINDINGS, 1_i64 << 52);
+    assert_eq!(
+        bytes(&Message::Hello(VERSION, CAP_COMMAND_BINDINGS)),
+        fixture("0001fc0000000000001000")
+    );
+    assert_eq!(
+        bytes(&Message::Hello(VERSION, CAPABILITIES)),
+        fixture("0001fcffffffffffff1f00")
+    );
+}

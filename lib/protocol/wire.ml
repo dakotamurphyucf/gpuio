@@ -30,7 +30,7 @@ module Desktop = Desktop_wire
 module Notification = Notification_wire
 
 let version = 1L
-let capabilities = 4503599627370495L
+let capabilities = 9007199254740991L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -641,6 +641,7 @@ module Op = struct
     | Set_styled_text of Node_id.t * Text_content_wire.t
     | Set_link of Node_id.t * Link_wire.t
     | Set_text_shimmer of Node_id.t * Text_shimmer_wire.Config.t option
+    | Set_command_binding of Node_id.t * Command_binding_wire.Config.t option
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -996,6 +997,12 @@ module Event = struct
         * int64
         * Resource_id.t
         * Document_diff.Event.t
+    | Command_binding_observed of
+        Window_id.t
+        * Node_id.t
+        * Handler_id.t
+        * int64
+        * Command_binding_wire.Observation.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1144,6 +1151,8 @@ module Event = struct
       Int64.(revision >= 0L) && Drag_and_drop.Target_sample.is_valid sample
     | Document_diff_event (_, _, _, revision, _, event) ->
       Int64.(revision >= 0L) && Document_diff.Event.valid event
+    | Command_binding_observed (_, _, _, revision, observation) ->
+      Int64.(revision >= 0L) && Command_binding_wire.Observation.valid observation
     | Highlight_observed (_, _, _, revision, observation) ->
       Int64.(revision >= 0L) && Highlight.Observation.valid observation
     | Input_observed (_, _, _, revision, event) ->

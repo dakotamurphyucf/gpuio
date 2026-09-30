@@ -1,271 +1,243 @@
 # Native command-binding observations
 
-OCH-41 implementation design. The typed [keyboard-label display API](keyboard-labels.md)
-is implemented. The shared native resolution policy and bounded observation data
-model are implemented. **The mounted observer, live transport and Bonsai value
-adapter remain unimplemented**; constructing a query does not sample a window.
-This work completes the remaining action/context/focus lookup portion of the
-pinned Kbd source. It does not add multi-stroke input, synchronous Rust-to-OCaml
-callbacks or an application keymap parser.
+OCH-41 implementation contract. The native observer, paired transport, Core View
+callback, Eio delivery and Bonsai value adapter are implemented. A focused local
+macOS test passes actual widget-keymap lookup, composition-driven changes without
+a retained-tree update, configuration/epoch replacement, coalescing, visibility
+recovery and retirement. Public gallery/installed-consumer coverage and the wider
+catalog/release gates remain open; this is not full Kbd or milestone acceptance.
 
-## Resolution already shared with invocation
+## Public interface
 
-`Tree.commands_from` enumerates the current native ancestor registries, nearest
-scope first and in declaration order. It deduplicates command IDs **before** any
-shortcut/input/availability filtering. An inner definition therefore hides the
-outer ID even when disabled, without shortcuts, assigned a different chord or
-restricted to a different routing phase. Siblings do not participate. The
-iterator borrows existing shared command data and retains no payload after use.
+[Command_binding](../../lib/core/command_binding.mli) describes queries and samples.
+Mount `View.command_binding_scope ~config ~on_update children` to receive them.
+The owner is an ordinary container with no extra keyboard-focus stop. Constructing
+a config alone does not query a window, register a shortcut or invoke an action.
 
-`command.rs` now uses that iterator for actual shortcut routing. Its shared
-`InputContext` distinguishes native navigation, composition and text-input gates,
-and uses GPUI's own key matcher after physical modifier resolution. Primary and
-Super/Control aliases agree with the typed display API. Unmodified/Shift-only
-editor typing is excluded by ModifiedOnly; modifier-free Always is intentional.
-Native-first Tab/Shift-Tab and ordinary button Enter/Space stay reserved. The early
-navigation path avoids scanning registries.
+Queries contain 1..64 unique ordered typed targets:
 
-Selection and invocation are distinct. The first matching declaration reserves a
-chord **within its phase**, even if invocation fails because it is disabled,
-blocked by a modal scope or unavailable for the retained native edit target. It
-must not fall through to a later declaration in that phase. A failed Override
-invocation does not itself consume the event: native handling and NativeFirst
-may still follow. A successful Override consumes it before native handling.
-NativeFirst is only reached if native handlers let the event bubble.
+- `Command of Command.Id.t` resolves an application command registry.
+- `Native_action of Command.Native.t` looks up one of the six native edit actions
+  (Copy, Cut, Paste, Select_all, Undo, Redo) in GPUI's actual keymap.
 
-The observation implementation must reuse these policies rather than duplicate
-an approximation in OCaml. OS-reserved events, keyboard-layout translation and
-arbitrary widget handlers prevent an unconditional promise that a displayed chord
-will invoke the command.
+Contexts have distinct meanings:
 
-## Public data model and planned mounted interface
+- `Context.focused` samples the window's logical focus and uses the same registry
+  root fallback as shortcut invocation. It applies the known routing gates.
+- `Context.here` describes registry declarations at the observer's native tree
+  position. It accepts registry targets only, with Declared dispositions.
+- `Context.editor snapshot` keeps only the exact editor window/node lease, not its
+  draft, selection or revision. Another window is rejected during preparation
+  and native admission. A removed editor yields Context_gone and never targets a
+  replacement generation; a hidden/unrendered retained editor yields Suspended.
+  Results describe that editor's hypothetical focus context, with Declared
+  dispositions. This is not an instruction to focus it.
+- `Context.native_context "Input mode=visible"` describes native context facts,
+  not a keybinding predicate. It accepts native-action targets only. Malformed
+  facts yield Invalid_context; valid queries report Declared bindings.
 
-`Command_binding` now exposes validated data constructors. The following mounted
-View function remains a draft; it is not available in the library yet:
+Ready entries preserve the target order and distinguish missing registry commands,
+present commands with no shortcuts, native unbound actions, native sequences and
+unsupported native representations. Samples carry positive epochs within one
+mounted configuration. They are historical observations, not a lock on future
+focus or a promise that the OS/widget will deliver a shortcut.
 
-```ocaml
-(* Implemented data constructors: *)
-module Command_binding : sig
-  module Context : sig
-    type t
-    val focused : t
-    val here : t
-    val editor : Text_input.Snapshot.t -> t
-    val native_context : string -> t Core.Or_error.t
-  end
-  module Target : sig
-    type t = Command of Command.Id.t | Native_action of Command.Native.t
-  end
-  module Config : sig
-    type t
-    val create : ?context:Context.t -> Target.t list -> t Core.Or_error.t
-  end
-  module Observation : sig
-    type t
-    (* Ordered entries and a monotonically increasing native observation epoch. *)
-  end
-end
+`Gpuio_bonsai.Command_binding.component ~config ~f graph` supplies the latest
+observation (initially None) to `f`, which builds the children. Only observation
+state belongs to the active configuration visit. Config changes and reactivation
+return to pending; delayed effects from retired visits cannot restore old data.
+Child computations retain their state across query changes. Mount the returned
+view for the component's active lifetime. A dynamic optional style value and a
+stable optional key control its ordinary container.
 
-(* Planned integration: *)
-val command_binding_scope
-  :  ?key:Key.t
-  -> ?style:Style.t
-  -> config:Command_binding.Config.t
-  -> on_update:(Command_binding.Observation.t -> 'action)
-  -> 'action View.t list
-  -> 'action View.t
-```
+`Presentation.Kbd.create` displays declared single-chord shortcuts.
+`Presentation.Kbd.of_native_stroke` displays observed native strokes, including
+Function and native key names outside the registration domain. It shares the
+filled/outline/plain styles and localized accessible-name validation. Render all
+strokes of a sequence in order; the display helper does not register them.
 
-The wrapper adds no focus stop. It provides a mounted, generation-checked native
-query owner and an ordinary asynchronous callback. A Bonsai adapter exposes the
-latest observation as a value, pending until the first native sample; display can
-then use `Presentation.Kbd`. Removing that branch removes the subscription.
+## Registry resolution shared with invocation
 
-`Focused` samples the actual focus context for that window, using the same root
-fallback as invocation. `Here` resolves definitions at the observer's native tree
-position: a structured command scope replaces source-specific context strings.
-These are deliberately different answers. A Here result describes declarations
-in that scope; it must not apply input/IME state from an unrelated focused editor
-and call them currently usable. Its candidate disposition is Declared.
+`Tree.commands_from` enumerates ancestor registries nearest first, preserving
+within-scope declaration order. It deduplicates IDs **before** filtering shortcuts,
+input policy, enabled state or priority. Thus disabled/unbound/differently phased
+inner definitions still shadow the same outer ID; siblings do not participate.
+The observer's bounded traversal shares this raw declaration source, counting
+both ancestor visits and shadowed declarations against its work budget.
 
-For Focused results, preserve all candidates in declaration order (currently at
-most four per command). Report the selected definition's enabled state and whether
-each candidate is eligible for Override, conditional on native-first delivery, or
-suppressed by an explicit reason. Missing definition and present-with-no-shortcuts
-are distinct. Relevant suppression reasons include disabled definition, blocked
-scope, unavailable native edit action, composition, text-input policy, reserved
-native navigation and another command winning resolution.
+`command.rs` shares `InputContext`, physical modifier conversion and GPUI's own
+key matcher between invocation and inspection. Primary and Super/Control aliases
+agree with the display API. Modified_only preserves ordinary editor typing;
+composition and Never/Always text-input policies remain native. Native-first
+Tab/Shift-Tab and ordinary button Enter/Space stay reserved. Invocation preserves
+its early navigation fast path.
 
-Conflict inspection must run the actual phase-selection rules. For a NativeFirst
-candidate, consider a matching Override only if that route would be invocable;
-an unavailable Override does not consume the event. Within either phase, an
-unavailable earlier matching declaration still blocks later declarations. Test
-both cases explicitly. A native-first candidate remains conditional even when
-all known GPUIO gates pass; querying must never execute a command as a probe.
+The first matching declaration reserves its chord within a phase even if disabled,
+blocked by a modal scope or unavailable for the retained native edit target.
+Failure does not fall through to a later command in that same phase. A failed
+Override does not consume the event, so native handling and NativeFirst may follow;
+a successful Override wins before NativeFirst regardless of declaration order.
 
-## Native action bindings are a separate source
+For Focused registry results, candidate dispositions report Override,
+Native_first or an explicit suppression reason: disabled, blocked scope,
+unavailable native edit action, composition, text-input policy, native navigation
+or a conflicting command. Native_first describes eligibility if the event reaches
+that phase. An eligible Override belonging to the same command is represented by
+its own candidate rather than a self-conflict. Candidate order remains declaration
+order; no query executes a command as a probe. Here/Editor results preserve enabled
+metadata but do not borrow unrelated current-editor gates.
 
-The pinned GPUI `Window.highest_precedence_binding_for_action` reads its own
-rendered dispatch tree; the `_in` variant resolves a specified native focus
-handle, and `_in_context` resolves a parsed GPUI key context. The highest-precedence
-GPUI binding is the last applicable keymap declaration. That is distinct from
-GPUIO's nearest-scope/first-declaration registry policy. Do not apply one ordering
-to the other or infer widget bindings from `Command.shortcuts`.
+## Native widget bindings are a separate source
 
-The native input widget registers Copy, Cut, Paste, SelectAll, Undo and Redo in its
-own context. A GPUIO `Command.native` with no declared shortcut can therefore
-coexist with a working widget keybinding. The final query API must account for
-both sources explicitly, for example typed targets `Command of Command.Id.t` and
-`Native_action of Command.Native.t`, with distinct result provenance. Do not report
-an absent registry declaration as evidence that the native widget has no shortcut.
-Use the actual GPUI lookup for native actions; do not synthesize platform defaults.
+A native `Command.native` with no declared shortcut can coexist with a working
+widget binding. Missing registry declarations are not evidence of native unbound
+actions. Native queries use GPUI's last-applicable-binding precedence, distinct
+from the registry's nearest/first ordering.
 
-`Context.editor` captures only an existing editor snapshot's window/node lease,
-not its draft or selection. The raw GPUI focus handle stays native. A retired
-editor yields `Context_gone`, never a query against its replacement. The eventual
-mounted owner must reject a lease from another window. `Context.native_context`
-accepts bounded UTF-8 context facts such as `Input mode=visible`. These are not
-keybinding predicates. It supports native-action targets only; `Here` supports
-registry-command targets only. `Focused` and `Editor` support both. A scoped registry Here
-query does not by itself reproduce a hypothetical widget focus context. Missing
-or retired widget context must be explicit. GPUI bindings may contain multiple
-strokes or a Function modifier absent from GPUIO's single-chord input type. The
-source Kbd displays only the first stroke and ignores Function; do not silently
-claim a fully invocable chord after dropping unsupported data. The paired schema now preserves up to eight ordered display-only strokes,
-including the physical Function modifier, with Unicode-aware platform formatting
-and spoken labels. Longer sequences or invalid native strokes produce explicit
-`Native_unsupported` results. The native sampler and source-ledger acceptance
-remain required delivery work.
+After paint, Focused inspection explicitly obtains `window.focused(cx)` and calls
+`highest_precedence_binding_for_action_in` with that handle. The unqualified
+`highest_precedence_binding_for_action` reads the dispatch tree's transient context
+stack and returned no Input Copy binding in our post-paint test; do not infer the
+focused context from it there. Editor leases use their actual native focus handle.
+Native_context uses `highest_precedence_binding_for_action_in_context`.
 
-Pinned local evidence: `vendor/gpui/src/window.rs` action-binding APIs and
-`vendor/gpui-base/src/input/base/state.rs` native edit keymap registration.
+Focused native results additionally check listener availability and a consuming
+application Override for the first stroke. Widget disposition means an applicable
+native keymap route, not a guarantee about widget-local preconditions, clipboard
+contents, OS-reserved events or future focus. Registry-native commands can target
+a retained editor after toolbar focus; focused widget queries describe current
+focus instead. These are intentionally different contracts.
 
-## Bounds, scheduling and staleness
+Up to eight complete ordered native strokes preserve physical Control, Alt,
+Shift, platform and Function modifiers. Invalid native strokes or longer sequences
+produce explicit Native_unsupported results. There is no lossy conversion back to
+GPUIO's single-chord Shortcut registration type.
 
-The data model permits 1..64 unique ordered targets per observer. Planned native
-admission permits at most 64 observers per window; the existing 256-byte ID and four-shortcuts-per-command
-limits still apply. Bound aggregate configuration, queued results and retained
-candidate metadata in the paired codecs and native session. Decode and validate
-before atomically publishing a tree mutation. Add capability negotiation before
-the public observer can be used against an older backend.
+Native context parsing is iterative and bounded to 1024 input bytes. It accepts
+Unicode alphanumeric/underscore/hyphen identifiers and nonempty key=value facts,
+with whitespace and GPUI's first-definition-wins behavior, using KeyContext add/set.
+The pinned `KeyContext::parse_expr` recursively retries unsupported punctuation
+without consuming it; arbitrary query text is never passed to that parser. No
+upstream fork change is needed.
 
-Sampling should occur after native focus/registry state is available, including
-focus restoration and modal transitions. Reuse the native post-paint lifecycle
-or explicit invalidation hooks, with tests proving that focus, composition, native
-editor availability and registry changes trigger updates. Do not assume a cached
-root renders whenever a child editor changes: inspect the pinned GPUI lifecycle
-and verify that case. No permanent timer or request-next-frame loop is allowed.
-Unchanged snapshots emit nothing; an observation changing a label must settle
-without a render/observation feedback loop. Tree revision changes alone are not
-a reason to emit another identical result.
+Pinned sources: `vendor/gpui/src/window.rs`, `vendor/gpui/src/keymap/context.rs`,
+`vendor/gpui/src/key_dispatch.rs` and
+`vendor/gpui-base/src/input/base/state.rs`.
 
-Carry originating window generation, observer node/handler generation, query
-configuration generation and a monotonically increasing native observation
-version. Track relevant native focus/registry provenance; replace obsolete
-undrained samples with the latest result for the same owner. The native producer
-must verify the owner/configuration still exists before enqueueing. OCaml rejects
-retired/reconfigured owners and out-of-order observations, including delayed events
-after page remount or window close. A stale cached native task must not publish
-into a replacement owner. `Epoch_exhausted` is an explicit terminal state until replacement/remount.
-A native work-budget failure yields `Capacity`, not a false missing binding;
-share/index registry walks rather than rescanning every ancestor per target.
+## Lifetime, bounds and delivery
 
-An observation is a snapshot, not a lock on future keyboard focus. Even a correctly
-fenced result can become historical while crossing the asynchronous bridge.
-Expose/document pending and observation-version semantics, and never use this
-API to bypass current command invocation validation. Scope/configuration changes
-must clear the adapter's old value while awaiting a fresh result; they must not
-silently relabel an old observation as current.
+A query owns its window/node/handler generations. Config changes require a fresh
+handler during atomic native admission and reset the producer epoch. Core rejects
+retired owners, mismatched result provenance, future tree revisions and duplicate
+or out-of-order epochs. Preparing a replacement alone does not mutate accepted
+callback/epoch state. Callback-only changes preserve the native subscription and
+use the latest accepted closure. Removing observer metadata can retain its ordinary
+container and children.
 
-Queued observations use a bounded latest-value lane, without competing away
-lossless command invocations or growing an unbounded per-focus history. Unmount
-and window close remove pending samples and release retained definitions. Hidden
-or retained pages need an explicit pause/recovery rule consistent with the
-repository's visibility semantics. Independent windows must not share results.
+Sampling runs after native paint. Relevant editor/focus/registry changes can cause
+new samples, including child-only editor composition changes. Unchanged results
+are silent even when tree revision changes or a frame is forced. No query timer,
+request-next-frame loop, synchronous OCaml call or command invocation is introduced.
+Hidden/inactive owners report Suspended and recover when rendered again. Epoch
+exhaustion emits the terminal Epoch_exhausted state at Int64.max_value; it never
+wraps. Reconfiguration or remount supplies a new lifetime.
 
+Each window admits at most 64 indexed owners. One sampling pass has 65,536 units
+of registry traversal/candidate work; repeated context walks and chord winners
+share per-pass caches. Budget exhaustion reports Capacity, never false absence.
+GPUI's own native keymap lookup remains native work. Changed native state or query
+configuration can make a later frame fit the budget; no idle retry timer is added.
 
-## Paired data contract
+The mailbox has a separate latest-value class. One undrained result per owner is
+replaced by newer results, without consuming or evicting lossless command-input
+capacity. There is no cross-class chronological guarantee for these replaceable
+snapshots. Config changes/unmount prune old owner/handler output; window destruction,
+close and transport shutdown release pending query samples. Producer admission
+reserves two maximum-size observations (cached and queued) per owner in the existing
+retained-tree/session quota. This is a conservative reservation, not measured RSS.
+The separate mailbox class is additionally bounded by half the 256 MiB session
+quota and at most 32 windows times 64 owners. Typical small results allocate their
+actual data size. Query metadata and results retain no editor draft.
 
-The implemented Core API is [command_binding.mli](../../lib/core/command_binding.mli).
-OCaml and Rust codecs independently validate target uniqueness/context domains,
-positive epochs, candidate priority and enabled-state consistency, result order
-and provenance, and bounded nested allocations. Existing command wire types are
-shared through `Command_wire`; their tags and field order are unchanged.
+## Paired transport
 
-- Context tags: Focused 0, Here 1, Editor 2, Native_context 3.
-- Target tags: Command 0, Native_action 1 (the existing six native edit actions).
-- Entry tags: Missing_command 0, Registry 1, Native_unbound 2,
-  Native_binding 3, Native_unsupported 4.
-- State tags: Ready 0, Suspended 1, Context_gone 2, Invalid_context 3,
-  Epoch_exhausted 4, Capacity 5.
-- Configurations are at most 32 KiB; observations at most 256 KiB. There are at
-  most four candidates per command, eight strokes per native sequence, 256 bytes
-  per native key/command ID and 1024 bytes per native context. Physical modifier
-  bits are Control 1, Alt 2, Shift 4, platform 8 and Function 16.
-- Registry declarations remain distinct from native widget results. Hypothetical
-  contexts report Declared dispositions; Focused applies actual eligibility gates.
-  Ready entries preserve the requested target order exactly. The epoch belongs to
-  a mounted configuration, not a global clock or a future-focus guarantee.
+Capability bit 52 is `CAP_COMMAND_BINDINGS`; the current complete mask is
+`9007199254740991`. The independently specified Hello bytes are:
 
-Independent hex fixtures and malformed-input tests cover both implementations.
-The standalone codecs/data constructors do not advertise a bridge capability,
-mount an observer, register a shortcut or invoke an action.
+- Only binding observations: `0001fc0000000000001000`.
+- Current complete mask: `0001fcffffffffffff1f00`.
 
-Before calling native key-context parsing, use a bounded iterative parser with
-explicit progress and nonempty identifiers/values. The pinned GPUI
-`KeyContext::parse_expr` retries recursively without consuming unsupported
-punctuation; handing arbitrary query text to it is unsafe. Match its valid
-identifier grammar (Unicode alphanumeric, underscore, hyphen), whitespace and
-first-definition-wins semantics using `KeyContext::add`/`set`, and report
-`Invalid_context` for malformed facts. This is a required integration check,
-not an upstream fork change or a claim of an already exposed runtime defect.
+Operation tag 62 is `Set_command_binding (node, config option)`; None clears it.
+Event tag 66 is `Command_binding_observed (window, node, handler, tree_revision,
+observation)`. The setter applies to an ordinary Container; it adds no Kind tag.
+Existing command types are shared through Command_wire without changing their
+serialization. Old capability masks and previous message tags remain unchanged.
 
-## Foundation evidence and remaining delivery
+Context tags are Focused 0, Here 1, Editor 2, Native_context 3. Target tags are
+Command 0 and Native_action 1. Entry tags are Missing_command 0, Registry 1,
+Native_unbound 2, Native_binding 3 and Native_unsupported 4. State tags are Ready 0,
+Suspended 1, Context_gone 2, Invalid_context 3, Epoch_exhausted 4 and Capacity 5.
+
+Configurations are at most 32 KiB; observations at most 256 KiB. There are at most
+four candidates per registry command, eight strokes per native sequence, 256
+bytes per native key/command ID and 1024 bytes per context. Physical modifier bits
+are Control 1, Alt 2, Shift 4, platform 8 and Function 16. Both codecs bound nested
+allocation before admission. Core validates ordered result provenance against the
+specific query before dispatching the callback.
+
+## Evidence and remaining acceptance
 
 Local macOS 14.5 arm64, 2026-09-30:
 
-- Three policy tests cover native-navigation reservations, input/composition
-  gates, physical aliases and routing phase.
-- Three registry tests cover nearest/ordered declarations, disabled and unbound
-  shadowing, siblings, agreement with named lookup, context reparenting, definition
-  replacement and weak-reference payload release. Repeated queries leave tree
-  revision and retained-byte accounting unchanged.
-- The existing command-session test still passes atomic reference and generation
-  guards. The complete native library unit suite passes (416 passed, two ignored).
-- The foreground native-controls fixture passes new unbound shadowing,
-  cross-phase Override, disabled conflicting commands and declaration reorder
-  assertions. A disabled Override lets a different NativeFirst command run; an
-  enabled Override consumes before it, regardless of declaration order. These pass together with its existing command, menu, palette, composition,
-  focus/restoration, independent-window and disposal cases. It uses GPUI-injected
-  keystrokes and native widget/platform adapters; it is not physical-keyboard,
-  real OS IME or VoiceOver qualification.
+- The earlier shared-routing checkpoint passes native command-controls regressions
+  for shadowing, phase precedence, disabled conflicts, reorder and disposal.
+- Seven Core binding tests pass paired data/envelope bytes, malformed payloads,
+  lease/target domains, handler/config/epoch fencing, latest callbacks, preparation
+  isolation, retained children and observer removal.
+- The native unit suite passes 420 tests (two ignored), plus three binding
+  admission/session/work-budget tests, three registry-resolution tests and the
+  existing command-session integration test.
+- The actual-window `native_command_binding` fixture passes native Copy lookup,
+  registry declarations, malformed/valid native facts, exact editor leases,
+  child-driven marked/committed text changes without retained-tree revision or
+  parent refresh, configuration epochs, coalescing, hidden/revealed owners,
+  removed-editor status, silent unchanged frames/idle and undrained-owner cleanup.
+  Its macOS text-client calls are controlled test input, not physical keyboard,
+  real OS IME candidate-window or VoiceOver qualification.
+- The Bonsai value adapter passes configuration changes, A-to-B-to-A revisits,
+  component deactivation/reactivation, stale-effect fencing and preserved child
+  state with both optimization settings.
+- Full Dune build, expect tests and OCaml formatting pass. All 252 Rust protocol
+  tests pass, including independent setter/event/current-capability bytes. The
+  final native non-GUI run passes 433 tests (two ignored), including six session
+  negotiation/queue/lifecycle checks. Strict native Clippy with all test targets
+  and `native-tests`, strict protocol Clippy with all targets, and workspace Rust
+  formatting, pass.
 
-The paired data-model checkpoint additionally passes five Core expect tests and
-five Rust binding tests, the full Rust protocol suite (250 passed), strict
-protocol all-target Clippy, and the complete local Dune build/expect/format suite.
-The independent fixtures cover context/state/disposition tags and cross-language
-bytes; malformed/truncated/trailing data, count/byte/modifier bounds, ordered
-result provenance, disabled/conflict/priority rules, exact eight-stroke and
-64-entry bounds, editor lease isolation and native Unicode/Function display are
-checked. These are local macOS protocol/data tests with no GUI windows; they do
-not validate native sampling, live bridge delivery or Linux desktop behavior.
-
-Commands:
+Commands for this mounted-observer checkpoint (repository isolated toolchain):
 
 ```sh
 GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt
 GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -j2 -p gpuio-protocol --locked
-GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy -j2 -p gpuio-protocol --all-targets --locked -- -D warnings
-GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -j2 -p gpuio-native --lib --test commands --test command_resolution --locked
-GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -j2 -p gpuio-native --features native-tests --test native_controls --no-run --locked
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -j2 -p gpuio-native --lib --test command_binding --test command_resolution --test commands --test session --locked
 GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy -j2 -p gpuio-native --all-targets --features native-tests --locked -- -D warnings
-# Run the resulting native_controls executable under a 240-second process-group watchdog.
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy -j2 -p gpuio-protocol --all-targets --locked -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all -- --check
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -j2 -p gpuio-native --features native-tests --test native_command_binding --no-run --locked --message-format=json
 ```
 
-The final native executable and strict all-target Clippy exited zero; owned test
-children were reaped. Live transport/capability negotiation, native
-observer lifecycle, Core/Bonsai callback/value integration, actual desktop gallery,
-installed consumer and consolidated release evidence are still required. Do not
-mark Kbd source parity, OCH-41 or the milestone complete from this foundation.
-Required Linux build/unit/private-bus/consumer checks remain; full Linux desktop
-qualification stays deferred to OCH-47.
+The local native runner executes the `native_command_binding` compiler artifact
+from the final build under a 120-second process-group watchdog with termination,
+five-second kill escalation and reaping. The equivalent hosted execution is
+checked into the CI workflow with a 90-second bound after compilation.
+
+The native test uses a bounded process-group watchdog and closes its window on
+success or assertion failure. Required macOS CI now includes it; hosted results
+are not implied by these local checks.
+
+Public gallery/independently installed consumer examples, broader native matrices
+(nested/modal/retained-row/independent-window/workload cases), consolidated catalog
+acceptance and all OCH-17 macOS release gates remain required. Linux build/unit/
+private-bus/consumer checks remain required; full Linux desktop qualification is
+still deferred to OCH-47. Do not mark Kbd, OCH-41 or milestone 07 complete from this
+checkpoint.

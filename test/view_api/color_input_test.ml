@@ -260,5 +260,5 @@ let%expect_test "color input capability uses the shared 64-bit handshake" =
   in
   String.iter bytes ~f:(fun byte -> printf "%02x" (Char.to_int byte));
   print_endline "";
-  [%expect {| 0001fcffffffffffff0f00 |}]
+  [%expect {| 0001fcffffffffffff1f00 |}]
 ;;
