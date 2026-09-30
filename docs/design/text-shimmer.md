@@ -1,9 +1,10 @@
 # Text shimmer
 
-OCH-41, implementation in progress. `Text_shimmer` currently supplies validated
-configuration and paired standalone OCaml/Rust codecs. It does **not** yet animate
-a mounted view, add a live bridge operation, or advertise a capability. The
-existing `Loading.Kind.Shimmer` remains a rectangular placeholder effect.
+OCH-41, implementation in progress. `Text_shimmer` supplies validated configuration
+and paired standalone OCaml/Rust codecs. A native glyph painter now has independent
+GPU evidence at fixed phases. It does **not** yet animate a mounted public view,
+add a live bridge operation, or advertise a capability. The existing
+`Loading.Kind.Shimmer` remains a rectangular placeholder effect.
 
 The pinned [component source](../catalog/sources/component-shimmer.rs.txt) is
 gpui-kit `84f57fdfcb4910623fb0bb7f795b077e249f9271`. The snapshot is verified against
@@ -42,15 +43,36 @@ types do not expose generated deserialization as a validation bypass.
 
 ## Native integration requirements
 
-These are implementation requirements, **not completed acceptance**:
+The independent painter wraps `StyledText`, delegates its layout/prepaint/base
+paint, then paints at most twelve clipped monochrome glyph layers. It introduces
+no text copy, hit target, focus owner or callback into OCaml. Shaped visual
+positions drive placement, including RTL runs and soft wraps; color emoji keep
+their original paint. The adapter does not reshape text for each layer.
+
+The default color follows the pinned source's actual premultiplied Oklab policy:
+20% inherited text color and 80% theme foreground (dark) or background (light).
+The combined twelve-layer peak opacity is 0.6 in dark mode and 0.75 in light mode;
+explicit RGBA highlights preserve alpha before this layer weighting. Oklab math
+uses double precision, with clamping only at the final sRGB conversion. The source
+color helper was verified against the pinned archive (SHA-256
+`d3c81fb0fdca3fce797c312addc5afd9767d5985dc56bbf73afecdd0019c4e01`).
+
+Painter admission is all-or-static: at most 16,384 laid-out UTF-8 bytes, 256 logical
+lines and 4,096 shaped glyphs. Exceeding any limit reports Capacity and leaves the
+whole original text unchanged; it never paints a highlighted prefix. These limits
+bound the adapter's work, not the underlying ordinary-text layout or application
+memory. The future public View constructor/bridge must expose validated admission
+and account for simultaneous instances before release. No animation is scheduled
+by this paint-only adapter.
+
+Remaining implementation requirements, **not completed acceptance**:
 
 - Decorate the ordinary text layout so enabling/disabling a title's progress state
   can preserve its native identity, selection and accessible source. It must not
   become a second text node, focus stop or live announcement.
-- Reuse shaped glyph positions and the glyph cache. The source uses twelve soft
-  mask layers; paint must respect clipping, alignment, truncation, wrapping,
-  bidirectional layout, inherited typography and selection precedence. Color
-  emoji must retain their original paint. Do not reshape text on each frame.
+- Preserve the independently tested painter's geometry/clipping when adding the
+  mounted ordinary/selectable-text paths, foreground spans and subtree highlights.
+  Its selection-background pixel test is not real keyboard/clipboard acceptance.
 - Keep animation scheduling in Rust. No frame callback or timer crosses into
   OCaml. Bound work for long labels and many visible simultaneous instances;
   record the chosen admission policy before exposing a View constructor.
@@ -86,3 +108,29 @@ git diff --check
 
 All passed. No GUI window was opened for this configuration-only change. Required
 Linux checks, mounted native acceptance and whole-release CI remain separate.
+
+The subsequent native painter change passes these local commands:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-native -j 2 --lib text_shimmer
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -p gpuio-native -j 2 --lib --features native-image-tests -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-native -j 2 --features native-image-tests --test native_text_shimmer_paint --no-run
+```
+
+The built native executable ran under a 120-second process-group deadline wrapper;
+no timeout occurred. For an ordinary rerun, omit `--no-run` from the last command.
+The fixture opens one background macOS window and closes it on success or caught
+failure. Final local execution returned zero and
+`GPUIO_NATIVE_TEXT_SHIMMER_PAINT_OK`. It covers 24 Latin/Hebrew/Arabic/mixed-direction
+width/alignment cases (narrow cases assert real wrapping), both ellipsis modes,
+ancestor clipping, reversed physical sweep, static/reduced/transparent output,
+empty/emoji-only text, all three capacity bounds, unchanged selection-background
+pixels, and both default theme colors. Comparisons use actual GPU readback:
+highlighted pixels must remain on the original glyphs, with a one-device-pixel
+tolerance for color-dependent raster dilation. Text geometry/source must remain
+identical; static and emoji-only images must be byte-identical. Paint calls are
+bounded by twelve times the admitted glyph count.
+
+These are fixed-phase painter tests, not continuous animation, scheduler/idle,
+public View, OS keyboard/IME, screen-reader or Linux desktop acceptance. The
+source rows remain incomplete until those applicable integration gates pass.

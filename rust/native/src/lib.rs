@@ -86,6 +86,12 @@ mod semantics;
 pub mod session;
 mod style;
 mod styled_text;
+mod text_shimmer_color;
+pub mod text_shimmer_paint;
+#[cfg(feature = "native-image-tests")]
+pub fn run_native_text_shimmer_paint_test() {
+    text_shimmer_paint::native_test::run();
+}
 mod text_projection;
 mod transport;
 pub mod tree;

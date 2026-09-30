@@ -61,3 +61,12 @@ GPUI Kit `84f57fdfcb4910623fb0bb7f795b077e249f9271` and GPUIX
 texts and an exact-source/SHA-256 manifest are retained in that directory. These
 entry-point/contract snapshots support the OCH-41 audit and are not new compiled
 or runtime dependencies.
+
+`rust/native/src/text_shimmer_paint.rs` and `text_shimmer_color.rs` adapt the
+glyph-mask approach and Oklab mixing from that same Longbridge revision's
+`crates/component/src/shimmer.rs` and `theme/color.rs` (copyright 2024–2026
+Longbridge, Apache-2.0). Changes delegate layout to GPUIO's existing StyledText,
+take a native phase sample, validate bounded work, preserve color emoji and
+expose diagnostic paint reports. The original notice/license is retained in
+[`docs/catalog/sources/gpui-kit-LICENSE`](docs/catalog/sources/gpui-kit-LICENSE);
+the shimmer source snapshot is recorded in the adjacent manifest.

@@ -38,9 +38,10 @@ Use typed status and rich slots, with Eio upload/file work owned by the applicat
 Share dashed borders and text shimmer with separator/marker work. Card activation
 needs intentional event/focus/AX semantics alongside independent actions; do not
 relax composed Link's passive-content constraint to admit nested controls.
-The shared [text-shimmer configuration](../design/text-shimmer.md) now has paired,
-validated standalone codecs. Mounted glyph painting, transport and native lifetime
-checks remain pending; this does not complete Attachment or Marker behavior.
+The shared [text-shimmer foundation](../design/text-shimmer.md) now has paired,
+validated standalone codecs and an independently verified native glyph painter.
+Live transport, retained timing and native lifetime checks remain pending; this
+does not complete Attachment or Marker behavior.
 Native acceptance must cover action gaps, keyboard/AX activation, layout/state
 changes, image failure, reduced motion, cancellation/unmount and bounded resources.
 

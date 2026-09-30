@@ -11,6 +11,11 @@ one-shot/loop behavior and optional highlight color. Core/Rust checks cover exac
 bytes, validation and bounded configuration. Mounted glyph animation, bridge
 integration and Attachment/Marker acceptance remain in progress; this is distinct
 from the existing rectangular loading placeholder.
+The native glyph painter now independently passes background GPU checks for
+wrapping, RTL/alignment, start/end ellipses, clipping, reverse direction, emoji,
+static/reduced-motion output, selection backgrounds and both default themes.
+Those fixed-phase checks do not establish a live clock, frame-idle behavior,
+public View integration or keyboard/AX acceptance.
 
 The [finite style-value audit](evidence/style-finite-values-och41.md) now covers
 seven keyword sets with pinned native GPUIX sources. Grid count/minimum and

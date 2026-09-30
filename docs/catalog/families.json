@@ -96,7 +96,7 @@
         "docs/design/text-shimmer.md"
       ],
       "gallery_page": "presentation",
-      "contract": "Native skeleton/spinner/placeholder animation and reduced-motion/static policy; no invented completion value. Glyph shimmer currently has configuration/codecs only; mounted rendering and acceptance remain pending.",
+      "contract": "Native skeleton/spinner/placeholder animation and reduced-motion/static policy; no invented completion value. Glyph shimmer has validated configuration/codecs and an independent native painter; live View integration, retained timing and acceptance remain pending.",
       "upstream_modules": [
         "component/shimmer",
         "component/skeleton",
