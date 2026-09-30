@@ -190,7 +190,9 @@ public editor examples pass native mount-seed behavior and guarded resets.
 Numeric draft/value seeds now support atomic unfinished-draft recovery on remount.
 A dedicated public gallery now passes scoped native editing, responsive identity,
 search/page draft recovery and export failure/cancellation checks. Complete
-reset/field integration and full native acceptance remain unfinished. A fresh
+reset/field edge coverage and full native acceptance remain unfinished. Group
+reset controls, unmounted-editor reset lifetimes, export validation and real
+native Save/Eio readback now pass scoped repository and fresh installed-consumer checks. A fresh
 installed consumer also passes the scoped checks, long-choice keyboard selection
 and Unicode paste; this checkpoint does not establish equivalence.
 

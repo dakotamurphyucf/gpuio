@@ -53,7 +53,7 @@ let%expect_test
   assert (M.custom reset = 0);
   assert (N.Value.equal (M.budget reset) (M.budget M.initial));
   assert (String.equal (N.Draft.to_string (M.budget_draft reset)) "25");
-  assert (not (String.is_substring (M.encode changed) ~substring:"1e-"));
+  assert (not (String.is_substring (M.encode changed |> ok) ~substring:"1e-"));
   print_endline
     "values and drafts survive navigation; disabled resets stay inert; exports contain \
      committed values";
@@ -90,6 +90,9 @@ let%expect_test "invalid typed choices, numeric values and stale reset destinati
     let field = M.Field.of_id (S.Item.id item) |> Option.value_exn in
     assert (S.Item_id.equal (M.Field.id field) (S.Item.id item)));
   assert (List.length fields = 56);
+  let empty_name = apply changed [ Name "   " ] in
+  assert (Or_error.is_error (M.encode empty_name));
+  assert (String.equal (M.name empty_name) "   ");
   print_endline
     "invalid values rejected; stale matching-page reset has no targets; 56 stable typed \
      fields";

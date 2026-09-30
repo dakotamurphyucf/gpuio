@@ -18,8 +18,10 @@ independently of committed values, with codec/admission/native command evidence.
 A dedicated Settings gallery now passes scoped keyboard editing, responsive
 identity, search/page draft recovery and export failure/cancellation checks.
 A fresh installed consumer passes those checks plus long-choice keyboard selection
-and Unicode paste. Complete reset/field integration, native resizing/virtualization
-and the remaining native acceptance cases are still required;
+and Unicode paste. Placement-scoped observations now make unmounted editor resets
+safe; group reset controls, export validation and real native Save/Eio readback
+also pass scoped repository and fresh installed-consumer checks. Native resizing/virtualization, complete
+reset/field edge coverage and the remaining native acceptance cases are still required;
 Settings is not yet a functional-equivalent claim.
 
 The [mounted native binding observer](design/command-binding-observations.md)

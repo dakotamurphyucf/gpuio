@@ -150,6 +150,12 @@ let run ~optimize =
   assert (Panel.Output.active_groups (cycle driver) = 0);
   let output = observe driver [ "Basics" ] in
   assert (!activations = 2);
+  let old_group_reset = click output "Reset group" in
+  ignore (send driver old_group_reset : Panel.Output.t);
+  (match List.hd_exn !resets with
+   | S.Reset_scope.Matching_group group ->
+     assert (S.Group_id.equal group (group_id "Basics"))
+   | _ -> assert false);
   let old_edit = click output "Name:0" in
   let edited = send driver old_edit in
   assert (List.exists (nodes edited) ~f:(fun d -> String.equal d.text "Name:1"));
@@ -215,6 +221,9 @@ let run ~optimize =
   let old_viewport = (list output).on_viewport |> Option.value_exn in
   ignore (send driver (click output "Network") : Panel.Output.t);
   assert (Panel.Output.active_groups (result driver) = 0);
+  let reset_count = List.length !resets in
+  ignore (send driver old_group_reset : Panel.Output.t);
+  assert (List.length !resets = reset_count);
   ignore (send driver (old_viewport (observed [ "Basics" ])) : Panel.Output.t);
   assert (Panel.Output.active_groups (result driver) = 0);
   ignore (observe driver [ "Connection" ] : Panel.Output.t);
@@ -338,6 +347,7 @@ let%expect_test "Settings rejects malformed static and dynamic localized labels"
       ~resize:"Resize"
       ~reset_matches:"Matches"
       ~reset_page:"Page"
+      ~reset_group:"Group"
       ~current_page:"Current page"
       ~current_group:"Current group"
       ~expand:Fn.id

@@ -15,6 +15,7 @@ module Labels : sig
     -> resize:string
     -> reset_matches:string
     -> reset_page:string
+    -> reset_group:string
     -> current_page:string
     -> current_group:string
     -> expand:(string -> string)

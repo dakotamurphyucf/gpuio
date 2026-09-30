@@ -16,8 +16,19 @@ val create
 (** [initial_text] overrides the creation seed for the next native mount only.
     It never replaces a live draft. Use an application-owned value when a field
     can be removed and remounted; validate it for the configured mode first.
-    Selection, IME and undo history do not survive native destruction. *)
-val view : ?style:Gpuio.Style.t -> ?initial_text:string -> t -> Gpuio_bonsai.View.t
+    Selection, IME and undo history do not survive native destruction.
+
+    [on_event] observes native events for this placement, alongside the
+    controller's normal observation/submission handlers. It does not run for
+    command replies: handle those results explicitly. Use the row lifetime to
+    guard this callback when mirroring application drafts from transient rows;
+    a retained controller's last snapshot can outlive its native placement. *)
+val view
+  :  ?style:Gpuio.Style.t
+  -> ?initial_text:string
+  -> ?on_event:(Gpuio.Text_input.Event.t -> unit Bonsai.Effect.t)
+  -> t
+  -> Gpuio_bonsai.View.t
 
 (** Last native observation, absent before the first mount. A stored controller
     may refer to an unmounted lease; commands then return [Stale_editor]. *)

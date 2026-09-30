@@ -58,8 +58,9 @@ val apply : t -> Action.t -> t Or_error.t
 val reset_targets : t -> S.Reset_scope.t -> Field.t list
 val can_reset : t -> Field.t -> bool
 
-(** A versioned preview export of committed application values. Numeric
+(** A versioned preview export of committed application values. Rejects a blank
+    workspace name before the application opens its Save panel or writes a file. Numeric
     draft, native selection/history, search/navigation and busy/error state are
     intentionally excluded. The writer enforces the 64 KiB file limit without discarding larger editor
     drafts. This is an example format, not a framework format. *)
-val encode : t -> string
+val encode : t -> string Or_error.t

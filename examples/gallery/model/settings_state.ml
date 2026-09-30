@@ -272,16 +272,20 @@ let apply t action =
 
 let encode t =
   let v = t.values in
-  Sexp.to_string_hum
-    [%sexp
-      ("gpuio-settings-preview-v1" : string)
-    , (v.name : string)
-    , (v.notifications : bool)
-    , (v.reports : bool)
-    , (v.budget : N.Value.t)
-    , (v.region : int)
-    , (v.model : int)
-    , (v.custom : int)
-    , (Set.to_list v.features : int list)]
-  ^ "\n"
+  if String.is_empty (String.strip v.name)
+  then Or_error.error_string "Enter a workspace name before exporting."
+  else
+    Ok
+      (Sexp.to_string_hum
+         [%sexp
+           ("gpuio-settings-preview-v1" : string)
+         , (v.name : string)
+         , (v.notifications : bool)
+         , (v.reports : bool)
+         , (v.budget : N.Value.t)
+         , (v.region : int)
+         , (v.model : int)
+         , (v.custom : int)
+         , (Set.to_list v.features : int list)]
+       ^ "\n")
 ;;

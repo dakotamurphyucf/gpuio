@@ -33,7 +33,10 @@ without dropping edits. Export is an example format, not an application settings
 service. The focused driver is `python3 scripts/test_gallery.py --section settings`.
 The repository and a fresh installed consumer pass scoped interaction checks,
 including consumer long-choice keyboard selection and Unicode paste.
-Unmounted-editor reset behavior and full native acceptance remain open;
+Whole-page resets now also restore saved values for filtered-out editors; retired
+placements cannot overwrite the new seed. Group resets, export validation and
+actual native Save/Eio readback pass focused checks. Complete field edge coverage
+and full native acceptance remain open;
 see the [Settings contract](../../docs/design/settings-composition.md).
 
 The Presentation page's **A little light, in motion** card demonstrates selectable

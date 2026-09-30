@@ -7,7 +7,8 @@ and lifetime checks pass. Typed field helpers and editor mount-seed primitives
 are implemented. A dedicated public gallery page now exercises native editing,
 responsive identity, search/page draft recovery and export failure/cancellation.
 A fresh installed-library consumer passes the same scoped checks plus long-choice
-keyboard selection and Unicode paste. Complete field/reset integration and wider
+keyboard selection, Unicode paste, group/hidden-editor resets, export validation
+and native Save/Eio readback. Complete field/reset integration and wider
 native acceptance remain required; this is not yet a
 functional-equivalent catalog claim.
 
@@ -274,14 +275,34 @@ values or rebuild the catalog.
 Reset requests resolve against current metadata. Multi-field loops recheck the
 original scope after asynchronous native reads; visible text/number replacements
 also fence native identity and revision, and retain the existing IME rejection.
-**Unfinished case:** an unmounted text/number field currently reports the native
-unavailable/stale error instead of resetting its stored seed. Other eligible fields
-can already have reset; no atomic multi-field reset is promised. Complete this
-case with explicit application/native lifetime fencing before accepting the
-Settings row. Do not silently ignore failed editor resets.
+Unmounted text/number resets now update saved application values directly. They
+use placement lifecycle state, not an arbitrary stale command reply as permission
+to edit data. The runtime triggers the captured placement lifecycles when native
+code acknowledges the candidate tree. An absent placement therefore has no active
+row visit to deliver another draft observation.
+
+`Text_input.view` and `Number_input.view` in Eio now accept placement-local
+`on_event` callbacks alongside their existing controller handlers. The callback
+runs on the native event path; correlated command results remain explicit. The
+gallery mirrors data from these callbacks guarded by the managed-row lifetime,
+rather than watching a retained controller's possibly obsolete last snapshot.
+Its example `Editor_visit` owner also rejects retired visits and older/duplicate
+revisions. Each reactivation allocates a fresh visit that can accept revision zero.
+Native reset replies use the same visit/revision check before updating saved data;
+an old reply cannot overwrite a new visit or later input. Active resets still
+recheck policy/visit after the read and use native lease/revision guards.
+
+The panel now supplies localized **Reset group** buttons. `Labels.create` requires
+`reset_group` in addition to the page labels; update custom label constructors
+accordingly. The button's accessible description names its group. Disabled state
+comes from current `Matching_group` targets, and callbacks carry the group row's
+lifetime. Reset batches collect and report all field errors after processing the
+requested targets; a later success cannot hide an earlier failure. Multi-field
+reset remains non-atomic, including native composition/lease errors.
 
 Export is explicit: the native Save panel selects a destination, then a scoped
-Eio task writes one immutable, versioned example snapshot. The snapshot includes
+Eio task writes one immutable, versioned example snapshot captured at the export
+request. A blank workspace name is rejected before opening the panel or doing I/O. The snapshot includes
 committed numeric values, not the separate draft or native selection/history/IME.
 `examples/gallery/files/settings_file.mli` documents the 64 KiB write bound,
 exclusive temporary sibling, file sync, atomic rename, cleanup and durability
@@ -291,9 +312,11 @@ it does not pretend an OS error occurred. Errors retain application data. Export
 cancellation clears busy state, and retired scopes cannot overwrite a new visit's
 status. This is an example export format, not framework settings persistence.
 
-Two model expect tests cover queued Boolean intents, policy-locked custom actions,
+Model expect tests cover queued Boolean intents, policy-locked custom actions,
 current reset scopes, navigation-independent data/drafts, validated choices and
-56 stable field identities. The filesystem expect test performs actual Eio writes,
+56 stable field identities, blank export rejection and stale/retired editor visits.
+The Bonsai tests now also check group reset targets and silence after retirement.
+The filesystem expect test performs actual Eio writes,
 size-bound rejection, failed destination replacement with original-data retention,
 temporary cleanup and destination-symlink replacement.
 
@@ -304,19 +327,29 @@ and clearing recovery, guarded text reset, injected export failure and native Sa
 panel cancellation/retry. A fresh independent consumer of staged public packages
 passes all of these checks, keyboard End/Return selection of model 249 followed by
 reset to model 0, and actual AppKit clipboard paste of `Aster 京都 👩‍💻` followed
-by guarded reset. The user's original clipboard was restored. Consumer build used
+by guarded reset. The user's original plain-text clipboard contents were restored. Consumer build used
 its own locked native backend and did not install into or change the opam switch.
 
+Expanded repository and fresh installed-consumer runs additionally pass the intended
+group reset while
+preserving another group's dirty model choice, whole-page resets of text and
+numeric fields absent under search, remount with reset values, blank-name export
+rejection without a Save panel, and successful native Save selection followed by
+actual Eio export/readback after prior injected failure/cancellation. The test
+uses a unique `/private/tmp` filename and removes the export afterward. Group
+buttons are selected by their accessibility help text, so navigation timing cannot
+accidentally choose a different identically labelled button.
+
 Multiwindow settings isolation, group eviction/retention, physical split resizing,
-IME and complete reset/export success acceptance remain open. The tests do not
+IME and full disabled/custom/partial-failure reset coverage remain open. The tests do not
 establish those behaviors or whole-application performance.
 
 ```sh
 GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/gallery/main.exe @test/gallery/runtest @examples/gallery/files/test/runtest
 python3 scripts/test_gallery.py --section settings
 GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt
-GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery --workspace /private/tmp/gpuio-settings-gallery-20260930-1
-python3 scripts/test_gallery.py --section settings --executable /private/tmp/gpuio-settings-gallery-20260930-1/consumer/_build/default/main.exe
+GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery --workspace /private/tmp/gpuio-settings-reset-20260930-1
+python3 scripts/test_gallery.py --section settings --executable /private/tmp/gpuio-settings-reset-20260930-1/consumer/_build/default/main.exe
 ```
 
 The filesystem/model tests, full Dune build/expect/format suite, Python driver

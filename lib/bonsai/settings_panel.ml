@@ -21,6 +21,7 @@ module Labels = struct
     ; resize : string
     ; reset_matches : string
     ; reset_page : string
+    ; reset_group : string
     ; current_page : string
     ; current_group : string
     ; expand : string -> string
@@ -40,6 +41,7 @@ module Labels = struct
         ~resize
         ~reset_matches
         ~reset_page
+        ~reset_group
         ~current_page
         ~current_group
         ~expand
@@ -52,6 +54,7 @@ module Labels = struct
         ; resize
         ; reset_matches
         ; reset_page
+        ; reset_group
         ; current_page
         ; current_group
         ]
@@ -63,6 +66,7 @@ module Labels = struct
         ; resize
         ; reset_matches
         ; reset_page
+        ; reset_group
         ; current_page
         ; current_group
         ; expand
@@ -78,6 +82,7 @@ module Labels = struct
       ~resize:"Settings sidebar width"
       ~reset_matches:"Reset matching settings"
       ~reset_page:"Reset entire page"
+      ~reset_group:"Reset group"
       ~current_page:"Current page"
       ~current_group:"Current group"
       ~expand:(fun title -> "Expand " ^ title)
@@ -257,7 +262,7 @@ let component
           ~config:groups
           ~key:(key "settings-groups")
           ~style:(B.return (style [ Grow 1.; Min_height (px 0.); Width full ]))
-          ~render_row:(fun ~key:_ ~data ~lifetime:_ graph ->
+          ~render_row:(fun ~key:_ ~data ~lifetime graph ->
             let items =
               B.map data ~f:(fun group ->
                 String.Map.of_alist_exn
@@ -292,7 +297,10 @@ let component
             and views = views
             and appearance = appearance
             and variant = group_variant
-            and size = size in
+            and size = size
+            and model = model
+            and on_reset = on_reset
+            and lifetime = lifetime in
             let children =
               List.map (S.Group.items data) ~f:(fun item ->
                 Map.find_exn views (S.Item_id.to_string (S.Item.id item)))
@@ -303,11 +311,36 @@ let component
               ~variant
               ~style:(style [ Margin_bottom (px (gap size)) ])
               ~body_style:(style [ Gap (px (gap size)) ])
-              ?header:
-                (Option.some_if
-                   (Option.is_some (S.Group.title data)
-                    || Option.is_some (S.Group.description data))
-                   (heading (S.Group.title data) (S.Group.description data)))
+              ~header:
+                (V.row
+                   ~style:(style [ Gap (px 8.); Align_items Center ])
+                   [ V.column
+                       ~style:(style [ Grow 1.; Min_width (px 0.) ])
+                       [ heading (S.Group.title data) (S.Group.description data) ]
+                   ; (V.button
+                        ~style:(style [ Shrink 0.; Font_size 12.; Padding (px 5.) ])
+                        ~disabled:
+                          (List.is_empty
+                             (S.reset_targets
+                                model
+                                ~scope:(S.Reset_scope.Matching_group (S.Group.id data))))
+                        ~on_click:(fun () ->
+                          Managed_rows.Lifetime.guard
+                            lifetime
+                            (on_reset (S.Reset_scope.Matching_group (S.Group.id data))))
+                        labels.reset_group
+                      |> fun view ->
+                      V.with_accessibility
+                        view
+                        (Gpuio.Accessibility.create
+                           ~description:
+                             (Option.value
+                                (S.Group.title data)
+                                ~default:(S.Group_id.to_string (S.Group.id data)))
+                           ()
+                         |> ok)
+                      |> ok)
+                   ])
               children)
           graph)
       graph

@@ -6,6 +6,7 @@ module V = Gpuio_bonsai.View
 module Panel = Gpuio_bonsai.Settings
 module Model = Gpuio_gallery_model.Settings_state
 module F = Model.Field
+module Visit = Gpuio_gallery_model.Editor_visit
 module Text = Gpuio_eio.Text_input
 module Number = Gpuio_eio.Number_input
 module Scope = Gpuio_eio.Scope
@@ -95,29 +96,42 @@ let component ~save window palette graph =
       graph
   in
   let open B.Let_syntax in
-  (* Read through the controller's generation/revision-checked observation lane.
-     Only text/value changes enter application data; focus/selection stays native. *)
-  B.Edge.on_change
-    (B.map name ~f:Text.snapshot)
-    ~equal:(Option.equal Text_input.Snapshot.equal)
-    ~callback:
-      (B.return (function
-         | None -> E.Ignore
-         | Some snapshot -> action (Model.Action.Name (Text_input.Snapshot.text snapshot))))
-    graph;
-  B.Edge.on_change
-    (B.map number ~f:Number.snapshot)
-    ~equal:(Option.equal Number_input.Snapshot.equal)
-    ~callback:
-      (B.return (function
-         | None -> E.Ignore
-         | Some snapshot ->
-           action
-             (Model.Action.Budget
-                ( Number_input.Snapshot.committed snapshot
-                , Number_input.Draft.of_string (Number_input.Snapshot.draft snapshot)
-                  |> ok ))))
-    graph;
+  let name_visit = ref None in
+  let number_visit = ref None in
+  let mirror_name visit event =
+    E.of_thunk (fun () ->
+      let revision, text =
+        match event with
+        | Text_input.Event.Changed snapshot ->
+          Text_input.Snapshot.revision snapshot, Text_input.Snapshot.text snapshot
+        | Submitted submission ->
+          Text_input.Submission.revision submission, Text_input.Submission.text submission
+      in
+      if Visit.observe visit ~revision:(Text_input.Revision.to_int64 revision)
+      then update (Model.Action.Name text))
+  in
+  let mirror_number visit event =
+    E.of_thunk (fun () ->
+      let snapshot =
+        match event with
+        | Number_input.Event.Observed snapshot
+        | Changed snapshot
+        | Committed (_, snapshot)
+        | Rejected (_, snapshot)
+        | Cancelled (_, snapshot) -> snapshot
+      in
+      if
+        Visit.observe
+          visit
+          ~revision:
+            (Number_input.Revision.to_int64 (Number_input.Snapshot.revision snapshot))
+      then
+        update
+          (Model.Action.Budget
+             ( Number_input.Snapshot.committed snapshot
+             , Number_input.Draft.of_string (Number_input.Snapshot.draft snapshot) |> ok
+             )))
+  in
   B.Edge.on_change
     (B.map search ~f:Text.snapshot)
     ~equal:(Option.equal Text_input.Snapshot.equal)
@@ -146,24 +160,36 @@ let component ~save window palette graph =
       let open E.Let_syntax in
       let%bind allowed = E.of_thunk is_allowed in
       if not allowed
-      then E.Ignore
+      then E.return (Ok ())
       else (
-        match field with
-        | F.Name ->
+        let%bind placement =
+          E.of_thunk (fun () ->
+            match field with
+            | F.Name -> !name_visit
+            | Budget -> !number_visit
+            | Notifications | Reports | Region | Model | Custom | Locked | Feature _ ->
+              None)
+        in
+        match field, placement with
+        | (F.Name | Budget), None -> E.map (action (Reset field)) ~f:(fun () -> Ok ())
+        | F.Name, Some visit ->
           let%bind current = peek_name in
           (match current with
-           | Inactive -> report "The name editor is no longer active."
+           | Inactive -> E.return (Error "The name editor is no longer active.")
            | Active editor ->
              let%bind observed = Text.read_snapshot editor in
              (match observed with
               | Error error ->
-                report
-                  ("Name reset: "
-                   ^ Sexp.to_string (Text_input.Command_error.sexp_of_t error))
+                E.return
+                  (Error
+                     ("Name reset: "
+                      ^ Sexp.to_string (Text_input.Command_error.sexp_of_t error)))
               | Ok expected ->
-                let%bind allowed = E.of_thunk is_allowed in
+                let%bind allowed =
+                  E.of_thunk (fun () -> is_allowed () && Visit.is_active visit)
+                in
                 if not allowed
-                then E.Ignore
+                then E.return (Ok ())
                 else (
                   let%bind result =
                     Text.replace_if_unchanged
@@ -175,25 +201,32 @@ let component ~save window palette graph =
                   in
                   match result with
                   | Error error ->
-                    report
-                      ("Name reset: "
-                       ^ Sexp.to_string (Text_input.Command_error.sexp_of_t error))
-                  | Ok _ -> report "Workspace name reset.")))
-        | Budget ->
+                    E.return
+                      (Error
+                         ("Name reset: "
+                          ^ Sexp.to_string (Text_input.Command_error.sexp_of_t error)))
+                  | Ok snapshot ->
+                    E.map
+                      (mirror_name visit (Text_input.Event.Changed snapshot))
+                      ~f:(fun () -> Ok ()))))
+        | Budget, Some visit ->
           let%bind current = peek_number in
           (match current with
-           | Inactive -> report "The budget editor is no longer active."
+           | Inactive -> E.return (Error "The budget editor is no longer active.")
            | Active editor ->
              let%bind observed = Number.read_snapshot editor in
              (match observed with
               | Error error ->
-                report
-                  ("Budget reset: "
-                   ^ Sexp.to_string (Number_input.Command_error.sexp_of_t error))
+                E.return
+                  (Error
+                     ("Budget reset: "
+                      ^ Sexp.to_string (Number_input.Command_error.sexp_of_t error)))
               | Ok expected ->
-                let%bind allowed = E.of_thunk is_allowed in
+                let%bind allowed =
+                  E.of_thunk (fun () -> is_allowed () && Visit.is_active visit)
+                in
                 if not allowed
-                then E.Ignore
+                then E.return (Ok ())
                 else (
                   let%bind result =
                     Number.replace_value_if_unchanged
@@ -205,21 +238,38 @@ let component ~save window palette graph =
                   in
                   match result with
                   | Error error ->
-                    report
-                      ("Budget reset: "
-                       ^ Sexp.to_string (Number_input.Command_error.sexp_of_t error))
-                  | Ok _ -> report "Response budget reset.")))
-        | Notifications | Reports | Region | Model | Custom | Locked | Feature _ ->
-          action (Reset field))
+                    E.return
+                      (Error
+                         ("Budget reset: "
+                          ^ Sexp.to_string (Number_input.Command_error.sexp_of_t error)))
+                  | Ok snapshot ->
+                    E.map
+                      (mirror_number visit (Number_input.Event.Observed snapshot))
+                      ~f:(fun () -> Ok ()))))
+        | (Notifications | Reports | Region | Model | Custom | Locked | Feature _), _ ->
+          E.map (action (Reset field)) ~f:(fun () -> Ok ()))
+  in
+  let report_resets results =
+    let errors = List.filter_map results ~f:Result.error in
+    report
+      (match errors with
+       | [] -> "Settings reset request completed."
+       | errors -> "Some settings could not be reset: " ^ String.concat ~sep:"; " errors)
   in
   let reset =
     let%arr reset_field = reset_field in
     fun scope ->
-      E.bind
-        (E.of_thunk (fun () -> Model.reset_targets (B.Expert.Var.get data) scope))
-        ~f:(fun fields ->
-          List.fold fields ~init:E.Ignore ~f:(fun prior field ->
-            E.bind prior ~f:(fun () -> reset_field ~scope field)))
+      let open E.Let_syntax in
+      let%bind fields =
+        E.of_thunk (fun () -> Model.reset_targets (B.Expert.Var.get data) scope)
+      in
+      let%bind results =
+        List.fold fields ~init:(E.return []) ~f:(fun prior field ->
+          let%bind results = prior in
+          let%map result = reset_field ~scope field in
+          result :: results)
+      in
+      report_resets (List.rev results)
   in
   let saving_scope =
     Preview_scope.acquire
@@ -233,15 +283,22 @@ let component ~save window palette graph =
   in
   let save_effect scope ~fail =
     let open E.Let_syntax in
-    let%bind admitted =
+    let%bind payload =
       E.of_thunk (fun () ->
-        let admitted = Scope.is_active scope && not (B.Expert.Var.get busy) in
-        if admitted then B.Expert.Var.set busy true;
-        admitted)
+        if (not (Scope.is_active scope)) || B.Expert.Var.get busy
+        then None
+        else (
+          match Model.encode (B.Expert.Var.get data) with
+          | Error error ->
+            B.Expert.Var.set status (Error.to_string_hum error);
+            None
+          | Ok contents ->
+            B.Expert.Var.set busy true;
+            Some contents))
     in
-    if not admitted
-    then E.Ignore
-    else (
+    match payload with
+    | None -> E.Ignore
+    | Some contents ->
       let%bind destination =
         if fail
         then E.return (Ok None)
@@ -270,7 +327,6 @@ let component ~save window palette graph =
         | Ok None when not fail -> E.of_thunk (fun () -> B.Expert.Var.set busy false)
         | Ok path ->
           E.of_thunk (fun () ->
-            let contents = Model.encode (B.Expert.Var.get data) in
             let result =
               Scope.start
                 scope
@@ -294,7 +350,7 @@ let component ~save window palette graph =
             | Ok _ -> ()
             | Error error ->
               B.Expert.Var.set busy false;
-              B.Expert.Var.set status (Error.to_string_hum error))))
+              B.Expert.Var.set status (Error.to_string_hum error)))
   in
   let width, next_width =
     B.state_machine0 ~default_model:false ~apply_action:(fun _ v () -> not v) graph
@@ -351,6 +407,33 @@ let component ~save window palette graph =
                  then "48"
                  else "8"))))
       ~render_item:(fun ~item ~layout ~lifetime graph ->
+        let visit = B.Expert.thunk ~f:Visit.create graph in
+        let placement field =
+          match field with
+          | F.Name -> Some name_visit
+          | Budget -> Some number_visit
+          | Notifications | Reports | Region | Model | Custom | Locked | Feature _ -> None
+        in
+        B.Edge.lifecycle
+          ~on_activate:
+            (let%arr item = item
+             and visit = visit in
+             E.of_thunk (fun () ->
+               Option.iter
+                 (F.of_id (Settings.Item.id item) |> Option.bind ~f:placement)
+                 ~f:(fun owner ->
+                   Visit.activate visit;
+                   owner := Some visit)))
+          ~on_deactivate:
+            (let%arr item = item
+             and visit = visit in
+             E.of_thunk (fun () ->
+               Visit.deactivate visit;
+               Option.iter
+                 (F.of_id (Settings.Item.id item) |> Option.bind ~f:placement)
+                 ~f:(fun owner ->
+                   if Option.exists !owner ~f:(phys_equal visit) then owner := None)))
+          graph;
         let%arr item = item
         and layout = layout
         and lifetime = lifetime
@@ -359,7 +442,8 @@ let component ~save window palette graph =
         and number = number
         and p = palette
         and size = size
-        and reset_field = reset_field in
+        and reset_field = reset_field
+        and visit = visit in
         let guard = Gpuio_bonsai.Managed_rows.Lifetime.guard lifetime in
         let disabled = Settings.Item.is_disabled item in
         let field_kind = F.of_id (Settings.Item.id item) |> Option.value_exn in
@@ -378,7 +462,11 @@ let component ~save window palette graph =
               ~layout
               ~size
               ~control:
-                (Text.view ~style:input_style ~initial_text:(Model.name state) name)
+                (Text.view
+                   ~style:input_style
+                   ~initial_text:(Model.name state)
+                   ~on_event:(fun event -> guard (mirror_name visit event))
+                   name)
               ()
             |> ok
           | Budget ->
@@ -406,6 +494,7 @@ let component ~save window palette graph =
                    ~style:input_style
                    ~initial:(Model.budget state)
                    ~initial_draft:(Model.budget_draft state)
+                   ~on_event:(fun event -> guard (mirror_number visit event))
                    number)
               ()
             |> ok
@@ -488,9 +577,11 @@ let component ~save window palette graph =
               ~accessible_name:("Reset " ^ Settings.Item_id.to_string (F.id field_kind))
               ~on_click:
                 (guard
-                   (reset_field
-                      ~scope:(Settings.Reset_scope.Item (F.id field_kind))
-                      field_kind))
+                   (E.bind
+                      (reset_field
+                         ~scope:(Settings.Reset_scope.Item (F.id field_kind))
+                         field_kind)
+                      ~f:(fun result -> report_resets [ result ])))
               "Reset"
           ])
       graph

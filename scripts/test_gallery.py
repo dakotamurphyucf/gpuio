@@ -5509,6 +5509,43 @@ def exercise_settings(mac, images):
         mac.key(119)  # End reaches the last of 250 virtualized options
         mac.key(36)
         mac.wait_text(TITLE, 'model: 249')
+        activate(mac, mac.wait_find(TITLE, 'Make it yours', 'AXLink'))
+        def group_reset(title):
+            deadline, seen = time.monotonic() + 10, set()
+            def visit(node):
+                if mac.text(node, 'AXRole') == 'AXButton' and mac.text(node, 'AXTitle') == 'Reset group':
+                    help_text = mac.text(node, 'AXHelp')
+                    seen.add(help_text)
+                    if help_text == title:
+                        return mac.retain(node)
+                children = mac.children(node)
+                try:
+                    for child in children:
+                        found = visit(child)
+                        if found:
+                            return found
+                finally:
+                    for child in children:
+                        mac.release(child)
+            while time.monotonic() < deadline:
+                root = mac.window(TITLE)
+                try:
+                    button = visit(root)
+                finally:
+                    mac.release(root)
+                if button:
+                    activate(mac, button)
+                    return
+                time.sleep(.04)
+            raise RuntimeError(f'Group reset for {title!r} was not available; descriptions={seen}')
+        group_reset('Make it yours')
+        expect_field(mac, TITLE, 'Settings workspace name', 'Northstar')
+        mac.wait_text(TITLE, 'model: 249')  # Another group's setting stays changed.
+        focus_gallery_control(mac, 'Settings workspace name', 'AXTextField')
+        mac.key(0, flags=1 << 20)
+        mac.key(0)
+        expect_field(mac, TITLE, 'Settings workspace name', 'a')
+        activate(mac, mac.wait_find(TITLE, 'Generation', 'AXLink'))
         mac.press(TITLE, 'Reset model')
         mac.wait_text(TITLE, 'model: 000')
         # Search removes and remounts whole groups without deleting application drafts.
@@ -5521,11 +5558,43 @@ def exercise_settings(mac, images):
         mac.key(0, flags=1 << 20)
         mac.key(51)  # clear query
         expect_field(mac, TITLE, 'Settings workspace name', 'a')
-        mac.press(TITLE, 'Reset workspace-name')
-        expect_field(mac, TITLE, 'Settings workspace name', 'Northstar')
+        # A whole-page reset must include filtered-out native editor placements.
+        def search_keys(keys):
+            focus_gallery_control(mac, 'Search settings', 'AXTextField')
+            mac.key(0, flags=1 << 20)
+            mac.key(51)
+            for code in keys:
+                mac.key(code)
+        search_keys([11, 32, 2, 5, 14, 17])  # budget
+        wait_absent(mac, 'Settings workspace name', 'AXTextField')
+        mac.press(TITLE, 'Reset entire page')
         mac.wait_text(TITLE, 'Stored name: Northstar')
+        focus_gallery_control(mac, 'Settings response budget', 'AXTextField')
+        mac.key(0, flags=1 << 20)
+        for code in [18, 14, 27]:
+            mac.key(code)  # 1e-
+        expect_field(mac, TITLE, 'Settings response budget', '1e-')
+        search_keys([45, 0, 46, 14])  # name
+        wait_absent(mac, 'Settings response budget', 'AXTextField')
+        mac.press(TITLE, 'Reset entire page')
+        search_keys([])
+        expect_field(mac, TITLE, 'Settings workspace name', 'Northstar')
+        activate(mac, mac.wait_find(TITLE, 'Generation', 'AXLink'))
+        expect_field(mac, TITLE, 'Settings response budget', '25')
+        activate(mac, mac.wait_find(TITLE, 'Make it yours', 'AXLink'))
         mac.press(TITLE, 'Try failed export')
         mac.wait_text(TITLE, 'Export failed: Preview writer is unavailable.')
+        expect_field(mac, TITLE, 'Settings workspace name', 'Northstar')
+        focus_gallery_control(mac, 'Settings workspace name', 'AXTextField')
+        mac.key(0, flags=1 << 20)
+        mac.key(51)
+        expect_field(mac, TITLE, 'Settings workspace name', '')
+        mac.wait_text(TITLE, 'Enter a workspace name.')
+        mac.press(TITLE, 'Export settings…')
+        mac.wait_text(TITLE, 'Enter a workspace name before exporting.')
+        assert not mac.find(TITLE, 'Cancel', 'AXButton'), 'Invalid export opened a Save panel'
+        expect_field(mac, TITLE, 'Settings workspace name', '')
+        mac.press(TITLE, 'Reset workspace-name')
         expect_field(mac, TITLE, 'Settings workspace name', 'Northstar')
         # Paste through AppKit, retaining the user's previous clipboard.
         clipboard_env = dict(os.environ, LANG='en_US.UTF-8', LC_ALL='en_US.UTF-8')
@@ -5547,11 +5616,32 @@ def exercise_settings(mac, images):
         mac.press(TITLE, 'Cancel')
         mac.press(TITLE, 'Try failed export')
         mac.wait_text(TITLE, 'Export failed: Preview writer is unavailable.')
+        # The dialog starts in /tmp. A private random marker reserves the test's
+        # namespace; only our unique sibling export is removed in cleanup.
+        with tempfile.TemporaryDirectory(prefix='gpuio-settings-export-', dir='/private/tmp') as marker:
+            exported = Path(marker).with_suffix('.sexp')
+            assert not exported.exists()
+            try:
+                mac.press(TITLE, 'Export settings…')
+                filename = mac.wait_find(TITLE, 'gpuio-settings.sexp', 'AXTextField')
+                name = mac.string(exported.name)
+                try:
+                    mac.set(filename, 'AXValue', name)
+                finally:
+                    mac.release(name)
+                    mac.release(filename)
+                mac.press(TITLE, 'Save')
+                mac.wait_text(TITLE, 'Preview settings exported.')
+                content = exported.read_text()
+                assert 'gpuio-settings-preview-v1' in content and 'Northstar' in content, content
+                assert '1e-' not in content, 'Uncommitted numeric draft was exported'
+            finally:
+                exported.unlink(missing_ok=True)
         if images:
             screenshot(mac, images / 'gallery-settings.png', title=TITLE)
     finally:
         mac.release(original)
-    print('GALLERY_SETTINGS_OK: keyboard/Unicode edits, responsive identity, variants, page/search draft recovery, long choices, guarded resets, export failure/cancel/retry', flush=True)
+    print('GALLERY_SETTINGS_OK: keyboard/Unicode edits, responsive identity, variants, page/search draft recovery, long choices, group/hidden-editor resets, export validation/failure/cancel/save/readback', flush=True)
 
 def main():
     parser = argparse.ArgumentParser()

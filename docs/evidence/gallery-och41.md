@@ -27,7 +27,12 @@ variants, page/filter draft restoration, numeric Cancel to committed value,
 guarded text reset, injected task failure and native export-dialog cancellation
 with retry. A fresh installed-library consumer also passes these checks, model 249 keyboard
 selection/reset and Unicode clipboard paste. Model and real Eio file-replacement
-expect tests and the full Dune build/expect/format suite pass separately.
+expect tests and the full Dune build/expect/format suite pass separately. The
+expanded repository and fresh installed-consumer runs also pass group reset
+isolation, filtered-out text and
+numeric resets/remounts, blank export rejection, and native Save/Eio readback.
+Placement callbacks are fenced by acknowledged row visits; deterministic tests
+reject retired/older replies and captured group callbacks after retirement.
 The [Settings contract](../design/settings-composition.md#public-gallery-integration-checkpoint--2026-09-30)
 records the exact scope and unfinished reset/native requirements. This
 new focused check does not extend the earlier complete 23-section result into a
