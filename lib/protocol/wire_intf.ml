@@ -30,6 +30,7 @@ module type S = sig
   module Window = Window_wire
   module Desktop = Desktop_wire
   module Notification = Notification_wire
+  module Grid_location = Grid_location_wire
   module Extension = Extension_wire
   module Split = Split_wire
   module Drag_and_drop = Drag_and_drop_wire
@@ -342,6 +343,7 @@ module type S = sig
       | Border_style of int64
       | Aspect_ratio of float
       | Disabled of bool
+      | Grid_location of Grid_location.t
     [@@deriving bin_io, equal, sexp_of]
   end
 

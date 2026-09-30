@@ -20,7 +20,7 @@ fn negotiation_advertises_extended_styles_without_waiving_unknown_bits() {
         CAPABILITIES,
     ] {
         let mut session = Session::default();
-        for invalid in [-1, CAPABILITIES | (1_i64 << 55)] {
+        for invalid in [-1, CAPABILITIES | (1_i64 << 56)] {
             assert_eq!(
                 session.hello(VERSION, invalid),
                 Err(ErrorCode::UnsupportedCapability)

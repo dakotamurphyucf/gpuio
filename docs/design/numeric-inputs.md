@@ -31,7 +31,7 @@ text across row/page removal remains application-owned. Applications should
 decide how to handle an active composition before forcing its field to unmount.
 
 Transport appends Op63 `Set_number_input_draft (node, string option)` and capability
-bit 53 (`CAP_NUMBER_INPUT_DRAFT`); required shared mask is `36028797018963967`.
+bit 53 (`CAP_NUMBER_INPUT_DRAFT`); required shared mask is `72057594037927935`.
 The decoder validates the bounded text, native admission is atomic, and retained
 tree accounting charges the seed bytes. None clears seed metadata; native
 instances already alive ignore such metadata changes. Core sends Some only at
@@ -40,7 +40,7 @@ creation and omits this operation for the ordinary value-only mount path.
 Independent request fixtures use node `(2,3)`, window `(0,1)`, base 0/revision 1:
 `0300010001013f0203010331652d` for draft `1e-`, and `0300010001013f020300` for
 None. Isolated capability Hello is `0001fc0000000000002000`; current full-mask
-Hello is `0001fcffffffffffff7f00`. Existing variant tags are unchanged.
+Hello is `0001fcffffffffffffff00`. Existing variant tags are unchanged.
 
 Local macOS arm64 validation (2026-09-30) passes independent OCaml/Rust request
 fixtures and malformed-input bounds, creation-only reconciliation, atomic native

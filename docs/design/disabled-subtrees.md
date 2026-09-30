@@ -24,9 +24,9 @@ editor identity. Application-originated commands retain each widget's documented
 contract; focus/submit cannot enter disabled content.
 
 The wire addition is Boolean style field 69, negotiated by bit 54
-(`CAP_DISABLED_SUBTREES`). The paired required mask is `36028797018963967`.
+(`CAP_DISABLED_SUBTREES`). The paired required mask is `72057594037927935`.
 Independent Hello bytes are `0001fc0000000000004000` for this bit alone and
-`0001fcffffffffffff7f00` for the complete current mask. Older hosts reject the
+`0001fcffffffffffffff00` for the complete current mask. Older hosts reject the
 required capability rather than silently ignoring this policy.
 Hover/focus/pressed declarations
 reject it atomically, as they do Inert. Rendering visibility stays separate from

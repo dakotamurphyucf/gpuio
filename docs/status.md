@@ -5,6 +5,14 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
 passed on `473407c`; all twelve tickets are Done.
 
+[Typed native grid placement](design/native-grid-location.md) now exposes
+atomic row/column locations with validated signed lines, spans and Auto edges.
+Independent codec/admission checks, full Dune/Rust suites and strict Clippy pass
+locally. A background macOS fixture passes 20 geometry/GPU cases plus native
+hover replacement/restoration, absolute placement, reset and cleanup. This is the
+layout prerequisite for rich Forms; the collection API, public gallery/consumer
+integration and hosted validation remain open.
+
 The [Settings composition](design/settings-composition.md) now supplies bounded
 Core metadata and a controlled Bonsai sidebar, native split, managed groups,
 responsive field layout, rich slots and explicit reset requests. Deterministic

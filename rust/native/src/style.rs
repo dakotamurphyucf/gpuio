@@ -128,6 +128,7 @@ pub fn validate_fields(fields: &[Field]) -> Result<(), ErrorCode> {
                 (1..=1024).contains(v)
             }
             Field::FontWeight(v) => (1..=1000).contains(v),
+            Field::GridLocation(v) => v.valid(),
             Field::AspectRatio(v) => v.is_finite() && (0.000001..=1_000_000.).contains(v),
             Field::Width(v)
             | Field::Height(v)
@@ -282,6 +283,14 @@ fn grid_minimum(value: i64) -> gpui::GridTemplateMinSize {
         _ => unreachable!(),
     }
 }
+fn grid_edge(value: gpuio_protocol::grid_location::Edge) -> gpui::GridPlacement {
+    use gpuio_protocol::grid_location::Edge;
+    match value {
+        Edge::Auto => gpui::GridPlacement::Auto,
+        Edge::Line(line) => gpui::GridPlacement::Line(line as i16),
+        Edge::Span(span) => gpui::GridPlacement::Span(span as u16),
+    }
+}
 fn grid(value: &mut Option<gpui::GridTemplate>) -> &mut gpui::GridTemplate {
     value.get_or_insert(gpui::GridTemplate {
         repeat: 1,
@@ -385,6 +394,12 @@ pub fn refine(style: &mut gpui::StyleRefinement, fields: &[Field]) {
                         .into()
                     }
                 })
+            }
+            Field::GridLocation(v) => {
+                style.grid_location = Some(gpui::GridLocation {
+                    column: grid_edge(v.column.start)..grid_edge(v.column.end),
+                    row: grid_edge(v.row.start)..grid_edge(v.row.end),
+                });
             }
             Field::AspectRatio(v) => style.aspect_ratio = Some(*v as f32),
             Field::Foreground(v) => style.text.color = Some(gpui_color(v)),
@@ -707,6 +722,54 @@ mod tests {
             assert_eq!(style.aspect_ratio, Some(value as f32));
         }
         assert_eq!(gpui::Style::default().aspect_ratio, None);
+    }
+
+    #[test]
+    fn grid_location_refines_both_axes_as_one_value() {
+        use gpuio_protocol::grid_location::{Axis, Edge, Location};
+        let first = Location {
+            column: Axis {
+                start: Edge::Line(1),
+                end: Edge::Line(-1),
+            },
+            row: Axis {
+                start: Edge::Span(3),
+                end: Edge::Span(3),
+            },
+        };
+        let second = Location {
+            column: Axis {
+                start: Edge::Span(2),
+                end: Edge::Span(2),
+            },
+            row: Axis {
+                start: Edge::Auto,
+                end: Edge::Auto,
+            },
+        };
+        let mut style = gpui::StyleRefinement::default();
+        refine(
+            &mut style,
+            &[Field::GridColumns(4), Field::GridLocation(first)],
+        );
+        assert_eq!(
+            style.grid_location.as_ref().unwrap().column,
+            gpui::GridPlacement::Line(1)..gpui::GridPlacement::Line(-1)
+        );
+        assert_eq!(
+            style.grid_location.as_ref().unwrap().row,
+            gpui::GridPlacement::Span(3)..gpui::GridPlacement::Span(3)
+        );
+        refine(&mut style, &[Field::GridLocation(second)]);
+        assert_eq!(
+            style.grid_location.as_ref().unwrap().column,
+            gpui::GridPlacement::Span(2)..gpui::GridPlacement::Span(2)
+        );
+        assert_eq!(
+            style.grid_location.as_ref().unwrap().row,
+            gpui::GridPlacement::Auto..gpui::GridPlacement::Auto
+        );
+        assert_eq!(style.grid_cols.unwrap().repeat, 4);
     }
 
     #[test]

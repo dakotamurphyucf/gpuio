@@ -27,7 +27,7 @@ let%expect_test "composed links require a distinct paired host capability" =
   [%expect
     {|
     0001fc0000000000000100
-    0001fcffffffffffff7f00
+    0001fcffffffffffffff00
     |}]
 ;;
 

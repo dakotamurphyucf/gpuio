@@ -53,6 +53,37 @@ fn finite_grid_and_text_choices_have_stable_ocaml_field_bytes() {
     }
 }
 
+fn invalid_grid_locations() -> impl Iterator<Item = Field> {
+    use gpuio_protocol::grid_location::{Axis, Edge, Location};
+    (0..4).flat_map(|index| {
+        [
+            Edge::Line(0),
+            Edge::Line(-1026),
+            Edge::Line(1026),
+            Edge::Line(i64::MAX),
+            Edge::Span(0),
+            Edge::Span(-1),
+            Edge::Span(1025),
+            Edge::Span(i64::MAX),
+        ]
+        .into_iter()
+        .map(move |bad| {
+            let mut edges = [Edge::Auto; 4];
+            edges[index] = bad;
+            Field::GridLocation(Location {
+                column: Axis {
+                    start: edges[0],
+                    end: edges[1],
+                },
+                row: Axis {
+                    start: edges[2],
+                    end: edges[3],
+                },
+            })
+        })
+    })
+}
+
 #[test]
 fn extended_style_values_validate_before_atomic_publication() {
     assert_eq!(CAPABILITIES & CAP_STYLE_VALUES, 1_i64 << 44);
@@ -144,7 +175,10 @@ fn extended_style_values_validate_before_atomic_publication() {
         Field::AspectRatio(0.),
         Field::AspectRatio(0.0000001),
         Field::AspectRatio(1_000_001.),
-    ] {
+    ]
+    .into_iter()
+    .chain(invalid_grid_locations())
+    {
         assert_eq!(
             session
                 .apply(&Transaction {

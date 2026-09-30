@@ -2574,6 +2574,10 @@ pub(crate) mod styled_text_test;
 pub(crate) mod link_test;
 
 #[cfg(feature = "native-image-tests")]
+#[path = "grid_location_test.rs"]
+pub(crate) mod grid_location_test;
+
+#[cfg(feature = "native-image-tests")]
 #[path = "aspect_ratio_test.rs"]
 pub(crate) mod aspect_ratio_test;
 

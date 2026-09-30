@@ -16,7 +16,7 @@ let%expect_test "disabled subtree capability agrees with the native host" =
   [%expect
     {|
     0001fc0000000000004000
-    0001fcffffffffffff7f00
+    0001fcffffffffffffff00
     |}]
 ;;
 

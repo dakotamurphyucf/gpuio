@@ -575,6 +575,32 @@ impl Decoder<'_> {
             inset: self.boolean()?,
         })
     }
+    fn grid_edge(&mut self) -> Result<crate::grid_location::Edge, DecodeError> {
+        use crate::grid_location::Edge;
+        let edge = match self.tag()? {
+            0 => Edge::Auto,
+            1 => Edge::Line(self.int()?),
+            2 => Edge::Span(self.int()?),
+            _ => return Err(DecodeError::Malformed),
+        };
+        if edge.valid() {
+            Ok(edge)
+        } else {
+            Err(DecodeError::Malformed)
+        }
+    }
+    fn grid_axis(&mut self) -> Result<crate::grid_location::Axis, DecodeError> {
+        Ok(crate::grid_location::Axis {
+            start: self.grid_edge()?,
+            end: self.grid_edge()?,
+        })
+    }
+    fn grid_location(&mut self) -> Result<crate::grid_location::Location, DecodeError> {
+        Ok(crate::grid_location::Location {
+            column: self.grid_axis()?,
+            row: self.grid_axis()?,
+        })
+    }
     fn field(&mut self) -> Result<Field, DecodeError> {
         Ok(match self.tag()? {
             0 => Field::Display(self.int()?),
@@ -647,6 +673,7 @@ impl Decoder<'_> {
             67 => Field::BorderStyle(self.int()?),
             68 => Field::AspectRatio(self.float()?),
             69 => Field::Disabled(self.boolean()?),
+            70 => Field::GridLocation(self.grid_location()?),
             _ => return Err(DecodeError::Malformed),
         })
     }

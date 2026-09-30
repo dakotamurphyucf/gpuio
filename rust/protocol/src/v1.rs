@@ -70,7 +70,10 @@ pub const CAP_COMMAND_BINDINGS: i64 = 1_i64 << 52;
 pub const CAP_NUMBER_INPUT_DRAFT: i64 = 1_i64 << 53;
 /// Inherited native input/focus gating with discoverable disabled semantics.
 pub const CAP_DISABLED_SUBTREES: i64 = 1_i64 << 54;
-pub const CAPABILITIES: i64 = CAP_DISABLED_SUBTREES
+/// Atomic signed-line/span grid placement for both axes.
+pub const CAP_GRID_LOCATION: i64 = 1_i64 << 55;
+pub const CAPABILITIES: i64 = CAP_GRID_LOCATION
+    | CAP_DISABLED_SUBTREES
     | CAP_NUMBER_INPUT_DRAFT
     | CAP_COMMAND_BINDINGS
     | CAP_OPACITY_FACTOR
@@ -394,6 +397,7 @@ pub enum Field {
     BorderStyle(i64),
     AspectRatio(f64),
     Disabled(bool),
+    GridLocation(crate::grid_location::Location),
 }
 
 /// Initial portable refinements; adding tags requires explicit schema review.

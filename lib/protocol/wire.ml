@@ -28,9 +28,10 @@ module Split = Split_wire
 module Extension = Extension_wire
 module Desktop = Desktop_wire
 module Notification = Notification_wire
+module Grid_location = Grid_location_wire
 
 let version = 1L
-let capabilities = 36028797018963967L
+let capabilities = 72057594037927935L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -336,6 +337,7 @@ module Field = struct
     | Border_style of int64
     | Aspect_ratio of float
     | Disabled of bool
+    | Grid_location of Grid_location.t
   [@@deriving bin_io, equal, sexp_of]
 end
 

@@ -360,6 +360,11 @@ pub fn run_native_border_style_test() {
 }
 
 #[cfg(feature = "native-image-tests")]
+pub fn run_native_grid_location_test() {
+    host::grid_location_test::run();
+}
+
+#[cfg(feature = "native-image-tests")]
 pub fn run_native_aspect_ratio_test() {
     host::aspect_ratio_test::run();
 }

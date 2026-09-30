@@ -1,5 +1,6 @@
 open Core
 module Wire = Gpuio_protocol.Wire
+module Grid_location = Grid_location
 
 module Display = struct
   type t =
@@ -326,6 +327,7 @@ module Property = struct
     | Grid_rows of int
     | Grid_column_minimum of Grid_minimum.t
     | Grid_row_minimum of Grid_minimum.t
+    | Grid_location of Grid_location.t
     | Width of Length.t
     | Height of Length.t
     | Aspect_ratio of float
@@ -407,6 +409,7 @@ module Property = struct
         | Grid_rows
         | Grid_column_minimum
         | Grid_row_minimum
+        | Grid_location
         | Width
         | Height
         | Aspect_ratio
@@ -485,6 +488,7 @@ module Property = struct
     | Grid_rows _ -> Name.Grid_rows
     | Grid_column_minimum _ -> Name.Grid_column_minimum
     | Grid_row_minimum _ -> Name.Grid_row_minimum
+    | Grid_location _ -> Name.Grid_location
     | Width _ -> Name.Width
     | Height _ -> Name.Height
     | Aspect_ratio _ -> Name.Aspect_ratio
@@ -588,6 +592,7 @@ module Property = struct
       | Grid_rows v -> v >= 1 && v <= 1024
       | Grid_column_minimum _ -> true
       | Grid_row_minimum _ -> true
+      | Grid_location _ -> true
       | Width v -> length v ~auto:true ~negative:false
       | Height v -> length v ~auto:true ~negative:false
       | Aspect_ratio v -> Float.is_finite v && Float.(v >= 0.000001 && v <= 1_000_000.)
@@ -788,6 +793,8 @@ module Expert = struct
       Ok (Wire.Field.Grid_row_minimum (Grid_minimum.to_int64 v))
     | Property.Width v -> Ok (Wire.Field.Width (Length.Expert.to_wire v))
     | Property.Height v -> Ok (Wire.Field.Height (Length.Expert.to_wire v))
+    | Property.Grid_location v ->
+      Ok (Wire.Field.Grid_location (Grid_location.Expert.to_wire v))
     | Property.Aspect_ratio v -> Ok (Wire.Field.Aspect_ratio v)
     | Property.Min_width v -> Ok (Wire.Field.Min_width (Length.Expert.to_wire v))
     | Property.Min_height v -> Ok (Wire.Field.Min_height (Length.Expert.to_wire v))

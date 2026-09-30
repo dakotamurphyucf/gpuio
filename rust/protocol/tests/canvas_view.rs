@@ -221,6 +221,6 @@ fn canvas_capability_handshake_matches_ocaml_above_signed_32_bit_boundary() {
     let message = Message::Hello(VERSION, CAPABILITIES);
     let bytes = encode(&message);
     let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
-    assert_eq!(hex, "0001fcffffffffffff7f00");
+    assert_eq!(hex, "0001fcffffffffffffff00");
     assert_eq!(decode(&bytes), Ok(message));
 }

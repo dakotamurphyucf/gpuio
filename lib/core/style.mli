@@ -1,4 +1,5 @@
 open Core
+module Grid_location = Grid_location
 
 module Display : sig
   type t =
@@ -208,6 +209,7 @@ module Property : sig
     | Grid_rows of int
     | Grid_column_minimum of Grid_minimum.t
     | Grid_row_minimum of Grid_minimum.t
+    | Grid_location of Grid_location.t
     | Width of Length.t
     | Height of Length.t
     | Aspect_ratio of float
@@ -302,6 +304,7 @@ module Property : sig
       | Grid_rows
       | Grid_column_minimum
       | Grid_row_minimum
+      | Grid_location
       | Width
       | Height
       | Aspect_ratio

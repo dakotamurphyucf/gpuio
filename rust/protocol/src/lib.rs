@@ -33,6 +33,7 @@ pub mod drag_drop;
 pub mod extension;
 pub mod file_dialog;
 pub mod file_path;
+pub mod grid_location;
 pub mod highlight;
 mod id;
 pub mod image;

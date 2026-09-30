@@ -6,12 +6,12 @@ let%expect_test "notification and chart support require the paired M6 backend" =
   let module Bridge = Gpuio_protocol.Wire in
   List.iter [ 4398046511104L; 8796093022208L ] ~f:(fun bit ->
     assert (Int64.equal (Int64.bit_and Bridge.capabilities bit) bit));
-  assert (Int64.equal Bridge.capabilities 36028797018963967L);
+  assert (Int64.equal Bridge.capabilities 72057594037927935L);
   let hello =
     Bridge.Message.encode (Hello (Bridge.version, Bridge.capabilities)) |> Or_error.ok_exn
   in
   String.iter hello ~f:(fun byte -> printf "%02x" (Char.to_int byte));
-  [%expect {| 0001fcffffffffffff7f00 |}]
+  [%expect {| 0001fcffffffffffffff00 |}]
 ;;
 
 let encode writer value = Bin_prot.Utils.bin_dump writer value |> Bigstring.to_string

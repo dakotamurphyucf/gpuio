@@ -52,7 +52,13 @@ Boolean style field 69 `Disabled`. It is base-only and preserves accessible
 roles/names/values while denying native input/focus and accessibility actions.
 An ancestor's true declaration cannot be overridden by a descendant's false.
 See [disabled subtrees](disabled-subtrees.md) for ownership and popup semantics.
-Both language halves require the current shared mask `36028797018963967`;
+Atomic grid placement requires bit 55 (`CAP_GRID_LOCATION`) and appends style
+field 70 `Grid_location`. Its fixed record order is column start/end, then row
+start/end; each edge is Auto tag 0, signed Line tag 1 with an int64, or Span tag 2
+with an int64. Lines are nonzero in -1025..1025; spans are 1..1024. Both axes are
+replaced together, including in interaction states. Malformed endpoints are
+rejected during native decode and again before direct transaction publication.
+Both language halves require the current shared mask `72057594037927935`;
 an older host fails capability negotiation instead of accepting
 unsupported input, commands or style values. Existing style field tags and value
 IDs are unchanged: cursor additions occupy 10–21 and start ellipsis occupies 2.

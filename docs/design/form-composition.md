@@ -1,7 +1,9 @@
 # Rich form composition — OCH-41 design draft
 
-Status: source review and proposed API; **not implemented or accepted**. The
-current `Form.field` helper remains available with its existing contract.
+Status: rich item/collection API **not implemented or accepted**. The
+[grid-location prerequisite](native-grid-location.md) is implemented locally with
+passing native geometry/GPU, Core/codec and full local build/lint checks;
+public integration remains in progress. The current `Form.field` helper retains its existing contract.
 
 ## Pinned source and gap
 
@@ -15,7 +17,7 @@ SHA-256-verified dependency archive; the catalog manifest records each blob.
 | Source behavior | Current GPUIO mapping and required addition |
 | --- | --- |
 | Vertical/horizontal labels, independently of form columns | `Form.field` supports both orientations. Add a collection composition; changing label orientation must not redefine the field grid. |
-| Multiple columns and per-field span/start/end | Not exposed by Form. Native Style currently has column counts but no field grid placement. Choose a coherent validated placement primitive before implementing collection layout; regrouping controls into fresh keyed rows must not destroy native editor identity. |
+| Multiple columns and per-field span/start/end | Not exposed by Form. The new atomic native grid-location primitive supplies spans and signed endpoints; the collection still needs to connect it to typed items. Regrouping controls into fresh keyed rows must not destroy native editor identity. |
 | Rich optional labels/descriptions and arbitrary content | Current helper uses semantic strings and one native field-compatible control. Add rich slots and arbitrary view content without weakening its existing direct control/metadata association. Rust render closures become Bonsai-produced views, never synchronous FFI callbacks. |
 | Label indentation, width, text size and item alignment | Current label width/style can be refined; richer composition needs explicit shared defaults, per-field override rules and behavior for absent labels. |
 | Size-dependent form/field spacing | Define typed size policy, with ordinary style refinements. Exact source pixels are not required; control-specific configuration remains caller-owned. |
@@ -65,7 +67,9 @@ properties. A state-specific location replaces the whole base location; callers
 include both axes when both must be preserved. Removing a state declaration
 reveals the base location. Do not imply CSS-style independent endpoint cascading.
 
-Proposed types, still unimplemented:
+The placement types below now have an implementation; validation status is in
+[the primitive contract](native-grid-location.md). `Line` and `Span` additionally
+provide their conventional `of_int_exn` convenience constructors:
 
 ```ocaml
 module Grid_location : sig
@@ -172,7 +176,8 @@ separate lifecycle tests; no ineffective item `visible` flag is copied.
 Implementation sequence: paired grid-location primitive and native/state-style
 geometry tests; typed item/collection composition and deterministic identity
 checks; public gallery and fresh installed-consumer keyboard/metadata/paint
-acceptance. None of these proposed types is currently exported.
+acceptance. The placement types are exported; rich Form.Item and collection constructors
+remain unimplemented.
 
 ## Acceptance before changing the catalog status
 
