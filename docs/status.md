@@ -17,6 +17,15 @@ composition for 47 more field rows. Independent OCaml/native validation checks
 and atomic rejection pass; specialized-root behavior and release gates remain
 open.
 
+Solid and dashed border patterns now have a typed `Style.Border_style` API and
+negotiated field 67/bit 49. The [border contract](design/native-border-styles.md)
+records paired bytes, atomic invalid-value rejection, state-local resets and
+72 background GPU cases covering widths, radii, resizing and individual edges.
+Native hover/press transitions and idle teardown pass. The public style-gallery
+card also passes 16 normal-launch AX geometry/identity/state cases in both the
+repository app and a fresh installed-library consumer. Empty/Separator/Attachment
+integration and whole-release acceptance remain separate work.
+
 Ordinary two-axis containers now preserve diagonal scrolling. The new native
 [scroll regression](evidence/scrolling-och11.md#milestone-07-parity-two-axis-containers)
 reproduced a dropped Y component and now passes precise/discrete diagonals,

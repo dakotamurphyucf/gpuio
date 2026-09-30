@@ -406,6 +406,7 @@ module type S = sig
       | Accessible_name of string
       | Inert of bool
       | Pointer_occlusion of int64
+      | Border_style of int64
     [@@deriving bin_io, equal, sexp_of]
   end
 

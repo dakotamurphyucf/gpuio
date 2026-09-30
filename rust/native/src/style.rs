@@ -94,7 +94,10 @@ pub fn validate_fields(fields: &[Field]) -> Result<(), ErrorCode> {
     for field in fields {
         let valid = match field {
             Field::Display(v) => (0..=3).contains(v),
-            Field::Visibility(v) | Field::Position(v) | Field::WhiteSpace(v) => (0..=1).contains(v),
+            Field::Visibility(v)
+            | Field::Position(v)
+            | Field::WhiteSpace(v)
+            | Field::BorderStyle(v) => (0..=1).contains(v),
             Field::Direction(v)
             | Field::TextDecoration(v)
             | Field::OverflowX(v)
@@ -381,6 +384,13 @@ pub fn refine(style: &mut gpui::StyleRefinement, fields: &[Field]) {
                 style.corner_radii.bottom_right = Some(px(*v as f32).into())
             }
             Field::BorderColor(v) => style.border_color = Some(gpui_color(v)),
+            Field::BorderStyle(v) => {
+                style.border_style = Some(match v {
+                    0 => gpui::BorderStyle::Solid,
+                    1 => gpui::BorderStyle::Dashed,
+                    _ => unreachable!("validated border style"),
+                });
+            }
             Field::Shadows(shadows) => {
                 style.box_shadow = Some(
                     shadows
@@ -700,6 +710,37 @@ mod tests {
             refine(&mut style, &fields);
             assert_eq!(style.mouse_cursor, Some(expected), "cursor {value}");
         }
+    }
+
+    #[test]
+    fn border_pattern_replacement_keeps_widths_and_color() {
+        let mut style = gpui::StyleRefinement::default();
+        assert_eq!(style.border_style, None);
+        refine(
+            &mut style,
+            &[
+                Field::BorderTopWidth(3.),
+                Field::BorderColor(Color::Rgba(0x00ff00ff)),
+            ],
+        );
+        let widths = style.border_widths.clone();
+        let color = style.border_color;
+        for (value, expected) in [
+            (1, gpui::BorderStyle::Dashed),
+            (0, gpui::BorderStyle::Solid),
+            (1, gpui::BorderStyle::Dashed),
+        ] {
+            let fields = [Field::BorderStyle(value)];
+            validate_fields(&fields).unwrap();
+            refine(&mut style, &fields);
+            assert_eq!(style.border_style, Some(expected));
+            assert_eq!(style.border_widths, widths);
+            assert_eq!(style.border_color, color);
+        }
+        assert_eq!(
+            gpui::Style::default().border_style,
+            gpui::BorderStyle::Solid
+        );
     }
 
     #[test]

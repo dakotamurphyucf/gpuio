@@ -64,7 +64,9 @@ The original configuration-only checkpoint added no opcode, node kind or
 capability. The subsequent development implementation appends Link kind 51 and
 Set_link operation 60. That development checkpoint left capabilities unchanged.
 With native content and nested-focus validation complete, `CAP_LINKS` is now bit 48,
-and the paired current mask is `562949953421311`. Required-mask Hello fixtures in
+and its introduction used paired mask `562949953421311`. The current mask,
+including subsequent features, is specified in [bridge-v1.md](bridge-v1.md).
+Required-mask Hello fixtures in
 OCaml and Rust cover both Link alone and the full current feature set. An older
 host rejects the new required bit; older operation tags remain unchanged. This
 pre-release bridge still carries no general mixed-version compatibility promise.
@@ -397,9 +399,9 @@ OCH-17 release gates are recorded separately and remain distinct from these nati
 regression results.
 
 
-## Capability and independent-consumer checkpoint
+## Capability and independent-consumer checkpoint — `586b3ec`
 
-Composed links now advertise bit 48 (`CAP_LINKS`). The current shared mask is
+At this checkpoint, composed links advertised bit 48 (`CAP_LINKS`). The shared mask was
 `562949953421311`. Independent OCaml/Rust Hello fixtures cover Link alone
 (`0001fc0000000000000100`) and all required features
 (`0001fcffffffffffff0100`). Session tests reject negative and unknown masks without
@@ -436,3 +438,14 @@ cause is established. They are **not passes**, and prior repository-gallery/nati
 checks are not substitutes for this installed-consumer check. The runner now
 reports actual/expected owning PIDs and AX statuses on pointer-occlusion failures.
 Both source Link rows, combined consumer/CI and OCH-17 release gates remain open.
+
+
+A subsequent fresh consumer with the border-style addition builds and passes its
+focused border gallery. Its Link run identifies Chrome as the covering process
+at a pointer-occlusion failure. The reveal helper now raises the gallery before
+each desktop-pointer action group, without requesting target-leaf focus; the owner
+guard still rejects unrelated windows. The next attempt completes 37 activations,
+then loses the gallery window before the 38th observation. This remains an
+incomplete Link run, with no established cause for the window's disappearance.
+The independent Link acceptance rows remain pending; the passing border check
+is not substituted for them.

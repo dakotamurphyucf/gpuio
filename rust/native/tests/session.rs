@@ -8,10 +8,10 @@ fn window(g: i64) -> WindowId {
 }
 
 #[test]
-fn link_negotiation_advertises_support_without_waiving_unknown_bits() {
-    for required in [CAP_LINKS, CAPABILITIES] {
+fn negotiation_advertises_links_and_borders_without_waiving_unknown_bits() {
+    for required in [CAP_LINKS, CAP_BORDER_STYLES, CAPABILITIES] {
         let mut session = Session::default();
-        for invalid in [-1, CAPABILITIES | (1_i64 << 49)] {
+        for invalid in [-1, CAPABILITIES | (1_i64 << 50)] {
             assert_eq!(
                 session.hello(VERSION, invalid),
                 Err(ErrorCode::UnsupportedCapability)

@@ -62,7 +62,10 @@ pub const CAP_POINTER_OCCLUSION: i64 = 1_i64 << 46;
 pub const CAP_STYLED_TEXT: i64 = 1_i64 << 47;
 /// Composed passive-content links with one native action/focus owner.
 pub const CAP_LINKS: i64 = 1_i64 << 48;
-pub const CAPABILITIES: i64 = CAP_LINKS
+/// Native solid/dashed border refinements, including state layers.
+pub const CAP_BORDER_STYLES: i64 = 1_i64 << 49;
+pub const CAPABILITIES: i64 = CAP_BORDER_STYLES
+    | CAP_LINKS
     | CAP_STYLED_TEXT
     | CAP_POINTER_OCCLUSION
     | CAP_INPUT_REGIONS
@@ -377,6 +380,7 @@ pub enum Field {
     AccessibleName(String),
     Inert(bool),
     PointerOcclusion(i64),
+    BorderStyle(i64),
 }
 
 /// Initial portable refinements; adding tags requires explicit schema review.

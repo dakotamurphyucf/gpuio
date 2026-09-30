@@ -189,6 +189,18 @@ module Text_decoration = struct
   ;;
 end
 
+module Border_style = struct
+  type t =
+    | Solid
+    | Dashed
+  [@@deriving equal, sexp_of]
+
+  let to_int64 = function
+    | Solid -> 0L
+    | Dashed -> 1L
+  ;;
+end
+
 module Overflow = struct
   type t =
     | Visible
@@ -345,6 +357,7 @@ module Property = struct
     | Bottom_left_radius of float
     | Bottom_right_radius of float
     | Border_color of Color.t
+    | Border_style of Border_style.t
     | Shadows of Shadow.t list
     | Font_size of float
     | Font_family of string
@@ -423,6 +436,7 @@ module Property = struct
         | Bottom_left_radius
         | Bottom_right_radius
         | Border_color
+        | Border_style
         | Shadows
         | Font_size
         | Font_family
@@ -498,6 +512,7 @@ module Property = struct
     | Bottom_left_radius _ -> Name.Bottom_left_radius
     | Bottom_right_radius _ -> Name.Bottom_right_radius
     | Border_color _ -> Name.Border_color
+    | Border_style _ -> Name.Border_style
     | Shadows _ -> Name.Shadows
     | Font_size _ -> Name.Font_size
     | Font_family _ -> Name.Font_family
@@ -597,7 +612,7 @@ module Property = struct
       | Top_right_radius v -> nonnegative v
       | Bottom_left_radius v -> nonnegative v
       | Bottom_right_radius v -> nonnegative v
-      | Border_color _ -> true
+      | Border_color _ | Border_style _ -> true
       | Shadows v -> List.length v <= 8
       | Font_size v -> nonnegative v && Float.(v > 0.)
       | Font_family v -> (not (String.is_empty v)) && String.length v <= 256
@@ -799,6 +814,7 @@ module Expert = struct
     | Property.Border_color v ->
       let%map.Or_error v = color theme v in
       Wire.Field.Border_color v
+    | Property.Border_style v -> Ok (Wire.Field.Border_style (Border_style.to_int64 v))
     | Property.Shadows v ->
       let%map.Or_error v = List.map v ~f:(shadow theme) |> Or_error.all in
       Wire.Field.Shadows v

@@ -98,6 +98,10 @@ def exercise(mac, images):
 
 
 def reveal_gallery_control(mac, label, role):
+    # This helper sends desktop pointer events. Re-establish window ownership
+    # for each action group; raising does not request focus on the target leaf.
+    # The owner guard below still rejects occlusion before sending a click/wheel.
+    raise_gallery(mac)
     mouse = GalleryMouse(mac)
     window = mac.window(TITLE)
     try:
@@ -2850,6 +2854,57 @@ def exercise_motion(mac, images, second_title=SECOND):
           'sequence, cancellation/reverse, reduced endpoints, shared phase and departure', flush=True)
 
 
+def exercise_borders(mac, images):
+    """AX-driven public style updates; no foreground keyboard/focus claim."""
+    mac.press(TITLE, 'Styling details')
+    label = 'Border preview surface'
+    original = mac.wait_find(TITLE, label, 'AXGroup')
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    button = mac.find(TITLE, 'Dark', 'AXButton')
+    current, alternate = ('Dark', 'Light') if button else ('Light', 'Dark')
+    if button:
+        mac.release(button)
+    cases = 0
+    try:
+        for theme in (current, alternate):
+            for pattern in ('dashed', 'solid'):
+                for width in (1, 4):
+                    for corners in ('rounded', 'square'):
+                        mac.wait_text(TITLE, f'Border: {pattern} · {width} px · {corners}')
+                        node = mac.wait_find(TITLE, label, 'AXGroup')
+                        try:
+                            assert equal(original, node), 'Restyle replaced border preview identity'
+                            _, _, w, h = element_rect(mac, node)
+                            assert abs(w - 340) < 1 and abs(h - 90) < 1, (w, h)
+                        finally:
+                            mac.release(node)
+                        cases += 1
+                        mac.press(TITLE, 'Change border corners')
+                    mac.press(TITLE, 'Change border weight')
+                mac.press(TITLE, 'Change border pattern')
+            mac.press(TITLE, theme)
+            mac.release(mac.wait_find(TITLE, alternate if theme == current else current, 'AXButton'))
+        mac.press(TITLE, 'Change border pattern')
+        mac.press(TITLE, 'Change border weight')
+        mac.press(TITLE, 'Change border corners')
+        selected = 'Border: solid · 4 px · square'
+        mac.wait_text(TITLE, selected)
+        mac.press(TITLE, 'Presentation')
+        mac.wait_text(TITLE, 'A little context goes a long way')
+        absent(mac, label, 'AXGroup')
+        mac.press(TITLE, 'Styling details')
+        mac.wait_text(TITLE, selected)
+        # Restore defaults so repeated use within the complete gallery remains
+        # independent of which focused section was exercised first.
+        for control in ('pattern', 'weight', 'corners'):
+            mac.press(TITLE, f'Change border {control}')
+        mac.wait_text(TITLE, 'Border: dashed · 1 px · rounded')
+    finally:
+        mac.release(original)
+    print(f'GALLERY_BORDERS_OK: {cases} theme/pattern/width/radius cases, native AX identity and geometry, retained page state, unmount/remount; GPU pattern evidence is native_border_style', flush=True)
+
+
 def exercise_styles(mac, images):
     mac.press(TITLE, 'Styling details')
     mac.wait_text(TITLE, 'Text preview width: 250')
@@ -2911,6 +2966,7 @@ def exercise_styles(mac, images):
         mac.wait_text(TITLE, 'Cursor 2 of 22: Text')
         mac.wait_text(TITLE, 'Text preview width: 140')
         mac.wait_text(TITLE, 'Interpolation: Oklab')
+    exercise_borders(mac, images)
     print('GALLERY_STYLES_OK: all22 cursor configurations, keyboard/theme/size/visit retention, '
           'sRGB/Oklab gradient restyle, three bounded text samples with complete accessible source; physical cursor artwork is not asserted', flush=True)
 
@@ -2993,9 +3049,10 @@ def main():
     parser.add_argument('--images', type=Path)
     parser.add_argument('--executable', type=Path,
                         help='Run an independently built gallery instead of the repository executable')
+    parser.add_argument('--background', action='store_true', help='Launch without focus; input scenarios may explicitly raise the window')
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'groups', 'links', 'empty', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'groups', 'links', 'empty', 'styles', 'borders', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -3006,6 +3063,7 @@ def main():
     with tempfile.TemporaryFile(mode='w+') as log:
         executable = args.executable.resolve() if args.executable else repo / '_build/default/examples/gallery/main.exe'
         child = subprocess.Popen([str(executable),
+                                  *(['--background'] if args.background else []),
                                   *(['--trace-canvas'] if args.trace_canvas else []),
                                   *(['--trace-motion'] if args.trace_motion else []),
                                   *(['--trace-input'] if args.section in ('all', 'input') else []),
@@ -3028,6 +3086,8 @@ def main():
                 exercise_badges(mac, args.images)
             if args.section == 'status-regions':
                 exercise_status_regions(mac, args.images)
+            if args.section == 'borders':
+                exercise_borders(mac, args.images)
             if args.section in ('all', 'styles'):
                 exercise_styles(mac, args.images)
             if args.section in ('all', 'pickers'):
@@ -3101,7 +3161,7 @@ def main():
             verify_extension_lifetimes(output)
         if args.section in ('all', 'input'):
             verify_input_transfers(output)
-    print(f'GPUIO_GALLERY_AX_OK: section={args.section}, native actions, state semantics, focus and shutdown')
+    print(f'GPUIO_GALLERY_AX_OK: section={args.section}, native actions, state semantics and shutdown')
 
 
 if __name__ == '__main__':

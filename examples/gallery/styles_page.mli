@@ -1,4 +1,4 @@
-(** Typed cursor vocabulary and clipped/end/start-truncated native text. The
+(** Typed cursor vocabulary, border patterns and clipped/end/start-truncated native text. The
     complete source remains the accessible label. Controls preserve the preview
     choice across page visits and require no per-frame OCaml work. *)
 val component

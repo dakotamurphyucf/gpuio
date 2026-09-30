@@ -234,3 +234,11 @@ raster media. A checkbox keeps its Bonsai model as neighboring slots change;
 removing its own content slot retires the native control. Run the focused native
 check with `python3 scripts/test_gallery.py --section empty`. The root is borderless
 by default; the shared dashed-border extension remains pending.
+
+
+The Styling details page includes solid/dashed borders with independent weight
+and corner controls. `python3 scripts/test_gallery.py --section borders` exercises
+that card's theme, native identity/geometry and retained page state; the separate
+`native_border_style` target verifies GPU patterns, state refinements and teardown.
+`--background` avoids focus on launch where the platform exposes a usable window;
+it does not make keyboard/IME or desktop-pointer checks background-safe.

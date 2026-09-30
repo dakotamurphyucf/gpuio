@@ -43,6 +43,9 @@ let component palette graph =
   in
   let narrow, toggle_width = B.toggle ~default_model:false graph in
   let oklab, toggle_space = B.toggle ~default_model:false graph in
+  let dashed, toggle_pattern = B.toggle ~default_model:true graph in
+  let thick, toggle_stroke = B.toggle ~default_model:false graph in
+  let rounded, toggle_corners = B.toggle ~default_model:true graph in
   let open B.Let_syntax in
   let%arr p = palette
   and index = index
@@ -50,7 +53,13 @@ let component palette graph =
   and narrow = narrow
   and toggle_width = toggle_width
   and oklab = oklab
-  and toggle_space = toggle_space in
+  and toggle_space = toggle_space
+  and dashed = dashed
+  and toggle_pattern = toggle_pattern
+  and thick = thick
+  and toggle_stroke = toggle_stroke
+  and rounded = rounded
+  and toggle_corners = toggle_corners in
   let label, cursor = cursors.(index) in
   let width = if narrow then 140. else 250. in
   let sample label overflow =
@@ -132,6 +141,47 @@ let component palette graph =
             ~muted:true
             "Cursor artwork follows the platform. Column and horizontal resize share a \
              shape on macOS, as do row and vertical resize."
+        ]
+    ; Palette.card
+        p
+        ~title:"A boundary with character"
+        [ Palette.text
+            p
+            ~muted:true
+            "Solid or dashed. Subtle or bold. Borders keep their shape as your layout \
+             changes."
+        ; V.row
+            ~style:(style [ Gap (px 12.); Wrap Wrap ])
+            [ Palette.button p "Change border pattern" toggle_pattern
+            ; Palette.button p "Change border weight" toggle_stroke
+            ; Palette.button p "Change border corners" toggle_corners
+            ]
+        ; Palette.text
+            p
+            (sprintf
+               "Border: %s · %d px · %s"
+               (if dashed then "dashed" else "solid")
+               (if thick then 4 else 1)
+               (if rounded then "rounded" else "square"))
+        ; (V.column
+             ~key:(Key.of_string_exn "border-preview")
+             ~style:
+               (style
+                  [ Width (px 340.)
+                  ; Height (px 90.)
+                  ; Padding (px 20.)
+                  ; Border_width (if thick then 4. else 1.)
+                  ; Border_style (if dashed then Dashed else Solid)
+                  ; Border_color (Palette.accent p)
+                  ; Radius (if rounded then 16. else 0.)
+                  ; Background (Background.solid (Palette.background p))
+                  ])
+             [ Palette.text p "A place for your next idea" ]
+           |> fun view ->
+           V.with_accessibility
+             view
+             (Accessibility.create ~role:Group ~label:"Border preview surface" () |> ok)
+           |> ok)
         ]
     ; Palette.card
         p

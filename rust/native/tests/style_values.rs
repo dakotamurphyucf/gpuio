@@ -97,6 +97,7 @@ fn extended_style_values_validate_before_atomic_publication() {
                         Field::Position(value % 2),
                         Field::TextAlign(value % 3),
                         Field::UserSelect(value % 2 == 0),
+                        Field::BorderStyle(value % 2),
                     ])],
                 )],
             })
@@ -133,6 +134,9 @@ fn extended_style_values_validate_before_atomic_publication() {
         Field::Position(2),
         Field::TextAlign(-1),
         Field::TextAlign(3),
+        Field::BorderStyle(-1),
+        Field::BorderStyle(2),
+        Field::BorderStyle(i64::MAX),
     ] {
         assert_eq!(
             session

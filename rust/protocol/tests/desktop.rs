@@ -202,7 +202,7 @@ fn desktop_capability_uses_a_new_bit_and_round_trips_the_current_handshake() {
         v1::{CAP_DESKTOP, CAPABILITIES, Message, VERSION},
     };
     assert_eq!(CAPABILITIES & CAP_DESKTOP, 1_i64 << 41);
-    assert_eq!(CAPABILITIES, 562_949_953_421_311);
+    assert_eq!(CAPABILITIES, 1_125_899_906_842_623);
     let hello = Message::Hello(VERSION, CAPABILITIES);
     assert_eq!(decode(&encode(&hello)).unwrap(), hello);
 }

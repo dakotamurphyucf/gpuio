@@ -278,5 +278,5 @@ let%expect_test "query capability handshake above 32 bits" =
   let bytes = Wire.Message.encode (Hello (Wire.version, Wire.capabilities)) |> ok in
   String.iter bytes ~f:(fun byte -> printf "%02x" (Char.to_int byte));
   print_endline "";
-  [%expect {| 0001fcffffffffffff0100 |}]
+  [%expect {| 0001fcffffffffffff0300 |}]
 ;;

@@ -2501,3 +2501,7 @@ pub(crate) mod styled_text_test;
 #[cfg(feature = "native-image-tests")]
 #[path = "link_test.rs"]
 pub(crate) mod link_test;
+
+#[cfg(feature = "native-image-tests")]
+#[path = "border_style_test.rs"]
+pub(crate) mod border_style_test;

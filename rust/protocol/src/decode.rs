@@ -639,6 +639,7 @@ impl Decoder<'_> {
             64 => Field::AccessibleName(self.text()?),
             65 => Field::Inert(self.boolean()?),
             66 => Field::PointerOcclusion(self.int()?),
+            67 => Field::BorderStyle(self.int()?),
             _ => return Err(DecodeError::Malformed),
         })
     }

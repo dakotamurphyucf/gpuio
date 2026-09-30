@@ -106,6 +106,16 @@ module Text_decoration : sig
   [@@deriving equal, sexp_of]
 end
 
+(** Native border pattern. Widths and color remain independent properties;
+    zero-width borders remain invisible. Dash spacing and rounded-corner
+    treatment follow GPUI, with no application-owned timer or geometry cache. *)
+module Border_style : sig
+  type t =
+    | Solid
+    | Dashed
+  [@@deriving equal, sexp_of]
+end
+
 (** [Scroll] enables native scrolling on the declared axis. Ordinary containers
     with both axes scrollable preserve diagonal movement; a single-axis
     container does not translate wheel input from the other axis. Consumed
@@ -229,6 +239,7 @@ module Property : sig
     | Bottom_left_radius of float
     | Bottom_right_radius of float
     | Border_color of Color.t
+    | Border_style of Border_style.t
     | Shadows of Shadow.t list
     | Font_size of float
     | Font_family of string
@@ -311,6 +322,7 @@ module Property : sig
       | Bottom_left_radius
       | Bottom_right_radius
       | Border_color
+      | Border_style
       | Shadows
       | Font_size
       | Font_family
